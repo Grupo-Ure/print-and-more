@@ -1,0 +1,1354 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { COPY_SHOP_TYPS, COPY_SHOP_TYPS_ANZEIGE, type CopyShopDetailJson } from '../../types/copyshop'
+import { BROS_DIN, FALZ_DIN, KARTE_DIN, KARTE_FORMAT_ORDER, FALZ_FORMAT_ORDER, BROSCH_FORMAT_ORDER } from '../../lib/copyshop/dinKfbFormate'
+import { validateCopyShopDetail } from '../../lib/copyshop/validateCopyShopDetail'
+import type { AuftragStatus, TeilauftragRow } from '../../types/database'
+import { MaterialCC } from './copyshop/MaterialCC'
+import { MaterialOffset } from './copyshop/MaterialOffset'
+import '../WorkArea.css'
+
+type Props = {
+  teil: TeilauftragRow
+  teilStatus: AuftragStatus
+  onDetailPatch: (patch: { typ?: string | null; detail: CopyShopDetailJson | null }) => Promise<void>
+}
+
+function copyRoh(teil: TeilauftragRow): CopyShopDetailJson {
+  const d = teil.detail
+  return d && typeof d === 'object' && !Array.isArray(d) ? { ...d } : {}
+}
+
+/** PLAKAT: DIN-Hochformat, Breite × Höhe (mm) */
+const PLAKAT_DIN: Record<'A0' | 'A1' | 'A2' | 'A3' | 'A4', { b: number; h: number }> = {
+  A4: { b: 210, h: 297 },
+  A3: { b: 297, h: 420 },
+  A2: { b: 420, h: 594 },
+  A1: { b: 594, h: 841 },
+  A0: { b: 841, h: 1189 },
+}
+
+const PLAKAT_DEFAULT: CopyShopDetailJson = {
+  format: 'A1',
+  format_breite: 594,
+  format_hoehe: 841,
+}
+
+const KARTE_FALZ_MAT_NULL: CopyShopDetailJson = {
+  material_cc: null,
+  material_cc_sonstige: null,
+  offset_art: null,
+  offset_grammatur: null,
+  offset_oberflaeche: null,
+  spezial_papier: null,
+  spezial_sonstige: null,
+  kaschierung: null,
+  kaschierung_seiten: null,
+  recycling_grammatur: null,
+}
+
+const BROSCH_MAT_NULL: CopyShopDetailJson = {
+  ...KARTE_FALZ_MAT_NULL,
+  cc_umschlag: null,
+  cc_umschlag_sonstige: null,
+  cc_inhalt: null,
+  cc_inhalt_sonstige: null,
+  brosch_bindung: null,
+  brosch_u_gramm: null,
+  brosch_u_ober: null,
+  brosch_i_gramm: null,
+  brosch_i_ober: null,
+}
+
+type BlK = {
+  d: CopyShopDetailJson
+  fe: (k: string) => string
+  pruef: boolean
+  f: Record<string, string>
+  patchL: (p: CopyShopDetailJson) => void
+  commit: () => void
+  speichDetail: (d: CopyShopDetailJson) => void
+}
+
+export function CopyShopDetail({ teil, teilStatus, onDetailPatch }: Props) {
+  const [typ, setTyp] = useState<string | null>(teil.typ)
+  const [detail, setDetail] = useState<CopyShopDetailJson>(copyRoh(teil))
+  const detailR = useRef(detail)
+  const typR = useRef(typ)
+  useEffect(() => {
+    detailR.current = detail
+  }, [detail])
+  useEffect(() => {
+    typR.current = typ
+  }, [typ])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Eltern-Teil ersetzt
+    setTyp(teil.typ)
+    setDetail(copyRoh(teil))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teil.id, teil.typ, teil.detail])
+
+  const fehler = validateCopyShopDetail(typ, detail, teilStatus)
+  const pruef = teilStatus !== 'ANGEBOT'
+  const fe = (k: string) => (pruef && fehler[k] ? ' ber-inp--err' : '')
+
+  const speich = useCallback(
+    async (nextTyp: string | null, d: CopyShopDetailJson) => {
+      setDetail(d)
+      detailR.current = d
+      setTyp(nextTyp)
+      await onDetailPatch({ typ: nextTyp, detail: d })
+    },
+    [onDetailPatch]
+  )
+
+  const patchL = useCallback((p: CopyShopDetailJson) => {
+    setDetail(d0 => {
+      const n = { ...d0, ...p }
+      detailR.current = n
+      return n
+    })
+  }, [])
+
+  const commit = useCallback(() => {
+    void speich(typR.current, { ...detailR.current })
+  }, [speich])
+
+  const speichDetail = useCallback(
+    (d: CopyShopDetailJson) => {
+      setDetail(d)
+      detailR.current = d
+      void speich(typR.current, d)
+    },
+    [speich]
+  )
+
+  const p: BlK = { d: detail, fe, pruef, f: fehler, patchL, commit, speichDetail }
+
+  useEffect(() => {
+    if (typ !== 'BINDUNG') return
+    const d0 = detailR.current
+    const r = d0 as Record<string, string | number | null | boolean | undefined>
+    const ba = String(r.bindungsart ?? '')
+    if (ba === 'SOFTCOVER' || ba === 'HARDCOVER') {
+      if (r.format === 'A4_HOCH') {
+        speichDetail({
+          ...d0,
+          format: 'A4',
+          orientierung: 'HOCHFORMAT',
+          format_breite: 210,
+          format_hoehe: 297,
+        } as CopyShopDetailJson)
+        return
+      }
+      if (
+        r.format !== 'A4' ||
+        r.orientierung !== 'HOCHFORMAT' ||
+        r.format_breite !== 210 ||
+        r.format_hoehe !== 297
+      ) {
+        speichDetail({
+          ...d0,
+          format: 'A4',
+          orientierung: 'HOCHFORMAT',
+          format_breite: 210,
+          format_hoehe: 297,
+        } as CopyShopDetailJson)
+      }
+    } else if (ba === 'WIRE_O' || ba === 'KUNSTSTOFFSPIRALE') {
+      const ffmt = String(r.format ?? '')
+      const mapLeg: Record<string, { format: string; orientierung: string }> = {
+        A5_HOCH: { format: 'A5', orientierung: 'HOCHFORMAT' },
+        A4_HOCH: { format: 'A4', orientierung: 'HOCHFORMAT' },
+        A3_QUER: { format: 'A3', orientierung: 'QUERFORMAT' },
+      }
+      if (ffmt in mapLeg) {
+        const m = mapLeg[ffmt]!
+        speichDetail({ ...d0, format: m.format, orientierung: m.orientierung } as CopyShopDetailJson)
+        return
+      }
+      if (ffmt === 'A3' && r.orientierung !== 'QUERFORMAT') {
+        speichDetail({ ...d0, orientierung: 'QUERFORMAT' } as CopyShopDetailJson)
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typ, teil.id, teil.detail, speichDetail])
+
+  useEffect(() => {
+    if (typ !== 'PLAKAT_POSTER') return
+    const d0 = detailR.current
+    const f = String((d0 as Record<string, string>).format ?? '').trim()
+    if (!f) {
+      speichDetail({ ...d0, ...PLAKAT_DEFAULT } as CopyShopDetailJson)
+      return
+    }
+    if (f !== 'FREI' && f in PLAKAT_DIN) {
+      const dim = PLAKAT_DIN[f as keyof typeof PLAKAT_DIN]
+      const b = d0.format_breite
+      const h = d0.format_hoehe
+      if (b !== dim.b || h !== dim.h) {
+        speichDetail({ ...d0, format: f, format_breite: dim.b, format_hoehe: dim.h } as CopyShopDetailJson)
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- PLAKAT: fehlendes format / DIN-Maße
+  }, [typ, teil.id, teil.detail, speichDetail])
+
+  useEffect(() => {
+    if (typ === 'KARTE_FLYER') {
+      const d0 = detailR.current
+      const fmt = String((d0 as Record<string, string>).format ?? '').trim()
+      if (fmt && fmt !== 'FREI' && fmt in KARTE_DIN) {
+        const dim = KARTE_DIN[fmt as keyof typeof KARTE_DIN]
+        if (d0.format_breite !== dim.b || d0.format_hoehe !== dim.h) {
+          speichDetail({ ...d0, format: fmt, format_breite: dim.b, format_hoehe: dim.h } as CopyShopDetailJson)
+        }
+      }
+    } else if (typ === 'FALZFLYER') {
+      const d0 = detailR.current
+      const fmt = String((d0 as Record<string, string>).format ?? '').trim()
+      if (fmt && fmt !== 'FREI' && fmt in FALZ_DIN) {
+        const dim = FALZ_DIN[fmt as keyof typeof FALZ_DIN]
+        if (d0.format_breite !== dim.b || d0.format_hoehe !== dim.h) {
+          speichDetail({ ...d0, format: fmt, format_breite: dim.b, format_hoehe: dim.h } as CopyShopDetailJson)
+        }
+      }
+    } else if (typ === 'BROSCHUERE') {
+      const d0 = detailR.current
+      const fmt = String((d0 as Record<string, string>).format ?? '').trim()
+      if (fmt && fmt !== 'FREI' && fmt in BROS_DIN) {
+        const dim = BROS_DIN[fmt as keyof typeof BROS_DIN]
+        if (d0.format_breite !== dim.b || d0.format_hoehe !== dim.h) {
+          speichDetail({ ...d0, format: fmt, format_breite: dim.b, format_hoehe: dim.h } as CopyShopDetailJson)
+        }
+      }
+      if (String(d0.produktionsweg) === 'CC' && d0.brosch_bindung !== 'DRAHTHEFTUNG') {
+        speichDetail({ ...d0, brosch_bindung: 'DRAHTHEFTUNG' } as CopyShopDetailJson)
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typ, teil.id, teil.detail, speichDetail])
+
+  return (
+    <div className="ber-lfp">
+      <h3 className="ber-h3">Copy-Shop-Details</h3>
+
+      <BerZeile
+        l="Typ"
+        e={pruef && fehler.typ ? fehler.typ : undefined}
+        c={
+          <select
+            className={'ber-inp' + fe('typ')}
+            value={typ ?? ''}
+            onChange={e => {
+              const v = e.target.value
+              if (v !== (typ ?? '')) {
+                if (v === 'PLAKAT_POSTER') {
+                  setTyp('PLAKAT_POSTER')
+                  setDetail(PLAKAT_DEFAULT)
+                  detailR.current = PLAKAT_DEFAULT
+                  typR.current = 'PLAKAT_POSTER'
+                  void speich('PLAKAT_POSTER', { ...PLAKAT_DEFAULT } as CopyShopDetailJson)
+                } else {
+                  setTyp(v || null)
+                  setDetail({})
+                  detailR.current = {}
+                  typR.current = v || null
+                  void speich(v || null, {})
+                }
+              } else {
+                setTyp(v || null)
+                typR.current = v || null
+              }
+            }}
+          >
+            <option value="">—</option>
+            {COPY_SHOP_TYPS.map(x => (
+              <option key={x} value={x}>
+                {COPY_SHOP_TYPS_ANZEIGE[x]}
+              </option>
+            ))}
+          </select>
+        }
+      />
+
+      <NmbStueckzahl {...p} />
+      {typ &&
+        typ !== 'PLAKAT_POSTER' &&
+        typ !== 'AUSDRUCK' &&
+        typ !== 'KARTE_FLYER' &&
+        typ !== 'FALZFLYER' &&
+        typ !== 'BROSCHUERE' &&
+        typ !== 'VISITENKARTE' &&
+        typ !== 'BINDUNG' && <ProduktionswegSel {...p} />}
+
+      {typ === 'PLAKAT_POSTER' && <PlakatPoster {...p} />}
+      {typ === 'KARTE_FLYER' && <KarteFlyer {...p} />}
+      {typ === 'FALZFLYER' && <Falzflyer {...p} />}
+      {typ === 'BROSCHUERE' && <Broschuere {...p} />}
+      {typ === 'VISITENKARTE' && <Visitenkarte {...p} />}
+      {typ === 'BINDUNG' && <BindungF {...p} />}
+      {typ === 'AUSDRUCK' && <AusdruckF {...p} />}
+    </div>
+  )
+}
+
+function BerZeile({ l, c, e, children }: { l: string; c?: React.ReactNode; e?: string; children?: React.ReactNode }) {
+  const inhalt = c ?? children
+  return (
+    <div className="ber-zeile">
+      <span className="ber-lbl">{l}</span>
+      <div>
+        {inhalt}
+        {e && <p className="ber-err">{e}</p>}
+      </div>
+    </div>
+  )
+}
+
+function NmbStueckzahl(a: BlK) {
+  const { d, fe, f, pruef, patchL, commit } = a
+  const val = d.stueckzahl
+  const s = val === null || val === undefined ? '' : String(val)
+  return (
+    <BerZeile l="Stückzahl" e={pruef && f.stueckzahl ? f.stueckzahl : undefined}>
+      <input
+        type="number"
+        className={'ber-inp' + fe('stueckzahl')}
+        min={1}
+        step={1}
+        value={s}
+        onChange={e => {
+          const raw = e.target.value
+          patchL({
+            stueckzahl: raw === '' ? null : parseInt(raw, 10),
+          } as CopyShopDetailJson)
+        }}
+        onBlur={commit}
+      />
+    </BerZeile>
+  )
+}
+
+function ProduktionswegSel(a: BlK) {
+  const { d, fe, f, pruef, patchL, commit } = a
+  const v = (d.produktionsweg as string | null | undefined) ?? ''
+  return (
+    <BerZeile l="Produktionsweg" e={pruef && f.produktionsweg ? f.produktionsweg : undefined}>
+      <select
+        className={'ber-inp' + fe('produktionsweg')}
+        value={v}
+        onChange={e => {
+          const x = e.target.value
+          patchL({ produktionsweg: x === '' ? null : x } as CopyShopDetailJson)
+        }}
+        onBlur={commit}
+      >
+        <option value="">—</option>
+        <option value="COPYSHOP">Copy-Shop</option>
+        <option value="OFFSET">Offset</option>
+      </select>
+    </BerZeile>
+  )
+}
+
+function SelB(
+  a: BlK & { k: string; l?: string; o: { v: string; t: string }[] },
+) {
+  const { k, o, d, fe, f, pruef, patchL, commit, l: lb } = a
+  return (
+    <BerZeile l={lb ?? k} e={pruef ? f[k] : undefined}>
+      <select
+        className={'ber-inp' + fe(k)}
+        value={String((d as Record<string, string>)[k] ?? '')}
+        onChange={e => patchL({ [k]: e.target.value } as CopyShopDetailJson)}
+        onBlur={commit}
+      >
+        <option value="">—</option>
+        {o.map(x => (
+          <option key={x.v} value={x.v}>
+            {x.t}
+          </option>
+        ))}
+      </select>
+    </BerZeile>
+  )
+}
+
+function boolSel(a: BlK & { k: string; l?: string }) {
+  const { k, d, fe, f, pruef, patchL, commit, l: lb } = a
+  const v = (d as Record<string, unknown>)[k]
+  const s = v === true ? 'true' : v === false ? 'false' : ''
+  return (
+    <BerZeile l={lb ?? k} e={pruef ? f[k] : undefined}>
+      <select
+        className={'ber-inp' + fe(k)}
+        value={s}
+        onChange={e => {
+          const t = e.target.value
+          const b: true | false | undefined = t === 'true' ? true : t === 'false' ? false : undefined
+          patchL({ [k]: b } as CopyShopDetailJson)
+        }}
+        onBlur={commit}
+      >
+        <option value="">—</option>
+        <option value="true">Ja</option>
+        <option value="false">Nein</option>
+      </select>
+    </BerZeile>
+  )
+}
+
+function Txt(
+  a: BlK & { k: string; l: string; rows?: number },
+) {
+  const { k, l, d, fe, f, pruef, patchL, commit, rows = 1 } = a
+  const val = String((d as Record<string, string>)[k] ?? '')
+  return (
+    <BerZeile l={l} e={pruef ? f[k] : undefined}>
+      {rows > 1 ? (
+        <textarea
+          className={'ber-inp ber-ta' + fe(k)}
+          rows={rows}
+          value={val}
+          onChange={e => patchL({ [k]: e.target.value } as CopyShopDetailJson)}
+          onBlur={commit}
+        />
+      ) : (
+        <input
+          type="text"
+          className={'ber-inp' + fe(k)}
+          value={val}
+          onChange={e => patchL({ [k]: e.target.value } as CopyShopDetailJson)}
+          onBlur={commit}
+        />
+      )}
+    </BerZeile>
+  )
+}
+
+function MasseHoeheBreite(p: BlK) {
+  const { d, fe, f, pruef, patchL, commit } = p
+  const msg = pruef ? f.format_masse : undefined
+  const b = d.format_breite
+  const h = d.format_hoehe
+  const sb = b === null || b === undefined ? '' : String(b)
+  const sh = h === null || h === undefined ? '' : String(h)
+  return (
+    <div>
+      <div className="ber-zeile">
+        <span className="ber-lbl">Format Breite (mm)</span>
+        <div>
+          <input
+            type="number"
+            className={'ber-inp' + fe('format_masse')}
+            min={0.01}
+            step={0.01}
+            value={sb}
+            onChange={e => {
+              const raw = e.target.value
+              patchL({
+                format_breite: raw === '' ? null : parseFloat(raw),
+              } as CopyShopDetailJson)
+            }}
+            onBlur={commit}
+          />
+        </div>
+      </div>
+      <div className="ber-zeile">
+        <span className="ber-lbl">Format Höhe (mm)</span>
+        <div>
+          <input
+            type="number"
+            className={'ber-inp' + fe('format_masse')}
+            min={0.01}
+            step={0.01}
+            value={sh}
+            onChange={e => {
+              const raw = e.target.value
+              patchL({
+                format_hoehe: raw === '' ? null : parseFloat(raw),
+              } as CopyShopDetailJson)
+            }}
+            onBlur={commit}
+          />
+        </div>
+      </div>
+      {msg && <p className="ber-err ber-err--mass">{msg}</p>}
+    </div>
+  )
+}
+
+function BesonderheitenUnten(p: BlK) {
+  return <Txt {...p} k="besonderheiten" l="Besonderheiten" rows={3} />
+}
+
+function PlakatPoster(p: BlK) {
+  const { d, fe, f, pruef, speichDetail } = p
+  const fmt = String((d as Record<string, string>).format ?? '')
+  return (
+    <>
+      <BerZeile l="Format" e={pruef && f.format ? f.format : undefined}>
+        <select
+          className={'ber-inp' + fe('format')}
+          value={fmt}
+          onChange={e => {
+            const v = e.target.value
+            if (v === 'FREI') {
+              speichDetail({ ...d, format: 'FREI' } as CopyShopDetailJson)
+            } else if (v in PLAKAT_DIN) {
+              const dim = PLAKAT_DIN[v as keyof typeof PLAKAT_DIN]
+              speichDetail({
+                ...d,
+                format: v,
+                format_breite: dim.b,
+                format_hoehe: dim.h,
+              } as CopyShopDetailJson)
+            } else {
+              speichDetail({ ...d, format: v || null } as CopyShopDetailJson)
+            }
+          }}
+        >
+          <option value="">—</option>
+          {(['A4', 'A3', 'A2', 'A1', 'A0'] as const).map(x => {
+            const dim = PLAKAT_DIN[x]
+            return (
+              <option key={x} value={x}>
+                {x} ({dim.b}×{dim.h} mm)
+              </option>
+            )
+          })}
+          <option value="FREI">Frei</option>
+        </select>
+      </BerZeile>
+      <SelB
+        {...p}
+        k="material"
+        l="Material"
+        o={[
+          { v: '120G_AFFICHEN', t: '120g Affichen' },
+          { v: '200G_SEIDENGLANZ', t: '200g Seidenglanz' },
+          { v: '200G_GLANZ', t: '200g Glanz' },
+        ]}
+      />
+      <SelB
+        {...p}
+        k="laminat"
+        l="Laminat"
+        o={[
+          { v: 'NEIN', t: 'Nein' },
+          { v: 'MATT', t: 'Matt' },
+          { v: 'GLAENZEND', t: 'Glänzend' },
+        ]}
+      />
+      {fmt === 'FREI' && <MasseHoeheBreite {...p} />}
+      <BesonderheitenUnten {...p} />
+    </>
+  )
+}
+
+function KfbFormatFeld(q: {
+  blk: BlK
+  din: Record<string, { b: number; h: number }>
+  order: readonly string[]
+}) {
+  const { blk, din, order } = q
+  const { d, fe, f, pruef, speichDetail } = blk
+  const fmt = String((d as Record<string, string>).format ?? '')
+  return (
+    <BerZeile l="Format" e={pruef && f.format ? f.format : undefined}>
+      <select
+        className={'ber-inp' + fe('format')}
+        value={fmt}
+        onChange={e => {
+          const v = e.target.value
+          if (v === 'FREI') speichDetail({ ...d, format: 'FREI' } as CopyShopDetailJson)
+          else if (v in din) {
+            const dim = din[v]!
+            speichDetail({
+              ...d,
+              format: v,
+              format_breite: dim.b,
+              format_hoehe: dim.h,
+            } as CopyShopDetailJson)
+          } else {
+            speichDetail({ ...d, format: v || null } as CopyShopDetailJson)
+          }
+        }}
+      >
+        <option value="">—</option>
+        {order.map(k => {
+          if (k === 'FREI') {
+            return (
+              <option key="FREI" value="FREI">
+                Frei
+              </option>
+            )
+          }
+          const dim = din[k]
+          if (!dim) return null
+          return (
+            <option key={k} value={k}>
+              {k} ({dim.b}×{dim.h} mm)
+            </option>
+          )
+        })}
+      </select>
+    </BerZeile>
+  )
+}
+
+function KfbPwgKarteFalz({ blk }: { blk: BlK }) {
+  const { d, fe, f, pruef, speichDetail } = blk
+  const v = String((d as Record<string, string>).produktionsweg ?? '')
+  return (
+    <BerZeile l="Produktionsweg" e={pruef && f.produktionsweg ? f.produktionsweg : undefined}>
+      <select
+        className={'ber-inp' + fe('produktionsweg')}
+        value={v}
+        onChange={e => {
+          const x = e.target.value
+          speichDetail({
+            ...d,
+            produktionsweg: x || null,
+            ...KARTE_FALZ_MAT_NULL,
+          } as CopyShopDetailJson)
+        }}
+      >
+        <option value="">—</option>
+        <option value="CC">CC</option>
+        <option value="OFFSET">Offset</option>
+        <option value="OFFEN">Offen</option>
+      </select>
+    </BerZeile>
+  )
+}
+
+function BrosPwgWahl({ blk }: { blk: BlK }) {
+  const { d, fe, f, pruef, speichDetail } = blk
+  const v = String((d as Record<string, string>).produktionsweg ?? '')
+  return (
+    <BerZeile l="Produktionsweg" e={pruef && f.produktionsweg ? f.produktionsweg : undefined}>
+      <select
+        className={'ber-inp' + fe('produktionsweg')}
+        value={v}
+        onChange={e => {
+          const x = e.target.value
+          if (x === 'CC') {
+            speichDetail({
+              ...d,
+              produktionsweg: 'CC',
+              ...BROSCH_MAT_NULL,
+              brosch_bindung: 'DRAHTHEFTUNG',
+            } as CopyShopDetailJson)
+          } else {
+            speichDetail({
+              ...d,
+              produktionsweg: x || null,
+              ...BROSCH_MAT_NULL,
+            } as CopyShopDetailJson)
+          }
+        }}
+      >
+        <option value="">—</option>
+        <option value="CC">CC</option>
+        <option value="OFFSET">Offset</option>
+        <option value="OFFEN">Offen</option>
+      </select>
+    </BerZeile>
+  )
+}
+
+function BroschOffsetOffenForm(p: BlK) {
+  return (
+    <>
+      <SelB
+        {...p}
+        k="brosch_bindung"
+        l="Bindung"
+        o={[
+          { v: 'DRAHTHEFTUNG', t: 'Drahtheftung' },
+          { v: 'RINGSÖSEN', t: 'Ringsösen' },
+          { v: 'KLEBEBINDUNG', t: 'Klebebindung' },
+          { v: 'SPIRALBINDUNG', t: 'Spiralbindung' },
+        ]}
+      />
+      <SelB
+        {...p}
+        k="brosch_u_gramm"
+        l="Umschlag Grammatur"
+        o={['135G', '170G', '250G', '300G'].map(x => ({ v: x, t: x }))}
+      />
+      <SelB
+        {...p}
+        k="brosch_u_ober"
+        l="Umschlag Oberfläche"
+        o={[
+          { v: 'MATT', t: 'Matt' },
+          { v: 'GLAENZEND', t: 'Glänzend' },
+        ]}
+      />
+      <SelB
+        {...p}
+        k="brosch_i_gramm"
+        l="Inhalt Grammatur"
+        o={['90G', '135G', '170G'].map(x => ({ v: x, t: x }))}
+      />
+      <SelB
+        {...p}
+        k="brosch_i_ober"
+        l="Inhalt Oberfläche"
+        o={[
+          { v: 'MATT', t: 'Matt' },
+          { v: 'GLAENZEND', t: 'Glänzend' },
+        ]}
+      />
+    </>
+  )
+}
+
+function NmbFalzSeite(p: BlK) {
+  const { d, fe, f, pruef, patchL, commit } = p
+  const val = d.seitenzahl
+  const s = val == null || val === undefined ? '' : String(val)
+  return (
+    <BerZeile l="Seitenzahl" e={pruef && f.seitenzahl ? f.seitenzahl : undefined}>
+      <input
+        type="number"
+        className={'ber-inp' + fe('seitenzahl')}
+        min={2}
+        max={100}
+        step={2}
+        value={s}
+        onChange={e => {
+          const raw = e.target.value
+          if (raw === '') {
+            patchL({ seitenzahl: null } as CopyShopDetailJson)
+            return
+          }
+          let n = parseInt(raw, 10)
+          if (Number.isNaN(n)) return
+          n = Math.max(2, Math.min(100, n))
+          if (n % 2 !== 0) n = n - 1
+          if (n < 2) n = 2
+          patchL({ seitenzahl: n } as CopyShopDetailJson)
+        }}
+        onBlur={commit}
+      />
+    </BerZeile>
+  )
+}
+
+function NmbBroschSeite(p: BlK) {
+  const { d, fe, f, pruef, patchL, commit } = p
+  const val = d.seitenzahl
+  const s = val == null || val === undefined ? '' : String(val)
+  return (
+    <BerZeile l="Seitenzahl" e={pruef && f.seitenzahl ? f.seitenzahl : undefined}>
+      <input
+        type="number"
+        className={'ber-inp' + fe('seitenzahl')}
+        min={4}
+        max={152}
+        step={4}
+        value={s}
+        onChange={e => {
+          const raw = e.target.value
+          if (raw === '') {
+            patchL({ seitenzahl: null } as CopyShopDetailJson)
+            return
+          }
+          let n = parseInt(raw, 10)
+          if (Number.isNaN(n)) return
+          n = Math.max(4, Math.min(152, n))
+          n = n - (n % 4)
+          if (n < 4) n = 4
+          patchL({ seitenzahl: n } as CopyShopDetailJson)
+        }}
+        onBlur={commit}
+      />
+    </BerZeile>
+  )
+}
+
+function KarteFlyer(p: BlK) {
+  const { d } = p
+  const r = d as Record<string, string>
+  const pwg = String(r.produktionsweg ?? '')
+  return (
+    <>
+      <SelB
+        {...p}
+        k="farbigkeit"
+        l="Farbigkeit"
+        o={[
+          { v: '1_0', t: '1/0' },
+          { v: '1_1', t: '1/1' },
+          { v: '4_0', t: '4/0' },
+          { v: '4_4', t: '4/4' },
+        ]}
+      />
+      <KfbFormatFeld din={KARTE_DIN} order={KARTE_FORMAT_ORDER} blk={p} />
+      {String(r.format) === 'FREI' && <MasseHoeheBreite {...p} />}
+      {boolSel({ ...p, k: 'randabfallend', l: 'Randabfallend' })}
+      <KfbPwgKarteFalz blk={p} />
+      {pwg === 'CC' && (
+        <MaterialCC
+          d={d}
+          fe={p.fe}
+          f={p.f}
+          pruef={p.pruef}
+          patchL={p.patchL}
+          commit={p.commit}
+          kMat="material_cc"
+          kSon="material_cc_sonstige"
+          label="Material"
+        />
+      )}
+      {pwg === 'OFFSET' && <MaterialOffset {...p} speichDetail={p.speichDetail} />}
+      <BesonderheitenUnten {...p} />
+    </>
+  )
+}
+
+function Falzflyer(p: BlK) {
+  const { d } = p
+  const r = d as Record<string, string>
+  const pwg = String(r.produktionsweg ?? '')
+  return (
+    <>
+      <SelB
+        {...p}
+        k="farbigkeit"
+        l="Farbigkeit"
+        o={[
+          { v: '1_1', t: '1/1' },
+          { v: '4_4', t: '4/4' },
+        ]}
+      />
+      <SelB
+        {...p}
+        k="falzart"
+        l="Falzart"
+        o={[
+          { v: 'MITTELFALZ', t: 'Mittelfalz' },
+          { v: 'WICKELFALZ', t: 'Wickelfalz' },
+          { v: 'ZICKZACK', t: 'Zick-Zack-Falz' },
+        ]}
+      />
+      <KfbFormatFeld din={FALZ_DIN as Record<string, { b: number; h: number }>} order={FALZ_FORMAT_ORDER} blk={p} />
+      {String(r.format) === 'FREI' && <MasseHoeheBreite {...p} />}
+      <NmbFalzSeite {...p} />
+      {boolSel({ ...p, k: 'randabfallend', l: 'Randabfallend' })}
+      <KfbPwgKarteFalz blk={p} />
+      {pwg === 'CC' && (
+        <MaterialCC
+          d={d}
+          fe={p.fe}
+          f={p.f}
+          pruef={p.pruef}
+          patchL={p.patchL}
+          commit={p.commit}
+          kMat="material_cc"
+          kSon="material_cc_sonstige"
+          label="Material"
+        />
+      )}
+      {pwg === 'OFFSET' && <MaterialOffset {...p} speichDetail={p.speichDetail} />}
+      <BesonderheitenUnten {...p} />
+    </>
+  )
+}
+
+function Broschuere(p: BlK) {
+  const { d, fe, f, pruef } = p
+  const r = d as Record<string, string>
+  const pwg = String(r.produktionsweg ?? '')
+  const oStr = r.orientierung ?? ''
+  return (
+    <>
+      <KfbFormatFeld din={BROS_DIN} order={BROSCH_FORMAT_ORDER} blk={p} />
+      <BerZeile
+        l="Ausrichtung"
+        e={pruef && (f.orientierung || f.brosch_quer_cc) ? f.orientierung || f.brosch_quer_cc : undefined}
+      >
+        <select
+          className={'ber-inp' + (pruef && f.brosch_quer_cc ? fe('brosch_quer_cc') : fe('orientierung'))}
+          value={oStr}
+          onChange={e => p.patchL({ orientierung: e.target.value } as CopyShopDetailJson)}
+          onBlur={p.commit}
+        >
+          <option value="">—</option>
+          <option value="HOCHFORMAT">Hochformat</option>
+          <option value="QUERFORMAT">Querformat</option>
+        </select>
+      </BerZeile>
+      <NmbBroschSeite {...p} />
+      <BrosPwgWahl blk={p} />
+      {pwg === 'CC' && (
+        <>
+          <p className="ber-hinweis">Bindung: Drahtheftung (fix)</p>
+          <MaterialCC
+            d={d}
+            fe={p.fe}
+            f={p.f}
+            pruef={p.pruef}
+            patchL={p.patchL}
+            commit={p.commit}
+            kMat="cc_umschlag"
+            kSon="cc_umschlag_sonstige"
+            label="Umschlag"
+          />
+          <MaterialCC
+            d={d}
+            fe={p.fe}
+            f={p.f}
+            pruef={p.pruef}
+            patchL={p.patchL}
+            commit={p.commit}
+            kMat="cc_inhalt"
+            kSon="cc_inhalt_sonstige"
+            label="Inhalt"
+          />
+        </>
+      )}
+      {(pwg === 'OFFSET' || pwg === 'OFFEN') && <BroschOffsetOffenForm {...p} />}
+      {boolSel({ ...p, k: 'randabfallend', l: 'Randabfallend' })}
+      <BesonderheitenUnten {...p} />
+    </>
+  )
+}
+
+const VISIT_MAT_OPTS = [
+  { v: '300G_CC', t: '300g CC' },
+  { v: '350G_OFFSET', t: '350g Offset' },
+  { v: '400G_OFFSET', t: '400g Offset' },
+  { v: '300G_RECYCLING', t: '300g Recycling Offset' },
+  { v: '250G_LEINENSTRUKTUR', t: '250g Leinenstruktur Offset' },
+  { v: 'MULTILOFT', t: 'Multiloft Offset' },
+] as const
+
+function Visitenkarte(p: BlK) {
+  const { d, fe, f, pruef, speichDetail } = p
+  const r = d as Record<string, string>
+  const fmt = String(r.format ?? '')
+  const mat = String(r.material ?? '')
+  return (
+    <>
+      <SelB
+        {...p}
+        k="format"
+        l="Format"
+        o={[
+          { v: 'STANDARD_85_55', t: '85 × 55 mm (Standard)' },
+          { v: 'STANDARD_90_50', t: '90 × 50 mm' },
+          { v: 'FREI', t: 'Frei' },
+        ]}
+      />
+      <SelB
+        {...p}
+        k="orientierung"
+        l="Ausrichtung"
+        o={[
+          { v: 'HOCHFORMAT', t: 'Hochformat' },
+          { v: 'QUERFORMAT', t: 'Querformat' },
+        ]}
+      />
+      <SelB
+        {...p}
+        k="farbigkeit"
+        l="Farbigkeit"
+        o={[
+          { v: '4_0', t: '4/0' },
+          { v: '4_4', t: '4/4' },
+        ]}
+      />
+      <SelB
+        {...p}
+        k="druckseite"
+        l="Druckseite"
+        o={[
+          { v: '1_SEITIG', t: '1-seitig' },
+          { v: '2_SEITIG', t: '2-seitig' },
+        ]}
+      />
+      <BerZeile l="Material" e={pruef && f.material ? f.material : undefined}>
+        <select
+          className={'ber-inp' + fe('material')}
+          value={mat}
+          onChange={e => {
+            const v = e.target.value
+            const patch: CopyShopDetailJson = { material: v }
+            if (v !== '350G_OFFSET') (patch as Record<string, unknown>).folienkaschiert = null
+            if (v !== 'MULTILOFT') (patch as Record<string, unknown>).multiloft_farbkern = null
+            speichDetail({ ...d, ...patch } as CopyShopDetailJson)
+          }}
+        >
+          <option value="">—</option>
+          {VISIT_MAT_OPTS.map(x => (
+            <option key={x.v} value={x.v}>
+              {x.t}
+            </option>
+          ))}
+        </select>
+      </BerZeile>
+      {mat === '350G_OFFSET' && boolSel({ ...p, k: 'folienkaschiert', l: 'Beidseitig Folienkaschiert matt' })}
+      {mat === 'MULTILOFT' && (
+        <SelB
+          {...p}
+          k="multiloft_farbkern"
+          l="Farbkern"
+          o={[
+            { v: 'SCHWARZ', t: 'Schwarz' },
+            { v: 'ELFENBEIN', t: 'Elfenbein' },
+            { v: 'WEISS', t: 'Weiß' },
+            { v: 'ROT', t: 'Rot' },
+            { v: 'OLIVGRUEN', t: 'Olivgrün' },
+            { v: 'HELLGRUEN', t: 'Hellgrün' },
+            { v: 'TUERKIS', t: 'Türkis' },
+            { v: 'LILA', t: 'Lila' },
+            { v: 'GELB', t: 'Gelb' },
+            { v: 'ORANGE', t: 'Orange' },
+            { v: 'MAGENTA', t: 'Magenta' },
+            { v: 'ROSA', t: 'Rosa' },
+            { v: 'BLAU', t: 'Blau' },
+          ]}
+        />
+      )}
+      {fmt === 'FREI' && <MasseHoeheBreite {...p} />}
+      {boolSel({ ...p, k: 'randabfallend', l: 'Randabfallend' })}
+      <BesonderheitenUnten {...p} />
+    </>
+  )
+}
+
+function BindungFreiMasse(p: BlK) {
+  const { d, fe, f, pruef, patchL, commit } = p
+  const b = d.format_breite
+  const h = d.format_hoehe
+  const sb = b === null || b === undefined ? '' : String(b)
+  const sh = h === null || h === undefined ? '' : String(h)
+  return (
+    <div>
+      <div className="ber-zeile">
+        <span className="ber-lbl">Format Breite (mm)</span>
+        <div>
+          <input
+            type="number"
+            className={'ber-inp' + fe('format_breite')}
+            min={0.01}
+            step={0.01}
+            value={sb}
+            onChange={e => {
+              const raw = e.target.value
+              patchL({
+                format_breite: raw === '' ? null : parseFloat(raw),
+              } as CopyShopDetailJson)
+            }}
+            onBlur={commit}
+          />
+        </div>
+      </div>
+      <div className="ber-zeile">
+        <span className="ber-lbl">Format Höhe (mm)</span>
+        <div>
+          <input
+            type="number"
+            className={'ber-inp' + fe('format_hoehe')}
+            min={0.01}
+            max={300}
+            step={0.01}
+            value={sh}
+            onChange={e => {
+              const raw = e.target.value
+              patchL({
+                format_hoehe: raw === '' ? null : parseFloat(raw),
+              } as CopyShopDetailJson)
+            }}
+            onBlur={commit}
+          />
+          {pruef && f.format_hoehe && <p className="ber-err ber-err--mass">{f.format_hoehe}</p>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function BindungF(p: BlK) {
+  const { d, fe, f, pruef, patchL, commit, speichDetail } = p
+  const r = d as Record<string, string>
+  const ba = String(r.bindungsart ?? '') as
+    | 'WIRE_O'
+    | 'KUNSTSTOFFSPIRALE'
+    | 'SOFTCOVER'
+    | 'HARDCOVER'
+    | ''
+  const wireFmt = String(r.format ?? '')
+  return (
+    <>
+      <BerZeile l="Material" e={pruef && f.material ? f.material : undefined}>
+        <select
+          className={'ber-inp' + fe('material')}
+          value={r.material ?? ''}
+          onChange={e => {
+            const v = e.target.value
+            if (v === 'SONSTIGE') {
+              speichDetail({ ...d, material: v } as CopyShopDetailJson)
+            } else {
+              speichDetail({ ...d, material: v, material_sonstige: null } as CopyShopDetailJson)
+            }
+          }}
+        >
+          <option value="">—</option>
+          {(['80G', '100G', '120G'] as const).map(x => (
+            <option key={x} value={x}>
+              {x}
+            </option>
+          ))}
+          <option value="SONSTIGE">Sonstige</option>
+        </select>
+      </BerZeile>
+      {r.material === 'SONSTIGE' && <Txt {...p} k="material_sonstige" l="Material (sonstige)" rows={2} />}
+      <SelB
+        {...p}
+        k="farbigkeit"
+        l="Farbigkeit"
+        o={[
+          { v: '1_0', t: '1/0' },
+          { v: '1_1', t: '1/1' },
+          { v: '4_0', t: '4/0' },
+          { v: '4_1', t: '4/1' },
+        ]}
+      />
+      <BerZeile l="Bindungsart" e={pruef && f.bindungsart ? f.bindungsart : undefined}>
+        <select
+          className={'ber-inp' + fe('bindungsart')}
+          value={ba}
+          onChange={e => {
+            const v = e.target.value
+            if (v === 'SOFTCOVER' || v === 'HARDCOVER') {
+              speichDetail({
+                ...d,
+                bindungsart: v,
+                format: 'A4',
+                orientierung: 'HOCHFORMAT',
+                format_breite: 210,
+                format_hoehe: 297,
+                hardcover_druck: v === 'HARDCOVER' ? d.hardcover_druck : null,
+                hardcover_einband: v === 'HARDCOVER' ? d.hardcover_einband : null,
+              } as CopyShopDetailJson)
+            } else if (v === 'WIRE_O' || v === 'KUNSTSTOFFSPIRALE') {
+              speichDetail({
+                ...d,
+                bindungsart: v,
+                format: 'A5',
+                orientierung: 'HOCHFORMAT',
+                hardcover_druck: null,
+                hardcover_einband: null,
+                format_breite: null,
+                format_hoehe: null,
+              } as CopyShopDetailJson)
+            } else {
+              patchL({ bindungsart: v || null } as CopyShopDetailJson)
+            }
+          }}
+          onBlur={commit}
+        >
+          <option value="">—</option>
+          <option value="WIRE_O">Wire-O</option>
+          <option value="KUNSTSTOFFSPIRALE">Kunststoffspirale</option>
+          <option value="SOFTCOVER">Softcover</option>
+          <option value="HARDCOVER">Hardcover</option>
+        </select>
+      </BerZeile>
+
+      <FarbeBindung {...p} bindungsart={ba} />
+
+      {ba === 'WIRE_O' || ba === 'KUNSTSTOFFSPIRALE' ? (
+        <BerZeile l="Format" e={pruef && f.format ? f.format : undefined}>
+          <select
+            className={'ber-inp' + fe('format')}
+            value={wireFmt}
+            onChange={e => {
+              const v = e.target.value
+              if (v === 'A3') {
+                speichDetail({ ...d, format: v, orientierung: 'QUERFORMAT' } as CopyShopDetailJson)
+              } else if (v === 'FREI') {
+                speichDetail({
+                  ...d,
+                  format: 'FREI',
+                  orientierung: null,
+                  format_breite: null,
+                  format_hoehe: null,
+                } as CopyShopDetailJson)
+              } else if (v === 'A5' || v === 'A4') {
+                const o0 = (r.orientierung as string) || 'HOCHFORMAT'
+                const o1 = o0 === 'QUERFORMAT' || o0 === 'HOCHFORMAT' ? o0 : 'HOCHFORMAT'
+                speichDetail({ ...d, format: v, orientierung: o1 } as CopyShopDetailJson)
+              } else {
+                speichDetail({ ...d, format: v } as CopyShopDetailJson)
+              }
+            }}
+            onBlur={commit}
+          >
+            <option value="">—</option>
+            <option value="A5">A5</option>
+            <option value="A4">A4</option>
+            <option value="A3">A3</option>
+            <option value="FREI">Frei</option>
+          </select>
+        </BerZeile>
+      ) : null}
+
+      {ba === 'WIRE_O' || ba === 'KUNSTSTOFFSPIRALE' ? (wireFmt === 'A5' || wireFmt === 'A4' ? (
+        <SelB
+          {...p}
+          k="orientierung"
+          l="Ausrichtung"
+          o={[
+            { v: 'HOCHFORMAT', t: 'Hochformat' },
+            { v: 'QUERFORMAT', t: 'Querformat' },
+          ]}
+        />
+      ) : wireFmt === 'A3' ? (
+        <BerZeile l="Ausrichtung" c={<span className="td-wert">Querformat (fix)</span>} />
+      ) : null) : null}
+
+      {ba === 'WIRE_O' || ba === 'KUNSTSTOFFSPIRALE' ? (wireFmt === 'FREI' ? <BindungFreiMasse {...p} /> : null) : null}
+
+      {ba === 'SOFTCOVER' || ba === 'HARDCOVER' ? (
+        <BerZeile l="Format" c={<span className="td-wert">A4 Hochformat (210 × 297 mm)</span>} />
+      ) : null}
+
+      {boolSel({ ...p, k: 'randabfallend', l: 'Randabfallend' })}
+
+      {ba === 'HARDCOVER' && (
+        <>
+          {boolSel({ ...p, k: 'hardcover_druck', l: 'Druck auf Hardcover' })}
+          {d.hardcover_druck === true && <Txt {...p} k="hardcover_einband" l="Hardcover Einband" rows={2} />}
+        </>
+      )}
+
+      <BesonderheitenUnten {...p} />
+    </>
+  )
+}
+
+function FarbeBindung(
+  p: BlK & {
+    bindungsart: 'WIRE_O' | 'KUNSTSTOFFSPIRALE' | 'SOFTCOVER' | 'HARDCOVER' | ''
+  },
+) {
+  const { bindungsart: ba, d, fe, f, pruef, patchL, commit } = p
+  let o: { v: string; t: string }[] = []
+  if (ba === 'WIRE_O') {
+    o = [
+      { v: 'SCHWARZ', t: 'Schwarz' },
+      { v: 'SILBER', t: 'Silber' },
+    ]
+  } else if (ba === 'KUNSTSTOFFSPIRALE') {
+    o = [
+      { v: 'SCHWARZ', t: 'Schwarz' },
+      { v: 'WEISS', t: 'Weiß' },
+    ]
+  } else if (ba === 'SOFTCOVER' || ba === 'HARDCOVER') {
+    o = [
+      { v: 'SCHWARZ', t: 'Schwarz' },
+      { v: 'DUNKELBLAU', t: 'Dunkelblau' },
+      { v: 'DUNKELROT', t: 'Dunkelrot' },
+    ]
+  }
+  return (
+    <BerZeile l="Bindungsfarbe" e={pruef && f.bindungsart_farbe ? f.bindungsart_farbe : undefined}>
+      <select
+        className={'ber-inp' + fe('bindungsart_farbe')}
+        value={String((d as Record<string, string>).bindungsart_farbe ?? '')}
+        onChange={e => patchL({ bindungsart_farbe: e.target.value } as CopyShopDetailJson)}
+        onBlur={commit}
+        disabled={!ba}
+      >
+        <option value="">—</option>
+        {o.map(x => (
+          <option key={x.v} value={x.v}>
+            {x.t}
+          </option>
+        ))}
+      </select>
+    </BerZeile>
+  )
+}
+
+function AusdruckF(p: BlK) {
+  const { d, fe, f, pruef, patchL, commit } = p
+  const mat = String((d as Record<string, string>).material ?? '')
+  return (
+    <>
+      <SelB
+        {...p}
+        k="format"
+        l="Format"
+        o={[
+          { v: 'A5', t: 'A5' },
+          { v: 'A4', t: 'A4' },
+          { v: 'A3', t: 'A3' },
+        ]}
+      />
+      <BerZeile l="Material" e={pruef && f.material ? f.material : undefined}>
+        <select
+          className={'ber-inp' + fe('material')}
+          value={mat}
+          onChange={e => {
+            const v = e.target.value
+            if (v === 'SONSTIGE') {
+              patchL({ material: v } as CopyShopDetailJson)
+            } else {
+              patchL({ material: v, material_sonstige: null } as CopyShopDetailJson)
+            }
+          }}
+          onBlur={commit}
+        >
+          <option value="">—</option>
+          {(['80G', '100G', '120G', '160G', '200G', '250G', '300G'] as const).map(x => (
+            <option key={x} value={x}>
+              {x}
+            </option>
+          ))}
+          <option value="SONSTIGE">Sonstige</option>
+        </select>
+      </BerZeile>
+      {mat === 'SONSTIGE' && <Txt {...p} k="material_sonstige" l="Material (sonstige)" rows={2} />}
+      <SelB
+        {...p}
+        k="farbigkeit"
+        l="Farbigkeit"
+        o={[
+          { v: '1_0', t: '1/0' },
+          { v: '1_1', t: '1/1' },
+          { v: '4_0', t: '4/0' },
+          { v: '4_1', t: '4/1' },
+        ]}
+      />
+      <SelB
+        {...p}
+        k="lochen"
+        l="Lochen"
+        o={[
+          { v: 'NEIN', t: 'Nein' },
+          { v: '2_LOCH', t: '2 Loch' },
+          { v: '4_LOCH', t: '4 Loch' },
+        ]}
+      />
+      {boolSel({ ...p, k: 'heften', l: 'Heften' })}
+      <SelB
+        {...p}
+        k="laminieren"
+        l="Laminieren"
+        o={[
+          { v: 'NEIN', t: 'Nein' },
+          { v: 'MATT', t: 'Matt' },
+          { v: 'GLAENZEND', t: 'Glänzend' },
+        ]}
+      />
+      <BesonderheitenUnten {...p} />
+    </>
+  )
+}

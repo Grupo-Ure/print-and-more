@@ -1,4 +1,5 @@
 import type { AuftragStatus, TeilauftragRow } from '../types/database'
+import { validateCopyShopDetail } from './copyshop/validateCopyShopDetail'
 import { validateLfpDetail } from './lfp/validateLfpDetail'
 
 export type LieferungEnum = 'ABHOLUNG' | 'VERSAND'
@@ -47,10 +48,17 @@ export function istTeilAuftragVollstaendig(t: TeilauftragRow, teilStatus: Auftra
   if (teilStatus === 'ANGEBOT') return true
   const g = validateGlobalTeilfelder(t, teilStatus)
   if (Object.keys(g).length > 0) return false
-  if (t.bereich !== 'LFP') return true
-  const d = (t.detail as Record<string, unknown> | null) ?? {}
-  const lf = validateLfpDetail(t.typ, d, teilStatus)
-  return Object.keys(lf).length === 0
+  if (t.bereich === 'LFP') {
+    const d = (t.detail as Record<string, unknown> | null) ?? {}
+    const lf = validateLfpDetail(t.typ, d, teilStatus)
+    return Object.keys(lf).length === 0
+  }
+  if (t.bereich === 'COPYSHOP') {
+    const d = (t.detail as Record<string, unknown> | null) ?? {}
+    const c = validateCopyShopDetail(t.typ, d, teilStatus)
+    return Object.keys(c).length === 0
+  }
+  return true
 }
 
 /**
@@ -69,7 +77,8 @@ export function nextTeilStatus(
     return before
   }
   const lfp = merged.bereich === 'LFP'
-  if (!lfp) {
+  const copyShop = merged.bereich === 'COPYSHOP'
+  if (!lfp && !copyShop) {
     if (!vollstaendig) return 'UNVOLLSTAENDIG'
     return 'UNVOLLSTAENDIG'
   }

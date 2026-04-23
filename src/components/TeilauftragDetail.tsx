@@ -8,8 +8,10 @@ import {
   validateGlobalTeilfelder,
 } from '../lib/teilGlobal'
 import { teilauftragBereichLabel, type KundeKontaktJoin, type TeilauftragRow } from '../types/database'
+import { CopyShopDetail } from './bereiche/CopyShopDetail'
 import { LFPDetail } from './bereiche/LFPDetail'
 import type { LfpDetailJson } from '../types/lfp'
+import type { CopyShopDetailJson } from '../types/copyshop'
 import './WorkArea.css'
 
 type Props = {
@@ -99,6 +101,16 @@ export function TeilauftragDetail({ teil, auftragKunde, onAktualisiert }: Props)
 
   const onLfpPatch = useCallback(
     async (p: { typ?: string | null; detail: LfpDetailJson | null }) => {
+      await speichere({
+        typ: p.typ,
+        detail: p.detail,
+      } as Partial<TeilauftragRow>)
+    },
+    [speichere]
+  )
+
+  const onCopyShopPatch = useCallback(
+    async (p: { typ?: string | null; detail: CopyShopDetailJson | null }) => {
       await speichere({
         typ: p.typ,
         detail: p.detail,
@@ -266,7 +278,11 @@ export function TeilauftragDetail({ teil, auftragKunde, onAktualisiert }: Props)
         <LFPDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onLfpPatch} />
       )}
 
-      {lokal.bereich !== 'LFP' && (
+      {lokal.bereich === 'COPYSHOP' && (
+        <CopyShopDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onCopyShopPatch} />
+      )}
+
+      {lokal.bereich !== 'LFP' && lokal.bereich !== 'COPYSHOP' && (
         <>
           <div className="td-zeile" style={{ marginTop: 8 }}>
             <p className="td-label">Typ</p>
