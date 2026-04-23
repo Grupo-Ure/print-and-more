@@ -2,6 +2,8 @@ import type { AuftragStatus, TeilauftragRow } from '../types/database'
 import { validateCopyShopDetail } from './copyshop/validateCopyShopDetail'
 import { validateLfpDetail } from './lfp/validateLfpDetail'
 import { validateStempelDetail } from './stempel/validateStempelDetail'
+import { validateSonstigeDetail } from './sonstige/validateSonstigeDetail'
+import { validateLaserDetail } from './laser/validateLaserDetail'
 
 export type LieferungEnum = 'ABHOLUNG' | 'VERSAND'
 
@@ -30,8 +32,11 @@ function equalDetail(a: unknown, b: unknown): boolean {
   return JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 }
 
-/** Nach PROD/FERTIG: bei STEMPEL nur `detail.beschreibung` (nicht z. B. Farbe) setzt inhaltlich zurück. */
-function stempelNachProdAenderung(snap: TeilauftragRow, merged: TeilauftragRow): boolean {
+/**
+ * Nach PROD/FERTIG: bei STEMPEL/SONSTIGE nur `detail.beschreibung` (nicht z. B. Stückzahl bei Sonstigen)
+ * setzt inhaltlich im Detail zurück.
+ */
+function beschreibungDetailNachProdAenderung(snap: TeilauftragRow, merged: TeilauftragRow): boolean {
   const rowAenderung =
     merged.typ !== snap.typ ||
     merged.termin !== snap.termin ||
@@ -43,6 +48,21 @@ function stempelNachProdAenderung(snap: TeilauftragRow, merged: TeilauftragRow):
   const sd = (snap.detail as Record<string, unknown> | null) ?? {}
   const md = (merged.detail as Record<string, unknown> | null) ?? {}
   return String(sd.beschreibung ?? '') !== String(md.beschreibung ?? '')
+}
+
+/** Nach PROD/FERTIG: bei LASERGRAVUR nur `detail.motiv` setzt inhaltlich im Detail zurück. */
+function motivDetailNachProdAenderung(snap: TeilauftragRow, merged: TeilauftragRow): boolean {
+  const rowAenderung =
+    merged.typ !== snap.typ ||
+    merged.termin !== snap.termin ||
+    merged.lieferung !== snap.lieferung ||
+    merged.prioritaet !== snap.prioritaet ||
+    merged.verantwortlicher_id !== snap.verantwortlicher_id ||
+    merged.satzzeit_minuten !== snap.satzzeit_minuten
+  if (rowAenderung) return true
+  const sd = (snap.detail as Record<string, unknown> | null) ?? {}
+  const md = (merged.detail as Record<string, unknown> | null) ?? {}
+  return String(sd.motiv ?? '') !== String(md.motiv ?? '')
 }
 
 export function teilHatInhaltAenderung(
@@ -79,6 +99,16 @@ export function istTeilAuftragVollstaendig(t: TeilauftragRow, teilStatus: Auftra
     const s = validateStempelDetail(t.typ, d, teilStatus)
     return Object.keys(s).length === 0
   }
+  if (t.bereich === 'SONSTIGE') {
+    const d = (t.detail as Record<string, unknown> | null) ?? {}
+    const s = validateSonstigeDetail(d, teilStatus)
+    return Object.keys(s).length === 0
+  }
+  if (t.bereich === 'LASERGRAVUR') {
+    const d = (t.detail as Record<string, unknown> | null) ?? {}
+    const s = validateLaserDetail(t.typ, d, teilStatus)
+    return Object.keys(s).length === 0
+  }
   return true
 }
 
@@ -94,8 +124,12 @@ export function nextTeilStatus(
 ): AuftragStatus {
   if (before === 'ANGEBOT') return 'ANGEBOT'
   if (before === 'PRODUKTION_BEREIT' || before === 'FERTIG') {
-    if (merged.bereich === 'STEMPEL') {
-      if (stempelNachProdAenderung(snap, merged)) return 'UNVOLLSTAENDIG'
+    if (merged.bereich === 'STEMPEL' || merged.bereich === 'SONSTIGE') {
+      if (beschreibungDetailNachProdAenderung(snap, merged)) return 'UNVOLLSTAENDIG'
+      return before
+    }
+    if (merged.bereich === 'LASERGRAVUR') {
+      if (motivDetailNachProdAenderung(snap, merged)) return 'UNVOLLSTAENDIG'
       return before
     }
     if (teilHatInhaltAenderung(snap, merged)) return 'UNVOLLSTAENDIG'
@@ -104,8 +138,20 @@ export function nextTeilStatus(
   const lfp = merged.bereich === 'LFP'
   const copyShop = merged.bereich === 'COPYSHOP'
   const stempel = merged.bereich === 'STEMPEL'
-  if (!lfp && !copyShop && !stempel) {
+  const sonstige = merged.bereich === 'SONSTIGE'
+  const laser = merged.bereich === 'LASERGRAVUR'
+  if (!lfp && !copyShop && !stempel && !sonstige && !laser) {
     if (!vollstaendig) return 'UNVOLLSTAENDIG'
+    return 'UNVOLLSTAENDIG'
+  }
+  if (sonstige) {
+    if (!vollstaendig) return 'UNVOLLSTAENDIG'
+    if (before === 'PREPRESS_BEREIT') return 'PREPRESS_BEREIT'
+    return 'UNVOLLSTAENDIG'
+  }
+  if (laser && merged.typ === 'SONSTIGE_LASER') {
+    if (!vollstaendig) return 'UNVOLLSTAENDIG'
+    if (before === 'PREPRESS_BEREIT') return 'PREPRESS_BEREIT'
     return 'UNVOLLSTAENDIG'
   }
   if (lfp && merged.typ === 'SONSTIGE_LFP') {

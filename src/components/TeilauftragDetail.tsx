@@ -11,9 +11,12 @@ import { teilauftragBereichLabel, type KundeKontaktJoin, type TeilauftragRow } f
 import { CopyShopDetail } from './bereiche/CopyShopDetail'
 import { LFPDetail } from './bereiche/LFPDetail'
 import { StempelDetail } from './bereiche/StempelDetail'
+import { SonstigeDetail, type SonstigeDetailJson } from './bereiche/SonstigeDetail'
+import { LaserDetail } from './bereiche/LaserDetail'
 import type { LfpDetailJson } from '../types/lfp'
 import type { CopyShopDetailJson } from '../types/copyshop'
 import type { StempelDetailJson } from '../types/stempel'
+import type { LaserDetailJson } from '../types/laser'
 import './WorkArea.css'
 
 type Props = {
@@ -131,6 +134,26 @@ export function TeilauftragDetail({ teil, auftragKunde, onAktualisiert }: Props)
     [speichere]
   )
 
+  const onSonstigePatch = useCallback(
+    async (p: { typ?: string | null; detail: SonstigeDetailJson | null }) => {
+      await speichere({
+        typ: p.typ,
+        detail: p.detail,
+      } as Partial<TeilauftragRow>)
+    },
+    [speichere]
+  )
+
+  const onLaserPatch = useCallback(
+    async (p: { typ?: string | null; detail: LaserDetailJson | null }) => {
+      await speichere({
+        typ: p.typ,
+        detail: p.detail,
+      } as Partial<TeilauftragRow>)
+    },
+    [speichere]
+  )
+
   const globTermin = lokal.termin
   const iso = globTermin
     ? globTermin.length > 10
@@ -158,10 +181,12 @@ export function TeilauftragDetail({ teil, auftragKunde, onAktualisiert }: Props)
         </p>
       </div>
       {pruef &&
+        lokal.bereich !== 'SONSTIGE' &&
         kundeErfuelltPrepressKontakt(auftragKunde) === false &&
         (lokal.bereich === 'LFP' ||
           lokal.bereich === 'COPYSHOP' ||
-          (lokal.bereich === 'STEMPEL' && lokal.typ !== 'SONSTIGE_STEMPEL')) && (
+          (lokal.bereich === 'STEMPEL' && lokal.typ !== 'SONSTIGE_STEMPEL') ||
+          (lokal.bereich === 'LASERGRAVUR' && lokal.typ !== 'SONSTIGE_LASER')) && (
           <p className="ber-hinweis">Für Auto-PREPRESS: Kunde braucht Name und E-Mail oder Telefon.</p>
         )}
 
@@ -302,7 +327,19 @@ export function TeilauftragDetail({ teil, auftragKunde, onAktualisiert }: Props)
         <StempelDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onStempelPatch} />
       )}
 
-      {lokal.bereich !== 'LFP' && lokal.bereich !== 'COPYSHOP' && lokal.bereich !== 'STEMPEL' && (
+      {lokal.bereich === 'SONSTIGE' && (
+        <SonstigeDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onSonstigePatch} />
+      )}
+
+      {lokal.bereich === 'LASERGRAVUR' && (
+        <LaserDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onLaserPatch} />
+      )}
+
+      {lokal.bereich !== 'LFP' &&
+        lokal.bereich !== 'COPYSHOP' &&
+        lokal.bereich !== 'STEMPEL' &&
+        lokal.bereich !== 'SONSTIGE' &&
+        lokal.bereich !== 'LASERGRAVUR' && (
         <>
           <div className="td-zeile" style={{ marginTop: 8 }}>
             <p className="td-label">Typ</p>
