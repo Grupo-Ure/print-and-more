@@ -4,6 +4,7 @@ import { validateLfpDetail } from './lfp/validateLfpDetail'
 import { validateStempelDetail } from './stempel/validateStempelDetail'
 import { validateSonstigeDetail } from './sonstige/validateSonstigeDetail'
 import { validateLaserDetail } from './laser/validateLaserDetail'
+import { textilDetailJsonMarkiertVoll } from './textil/validateTextilDetail'
 
 export type LieferungEnum = 'ABHOLUNG' | 'VERSAND'
 
@@ -109,6 +110,10 @@ export function istTeilAuftragVollstaendig(t: TeilauftragRow, teilStatus: Auftra
     const s = validateLaserDetail(t.typ, d, teilStatus)
     return Object.keys(s).length === 0
   }
+  if (t.bereich === 'TEXTIL') {
+    if (Object.keys(validateGlobalTeilfelder(t, teilStatus)).length > 0) return false
+    return textilDetailJsonMarkiertVoll(t.detail)
+  }
   return true
 }
 
@@ -140,6 +145,17 @@ export function nextTeilStatus(
   const stempel = merged.bereich === 'STEMPEL'
   const sonstige = merged.bereich === 'SONSTIGE'
   const laser = merged.bereich === 'LASERGRAVUR'
+  const textil = merged.bereich === 'TEXTIL'
+  if (textil) {
+    if (!vollstaendig) return 'UNVOLLSTAENDIG'
+    if (vollstaendig && kundePrepressOk) return 'PREPRESS_BEREIT'
+    if (before === 'PREPRESS_BEREIT' && (!vollstaendig || !kundePrepressOk)) {
+      return 'UNVOLLSTAENDIG'
+    }
+    if (!vollstaendig) return 'UNVOLLSTAENDIG'
+    if (!kundePrepressOk) return 'UNVOLLSTAENDIG'
+    return 'UNVOLLSTAENDIG'
+  }
   if (!lfp && !copyShop && !stempel && !sonstige && !laser) {
     if (!vollstaendig) return 'UNVOLLSTAENDIG'
     return 'UNVOLLSTAENDIG'

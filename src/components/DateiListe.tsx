@@ -27,6 +27,9 @@ const ROLLE_ANZEIGE: Record<DateiRolle, string> = {
 
 type Props = {
   aktiverAuftragId: string
+  dateien: Datei[]
+  dateienLaden: boolean
+  onDateiGeaendert: () => void | Promise<void>
 }
 
 function useDateienState(auftragId: string) {
@@ -84,8 +87,8 @@ function RolleBadge({ rolle }: { rolle: DateiRolle }) {
   )
 }
 
-export function DateiListe({ aktiverAuftragId }: Props) {
-  const { dateien, setDateien, laden } = useDateienState(aktiverAuftragId)
+export function DateiListe({ aktiverAuftragId, dateien, dateienLaden, onDateiGeaendert }: Props) {
+  const laden = dateienLaden
   const [anzeigename, setAnzeigename] = useState('')
   const [pfad, setPfad] = useState('')
   const [rolle, setRolle] = useState<DateiRolle>('PRODUKTIONSDATEI')
@@ -119,16 +122,10 @@ export function DateiListe({ aktiverAuftragId }: Props) {
       return
     }
     if (data) {
-      const row = data as Datei
-      setDateien(list => {
-        const next = [...list, row].sort(
-          (a, b) => new Date(a.erstellt_am).getTime() - new Date(b.erstellt_am).getTime()
-        )
-        return next
-      })
       setAnzeigename('')
       setPfad('')
       setRolle('PRODUKTIONSDATEI')
+      void onDateiGeaendert()
     }
   }
 
@@ -141,7 +138,7 @@ export function DateiListe({ aktiverAuftragId }: Props) {
       setFehler(error.message)
       return
     }
-    setDateien(list => list.filter(d => d.id !== id))
+    void onDateiGeaendert()
   }
 
   return (

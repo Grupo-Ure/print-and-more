@@ -9,7 +9,7 @@ import {
   type TeilauftragRow,
 } from '../types/database'
 import { AddTeilauftragOverlay } from './AddTeilauftragOverlay'
-import { DateiListe } from './DateiListe'
+import { DateiListe, type Datei } from './DateiListe'
 import { TeilauftragDetail } from './TeilauftragDetail'
 import './WorkArea.css'
 
@@ -25,6 +25,33 @@ export function WorkArea({ aktiverAuftragId }: Props) {
   const [fehler, setFehler] = useState<string | null>(null)
   const [overlayOffen, setOverlayOffen] = useState(false)
   const [speichert, setSpeichert] = useState(false)
+  const [dateien, setDateien] = useState<Datei[]>([])
+  const [dateienLaden, setDateienLaden] = useState(false)
+
+  const reloadDateien = useCallback(async () => {
+    if (!aktiverAuftragId) return
+    setDateienLaden(true)
+    const { data, error } = await supabase
+      .from('dateien')
+      .select('id, anzeigename, pfad, rolle, erstellt_am')
+      .eq('auftrag_id', aktiverAuftragId)
+      .order('erstellt_am', { ascending: true })
+    if (error) {
+      setDateien([])
+    } else {
+      setDateien((data ?? []) as Datei[])
+    }
+    setDateienLaden(false)
+  }, [aktiverAuftragId])
+
+  useEffect(() => {
+    if (!aktiverAuftragId) {
+      setDateien([])
+      setDateienLaden(false)
+      return
+    }
+    void reloadDateien()
+  }, [aktiverAuftragId, reloadDateien])
 
   const ladeAuftragUndTeilauftraege = useCallback(
     async (auftragId: string) => {
@@ -193,6 +220,7 @@ export function WorkArea({ aktiverAuftragId }: Props) {
           <TeilauftragDetail
             teil={aktiverTeil}
             auftragKunde={auftrag.kunden}
+            auftragDateien={dateien}
             onAktualisiert={row =>
               setTeilauftraege(list => list.map(t => (t.id === row.id ? row : t)))
             }
@@ -202,7 +230,12 @@ export function WorkArea({ aktiverAuftragId }: Props) {
         )}
       </div>
 
-      <DateiListe aktiverAuftragId={aktiverAuftragId} />
+      <DateiListe
+        aktiverAuftragId={aktiverAuftragId}
+        dateien={dateien}
+        dateienLaden={dateienLaden}
+        onDateiGeaendert={reloadDateien}
+      />
 
       <AddTeilauftragOverlay
         offen={overlayOffen}

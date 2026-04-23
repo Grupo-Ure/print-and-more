@@ -13,6 +13,8 @@ import { LFPDetail } from './bereiche/LFPDetail'
 import { StempelDetail } from './bereiche/StempelDetail'
 import { SonstigeDetail, type SonstigeDetailJson } from './bereiche/SonstigeDetail'
 import { LaserDetail } from './bereiche/LaserDetail'
+import { TextilDetail } from './bereiche/TextilDetail'
+import type { Datei } from './DateiListe'
 import type { LfpDetailJson } from '../types/lfp'
 import type { CopyShopDetailJson } from '../types/copyshop'
 import type { StempelDetailJson } from '../types/stempel'
@@ -23,6 +25,7 @@ type Props = {
   teil: TeilauftragRow
   /** Server-Join für Kundenkontakt (name, email, telefon) */
   auftragKunde: KundeKontaktJoin
+  auftragDateien: Datei[]
   onAktualisiert: (t: TeilauftragRow) => void
 }
 
@@ -31,7 +34,7 @@ type MitarbeiterZeile = {
   email: string
 }
 
-export function TeilauftragDetail({ teil, auftragKunde, onAktualisiert }: Props) {
+export function TeilauftragDetail({ teil, auftragKunde, auftragDateien, onAktualisiert }: Props) {
   const snapR = useRef(teil)
   const lokalR = useRef(teil)
   const [lokal, setLokal] = useState(teil)
@@ -152,6 +155,16 @@ export function TeilauftragDetail({ teil, auftragKunde, onAktualisiert }: Props)
       } as Partial<TeilauftragRow>)
     },
     [speichere]
+  )
+
+  const onTextilTeilAktualisiert = useCallback(
+    (row: TeilauftragRow) => {
+      snapR.current = row
+      lokalR.current = row
+      setLokal(row)
+      onAktualisiert(row)
+    },
+    [onAktualisiert]
   )
 
   const globTermin = lokal.termin
@@ -335,11 +348,22 @@ export function TeilauftragDetail({ teil, auftragKunde, onAktualisiert }: Props)
         <LaserDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onLaserPatch} />
       )}
 
+      {lokal.bereich === 'TEXTIL' && (
+        <TextilDetail
+          teil={lokal}
+          teilStatus={lokal.status}
+          auftragDateien={auftragDateien}
+          auftragKunde={auftragKunde}
+          onAktualisiert={onTextilTeilAktualisiert}
+        />
+      )}
+
       {lokal.bereich !== 'LFP' &&
         lokal.bereich !== 'COPYSHOP' &&
         lokal.bereich !== 'STEMPEL' &&
         lokal.bereich !== 'SONSTIGE' &&
-        lokal.bereich !== 'LASERGRAVUR' && (
+        lokal.bereich !== 'LASERGRAVUR' &&
+        lokal.bereich !== 'TEXTIL' && (
         <>
           <div className="td-zeile" style={{ marginTop: 8 }}>
             <p className="td-label">Typ</p>
