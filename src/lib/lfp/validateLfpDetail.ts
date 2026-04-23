@@ -123,7 +123,7 @@ export function validateLfpDetail(
     if (reqBool(d.bereiche_front) === 'missing') f(o, 'bereiche_front', 'Pflichtfeld')
     if (reqBool(d.bereiche_heck) === 'missing') f(o, 'bereiche_heck', 'Pflichtfeld')
     if (!['MIT', 'OHNE'].includes(reqStr(d.montage) ?? '')) f(o, 'montage', 'Pflichtfeld')
-    if (reqBool(d.altbeklebung) === 'missing') f(o, 'altbeklebung', 'Pflichtfeld')
+    if (d.montage === 'MIT' && reqBool(d.altbeklebung) === 'missing') f(o, 'altbeklebung', 'Pflichtfeld')
     if (d.montage === 'MIT' && !datumIso(d.montagetermin)) f(o, 'montagetermin', 'Gültiges Datum')
   } else if (t === 'SONSTIGE_LFP') {
     if (!reqStr(d.beschreibung)) f(o, 'beschreibung', 'Pflichtfeld')

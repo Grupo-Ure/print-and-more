@@ -650,7 +650,7 @@ function FzB(p: BlK) {
           onChange={e => {
             const v = e.target.value
             if (v === 'OHNE') {
-              patchL({ montage: 'OHNE', montagetermin: null } as LfpDetailJson)
+              patchL({ montage: 'OHNE', montagetermin: null, altbeklebung: null } as LfpDetailJson)
             } else {
               patchL({ montage: v } as LfpDetailJson)
             }
@@ -662,7 +662,7 @@ function FzB(p: BlK) {
           <option value="OHNE">Ohne</option>
         </select>
       </BerZeile>
-      {boolSel({ ...p, k: 'altbeklebung', l: 'Altbeklebung' })}
+      {d.montage === 'MIT' && boolSel({ ...p, k: 'altbeklebung', l: 'Altbeklebung' })}
       {d.montage === 'MIT' && <Dat {...p} k="montagetermin" l="Montagetermin" />}
       <Txt {...p} k="besonderheiten" l="Besonderheiten" rows={3} />
     </>
