@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../supabase'
 import { kundenName } from '../lib/kunde'
 import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
 import {
   teilauftragBereichLabel,
+  type Auftrag,
   type AuftragDetailRow,
   type Bereich,
+  type KundeKontaktJoin,
   type TeilauftragRow,
 } from '../types/database'
 import { AddTeilauftragOverlay } from './AddTeilauftragOverlay'
@@ -13,11 +15,25 @@ import { DateiListe, type Datei } from './DateiListe'
 import { TeilauftragDetail } from './TeilauftragDetail'
 import './WorkArea.css'
 
+const AUFTRAG_DETAIL_SPALTEN = 'id, auftragsnummer, status, kunden(name, email, telefon), erp_exportiert, archiviert' as const
+
 type Props = {
   aktiverAuftragId: string | null
+  kontextAktualisiert: number
+  onAktiverTeilauftragGeaendert: (t: TeilauftragRow | null) => void
+  onAuftragKundeGeladen: (k: KundeKontaktJoin | null) => void
+  onAuftragVomArbeitsbereich: (a: Auftrag | null) => void
+  onAuftragDateienGeaendert: (d: Datei[]) => void
 }
 
-export function WorkArea({ aktiverAuftragId }: Props) {
+export function WorkArea({
+  aktiverAuftragId,
+  kontextAktualisiert,
+  onAktiverTeilauftragGeaendert,
+  onAuftragKundeGeladen,
+  onAuftragVomArbeitsbereich,
+  onAuftragDateienGeaendert,
+}: Props) {
   const [auftrag, setAuftrag] = useState<AuftragDetailRow | null>(null)
   const [teilauftraege, setTeilauftraege] = useState<TeilauftragRow[]>([])
   const [aktiverTeilauftragId, setAktiverTeilauftragId] = useState<string | null>(null)
@@ -60,7 +76,7 @@ export function WorkArea({ aktiverAuftragId }: Props) {
       const [aufRes, tRes] = await Promise.all([
         supabase
           .from('auftraege')
-          .select('id, auftragsnummer, status, kunden(name, email, telefon)')
+          .select(AUFTRAG_DETAIL_SPALTEN)
           .eq('id', auftragId)
           .single(),
         supabase
@@ -91,8 +107,9 @@ export function WorkArea({ aktiverAuftragId }: Props) {
       const teile = tRes.data ?? []
       setTeilauftraege(teile)
       setAktiverTeilauftragId(t => {
-        if (t && teile.some(x => x.id === t)) return t
-        return teile[0]?.id ?? null
+        const sichtbar = teile.filter(x => !x.storniert)
+        if (t && sichtbar.some(x => x.id === t)) return t
+        return sichtbar[0]?.id ?? null
       })
       setLaden(false)
     },
@@ -103,7 +120,41 @@ export function WorkArea({ aktiverAuftragId }: Props) {
     if (!aktiverAuftragId) return
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Supabase-Abfrage; setState erst nach await in ladeAuftragUndTeilauftraege
     void ladeAuftragUndTeilauftraege(aktiverAuftragId)
-  }, [aktiverAuftragId, ladeAuftragUndTeilauftraege])
+  }, [aktiverAuftragId, ladeAuftragUndTeilauftraege, kontextAktualisiert])
+
+  const sichtbareTeile = useMemo(
+    () => teilauftraege.filter(t => !t.storniert),
+    [teilauftraege]
+  )
+  const aktiverTeilFuerKontext = useMemo((): TeilauftragRow | null => {
+    if (aktiverTeilauftragId == null) return null
+    return sichtbareTeile.find(t => t.id === aktiverTeilauftragId) ?? null
+  }, [sichtbareTeile, aktiverTeilauftragId])
+
+  useEffect(() => {
+    if (aktiverAuftragId == null) {
+      onAuftragVomArbeitsbereich(null)
+      onAuftragKundeGeladen(null)
+      onAktiverTeilauftragGeaendert(null)
+      onAuftragDateienGeaendert([])
+      return
+    }
+    if (laden || !auftrag || auftrag.id !== aktiverAuftragId) return
+    onAuftragVomArbeitsbereich(auftrag)
+    onAuftragKundeGeladen(auftrag.kunden)
+    onAktiverTeilauftragGeaendert(aktiverTeilFuerKontext)
+    onAuftragDateienGeaendert(dateien)
+  }, [
+    aktiverAuftragId,
+    laden,
+    auftrag,
+    dateien,
+    aktiverTeilFuerKontext,
+    onAuftragVomArbeitsbereich,
+    onAuftragKundeGeladen,
+    onAktiverTeilauftragGeaendert,
+    onAuftragDateienGeaendert,
+  ])
 
   const handleNeuerTeilauftrag = async (bereich: Bereich) => {
     if (!aktiverAuftragId) return
@@ -118,6 +169,12 @@ export function WorkArea({ aktiverAuftragId }: Props) {
         prioritaet: 'NORMAL',
         detail: {} as never,
         lieferung: null,
+        notfall_aktiv: false,
+        notfall_begruendung: null,
+        storniert: false,
+        kundenfreigabe_erforderlich: false,
+        kundenfreigabe_liegt_vor: false,
+        kundenfreigabe_datei_id: null,
       } as never)
       .select(TEILAUFTRAG_SPALTEN)
       .single()
@@ -172,7 +229,7 @@ export function WorkArea({ aktiverAuftragId }: Props) {
   }
 
   const kunde = kundenName(auftrag.kunden)
-  const aktiverTeil = teilauftraege.find(t => t.id === aktiverTeilauftragId) ?? null
+  const aktiverTeil = aktiverTeilFuerKontext
 
   return (
     <div className="wa">
@@ -196,7 +253,7 @@ export function WorkArea({ aktiverAuftragId }: Props) {
 
       <div className="wa-leiste">
         <div className="wa-tabs" role="tablist" aria-label="Teilaufträge">
-          {teilauftraege.map(t => {
+          {sichtbareTeile.map(t => {
             const active = t.id === aktiverTeilauftragId
             const label = `${teilauftragBereichLabel(t.bereich)} · ${t.status}`
             return (

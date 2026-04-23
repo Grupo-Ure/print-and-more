@@ -1,14 +1,23 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { Login } from './components/Login'
 import { OrderList } from './components/OrderList'
 import { WorkArea } from './components/WorkArea'
+import { ContextPanel } from './components/ContextPanel'
+import type { Auftrag, KundeKontaktJoin, TeilauftragRow } from './types/database'
+import type { Datei } from './components/DateiListe'
 
 function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [laden, setLaden] = useState(true)
   const [aktiverAuftragId, setAktiverAuftragId] = useState<string | null>(null)
+  const [aktiverAuftrag, setAktiverAuftrag] = useState<Auftrag | null>(null)
+  const [aktiverTeilauftrag, setAktiverTeilauftrag] = useState<TeilauftragRow | null>(null)
+  const [auftragKunde, setAuftragKunde] = useState<KundeKontaktJoin | null>(null)
+  const [auftragDateien, setAuftragDateien] = useState<Datei[]>([])
+  const [kontextAktualisiert, setKontextAktualisiert] = useState(0)
+  const [orderListKey, setOrderListKey] = useState(0)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -20,29 +29,98 @@ function App() {
     })
   }, [])
 
+  useEffect(() => {
+    if (aktiverAuftragId == null) {
+      setAktiverAuftrag(null)
+      setAktiverTeilauftrag(null)
+      setAuftragKunde(null)
+      setAuftragDateien([])
+    }
+  }, [aktiverAuftragId])
+
+  const onAuftragVomArbeitsbereich = useCallback((a: Auftrag | null) => {
+    setAktiverAuftrag(a)
+  }, [])
+
+  const onAuftragKundeGeladen = useCallback((k: KundeKontaktJoin | null) => {
+    setAuftragKunde(k)
+  }, [])
+
+  const onAktiverTeilauftragGeaendert = useCallback((t: TeilauftragRow | null) => {
+    setAktiverTeilauftrag(t)
+  }, [])
+
+  const onAuftragDateienGeaendert = useCallback((d: Datei[]) => {
+    setAuftragDateien(d)
+  }, [])
+
+  const handleAuftragAktualisiert = useCallback((a: Auftrag) => {
+    setAktiverAuftrag(a)
+    if (a.archiviert) {
+      setAktiverAuftragId(null)
+      setOrderListKey(k => k + 1)
+    }
+    setKontextAktualisiert(x => x + 1)
+  }, [])
+
+  const handleTeilauftragAktualisiert = useCallback((t: TeilauftragRow) => {
+    setAktiverTeilauftrag(t)
+    setKontextAktualisiert(x => x + 1)
+  }, [])
+
+  const handleTeilauftragEntfernt = useCallback((entferntId: string) => {
+    setAktiverTeilauftrag(cur => (cur?.id === entferntId ? null : cur))
+    setKontextAktualisiert(x => x + 1)
+  }, [])
+
   if (laden) return null
   if (!session) return <Login />
 
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: '280px 1fr 260px',
-      height: '100vh',
-      overflow: 'hidden',
-      fontFamily: 'system-ui, sans-serif',
-      fontSize: 14,
-    }}>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '280px 1fr 300px',
+        height: '100vh',
+        overflow: 'hidden',
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: 14,
+      }}
+    >
       <div style={{ borderRight: '1px solid #e5e5e5', overflowY: 'auto', background: '#fafafa' }}>
         <OrderList
+          key={orderListKey}
           aktiverAuftragId={aktiverAuftragId}
           onAuftragWaehlen={id => setAktiverAuftragId(id)}
         />
       </div>
       <div style={{ overflowY: 'auto' }}>
-        <WorkArea aktiverAuftragId={aktiverAuftragId} />
+        <WorkArea
+          aktiverAuftragId={aktiverAuftragId}
+          kontextAktualisiert={kontextAktualisiert}
+          onAktiverTeilauftragGeaendert={onAktiverTeilauftragGeaendert}
+          onAuftragKundeGeladen={onAuftragKundeGeladen}
+          onAuftragVomArbeitsbereich={onAuftragVomArbeitsbereich}
+          onAuftragDateienGeaendert={onAuftragDateienGeaendert}
+        />
       </div>
-      <div style={{ borderLeft: '1px solid #e5e5e5', overflowY: 'auto', background: '#fafafa', padding: 16 }}>
-        <p style={{ fontSize: 13, color: '#888' }}>Status & Aktionen</p>
+      <div
+        style={{
+          borderLeft: '1px solid #e5e5e5',
+          overflowY: 'auto',
+          background: '#fafafa',
+          padding: 16,
+        }}
+      >
+        <ContextPanel
+          auftrag={aktiverAuftrag}
+          aktiverTeilauftrag={aktiverTeilauftrag}
+          auftragKunde={auftragKunde}
+          auftragDateien={auftragDateien}
+          onAuftragAktualisiert={handleAuftragAktualisiert}
+          onTeilauftragAktualisiert={handleTeilauftragAktualisiert}
+          onTeilauftragEntfernt={handleTeilauftragEntfernt}
+        />
       </div>
     </div>
   )

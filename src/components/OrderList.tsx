@@ -16,6 +16,7 @@ export function OrderList({ aktiverAuftragId, onAuftragWaehlen }: Props) {
     supabase
       .from('auftraege')
       .select('id, auftragsnummer, status, erstellt_am, kunden(name)')
+      .eq('archiviert', false)
       .order('erstellt_am', { ascending: false })
       .then(({ data, error }) => {
         if (error) console.error(error)

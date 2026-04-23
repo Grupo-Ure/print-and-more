@@ -1,0 +1,149 @@
+.cp {
+  font-size: 13px;
+  color: #222;
+}
+.cp h2 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #888;
+  text-transform: uppercase;
+}
+.cp-sektion {
+  margin-bottom: 20px;
+}
+.cp-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-right: 6px;
+  margin-bottom: 6px;
+}
+.cp-badge-angebot {
+  background: #e5e5e5;
+  color: #333;
+}
+.cp-badge-unvoll {
+  background: #ffedd5;
+  color: #9a3412;
+}
+.cp-badge-prepress {
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+.cp-badge-prod {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+.cp-badge-fertig {
+  background: #d1fae5;
+  color: #065f46;
+}
+.cp-badge-notfall {
+  background: #fee2e2;
+  color: #b91c1c;
+  font-weight: 600;
+}
+.cp-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cp-btn {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #d4d4d4;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+.cp-btn:hover:not(:disabled) {
+  background: #f5f5f5;
+}
+.cp-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.cp-btn-rot {
+  color: #b91c1c;
+  border-color: #fecaca;
+  background: #fff5f5;
+}
+.cp-btn-grau {
+  color: #666;
+  border-color: #e5e5e5;
+  background: #fafafa;
+}
+.cp-hinweis {
+  font-size: 12px;
+  color: #666;
+  margin: 0 0 8px;
+  line-height: 1.4;
+}
+.cp-hinweis-warn {
+  color: #b45309;
+}
+.cp-hinweis-info {
+  color: #1d4ed8;
+}
+.cp-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  user-select: none;
+}
+.cp-modal-bg {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.cp-modal {
+  background: #fff;
+  border-radius: 8px;
+  max-width: 400px;
+  width: 100%;
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+.cp-modal h3 {
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+.cp-textarea,
+.cp-select {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 10px;
+  font-size: 13px;
+  padding: 8px;
+  border: 1px solid #d4d4d4;
+  border-radius: 6px;
+}
+.cp-modal-bar {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+.cp-sublabel {
+  font-size: 11px;
+  color: #b45309;
+  margin: -2px 0 6px;
+}
+.cp-aktion-trenn {
+  height: 1px;
+  background: #e5e5e5;
+  margin: 10px 0;
+}

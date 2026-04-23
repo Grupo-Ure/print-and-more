@@ -68,7 +68,12 @@ export type AuftragDetailRow = {
   auftragsnummer: string
   status: AuftragStatus
   kunden: KundeKontaktJoin
+  erp_exportiert: boolean
+  archiviert: boolean
 }
+
+/** Rechte Spalte / Kontext (identisch mit geladenem Auftrag) */
+export type Auftrag = AuftragDetailRow
 
 export type LieferungWahl = 'ABHOLUNG' | 'VERSAND'
 
@@ -85,6 +90,12 @@ export type TeilauftragRow = {
   satzzeit_minuten: number | null
   /** Bereichsspezifische Daten (LFP, …) — JSONB */
   detail: Record<string, unknown> | null
+  notfall_aktiv: boolean
+  notfall_begruendung: string | null
+  storniert: boolean
+  kundenfreigabe_erforderlich: boolean
+  kundenfreigabe_liegt_vor: boolean
+  kundenfreigabe_datei_id: string | null
 }
 
 export type NeuerTeilauftragEintrag = {

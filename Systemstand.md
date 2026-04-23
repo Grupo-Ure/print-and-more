@@ -15,12 +15,24 @@ Dreispaltig, volle Höhe:
 | Spalte | Breite   | Inhalt |
 |--------|----------|--------|
 | Links  | 280px    | `OrderList` — Aufträge, Auswahl |
-| Mitte  | 1fr      | `WorkArea` — Auftragskontext + Teilaufträge |
-| Rechts | 260px    | Platzhalter „Status & Aktionen“ (noch ohne Funktionsumfang) |
+| Mitte  | 1fr      | `WorkArea` — Auftragskontext, **Dateien**, Teilaufträge, Detail |
+| Rechts | 260px    | Platzhalter „Status & Aktionen“ (noch ohne fachlichen Funktionsumfang) |
 
 **Gemeinsamer Zustand:** `aktiverAuftragId: string | null` in `App`, an `OrderList` und `WorkArea` durchgereicht.
 
 **Auth:** `Login` mit `supabase.auth.signInWithPassword`; Session-Typ `Session | null`. Ohne Session wird nur das Login-Layout gezeigt.
+
+## WorkArea (`src/components/WorkArea.tsx`) — Ablauf von oben nach unten
+
+1. **Auftragskopf:** Kundenname, Auftragsnummer, Auftragsstatus (aus `auftraege`).
+2. **Dateien (`DateiListe`):** auftragsweite Dateiverknüpfungen; Titel in der UI: **„Dateien“** (keine künstliche Nähe zu einem einzelnen Teilauftrag).
+3. Trennlinie.
+4. **Teilauftrags-Tabs** + **„+“** (neuer Teilauftrag, Overlay `AddTeilauftragOverlay`).
+5. **Aktives Detail** (`TeilauftragDetail` je Bereich).
+
+**Zentraler Datei-State:** `dateien: Datei[]`, `dateienLaden`, `reloadDateien()`; Ladetrigger bei Wechsel von `aktiverAuftragId`. `DateiListe` und `TeilauftragDetail` (für z. B. **TEXTIL** → Datei-Motiv-Dropdown) nutzen dieselbe Liste aus der WorkArea — keine doppelte Datei-Abfrage in den Kindkomponenten.
+
+**Datenladung:** `ladeAuftragUndTeilauftraege(auftragId)`: `auftraege` (mit `kunden(name, email, telefon)`) + `teilauftraege` (via `TEILAUFTRAG_SPALTEN`); aktiver Tab folgt der ersten Rückgabe bzw. bleibt erhalten, wenn die ID noch existiert.
 
 ## Wichtige Dateien (Auswahl)
 
@@ -29,16 +41,26 @@ Dreispaltig, volle Höhe:
 | `src/types/database.ts` | Enums, `TeilauftragRow` inkl. `detail`, `lieferung`, Kunden-Joins; `TEILAUFTRAG_BEREICHE` / `teilauftragBereichLabel()` |
 | `src/types/lfp.ts` | LFP-Teiltypen, `LfpDetailJson` |
 | `src/types/copyshop.ts` | Copy-Shop-Teiltypen, `CopyShopDetailJson` |
+| `src/types/textil.ts` | Textil-Enums, Zeilen-Typen (Motive, Positionen, Zuordnungen) |
 | `src/const/teilauftragSelect.ts` | `TEILAUFTRAG_SPALTEN` für `select` nach `update` / `insert` |
 | `src/lib/kunde.ts` | `kundenName()`; `kundeErfuelltPrepressKontakt()` (Name + E-Mail **oder** Telefon) |
-| `src/lib/teilGlobal.ts` | Globale Pflichtfeld-Validierung, `istTeilAuftragVollstaendig`, `nextTeilStatus` (LFP, Copy-Shop, Sonderfall `SONSTIGE_LFP`) |
+| `src/lib/teilGlobal.ts` | Globale Pflichtfeld-Validierung, `istTeilAuftragVollstaendig`, `nextTeilStatus` inkl. **LFP, COPYSHOP, STempel, Sonstige, Laser, Sonderfälle, TEXTIL** |
 | `src/lib/lfp/validateLfpDetail.ts` | LFP-`detail`-Validierung (außer bei `ANGEBOT`) |
-| `src/lib/copyshop/validateCopyShopDetail.ts` | Copy-Shop-`detail` je `typ` (u. a. Plakat, Karte, Falz, Broschüre, Visitenkarte, **Bindung**, Ausdruck) |
+| `src/lib/copyshop/validateCopyShopDetail.ts` | Copy-Shop-`detail` je `typ` |
+| `src/lib/stempel/validateStempelDetail.ts` | Stempel-`detail` |
+| `src/lib/sonstige/validateSonstigeDetail.ts` | Sonstige-`detail` |
+| `src/lib/laser/validateLaserDetail.ts` | Laser-`detail` |
+| `src/lib/textil/validateTextilDetail.ts` | Textil: `textilDetailJsonMarkiertVoll` (`detail.textil.voll`); `textilDatensaetzeErlaubenPraepress` (Tabellenlogik) |
 | `src/components/OrderList.tsx` | `auftraege` + `kunden(name)`; Auswahl, aktive Zeile |
-| `src/components/WorkArea.tsx` | Auftrag mit `kunden(name, email, telefon)`; `teilauftraege`; Tabs; Overlay neuer Teilauftrag; Insert/Update |
-| `src/components/TeilauftragDetail.tsx` | Globale editierbare Felder; bei `LFP` → `LFPDetail`, bei `COPYSHOP` → `CopyShopDetail`; Speichern in Supabase; Mitarbeiter-Dropdown |
-| `src/components/bereiche/LFPDetail.tsx` | LFP: Typ, Stückzahl, `detail`, typspezifische Masken |
-| `src/components/bereiche/CopyShopDetail.tsx` | Copy-Shop: `typ` + `detail` (Hilfe-Komponenten u. a. `MaterialCC`, `MaterialOffset`) |
+| `src/components/WorkArea.tsx` | Auftrag, Teilaufträge, **Datei-State**, `DateiListe`, Tabs, Overlay |
+| `src/components/DateiListe.tsx` | Dateien-UI; `export type Datei`, `useDateienFuerAuftrag(auftragId)` für externe Nutzung; Props `dateien` + `onDateiGeaendert` wenn eingebunden |
+| `src/components/TeilauftragDetail.tsx` | Globale Felder; wechselnde Bereichsmaske: LFP, CopyShop, Stempel, Sonstige, Laser, **Textil**; `auftragDateien` an Textil |
+| `src/components/bereiche/LFPDetail.tsx` | LFP: Typ, Stückzahl, `detail` |
+| `src/components/bereiche/CopyShopDetail.tsx` | Copy-Shop: `typ` + `detail` |
+| `src/components/bereiche/StempelDetail.tsx` | Stempel: `typ` + `detail` |
+| `src/components/bereiche/SonstigeDetail.tsx` | Sonstige: `detail` |
+| `src/components/bereiche/LaserDetail.tsx` | Laser: `typ` + `detail` |
+| `src/components/bereiche/TextilDetail.tsx` | Textil: Motive, Positionen, Zuordnungen (eigene Tabellen); `auftragDateien` für Datei-Motive; Synchronisation `detail.textil` + Status |
 | `src/components/AddTeilauftragOverlay.tsx` | Neuer TA: Bereich (DB-Enum vs. Anzeigetext) |
 | `src/components/WorkArea.css` | Layout, Formulare, Bereichs-Styles |
 | `src/components/Login.tsx` | Anmeldung |
@@ -46,17 +68,18 @@ Dreispaltig, volle Höhe:
 ## Fachliches Modell (Kurz)
 
 - **Auftrag** — Kunde, globaler `status`, 1…n **Teilaufträge**; in der Mitte wird `auftraege.status` aus der DB gelesen (sinnvolle Aggregation idealerweise per Trigger/View in Supabase).
-- **Teilauftrag** — u. a. `bereich`, `typ`, `status`, `termin`, `lieferung`, `prioritaet`, `verantwortlicher_id`, `satzzeit_minuten`, **`detail` (JSONB)** für LFP, Copy-Shop und künftige Bereiche.
+- **Dateien** — gehören zum **Auftrag** (`dateien.auftrag_id`); in der App zentral in der WorkArea geladen, für alle Bereiche nutzbar.
+- **Teilauftrag** — u. a. `bereich`, `typ`, `status`, `termin`, `lieferung`, `prioritaet`, `verantwortlicher_id`, `satzzeit_minuten`, **`detail` (JSONB)** für LFP, Copy-Shop, Stempel, Sonstige, Laser; **TEXTIL** nutzt zusätzlich Tabellen `textil_motive`, `textil_positionen`, `textil_zuordnungen` und spiegelt Vollständigkeit in `detail.textil.voll`.
 
 ### Status (Auftrag & Teilauftrag)
 
 Reihenfolge: `ANGEBOT` → `UNVOLLSTAENDIG` → `PREPRESS_BEREIT` → `PRODUKTION_BEREIT` → `FERTIG`
 
 - **Neue Teilaufträge (Insert):** `UNVOLLSTAENDIG`, `prioritaet: 'NORMAL'`, u. a. `detail: {}`, `lieferung: null` (siehe `WorkArea`).
-- **ANGEBOT:** globale und bereichsspezifische **Pflichtvalidierung** entfällt (siehe `validateGlobalTeilfelder` / `validateLfpDetail` / `validateCopyShopDetail` mit `teilStatus === 'ANGEBOT'` bzw. `istTeilAuftragVollstaendig`).
-- **Auto-`PREPRESS_BEREIT`:** in `nextTeilStatus` nur für **LFP** und **COPYSHOP** bei Vollständigkeit und erfülltem Kundenkontakt; **Ausnahme** LFP mit `typ === 'SONSTIGE_LFP'` (kein automatischer Schritt in `PREPRESS_BEREIT` wie bei den übrigen LFP-Typen, analog `SONSTIGE_LFP` in der alten Doku). 
-- **Nach `PRODUKTION_BEREIT` / `FERTIG`:** inhaltliche Änderungen führen zurück auf `UNVOLLSTAENDIG` (`teilHatInhaltAenderung` in `teilGlobal.ts`).
-- **Bereiche ohne LFP/Copy-Shop:** `nextTeilStatus` führt faktisch vorerst zu `UNVOLLSTAENDIG` (Vollständigkeitslogik noch nicht an andere Bereiche angebunden).
+- **ANGEBOT:** globale und bereichsspezifische **Pflichtvalidierung** entfällt (siehe `validateGlobalTeilfelder` / Bereich-Validatoren mit `teilStatus === 'ANGEBOT'` bzw. `istTeilAuftragVollstaendig`).
+- **Auto-`PREPRESS_BEREIT`:** in `nextTeilStatus` für u. a. **LFP**, **COPYSHOP**, **TEXTIL** bei Vollständigkeit und erfülltem Kundenkontakt; **Ausnahmen** u. a. LFP `SONSTIGE_LFP`, Stempel `SONSTIGE_STEMPEL`, Laser `SONSTIGE_LASER` (vgl. `teilGlobal.ts` — anderes Rückfallverhalten), **SONSTIGE** mit eigener `PREPRESS_BEREIT`-Logik.
+- **Nach `PRODUKTION_BEREIT` / `FERTIG`:** inhaltliche Änderungen führen je nach Bereich zurück auf `UNVOLLSTAENDIG` (Stempel/Sonstige: `beschreibung`; Laser: `detail.motiv`; sonst `teilHatInhaltAenderung`); **TEXTIL** zusätzlich spezifische Rücksprungregeln bei Motiv/Position/Zuordnung.
+- **TEXTIL:** Vollständigkeit = globale Felder + `detail.textil.voll === true` (wird aus den Textil-Tabellen berechnet und beim Speichern mitgeschrieben).
 
 ### Teilauftrag-Bereich (Enum `teilauftrag_bereich`)
 
@@ -71,6 +94,8 @@ Nur **dieselben Enum-Strings** (Großbuchstaben, kein Leerzeichen) gehen an die 
 | TEXTIL     | Textil          |
 | …          | …               |
 
+**TEXTIL:** kein `typ` in der UI (bleibt `null` im Erfassungsflow der Maske). Motive/Positionen/Zuordnungen über die genannten Tabellen.
+
 ## Teilauftrag — Spalten & Speicherung (Client)
 
 **`TEILAUFTRAG_SPALTEN`:**  
@@ -78,10 +103,9 @@ Nur **dieselben Enum-Strings** (Großbuchstaben, kein Leerzeichen) gehen an die 
 
 - **`lieferung`:** `ABHOLUNG` | `VERSAND` (globales Formularfeld).
 - **`verantwortlicher_id`:** UUID; **Dropdown** aus der View/Relation `mitarbeiter` (`select('id, email')`), Anzeige = E‑Mail, Wert = `id`. Option „—“ = `null`. Gesetzte UUID ohne Treffer: Zusatzoption mit Hinweis.
-- **`satzzeit_minuten`:** optional; valide Werte: ganze Zahl &gt; 0, sonst Fehler; Anzeige z. B. „n Min“.
-- **`detail` (JSONB):**  
-  - **LFP:** Logik in `validateLfpDetail` (u. a. Stückzahl, Maße, typabhängig; Fahrzeug: Montagefelder nur bei `montage === 'MIT'`, bei `OHNE` bereinigt).  
-  - **COPYSHOP:** Teiltypen in `COPY_SHOP_TYPS` (u. a. `PLAKAT_POSTER`, `KARTE_FLYER`, `FALZFLYER`, `BROSCHUERE`, `VISITENKARTE`, `BINDUNG`, `AUSDRUCK`); Logik in `validateCopyShopDetail` und UI in `CopyShopDetail`. **Bindung:** u. a. `farbigkeit` (Werte wie `1_0`, `1_1`, `4_0`, `4_1`); **kein** `druckseite`-Feld/Validierung im Typ Bindung (im Gegensatz z. B. zu Visitenkarte).  
+- **`satzzeit_minuten`:** optional; valide Werte: ganze Zahl &gt; 0, sonst Fehler.
+- **`detail` (JSONB):** pro Bereich; **TEXTIL** ergänzt `textil: { voll: boolean }` für die Statuslogik.
+- **Copy-Shop:** u. a. `COPY_SHOP_TYPS` (u. a. `PLAKAT_POSTER`, `KARTE_FLYER`, `FALZFLYER`, `BROSCHUERE`, `VISITENKARTE`, `BINDUNG`, `AUSDRUCK`); **Bindung:** u. a. `farbigkeit`.
 
 **Auftrag in der Arbeitsfläche:** `kunden(name, email, telefon)` für Kontext und Prepress-Regel.
 
@@ -89,10 +113,11 @@ Nur **dieselben Enum-Strings** (Großbuchstaben, kein Leerzeichen) gehen an die 
 
 - **`auftraege`:** u. a. `id`, `auftragsnummer`, `status`, `erstellt_am`, Join `kunden(…)`.
 - **`teilauftraege`:** Spalten wie oben; Inserts/Updates mit den genannten Feldern.
+- **`dateien`:** u. a. `id`, `auftrag_id`, `anzeigename`, `pfad`, `rolle`, `erstellt_am` (Auftrags-Datei-Management).
+- **`textil_motive`**, **`textil_positionen`**, **`textil_zuordnungen`:** Textil-Detail (siehe `TextilDetail.tsx`).
 - **`mitarbeiter`:** `id`, `email` (für Verantwortlichen-Auswahl).
 
 ## Bekannte Lücken / geplante Erweiterungen
 
-- Rechte Spalte: nur Platzhalter, keine fachlichen Aktionen.
-- **Bereiche** außer **LFP** und **COPYSHOP:** keine eigenen `detail`-Masken; `detail` bleibt leer bzw. ungenutzt.
+- Rechte Spalte: **nur Platzhalter** „Status & Aktionen“; kein `ContextPanel`, keine Historie-API im Repo, keine Kundenfreigabe-/Notfall-Felder im `TeilauftragRow` des Clients (Stand dieser Doku) — ggf. DB-Erweiterung und UI folgen.
 - `OrderList` wird nicht bei jeder Teilauftrags-Änderung invalidiert; der aggregierte `auftraege.status` in der Liste kann gegenüber dem geöffneten Auftrag veralten, bis man neu lädt oder die Auswahl wechselt.
