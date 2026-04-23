@@ -143,7 +143,7 @@ export function DateiListe({ aktiverAuftragId, dateien, dateienLaden, onDateiGea
 
   return (
     <div className="ber-lfp" style={{ maxWidth: '100%' }}>
-      <h3 className="ber-h3">Dateien dieses Auftrags</h3>
+      <h3 className="ber-h3">Dateien</h3>
       {fehler && <p className="ber-err">{fehler}</p>}
 
       <form onSubmit={handleHinzufuegen} style={{ marginBottom: '1rem' }}>

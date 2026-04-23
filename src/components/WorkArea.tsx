@@ -185,6 +185,15 @@ export function WorkArea({ aktiverAuftragId }: Props) {
 
       {fehler && <p className="wa-fehler">{fehler}</p>}
 
+      <DateiListe
+        aktiverAuftragId={aktiverAuftragId}
+        dateien={dateien}
+        dateienLaden={dateienLaden}
+        onDateiGeaendert={reloadDateien}
+      />
+
+      <div style={{ borderTop: '1px solid var(--border)', marginTop: '0.5rem' }} aria-hidden="true" />
+
       <div className="wa-leiste">
         <div className="wa-tabs" role="tablist" aria-label="Teilaufträge">
           {teilauftraege.map(t => {
@@ -229,13 +238,6 @@ export function WorkArea({ aktiverAuftragId }: Props) {
           <p className="wa-hint">Noch keine Teilaufträge. Nutzen Sie +, um einen Bereich anzulegen.</p>
         )}
       </div>
-
-      <DateiListe
-        aktiverAuftragId={aktiverAuftragId}
-        dateien={dateien}
-        dateienLaden={dateienLaden}
-        onDateiGeaendert={reloadDateien}
-      />
 
       <AddTeilauftragOverlay
         offen={overlayOffen}
