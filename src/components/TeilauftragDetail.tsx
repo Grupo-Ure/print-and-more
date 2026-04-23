@@ -10,8 +10,10 @@ import {
 import { teilauftragBereichLabel, type KundeKontaktJoin, type TeilauftragRow } from '../types/database'
 import { CopyShopDetail } from './bereiche/CopyShopDetail'
 import { LFPDetail } from './bereiche/LFPDetail'
+import { StempelDetail } from './bereiche/StempelDetail'
 import type { LfpDetailJson } from '../types/lfp'
 import type { CopyShopDetailJson } from '../types/copyshop'
+import type { StempelDetailJson } from '../types/stempel'
 import './WorkArea.css'
 
 type Props = {
@@ -119,6 +121,16 @@ export function TeilauftragDetail({ teil, auftragKunde, onAktualisiert }: Props)
     [speichere]
   )
 
+  const onStempelPatch = useCallback(
+    async (p: { typ?: string | null; detail: StempelDetailJson | null }) => {
+      await speichere({
+        typ: p.typ,
+        detail: p.detail,
+      } as Partial<TeilauftragRow>)
+    },
+    [speichere]
+  )
+
   const globTermin = lokal.termin
   const iso = globTermin
     ? globTermin.length > 10
@@ -145,9 +157,13 @@ export function TeilauftragDetail({ teil, auftragKunde, onAktualisiert }: Props)
           {speichLad ? ' …' : ''}
         </p>
       </div>
-      {pruef && kundeErfuelltPrepressKontakt(auftragKunde) === false && (
-        <p className="ber-hinweis">Für Auto-PREPRESS: Kunde braucht Name und E-Mail oder Telefon.</p>
-      )}
+      {pruef &&
+        kundeErfuelltPrepressKontakt(auftragKunde) === false &&
+        (lokal.bereich === 'LFP' ||
+          lokal.bereich === 'COPYSHOP' ||
+          (lokal.bereich === 'STEMPEL' && lokal.typ !== 'SONSTIGE_STEMPEL')) && (
+          <p className="ber-hinweis">Für Auto-PREPRESS: Kunde braucht Name und E-Mail oder Telefon.</p>
+        )}
 
       <h3 className="ber-h3" style={{ marginTop: '0.5rem' }}>
         Allgemein
@@ -282,7 +298,11 @@ export function TeilauftragDetail({ teil, auftragKunde, onAktualisiert }: Props)
         <CopyShopDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onCopyShopPatch} />
       )}
 
-      {lokal.bereich !== 'LFP' && lokal.bereich !== 'COPYSHOP' && (
+      {lokal.bereich === 'STEMPEL' && (
+        <StempelDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onStempelPatch} />
+      )}
+
+      {lokal.bereich !== 'LFP' && lokal.bereich !== 'COPYSHOP' && lokal.bereich !== 'STEMPEL' && (
         <>
           <div className="td-zeile" style={{ marginTop: 8 }}>
             <p className="td-label">Typ</p>

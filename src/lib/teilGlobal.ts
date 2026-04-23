@@ -1,6 +1,7 @@
 import type { AuftragStatus, TeilauftragRow } from '../types/database'
 import { validateCopyShopDetail } from './copyshop/validateCopyShopDetail'
 import { validateLfpDetail } from './lfp/validateLfpDetail'
+import { validateStempelDetail } from './stempel/validateStempelDetail'
 
 export type LieferungEnum = 'ABHOLUNG' | 'VERSAND'
 
@@ -27,6 +28,21 @@ export function validateGlobalTeilfelder(
 
 function equalDetail(a: unknown, b: unknown): boolean {
   return JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+}
+
+/** Nach PROD/FERTIG: bei STEMPEL nur `detail.beschreibung` (nicht z. B. Farbe) setzt inhaltlich zurück. */
+function stempelNachProdAenderung(snap: TeilauftragRow, merged: TeilauftragRow): boolean {
+  const rowAenderung =
+    merged.typ !== snap.typ ||
+    merged.termin !== snap.termin ||
+    merged.lieferung !== snap.lieferung ||
+    merged.prioritaet !== snap.prioritaet ||
+    merged.verantwortlicher_id !== snap.verantwortlicher_id ||
+    merged.satzzeit_minuten !== snap.satzzeit_minuten
+  if (rowAenderung) return true
+  const sd = (snap.detail as Record<string, unknown> | null) ?? {}
+  const md = (merged.detail as Record<string, unknown> | null) ?? {}
+  return String(sd.beschreibung ?? '') !== String(md.beschreibung ?? '')
 }
 
 export function teilHatInhaltAenderung(
@@ -58,6 +74,11 @@ export function istTeilAuftragVollstaendig(t: TeilauftragRow, teilStatus: Auftra
     const c = validateCopyShopDetail(t.typ, d, teilStatus)
     return Object.keys(c).length === 0
   }
+  if (t.bereich === 'STEMPEL') {
+    const d = (t.detail as Record<string, unknown> | null) ?? {}
+    const s = validateStempelDetail(t.typ, d, teilStatus)
+    return Object.keys(s).length === 0
+  }
   return true
 }
 
@@ -73,16 +94,26 @@ export function nextTeilStatus(
 ): AuftragStatus {
   if (before === 'ANGEBOT') return 'ANGEBOT'
   if (before === 'PRODUKTION_BEREIT' || before === 'FERTIG') {
+    if (merged.bereich === 'STEMPEL') {
+      if (stempelNachProdAenderung(snap, merged)) return 'UNVOLLSTAENDIG'
+      return before
+    }
     if (teilHatInhaltAenderung(snap, merged)) return 'UNVOLLSTAENDIG'
     return before
   }
   const lfp = merged.bereich === 'LFP'
   const copyShop = merged.bereich === 'COPYSHOP'
-  if (!lfp && !copyShop) {
+  const stempel = merged.bereich === 'STEMPEL'
+  if (!lfp && !copyShop && !stempel) {
     if (!vollstaendig) return 'UNVOLLSTAENDIG'
     return 'UNVOLLSTAENDIG'
   }
   if (lfp && merged.typ === 'SONSTIGE_LFP') {
+    if (!vollstaendig) return 'UNVOLLSTAENDIG'
+    if (before === 'PREPRESS_BEREIT') return 'PREPRESS_BEREIT'
+    return 'UNVOLLSTAENDIG'
+  }
+  if (stempel && merged.typ === 'SONSTIGE_STEMPEL') {
     if (!vollstaendig) return 'UNVOLLSTAENDIG'
     if (before === 'PREPRESS_BEREIT') return 'PREPRESS_BEREIT'
     return 'UNVOLLSTAENDIG'
