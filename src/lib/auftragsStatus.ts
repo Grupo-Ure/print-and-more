@@ -1,7 +1,6 @@
 import { supabase } from '../supabase'
+import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
 import type { Auftrag, AuftragStatus } from '../types/database'
-
-const AUFTRAG_SPALTEN = 'id, auftragsnummer, status, kunden(name, email, telefon), erp_exportiert, archiviert'
 
 function parseStatusFromRpc(data: unknown): AuftragStatus {
   if (data == null) {

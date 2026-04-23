@@ -5,6 +5,10 @@ import { Login } from './components/Login'
 import { OrderList } from './components/OrderList'
 import { WorkArea } from './components/WorkArea'
 import { ContextPanel } from './components/ContextPanel'
+import { NeuerAuftragDialog, type NeuerAuftragInsertRow } from './components/NeuerAuftragDialog'
+import { KundeDialog } from './components/KundeDialog'
+import { kontaktJoinZuKunde } from './lib/kunden'
+import type { Kunde } from './lib/kunden'
 import type { Auftrag, KundeKontaktJoin, TeilauftragRow } from './types/database'
 import type { Datei } from './components/DateiListe'
 
@@ -18,6 +22,11 @@ function App() {
   const [auftragDateien, setAuftragDateien] = useState<Datei[]>([])
   const [kontextAktualisiert, setKontextAktualisiert] = useState(0)
   const [orderListKey, setOrderListKey] = useState(0)
+  const [neuerAuftragOffen, setNeuerAuftragOffen] = useState(false)
+  const [kundeDialog, setKundeDialog] = useState<{ offen: boolean; k: Kunde | null }>({
+    offen: false,
+    k: null,
+  })
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -73,6 +82,23 @@ function App() {
     setKontextAktualisiert(x => x + 1)
   }, [])
 
+  const handleKundeGespeichert = useCallback((_: Kunde) => {
+    setKundeDialog({ offen: false, k: null })
+    setOrderListKey(k => k + 1)
+    setKontextAktualisiert(x => x + 1)
+  }, [])
+
+  const handleNeuerAuftragErfolg = useCallback((a: NeuerAuftragInsertRow) => {
+    setNeuerAuftragOffen(false)
+    setAktiverAuftragId(a.id)
+    setOrderListKey(k => k + 1)
+  }, [])
+
+  const openKundeBearbeiten = useCallback(() => {
+    const k = kontaktJoinZuKunde(auftragKunde)
+    if (k) setKundeDialog({ offen: true, k })
+  }, [auftragKunde])
+
   if (laden) return null
   if (!session) return <Login />
 
@@ -92,6 +118,7 @@ function App() {
           key={orderListKey}
           aktiverAuftragId={aktiverAuftragId}
           onAuftragWaehlen={id => setAktiverAuftragId(id)}
+          onNeuerAuftrag={() => setNeuerAuftragOffen(true)}
         />
       </div>
       <div style={{ overflowY: 'auto' }}>
@@ -102,6 +129,7 @@ function App() {
           onAuftragKundeGeladen={onAuftragKundeGeladen}
           onAuftragVomArbeitsbereich={onAuftragVomArbeitsbereich}
           onAuftragDateienGeaendert={onAuftragDateienGeaendert}
+          onKundeBearbeiten={openKundeBearbeiten}
         />
       </div>
       <div
@@ -120,8 +148,22 @@ function App() {
           onAuftragAktualisiert={handleAuftragAktualisiert}
           onTeilauftragAktualisiert={handleTeilauftragAktualisiert}
           onTeilauftragEntfernt={handleTeilauftragEntfernt}
+          onKundeBearbeiten={openKundeBearbeiten}
         />
       </div>
+
+      <NeuerAuftragDialog
+        offen={neuerAuftragOffen}
+        onSchliessen={() => setNeuerAuftragOffen(false)}
+        onErfolg={handleNeuerAuftragErfolg}
+      />
+      {kundeDialog.offen && (
+        <KundeDialog
+          kunde={kundeDialog.k}
+          onGespeichert={handleKundeGespeichert}
+          onAbbrechen={() => setKundeDialog({ offen: false, k: null })}
+        />
+      )}
     </div>
   )
 }

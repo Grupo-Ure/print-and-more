@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabase'
 import { kundenName } from '../lib/kunde'
+import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
 import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
 import {
   teilauftragBereichLabel,
@@ -8,14 +9,13 @@ import {
   type AuftragDetailRow,
   type Bereich,
   type KundeKontaktJoin,
+  type LieferungWahl,
   type TeilauftragRow,
 } from '../types/database'
 import { AddTeilauftragOverlay } from './AddTeilauftragOverlay'
 import { DateiListe, type Datei } from './DateiListe'
 import { TeilauftragDetail } from './TeilauftragDetail'
 import './WorkArea.css'
-
-const AUFTRAG_DETAIL_SPALTEN = 'id, auftragsnummer, status, kunden(name, email, telefon), erp_exportiert, archiviert' as const
 
 type Props = {
   aktiverAuftragId: string | null
@@ -24,6 +24,7 @@ type Props = {
   onAuftragKundeGeladen: (k: KundeKontaktJoin | null) => void
   onAuftragVomArbeitsbereich: (a: Auftrag | null) => void
   onAuftragDateienGeaendert: (d: Datei[]) => void
+  onKundeBearbeiten: () => void
 }
 
 export function WorkArea({
@@ -33,6 +34,7 @@ export function WorkArea({
   onAuftragKundeGeladen,
   onAuftragVomArbeitsbereich,
   onAuftragDateienGeaendert,
+  onKundeBearbeiten,
 }: Props) {
   const [auftrag, setAuftrag] = useState<AuftragDetailRow | null>(null)
   const [teilauftraege, setTeilauftraege] = useState<TeilauftragRow[]>([])
@@ -43,6 +45,11 @@ export function WorkArea({
   const [speichert, setSpeichert] = useState(false)
   const [dateien, setDateien] = useState<Datei[]>([])
   const [dateienLaden, setDateienLaden] = useState(false)
+  const [kopfTermin, setKopfTermin] = useState('')
+  const [kopfLieferung, setKopfLieferung] = useState<LieferungWahl | ''>('')
+  const [kopfPrioritaet, setKopfPrioritaet] = useState('NORMAL')
+  const [kopfSpeichert, setKopfSpeichert] = useState(false)
+  const kopfSnap = useRef({ termin: null as string | null, lieferung: null as LieferungWahl | null, prioritaet: 'NORMAL' })
 
   const reloadDateien = useCallback(async () => {
     if (!aktiverAuftragId) return
@@ -76,7 +83,7 @@ export function WorkArea({
       const [aufRes, tRes] = await Promise.all([
         supabase
           .from('auftraege')
-          .select(AUFTRAG_DETAIL_SPALTEN)
+          .select(AUFTRAG_SPALTEN)
           .eq('id', auftragId)
           .single(),
         supabase
@@ -121,6 +128,56 @@ export function WorkArea({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Supabase-Abfrage; setState erst nach await in ladeAuftragUndTeilauftraege
     void ladeAuftragUndTeilauftraege(aktiverAuftragId)
   }, [aktiverAuftragId, ladeAuftragUndTeilauftraege, kontextAktualisiert])
+
+  useEffect(() => {
+    if (!auftrag) return
+    const raw = auftrag.termin
+    const iso =
+      raw && raw.length > 0
+        ? raw.length > 10
+          ? raw.slice(0, 10)
+          : raw
+        : ''
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Formular spiegelt Server-Zeile
+    setKopfTermin(iso)
+    setKopfLieferung(auftrag.lieferung ?? '')
+    setKopfPrioritaet(auftrag.prioritaet?.trim() ? auftrag.prioritaet : 'NORMAL')
+    kopfSnap.current = {
+      termin: raw,
+      lieferung: auftrag.lieferung,
+      prioritaet: auftrag.prioritaet,
+    }
+  }, [auftrag])
+
+  const speichereAuftragKopf = useCallback(
+    async (patch: Partial<Pick<AuftragDetailRow, 'termin' | 'lieferung' | 'prioritaet'>>) => {
+      if (!aktiverAuftragId) return
+      setKopfSpeichert(true)
+      const { data, error } = await supabase
+        .from('auftraege')
+        .update(patch)
+        .eq('id', aktiverAuftragId)
+        .select(AUFTRAG_SPALTEN)
+        .single()
+      setKopfSpeichert(false)
+      if (error) {
+        console.error(error)
+        return
+      }
+      if (data) {
+        const row = data as AuftragDetailRow
+        setAuftrag(row)
+        onAuftragVomArbeitsbereich(row)
+        onAuftragKundeGeladen(row.kunden)
+        kopfSnap.current = {
+          termin: row.termin,
+          lieferung: row.lieferung,
+          prioritaet: row.prioritaet,
+        }
+      }
+    },
+    [aktiverAuftragId, onAuftragVomArbeitsbereich, onAuftragKundeGeladen]
+  )
 
   const sichtbareTeile = useMemo(
     () => teilauftraege.filter(t => !t.storniert),
@@ -230,13 +287,99 @@ export function WorkArea({
 
   const kunde = kundenName(auftrag.kunden)
   const aktiverTeil = aktiverTeilFuerKontext
+  const termSlice = (t: string | null) => (t && t.length > 10 ? t.slice(0, 10) : t || '')
 
   return (
     <div className="wa">
       <header className="wa-kopf">
-        <h1>{kunde}</h1>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+            flexWrap: 'wrap',
+          }}
+        >
+          <h1 style={{ margin: 0 }}>{kunde}</h1>
+          <button
+            type="button"
+            className="wa-pen"
+            onClick={onKundeBearbeiten}
+            title="Kunde bearbeiten"
+            aria-label="Kunde bearbeiten"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+          </button>
+        </div>
         <div className="wa-kopf-meta">
           {auftrag.auftragsnummer} · {auftrag.status}
+          {kopfSpeichert ? ' · …' : ''}
+        </div>
+        <div style={{ marginTop: '0.75rem' }}>
+          <div className="ber-zeile">
+            <span className="ber-lbl">Termin</span>
+            <div>
+              <input
+                type="date"
+                className="ber-inp"
+                value={kopfTermin}
+                onChange={e => setKopfTermin(e.target.value)}
+                onBlur={e => {
+                  const v = e.target.value || null
+                  const s = termSlice(kopfSnap.current.termin)
+                  if ((v || '') !== (s || '')) {
+                    void speichereAuftragKopf({ termin: v })
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <div className="ber-zeile">
+            <span className="ber-lbl">Lieferung</span>
+            <div>
+              <select
+                className="ber-inp"
+                value={kopfLieferung}
+                onChange={e => {
+                  const v = e.target.value
+                  setKopfLieferung(v === '' ? '' : (v as LieferungWahl))
+                }}
+                onBlur={e => {
+                  const v = (e.target.value as LieferungWahl) || null
+                  if (v !== kopfSnap.current.lieferung) {
+                    void speichereAuftragKopf({ lieferung: v })
+                  }
+                }}
+              >
+                <option value="">—</option>
+                <option value="ABHOLUNG">Abholung</option>
+                <option value="VERSAND">Versand</option>
+              </select>
+            </div>
+          </div>
+          <div className="ber-zeile">
+            <span className="ber-lbl">Priorität</span>
+            <div>
+              <select
+                className="ber-inp"
+                value={kopfPrioritaet}
+                onChange={e => setKopfPrioritaet(e.target.value)}
+                onBlur={e => {
+                  if (e.target.value !== kopfSnap.current.prioritaet) {
+                    void speichereAuftragKopf({ prioritaet: e.target.value })
+                  }
+                }}
+              >
+                {kopfPrioritaet === 'NIEDRIG' && <option value="NIEDRIG">Niedrig</option>}
+                <option value="NORMAL">Normal</option>
+                <option value="HOCH">Hoch</option>
+              </select>
+            </div>
+          </div>
         </div>
       </header>
 

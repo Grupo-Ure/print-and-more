@@ -6,9 +6,10 @@ import type { AuftragListRow } from '../types/database'
 type Props = {
   aktiverAuftragId: string | null
   onAuftragWaehlen: (id: string) => void
+  onNeuerAuftrag: () => void
 }
 
-export function OrderList({ aktiverAuftragId, onAuftragWaehlen }: Props) {
+export function OrderList({ aktiverAuftragId, onAuftragWaehlen, onNeuerAuftrag }: Props) {
   const [auftraege, setAuftraege] = useState<AuftragListRow[]>([])
   const [laden, setLaden] = useState(true)
 
@@ -25,18 +26,40 @@ export function OrderList({ aktiverAuftragId, onAuftragWaehlen }: Props) {
       })
   }, [])
 
-  if (laden) return <div style={{ padding: 16, color: '#888', fontSize: 13 }}>Lädt...</div>
-
-  if (auftraege.length === 0) {
-    return (
-      <div style={{ padding: 16, color: '#888', fontSize: 13 }}>
-        Noch keine Aufträge
-      </div>
-    )
-  }
-
   return (
     <div>
+      <div
+        style={{
+          padding: 12,
+          borderBottom: '1px solid #e5e5e5',
+          position: 'sticky',
+          top: 0,
+          background: '#fafafa',
+          zIndex: 1,
+        }}
+      >
+        <button
+          type="button"
+          onClick={onNeuerAuftrag}
+          style={{
+            width: '100%',
+            padding: '8px 10px',
+            fontSize: 13,
+            border: '1px solid #d4d4d4',
+            borderRadius: 6,
+            background: '#111',
+            color: '#fff',
+            cursor: 'pointer',
+            fontWeight: 500,
+          }}
+        >
+          + Neuer Auftrag
+        </button>
+      </div>
+      {laden && <div style={{ padding: 16, color: '#888', fontSize: 13 }}>Lädt...</div>}
+      {!laden && auftraege.length === 0 && (
+        <div style={{ padding: 16, color: '#888', fontSize: 13 }}>Noch keine Aufträge</div>
+      )}
       {auftraege.map(a => {
         const aktiv = a.id === aktiverAuftragId
         return (
@@ -75,3 +98,4 @@ export function OrderList({ aktiverAuftragId, onAuftragWaehlen }: Props) {
     </div>
   )
 }
+

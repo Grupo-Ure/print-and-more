@@ -43,9 +43,11 @@ export type KundeName = {
 }
 
 export type KundeKontaktRow = {
+  id: string
   name: string
   email: string | null
   telefon: string | null
+  notiz: string | null
 }
 
 /** PostgREST liefert eingebettete FK-Zeile als Objekt oder 1-Element-Array (je nach Client-Inferenz). */
@@ -70,6 +72,12 @@ export type AuftragDetailRow = {
   kunden: KundeKontaktJoin
   erp_exportiert: boolean
   archiviert: boolean
+  termin: string | null
+  lieferung: LieferungWahl | null
+  /** Auftrag: i. d. R. NORMAL | HOCH */
+  prioritaet: string
+  notfall_aktiv: boolean
+  erstellt_am: string
 }
 
 /** Rechte Spalte / Kontext (identisch mit geladenem Auftrag) */

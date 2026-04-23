@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
+import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
 import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
 import { kundenName } from '../lib/kunde'
 import { schreibeHistorie } from '../lib/historie'
@@ -23,6 +24,7 @@ type Props = {
   onAuftragAktualisiert: (a: Auftrag) => void
   onTeilauftragAktualisiert: (t: TeilauftragRow) => void
   onTeilauftragEntfernt: (id: string) => void
+  onKundeBearbeiten: () => void
 }
 
 type ErpModus = 'EINZELN' | 'GESAMMELT'
@@ -51,8 +53,6 @@ function naechsterNotfallStatus(s: AuftragStatus): AuftragStatus {
   return s
 }
 
-const AUFTRAG_SELECT = 'id, auftragsnummer, status, kunden(name, email, telefon), erp_exportiert, archiviert'
-
 function kundeNameSafe(k: KundeKontaktJoin | null): string {
   if (k == null) return ''
   return kundenName(k as KundeJoin)
@@ -66,6 +66,7 @@ export function ContextPanel({
   onAuftragAktualisiert,
   onTeilauftragAktualisiert,
   onTeilauftragEntfernt,
+  onKundeBearbeiten,
 }: Props) {
   const [busy, setBusy] = useState(false)
   const [stornoLaeuft, setStornoLaeuft] = useState(false)
@@ -82,7 +83,7 @@ export function ContextPanel({
   async function ladeAuftrag(auftragId: string): Promise<Auftrag> {
     const { data, error } = await supabase
       .from('auftraege')
-      .select(AUFTRAG_SELECT)
+      .select(AUFTRAG_SPALTEN)
       .eq('id', auftragId)
       .single()
     if (error) throw error
@@ -503,9 +504,26 @@ export function ContextPanel({
         <h2>Aktionen</h2>
         <div className="cp-stack">
           {auftrag.status === 'ANGEBOT' && (
-            <button type="button" className="cp-btn" disabled={busy} onClick={() => void handleInBearbeitung()}>
-              In Bearbeitung nehmen
-            </button>
+            <div style={{ display: 'flex', gap: 6, flexDirection: 'row', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="cp-btn"
+                style={{ flex: 1, minWidth: 120 }}
+                disabled={busy}
+                onClick={() => void handleInBearbeitung()}
+              >
+                In Bearbeitung nehmen
+              </button>
+              <button
+                type="button"
+                className="cp-btn"
+                style={{ flex: 1, minWidth: 120 }}
+                disabled={busy}
+                onClick={onKundeBearbeiten}
+              >
+                Kunde bearbeiten
+              </button>
+            </div>
           )}
           {auftrag.status === 'FERTIG' && !auftrag.erp_exportiert && (
             <button type="button" className="cp-btn" disabled={busy} onClick={handleErpStart}>
