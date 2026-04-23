@@ -149,6 +149,7 @@ function App() {
           onTeilauftragAktualisiert={handleTeilauftragAktualisiert}
           onTeilauftragEntfernt={handleTeilauftragEntfernt}
           onKundeBearbeiten={openKundeBearbeiten}
+          kontextAktualisiert={kontextAktualisiert}
         />
       </div>
 

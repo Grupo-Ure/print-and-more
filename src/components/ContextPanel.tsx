@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
 import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
@@ -14,6 +14,7 @@ import {
   type TeilauftragRow,
 } from '../types/database'
 import type { Datei } from './DateiListe'
+import { HistoriePanel } from './HistoriePanel'
 import './ContextPanel.css'
 
 type Props = {
@@ -25,6 +26,7 @@ type Props = {
   onTeilauftragAktualisiert: (t: TeilauftragRow) => void
   onTeilauftragEntfernt: (id: string) => void
   onKundeBearbeiten: () => void
+  kontextAktualisiert: number
 }
 
 type ErpModus = 'EINZELN' | 'GESAMMELT'
@@ -67,8 +69,10 @@ export function ContextPanel({
   onTeilauftragAktualisiert,
   onTeilauftragEntfernt,
   onKundeBearbeiten,
+  kontextAktualisiert,
 }: Props) {
   const [busy, setBusy] = useState(false)
+  const [teilBereichListe, setTeilBereichListe] = useState<{ id: string; bereich: string }[]>([])
   const [stornoLaeuft, setStornoLaeuft] = useState(false)
   const [loeschenLaeuft, setLoeschenLaeuft] = useState(false)
   const [dialogErp, setDialogErp] = useState(false)
@@ -77,6 +81,25 @@ export function ContextPanel({
   const [notfallBegr, setNotfallBegr] = useState('')
   const [dialogKfDatei, setDialogKfDatei] = useState(false)
   const [kfDateiId, setKfDateiId] = useState('')
+
+  useEffect(() => {
+    if (!auftrag) {
+      setTeilBereichListe([])
+      return
+    }
+    supabase
+      .from('teilauftraege')
+      .select('id, bereich')
+      .eq('auftrag_id', auftrag.id)
+      .then(({ data, error }) => {
+        if (error) {
+          console.error(error)
+          setTeilBereichListe([])
+          return
+        }
+        setTeilBereichListe((data ?? []) as { id: string; bereich: string }[])
+      })
+  }, [auftrag, kontextAktualisiert])
 
   const kundeNameForExport = kundeNameSafe(auftragKunde)
 
@@ -649,6 +672,12 @@ export function ContextPanel({
           ))
         )}
       </div>
+
+      <HistoriePanel
+        aktiverAuftragId={auftrag.id}
+        kontextAktualisiert={kontextAktualisiert}
+        teilauftraege={teilBereichListe}
+      />
 
       {dialogErp && (
         <div
