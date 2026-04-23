@@ -14,28 +14,30 @@ Dreispaltig, volle Höhe:
 
 | Spalte | Breite   | Inhalt |
 |--------|----------|--------|
-| Links  | 280px    | `OrderList` — Aufträge, Auswahl; **keine** archivierten (`.eq('archiviert', false)`) |
+| Links  | 280px    | `OrderList` — **„+ Neuer Auftrag“** (öffnet `NeuerAuftragDialog`); Auftragsliste, Auswahl; **keine** archivierten (`.eq('archiviert', false)`) |
 | Mitte  | 1fr      | `WorkArea` — Auftragskontext, **Dateien**, Teilaufträge, Detail |
 | Rechts | 300px    | `ContextPanel` — Status, Aktionen, Hinweise (Auftrags- und Teilauftrags-Workflow) |
 
-**Gemeinsamer Zustand in `App`:** `aktiverAuftragId`, `aktiverAuftrag` (volles `Auftrag`-Objekt inkl. `erp_exportiert`, `archiviert`), `aktiverTeilauftrag`, `auftragKunde`, `auftragDateien`, `kontextAktualisiert` (triggert Refetch in `WorkArea` nach Aktionen im Kontext), `orderListKey` (remount/Refresh der `OrderList` z. B. nach Archivieren).
+**Gemeinsamer Zustand in `App`:** `aktiverAuftragId`, `aktiverAuftrag` (volles `Auftrag`-Objekt inkl. Kopfdaten, `kunden`-Join, `erp_exportiert`, `archiviert`), `aktiverTeilauftrag`, `auftragKunde`, `auftragDateien`, `kontextAktualisiert` (triggert Refetch in `WorkArea` nach Aktionen im Kontext), `orderListKey` (remount/Refresh der `OrderList` z. B. nach Archivieren, **neu angelegtem Auftrag** oder **gespeichertem Kunde**), `neuerAuftragOffen` (Modal), `kundeDialog` (bearbeiten via `KundeDialog`).
 
-`WorkArea` stößt per Callbacks die Kontext-Synchronisation an: `onAuftragVomArbeitsbereich`, `onAuftragKundeGeladen`, `onAktiverTeilauftragGeaendert`, `onAuftragDateienGeaendert`.
+`WorkArea` stößt per Callbacks die Kontext-Synchronisation an: `onAuftragVomArbeitsbereich`, `onAuftragKundeGeladen`, `onAktiverTeilauftragGeaendert`, `onAuftragDateienGeaendert`, `onKundeBearbeiten` (öffnet `KundeDialog` mit Kunde aus `auftragKunde` / Join).
+
+**Dialoge (global in `App`):** `NeuerAuftragDialog` (Auftrag anlegen), `KundeDialog` (Kunde bearbeiten, aus `WorkArea`-Stift oder `ContextPanel` bei Status `ANGEBOT`). Erfolg: `orderListKey` + ggf. `kontextAktualisiert` / `setAktiverAuftragId` (neuer Auftrag).
 
 **Auth:** `Login` mit `supabase.auth.signInWithPassword`; Session-Typ `Session | null`. Ohne Session wird nur das Login-Layout gezeigt.
 
 ## `ContextPanel` (`src/components/ContextPanel.tsx`)
 
 - **Sektion Status:** farbige Badges für Auftrags- und (optional) Teilauftragsstatus; **NOTFALL** + Begründung bei `notfall_aktiv`.
-- **Sektion Aktionen (Auszug):** Auftrags-Workflow (z. B. *In Bearbeitung nehmen*, *ERP exportieren* mit Modus, *Archivieren*); Teilauftrags-Workflow (Prepress/Produktion freigeben, fertig melden, Notfall, Kundenfreigabe-Toggle und -erteilung, Storno, Löschen). **Kundenfreigabe** blockiert ausschließlich **Produktion freigeben** (`prodDisabled`); Löschen/Stornieren nutzen **nicht** den globalen `busy`-Sperrstatus (eigene `stornoLaeuft` / `loeschenLaeuft`).
+- **Sektion Aktionen (Auszug):** Auftrags-Workflow; bei `ANGEBOT` u. a. *In Bearbeitung nehmen* und daneben *Kunde bearbeiten* (`onKundeBearbeiten`); *ERP exportieren* mit Modus, *Archivieren*; Teilauftrags-Workflow (Prepress/Produktion freigeben, fertig melden, Notfall, Kundenfreigabe-Toggle und -erteilung, Storno, Löschen). **Kundenfreigabe** blockiert ausschließlich **Produktion freigeben** (`prodDisabled`); Löschen/Stornieren nutzen **nicht** den globalen `busy`-Sperrstatus (eigene `stornoLaeuft` / `loeschenLaeuft`).
 - **Sektion Hinweise:** kontextabhängige Texte (Kundenfreigabe, Notfall, ERP ausstehend, …).
-- **Supabase-Aufrufe** inkl. `schreibeHistorie` (`src/lib/historie.ts`) und `synchronisiereAuftragsstatus` via RPC `fn_berechne_auftragsstatus` (`src/lib/auftragsStatus.ts`).
+- **Supabase-Aufrufe** inkl. `schreibeHistorie` (`src/lib/historie.ts`) und `synchronisiereAuftragsstatus` via RPC `fn_berechne_auftragsstatus` (`src/lib/auftragsStatus.ts`); `auftraege`-Selects nutzen `AUFTRAG_SPALTEN` (`src/const/auftragSelect.ts`) inkl. `kunden(id, name, email, telefon, notiz)`.
 
 `ContextPanel.css` — Styles für Sektionen, Badges, Modale.
 
 ## WorkArea (`src/components/WorkArea.tsx`) — Ablauf von oben nach unten
 
-1. **Auftragskopf:** Kundenname, Auftragsnummer, Auftragsstatus.
+1. **Auftragskopf:** Kundenname **+ Stift** „Kunde bearbeiten“ (`onKundeBearbeiten`); Auftragsnummer, Auftragsstatus. **Direkt editierbar** (lokal, `onBlur` → Speichern): **Termin** (optional, Datum), **Lieferung** (`ABHOLUNG` / `VERSAND` / leer), **Priorität** (u. a. `NORMAL` / `HOCH`, optional `NIEDRIG` aus der DB sichtbar). Update: `auftraege` mit `termin`, `lieferung`, `prioritaet`.
 2. **Dateien (`DateiListe`):** auftragsweite Dateiverknüpfungen; Titel in der UI: **„Dateien“**.
 3. Trennlinie.
 4. **Teilauftrags-Tabs** (nur **nicht stornierte** Zeilen) + **„+“** (`AddTeilauftragOverlay`).
@@ -43,7 +45,7 @@ Dreispaltig, volle Höhe:
 
 **Zentraler Datei-State:** `dateien: Datei[]`, `dateienLaden`, `reloadDateien()`; bei Wechsel `aktiverAuftragId` und Anstoß `kontextAktualisiert` (aus `App`).
 
-**Datenladung:** `ladeAuftragUndTeilauftraege(auftragId)`: `auftraege` inkl. `kunden(…)` und **`erp_exportiert`**, **`archiviert`**, + `teilauftraege` (volle `TEILAUFTRAG_SPALTEN`); erster sichtbarer (nicht stornierter) Tab bzw. gültige beibehaltene ID.
+**Datenladung:** `ladeAuftragUndTeilauftraege(auftragId)`: `auftraege` mit `AUFTRAG_SPALTEN` — u. a. `kunden(id, name, email, telefon, notiz)`, `termin`, `lieferung`, `prioritaet`, `notfall_aktiv`, `erstellt_am`, `erp_exportiert`, `archiviert` + `teilauftraege` (volle `TEILAUFTRAG_SPALTEN`); erster sichtbarer (nicht stornierter) Tab bzw. gültige beibehaltene ID.
 
 **Neuer Teilauftrag (Insert):** u. a. `notfall_aktiv: false`, `storniert: false`, Kundenfreigabe-Felder initial “aus”, siehe `WorkArea`.
 
@@ -51,14 +53,18 @@ Dreispaltig, volle Höhe:
 
 | Pfad | Rolle |
 |------|--------|
-| `src/types/database.ts` | `Auftrag` / `AuftragDetailRow` inkl. `erp_exportiert`, `archiviert`; `TeilauftragRow` inkl. Notfall, Storno, Kundenfreigabe; Enums, `TEILAUFTRAG_BEREICHE` / `teilauftragBereichLabel()` |
+| `src/types/database.ts` | `Auftrag` / `AuftragDetailRow` inkl. `termin`, `lieferung`, `prioritaet`, `notfall_aktiv`, `erstellt_am`, `erp_exportiert`, `archiviert`; `KundeKontaktRow` inkl. `id`, `notiz`; `TeilauftragRow` inkl. Notfall, Storno, Kundenfreigabe; Enums, `TEILAUFTRAG_BEREICHE` / `teilauftragBereichLabel()` |
 | `src/lib/historie.ts` | `schreibeHistorie()`, `HistorieEreignis` |
 | `src/lib/auftragsStatus.ts` | `synchronisiereAuftragsstatus(auftragId)` → RPC + Update `auftraege.status` |
 | `src/const/teilauftragSelect.ts` | `TEILAUFTRAG_SPALTEN` (siehe unten) |
+| `src/const/auftragSelect.ts` | `AUFTRAG_SPALTEN` — `auftraege` + Kunden-Join (einheitlich in `WorkArea`, `ContextPanel`, `auftragsStatus`) |
+| `src/lib/kunden.ts` | `Kunde` (Tabelle), `kontaktJoinZuKunde()` |
+| `src/components/NeuerAuftragDialog.tsx` | Neuer Auftrag: Kundensuche, `KundeDialog`, Insert `auftraege` (`kunde_id`, Status `ANGEBOT`, optional Termin/Lieferung, Priorität) |
+| `src/components/KundeDialog.tsx` | Kunde anlegen/ändern (`kunden` insert/update) |
 | `src/types/lfp.ts` | LFP-Teiltypen, `LfpDetailJson` |
 | `src/types/copyshop.ts` | Copy-Shop-Teiltypen, `CopyShopDetailJson` |
 | `src/types/textil.ts` | Textil-Enums, Zeilen-Typen (Motive, Positionen, Zuordnungen) |
-| `src/lib/kunde.ts` | `kundenName()`; `kundeErfuelltPrepressKontakt()` |
+| `src/lib/kunde.ts` | `kundenName()`; `kundeErfuelltPrepressKontakt()` (Kontakt aus `KundeKontaktRow`) |
 | `src/lib/teilGlobal.ts` | Globale Pflichtfeld-Validierung, `istTeilAuftragVollstaendig`, `nextTeilStatus` |
 | `src/lib/lfp/validateLfpDetail.ts` | LFP-`detail`-Validierung |
 | `src/lib/copyshop/validateCopyShopDetail.ts` | Copy-Shop-`detail` |
@@ -67,7 +73,7 @@ Dreispaltig, volle Höhe:
 | `src/lib/laser/validateLaserDetail.ts` | Laser-`detail` |
 | `src/lib/textil/validateTextilDetail.ts` | Textil: `textil.voll` / Tabellenlogik |
 | `src/App.tsx` | Layout, Zustand, `ContextPanel` + `WorkArea` + `OrderList` |
-| `src/components/OrderList.tsx` | `auftraege`; Auswahl, aktive Zeile; Filter archiviert |
+| `src/components/OrderList.tsx` | `auftraege` (Join `kunden(name)`); **„+ Neuer Auftrag“**; Auswahl, aktive Zeile; Filter archiviert |
 | `src/components/ContextPanel.tsx` | Rechte Spalte: Status, Aktionen, Historie-Integration |
 | `src/components/WorkArea.tsx` | Auftrag, Teilaufträge, Datei-State, `DateiListe`, Tabs, Callbacks fürs Kontext-Panel; **storniert**e aus Tabs ausgeblendet |
 | `src/components/DateiListe.tsx` | Dateien-UI; `export type Datei` |
@@ -84,7 +90,8 @@ Dreispaltig, volle Höhe:
 
 ## Fachliches Modell (Kurz)
 
-- **Auftrag** — Kunde, `status` (u. a. per `fn_berechne_auftragsstatus` abgeglichen), `erp_exportiert`, `archiviert`, 1…n **Teilaufträge**; in der Mitte/Context wird `auftraege.status` aus der DB gelesen/aktualisiert.
+- **Kunde** — Tabelle `kunden` (u. a. `name`, `email`, `telefon`, `notiz`, `archiviert`); Anlage/Bearbeitung über `KundeDialog`; in der Auftragssuche (`NeuerAuftragDialog`) Freitextsuche per `ilike` auf `name` (nur `archiviert = false`). Join auf Auftragszeilen: `KundeKontaktRow` inkl. `id` / `notiz` für Anzeige und Formulare.
+- **Auftrag** — `kunde_id` → Kunde, `status` (u. a. per `fn_berechne_auftragsstatus` abgeglichen), **Kopf:** optional `termin`, `lieferung` (`ABHOLUNG` \| `VERSAND`), `prioritaet` (z. B. `NORMAL` \| `HOCH`), `notfall_aktiv`, `erstellt_am`, `erp_exportiert`, `archiviert`, 1…n **Teilaufträge**; **neue Aufträge** aus `NeuerAuftragDialog` mit Status `ANGEBOT`. In der Mitte/Context wird `auftraege` inkl. Join gelesen/aktualisiert.
 - **Dateien** — gehören zum **Auftrag** (`dateien.auftrag_id`); in der App zentral in der `WorkArea` geladen; für Kundenfreigabe im `ContextPanel` wählbar.
 - **Teilauftrag** — u. a. bisherige Spalten plus **`notfall_aktiv`**, **`notfall_begruendung`**, **`storniert`**, Kundenfreigabe-Felder; **`detail` (JSONB)** für LFP, Copy-Shop, etc.; **TEXTIL** wie zuvor mit Tabellen.
 
@@ -106,11 +113,12 @@ Unverändert: dieselben DB-Enum-Strings, `teilauftragBereichLabel()`.
 `id`, `auftrag_id`, `bereich`, `typ`, `status`, `termin`, `lieferung`, `prioritaet`, `verantwortlicher_id`, `satzzeit_minuten`, `detail`, `notfall_aktiv`, `notfall_begruendung`, `storniert`, `kundenfreigabe_erforderlich`, `kundenfreigabe_liegt_vor`, `kundenfreigabe_datei_id`
 
 - Weitere fachliche Felder (`lieferung`, `verantwortlicher_id`, `detail`, …) wie bisher in der Doku.
-- **Auftrag in der Arbeitsfläche / Kontext:** `kunden(name, email, telefon)` plus `erp_exportiert`, `archiviert`.
+- **Auftrag in der Arbeitsfläche / Kontext:** vgl. `AUFTRAG_SPALTEN` — u. a. `kunden(id, name, email, telefon, notiz)`, `termin`, `lieferung`, `prioritaet`, `notfall_aktiv`, `erstellt_am`, `erp_exportiert`, `archiviert` (siehe `src/const/auftragSelect.ts`).
 
 ## Supabase-Tabellen & Funktionen (vom Client genutzt, Auszug)
 
-- **`auftraege`:** inkl. `status`, `erp_exportiert`, `archiviert`, Join `kunden(…)`.
+- **`kunden`:** `insert` / `update` / Suche (Name) aus `NeuerAuftragDialog` / `KundeDialog`.
+- **`auftraege`:** inkl. `kunde_id`, `status`, `termin`, `lieferung`, `prioritaet`, `notfall_aktiv`, u. a., `erp_exportiert`, `archiviert`, Join `kunden(…)`.
 - **`teilauftraege`:** voll gemäß `TEILAUFTRAG_SPALTEN`.
 - **`dateien`:** u. a. `id`, `auftrag_id`, `anzeigename`, `rolle` …
 - **`historie`:** Ereignisse inkl. `ereignisart`, `person_id` (Auth-User), optional `teilauftrag_id`, `begruendung`, `meta`.
@@ -121,5 +129,5 @@ Unverändert: dieselben DB-Enum-Strings, `teilauftragBereichLabel()`.
 
 ## Bekannte Lücken / offene Punkte
 
-- **RLS/Schema in Supabase** müssen die genannten Spalten, Tabellen und die RPC abdecken; das Repo enthält **keine** Migrations-Dateien.
-- Aggregierter `auftraege.status` in der **linken Liste** aktualisiert sich nicht live bei rein mittiger Bearbeitung; Wechsel der Auswahl, Refetch (z. B. `orderListKey` nach Archiv) oder manueller Refresh aktualisieren.
+- **RLS/Schema in Supabase** müssen die genannten Spalten, Tabellen und die RPC abdecken; das Repo enthält **keine** Migrations-Dateien. Für Auftragskopf, `kunde_id` und erweiterten Kunden-Join muss die DB zu den in `AUFTRAG_SPALTEN` / Dialogen genutzten Spalten passen.
+- Aggregierter `auftraege.status` in der **linken Liste** aktualisiert sich nicht live bei rein mittiger Bearbeitung; Wechsel der Auswahl, Refetch (z. B. `orderListKey` nach Archiv, **neuem Auftrag** oder **Kundenänderung**) aktualisieren.
