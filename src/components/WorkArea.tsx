@@ -9,6 +9,7 @@ import {
   type TeilauftragRow,
 } from '../types/database'
 import { AddTeilauftragOverlay } from './AddTeilauftragOverlay'
+import { DateiListe } from './DateiListe'
 import { TeilauftragDetail } from './TeilauftragDetail'
 import './WorkArea.css'
 
@@ -200,6 +201,8 @@ export function WorkArea({ aktiverAuftragId }: Props) {
           <p className="wa-hint">Noch keine Teilaufträge. Nutzen Sie +, um einen Bereich anzulegen.</p>
         )}
       </div>
+
+      <DateiListe aktiverAuftragId={aktiverAuftragId} />
 
       <AddTeilauftragOverlay
         offen={overlayOffen}
