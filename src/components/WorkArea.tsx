@@ -1,0 +1,212 @@
+import { useCallback, useEffect, useState } from 'react'
+import { supabase } from '../supabase'
+import { kundenName } from '../lib/kunde'
+import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
+import {
+  teilauftragBereichLabel,
+  type AuftragDetailRow,
+  type Bereich,
+  type TeilauftragRow,
+} from '../types/database'
+import { AddTeilauftragOverlay } from './AddTeilauftragOverlay'
+import { TeilauftragDetail } from './TeilauftragDetail'
+import './WorkArea.css'
+
+type Props = {
+  aktiverAuftragId: string | null
+}
+
+export function WorkArea({ aktiverAuftragId }: Props) {
+  const [auftrag, setAuftrag] = useState<AuftragDetailRow | null>(null)
+  const [teilauftraege, setTeilauftraege] = useState<TeilauftragRow[]>([])
+  const [aktiverTeilauftragId, setAktiverTeilauftragId] = useState<string | null>(null)
+  const [laden, setLaden] = useState(false)
+  const [fehler, setFehler] = useState<string | null>(null)
+  const [overlayOffen, setOverlayOffen] = useState(false)
+  const [speichert, setSpeichert] = useState(false)
+
+  const ladeAuftragUndTeilauftraege = useCallback(
+    async (auftragId: string) => {
+      setFehler(null)
+      setLaden(true)
+      const [aufRes, tRes] = await Promise.all([
+        supabase
+          .from('auftraege')
+          .select('id, auftragsnummer, status, kunden(name, email, telefon)')
+          .eq('id', auftragId)
+          .single(),
+        supabase
+          .from('teilauftraege')
+          .select(TEILAUFTRAG_SPALTEN)
+          .eq('auftrag_id', auftragId)
+          .order('id', { ascending: true }),
+      ])
+
+      if (aufRes.error) {
+        setFehler(aufRes.error.message)
+        setAuftrag(null)
+        setTeilauftraege([])
+        setAktiverTeilauftragId(null)
+        setLaden(false)
+        return
+      }
+      if (tRes.error) {
+        setFehler(tRes.error.message)
+        setAuftrag(aufRes.data)
+        setTeilauftraege([])
+        setAktiverTeilauftragId(null)
+        setLaden(false)
+        return
+      }
+
+      setAuftrag(aufRes.data)
+      const teile = tRes.data ?? []
+      setTeilauftraege(teile)
+      setAktiverTeilauftragId(t => {
+        if (t && teile.some(x => x.id === t)) return t
+        return teile[0]?.id ?? null
+      })
+      setLaden(false)
+    },
+    []
+  )
+
+  useEffect(() => {
+    if (!aktiverAuftragId) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Supabase-Abfrage; setState erst nach await in ladeAuftragUndTeilauftraege
+    void ladeAuftragUndTeilauftraege(aktiverAuftragId)
+  }, [aktiverAuftragId, ladeAuftragUndTeilauftraege])
+
+  const handleNeuerTeilauftrag = async (bereich: Bereich) => {
+    if (!aktiverAuftragId) return
+    setSpeichert(true)
+    setFehler(null)
+    const { data, error } = await supabase
+      .from('teilauftraege')
+      .insert({
+        auftrag_id: aktiverAuftragId,
+        bereich,
+        status: 'UNVOLLSTAENDIG',
+        prioritaet: 'NORMAL',
+        detail: {} as never,
+        lieferung: null,
+      } as never)
+      .select(TEILAUFTRAG_SPALTEN)
+      .single()
+
+    setSpeichert(false)
+    if (error) {
+      setFehler(error.message)
+      return
+    }
+    if (data) {
+      setTeilauftraege(list => {
+        const next = [...list, data as TeilauftragRow].sort((a, b) =>
+          a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+        )
+        return next
+      })
+      setAktiverTeilauftragId(data.id)
+    }
+    setOverlayOffen(false)
+  }
+
+  if (!aktiverAuftragId) {
+    return (
+      <div className="wa">
+        <p className="wa-hint">Wählen Sie links einen Auftrag aus, um Details und Teilaufträge zu bearbeiten.</p>
+      </div>
+    )
+  }
+
+  if (laden) {
+    return (
+      <div className="wa">
+        <p className="wa-laden">Lädt Auftrag …</p>
+      </div>
+    )
+  }
+
+  if (fehler && !auftrag) {
+    return (
+      <div className="wa">
+        <p className="wa-fehler">{fehler}</p>
+      </div>
+    )
+  }
+
+  if (!auftrag) {
+    return (
+      <div className="wa">
+        <p className="wa-hint">Auftrag nicht gefunden.</p>
+      </div>
+    )
+  }
+
+  const kunde = kundenName(auftrag.kunden)
+  const aktiverTeil = teilauftraege.find(t => t.id === aktiverTeilauftragId) ?? null
+
+  return (
+    <div className="wa">
+      <header className="wa-kopf">
+        <h1>{kunde}</h1>
+        <div className="wa-kopf-meta">
+          {auftrag.auftragsnummer} · {auftrag.status}
+        </div>
+      </header>
+
+      {fehler && <p className="wa-fehler">{fehler}</p>}
+
+      <div className="wa-leiste">
+        <div className="wa-tabs" role="tablist" aria-label="Teilaufträge">
+          {teilauftraege.map(t => {
+            const active = t.id === aktiverTeilauftragId
+            const label = `${teilauftragBereichLabel(t.bereich)} · ${t.status}`
+            return (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                className={active ? 'wa-tab wa-tab--aktiv' : 'wa-tab'}
+                aria-selected={active}
+                onClick={() => setAktiverTeilauftragId(t.id)}
+                title={label}
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
+        <button
+          type="button"
+          className="wa-add"
+          onClick={() => setOverlayOffen(true)}
+          aria-label="Teilauftrag hinzufügen"
+        >
+          +
+        </button>
+      </div>
+
+      <div className="wa-inhalt" role="tabpanel">
+        {aktiverTeil ? (
+          <TeilauftragDetail
+            teil={aktiverTeil}
+            auftragKunde={auftrag.kunden}
+            onAktualisiert={row =>
+              setTeilauftraege(list => list.map(t => (t.id === row.id ? row : t)))
+            }
+          />
+        ) : (
+          <p className="wa-hint">Noch keine Teilaufträge. Nutzen Sie +, um einen Bereich anzulegen.</p>
+        )}
+      </div>
+
+      <AddTeilauftragOverlay
+        offen={overlayOffen}
+        speichert={speichert}
+        onBereich={handleNeuerTeilauftrag}
+        onSchliessen={() => !speichert && setOverlayOffen(false)}
+      />
+    </div>
+  )
+}

@@ -1,0 +1,88 @@
+import type { AuftragStatus, TeilauftragRow } from '../types/database'
+import { validateLfpDetail } from './lfp/validateLfpDetail'
+
+export type LieferungEnum = 'ABHOLUNG' | 'VERSAND'
+
+const UUID_LOOSE = /^[0-9a-fA-F-]{30,40}$/
+
+export function validateGlobalTeilfelder(
+  t: Pick<TeilauftragRow, 'termin' | 'lieferung' | 'prioritaet' | 'verantwortlicher_id' | 'satzzeit_minuten'>,
+  teilStatus: AuftragStatus
+): Record<string, string> {
+  const o: Record<string, string> = {}
+  if (teilStatus === 'ANGEBOT') return o
+  if (!t.termin || String(t.termin).trim() === '') o.termin = 'Pflichtfeld'
+  if (t.lieferung !== 'ABHOLUNG' && t.lieferung !== 'VERSAND') o.lieferung = 'Pflichtfeld'
+  if (t.prioritaet !== 'NORMAL' && t.prioritaet !== 'HOCH') o.prioritaet = 'Pflichtfeld'
+  const vid = t.verantwortlicher_id?.trim() ?? ''
+  if (!vid) o.verantwortlicher_id = 'Pflichtfeld'
+  else if (!UUID_LOOSE.test(vid)) o.verantwortlicher_id = 'Gültige UUID'
+  if (t.satzzeit_minuten != null) {
+    const n = Number(t.satzzeit_minuten)
+    if (!Number.isInteger(n) || n <= 0) o.satzzeit_minuten = 'Ganze Zahl > 0'
+  }
+  return o
+}
+
+function equalDetail(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+}
+
+export function teilHatInhaltAenderung(
+  snap: TeilauftragRow,
+  merged: TeilauftragRow
+): boolean {
+  return (
+    merged.typ !== snap.typ ||
+    !equalDetail(merged.detail, snap.detail) ||
+    merged.termin !== snap.termin ||
+    merged.lieferung !== snap.lieferung ||
+    merged.prioritaet !== snap.prioritaet ||
+    merged.verantwortlicher_id !== snap.verantwortlicher_id ||
+    merged.satzzeit_minuten !== snap.satzzeit_minuten
+  )
+}
+
+export function istTeilAuftragVollstaendig(t: TeilauftragRow, teilStatus: AuftragStatus): boolean {
+  if (teilStatus === 'ANGEBOT') return true
+  const g = validateGlobalTeilfelder(t, teilStatus)
+  if (Object.keys(g).length > 0) return false
+  if (t.bereich !== 'LFP') return true
+  const d = (t.detail as Record<string, unknown> | null) ?? {}
+  const lf = validateLfpDetail(t.typ, d, teilStatus)
+  return Object.keys(lf).length === 0
+}
+
+/**
+ * Nächster Status nach geplantem Zustand `merged` (relativ zu `snap` = letzter Serverstand für Dirty-Prüfung).
+ */
+export function nextTeilStatus(
+  before: AuftragStatus,
+  snap: TeilauftragRow,
+  merged: TeilauftragRow,
+  vollstaendig: boolean,
+  kundePrepressOk: boolean
+): AuftragStatus {
+  if (before === 'ANGEBOT') return 'ANGEBOT'
+  if (before === 'PRODUKTION_BEREIT' || before === 'FERTIG') {
+    if (teilHatInhaltAenderung(snap, merged)) return 'UNVOLLSTAENDIG'
+    return before
+  }
+  const lfp = merged.bereich === 'LFP'
+  if (!lfp) {
+    if (!vollstaendig) return 'UNVOLLSTAENDIG'
+    return 'UNVOLLSTAENDIG'
+  }
+  if (lfp && merged.typ === 'SONSTIGE_LFP') {
+    if (!vollstaendig) return 'UNVOLLSTAENDIG'
+    if (before === 'PREPRESS_BEREIT') return 'PREPRESS_BEREIT'
+    return 'UNVOLLSTAENDIG'
+  }
+  if (vollstaendig && kundePrepressOk) return 'PREPRESS_BEREIT'
+  if (before === 'PREPRESS_BEREIT' && (!vollstaendig || !kundePrepressOk)) {
+    return 'UNVOLLSTAENDIG'
+  }
+  if (!vollstaendig) return 'UNVOLLSTAENDIG'
+  if (!kundePrepressOk) return 'UNVOLLSTAENDIG'
+  return 'UNVOLLSTAENDIG'
+}
