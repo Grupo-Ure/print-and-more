@@ -2,6 +2,11 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { LFP_TEILTYP_ANZEIGE, LFP_TEILTYPEN, type LfpDetailJson } from '../../types/lfp'
 import { validateLfpDetail } from '../../lib/lfp/validateLfpDetail'
 import type { AuftragStatus, TeilauftragRow } from '../../types/database'
+import {
+  LFP_3551_VARIANTEN,
+  LFP_AUFKLEBER_MATERIALIEN,
+  LFP_FOLIENPLOTT_MATERIALIEN,
+} from '../../config/materialien'
 import '../WorkArea.css'
 
 type Props = {
@@ -388,9 +393,9 @@ function Aufkleber(p: BlK) {
             onBlur={commit}
           >
             <option value="">—</option>
-            {['3551', 'ULTRATACK', 'MONSTERTACK', '3162'].map(x => (
-              <option key={x} value={x}>
-                {x}
+            {LFP_AUFKLEBER_MATERIALIEN.map(x => (
+              <option key={x.wert} value={x.wert}>
+                {x.anzeige}
               </option>
             ))}
           </select>
@@ -417,9 +422,11 @@ function Aufkleber(p: BlK) {
               }
               onBlur={commit}
             >
-              <option value="">— (keine)</option>
-              <option value="RA">RA</option>
-              <option value="T">T</option>
+              {LFP_3551_VARIANTEN.map(x => (
+                <option key={String(x.wert)} value={String(x.wert ?? '')}>
+                  {x.anzeige}
+                </option>
+              ))}
             </select>
           </BerZeile>
         </div>
@@ -566,7 +573,7 @@ function Folienplott(p: BlK) {
           stack
           k="material"
           l="Material"
-          o={['751C', '631', '8510'].map(x => ({ v: x, t: x }))}
+          o={LFP_FOLIENPLOTT_MATERIALIEN.map(x => ({ v: x.wert, t: x.anzeige }))}
         />
         <SelB
           {...p}

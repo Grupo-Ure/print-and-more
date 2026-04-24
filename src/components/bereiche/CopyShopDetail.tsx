@@ -5,6 +5,13 @@ import { validateCopyShopDetail } from '../../lib/copyshop/validateCopyShopDetai
 import type { AuftragStatus, TeilauftragRow } from '../../types/database'
 import { MaterialCC } from './copyshop/MaterialCC'
 import { MaterialOffset } from './copyshop/MaterialOffset'
+import {
+  AUSDRUCK_MATERIALIEN,
+  BINDUNG_MATERIALIEN,
+  MULTILOFT_FARBKERNE,
+  POSTER_MATERIALIEN,
+  VISITENKARTE_MATERIALIEN,
+} from '../../config/materialien'
 import '../WorkArea.css'
 
 type Props = {
@@ -524,11 +531,7 @@ function PlakatPoster(p: BlK) {
         {...p}
         k="material"
         l="Material"
-        o={[
-          { v: '120G_AFFICHEN', t: '120g Affichen' },
-          { v: '200G_SEIDENGLANZ', t: '200g Seidenglanz' },
-          { v: '200G_GLANZ', t: '200g Glanz' },
-        ]}
+        o={POSTER_MATERIALIEN.map(x => ({ v: x.wert, t: x.anzeige }))}
       />
       <SelB
         {...p}
@@ -918,15 +921,6 @@ function Broschuere(p: BlK) {
   )
 }
 
-const VISIT_MAT_OPTS = [
-  { v: '300G_CC', t: '300g CC' },
-  { v: '350G_OFFSET', t: '350g Offset' },
-  { v: '400G_OFFSET', t: '400g Offset' },
-  { v: '300G_RECYCLING', t: '300g Recycling Offset' },
-  { v: '250G_LEINENSTRUKTUR', t: '250g Leinenstruktur Offset' },
-  { v: 'MULTILOFT', t: 'Multiloft Offset' },
-] as const
-
 function Visitenkarte(p: BlK) {
   const { d, fe, f, pruef, speichDetail } = p
   const r = d as Record<string, string>
@@ -984,9 +978,9 @@ function Visitenkarte(p: BlK) {
           }}
         >
           <option value="">—</option>
-          {VISIT_MAT_OPTS.map(x => (
-            <option key={x.v} value={x.v}>
-              {x.t}
+          {VISITENKARTE_MATERIALIEN.map(x => (
+            <option key={x.wert} value={x.wert}>
+              {x.anzeige}
             </option>
           ))}
         </select>
@@ -997,21 +991,7 @@ function Visitenkarte(p: BlK) {
           {...p}
           k="multiloft_farbkern"
           l="Farbkern"
-          o={[
-            { v: 'SCHWARZ', t: 'Schwarz' },
-            { v: 'ELFENBEIN', t: 'Elfenbein' },
-            { v: 'WEISS', t: 'Weiß' },
-            { v: 'ROT', t: 'Rot' },
-            { v: 'OLIVGRUEN', t: 'Olivgrün' },
-            { v: 'HELLGRUEN', t: 'Hellgrün' },
-            { v: 'TUERKIS', t: 'Türkis' },
-            { v: 'LILA', t: 'Lila' },
-            { v: 'GELB', t: 'Gelb' },
-            { v: 'ORANGE', t: 'Orange' },
-            { v: 'MAGENTA', t: 'Magenta' },
-            { v: 'ROSA', t: 'Rosa' },
-            { v: 'BLAU', t: 'Blau' },
-          ]}
+          o={MULTILOFT_FARBKERNE.map(x => ({ v: x.wert, t: x.anzeige }))}
         />
       )}
       {fmt === 'FREI' && <MasseHoeheBreite {...p} />}
@@ -1099,12 +1079,11 @@ function BindungF(p: BlK) {
           }}
         >
           <option value="">—</option>
-          {(['80G', '100G', '120G'] as const).map(x => (
-            <option key={x} value={x}>
-              {x}
+          {BINDUNG_MATERIALIEN.map(x => (
+            <option key={String(x.wert)} value={String(x.wert)}>
+              {x.anzeige}
             </option>
           ))}
-          <option value="SONSTIGE">Sonstige</option>
         </select>
       </BerZeile>
       {r.material === 'SONSTIGE' && <Txt {...p} k="material_sonstige" l="Material (sonstige)" rows={2} />}
@@ -1307,12 +1286,11 @@ function AusdruckF(p: BlK) {
           onBlur={commit}
         >
           <option value="">—</option>
-          {(['80G', '100G', '120G', '160G', '200G', '250G', '300G'] as const).map(x => (
-            <option key={x} value={x}>
-              {x}
+          {AUSDRUCK_MATERIALIEN.map(x => (
+            <option key={String(x.wert)} value={String(x.wert)}>
+              {x.anzeige}
             </option>
           ))}
-          <option value="SONSTIGE">Sonstige</option>
         </select>
       </BerZeile>
       {mat === 'SONSTIGE' && <Txt {...p} k="material_sonstige" l="Material (sonstige)" rows={2} />}

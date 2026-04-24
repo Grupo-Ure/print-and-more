@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   STEMPEL_FARBE,
   STEMPEL_FARBE_ANZEIGE,
@@ -113,29 +113,21 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
   const [modelleLaden, setModelleLaden] = useState(false)
   const [modelleFehler, setModelleFehler] = useState<string | null>(null)
 
-  const modellId = String((detail as Record<string, unknown>).modell_id ?? '')
   const modellName = String((detail as Record<string, unknown>).modell_name ?? '')
-  const modellGewaehlt = (modellId && modellId !== 'null') || (modellName && modellName !== 'null')
 
-  const sortierteModelle = useMemo(() => {
-    const b = bVal
-    const h = hVal
-    const hasB = b != null && b > 0
-    const hasH = h != null && h > 0
-    const withScore = modelle.map(m => {
-      const mw = m.max_breite_mm ?? 0
-      const mh = m.max_hoehe_mm ?? 0
-      const exact = hasB && hasH && mw === b && mh === h
-      const dist = (hasB ? Math.abs(mw - (b as number)) : 0) + (hasH ? Math.abs(mh - (h as number)) : 0)
-      return { m, exact, dist }
-    })
-    withScore.sort((a, b) => {
-      if (a.exact !== b.exact) return a.exact ? -1 : 1
-      if (a.dist !== b.dist) return a.dist - b.dist
-      return a.m.name.localeCompare(b.m.name)
-    })
-    return withScore.map(x => x.m)
-  }, [modelle, bVal, hVal])
+  const [gewaehltesModellId, setGewaehltesModellId] = useState<string | null>(
+    String(((teil.detail as Record<string, unknown> | null) ?? {}).modell_id ?? '') || null
+  )
+  const [gewaehltesModellName, setGewaehltesModellName] = useState<string | null>(
+    String(((teil.detail as Record<string, unknown> | null) ?? {}).modell_name ?? '') || null
+  )
+
+  useEffect(() => {
+    const td = ((teil.detail as Record<string, unknown> | null) ?? {}) as Record<string, unknown>
+    setGewaehltesModellId(String(td.modell_id ?? '') || null)
+    setGewaehltesModellName(String(td.modell_name ?? '') || null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teil.id, teil.detail])
 
   useEffect(() => {
     const t = typR.current
@@ -161,21 +153,40 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
       .eq('typ', t as string)
       .eq('aktiv', true)
 
-    let q = q0 as any
-    if (b != null) q = q.gte('max_breite_mm', b)
-    if (h != null) q = q.gte('max_hoehe_mm', h)
-
     void (async () => {
       try {
-        const { data, error } = await q
-          .order('max_breite_mm', { ascending: true })
-          .order('max_hoehe_mm', { ascending: true })
+        const { data, error } = await q0
         if (!alive) return
         if (error) {
           setModelle([])
           setModelleFehler(error.message)
         } else {
-          setModelle((data ?? []) as StempelModell[])
+          const breite = toPosIntOrNull(detailR.current.format_breite)
+          const hoehe = toPosIntOrNull(detailR.current.format_hoehe)
+          const breite0 = breite ?? 0
+          const hoehe0 = hoehe ?? 0
+
+          const list = ((data ?? []) as StempelModell[]).filter(m => {
+            const mw = m.max_breite_mm ?? 0
+            const mh = m.max_hoehe_mm ?? 0
+            if (breite != null && hoehe != null) return mw >= breite && mh >= hoehe
+            if (breite != null) return mw >= breite
+            if (hoehe != null) return mh >= hoehe
+            return true
+          })
+
+          const sorted = list
+            .slice()
+            .sort((a, b) => {
+              const distA =
+                Math.abs((a.max_breite_mm ?? 0) - breite0) + Math.abs((a.max_hoehe_mm ?? 0) - hoehe0)
+              const distB =
+                Math.abs((b.max_breite_mm ?? 0) - breite0) + Math.abs((b.max_hoehe_mm ?? 0) - hoehe0)
+              return distA - distB
+            })
+            .slice(0, 8)
+
+          setModelle(sorted)
           setModelleFehler(null)
         }
       } catch (e) {
@@ -398,9 +409,9 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
       {(typ === 'TRODAT_PRINTY' || typ === 'HOLZSTEMPEL') && showMass && hatMass && (
         <BerZeile l="Modellvorschlag">
           <div>
-            {modellGewaehlt && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                <span
+            {gewaehltesModellId && (
+              <div style={{ marginBottom: 8 }}>
+                <div
                   className="wa-badge"
                   style={{
                     display: 'inline-flex',
@@ -413,20 +424,28 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
                     fontSize: 12,
                   }}
                 >
-                  Gewählt: {modellName || 'Modell'}
-                  <button
-                    type="button"
-                    className="wa-btn wa-btn--sm"
+                  Gewählt: {gewaehltesModellName || modellName || 'Modell'}
+                  <span
+                    role="button"
+                    tabIndex={0}
                     onClick={() => {
-                      patchL({ modell_id: null, modell_name: null } as StempelDetailJson)
-                      commit()
+                      setGewaehltesModellId(null)
+                      setGewaehltesModellName(null)
+                      speichDetail({ ...detailR.current, modell_id: null, modell_name: null })
                     }}
-                    style={{ padding: '0 6px' }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        setGewaehltesModellId(null)
+                        setGewaehltesModellName(null)
+                        speichDetail({ ...detailR.current, modell_id: null, modell_name: null })
+                      }
+                    }}
+                    style={{ cursor: 'pointer', padding: '0 6px', userSelect: 'none', fontWeight: 700 }}
                     title="Modell abwählen"
                   >
                     ×
-                  </button>
-                </span>
+                  </span>
+                </div>
               </div>
             )}
 
@@ -439,19 +458,26 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
               </p>
             )}
 
-            {!modelleLaden && !modelleFehler && modelle.length > 0 && (
+            {!gewaehltesModellId && !modelleLaden && !modelleFehler && modelle.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {sortierteModelle.map(m => {
+                {modelle.map(m => {
                   const keinBestand = (m.bestand ?? 0) <= 0
-                  const isSel = modellId && modellId !== 'null' ? m.id === modellId : modellName ? m.name === modellName : false
+                  const isSel = m.id === gewaehltesModellId
                   return (
                     <button
                       key={m.id}
                       type="button"
                       className="wa-btn wa-btn--ghost"
                       onClick={() => {
-                        patchL({ modell_id: m.id, modell_name: m.name } as StempelDetailJson)
-                        commit()
+                        if (isSel) {
+                          setGewaehltesModellId(null)
+                          setGewaehltesModellName(null)
+                          speichDetail({ ...detailR.current, modell_id: null, modell_name: null })
+                          return
+                        }
+                        setGewaehltesModellId(m.id)
+                        setGewaehltesModellName(m.name)
+                        speichDetail({ ...detailR.current, modell_id: m.id, modell_name: m.name })
                       }}
                       style={{
                         textAlign: 'left',
@@ -460,6 +486,7 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
                         alignItems: 'baseline',
                         justifyContent: 'space-between',
                         padding: '6px 10px',
+                        cursor: 'pointer',
                         background: isSel ? 'rgba(59, 130, 246, 0.18)' : undefined,
                         border: isSel ? '1px solid rgba(59, 130, 246, 0.45)' : undefined,
                       }}
