@@ -23,6 +23,7 @@ function automatischesPrepressErlaubt(merged: TeilauftragRow): boolean {
       merged.typ === 'DATUMSSTEMPEL' ||
       merged.typ === 'NACHFUELLFARBE' ||
       merged.typ === 'STEMPELKISSEN' ||
+      merged.typ === 'TRODAT_KISSEN' ||
       merged.typ === 'STEMPELPLATTE'
     )
   }

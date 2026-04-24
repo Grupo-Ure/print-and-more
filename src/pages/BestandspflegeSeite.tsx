@@ -170,6 +170,7 @@ export function BestandspflegeSeite() {
   const [filterNachbestellen, setFilterNachbestellen] = useState(false)
   const [filterTyp, setFilterTyp] = useState<string>('ALLE')
   const [filterFarbe, setFilterFarbe] = useState<string>('ALLE')
+  const [uebersichtSuche, setUebersichtSuche] = useState('')
 
   type SortKey = 'name' | 'farbe' | 'druckflaeche' | 'typ' | 'bestand' | 'mindestbestand' | 'status'
   const [sortierung, setSortierung] = useState<{ key: SortKey; dir: 'asc' | 'desc' } | null>(null)
@@ -232,6 +233,14 @@ export function BestandspflegeSeite() {
         return b <= 0 || b <= min || b < min
       })
     }
+    const qUe = uebersichtSuche.trim().toLowerCase()
+    if (qUe) {
+      list = list.filter(m => {
+        const name = String(m.name ?? '').toLowerCase()
+        const art = String(m.artikelnummer ?? '').toLowerCase()
+        return name.includes(qUe) || art.includes(qUe)
+      })
+    }
     if (sortierung) {
       const dir = sortierung.dir === 'asc' ? 1 : -1
       const key = sortierung.key
@@ -278,7 +287,7 @@ export function BestandspflegeSeite() {
       })
     }
     return list
-  }, [filterFarbe, filterNachbestellen, filterTyp, modelle, sortierung])
+  }, [filterFarbe, filterNachbestellen, filterTyp, modelle, sortierung, uebersichtSuche])
 
   const [buchMenge, setBuchMenge] = useState<Record<string, string>>({})
   const [buchBusyId, setBuchBusyId] = useState<string | null>(null)
@@ -429,6 +438,15 @@ export function BestandspflegeSeite() {
       {tab === 'UEBERSICHT' && (
         <div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+            <input
+              type="search"
+              className="cp-select"
+              placeholder="Name oder Artikelnummer…"
+              value={uebersichtSuche}
+              onChange={e => setUebersichtSuche(e.target.value)}
+              aria-label="Suche Name oder Artikelnummer"
+              style={{ minWidth: 220, maxWidth: 320 }}
+            />
             <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
               <input
                 type="checkbox"

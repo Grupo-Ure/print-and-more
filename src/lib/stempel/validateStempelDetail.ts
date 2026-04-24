@@ -43,7 +43,7 @@ const f = (o: Err, k: string, m: string) => {
   o[k] = m
 }
 
-const EXTRA_TYPEN = ['NACHFUELLFARBE', 'STEMPELKISSEN', 'STEMPELPLATTE'] as const
+const EXTRA_TYPEN = ['NACHFUELLFARBE', 'STEMPELKISSEN', 'STEMPELPLATTE', 'TRODAT_KISSEN'] as const
 type ExtraTyp = (typeof EXTRA_TYPEN)[number]
 type AnyTyp = StempelTeiltyp | ExtraTyp
 
@@ -67,10 +67,14 @@ export function validateStempelDetail(
   const t = typ as AnyTyp
 
   // Anzahl / Stückzahl
-  if (!anzahlGueltig(d)) f(o, 'stueckzahl', 'Ganze Zahl ≥ 1')
+  if (t === 'TRODAT_KISSEN') {
+    if (!stueckzahlGueltig(d.stueckzahl)) f(o, 'stueckzahl', 'Ganze Zahl ≥ 1')
+  } else {
+    if (!anzahlGueltig(d)) f(o, 'stueckzahl', 'Ganze Zahl ≥ 1')
+  }
 
-  // Maße (OR-Pflicht) für alle außer NACHFUELLFARBE und STEMPELKISSEN
-  const needsFormat = t !== 'NACHFUELLFARBE' && t !== 'STEMPELKISSEN'
+  // Maße (OR-Pflicht) für alle außer NACHFUELLFARBE, STEMPELKISSEN, TRODAT_KISSEN
+  const needsFormat = t !== 'NACHFUELLFARBE' && t !== 'STEMPELKISSEN' && t !== 'TRODAT_KISSEN'
   if (needsFormat) {
     const b = positiveGanzzahlOrNull(d.format_breite)
     const h = positiveGanzzahlOrNull(d.format_hoehe)
@@ -91,6 +95,11 @@ export function validateStempelDetail(
     if (!gr) f(o, 'groesse', 'Pflichtfeld')
     const fr = reqEnum(d.farbe, NACHFUELLFARBE_FARBEN)
     if (!fr) f(o, 'farbe', 'Pflichtfeld')
+  } else if (t === 'TRODAT_KISSEN') {
+    if (!reqStr((d as Record<string, unknown>).kissen_artikelnummer)) f(o, 'kissen_artikelnummer', 'Pflichtfeld')
+    const fr = reqEnum(d.farbe, NACHFUELLFARBE_FARBEN)
+    if (!fr) f(o, 'farbe', 'Pflichtfeld')
+    if (!reqStr((d as Record<string, unknown>).kissen_modell_id)) f(o, 'kissen_modell_id', 'Farb-Variante wählen')
   } else if (t === 'STEMPELPLATTE') {
     // Keine Farbe, keine Beschreibung.
   } else {

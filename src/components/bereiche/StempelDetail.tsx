@@ -32,11 +32,12 @@ type BlK = {
   speichDetail: (d: StempelDetailJson) => void
 }
 
-const EXTRA_TYPEN = ['NACHFUELLFARBE', 'STEMPELKISSEN', 'STEMPELPLATTE'] as const
+const EXTRA_TYPEN = ['NACHFUELLFARBE', 'STEMPELKISSEN', 'STEMPELPLATTE', 'TRODAT_KISSEN'] as const
 const EXTRA_TYP_ANZEIGE: Record<(typeof EXTRA_TYPEN)[number], string> = {
   NACHFUELLFARBE: 'Nachfüllfarbe',
   STEMPELKISSEN: 'Stempelkissen',
   STEMPELPLATTE: 'Stempelplatte',
+  TRODAT_KISSEN: 'Trodat Ersatzkissen',
 }
 
 const NACHFUELLFARBE_FARBEN = ['SCHWARZ', 'ROT', 'BLAU', 'GRUEN'] as const
@@ -67,6 +68,35 @@ type StempelModell = {
 const ERSATZ_KISSEN_FARBEN_REIHE = ['SCHWARZ', 'ROT', 'BLAU', 'GRUEN'] as const
 
 type ErsatzKissenZeile = { farbe: string; label: string; bestand: number }
+
+type KissenArtikelRow = { artikelnummer: string; name: string }
+type KissenFarbButton = { id: string; farbe: (typeof ERSATZ_KISSEN_FARBEN_REIHE)[number]; bestand: number }
+
+function escIlike(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
+}
+
+async function ladeKissenFarbzeilen(artikelnummer: string): Promise<KissenFarbButton[]> {
+  const { data, error } = await supabase
+    .from('stempel_modelle')
+    .select('id, farbe, bestand')
+    .eq('typ', 'TRODAT_KISSEN')
+    .eq('artikelnummer', artikelnummer)
+    .order('farbe', { ascending: true })
+  if (error) {
+    console.error(error)
+    return ERSATZ_KISSEN_FARBEN_REIHE.map(farbe => ({ id: '', farbe, bestand: 0 }))
+  }
+  const list = (data ?? []) as { id: string; farbe: string | null; bestand: number | null }[]
+  const byF = new Map<string, (typeof list)[0]>()
+  for (const r of list) {
+    if (r.farbe) byF.set(r.farbe, r)
+  }
+  return ERSATZ_KISSEN_FARBEN_REIHE.map(farbe => {
+    const r = byF.get(farbe)
+    return { id: r?.id && String(r.id) ? String(r.id) : '', farbe, bestand: r ? Number(r.bestand) || 0 : 0 }
+  })
+}
 
 function toPosIntOrNull(v: unknown): number | null {
   if (v == null || v === '') return null
@@ -108,9 +138,13 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
   const hVal = toPosIntOrNull(detail.format_hoehe)
   const hatMass = (bVal ?? 0) > 0 || (hVal ?? 0) > 0
 
-  const showMass = typ !== 'NACHFUELLFARBE' && typ !== 'STEMPELKISSEN'
+  const showMass = typ !== 'NACHFUELLFARBE' && typ !== 'STEMPELKISSEN' && typ !== 'TRODAT_KISSEN'
   const showBeschreibung =
-    typ !== 'NACHFUELLFARBE' && typ !== 'STEMPELKISSEN' && typ !== 'STEMPELPLATTE' && !!typ
+    typ !== 'NACHFUELLFARBE' &&
+    typ !== 'STEMPELKISSEN' &&
+    typ !== 'TRODAT_KISSEN' &&
+    typ !== 'STEMPELPLATTE' &&
+    !!typ
   const showFarbe = showBeschreibung // alle "klassischen" Typen
   const showAnzahl = !!typ
 
@@ -128,6 +162,13 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
   )
 
   const [ersatzKissen, setErsatzKissen] = useState<ErsatzKissenZeile[] | null>(null)
+
+  const [kissenInput, setKissenInput] = useState('')
+  const [kissenQDeb, setKissenQDeb] = useState('')
+  const [kissenTreffer, setKissenTreffer] = useState<KissenArtikelRow[]>([])
+  const [kissenSucheLaden, setKissenSucheLaden] = useState(false)
+  const [kissenSucheFehler, setKissenSucheFehler] = useState<string | null>(null)
+  const [kissenFarbOptionen, setKissenFarbOptionen] = useState<KissenFarbButton[]>([])
 
   useEffect(() => {
     const td = ((teil.detail as Record<string, unknown> | null) ?? {}) as Record<string, unknown>
@@ -269,6 +310,94 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
     }
   }, [gewaehltesModellId, modelle])
 
+  useEffect(() => {
+    if (typ !== 'TRODAT_KISSEN') return
+    const t = setTimeout(() => setKissenQDeb(kissenInput), 350)
+    return () => clearTimeout(t)
+  }, [kissenInput, typ])
+
+  useEffect(() => {
+    if (typ !== 'TRODAT_KISSEN') {
+      setKissenTreffer([])
+      setKissenSucheFehler(null)
+      setKissenSucheLaden(false)
+      return
+    }
+    const q = kissenQDeb.trim()
+    if (q.length < 1) {
+      setKissenTreffer([])
+      setKissenSucheFehler(null)
+      setKissenSucheLaden(false)
+      return
+    }
+    let alive = true
+    setKissenSucheLaden(true)
+    setKissenSucheFehler(null)
+    void (async () => {
+      const esc = escIlike(q)
+      const p = `%${esc}%`
+      const { data, error } = await supabase
+        .from('stempel_modelle')
+        .select('id, name, artikelnummer, farbe, bestand, vk_preis_netto')
+        .eq('typ', 'TRODAT_KISSEN')
+        .eq('aktiv', true)
+        .or(`name.ilike.${p},artikelnummer.ilike.${p}`)
+        .order('artikelnummer', { ascending: true })
+      if (!alive) return
+      if (error) {
+        setKissenTreffer([])
+        setKissenSucheFehler(error.message)
+      } else {
+        const m = new Map<string, KissenArtikelRow>()
+        for (const r of (data ?? []) as { id: string; name: string; artikelnummer: string | null }[]) {
+          const aKey = (r.artikelnummer && String(r.artikelnummer).trim()) || r.id
+          if (!m.has(aKey)) m.set(aKey, { artikelnummer: r.artikelnummer ? String(r.artikelnummer) : '', name: r.name })
+        }
+        setKissenTreffer(
+          [...m.values()].sort(
+            (a, b) => a.artikelnummer.localeCompare(b.artikelnummer) || a.name.localeCompare(b.name)
+          )
+        )
+        setKissenSucheFehler(null)
+      }
+      setKissenSucheLaden(false)
+    })()
+    return () => {
+      alive = false
+    }
+  }, [kissenQDeb, typ])
+
+  useEffect(() => {
+    if (typ !== 'TRODAT_KISSEN') {
+      setKissenInput('')
+      setKissenQDeb('')
+      setKissenTreffer([])
+      setKissenSucheFehler(null)
+      setKissenFarbOptionen([])
+      return
+    }
+  }, [typ])
+
+  useEffect(() => {
+    if (typ !== 'TRODAT_KISSEN') {
+      setKissenFarbOptionen([])
+      return
+    }
+    const d = (detail as Record<string, unknown>) ?? {}
+    const art = String(d.kissen_artikelnummer ?? '').trim()
+    if (!art) {
+      setKissenFarbOptionen([])
+      return
+    }
+    let a = true
+    void ladeKissenFarbzeilen(art).then(rows => {
+      if (a) setKissenFarbOptionen(rows)
+    })
+    return () => {
+      a = false
+    }
+  }, [typ, detail, teil.id])
+
   const speich = useCallback(
     async (nextTyp: string | null, d: StempelDetailJson) => {
       setDetail(d)
@@ -303,6 +432,16 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
   const p: BlK = { d: detail, fe, pruef, f: fehler, patchL, commit, speichDetail }
 
   const typOptionen = [...STEMPEL_TYPEN, ...EXTRA_TYPEN] as readonly string[]
+
+  const dRec = (detail as Record<string, unknown>) ?? {}
+  const trodatKissenArt = String(dRec.kissen_artikelnummer ?? '').trim()
+  const trodatKissenModellId = String(dRec.kissen_modell_id ?? '').trim()
+  const trodatBadgeBestand =
+    (trodatKissenModellId && kissenFarbOptionen.find(f => f.id === trodatKissenModellId)?.bestand) ?? null
+  const trodatFarbeLabel =
+    dRec.farbe && typeof dRec.farbe === 'string' && dRec.farbe in STEMPEL_FARBE_ANZEIGE
+      ? STEMPEL_FARBE_ANZEIGE[dRec.farbe as keyof typeof STEMPEL_FARBE_ANZEIGE]
+      : String(dRec.farbe ?? '—')
 
   return (
     <div className="ber-lfp">
@@ -344,7 +483,159 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
         }
       />
 
-      {showAnzahl && <NmbStueckzahl {...p} label={typ === 'NACHFUELLFARBE' || typ === 'STEMPELKISSEN' ? 'Anzahl' : 'Stückzahl'} />}
+      {typ === 'TRODAT_KISSEN' && (
+        <>
+          <BerZeile
+            l="Suche"
+            e={
+              pruef && (fehler.kissen_artikelnummer || fehler.kissen_modell_id)
+                ? [fehler.kissen_artikelnummer, fehler.kissen_modell_id].filter(Boolean).join(' — ')
+                : undefined
+            }
+            c={
+              <div>
+                <input
+                  type="search"
+                  className={'ber-inp' + fe('kissen_artikelnummer')}
+                  placeholder="Modell oder Artikelnummer…"
+                  value={kissenInput}
+                  onChange={e => setKissenInput(e.target.value)}
+                />
+                {kissenSucheLaden && <p className="ber-hinweis" style={{ marginTop: 6 }}>Suchen…</p>}
+                {kissenSucheFehler && <p className="ber-err" style={{ marginTop: 6 }}>{kissenSucheFehler}</p>}
+                {!kissenSucheLaden && !kissenSucheFehler && kissenQDeb.trim() !== '' && kissenTreffer.length === 0 && (
+                  <p className="ber-hinweis" style={{ marginTop: 6 }}>
+                    Kein Treffer
+                  </p>
+                )}
+                {!kissenSucheLaden && kissenTreffer.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
+                    {kissenTreffer.map(zeile => (
+                      <button
+                        key={zeile.artikelnummer || zeile.name}
+                        type="button"
+                        className="wa-btn wa-btn--ghost"
+                        onClick={() => {
+                          void ladeKissenFarbzeilen(zeile.artikelnummer).then(rows => {
+                            setKissenFarbOptionen(rows)
+                            speichDetail({
+                              ...detailR.current,
+                              kissen_artikelnummer: zeile.artikelnummer,
+                              kissen_name: zeile.name,
+                              farbe: null,
+                              kissen_modell_id: null,
+                            } as StempelDetailJson)
+                          })
+                        }}
+                        style={{ textAlign: 'left', padding: '6px 8px' }}
+                      >
+                        <span style={{ fontWeight: 600, marginRight: 8 }}>{zeile.artikelnummer || '—'}</span>
+                        {zeile.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            }
+          />
+          {!!trodatKissenArt && kissenFarbOptionen.length > 0 && (
+            <BerZeile
+              l="Farbe"
+              e={pruef && (fehler.farbe || fehler.kissen_modell_id) ? [fehler.farbe, fehler.kissen_modell_id].filter(Boolean).join(' — ') : undefined}
+              c={
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexWrap: 'wrap' }}>
+                  {kissenFarbOptionen.map(fv => {
+                    const waehl = trodatKissenModellId && fv.id && trodatKissenModellId === fv.id
+                    const b0 = fv.bestand <= 0
+                    return (
+                      <button
+                        key={fv.farbe}
+                        type="button"
+                        className="wa-btn wa-btn--ghost"
+                        disabled={!fv.id}
+                        onClick={() => {
+                          if (!fv.id) return
+                          speichDetail({
+                            ...detailR.current,
+                            farbe: fv.farbe,
+                            kissen_modell_id: fv.id,
+                          } as StempelDetailJson)
+                        }}
+                        style={{
+                          textAlign: 'left',
+                          border: waehl ? '1px solid rgba(59, 130, 246, 0.45)' : undefined,
+                          background: waehl ? 'rgba(59, 130, 246, 0.12)' : undefined,
+                          color: b0 ? '#f59e0b' : undefined,
+                          fontWeight: b0 || waehl ? 600 : undefined,
+                        }}
+                      >
+                        {STEMPEL_FARBE_ANZEIGE[fv.farbe]} (Bestand: {fv.bestand})
+                      </button>
+                    )
+                  })}
+                </div>
+              }
+            />
+          )}
+          <NmbStueckzahl {...p} label="Stückzahl" />
+          {trodatKissenModellId && (
+            <BerZeile l="Gewählt" e={undefined}>
+              <div
+                className="wa-badge"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '4px 8px',
+                  borderRadius: 999,
+                  border: '1px solid rgba(255,255,255,0.18)',
+                  background: 'rgba(255,255,255,0.06)',
+                  fontSize: 12,
+                }}
+              >
+                {dRec.kissen_artikelnummer != null && String(dRec.kissen_artikelnummer) !== '' ? String(dRec.kissen_artikelnummer) : '—'} {String(dRec.kissen_name ?? '')} · {trodatFarbeLabel} ·
+                Bestand: {trodatBadgeBestand == null ? '—' : trodatBadgeBestand}
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    setKissenFarbOptionen([])
+                    setKissenInput('')
+                    speichDetail({
+                      ...detailR.current,
+                      kissen_artikelnummer: null,
+                      kissen_name: null,
+                      kissen_modell_id: null,
+                      farbe: null,
+                    } as StempelDetailJson)
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      setKissenFarbOptionen([])
+                      setKissenInput('')
+                      speichDetail({
+                        ...detailR.current,
+                        kissen_artikelnummer: null,
+                        kissen_name: null,
+                        kissen_modell_id: null,
+                        farbe: null,
+                      } as StempelDetailJson)
+                    }
+                  }}
+                  style={{ cursor: 'pointer', padding: '0 6px', userSelect: 'none', fontWeight: 700 }}
+                  title="Abwählen"
+                >
+                  ×
+                </span>
+              </div>
+            </BerZeile>
+          )}
+        </>
+      )}
+
+      {showAnzahl && typ !== 'TRODAT_KISSEN' && (
+        <NmbStueckzahl {...p} label={typ === 'NACHFUELLFARBE' || typ === 'STEMPELKISSEN' ? 'Anzahl' : 'Stückzahl'} />
+      )}
 
       {typ === 'STEMPELKISSEN' && (
         <BerZeile l="Größe" e={pruef && fehler.groesse ? fehler.groesse : undefined}>
@@ -364,7 +655,9 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
         </BerZeile>
       )}
 
-      {(showFarbe || typ === 'NACHFUELLFARBE' || typ === 'STEMPELKISSEN') && typ !== 'STEMPELPLATTE' && (
+      {(showFarbe || typ === 'NACHFUELLFARBE' || typ === 'STEMPELKISSEN') &&
+        typ !== 'STEMPELPLATTE' &&
+        typ !== 'TRODAT_KISSEN' && (
         <BerZeile
           l="Farbe"
           e={

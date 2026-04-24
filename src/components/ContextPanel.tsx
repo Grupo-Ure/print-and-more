@@ -295,17 +295,18 @@ export function ContextPanel({
       })
       const row = data as TeilauftragRow
       const det = (row.detail as Record<string, unknown> | null) ?? {}
-      if (row.bereich === 'STEMPEL' && det.modell_id) {
-        const modellId = String(det.modell_id)
-        const rawM = det.stueckzahl
-        const mengeParsed =
-          typeof rawM === 'number'
-            ? rawM
-            : typeof rawM === 'string' && rawM.trim() !== ''
-              ? parseInt(rawM, 10)
-              : 1
-        const menge = Number.isFinite(mengeParsed) && mengeParsed >= 1 ? Math.floor(mengeParsed) : 1
+      const rawM = det.stueckzahl
+      const mengeParsed =
+        typeof rawM === 'number'
+          ? rawM
+          : typeof rawM === 'string' && rawM.trim() !== ''
+            ? parseInt(rawM, 10)
+            : 1
+      const menge = Number.isFinite(mengeParsed) && mengeParsed >= 1 ? Math.floor(mengeParsed) : 1
 
+      const notizStempel = 'Automatisch bei Fertigmeldung ' + (auftrag.auftragsnummer ?? '')
+
+      const lagerAutoabgang = async (modellId: string, mengeLocal: number, notiz: string) => {
         const { data: modell, error: eMod } = await supabase
           .from('stempel_modelle')
           .select('bestand')
@@ -313,27 +314,70 @@ export function ContextPanel({
           .single()
         if (eMod) {
           console.error(eMod)
-        } else if (modell) {
-          const alt = (modell as { bestand: number | null }).bestand ?? 0
-          if (alt > 0) {
-            const neuerBestand = Math.max(0, alt - menge)
-            const { error: eUp } = await supabase
+          return
+        }
+        if (!modell) return
+        const alt = (modell as { bestand: number | null }).bestand ?? 0
+        if (alt <= 0) return
+        const neuerBestand = Math.max(0, alt - mengeLocal)
+        const { error: eUp } = await supabase
+          .from('stempel_modelle')
+          .update({ bestand: neuerBestand } as never)
+          .eq('id', modellId)
+        if (eUp) {
+          console.error(eUp)
+          return
+        }
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        const { error: eIns } = await supabase.from('lager_bewegungen').insert({
+          modell_id: modellId,
+          menge: mengeLocal,
+          typ: 'AUTOABGANG',
+          notiz,
+          person_id: user?.id ?? null,
+        } as never)
+        if (eIns) console.error(eIns)
+      }
+
+      if (row.bereich === 'STEMPEL') {
+        if (row.typ === 'TRODAT_KISSEN' && det.kissen_modell_id) {
+          await lagerAutoabgang(String(det.kissen_modell_id), menge, notizStempel)
+        } else if (det.modell_id) {
+          const stampId = String(det.modell_id)
+          await lagerAutoabgang(stampId, menge, notizStempel)
+
+          const fr = det.farbe
+          if (fr != null && String(fr).trim() !== '') {
+            const { data: stRow, error: eErs } = await supabase
               .from('stempel_modelle')
-              .update({ bestand: neuerBestand } as never)
-              .eq('id', modellId)
-            if (eUp) console.error(eUp)
-            else {
-              const {
-                data: { user },
-              } = await supabase.auth.getUser()
-              const { error: eIns } = await supabase.from('lager_bewegungen').insert({
-                modell_id: modellId,
-                menge,
-                typ: 'AUTOABGANG',
-                notiz: 'Automatisch bei Fertigmeldung ' + (auftrag.auftragsnummer ?? ''),
-                person_id: user?.id ?? null,
-              } as never)
-              if (eIns) console.error(eIns)
+              .select('ersatzkissen_artikelnummer')
+              .eq('id', stampId)
+              .single()
+            if (eErs) {
+              console.error(eErs)
+            } else if (stRow) {
+              const ers = (stRow as { ersatzkissen_artikelnummer: string | null }).ersatzkissen_artikelnummer
+              const artikel = ers && String(ers).trim()
+              if (artikel) {
+                const { data: kissen, error: eKis } = await supabase
+                  .from('stempel_modelle')
+                  .select('id, bestand')
+                  .eq('typ', 'TRODAT_KISSEN')
+                  .eq('artikelnummer', artikel)
+                  .eq('farbe', String(fr))
+                  .maybeSingle()
+                if (eKis) {
+                  console.error(eKis)
+                } else if (kissen) {
+                  const b = (kissen as { bestand: number | null; id: string }).bestand ?? 0
+                  if (b > 0) {
+                    const kid = String((kissen as { id: string }).id)
+                    await lagerAutoabgang(kid, menge, notizStempel + ' (Kissen zu Stempel)')
+                  }
+                }
+              }
             }
           }
         }
