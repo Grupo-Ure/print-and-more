@@ -293,6 +293,51 @@ export function ContextPanel({
         teilauftrag_id: teil.id,
         ereignisart: 'FERTIG_GEMELDET',
       })
+      const row = data as TeilauftragRow
+      const det = (row.detail as Record<string, unknown> | null) ?? {}
+      if (row.bereich === 'STEMPEL' && det.modell_id) {
+        const modellId = String(det.modell_id)
+        const rawM = det.stueckzahl
+        const mengeParsed =
+          typeof rawM === 'number'
+            ? rawM
+            : typeof rawM === 'string' && rawM.trim() !== ''
+              ? parseInt(rawM, 10)
+              : 1
+        const menge = Number.isFinite(mengeParsed) && mengeParsed >= 1 ? Math.floor(mengeParsed) : 1
+
+        const { data: modell, error: eMod } = await supabase
+          .from('stempel_modelle')
+          .select('bestand')
+          .eq('id', modellId)
+          .single()
+        if (eMod) {
+          console.error(eMod)
+        } else if (modell) {
+          const alt = (modell as { bestand: number | null }).bestand ?? 0
+          if (alt > 0) {
+            const neuerBestand = Math.max(0, alt - menge)
+            const { error: eUp } = await supabase
+              .from('stempel_modelle')
+              .update({ bestand: neuerBestand } as never)
+              .eq('id', modellId)
+            if (eUp) console.error(eUp)
+            else {
+              const {
+                data: { user },
+              } = await supabase.auth.getUser()
+              const { error: eIns } = await supabase.from('lager_bewegungen').insert({
+                modell_id: modellId,
+                menge,
+                typ: 'AUTOABGANG',
+                notiz: 'Automatisch bei Fertigmeldung ' + (auftrag.auftragsnummer ?? ''),
+                person_id: user?.id ?? null,
+              } as never)
+              if (eIns) console.error(eIns)
+            }
+          }
+        }
+      }
       onTeilauftragAktualisiert(data as TeilauftragRow)
       const a = await synchronisiereAuftragsstatus(auftrag.id)
       onAuftragAktualisiert(a)
@@ -695,6 +740,19 @@ export function ContextPanel({
           ))}
         </div>
       )}
+
+      <div className="cp-sektion">
+        <div className="cp-gruppe">
+          <button
+            type="button"
+            className="cp-btn cp-btn-grau"
+            onClick={() => window.open('/bestandspflege', '_blank')}
+            title="Bestandspflege öffnen"
+          >
+            Bestandspflege ↗
+          </button>
+        </div>
+      </div>
 
       <HistoriePanel
         aktiverAuftragId={auftrag.id}

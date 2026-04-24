@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
+import { Route, Routes } from 'react-router-dom'
 import { supabase } from './supabase'
 import { Login } from './components/Login'
 import { OrderList } from './components/OrderList'
@@ -11,8 +12,9 @@ import { kontaktJoinZuKunde } from './lib/kunden'
 import type { Kunde } from './lib/kunden'
 import type { Auftrag, KundeKontaktJoin, TeilauftragRow } from './types/database'
 import type { Datei } from './components/DateiListe'
+import { BestandspflegeSeite } from './pages/BestandspflegeSeite'
 
-function App() {
+function HauptApp() {
   const [session, setSession] = useState<Session | null>(null)
   const [laden, setLaden] = useState(true)
   const [aktiverAuftragId, setAktiverAuftragId] = useState<string | null>(null)
@@ -177,6 +179,15 @@ function App() {
         />
       )}
     </div>
+  )
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<HauptApp />} />
+      <Route path="/bestandspflege" element={<BestandspflegeSeite />} />
+    </Routes>
   )
 }
 
