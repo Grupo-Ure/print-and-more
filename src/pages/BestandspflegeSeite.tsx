@@ -90,7 +90,71 @@ type LagerBewegungRow = {
   stempel_modelle?: { name: string } | { name: string }[] | null
 }
 
-type Tab = 'UEBERSICHT' | 'BEWEGUNGEN'
+type Tab = 'UEBERSICHT' | 'BEWEGUNGEN' | 'BESTELLLISTE'
+
+type StempelModellBestellRow = {
+  id: string
+  name: string
+  artikelnummer: string | null
+  typ: StempelTyp
+  farbe: string | null
+  bestand: number
+  mindestbestand: number
+}
+
+type BestelllisteZeile = StempelModellBestellRow & {
+  offene_menge: number
+  bestellmenge: number
+}
+
+function parseStueckzahlTeilauftrag(raw: unknown): number {
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    const n = Math.floor(raw)
+    return n >= 1 ? n : 1
+  }
+  if (typeof raw === 'string' && raw.trim() !== '') {
+    const p = parseInt(raw, 10)
+    if (Number.isFinite(p) && p >= 1) return p
+  }
+  return 1
+}
+
+/** Sichere Ganzzahl aus DB/JSON; verhindert [object Object] in Berechnungen. */
+function alsGanzzahl(v: unknown): number {
+  if (typeof v === 'number' && Number.isFinite(v)) return Math.trunc(v)
+  if (typeof v === 'string' && v.trim() !== '') {
+    const p = parseInt(v, 10)
+    if (Number.isFinite(p)) return p
+  }
+  return 0
+}
+
+function bestelllisteZahlFuerAnzeige(v: unknown): number {
+  const n = alsGanzzahl(v)
+  return n < 0 ? 0 : n
+}
+
+function bestelllisteTextZelle(v: unknown, leer: string = '—'): string {
+  if (v == null) return leer
+  if (typeof v === 'string') return v.trim() === '' ? leer : v
+  if (typeof v === 'number' && Number.isFinite(v)) return String(v)
+  if (typeof v === 'boolean') return v ? 'ja' : 'nein'
+  if (typeof v === 'object') return leer
+  return String(v)
+}
+
+function fehlerAlsString(e: unknown): string {
+  if (e instanceof Error) return e.message
+  if (e && typeof e === 'object' && 'message' in e) {
+    const m = (e as { message: unknown }).message
+    if (typeof m === 'string') return m
+  }
+  try {
+    return JSON.stringify(e)
+  } catch {
+    return 'Unbekannter Fehler'
+  }
+}
 
 function fmtDateTime(iso: string): string {
   const d = new Date(iso)
@@ -399,6 +463,103 @@ export function BestandspflegeSeite() {
     })
   }, [bewegungen, movSuche, movTyp])
 
+  // ------------------------------------------------------------
+  // Tab 3: Bestellliste
+  // ------------------------------------------------------------
+  const [bestelllisteZeilen, setBestelllisteZeilen] = useState<BestelllisteZeile[]>([])
+  const [bestelllisteLaden, setBestelllisteLaden] = useState(false)
+  const [bestelllisteFehler, setBestelllisteFehler] = useState<string | null>(null)
+  const [bestelllisteKopiert, setBestelllisteKopiert] = useState(false)
+
+  const ladeBestellliste = async () => {
+    setBestelllisteLaden(true)
+    setBestelllisteFehler(null)
+    try {
+      const { data: modData, error: eMod } = await supabase
+        .from('stempel_modelle')
+        .select('id, name, artikelnummer, typ, farbe, bestand, mindestbestand')
+        .eq('aktiv', true)
+      if (eMod) throw eMod
+
+      const { data: teilData, error: eTeil } = await supabase
+        .from('teilauftraege')
+        .select('id, status, bereich, detail, storniert')
+        .eq('bereich', 'STEMPEL')
+        .neq('status', 'FERTIG')
+        .eq('storniert', false)
+      if (eTeil) throw eTeil
+
+      const modelleAktiv = ((modData ?? []) as StempelModellBestellRow[]).slice()
+      const idSet = new Set(modelleAktiv.map(m => m.id))
+      const bedarf = new Map<string, number>()
+
+      for (const t of (teilData ?? []) as { detail: unknown }[]) {
+        const det = (t.detail as Record<string, unknown> | null) ?? {}
+        const menge = parseStueckzahlTeilauftrag(det.stueckzahl)
+        const mid = det.modell_id != null && String(det.modell_id).trim() !== '' ? String(det.modell_id) : null
+        const kid = det.kissen_modell_id != null && String(det.kissen_modell_id).trim() !== '' ? String(det.kissen_modell_id) : null
+        if (mid && idSet.has(mid)) {
+          bedarf.set(mid, (bedarf.get(mid) ?? 0) + menge)
+        }
+        if (kid && idSet.has(kid)) {
+          bedarf.set(kid, (bedarf.get(kid) ?? 0) + menge)
+        }
+      }
+
+      const zeilen: BestelllisteZeile[] = []
+      for (const m of modelleAktiv) {
+        const offene_menge = alsGanzzahl(bedarf.get(m.id))
+        const bestand = alsGanzzahl(m.bestand)
+        const mindest = alsGanzzahl(m.mindestbestand)
+        const bestellmenge = Math.max(0, mindest + offene_menge - bestand)
+        if (bestellmenge <= 0) continue
+        zeilen.push({
+          ...m,
+          offene_menge,
+          bestellmenge: alsGanzzahl(bestellmenge),
+        })
+      }
+      zeilen.sort((a, b) => b.bestellmenge - a.bestellmenge)
+      setBestelllisteZeilen(zeilen)
+    } catch (e) {
+      console.error(e)
+      setBestelllisteZeilen([])
+      setBestelllisteFehler(fehlerAlsString(e))
+    } finally {
+      setBestelllisteLaden(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!session) return
+    if (tab !== 'BESTELLLISTE') return
+    void ladeBestellliste()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, tab])
+
+  const bestelllisteTextFuerKopie = useMemo(() => {
+    const header = 'Artikelnummer | Name | Farbe | Menge'
+    const body = bestelllisteZeilen
+      .map(z => {
+        const art = bestelllisteTextZelle(z.artikelnummer, '—')
+        const name = bestelllisteTextZelle(z.name, '—')
+        const fr = typeof z.farbe === 'string' ? z.farbe : null
+        return `${art} | ${name} | ${farbeAnzeige(fr)} | ${bestelllisteZahlFuerAnzeige(z.bestellmenge)}`
+      })
+      .join('\n')
+    return body ? `${header}\n${body}` : header
+  }, [bestelllisteZeilen])
+
+  const kopiereBestellliste = async () => {
+    try {
+      await navigator.clipboard.writeText(bestelllisteTextFuerKopie)
+      setBestelllisteKopiert(true)
+      window.setTimeout(() => setBestelllisteKopiert(false), 2000)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   const logout = async () => {
     await supabase.auth.signOut()
   }
@@ -432,6 +593,13 @@ export function BestandspflegeSeite() {
           onClick={() => setTab('BEWEGUNGEN')}
         >
           Bewegungen
+        </button>
+        <button
+          type="button"
+          className={tab === 'BESTELLLISTE' ? 'cp-btn' : 'cp-btn cp-btn-grau'}
+          onClick={() => setTab('BESTELLLISTE')}
+        >
+          Bestellliste
         </button>
       </div>
 
@@ -704,6 +872,86 @@ export function BestandspflegeSeite() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {tab === 'BESTELLLISTE' && (
+        <div>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+            <button
+              type="button"
+              className="cp-btn cp-btn-grau"
+              onClick={() => void ladeBestellliste()}
+              disabled={bestelllisteLaden}
+            >
+              Aktualisieren
+            </button>
+            <button
+              type="button"
+              className="cp-btn"
+              onClick={() => void kopiereBestellliste()}
+              disabled={bestelllisteLaden || bestelllisteZeilen.length === 0}
+            >
+              Kopieren
+            </button>
+            {bestelllisteKopiert && (
+              <span style={{ fontSize: 13, color: '#15803d' }}>In Zwischenablage kopiert</span>
+            )}
+          </div>
+
+          {bestelllisteFehler && <p style={{ color: '#b91c1c' }}>{bestelllisteFehler}</p>}
+          {bestelllisteLaden && <p style={{ opacity: 0.8 }}>Lädt…</p>}
+
+          {!bestelllisteLaden && !bestelllisteFehler && bestelllisteZeilen.length === 0 && (
+            <p style={{ margin: '12px 0', color: '#15803d', fontWeight: 600 }}>
+              Alles auf Lager — keine Bestellung nötig
+            </p>
+          )}
+
+          {bestelllisteZeilen.length > 0 && (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>
+                    <th style={{ padding: '8px 6px' }}>Name</th>
+                    <th style={{ padding: '8px 6px' }}>Artikelnummer</th>
+                    <th style={{ padding: '8px 6px' }}>Typ</th>
+                    <th style={{ padding: '8px 6px' }}>Farbe</th>
+                    <th style={{ padding: '8px 6px' }}>Bestand</th>
+                    <th style={{ padding: '8px 6px' }}>Offene Aufträge</th>
+                    <th style={{ padding: '8px 6px' }}>Mindestbestand</th>
+                    <th style={{ padding: '8px 6px' }}>Bestellen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bestelllisteZeilen.map(z => {
+                    const typStr = typeof z.typ === 'string' ? z.typ : bestelllisteTextZelle(z.typ, '')
+                    const fr = typeof z.farbe === 'string' ? z.farbe : null
+                    return (
+                    <tr key={String(z.id)} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '8px 6px', fontWeight: 600 }}>{bestelllisteTextZelle(z.name, '—')}</td>
+                      <td style={{ padding: '8px 6px' }}>{bestelllisteTextZelle(z.artikelnummer, '—')}</td>
+                      <td style={{ padding: '8px 6px', opacity: 0.9 }}>{typAnzeige(typStr)}</td>
+                      <td style={{ padding: '8px 6px', opacity: 0.9 }}>{farbeAnzeige(fr)}</td>
+                      <td style={{ padding: '8px 6px' }}>{bestelllisteZahlFuerAnzeige(z.bestand)}</td>
+                      <td style={{ padding: '8px 6px' }}>{bestelllisteZahlFuerAnzeige(z.offene_menge)}</td>
+                      <td style={{ padding: '8px 6px' }}>{bestelllisteZahlFuerAnzeige(z.mindestbestand)}</td>
+                      <td
+                        style={{
+                          padding: '8px 6px',
+                          fontWeight: 700,
+                          color: '#b91c1c',
+                        }}
+                      >
+                        {bestelllisteZahlFuerAnzeige(z.bestellmenge)}
+                      </td>
+                    </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>
