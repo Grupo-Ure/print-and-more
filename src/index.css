@@ -1,4 +1,10 @@
 :root {
+  /* Abstände (App-Shell) */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+
   --text: #6b6375;
   --text-h: #08060d;
   --bg: #fff;
@@ -108,4 +114,71 @@ code {
   line-height: 135%;
   padding: 4px 8px;
   background: var(--code-bg);
+}
+
+/* Status-Badges (Auftragsliste, WorkArea) */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.badge-orange {
+  background: #fef3c7;
+  color: #92400e;
+}
+.badge-blau {
+  background: #dbeafe;
+  color: #1e40af;
+}
+.badge-lila {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+.badge-gruen {
+  background: #d1fae5;
+  color: #065f46;
+}
+.badge-grau {
+  background: #f3f4f6;
+  color: #374151;
+}
+.badge-rot {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Block 2: Sektionen, Scroll */
+.app-col {
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Globale Abschnittstitel (WorkArea, Context, Details) */
+.sec-h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #888;
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+
+.td-bereich-sect {
+  border-top: 1px solid #f0f0f0;
+  margin: 12px 0 0;
+  padding-top: 10px;
+}
+
+.td-bereich-hd {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #888;
+  margin: 0 0 8px;
+  font-weight: 500;
 }

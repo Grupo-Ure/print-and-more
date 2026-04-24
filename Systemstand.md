@@ -1,6 +1,6 @@
 # Systemstand — Auftragserfassung & Produktionssteuerung
 
-Stand: **23.04.2026** · interne Codebasis (Vite 8 / React 19 / TypeScript + Supabase). Diese Datei beschreibt den **Ist-Zustand** der App, der relevanten Dateien und des fachlichen Modells. *(Zusammenführung der früheren `SYSTEM_STATE.md` und `SYSTEM_STATUS.md`.)*
+Stand: **24.04.2026** · interne Codebasis (Vite 8 / React 19 / TypeScript + Supabase). Diese Datei beschreibt den **Ist-Zustand** der App, der relevanten Dateien und des fachlichen Modells. *(Zusammenführung der früheren `SYSTEM_STATE.md` und `SYSTEM_STATUS.md`.)*
 
 ## Tech-Stack
 
@@ -65,7 +65,7 @@ Dreispaltig, volle Höhe:
 | `src/types/copyshop.ts` | Copy-Shop-Teiltypen, `CopyShopDetailJson` |
 | `src/types/textil.ts` | Textil-Enums, Zeilen-Typen (Motive, Positionen, Zuordnungen) |
 | `src/lib/kunde.ts` | `kundenName()`; `kundeErfuelltPrepressKontakt()` (Kontakt aus `KundeKontaktRow`) |
-| `src/lib/teilGlobal.ts` | Globale Pflichtfeld-Validierung, `istTeilAuftragVollstaendig`, `nextTeilStatus` |
+| `src/lib/teilGlobal.ts` | Globale Pflichtfeld-Validierung, `istTeilAuftragVollstaendig`, `nextTeilStatus` inkl. **automatischesPrepressErlaubt()** (z. B. SONSTIGE-Teiltypen nur manuell; STEMPEL inkl. neuer Typen) |
 | `src/lib/lfp/validateLfpDetail.ts` | LFP-`detail`-Validierung |
 | `src/lib/copyshop/validateCopyShopDetail.ts` | Copy-Shop-`detail` |
 | `src/lib/stempel/validateStempelDetail.ts` | Stempel-`detail` |
@@ -124,8 +124,45 @@ Unverändert: dieselben DB-Enum-Strings, `teilauftragBereichLabel()`.
 - **`historie`:** Ereignisse inkl. `ereignisart`, `person_id` (Auth-User), optional `teilauftrag_id`, `begruendung`, `meta`.
 - **`erp_exporte`:** u. a. `auftrag_id`, `modus` (`EINZELN` \| `GESAMMELT`), `exportdaten` (JSON).
 - **`textil_motive`**, **`textil_positionen`**, **`textil_zuordnungen`:** Textil-Detail.
+- **`stempel_modelle`:** Stammdaten für **Modellvorschläge** im Bereich STEMPEL (`id`, `name`, `typ`, `max_breite_mm`, `max_hoehe_mm`, `druckflaeche`, `bestand`, `aktiv`, …); RLS aktiv, Zugriff für `authenticated`.
 - **`mitarbeiter`:** `id`, `email` (Verantwortlicher).
 - **RPC** `fn_berechne_auftragsstatus(p_auftrag_id)` — Ergebnis wird als Soll-`status` in `auftraege` geschrieben (Client: `synchronisiereAuftragsstatus`).
+
+## Bereich STEMPEL — Detailmaske & Logik (Aktueller Stand)
+
+### Typen (`teilauftraege.typ`)
+
+Bestehende Typen:
+`TRODAT_PRINTY`, `HOLZSTEMPEL`, `STATIVSTEMPEL`, `DATUMSSTEMPEL`, `SONSTIGE_STEMPEL`
+
+Neue Typen:
+`NACHFUELLFARBE`, `STEMPELKISSEN`, `STEMPELPLATTE`
+
+### Felder in `detail` (JSONB) — Auszug
+
+- **Maße (OR-Pflicht)**: `detail.format_breite`, `detail.format_hoehe` (ganze Zahl > 0; mindestens eines muss gesetzt sein)
+  - Gilt für alle Typen **außer** `NACHFUELLFARBE` und `STEMPELKISSEN`
+- **Modellwahl (nur TRODAT_PRINTY / HOLZSTEMPEL)**: `detail.modell_id`, `detail.modell_name`
+- **NACHFUELLFARBE**: `detail.farbe` (ohne SONSTIGE), `detail.tinte_typ` (`NORMAL` | `HAUTVERTRAEGLICH` | `TEXTIL`), Anzahl (siehe unten), optional `detail.hinweis`
+- **STEMPELKISSEN**: `detail.groesse` (`KLEIN` | `MITTEL` | `GROSS`), `detail.farbe` (ohne SONSTIGE), Anzahl, optional `detail.hinweis`
+- **Klassische Stempeltypen**: `detail.farbe` (inkl. `SONSTIGE` + `detail.farbe_sonstige`), `detail.beschreibung`
+
+**Anzahl-Feldnamen:** Validierung akzeptiert `detail.anzahl` **oder** `detail.stueckzahl` (UI nutzt weiterhin das Stückzahl-Feld, Label je Typ angepasst).
+
+### Modellvorschlag (TRODAT_PRINTY / HOLZSTEMPEL)
+
+- Query: `stempel_modelle` nach `typ`, `aktiv = true`, `gte(max_*)` je gesetztem Maß.
+- Anzeige: vollständige Liste, Auswahl persistiert (Badge „Gewählt: …“ + Hervorhebung in der Liste); Bestand 0 wird orange markiert, bleibt wählbar.
+- Sortierung in der UI:
+  1. **Exakt passend** (beide Maße genau gleich) zuerst
+  2. Danach nach Gesamtabstand: \(|max_breite - breite| + |max_hoehe - hoehe|\)
+
+### PREPRESS-Automatik (Teilauftragstatus)
+
+`nextTeilStatus()` nutzt `automatischesPrepressErlaubt()`:
+
+- **STEMPEL automatisch erlaubt**: TRODAT_PRINTY, HOLZSTEMPEL, STATIVSTEMPEL, DATUMSSTEMPEL, NACHFUELLFARBE, STEMPELKISSEN, STEMPELPLATTE
+- **STEMPEL manuell**: SONSTIGE_STEMPEL (wie bisher)
 
 ## Bekannte Lücken / offene Punkte
 

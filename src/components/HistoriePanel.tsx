@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { teilauftragBereichLabel } from '../types/database'
+import './ContextPanel.css'
 
 type Props = {
   aktiverAuftragId: string
@@ -43,13 +44,13 @@ function ereignisLabel(art: string): string {
   return EREIGNIS_LABEL[art] ?? art.replace(/_/g, ' ')
 }
 
-function formatZeitstempel(iso: string): string {
+function formatHistZeit(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
   return d.toLocaleString('de-DE', {
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric',
+    year: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
   })
@@ -105,77 +106,37 @@ export function HistoriePanel({ aktiverAuftragId, kontextAktualisiert, teilauftr
   }
 
   return (
-    <div
-      style={{
-        marginTop: '1rem',
-        borderTop: '1px solid var(--border, #e5e5e5)',
-        paddingTop: '0.75rem',
-      }}
-    >
+    <div className="cp-hist">
       <button
         type="button"
+        className="cp-hist-btn"
         onClick={() => setGeoefnet(o => !o)}
         aria-expanded={geoefnet}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          width: '100%',
-          padding: '0.35rem 0',
-          border: 'none',
-          background: 'transparent',
-          font: 'inherit',
-          fontSize: '0.9rem',
-          fontWeight: 600,
-          cursor: 'pointer',
-          color: 'var(--text, #333)',
-          textAlign: 'left',
-        }}
       >
-        <span>Verlauf</span>
-        <span aria-hidden style={{ fontSize: '0.75rem', opacity: 0.7 }}>
-          {geoefnet ? '▼' : '▶'}
-        </span>
+        <span>Verlauf {geoefnet ? '▼' : '▶'}</span>
       </button>
 
       {geoefnet && (
-        <div style={{ marginTop: '0.5rem' }}>
-          {laden && <p className="wa-hint" style={{ margin: '0.25rem 0' }}>Lädt …</p>}
+        <div className="cp-hist-body">
+          {laden && <p className="cp-hinweis" style={{ margin: '0.25rem 0' }}>Lädt …</p>}
           {!laden && eintraege.length === 0 && (
-            <p className="wa-hint" style={{ margin: '0.25rem 0' }}>
+            <p className="cp-hinweis" style={{ margin: '0.25rem 0' }}>
               Noch keine Einträge im Verlauf
             </p>
           )}
           {!laden &&
             eintraege.map(e => {
-              const email = e.person_id ? mitarbeiterById.get(e.person_id) : undefined
+              const email = e.person_id ? mitarbeiterById.get(e.person_id) : ''
               const tb = teilBereich(e.teilauftrag_id)
               return (
-                <div
-                  key={e.id}
-                  style={{
-                    padding: '0.5rem 0',
-                    borderBottom: '1px solid var(--border, #eee)',
-                    fontSize: '0.8125rem',
-                  }}
-                >
-                  <div style={{ color: 'var(--text)', opacity: 0.85 }}>{formatZeitstempel(e.erstellt_am)}</div>
-                  <div style={{ marginTop: 2, fontWeight: 500 }}>{ereignisLabel(e.ereignisart)}</div>
-                  {email && (
-                    <div style={{ marginTop: 2, fontSize: '0.8rem', fontFamily: 'var(--mono, monospace)' }}>
-                      {email}
-                    </div>
-                  )}
-                  {e.begruendung && (
-                    <div style={{ marginTop: 4, fontStyle: 'italic', color: 'var(--text)', opacity: 0.9 }}>
-                      {e.begruendung}
-                    </div>
-                  )}
-                  {tb && (
-                    <div style={{ marginTop: 4, fontSize: '0.8rem', color: 'var(--text)', opacity: 0.85 }}>
-                      Teilauftrag: {teilauftragBereichLabel(tb)}
-                    </div>
-                  )}
+                <div key={e.id} className="cp-hist-eintrag">
+                  <div className="cp-hist-zeile" title={ereignisLabel(e.ereignisart)}>
+                    <span className="cp-hist-time">{formatHistZeit(e.erstellt_am)}</span>
+                    <span className="cp-hist-evt">{ereignisLabel(e.ereignisart)}</span>
+                    <span className="cp-hist-who">{email || '—'}</span>
+                  </div>
+                  {e.begruendung && <p className="cp-hist-sub">{e.begruendung}</p>}
+                  {tb && <p className="cp-hist-tl">Teil: {teilauftragBereichLabel(tb)}</p>}
                 </div>
               )
             })}

@@ -6,12 +6,58 @@
   margin: 0 0 8px;
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: #888;
   text-transform: uppercase;
 }
 .cp-sektion {
-  margin-bottom: 20px;
+  margin-bottom: 12px;
+}
+.cp .badge.cp-badge-lg,
+.cp-badge-lg {
+  font-size: 13px;
+  padding: 4px 12px;
+  font-weight: 500;
+}
+.cp-status-komp {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cp-st-zeile {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+.cp-st-l {
+  font-size: 12px;
+  color: #666;
+  min-width: 4.5rem;
+}
+.cp-st-notfall {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  margin-top: 2px;
+}
+.cp-hinweis--komp {
+  font-size: 11px;
+  margin: 0;
+}
+.cp-gruppe {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cp-gruppe-trenn {
+  border-top: 1px solid #f0f0f0;
+  margin: 8px 0 10px;
+}
+.cp-gruppe--admin .cp-btn {
+  font-size: 12px;
+  padding: 5px 10px;
 }
 .cp-badge {
   display: inline-block;
@@ -55,13 +101,14 @@
 .cp-btn {
   display: block;
   width: 100%;
-  padding: 8px 10px;
+  padding: 6px 12px;
   border: 1px solid #d4d4d4;
   border-radius: 6px;
   background: #fff;
   font-size: 13px;
   cursor: pointer;
   text-align: left;
+  box-sizing: border-box;
 }
 .cp-btn:hover:not(:disabled) {
   background: #f5f5f5;
@@ -146,4 +193,80 @@
   height: 1px;
   background: #e5e5e5;
   margin: 10px 0;
+}
+
+/* Verlauf (HistoriePanel) */
+.cp-hist {
+  margin-top: 10px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 8px;
+}
+.cp-hist-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 4px 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #333;
+  text-align: left;
+}
+.cp-hist-ico {
+  font-size: 10px;
+  opacity: 0.65;
+}
+.cp-hist-body {
+  margin-top: 4px;
+}
+.cp-hist-zeile {
+  display: grid;
+  grid-template-columns: 7.2rem 1fr minmax(0, 6.5rem);
+  gap: 4px 8px;
+  font-size: 12px;
+  line-height: 1.3;
+  padding: 2px 0 2px;
+  align-items: baseline;
+}
+.cp-hist-eintrag {
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 4px;
+  margin-bottom: 2px;
+}
+.cp-hist-time {
+  color: #666;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.cp-hist-evt {
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-hist-who {
+  color: #666;
+  font-size: 11px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  font-family: ui-monospace, monospace;
+}
+.cp-hist-sub {
+  font-size: 11px;
+  color: #666;
+  font-style: italic;
+  margin: 2px 0 0;
+}
+.cp-hist-tl {
+  font-size: 11px;
+  color: #888;
+  margin: 2px 0 0;
 }

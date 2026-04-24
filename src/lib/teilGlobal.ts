@@ -10,6 +10,28 @@ export type LieferungEnum = 'ABHOLUNG' | 'VERSAND'
 
 const UUID_LOOSE = /^[0-9a-fA-F-]{30,40}$/
 
+function automatischesPrepressErlaubt(merged: TeilauftragRow): boolean {
+  // Standard: automatisch erlaubt, außer explizit ausgeschlossen.
+  // SONSTIGE_* bleiben manuell (siehe UI-Hinweise).
+  if (merged.bereich === 'STEMPEL') {
+    if (merged.typ === 'SONSTIGE_STEMPEL') return false
+    // Explizit erlaubte Stempel-Typen (inkl. neue Artikeltypen).
+    return (
+      merged.typ === 'TRODAT_PRINTY' ||
+      merged.typ === 'HOLZSTEMPEL' ||
+      merged.typ === 'STATIVSTEMPEL' ||
+      merged.typ === 'DATUMSSTEMPEL' ||
+      merged.typ === 'NACHFUELLFARBE' ||
+      merged.typ === 'STEMPELKISSEN' ||
+      merged.typ === 'STEMPELPLATTE'
+    )
+  }
+  if (merged.bereich === 'SONSTIGE') return false
+  if (merged.bereich === 'LASERGRAVUR' && merged.typ === 'SONSTIGE_LASER') return false
+  if (merged.bereich === 'LFP' && merged.typ === 'SONSTIGE_LFP') return false
+  return true
+}
+
 export function validateGlobalTeilfelder(
   t: Pick<TeilauftragRow, 'termin' | 'lieferung' | 'prioritaet' | 'verantwortlicher_id' | 'satzzeit_minuten'>,
   teilStatus: AuftragStatus
@@ -180,7 +202,7 @@ export function nextTeilStatus(
     if (before === 'PREPRESS_BEREIT') return 'PREPRESS_BEREIT'
     return 'UNVOLLSTAENDIG'
   }
-  if (vollstaendig && kundePrepressOk) return 'PREPRESS_BEREIT'
+  if (vollstaendig && kundePrepressOk && automatischesPrepressErlaubt(merged)) return 'PREPRESS_BEREIT'
   if (before === 'PREPRESS_BEREIT' && (!vollstaendig || !kundePrepressOk)) {
     return 'UNVOLLSTAENDIG'
   }

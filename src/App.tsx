@@ -72,6 +72,13 @@ function App() {
     setKontextAktualisiert(x => x + 1)
   }, [])
 
+  const handleAuftragGeloescht = useCallback((_auftragId: string) => {
+    setAktiverAuftragId(null)
+    setAktiverTeilauftrag(null)
+    setOrderListKey(k => k + 1)
+    setKontextAktualisiert(x => x + 1)
+  }, [])
+
   const handleTeilauftragAktualisiert = useCallback((t: TeilauftragRow) => {
     setAktiverTeilauftrag(t)
     setKontextAktualisiert(x => x + 1)
@@ -113,7 +120,10 @@ function App() {
         fontSize: 14,
       }}
     >
-      <div style={{ borderRight: '1px solid #e5e5e5', overflowY: 'auto', background: '#fafafa' }}>
+      <div
+        className="app-col"
+        style={{ borderRight: '1px solid #e5e5e5', background: '#fafafa' }}
+      >
         <OrderList
           key={orderListKey}
           aktiverAuftragId={aktiverAuftragId}
@@ -121,7 +131,7 @@ function App() {
           onNeuerAuftrag={() => setNeuerAuftragOffen(true)}
         />
       </div>
-      <div style={{ overflowY: 'auto' }}>
+      <div className="app-col">
         <WorkArea
           aktiverAuftragId={aktiverAuftragId}
           kontextAktualisiert={kontextAktualisiert}
@@ -133,9 +143,9 @@ function App() {
         />
       </div>
       <div
+        className="app-col"
         style={{
           borderLeft: '1px solid #e5e5e5',
-          overflowY: 'auto',
           background: '#fafafa',
           padding: 16,
         }}
@@ -146,6 +156,7 @@ function App() {
           auftragKunde={auftragKunde}
           auftragDateien={auftragDateien}
           onAuftragAktualisiert={handleAuftragAktualisiert}
+          onAuftragGeloescht={handleAuftragGeloescht}
           onTeilauftragAktualisiert={handleTeilauftragAktualisiert}
           onTeilauftragEntfernt={handleTeilauftragEntfernt}
           onKundeBearbeiten={openKundeBearbeiten}

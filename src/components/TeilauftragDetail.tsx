@@ -7,7 +7,12 @@ import {
   nextTeilStatus,
   validateGlobalTeilfelder,
 } from '../lib/teilGlobal'
-import { teilauftragBereichLabel, type KundeKontaktJoin, type TeilauftragRow } from '../types/database'
+import {
+  teilauftragBereichLabel,
+  type AuftragStatus,
+  type KundeKontaktJoin,
+  type TeilauftragRow,
+} from '../types/database'
 import { CopyShopDetail } from './bereiche/CopyShopDetail'
 import { LFPDetail } from './bereiche/LFPDetail'
 import { StempelDetail } from './bereiche/StempelDetail'
@@ -32,6 +37,30 @@ type Props = {
 type MitarbeiterZeile = {
   id: string
   email: string
+}
+
+const TEIL_BKZ: Record<string, string> = {
+  LFP: 'LFP',
+  COPYSHOP: 'CP',
+  TEXTIL: 'TX',
+  STEMPEL: 'ST',
+  LASERGRAVUR: 'LA',
+  SONSTIGE: 'SO',
+}
+
+function teilBereichKurz(b: string): string {
+  return TEIL_BKZ[b] ?? b
+}
+
+function teilStatusBadgeAuf(s: AuftragStatus): { cls: string; label: string } {
+  const m: Record<AuftragStatus, { cls: string; label: string }> = {
+    ANGEBOT: { cls: 'badge-grau', label: 'ANGEBOT' },
+    UNVOLLSTAENDIG: { cls: 'badge-orange', label: 'UNVOLLSTAENDIG' },
+    PREPRESS_BEREIT: { cls: 'badge-blau', label: 'PREPRESS_BEREIT' },
+    PRODUKTION_BEREIT: { cls: 'badge-lila', label: 'PRODUKTION_BEREIT' },
+    FERTIG: { cls: 'badge-gruen', label: 'FERTIG' },
+  }
+  return m[s] ?? { cls: 'badge-grau', label: s }
 }
 
 export function TeilauftragDetail({ teil, auftragKunde, auftragDateien, onAktualisiert }: Props) {
@@ -180,18 +209,16 @@ export function TeilauftragDetail({ teil, auftragKunde, auftragDateien, onAktual
       ? lokal.verantwortlicher_id
       : null
 
+  const tBadge = teilStatusBadgeAuf(lokal.status)
+
   return (
     <div className="td">
-      <div className="td-zeile">
-        <p className="td-label">Bereich</p>
-        <p className="td-wert">{teilauftragBereichLabel(lokal.bereich)}</p>
-      </div>
-      <div className="td-zeile">
-        <p className="td-label">Status</p>
-        <p className="td-wert td-mono">
-          {lokal.status}
+      <div className="td-kopf" aria-label="Teilauftrag">
+        <span className="td-bkz">[{teilBereichKurz(lokal.bereich)}]</span>
+        <span className={`badge ${tBadge.cls}`}>
+          {tBadge.label}
           {speichLad ? ' …' : ''}
-        </p>
+        </span>
       </div>
       {pruef &&
         lokal.bereich !== 'SONSTIGE' &&
@@ -203,107 +230,111 @@ export function TeilauftragDetail({ teil, auftragKunde, auftragDateien, onAktual
           <p className="ber-hinweis">Für Auto-PREPRESS: Kunde braucht Name und E-Mail oder Telefon.</p>
         )}
 
-      <h3 className="ber-h3" style={{ marginTop: '0.5rem' }}>
+      <h2 className="sec-h2" style={{ marginTop: 8 }}>
         Allgemein
-      </h3>
-      <div className="ber-zeile">
-        <span className="ber-lbl">Termin</span>
-        <div>
-          <input
-            type="date"
-            className={'ber-inp' + gFe('termin')}
-            value={iso}
-            onChange={e => {
-              const v = e.target.value
-              setLokal(s => ({ ...s, termin: v || null }))
-            }}
-            onBlur={e => {
-              const v = e.target.value || null
-              if (v !== (snapR.current.termin ? snapR.current.termin.slice(0, 10) : '')) {
-                void speichere({ termin: v })
-              }
-            }}
-          />
-          {pruef && gErr.termin && <p className="td-feld-err">{gErr.termin}</p>}
+      </h2>
+      <div className="ber-grid-2">
+        <div className="ber-zeile-stack">
+          <span className="ber-lbl">Termin</span>
+          <div>
+            <input
+              type="date"
+              className={'ber-inp' + gFe('termin')}
+              value={iso}
+              onChange={e => {
+                const v = e.target.value
+                setLokal(s => ({ ...s, termin: v || null }))
+              }}
+              onBlur={e => {
+                const v = e.target.value || null
+                if (v !== (snapR.current.termin ? snapR.current.termin.slice(0, 10) : '')) {
+                  void speichere({ termin: v })
+                }
+              }}
+            />
+            {pruef && gErr.termin && <p className="td-feld-err">{gErr.termin}</p>}
+          </div>
+        </div>
+        <div className="ber-zeile-stack">
+          <span className="ber-lbl">Lieferung</span>
+          <div>
+            <select
+              className={'ber-inp' + gFe('lieferung')}
+              value={lokal.lieferung ?? ''}
+              onChange={e => {
+                const v = e.target.value
+                setLokal(s => ({
+                  ...s,
+                  lieferung: (v as 'ABHOLUNG' | 'VERSAND') || null,
+                }))
+              }}
+              onBlur={e => {
+                const v = (e.target.value as 'ABHOLUNG' | 'VERSAND') || null
+                if (v !== snapR.current.lieferung) void speichere({ lieferung: v })
+              }}
+            >
+              <option value="">—</option>
+              <option value="ABHOLUNG">Abholung</option>
+              <option value="VERSAND">Versand</option>
+            </select>
+            {pruef && gErr.lieferung && <p className="td-feld-err">{gErr.lieferung}</p>}
+          </div>
         </div>
       </div>
-      <div className="ber-zeile">
-        <span className="ber-lbl">Lieferung</span>
-        <div>
-          <select
-            className={'ber-inp' + gFe('lieferung')}
-            value={lokal.lieferung ?? ''}
-            onChange={e => {
-              const v = e.target.value
-              setLokal(s => ({
-                ...s,
-                lieferung: (v as 'ABHOLUNG' | 'VERSAND') || null,
-              }))
-            }}
-            onBlur={e => {
-              const v = (e.target.value as 'ABHOLUNG' | 'VERSAND') || null
-              if (v !== snapR.current.lieferung) void speichere({ lieferung: v })
-            }}
-          >
-            <option value="">—</option>
-            <option value="ABHOLUNG">Abholung</option>
-            <option value="VERSAND">Versand</option>
-          </select>
-          {pruef && gErr.lieferung && <p className="td-feld-err">{gErr.lieferung}</p>}
+      <div className="ber-grid-2">
+        <div className="ber-zeile-stack">
+          <span className="ber-lbl">Priorität</span>
+          <div>
+            <select
+              className={'ber-inp' + gFe('prioritaet')}
+              value={lokal.prioritaet}
+              onChange={e => setLokal(s => ({ ...s, prioritaet: e.target.value }))}
+              onBlur={e => {
+                if (e.target.value !== snapR.current.prioritaet) {
+                  void speichere({ prioritaet: e.target.value })
+                }
+              }}
+            >
+              <option value="NORMAL">Normal</option>
+              <option value="HOCH">Hoch</option>
+            </select>
+            {pruef && gErr.prioritaet && <p className="td-feld-err">{gErr.prioritaet}</p>}
+          </div>
+        </div>
+        <div className="ber-zeile-stack">
+          <span className="ber-lbl">Verantwortlicher</span>
+          <div>
+            <select
+              className={'ber-inp' + gFe('verantwortlicher_id')}
+              value={lokal.verantwortlicher_id ?? ''}
+              onChange={e => {
+                const v = e.target.value
+                setLokal(s => ({ ...s, verantwortlicher_id: v || null }))
+              }}
+              onBlur={e => {
+                const v = e.target.value || null
+                if (v !== (snapR.current.verantwortlicher_id ?? null)) {
+                  void speichere({ verantwortlicher_id: v })
+                }
+              }}
+            >
+              <option value="">—</option>
+              {verantwortIdOhneEintrag && (
+                <option value={verantwortIdOhneEintrag}>
+                  {verantwortIdOhneEintrag} (nicht in Liste)
+                </option>
+              )}
+              {mitarbeiter.map(m => (
+                <option key={m.id} value={m.id}>
+                  {m.email}
+                </option>
+              ))}
+            </select>
+            {pruef && gErr.verantwortlicher_id && <p className="td-feld-err">{gErr.verantwortlicher_id}</p>}
+          </div>
         </div>
       </div>
-      <div className="ber-zeile">
-        <span className="ber-lbl">Priorität</span>
-        <div>
-          <select
-            className={'ber-inp' + gFe('prioritaet')}
-            value={lokal.prioritaet}
-            onChange={e => setLokal(s => ({ ...s, prioritaet: e.target.value }))}
-            onBlur={e => {
-              if (e.target.value !== snapR.current.prioritaet) {
-                void speichere({ prioritaet: e.target.value })
-              }
-            }}
-          >
-            <option value="NORMAL">Normal</option>
-            <option value="HOCH">Hoch</option>
-          </select>
-          {pruef && gErr.prioritaet && <p className="td-feld-err">{gErr.prioritaet}</p>}
-        </div>
-      </div>
-      <div className="ber-zeile">
-        <span className="ber-lbl">Verantwortlicher</span>
-        <div>
-          <select
-            className={'ber-inp' + gFe('verantwortlicher_id')}
-            value={lokal.verantwortlicher_id ?? ''}
-            onChange={e => {
-              const v = e.target.value
-              setLokal(s => ({ ...s, verantwortlicher_id: v || null }))
-            }}
-            onBlur={e => {
-              const v = e.target.value || null
-              if (v !== (snapR.current.verantwortlicher_id ?? null)) {
-                void speichere({ verantwortlicher_id: v })
-              }
-            }}
-          >
-            <option value="">—</option>
-            {verantwortIdOhneEintrag && (
-              <option value={verantwortIdOhneEintrag}>
-                {verantwortIdOhneEintrag} (nicht in Liste)
-              </option>
-            )}
-            {mitarbeiter.map(m => (
-              <option key={m.id} value={m.id}>
-                {m.email}
-              </option>
-            ))}
-          </select>
-          {pruef && gErr.verantwortlicher_id && <p className="td-feld-err">{gErr.verantwortlicher_id}</p>}
-        </div>
-      </div>
-      <div className="ber-zeile">
+      <div className="ber-zeile-stack" style={{ marginBottom: 6, maxWidth: '16rem' }}>
         <span className="ber-lbl">Satzzeit (min)</span>
         <div>
           <input
@@ -323,6 +354,7 @@ export function TeilauftragDetail({ teil, auftragKunde, auftragDateien, onAktual
               if (n !== snapR.current.satzzeit_minuten) void speichere({ satzzeit_minuten: n })
             }}
             min={1}
+            style={{ maxWidth: '12rem' }}
           />
           {pruef && gErr.satzzeit_minuten && <p className="td-feld-err">{gErr.satzzeit_minuten}</p>}
         </div>

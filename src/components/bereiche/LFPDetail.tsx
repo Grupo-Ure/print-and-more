@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { LFP_TEILTYP_ANZEIGE, LFP_TEILTYPEN, type LfpDetailJson } from '../../types/lfp'
 import { validateLfpDetail } from '../../lib/lfp/validateLfpDetail'
 import type { AuftragStatus, TeilauftragRow } from '../../types/database'
@@ -83,8 +83,10 @@ export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
   const p: BlK = { d: detail, fe, pruef, f: lfpFehler, patchL, commit, speichDetail }
 
   return (
-    <div className="ber-lfp">
-      <h3 className="ber-h3">LFP-Details</h3>
+    <div className="ber-lfp td-bereich-sect">
+      <div className="td-bereich-hd" aria-hidden>
+        LFP
+      </div>
       {typ === 'SONSTIGE_LFP' && (
         <p className="ber-hinweis">Bei „Sonstige LFP“ wird PREPRESS_BEREIT nur manuell gesetzt, nicht automatisch.</p>
       )}
@@ -92,38 +94,40 @@ export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
         <p className="ber-hinweis">Bei Acrylglas: Rückseitenverklebung inkl., kein Zusatzfeld nötig.</p>
       )}
 
-      <BerZeile
-        l="Typ"
-        e={pruef && lfpFehler.typ ? lfpFehler.typ : undefined}
-        c={
-          <select
-            className={'ber-inp' + fe('typ')}
-            value={typ ?? ''}
-            onChange={e => {
-              const v = e.target.value
-              if (v !== (typ ?? '')) {
-                setTyp(v || null)
-                setDetail({})
-                detailR.current = {}
-                typR.current = v || null
-                void speich(v || null, {})
-              } else {
-                setTyp(v || null)
-                typR.current = v || null
-              }
-            }}
-          >
-            <option value="">—</option>
-            {LFP_TEILTYPEN.map(x => (
-              <option key={x} value={x}>
-                {LFP_TEILTYP_ANZEIGE[x]}
-              </option>
-            ))}
-          </select>
-        }
-      />
-
-      <NmbStueckzahl {...p} />
+      <div className="ber-grid-2" style={{ marginTop: 4 }}>
+        <BerZeile
+          stack
+          l="Typ"
+          e={pruef && lfpFehler.typ ? lfpFehler.typ : undefined}
+          c={
+            <select
+              className={'ber-inp' + fe('typ')}
+              value={typ ?? ''}
+              onChange={e => {
+                const v = e.target.value
+                if (v !== (typ ?? '')) {
+                  setTyp(v || null)
+                  setDetail({})
+                  detailR.current = {}
+                  typR.current = v || null
+                  void speich(v || null, {})
+                } else {
+                  setTyp(v || null)
+                  typR.current = v || null
+                }
+              }}
+            >
+              <option value="">—</option>
+              {LFP_TEILTYPEN.map(x => (
+                <option key={x} value={x}>
+                  {LFP_TEILTYP_ANZEIGE[x]}
+                </option>
+              ))}
+            </select>
+          }
+        />
+        <NmbStueckzahl {...p} stack />
+      </div>
 
       {typ === 'AUFKLEBER' && <Aufkleber {...p} />}
       {typ === 'SCHILD_UV' && <SchildUv {...p} />}
@@ -137,10 +141,22 @@ export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
   )
 }
 
-function BerZeile({ l, c, e, children }: { l: string; c?: React.ReactNode; e?: string; children?: React.ReactNode }) {
+function BerZeile({
+  l,
+  c,
+  e,
+  children,
+  stack,
+}: {
+  l: string
+  c?: ReactNode
+  e?: string
+  children?: ReactNode
+  stack?: boolean
+}) {
   const inhalt = c ?? children
   return (
-    <div className="ber-zeile">
+    <div className={stack ? 'ber-zeile-stack' : 'ber-zeile'}>
       <span className="ber-lbl">{l}</span>
       <div>
         {inhalt}
@@ -150,12 +166,12 @@ function BerZeile({ l, c, e, children }: { l: string; c?: React.ReactNode; e?: s
   )
 }
 
-function NmbStueckzahl(a: BlK) {
-  const { d, fe, f, pruef, patchL, commit } = a
+function NmbStueckzahl(a: BlK & { stack?: boolean }) {
+  const { d, fe, f, pruef, patchL, commit, stack } = a
   const val = d.stueckzahl
   const s = val === null || val === undefined ? '' : String(val)
   return (
-    <BerZeile l="Stückzahl" e={pruef && f.stueckzahl ? f.stueckzahl : undefined}>
+    <BerZeile stack={stack} l="Stückzahl" e={pruef && f.stueckzahl ? f.stueckzahl : undefined}>
       <input
         type="number"
         className={'ber-inp' + fe('stueckzahl')}
@@ -175,11 +191,11 @@ function NmbStueckzahl(a: BlK) {
 }
 
 function SelB(
-  a: BlK & { k: string; l?: string; o: { v: string; t: string }[] },
+  a: BlK & { k: string; l?: string; o: { v: string; t: string }[]; stack?: boolean },
 ) {
-  const { k, o, d, fe, f, pruef, patchL, commit, l: lb } = a
+  const { k, o, d, fe, f, pruef, patchL, commit, l: lb, stack } = a
   return (
-    <BerZeile l={lb ?? k} e={pruef ? f[k] : undefined}>
+    <BerZeile stack={stack} l={lb ?? k} e={pruef ? f[k] : undefined}>
       <select
         className={'ber-inp' + fe(k)}
         value={String((d as Record<string, string>)[k] ?? '')}
@@ -288,42 +304,44 @@ function MasseHoeheBreite(p: BlK) {
   const sh = h === null || h === undefined ? '' : String(h)
   return (
     <div>
-      <div className="ber-zeile">
-        <span className="ber-lbl">Format Breite (mm)</span>
-        <div>
-          <input
-            type="number"
-            className={'ber-inp' + fe('format_masse')}
-            min={0.01}
-            step={0.01}
-            value={sb}
-            onChange={e => {
-              const raw = e.target.value
-              patchL({
-                format_breite: raw === '' ? null : parseFloat(raw),
-              } as LfpDetailJson)
-            }}
-            onBlur={commit}
-          />
+      <div className="ber-grid-2">
+        <div className="ber-zeile-stack">
+          <span className="ber-lbl">Format Breite (mm)</span>
+          <div>
+            <input
+              type="number"
+              className={'ber-inp' + fe('format_masse')}
+              min={0.01}
+              step={0.01}
+              value={sb}
+              onChange={e => {
+                const raw = e.target.value
+                patchL({
+                  format_breite: raw === '' ? null : parseFloat(raw),
+                } as LfpDetailJson)
+              }}
+              onBlur={commit}
+            />
+          </div>
         </div>
-      </div>
-      <div className="ber-zeile">
-        <span className="ber-lbl">Format Höhe (mm)</span>
-        <div>
-          <input
-            type="number"
-            className={'ber-inp' + fe('format_masse')}
-            min={0.01}
-            step={0.01}
-            value={sh}
-            onChange={e => {
-              const raw = e.target.value
-              patchL({
-                format_hoehe: raw === '' ? null : parseFloat(raw),
-              } as LfpDetailJson)
-            }}
-            onBlur={commit}
-          />
+        <div className="ber-zeile-stack">
+          <span className="ber-lbl">Format Höhe (mm)</span>
+          <div>
+            <input
+              type="number"
+              className={'ber-inp' + fe('format_masse')}
+              min={0.01}
+              step={0.01}
+              value={sh}
+              onChange={e => {
+                const raw = e.target.value
+                patchL({
+                  format_hoehe: raw === '' ? null : parseFloat(raw),
+                } as LfpDetailJson)
+              }}
+              onBlur={commit}
+            />
+          </div>
         </div>
       </div>
       {msg && <p className="ber-err ber-err--mass">{msg}</p>}
@@ -356,70 +374,79 @@ function Aufkleber(p: BlK) {
   const { d, fe, f, pruef, patchL, commit } = p
   return (
     <>
-      <BerZeile l="Material" e={pruef ? f.material : undefined}>
-        <select
-          className={'ber-inp' + fe('material')}
-          value={String((d as Record<string, string>).material ?? '')}
-          onChange={e => {
-            const v = e.target.value
-            const patch: LfpDetailJson = { material: v }
-            if (v !== '3551') patch.material_3551_variante = null
-            patchL(patch)
-          }}
-          onBlur={commit}
-        >
-          <option value="">—</option>
-          {['3551', 'ULTRATACK', 'MONSTERTACK', '3162'].map(x => (
-            <option key={x} value={x}>
-              {x}
-            </option>
-          ))}
-        </select>
-      </BerZeile>
-      {p.d.material === '3551' && (
-        <BerZeile l="3551 Variante">
+      <div className="ber-grid-2">
+        <BerZeile stack l="Material" e={pruef ? f.material : undefined}>
           <select
-            className="ber-inp"
-            value={String((d as Record<string, string | null>).material_3551_variante ?? '')}
-            onChange={e =>
-              patchL({ material_3551_variante: e.target.value || null } as LfpDetailJson)
-            }
+            className={'ber-inp' + fe('material')}
+            value={String((d as Record<string, string>).material ?? '')}
+            onChange={e => {
+              const v = e.target.value
+              const patch: LfpDetailJson = { material: v }
+              if (v !== '3551') patch.material_3551_variante = null
+              patchL(patch)
+            }}
             onBlur={commit}
           >
-            <option value="">— (keine)</option>
-            <option value="RA">RA</option>
-            <option value="T">T</option>
+            <option value="">—</option>
+            {['3551', 'ULTRATACK', 'MONSTERTACK', '3162'].map(x => (
+              <option key={x} value={x}>
+                {x}
+              </option>
+            ))}
           </select>
         </BerZeile>
+        <SelB
+          {...p}
+          stack
+          k="konturschnitt"
+          l="Konturschnitt"
+          o={[
+            { v: 'FREIFORM', t: 'Freiform' },
+            { v: 'RECHTECK', t: 'Rechteck' },
+          ]}
+        />
+      </div>
+      {p.d.material === '3551' && (
+        <div className="ber-col-voll" style={{ marginBottom: 6 }}>
+          <BerZeile stack l="3551 Variante">
+            <select
+              className="ber-inp"
+              value={String((d as Record<string, string | null>).material_3551_variante ?? '')}
+              onChange={e =>
+                patchL({ material_3551_variante: e.target.value || null } as LfpDetailJson)
+              }
+              onBlur={commit}
+            >
+              <option value="">— (keine)</option>
+              <option value="RA">RA</option>
+              <option value="T">T</option>
+            </select>
+          </BerZeile>
+        </div>
       )}
-      <SelB
-        {...p}
-        k="konturschnitt"
-        l="Konturschnitt"
-        o={[
-          { v: 'FREIFORM', t: 'Freiform' },
-          { v: 'RECHTECK', t: 'Rechteck' },
-        ]}
-      />
-      <SelB
-        {...p}
-        k="laminat"
-        l="Laminat"
-        o={[
-          { v: 'NEIN', t: 'Nein' },
-          { v: 'MATT', t: 'Matt' },
-          { v: 'GLAENZEND', t: 'Glänzend' },
-        ]}
-      />
-      <SelB
-        {...p}
-        k="ausgabe"
-        l="Ausgabe"
-        o={[
-          { v: 'EINZEL', t: 'Einzel' },
-          { v: 'BOGEN', t: 'Bogen' },
-        ]}
-      />
+      <div className="ber-grid-2">
+        <SelB
+          {...p}
+          stack
+          k="laminat"
+          l="Laminat"
+          o={[
+            { v: 'NEIN', t: 'Nein' },
+            { v: 'MATT', t: 'Matt' },
+            { v: 'GLAENZEND', t: 'Glänzend' },
+          ]}
+        />
+        <SelB
+          {...p}
+          stack
+          k="ausgabe"
+          l="Ausgabe"
+          o={[
+            { v: 'EINZEL', t: 'Einzel' },
+            { v: 'BOGEN', t: 'Bogen' },
+          ]}
+        />
+      </div>
       <MasseHoeheBreite {...p} />
       <BesonderheitenUnten {...p} />
     </>
@@ -429,25 +456,29 @@ function Aufkleber(p: BlK) {
 function SchildUv(p: BlK) {
   return (
     <>
-      <SelB
-        {...p}
-        k="material"
-        l="Material"
-        o={[
-          { v: 'ALUVERBUND', t: 'Alu-Verbund' },
-          { v: 'PVC', t: 'PVC' },
-          { v: 'ACRYLGLAS', t: 'Acrylglas' },
-        ]}
-      />
-      <SelB
-        {...p}
-        k="druckseite"
-        l="Druckseite"
-        o={[
-          { v: 'EINSEITIG', t: 'Einseitig' },
-          { v: 'BEIDSEITIG', t: 'Beidseitig' },
-        ]}
-      />
+      <div className="ber-grid-2">
+        <SelB
+          {...p}
+          stack
+          k="material"
+          l="Material"
+          o={[
+            { v: 'ALUVERBUND', t: 'Alu-Verbund' },
+            { v: 'PVC', t: 'PVC' },
+            { v: 'ACRYLGLAS', t: 'Acrylglas' },
+          ]}
+        />
+        <SelB
+          {...p}
+          stack
+          k="druckseite"
+          l="Druckseite"
+          o={[
+            { v: 'EINSEITIG', t: 'Einseitig' },
+            { v: 'BEIDSEITIG', t: 'Beidseitig' },
+          ]}
+        />
+      </div>
       {p.d.material === 'ACRYLGLAS' && (
         <SelB
           {...p}
@@ -476,35 +507,42 @@ function SchildUv(p: BlK) {
 function SchildFolie(p: BlK) {
   return (
     <>
-      <SelB
-        {...p}
-        k="material"
-        l="Material"
-        o={[
-          { v: 'ALUVERBUND', t: 'Alu-Verbund' },
-          { v: 'PVC', t: 'PVC' },
-          { v: 'ACRYLGLAS', t: 'Acrylglas' },
-        ]}
-      />
-      <SelB
-        {...p}
-        k="druckseite"
-        l="Druckseite"
-        o={[
-          { v: 'EINSEITIG', t: 'Einseitig' },
-          { v: 'BEIDSEITIG', t: 'Beidseitig' },
-        ]}
-      />
-      <SelB
-        {...p}
-        k="laminat"
-        l="Laminat"
-        o={[
-          { v: 'NEIN', t: 'Nein' },
-          { v: 'MATT', t: 'Matt' },
-          { v: 'GLAENZEND', t: 'Glänzend' },
-        ]}
-      />
+      <div className="ber-grid-2">
+        <SelB
+          {...p}
+          stack
+          k="material"
+          l="Material"
+          o={[
+            { v: 'ALUVERBUND', t: 'Alu-Verbund' },
+            { v: 'PVC', t: 'PVC' },
+            { v: 'ACRYLGLAS', t: 'Acrylglas' },
+          ]}
+        />
+        <SelB
+          {...p}
+          stack
+          k="druckseite"
+          l="Druckseite"
+          o={[
+            { v: 'EINSEITIG', t: 'Einseitig' },
+            { v: 'BEIDSEITIG', t: 'Beidseitig' },
+          ]}
+        />
+      </div>
+      <div style={{ maxWidth: '20rem' }}>
+        <SelB
+          {...p}
+          stack
+          k="laminat"
+          l="Laminat"
+          o={[
+            { v: 'NEIN', t: 'Nein' },
+            { v: 'MATT', t: 'Matt' },
+            { v: 'GLAENZEND', t: 'Glänzend' },
+          ]}
+        />
+      </div>
       <MasseHoeheBreite {...p} />
       {boolSel({ ...p, k: 'ecken_runden', l: 'Ecken runden' })}
       {boolSel({ ...p, k: 'bohrungen', l: 'Bohrungen' })}
@@ -522,21 +560,25 @@ function SchildFolie(p: BlK) {
 function Folienplott(p: BlK) {
   return (
     <>
-      <SelB
-        {...p}
-        k="material"
-        l="Material"
-        o={['751C', '631', '8510'].map(x => ({ v: x, t: x }))}
-      />
-      <SelB
-        {...p}
-        k="ausgabe"
-        l="Ausgabe"
-        o={[
-          { v: 'EINZEL', t: 'Einzel' },
-          { v: 'BOGEN', t: 'Bogen' },
-        ]}
-      />
+      <div className="ber-grid-2">
+        <SelB
+          {...p}
+          stack
+          k="material"
+          l="Material"
+          o={['751C', '631', '8510'].map(x => ({ v: x, t: x }))}
+        />
+        <SelB
+          {...p}
+          stack
+          k="ausgabe"
+          l="Ausgabe"
+          o={[
+            { v: 'EINZEL', t: 'Einzel' },
+            { v: 'BOGEN', t: 'Bogen' },
+          ]}
+        />
+      </div>
       <BesonderheitenUnten {...p} />
     </>
   )

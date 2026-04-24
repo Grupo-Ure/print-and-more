@@ -6,7 +6,6 @@ import { kundenName } from '../lib/kunde'
 import { schreibeHistorie } from '../lib/historie'
 import { synchronisiereAuftragsstatus } from '../lib/auftragsStatus'
 import {
-  teilauftragBereichLabel,
   type Auftrag,
   type AuftragStatus,
   type KundeJoin,
@@ -23,6 +22,7 @@ type Props = {
   auftragKunde: KundeKontaktJoin | null
   auftragDateien: Datei[]
   onAuftragAktualisiert: (a: Auftrag) => void
+  onAuftragGeloescht: (auftragId: string) => void
   onTeilauftragAktualisiert: (t: TeilauftragRow) => void
   onTeilauftragEntfernt: (id: string) => void
   onKundeBearbeiten: () => void
@@ -31,20 +31,20 @@ type Props = {
 
 type ErpModus = 'EINZELN' | 'GESAMMELT'
 
-function statusBadgeKlasse(s: AuftragStatus): string {
+function statusBadgeGlobal(s: AuftragStatus): string {
   switch (s) {
     case 'ANGEBOT':
-      return 'cp-badge-angebot'
+      return 'badge-grau'
     case 'UNVOLLSTAENDIG':
-      return 'cp-badge-unvoll'
+      return 'badge-orange'
     case 'PREPRESS_BEREIT':
-      return 'cp-badge-prepress'
+      return 'badge-blau'
     case 'PRODUKTION_BEREIT':
-      return 'cp-badge-prod'
+      return 'badge-lila'
     case 'FERTIG':
-      return 'cp-badge-fertig'
+      return 'badge-gruen'
     default:
-      return 'cp-badge-angebot'
+      return 'badge-grau'
   }
 }
 
@@ -66,6 +66,7 @@ export function ContextPanel({
   auftragKunde,
   auftragDateien,
   onAuftragAktualisiert,
+  onAuftragGeloescht,
   onTeilauftragAktualisiert,
   onTeilauftragEntfernt,
   onKundeBearbeiten,
@@ -186,12 +187,32 @@ export function ContextPanel({
 
   const handleArchiv = async () => {
     if (busy) return
-    if (!window.confirm('Auftrag archivieren?')) return
+    if (!window.confirm('Auftrag archivieren?\nEr wird aus der normalen Liste ausgeblendet.')) return
     setBusy(true)
     try {
       const { error } = await supabase.from('auftraege').update({ archiviert: true }).eq('id', auftrag.id)
       if (error) throw error
       onAuftragAktualisiert({ ...auftrag, archiviert: true })
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleAuftragLoeschen = async () => {
+    if (busy) return
+    if (
+      !window.confirm(
+        'Auftrag endgültig löschen?\nAlle Teilaufträge und Dateien werden mitgelöscht.'
+      )
+    )
+      return
+    setBusy(true)
+    try {
+      const { error } = await supabase.from('auftraege').delete().eq('id', auftrag.id)
+      if (error) throw error
+      onAuftragGeloescht(auftrag.id)
     } catch (e) {
       console.error(e)
     } finally {
@@ -501,69 +522,70 @@ export function ContextPanel({
     <div className="cp">
       <div className="cp-sektion">
         <h2>Status</h2>
-        <div>
-          <span className={`cp-badge ${statusBadgeKlasse(auftrag.status)}`}>{auftrag.status}</span>
-        </div>
-        {teil && (
-          <div style={{ marginTop: 8 }}>
-            <span className={`cp-badge ${statusBadgeKlasse(teil.status)}`}>
-              {teilauftragBereichLabel(teil.bereich)} · {teil.status}
+        <div className="cp-status-komp">
+          <div className="cp-st-zeile">
+            <span className="cp-st-l">Auftrag</span>
+            <span className={`badge ${statusBadgeGlobal(auftrag.status)} cp-badge-lg`}>
+              {auftrag.status}
             </span>
-            {teil.notfall_aktiv && (
-              <div style={{ marginTop: 8 }}>
-                <span className="cp-badge cp-badge-notfall">NOTFALL</span>
-                {teil.notfall_begruendung && (
-                  <p className="cp-hinweis" style={{ marginTop: 6 }}>
-                    {teil.notfall_begruendung}
-                  </p>
-                )}
-              </div>
-            )}
           </div>
-        )}
+          {teil && (
+            <div className="cp-st-zeile">
+              <span className="cp-st-l">Teilauftrag</span>
+              <span className={`badge ${statusBadgeGlobal(teil.status)} cp-badge-lg`}>{teil.status}</span>
+            </div>
+          )}
+          {teil?.notfall_aktiv && (
+            <div className="cp-st-notfall">
+              <span className="badge badge-rot cp-badge-lg">!! NOTFALL !!</span>
+              {teil.notfall_begruendung && (
+                <p className="cp-hinweis cp-hinweis--komp">{teil.notfall_begruendung}</p>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="cp-sektion">
         <h2>Aktionen</h2>
-        <div className="cp-stack">
+        <div className="cp-gruppe">
           {auftrag.status === 'ANGEBOT' && (
-            <div style={{ display: 'flex', gap: 6, flexDirection: 'row', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="cp-btn"
-                style={{ flex: 1, minWidth: 120 }}
-                disabled={busy}
-                onClick={() => void handleInBearbeitung()}
-              >
-                In Bearbeitung nehmen
-              </button>
-              <button
-                type="button"
-                className="cp-btn"
-                style={{ flex: 1, minWidth: 120 }}
-                disabled={busy}
-                onClick={onKundeBearbeiten}
-              >
-                Kunde bearbeiten
-              </button>
-            </div>
+            <button
+              type="button"
+              className="cp-btn"
+              disabled={busy}
+              onClick={() => void handleInBearbeitung()}
+            >
+              In Bearbeitung nehmen
+            </button>
+          )}
+          {auftrag.status === 'ANGEBOT' && (
+            <button type="button" className="cp-btn" disabled={busy} onClick={onKundeBearbeiten}>
+              Kunde bearbeiten
+            </button>
           )}
           {auftrag.status === 'FERTIG' && !auftrag.erp_exportiert && (
             <button type="button" className="cp-btn" disabled={busy} onClick={handleErpStart}>
               ERP exportieren
             </button>
           )}
-          {auftrag.status === 'FERTIG' && (
-            <button type="button" className="cp-btn" disabled={busy} onClick={() => void handleArchiv()}>
-              Archivieren
-            </button>
-          )}
+          <button type="button" className="cp-btn" disabled={busy} onClick={() => void handleArchiv()}>
+            Archivieren
+          </button>
+          <button
+            type="button"
+            className="cp-btn cp-btn-rot"
+            disabled={busy}
+            onClick={() => void handleAuftragLoeschen()}
+          >
+            Auftrag löschen
+          </button>
         </div>
 
         {teilBlock && (
           <>
-            <div className="cp-aktion-trenn" />
-            <div className="cp-stack">
+            <div className="cp-gruppe-trenn" />
+            <div className="cp-gruppe">
               {teil.status === 'UNVOLLSTAENDIG' && (
                 <button
                   type="button"
@@ -597,6 +619,9 @@ export function ContextPanel({
                   Als fertig melden
                 </button>
               )}
+            </div>
+            <div className="cp-gruppe-trenn" />
+            <div className="cp-gruppe">
               {notfallSichtbar && (
                 <button
                   type="button"
@@ -633,7 +658,9 @@ export function ContextPanel({
                   Kundenfreigabe erteilen
                 </button>
               )}
-              <div className="cp-aktion-trenn" />
+            </div>
+            <div className="cp-gruppe-trenn" />
+            <div className="cp-gruppe cp-gruppe--admin">
               <button
                 type="button"
                 className="cp-btn cp-btn-grau"
@@ -658,20 +685,16 @@ export function ContextPanel({
         )}
       </div>
 
-      <div className="cp-sektion">
-        <h2>Hinweise</h2>
-        {hinweise.length === 0 ? (
-          <p className="cp-hinweis" style={{ color: '#999' }}>
-            Keine besonderen Hinweise.
-          </p>
-        ) : (
-          hinweise.map((h, i) => (
+      {hinweise.length > 0 && (
+        <div className="cp-sektion">
+          <h2>Hinweise</h2>
+          {hinweise.map((h, i) => (
             <p key={i} className="cp-hinweis">
               {h}
             </p>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       <HistoriePanel
         aktiverAuftragId={auftrag.id}

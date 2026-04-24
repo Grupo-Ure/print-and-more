@@ -140,6 +140,10 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
   const [zGrFrei, setZGrFrei] = useState('')
   const [zDruck, setZDruck] = useState('')
 
+  const [motivFormOffen, setMotivFormOffen] = useState(false)
+  const [posFormOffen, setPosFormOffen] = useState(false)
+  const [zuoFormOffen, setZuoFormOffen] = useState(false)
+
   const syncTeil = useCallback(
     async (motiveL: TextilMotiveRow[], posL: TextilPositionenRow[], zuoL: TextilZuordnungRow[], afterProdMutation: boolean) => {
       const t = teilR.current
@@ -211,6 +215,12 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
     void ladeAlles()
   }, [ladeAlles, teil.id])
 
+  useEffect(() => {
+    setMotivFormOffen(false)
+    setPosFormOffen(false)
+    setZuoFormOffen(false)
+  }, [teil.id])
+
   const dateiNameById = new Map<string, string>()
   for (const d of auftragDateien) {
     dateiNameById.set(d.id, d.anzeigename)
@@ -240,6 +250,19 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
     setZGrArt('MITTEL')
     setZGrFrei('')
     setZDruck('')
+  }
+
+  const abbruchMotivForm = () => {
+    resetMForm()
+    setMotivFormOffen(false)
+  }
+  const abbruchPosForm = () => {
+    resetPForm()
+    setPosFormOffen(false)
+  }
+  const abbruchZuoForm = () => {
+    resetZForm()
+    setZuoFormOffen(false)
   }
 
   const addMotiv = async (e: FormEvent) => {
@@ -275,6 +298,7 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
         const nextM = [...motive, r]
         setMotive(nextM)
         resetMForm()
+        setMotivFormOffen(false)
         const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
         void syncTeil(nextM, positionen, zuordnungen, prod)
       }
@@ -307,6 +331,7 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
         const nextM = [...motive, r]
         setMotive(nextM)
         resetMForm()
+        setMotivFormOffen(false)
         const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
         void syncTeil(nextM, positionen, zuordnungen, prod)
       }
@@ -351,6 +376,7 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
         const nextP = [...positionen, r]
         setPositionen(nextP)
         resetPForm()
+        setPosFormOffen(false)
         const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
         void syncTeil(motive, nextP, zuordnungen, prod)
       }
@@ -384,6 +410,7 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
         const nextP = [...positionen, r]
         setPositionen(nextP)
         resetPForm()
+        setPosFormOffen(false)
         const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
         void syncTeil(motive, nextP, zuordnungen, prod)
       }
@@ -436,6 +463,7 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
       const nextZ = [...zuordnungen, r]
       setZuordnungen(nextZ)
       resetZForm()
+      setZuoFormOffen(false)
       const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
       void syncTeil(motive, positionen, nextZ, prod)
     }
@@ -535,95 +563,116 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
 
       {laden && <p className="ber-hinweis" style={{ fontStyle: 'normal' }}>Lädt Textildaten …</p>}
 
-      <details className="ber-lfp" open style={{ borderTop: '1px solid var(--border)', marginTop: '0.5rem' }}>
-        <summary className="ber-h3" style={{ cursor: 'pointer' }}>
+      <div className="ber-lfp" style={{ borderTop: '1px solid var(--border)', marginTop: '0.5rem', paddingTop: '0.35rem' }}>
+        <h3 className="ber-h3" style={{ marginTop: 0 }}>
           1. Motive
-        </summary>
-        <p className="ber-hinweis" style={{ fontStyle: 'normal', fontSize: '0.8rem' }}>
-          Motivart wählen und mit + Hinzufügen speichern.
-        </p>
-        <form onSubmit={addMotiv}>
-          <div className="ber-zeile">
-            <span className="ber-lbl">Typ</span>
-            <div className="ber-nmb">
-              <label>
-                <input type="radio" name="mtyp" checked={mTyp === 'TEXT'} onChange={() => setMTyp('TEXT')} /> Text
-              </label>
-              <label>
-                <input type="radio" name="mtyp" checked={mTyp === 'DATEI'} onChange={() => setMTyp('DATEI')} /> Datei
-              </label>
-            </div>
-          </div>
-          {mTyp === 'TEXT' && (
-            <>
-              <div className="ber-zeile">
-                <label className="ber-lbl" htmlFor="tx-inh">
-                  Inhalt
-                </label>
-                <input id="tx-inh" className="ber-inp" value={mInhalt} onChange={e => setMInhalt(e.target.value)} />
-              </div>
-              <div className="ber-zeile">
-                <label className="ber-lbl" htmlFor="tx-fa">
-                  Farbe
-                </label>
-                <input id="tx-fa" className="ber-inp" value={mFarbe} onChange={e => setMFarbe(e.target.value)} />
-              </div>
-              <div className="ber-zeile">
-                <span className="ber-lbl">Schriftklasse</span>
-                <select
-                  className="ber-inp"
-                  value={mSchriftkl}
-                  onChange={e => setMSchriftkl(e.target.value as TextilSchriftklasse)}
-                >
-                  {SCHRIFTKLASSE.map(s => (
-                    <option key={s.v} value={s.v}>
-                      {s.l}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="ber-zeile">
-                <label className="ber-lbl" htmlFor="tx-sa">
-                  Schriftart
-                </label>
-                <input
-                  id="tx-sa"
-                  className="ber-inp"
-                  placeholder="Konkrete Schriftart"
-                  value={mSchriftart}
-                  onChange={e => setMSchriftart(e.target.value)}
-                />
-              </div>
-            </>
-          )}
-          {mTyp === 'DATEI' && (
-            <div className="ber-zeile">
-              <span className="ber-lbl">Datei</span>
-              <div>
-                {auftragDateien.length === 0 ? (
-                  <p className="ber-hinweis" style={{ fontStyle: 'normal' }}>
-                    Zuerst Dateien am Auftrag hinterlegen (Abschnitt &apos;Dateien dieses Auftrags&apos;).
-                  </p>
-                ) : (
-                  <select className="ber-inp" value={mDatei} onChange={e => setMDatei(e.target.value)} required>
-                    <option value="">—</option>
-                    {auftragDateien.map(d => (
-                      <option key={d.id} value={d.id}>
-                        {d.anzeigename}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            </div>
-          )}
-          <div className="ber-zeile">
-            <span className="ber-lbl" />
-            <button type="submit" className="wa-bereich-btn" disabled={sMut || laden}>
-              + Hinzufügen
+        </h3>
+        {!motivFormOffen && (
+          <p style={{ margin: '0 0 0.5rem' }}>
+            <button
+              type="button"
+              className="wa-bereich-btn"
+              onClick={() => setMotivFormOffen(true)}
+              disabled={sMut || laden}
+            >
+              + Motiv hinzufügen
             </button>
-          </div>
-        </form>
+          </p>
+        )}
+        {motivFormOffen && (
+          <>
+            <p className="ber-hinweis" style={{ fontStyle: 'normal', fontSize: '0.8rem' }}>
+              Motivart wählen und mit + Hinzufügen speichern.
+            </p>
+            <form onSubmit={addMotiv}>
+              <div className="ber-zeile">
+                <span className="ber-lbl">Typ</span>
+                <div className="ber-nmb">
+                  <label>
+                    <input type="radio" name="mtyp" checked={mTyp === 'TEXT'} onChange={() => setMTyp('TEXT')} /> Text
+                  </label>
+                  <label>
+                    <input type="radio" name="mtyp" checked={mTyp === 'DATEI'} onChange={() => setMTyp('DATEI')} /> Datei
+                  </label>
+                </div>
+              </div>
+              {mTyp === 'TEXT' && (
+                <>
+                  <div className="ber-zeile">
+                    <label className="ber-lbl" htmlFor="tx-inh">
+                      Inhalt
+                    </label>
+                    <input id="tx-inh" className="ber-inp" value={mInhalt} onChange={e => setMInhalt(e.target.value)} />
+                  </div>
+                  <div className="ber-zeile">
+                    <label className="ber-lbl" htmlFor="tx-fa">
+                      Farbe
+                    </label>
+                    <input id="tx-fa" className="ber-inp" value={mFarbe} onChange={e => setMFarbe(e.target.value)} />
+                  </div>
+                  <div className="ber-zeile">
+                    <span className="ber-lbl">Schriftklasse</span>
+                    <select
+                      className="ber-inp"
+                      value={mSchriftkl}
+                      onChange={e => setMSchriftkl(e.target.value as TextilSchriftklasse)}
+                    >
+                      {SCHRIFTKLASSE.map(s => (
+                        <option key={s.v} value={s.v}>
+                          {s.l}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="ber-zeile">
+                    <label className="ber-lbl" htmlFor="tx-sa">
+                      Schriftart
+                    </label>
+                    <input
+                      id="tx-sa"
+                      className="ber-inp"
+                      placeholder="Konkrete Schriftart"
+                      value={mSchriftart}
+                      onChange={e => setMSchriftart(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
+              {mTyp === 'DATEI' && (
+                <div className="ber-zeile">
+                  <span className="ber-lbl">Datei</span>
+                  <div>
+                    {auftragDateien.length === 0 ? (
+                      <p className="ber-hinweis" style={{ fontStyle: 'normal' }}>
+                        Zuerst Dateien am Auftrag hinterlegen (Abschnitt &apos;Dateien dieses Auftrags&apos;).
+                      </p>
+                    ) : (
+                      <select className="ber-inp" value={mDatei} onChange={e => setMDatei(e.target.value)} required>
+                        <option value="">—</option>
+                        {auftragDateien.map(d => (
+                          <option key={d.id} value={d.id}>
+                            {d.anzeigename}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                </div>
+              )}
+              <div className="ber-zeile">
+                <span className="ber-lbl" />
+                <div className="ber-nmb" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <button type="submit" className="wa-bereich-btn" disabled={sMut || laden}>
+                    + Hinzufügen
+                  </button>
+                  <button type="button" className="wa-ghost-btn" onClick={abbruchMotivForm} disabled={sMut || laden}>
+                    Abbrechen
+                  </button>
+                </div>
+              </div>
+            </form>
+          </>
+        )}
         <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
           {motive.map(m => (
             <li
@@ -662,100 +711,121 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
             </li>
           ))}
         </ul>
-      </details>
+      </div>
 
-      <details className="ber-lfp" open style={{ borderTop: '1px solid var(--border)' }}>
-        <summary className="ber-h3" style={{ cursor: 'pointer' }}>
+      <div className="ber-lfp" style={{ borderTop: '1px solid var(--border)' }}>
+        <h3 className="ber-h3" style={{ marginTop: '0.35rem' }}>
           2. Positionen (Textilien)
-        </summary>
-        <p className="ber-hinweis" style={{ fontSize: '0.8rem' }}>
-          Eigenware: Jede Größe als eigene Position anlegen.
-        </p>
-        <form onSubmit={addPosition}>
-          <div className="ber-zeile">
-            <span className="ber-lbl">Herkunft</span>
-            <div className="ber-nmb">
-              <label>
-                <input type="radio" name="pH" checked={pHerk === 'KUNDENWARE'} onChange={() => setPHerk('KUNDENWARE')} />
-                {HERKUNFT_ANZEIGE.KUNDENWARE}
-              </label>
-              <label>
-                <input type="radio" name="pH" checked={pHerk === 'EIGENWARE'} onChange={() => setPHerk('EIGENWARE')} />
-                {HERKUNFT_ANZEIGE.EIGENWARE}
-              </label>
-            </div>
-          </div>
-          {pHerk === 'KUNDENWARE' && (
-            <>
+        </h3>
+        {!posFormOffen && (
+          <p style={{ margin: '0 0 0.5rem' }}>
+            <button
+              type="button"
+              className="wa-bereich-btn"
+              onClick={() => setPosFormOffen(true)}
+              disabled={sMut || laden}
+            >
+              + Position hinzufügen
+            </button>
+          </p>
+        )}
+        {posFormOffen && (
+          <>
+            <p className="ber-hinweis" style={{ fontSize: '0.8rem' }}>
+              Eigenware: Jede Größe als eigene Position anlegen.
+            </p>
+            <form onSubmit={addPosition}>
               <div className="ber-zeile">
-                <span className="ber-lbl">Typ</span>
-                <select className="ber-inp" value={pKTyp} onChange={e => setPKTyp(e.target.value as TextilKundenKleidungTyp)}>
-                  {KLEID_TYP.map(x => (
-                    <option key={x.v} value={x.v}>
-                      {x.l}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="ber-zeile">
-                <label className="ber-lbl" htmlFor="px-fa">
-                  Farbe
-                </label>
-                <input id="px-fa" className="ber-inp" value={pFarbe} onChange={e => setPFarbe(e.target.value)} />
-              </div>
-            </>
-          )}
-          {pHerk === 'EIGENWARE' && (
-            <>
-              <div className="ber-zeile">
-                <label className="ber-lbl" htmlFor="px-mk">
-                  Marke
-                </label>
-                <input id="px-mk" className="ber-inp" value={pMarke} onChange={e => setPMarke(e.target.value)} />
-              </div>
-              <div className="ber-zeile">
-                <label className="ber-lbl" htmlFor="px-mo">
-                  Modell
-                </label>
-                <input id="px-mo" className="ber-inp" value={pModell} onChange={e => setPModell(e.target.value)} />
-              </div>
-              <div className="ber-zeile">
-                <label className="ber-lbl" htmlFor="px-f2">
-                  Farbe
-                </label>
-                <input id="px-f2" className="ber-inp" value={pFarbe} onChange={e => setPFarbe(e.target.value)} />
-              </div>
-              <div className="ber-zeile">
-                <label className="ber-lbl" htmlFor="px-gr">
-                  Größe
-                </label>
-                <div>
-                  <input id="px-gr" className="ber-inp" value={pGroesse} onChange={e => setPGroesse(e.target.value)} />
+                <span className="ber-lbl">Herkunft</span>
+                <div className="ber-nmb">
+                  <label>
+                    <input type="radio" name="pH" checked={pHerk === 'KUNDENWARE'} onChange={() => setPHerk('KUNDENWARE')} />
+                    {HERKUNFT_ANZEIGE.KUNDENWARE}
+                  </label>
+                  <label>
+                    <input type="radio" name="pH" checked={pHerk === 'EIGENWARE'} onChange={() => setPHerk('EIGENWARE')} />
+                    {HERKUNFT_ANZEIGE.EIGENWARE}
+                  </label>
                 </div>
               </div>
-            </>
-          )}
-          <div className="ber-zeile">
-            <label className="ber-lbl" htmlFor="px-st">
-              Stückzahl
-            </label>
-            <input
-              id="px-st"
-              type="number"
-              className="ber-inp"
-              min={1}
-              step={1}
-              value={pSt}
-              onChange={e => setPSt(parseInt(e.target.value, 10) || 0)}
-            />
-          </div>
-          <div className="ber-zeile">
-            <span className="ber-lbl" />
-            <button type="submit" className="wa-bereich-btn" disabled={sMut || laden}>
-              + Hinzufügen
-            </button>
-          </div>
-        </form>
+              {pHerk === 'KUNDENWARE' && (
+                <>
+                  <div className="ber-zeile">
+                    <span className="ber-lbl">Typ</span>
+                    <select className="ber-inp" value={pKTyp} onChange={e => setPKTyp(e.target.value as TextilKundenKleidungTyp)}>
+                      {KLEID_TYP.map(x => (
+                        <option key={x.v} value={x.v}>
+                          {x.l}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="ber-zeile">
+                    <label className="ber-lbl" htmlFor="px-fa">
+                      Farbe
+                    </label>
+                    <input id="px-fa" className="ber-inp" value={pFarbe} onChange={e => setPFarbe(e.target.value)} />
+                  </div>
+                </>
+              )}
+              {pHerk === 'EIGENWARE' && (
+                <>
+                  <div className="ber-zeile">
+                    <label className="ber-lbl" htmlFor="px-mk">
+                      Marke
+                    </label>
+                    <input id="px-mk" className="ber-inp" value={pMarke} onChange={e => setPMarke(e.target.value)} />
+                  </div>
+                  <div className="ber-zeile">
+                    <label className="ber-lbl" htmlFor="px-mo">
+                      Modell
+                    </label>
+                    <input id="px-mo" className="ber-inp" value={pModell} onChange={e => setPModell(e.target.value)} />
+                  </div>
+                  <div className="ber-zeile">
+                    <label className="ber-lbl" htmlFor="px-f2">
+                      Farbe
+                    </label>
+                    <input id="px-f2" className="ber-inp" value={pFarbe} onChange={e => setPFarbe(e.target.value)} />
+                  </div>
+                  <div className="ber-zeile">
+                    <label className="ber-lbl" htmlFor="px-gr">
+                      Größe
+                    </label>
+                    <div>
+                      <input id="px-gr" className="ber-inp" value={pGroesse} onChange={e => setPGroesse(e.target.value)} />
+                    </div>
+                  </div>
+                </>
+              )}
+              <div className="ber-zeile">
+                <label className="ber-lbl" htmlFor="px-st">
+                  Stückzahl
+                </label>
+                <input
+                  id="px-st"
+                  type="number"
+                  className="ber-inp"
+                  min={1}
+                  step={1}
+                  value={pSt}
+                  onChange={e => setPSt(parseInt(e.target.value, 10) || 0)}
+                />
+              </div>
+              <div className="ber-zeile">
+                <span className="ber-lbl" />
+                <div className="ber-nmb" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <button type="submit" className="wa-bereich-btn" disabled={sMut || laden}>
+                    + Hinzufügen
+                  </button>
+                  <button type="button" className="wa-ghost-btn" onClick={abbruchPosForm} disabled={sMut || laden}>
+                    Abbrechen
+                  </button>
+                </div>
+              </div>
+            </form>
+          </>
+        )}
         <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
           {positionen.map(p => (
             <li
@@ -792,87 +862,106 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
             </li>
           ))}
         </ul>
-      </details>
+      </div>
 
-      <details className="ber-lfp" open style={{ borderTop: '1px solid var(--border)' }}>
-        <summary className="ber-h3" style={{ cursor: 'pointer' }}>
+      <div className="ber-lfp" style={{ borderTop: '1px solid var(--border)' }}>
+        <h3 className="ber-h3" style={{ marginTop: '0.35rem' }}>
           3. Zuordnungen
-        </summary>
-        <form onSubmit={addZuordnung}>
-          <div className="ber-zeile">
-            <span className="ber-lbl">Motiv</span>
-            <select className="ber-inp" value={zMot} onChange={e => setZMot(e.target.value)}>
-              <option value="">—</option>
-              {motive.map(m => (
-                <option key={m.id} value={m.id}>
-                  {m.typ === 'TEXT' ? m.inhalt : `Datei: ${dateiNameById.get(m.datei_id ?? '') ?? m.datei_id}`}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="ber-zeile">
-            <span className="ber-lbl">Position</span>
-            <select className="ber-inp" value={zPos} onChange={e => setZPos(e.target.value)}>
-              <option value="">—</option>
-              {positionen.map(p => (
-                <option key={p.id} value={p.id}>
-                  {HERKUNFT_ANZEIGE[p.herkunft]} · {posKurz(p)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="ber-zeile">
-            <span className="ber-lbl">Platz</span>
-            <select className="ber-inp" value={zPlatz} onChange={e => setZPlatz(e.target.value as TextilPlatz)}>
-              {PLATZ_OPT.map(p => (
-                <option key={p.v} value={p.v}>
-                  {p.l}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="ber-zeile">
-            <span className="ber-lbl">Größe</span>
-            <div>
-              <select className="ber-inp" value={zGrArt} onChange={e => setZGrArt(e.target.value as TextilGroesseEnum)}>
-                {GROESSE_WAHL.map(g => (
-                  <option key={g} value={g}>
-                    {g === 'FREI' ? 'Frei (mm)' : GROESSE_ANZEIGE[g as 'KLEIN' | 'MITTEL' | 'GROSS']}
+        </h3>
+        {!zuoFormOffen && (
+          <p style={{ margin: '0 0 0.5rem' }}>
+            <button
+              type="button"
+              className="wa-bereich-btn"
+              onClick={() => setZuoFormOffen(true)}
+              disabled={sMut || laden}
+            >
+              + Zuordnung hinzufügen
+            </button>
+          </p>
+        )}
+        {zuoFormOffen && (
+          <form onSubmit={addZuordnung}>
+            <div className="ber-zeile">
+              <span className="ber-lbl">Motiv</span>
+              <select className="ber-inp" value={zMot} onChange={e => setZMot(e.target.value)}>
+                <option value="">—</option>
+                {motive.map(m => (
+                  <option key={m.id} value={m.id}>
+                    {m.typ === 'TEXT' ? m.inhalt : `Datei: ${dateiNameById.get(m.datei_id ?? '') ?? m.datei_id}`}
                   </option>
                 ))}
               </select>
-              {zGrArt === 'FREI' && (
+            </div>
+            <div className="ber-zeile">
+              <span className="ber-lbl">Position</span>
+              <select className="ber-inp" value={zPos} onChange={e => setZPos(e.target.value)}>
+                <option value="">—</option>
+                {positionen.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {HERKUNFT_ANZEIGE[p.herkunft]} · {posKurz(p)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="ber-zeile">
+              <span className="ber-lbl">Platz</span>
+              <select className="ber-inp" value={zPlatz} onChange={e => setZPlatz(e.target.value as TextilPlatz)}>
+                {PLATZ_OPT.map(p => (
+                  <option key={p.v} value={p.v}>
+                    {p.l}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="ber-zeile">
+              <span className="ber-lbl">Größe</span>
+              <div>
+                <select className="ber-inp" value={zGrArt} onChange={e => setZGrArt(e.target.value as TextilGroesseEnum)}>
+                  {GROESSE_WAHL.map(g => (
+                    <option key={g} value={g}>
+                      {g === 'FREI' ? 'Frei (mm)' : GROESSE_ANZEIGE[g as 'KLEIN' | 'MITTEL' | 'GROSS']}
+                    </option>
+                  ))}
+                </select>
+                {zGrArt === 'FREI' && (
+                  <input
+                    className="ber-inp"
+                    style={{ marginTop: 6, maxWidth: '14rem' }}
+                    placeholder="z. B. 150x200"
+                    value={zGrFrei}
+                    onChange={e => setZGrFrei(e.target.value)}
+                  />
+                )}
+              </div>
+            </div>
+            <div className="ber-zeile">
+              <label className="ber-lbl" htmlFor="tx-dru">
+                Druckart
+              </label>
+              <div>
                 <input
+                  id="tx-dru"
                   className="ber-inp"
-                  style={{ marginTop: 6, maxWidth: '14rem' }}
-                  placeholder="z. B. 150x200"
-                  value={zGrFrei}
-                  onChange={e => setZGrFrei(e.target.value)}
+                  placeholder="Wird durch PrePress festgelegt"
+                  value={zDruck}
+                  onChange={e => setZDruck(e.target.value)}
                 />
-              )}
+              </div>
             </div>
-          </div>
-          <div className="ber-zeile">
-            <label className="ber-lbl" htmlFor="tx-dru">
-              Druckart
-            </label>
-            <div>
-              <input
-                id="tx-dru"
-                className="ber-inp"
-                placeholder="Wird durch PrePress festgelegt"
-                value={zDruck}
-                onChange={e => setZDruck(e.target.value)}
-              />
+            <div className="ber-zeile">
+              <span className="ber-lbl" />
+              <div className="ber-nmb" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
+                <button type="submit" className="wa-bereich-btn" disabled={sMut || laden}>
+                  + Hinzufügen
+                </button>
+                <button type="button" className="wa-ghost-btn" onClick={abbruchZuoForm} disabled={sMut || laden}>
+                  Abbrechen
+                </button>
+              </div>
             </div>
-          </div>
-          <div className="ber-zeile">
-            <span className="ber-lbl" />
-            <button type="submit" className="wa-bereich-btn" disabled={sMut || laden}>
-              + Hinzufügen
-            </button>
-          </div>
-        </form>
+          </form>
+        )}
         <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
           {zuordnungen.map(z => {
             const mo = one(z.textil_motive) as { typ: TextilMotivTyp; inhalt: string | null; datei_id: string | null } | null
@@ -913,7 +1002,7 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
             )
           })}
         </ul>
-      </details>
+      </div>
     </div>
   )
 }

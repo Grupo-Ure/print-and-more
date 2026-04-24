@@ -18,11 +18,11 @@ const ROLLEN: { value: DateiRolle; label: string }[] = [
   { value: 'REFERENZ', label: 'Referenz / Altstand' },
 ]
 
-const ROLLE_ANZEIGE: Record<DateiRolle, string> = {
-  PRODUKTIONSDATEI: 'Produktionsdatei',
-  VORSCHAU: 'Vorschau / Mockup',
-  KUNDENFREIGABE: 'Kundenfreigabe',
-  REFERENZ: 'Referenz / Altstand',
+const ROLLE_KURZ: Record<DateiRolle, string> = {
+  PRODUKTIONSDATEI: 'Produkt.',
+  VORSCHAU: 'Vorschau',
+  KUNDENFREIGABE: 'Freigabe',
+  REFERENZ: 'Referenz',
 }
 
 type Props = {
@@ -62,31 +62,6 @@ export function useDateienFuerAuftrag(auftragId: string) {
   return { dateien, laden, reload }
 }
 
-function RolleBadge({ rolle }: { rolle: DateiRolle }) {
-  return (
-    <span
-      style={{
-        display: 'inline-block',
-        fontSize: '0.68rem',
-        fontWeight: 500,
-        padding: '0.12rem 0.4rem',
-        borderRadius: 4,
-        border: '1px solid var(--border)',
-        color: 'var(--text-h)',
-        background: 'var(--code-bg, rgba(0,0,0,0.04))',
-        flexShrink: 0,
-        maxWidth: '11rem',
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-      }}
-      title={ROLLE_ANZEIGE[rolle]}
-    >
-      {ROLLE_ANZEIGE[rolle]}
-    </span>
-  )
-}
-
 export function DateiListe({ aktiverAuftragId, dateien, dateienLaden, onDateiGeaendert }: Props) {
   const laden = dateienLaden
   const [anzeigename, setAnzeigename] = useState('')
@@ -95,6 +70,7 @@ export function DateiListe({ aktiverAuftragId, dateien, dateienLaden, onDateiGea
   const [fehler, setFehler] = useState<string | null>(null)
   const [speichert, setSpeichert] = useState(false)
   const [entferntId, setEntferntId] = useState<string | null>(null)
+  const [formOffen, setFormOffen] = useState(false)
 
   const handleHinzufuegen = async (e: FormEvent) => {
     e.preventDefault()
@@ -125,6 +101,7 @@ export function DateiListe({ aktiverAuftragId, dateien, dateienLaden, onDateiGea
       setAnzeigename('')
       setPfad('')
       setRolle('PRODUKTIONSDATEI')
+      setFormOffen(false)
       void onDateiGeaendert()
     }
   }
@@ -142,53 +119,47 @@ export function DateiListe({ aktiverAuftragId, dateien, dateienLaden, onDateiGea
   }
 
   return (
-    <div className="ber-lfp" style={{ maxWidth: '100%' }}>
-      <h3 className="ber-h3">Dateien</h3>
-      {fehler && <p className="ber-err">{fehler}</p>}
+    <div className="wa-dl">
+      <div className="wa-dl-top">
+        <h3 className="wa-dl-titel">Dateien</h3>
+        <button
+          type="button"
+          className="wa-dl-add"
+          onClick={() => setFormOffen(o => !o)}
+        >
+          {formOffen ? 'Abbrechen' : '+ Hinzufügen'}
+        </button>
+      </div>
+      {fehler && <p className="wa-dl-err">{fehler}</p>}
 
-      <form onSubmit={handleHinzufuegen} style={{ marginBottom: '1rem' }}>
-        <div className="ber-zeile">
-          <label className="ber-lbl" htmlFor="dl-anzeigename">
-            Anzeigename
-          </label>
-          <div>
+      {formOffen && (
+        <form onSubmit={e => void handleHinzufuegen(e)} className="wa-dl-form">
+          <div className="wa-dl-formzeile">
             <input
-              id="dl-anzeigename"
               className="ber-inp"
               value={anzeigename}
               onChange={e => setAnzeigename(e.target.value)}
+              placeholder="Anzeigename"
               required
               maxLength={500}
+              aria-label="Anzeigename"
             />
-          </div>
-        </div>
-        <div className="ber-zeile">
-          <label className="ber-lbl" htmlFor="dl-pfad">
-            Pfad
-          </label>
-          <div>
             <input
-              id="dl-pfad"
               className="ber-inp"
               value={pfad}
               onChange={e => setPfad(e.target.value)}
               required
-              placeholder="\\\\server\\auftraege\\..."
+              placeholder="Pfad (UNC …)"
               maxLength={2000}
+              title={pfad}
+              aria-label="Pfad"
             />
-          </div>
-        </div>
-        <div className="ber-zeile">
-          <label className="ber-lbl" htmlFor="dl-rolle">
-            Rolle
-          </label>
-          <div>
             <select
-              id="dl-rolle"
-              className="ber-inp"
+              className="ber-inp wa-dl-rolle"
               value={rolle}
               onChange={e => setRolle(e.target.value as DateiRolle)}
               required
+              aria-label="Rolle"
             >
               {ROLLEN.map(r => (
                 <option key={r.value} value={r.value}>
@@ -196,67 +167,43 @@ export function DateiListe({ aktiverAuftragId, dateien, dateienLaden, onDateiGea
                 </option>
               ))}
             </select>
-          </div>
-        </div>
-        <div className="ber-zeile" style={{ alignItems: 'center' }}>
-          <span className="ber-lbl" />
-          <div>
-            <button type="submit" className="wa-bereich-btn" disabled={speichert}>
-              {speichert ? 'Wird hinzugefügt …' : 'Hinzufügen'}
+            <button type="submit" className="wa-dl-submit" disabled={speichert} title="Hinzufügen">
+              {speichert ? '…' : '+'}
             </button>
           </div>
-        </div>
-      </form>
+        </form>
+      )}
 
       {laden ? (
-        <p className="ber-hinweis" style={{ fontStyle: 'normal' }}>
+        <p className="ber-hinweis" style={{ fontStyle: 'normal', fontSize: 12, margin: '4px 0' }}>
           Lädt Dateien …
         </p>
       ) : dateien.length === 0 ? (
-        <p className="ber-hinweis">
-          Noch keine Dateien — Pfad und Name eintragen um eine Datei zu verknüpfen.
+        <p className="ber-hinweis" style={{ fontSize: 12, margin: '4px 0' }}>
+          Noch keine Dateien.
         </p>
       ) : (
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+        <ul className="wa-dl-list">
           {dateien.map(d => (
-            <li
-              key={d.id}
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                alignItems: 'center',
-                gap: '0.5rem 0.75rem',
-                padding: '0.55rem 0',
-                borderBottom: '1px solid var(--border)',
-                fontSize: '0.9rem',
-              }}
-            >
-              <span style={{ fontWeight: 600, color: 'var(--text-h)' }}>{d.anzeigename}</span>
-              <RolleBadge rolle={d.rolle} />
-              <span
-                className="td-mono"
-                style={{
-                  flex: 1,
-                  minWidth: '6rem',
-                  fontSize: '0.78rem',
-                  color: 'var(--text)',
-                  opacity: 0.8,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-                title={d.pfad}
-              >
+            <li key={d.id} className="wa-dl-item">
+              <span className="wa-dl-name" title={d.anzeigename}>
+                <span aria-hidden>📄</span> {d.anzeigename}
+              </span>
+              <span className="badge badge-grau" title={ROLLEN.find(r => r.value === d.rolle)?.label ?? d.rolle}>
+                {ROLLE_KURZ[d.rolle]}
+              </span>
+              <span className="wa-dl-pfad" title={d.pfad}>
                 {d.pfad}
               </span>
               <button
                 type="button"
-                className="wa-ghost-btn"
+                className="wa-dl-rm"
                 onClick={() => void handleEntfernen(d.id)}
                 disabled={entferntId === d.id}
-                style={{ marginLeft: 'auto', flexShrink: 0 }}
+                title="Entfernen"
+                aria-label={`Entfernen: ${d.anzeigename}`}
               >
-                {entferntId === d.id ? '…' : 'Entfernen'}
+                ×
               </button>
             </li>
           ))}
