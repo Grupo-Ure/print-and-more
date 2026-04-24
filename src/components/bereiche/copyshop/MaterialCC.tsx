@@ -8,6 +8,7 @@ export type MatCcProps = {
   pruef: boolean
   patchL: (p: CopyShopDetailJson) => void
   commit: () => void
+  speichDetail: (d: CopyShopDetailJson) => void
   /** z. B. material_cc / cc_umschlag */
   kMat: string
   kSon: string
@@ -17,7 +18,7 @@ export type MatCcProps = {
 const CC_GRAMM = ['80G', '100G', '120G', '160G', '200G', '250G', '300G', 'SONSTIGE'] as const
 
 export function MaterialCC(p: MatCcProps) {
-  const { d, fe, f, pruef, patchL, commit, kMat, kSon, label } = p
+  const { d, fe, f, pruef, patchL, commit, speichDetail, kMat, kSon, label } = p
   const dr = d as Record<string, string | null | undefined>
   const mat = String(dr[kMat] ?? '')
   const feMat = fe(kMat)
@@ -32,10 +33,10 @@ export function MaterialCC(p: MatCcProps) {
             value={mat}
             onChange={e => {
               const v = e.target.value
-              if (v === 'SONSTIGE') patchL({ [kMat]: v } as CopyShopDetailJson)
-              else patchL({ [kMat]: v, [kSon]: null } as CopyShopDetailJson)
+              if (v === 'SONSTIGE')
+                speichDetail({ ...d, [kMat]: v } as CopyShopDetailJson)
+              else speichDetail({ ...d, [kMat]: v, [kSon]: null } as CopyShopDetailJson)
             }}
-            onBlur={commit}
           >
             <option value="">—</option>
             {CC_GRAMM.map(x => (

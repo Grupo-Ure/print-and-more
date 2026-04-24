@@ -10,6 +10,7 @@ export type HistorieEreignis =
   | 'RUECKSPRUNG'
   | 'KUNDENFREIGABE_AKTIVIERT'
   | 'KUNDENFREIGABE_ERTEILT'
+  | 'STORNIERT'
 
 export async function schreibeHistorie(params: {
   auftrag_id: string

@@ -11,8 +11,10 @@ import {
   teilauftragBereichLabel,
   type AuftragStatus,
   type KundeKontaktJoin,
+  type LieferungWahl,
   type TeilauftragRow,
 } from '../types/database'
+import { DateInput } from './DateInput'
 import { CopyShopDetail } from './bereiche/CopyShopDetail'
 import { LFPDetail } from './bereiche/LFPDetail'
 import { StempelDetail } from './bereiche/StempelDetail'
@@ -30,15 +32,14 @@ type Props = {
   teil: TeilauftragRow
   /** Auftragstermin (fallback/Vererbung) */
   auftragTermin: string | null
+  /** Auftrags-Lieferung (Vererbung) */
+  auftragLieferung: LieferungWahl | null
+  /** Auftrags-Priorität (Vererbung) */
+  auftragPrioritaet: string
   /** Server-Join für Kundenkontakt (name, email, telefon) */
   auftragKunde: KundeKontaktJoin
   auftragDateien: Datei[]
   onAktualisiert: (t: TeilauftragRow) => void
-}
-
-type MitarbeiterZeile = {
-  id: string
-  email: string
 }
 
 const TEIL_BKZ: Record<string, string> = {
@@ -54,6 +55,14 @@ function teilBereichKurz(b: string): string {
   return TEIL_BKZ[b] ?? b
 }
 
+/** YYYY-MM-DD für Vergleich (Lieferdatum vs. Auftrags-Deadline) */
+function normTeilTermin(v: string | null | undefined): string | null {
+  if (v == null) return null
+  const t = String(v).trim()
+  if (t === '') return null
+  return t.length > 10 ? t.slice(0, 10) : t
+}
+
 function teilStatusBadgeAuf(s: AuftragStatus): { cls: string; label: string } {
   const m: Record<AuftragStatus, { cls: string; label: string }> = {
     ANGEBOT: { cls: 'badge-grau', label: 'ANGEBOT' },
@@ -65,25 +74,22 @@ function teilStatusBadgeAuf(s: AuftragStatus): { cls: string; label: string } {
   return m[s] ?? { cls: 'badge-grau', label: s }
 }
 
-export function TeilauftragDetail({ teil, auftragTermin, auftragKunde, auftragDateien, onAktualisiert }: Props) {
+export function TeilauftragDetail({
+  teil,
+  auftragTermin,
+  auftragLieferung,
+  auftragPrioritaet,
+  auftragKunde,
+  auftragDateien,
+  onAktualisiert,
+}: Props) {
   const snapR = useRef(teil)
   const lokalR = useRef(teil)
   const [lokal, setLokal] = useState(teil)
-  const [mitarbeiter, setMitarbeiter] = useState<MitarbeiterZeile[]>([])
   const [speichLad, setSpeichLad] = useState(false)
 
-  useEffect(() => {
-    supabase
-      .from('mitarbeiter')
-      .select('id, email')
-      .then(({ data, error }) => {
-        if (error) {
-          console.error(error)
-          return
-        }
-        setMitarbeiter((data ?? []) as MitarbeiterZeile[])
-      })
-  }, [])
+  const auftragLief = (auftragLieferung ?? 'ABHOLUNG') as LieferungWahl
+  const auftragPrio = (auftragPrioritaet && auftragPrioritaet.trim()) || 'NORMAL'
 
   useEffect(() => {
     snapR.current = teil
@@ -98,7 +104,18 @@ export function TeilauftragDetail({ teil, auftragTermin, auftragKunde, auftragDa
 
   const tStatus = lokal.status
   const pruef = tStatus !== 'ANGEBOT'
-  const gErr = validateGlobalTeilfelder(lokal, tStatus)
+  const separateLieferung = lokal.lieferung != null && lokal.lieferung !== auftragLief
+  const separatePrioritaet = lokal.prioritaet !== auftragPrio
+  const effLieferung = (separateLieferung ? lokal.lieferung! : auftragLief) as LieferungWahl
+  const effPrioritaet = separatePrioritaet ? lokal.prioritaet : auftragPrio
+  const gErr = validateGlobalTeilfelder(
+    {
+      ...lokal,
+      lieferung: effLieferung,
+      prioritaet: effPrioritaet,
+    },
+    tStatus
+  )
   const gFe = (k: string) => (pruef && gErr[k] ? ' ber-inp--err' : '')
 
   const kundePre = kundeErfuelltPrepressKontakt(auftragKunde)
@@ -113,7 +130,11 @@ export function TeilauftragDetail({ teil, auftragTermin, auftragKunde, auftragDa
         detail: patch.detail !== undefined ? patch.detail : cur.detail,
         typ: patch.typ !== undefined ? patch.typ : cur.typ,
       } as TeilauftragRow
-      const voll = istTeilAuftragVollstaendig(merged, snap.status)
+      const mergedNorm: TeilauftragRow = {
+        ...merged,
+        lieferung: (merged.lieferung ?? auftragLief) as LieferungWahl,
+      }
+      const voll = istTeilAuftragVollstaendig(mergedNorm, snap.status)
       const nSt = nextTeilStatus(snap.status, snap, merged, voll, kundePre)
       setSpeichLad(true)
       const { data, error } = await supabase
@@ -135,7 +156,7 @@ export function TeilauftragDetail({ teil, auftragTermin, auftragKunde, auftragDa
         onAktualisiert(row)
       }
     },
-    [teil.id, onAktualisiert, kundePre]
+    [auftragLief, auftragPrio, teil.id, onAktualisiert, kundePre]
   )
 
   const onLfpPatch = useCallback(
@@ -210,12 +231,10 @@ export function TeilauftragDetail({ teil, auftragTermin, auftragKunde, auftragDa
   const [sepTermin, setSepTermin] = useState(false)
 
   useEffect(() => {
-    const tIso = lokal.termin ? (lokal.termin.length > 10 ? lokal.termin.slice(0, 10) : lokal.termin) : ''
-    const aIso = auftragIso
-    const derived = tIso ? (aIso ? tIso !== aIso : true) : false
-    setSepTermin(derived)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teil.id, teil.termin, auftragIso])
+    const tNorm = normTeilTermin(teil.termin)
+    const aNorm = normTeilTermin(auftragTermin)
+    setSepTermin(tNorm != null && aNorm != null && tNorm !== aNorm)
+  }, [teil.id, teil.termin, auftragTermin])
 
   useEffect(() => {
     // Vererbung beim Laden: wenn Teilauftrag-Termin null und Auftrag hat Termin → im Hintergrund speichern.
@@ -249,11 +268,66 @@ export function TeilauftragDetail({ teil, auftragTermin, auftragKunde, auftragDa
     }
   }, [auftragIso, onAktualisiert, teil.id])
 
-  const bekannteMitarbeiterIds = new Set(mitarbeiter.map(m => m.id))
-  const verantwortIdOhneEintrag =
-    lokal.verantwortlicher_id && !bekannteMitarbeiterIds.has(lokal.verantwortlicher_id)
-      ? lokal.verantwortlicher_id
-      : null
+  useEffect(() => {
+    if (!teil.id) return
+    if (lokal.lieferung != null) return
+    let alive = true
+    void (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('teilauftraege')
+          .update({ lieferung: auftragLief } as never)
+          .eq('id', teil.id)
+          .select(TEILAUFTRAG_SPALTEN)
+          .single()
+        if (!alive) return
+        if (error) throw error
+        if (data) {
+          const row = data as TeilauftragRow
+          snapR.current = row
+          lokalR.current = row
+          setLokal(row)
+          onAktualisiert(row)
+        }
+      } catch (e) {
+        console.error(e)
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [auftragLief, lokal.lieferung, onAktualisiert, teil.id])
+
+  useEffect(() => {
+    if (!teil.id) return
+    if (lokal.prioritaet !== 'NORMAL') return
+    if (!auftragPrio || auftragPrio === 'NORMAL') return
+    let alive = true
+    void (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('teilauftraege')
+          .update({ prioritaet: auftragPrio } as never)
+          .eq('id', teil.id)
+          .select(TEILAUFTRAG_SPALTEN)
+          .single()
+        if (!alive) return
+        if (error) throw error
+        if (data) {
+          const row = data as TeilauftragRow
+          snapR.current = row
+          lokalR.current = row
+          setLokal(row)
+          onAktualisiert(row)
+        }
+      } catch (e) {
+        console.error(e)
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [auftragPrio, lokal.prioritaet, onAktualisiert, teil.id])
 
   const tBadge = teilStatusBadgeAuf(lokal.status)
 
@@ -311,8 +385,7 @@ export function TeilauftragDetail({ teil, auftragTermin, auftragKunde, auftragDa
             </label>
             {sepTermin && (
               <div style={{ marginTop: 8 }}>
-                <input
-                  type="date"
+                <DateInput
                   className={'ber-inp' + gFe('termin')}
                   value={lokal.termin ? (lokal.termin.length > 10 ? lokal.termin.slice(0, 10) : lokal.termin) : iso}
                   onChange={e => {
@@ -334,82 +407,97 @@ export function TeilauftragDetail({ teil, auftragTermin, auftragKunde, auftragDa
           </div>
         </div>
         <div className="ber-zeile-stack">
-          <span className="ber-lbl">Lieferung</span>
+          <span className="ber-lbl">Lieferart</span>
           <div>
-            <select
-              className={'ber-inp' + gFe('lieferung')}
-              value={lokal.lieferung ?? ''}
-              onChange={e => {
-                const v = e.target.value
-                setLokal(s => ({
-                  ...s,
-                  lieferung: (v as 'ABHOLUNG' | 'VERSAND') || null,
-                }))
-              }}
-              onBlur={e => {
-                const v = (e.target.value as 'ABHOLUNG' | 'VERSAND') || null
-                if (v !== snapR.current.lieferung) void speichere({ lieferung: v })
-              }}
-            >
-              <option value="">—</option>
-              <option value="ABHOLUNG">Abholung</option>
-              <option value="VERSAND">Versand</option>
-            </select>
-            {pruef && gErr.lieferung && <p className="td-feld-err">{gErr.lieferung}</p>}
+            <label className="cp-toggle" style={{ marginTop: 4 }}>
+              <input
+                type="checkbox"
+                checked={separateLieferung}
+                onChange={e => {
+                  const an = e.target.checked
+                  if (!an) {
+                    void speichere({ lieferung: auftragLief })
+                  } else {
+                    const abw = auftragLief === 'ABHOLUNG' ? 'VERSAND' : 'ABHOLUNG'
+                    setLokal(s => ({ ...s, lieferung: abw }))
+                    void speichere({ lieferung: abw })
+                  }
+                }}
+              />
+              <span>Separate Lieferart</span>
+            </label>
+            {separateLieferung ? (
+              <div style={{ marginTop: 8 }}>
+                <select
+                  className={'ber-inp' + gFe('lieferung')}
+                  value={lokal.lieferung ?? auftragLief}
+                  onChange={e => {
+                    const v = e.target.value as 'ABHOLUNG' | 'VERSAND'
+                    setLokal(s => ({ ...s, lieferung: v }))
+                  }}
+                  onBlur={e => {
+                    const v = (e.target.value as 'ABHOLUNG' | 'VERSAND') || auftragLief
+                    if (v !== snapR.current.lieferung) void speichere({ lieferung: v })
+                  }}
+                >
+                  <option value="ABHOLUNG">Abholung</option>
+                  <option value="VERSAND">Versand</option>
+                </select>
+                {pruef && gErr.lieferung && <p className="td-feld-err">{gErr.lieferung}</p>}
+              </div>
+            ) : (
+              <div className="cp-hinweis" style={{ marginTop: 6, marginBottom: 0 }}>
+                {effLieferung === 'ABHOLUNG' ? 'Abholung' : 'Versand'}
+                {pruef && gErr.lieferung && <p className="td-feld-err">{gErr.lieferung}</p>}
+              </div>
+            )}
           </div>
         </div>
       </div>
-      <div className="ber-grid-2">
-        <div className="ber-zeile-stack">
-          <span className="ber-lbl">Priorität</span>
-          <div>
-            <select
-              className={'ber-inp' + gFe('prioritaet')}
-              value={lokal.prioritaet}
-              onChange={e => setLokal(s => ({ ...s, prioritaet: e.target.value }))}
-              onBlur={e => {
-                if (e.target.value !== snapR.current.prioritaet) {
-                  void speichere({ prioritaet: e.target.value })
-                }
-              }}
-            >
-              <option value="NORMAL">Normal</option>
-              <option value="HOCH">Hoch</option>
-            </select>
-            {pruef && gErr.prioritaet && <p className="td-feld-err">{gErr.prioritaet}</p>}
-          </div>
-        </div>
-        <div className="ber-zeile-stack">
-          <span className="ber-lbl">Verantwortlicher</span>
-          <div>
-            <select
-              className={'ber-inp' + gFe('verantwortlicher_id')}
-              value={lokal.verantwortlicher_id ?? ''}
+      <div className="ber-zeile-stack" style={{ marginTop: 0, maxWidth: '22rem' }}>
+        <span className="ber-lbl">Priorität</span>
+        <div>
+          <label className="cp-toggle" style={{ marginTop: 4 }}>
+            <input
+              type="checkbox"
+              checked={separatePrioritaet}
               onChange={e => {
-                const v = e.target.value
-                setLokal(s => ({ ...s, verantwortlicher_id: v || null }))
-              }}
-              onBlur={e => {
-                const v = e.target.value || null
-                if (v !== (snapR.current.verantwortlicher_id ?? null)) {
-                  void speichere({ verantwortlicher_id: v })
+                const an = e.target.checked
+                if (!an) {
+                  void speichere({ prioritaet: auftragPrio })
+                } else {
+                  const alt =
+                    auftragPrio === 'HOCH' ? 'NORMAL' : auftragPrio === 'NIEDRIG' ? 'NORMAL' : 'HOCH'
+                  void speichere({ prioritaet: alt })
                 }
               }}
-            >
-              <option value="">—</option>
-              {verantwortIdOhneEintrag && (
-                <option value={verantwortIdOhneEintrag}>
-                  {verantwortIdOhneEintrag} (nicht in Liste)
-                </option>
-              )}
-              {mitarbeiter.map(m => (
-                <option key={m.id} value={m.id}>
-                  {m.email}
-                </option>
-              ))}
-            </select>
-            {pruef && gErr.verantwortlicher_id && <p className="td-feld-err">{gErr.verantwortlicher_id}</p>}
-          </div>
+            />
+            <span>Separate Priorität</span>
+          </label>
+          {separatePrioritaet ? (
+            <div style={{ marginTop: 8 }}>
+              <select
+                className={'ber-inp' + gFe('prioritaet')}
+                value={lokal.prioritaet}
+                onChange={e => setLokal(s => ({ ...s, prioritaet: e.target.value }))}
+                onBlur={e => {
+                  if (e.target.value !== snapR.current.prioritaet) {
+                    void speichere({ prioritaet: e.target.value })
+                  }
+                }}
+              >
+                <option value="NIEDRIG">Niedrig</option>
+                <option value="NORMAL">Normal</option>
+                <option value="HOCH">Hoch</option>
+              </select>
+              {pruef && gErr.prioritaet && <p className="td-feld-err">{gErr.prioritaet}</p>}
+            </div>
+          ) : (
+            <div className="cp-hinweis" style={{ marginTop: 6, marginBottom: 0 }}>
+              {effPrioritaet === 'NIEDRIG' ? 'Niedrig' : effPrioritaet === 'HOCH' ? 'Hoch' : 'Normal'}
+              {pruef && gErr.prioritaet && <p className="td-feld-err">{gErr.prioritaet}</p>}
+            </div>
+          )}
         </div>
       </div>
       <div className="ber-zeile-stack" style={{ marginBottom: 6, maxWidth: '16rem' }}>

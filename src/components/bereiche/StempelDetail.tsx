@@ -642,8 +642,9 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
           <select
             className={'ber-inp' + fe('groesse')}
             value={String((detail as Record<string, string>).groesse ?? '')}
-            onChange={e => patchL({ groesse: e.target.value || null } as StempelDetailJson)}
-            onBlur={commit}
+            onChange={e =>
+              speichDetail({ ...detail, groesse: e.target.value || null } as StempelDetailJson)
+            }
           >
             <option value="">—</option>
             {STEMPELKISSEN_GROESSE.map(g => (
@@ -672,11 +673,10 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
                 value={String((detail as Record<string, string>).farbe ?? '')}
                 onChange={e => {
                   const v = e.target.value
-                  const next: StempelDetailJson = { ...detailR.current, farbe: v || null }
+                  const next: StempelDetailJson = { ...detail, farbe: v || null }
                   if (v !== 'SONSTIGE') next.farbe_sonstige = null
-                  patchL(next)
+                  speichDetail(next)
                 }}
-                onBlur={commit}
               >
                 <option value="">—</option>
                 {(typ === 'NACHFUELLFARBE' || typ === 'STEMPELKISSEN' ? NACHFUELLFARBE_FARBEN : STEMPEL_FARBE).map(
@@ -709,8 +709,9 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
           <select
             className={'ber-inp' + fe('tinte_typ')}
             value={String((detail as Record<string, string>).tinte_typ ?? '')}
-            onChange={e => patchL({ tinte_typ: e.target.value || null } as StempelDetailJson)}
-            onBlur={commit}
+            onChange={e =>
+              speichDetail({ ...detail, tinte_typ: e.target.value || null } as StempelDetailJson)
+            }
           >
             <option value="">—</option>
             {NACHFUELLFARBE_TINTE_TYP.map(tt => (

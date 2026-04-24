@@ -2,7 +2,7 @@ import { supabase } from '../supabase'
 import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
 import type { Auftrag, AuftragStatus } from '../types/database'
 
-function parseStatusFromRpc(data: unknown): AuftragStatus {
+export function parseStatusFromRpc(data: unknown): AuftragStatus {
   if (data == null) {
     throw new Error('fn_berechne_auftragsstatus: leeres Ergebnis')
   }

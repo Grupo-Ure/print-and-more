@@ -48,6 +48,10 @@ export type KundeKontaktRow = {
   email: string | null
   telefon: string | null
   notiz: string | null
+  strasse: string | null
+  hausnummer: string | null
+  plz: string | null
+  ort: string | null
 }
 
 /** PostgREST liefert eingebettete FK-Zeile als Objekt oder 1-Element-Array (je nach Client-Inferenz). */

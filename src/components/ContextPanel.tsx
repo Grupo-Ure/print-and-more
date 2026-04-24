@@ -4,12 +4,13 @@ import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
 import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
 import { kundenName } from '../lib/kunde'
 import { schreibeHistorie } from '../lib/historie'
-import { synchronisiereAuftragsstatus } from '../lib/auftragsStatus'
+import { parseStatusFromRpc } from '../lib/auftragsStatus'
 import {
   type Auftrag,
   type AuftragStatus,
   type KundeJoin,
   type KundeKontaktJoin,
+  type KundeKontaktRow,
   type TeilauftragRow,
 } from '../types/database'
 import type { Datei } from './DateiListe'
@@ -58,6 +59,11 @@ function naechsterNotfallStatus(s: AuftragStatus): AuftragStatus {
 function kundeNameSafe(k: KundeKontaktJoin | null): string {
   if (k == null) return ''
   return kundenName(k as KundeJoin)
+}
+
+function einKundeKontakt(k: KundeKontaktJoin | null): KundeKontaktRow | null {
+  if (k == null) return null
+  return Array.isArray(k) ? (k[0] ?? null) : k
 }
 
 function hatStempelModellVerknuepft(detail: Record<string, unknown>): boolean {
@@ -190,6 +196,13 @@ export function ContextPanel({
   const [stempelBestand, setStempelBestand] = useState<number | null>(null)
   const [kissenBestand, setKissenBestand] = useState<number | null>(null)
   const [dialogProduktionBestand0, setDialogProduktionBestand0] = useState(false)
+  const [verantwortlichAnzeige, setVerantwortlichAnzeige] = useState<string | null>(null)
+
+  useEffect(() => {
+    void supabase.auth.getUser().then(({ data: { user } }) => {
+      setVerantwortlichAnzeige(user?.email?.trim() || user?.id || null)
+    })
+  }, [])
 
   useEffect(() => {
     if (!aktiverTeilauftrag || aktiverTeilauftrag.bereich !== 'STEMPEL') {
@@ -251,6 +264,8 @@ export function ContextPanel({
 
   const teil = aktiverTeilauftrag
   const teilBlock = teil && !teil.storniert
+  const darfAuftragLoeschen = auftrag.status === 'ANGEBOT' || auftrag.status === 'UNVOLLSTAENDIG'
+  const darfAuftragStornieren = auftrag.status !== 'ANGEBOT' && auftrag.status !== 'UNVOLLSTAENDIG'
 
   const handleInBearbeitung = async () => {
     if (busy || auftrag.status !== 'ANGEBOT') return
@@ -265,7 +280,17 @@ export function ContextPanel({
         auftrag_id: auftrag.id,
         ereignisart: 'IN_BEARBEITUNG_GENOMMEN',
       })
-      onAuftragAktualisiert(await ladeAuftrag(auftrag.id))
+      const { data: raw, error: eRpc } = await supabase.rpc('fn_berechne_auftragsstatus', {
+        p_auftrag_id: auftrag.id,
+      })
+      if (eRpc) throw eRpc
+      const neuerStatus = parseStatusFromRpc(raw)
+      const { error: u2 } = await supabase
+        .from('auftraege')
+        .update({ status: neuerStatus })
+        .eq('id', auftrag.id)
+      if (u2) throw u2
+      onAuftragAktualisiert({ ...auftrag, status: neuerStatus })
     } catch (e) {
       console.error(e)
     } finally {
@@ -327,6 +352,35 @@ export function ContextPanel({
     }
   }
 
+  const handleAuftragStornieren = async () => {
+    if (busy) return
+    if (
+      !window.confirm(
+        'Auftrag stornieren? Alle Teilaufträge werden storniert und der Auftrag wird ausgeblendet.'
+      )
+    )
+      return
+    setBusy(true)
+    try {
+      const { error: e1 } = await supabase
+        .from('teilauftraege')
+        .update({ storniert: true } as never)
+        .eq('auftrag_id', auftrag.id)
+      if (e1) throw e1
+      const { error: e2 } = await supabase
+        .from('auftraege')
+        .update({ archiviert: true } as never)
+        .eq('id', auftrag.id)
+      if (e2) throw e2
+      await schreibeHistorie({ auftrag_id: auftrag.id, ereignisart: 'STORNIERT' })
+      onAuftragAktualisiert({ ...auftrag, archiviert: true })
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const handleAuftragLoeschen = async () => {
     if (busy) return
     if (
@@ -348,8 +402,17 @@ export function ContextPanel({
   }
 
   const teilNaechstNachTeilAktion = async () => {
-    const a = await synchronisiereAuftragsstatus(auftrag.id)
-    onAuftragAktualisiert(a)
+    const { data: raw, error: e1 } = await supabase.rpc('fn_berechne_auftragsstatus', {
+      p_auftrag_id: auftrag.id,
+    })
+    if (e1) throw e1
+    const neuerStatus = parseStatusFromRpc(raw)
+    const { error: e2 } = await supabase
+      .from('auftraege')
+      .update({ status: neuerStatus })
+      .eq('id', auftrag.id)
+    if (e2) throw e2
+    onAuftragAktualisiert({ ...auftrag, status: neuerStatus })
   }
 
   const handlePrepressFrei = async () => {
@@ -528,8 +591,7 @@ export function ContextPanel({
         }
       }
       onTeilauftragAktualisiert(data as TeilauftragRow)
-      const a = await synchronisiereAuftragsstatus(auftrag.id)
-      onAuftragAktualisiert(a)
+      await teilNaechstNachTeilAktion()
     } catch (e) {
       console.error(e)
     } finally {
@@ -637,6 +699,7 @@ export function ContextPanel({
         meta: { aktiv } as unknown as Record<string, unknown>,
       })
       onTeilauftragAktualisiert(data as TeilauftragRow)
+      await teilNaechstNachTeilAktion()
     } catch (e) {
       console.error(e)
     } finally {
@@ -692,8 +755,7 @@ export function ContextPanel({
       if (error) throw error
       onTeilauftragEntfernt(teil.id)
       try {
-        const a = await synchronisiereAuftragsstatus(auftrag.id)
-        onAuftragAktualisiert(a)
+        await teilNaechstNachTeilAktion()
       } catch (e) {
         console.error(e)
       }
@@ -713,8 +775,7 @@ export function ContextPanel({
       if (error) throw error
       onTeilauftragEntfernt(teil.id)
       try {
-        const a = await synchronisiereAuftragsstatus(auftrag.id)
-        onAuftragAktualisiert(a)
+        await teilNaechstNachTeilAktion()
       } catch (e) {
         console.error(e)
       }
@@ -761,6 +822,45 @@ export function ContextPanel({
 
   return (
     <div className="cp">
+      {verantwortlichAnzeige && (
+        <p
+          className="cp-hinweis cp-hinweis--komp"
+          style={{ margin: '0 0 10px' }}
+        >
+          Verantwortlich: {verantwortlichAnzeige}
+        </p>
+      )}
+      {(() => {
+        const row = einKundeKontakt(auftragKunde)
+        if (!row) return null
+        const em = row.email?.trim()
+        const tel = row.telefon?.trim()
+        const s = row.strasse?.trim()
+        const h = row.hausnummer?.trim()
+        const p = row.plz?.trim()
+        const o = row.ort?.trim()
+        const zeile1 = [s, h].filter(Boolean).join(' ')
+        const zeile2 = [p, o].filter(Boolean).join(' ')
+        const hatAdr = Boolean(zeile1 || zeile2)
+        if (!em && !tel && !hatAdr) return null
+        return (
+          <div className="cp-sektion">
+            <h2>Kunde</h2>
+            {em ? <p className="cp-hinweis cp-hinweis--komp" style={{ margin: '0 0 4px' }}>{em}</p> : null}
+            {tel ? <p className="cp-hinweis cp-hinweis--komp" style={{ margin: '0 0 4px' }}>{tel}</p> : null}
+            {hatAdr ? (
+              <>
+                {zeile1 ? (
+                  <p className="cp-hinweis cp-hinweis--komp" style={{ margin: '0 0 4px' }}>
+                    {zeile1}
+                  </p>
+                ) : null}
+                {zeile2 ? <p className="cp-hinweis cp-hinweis--komp" style={{ margin: 0 }}>{zeile2}</p> : null}
+              </>
+            ) : null}
+          </div>
+        )
+      })()}
       <div className="cp-sektion">
         <h2>Status</h2>
         <div className="cp-status-komp">
@@ -813,14 +913,26 @@ export function ContextPanel({
           <button type="button" className="cp-btn" disabled={busy} onClick={() => void handleArchiv()}>
             Archivieren
           </button>
-          <button
-            type="button"
-            className="cp-btn cp-btn-rot"
-            disabled={busy}
-            onClick={() => void handleAuftragLoeschen()}
-          >
-            Auftrag löschen
-          </button>
+          {darfAuftragStornieren && (
+            <button
+              type="button"
+              className="cp-btn cp-btn-rot"
+              disabled={busy}
+              onClick={() => void handleAuftragStornieren()}
+            >
+              Auftrag stornieren
+            </button>
+          )}
+          {darfAuftragLoeschen && (
+            <button
+              type="button"
+              className="cp-btn cp-btn-rot"
+              disabled={busy}
+              onClick={() => void handleAuftragLoeschen()}
+            >
+              Auftrag löschen
+            </button>
+          )}
         </div>
 
         {teilBlock && (

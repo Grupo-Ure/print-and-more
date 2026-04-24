@@ -7,6 +7,10 @@ export type Kunde = {
   email: string | null
   telefon: string | null
   notiz: string | null
+  strasse: string | null
+  hausnummer: string | null
+  plz: string | null
+  ort: string | null
 }
 
 function zeileKontakt(k: KundeKontaktJoin | null | undefined): KundeKontaktRow | null {
@@ -24,5 +28,9 @@ export function kontaktJoinZuKunde(k: KundeKontaktJoin | null | undefined): Kund
     email: z.email,
     telefon: z.telefon,
     notiz: z.notiz,
+    strasse: z.strasse ?? null,
+    hausnummer: z.hausnummer ?? null,
+    plz: z.plz ?? null,
+    ort: z.ort ?? null,
   }
 }

@@ -7,6 +7,7 @@ import {
   LFP_AUFKLEBER_MATERIALIEN,
   LFP_FOLIENPLOTT_MATERIALIEN,
 } from '../../config/materialien'
+import { DateInput } from '../DateInput'
 import '../WorkArea.css'
 
 type Props = {
@@ -198,14 +199,16 @@ function NmbStueckzahl(a: BlK & { stack?: boolean }) {
 function SelB(
   a: BlK & { k: string; l?: string; o: { v: string; t: string }[]; stack?: boolean },
 ) {
-  const { k, o, d, fe, f, pruef, patchL, commit, l: lb, stack } = a
+  const { k, o, d, fe, f, pruef, speichDetail, l: lb, stack } = a
   return (
     <BerZeile stack={stack} l={lb ?? k} e={pruef ? f[k] : undefined}>
       <select
         className={'ber-inp' + fe(k)}
         value={String((d as Record<string, string>)[k] ?? '')}
-        onChange={e => patchL({ [k]: e.target.value })}
-        onBlur={commit}
+        onChange={e => {
+          const val = e.target.value
+          speichDetail({ ...d, [k]: val } as LfpDetailJson)
+        }}
       >
         <option value="">—</option>
         {o.map(x => (
@@ -219,7 +222,7 @@ function SelB(
 }
 
 function boolSel(a: BlK & { k: string; l?: string }) {
-  const { k, d, fe, f, pruef, patchL, commit, l: lb } = a
+  const { k, d, fe, f, pruef, speichDetail, l: lb } = a
   const v = (d as Record<string, unknown>)[k]
   const s = v === true ? 'true' : v === false ? 'false' : ''
   return (
@@ -230,9 +233,8 @@ function boolSel(a: BlK & { k: string; l?: string }) {
         onChange={e => {
           const t = e.target.value
           const b: true | false | undefined = t === 'true' ? true : t === 'false' ? false : undefined
-          patchL({ [k]: b } as LfpDetailJson)
+          speichDetail({ ...d, [k]: b } as LfpDetailJson)
         }}
-        onBlur={commit}
       >
         <option value="">—</option>
         <option value="true">Ja</option>
@@ -360,8 +362,7 @@ function Dat(a: BlK & { k: string; l: string }) {
   const iso = v ? (v.length > 10 ? v.slice(0, 10) : v) : ''
   return (
     <BerZeile l={l} e={pruef ? f[k] : undefined}>
-      <input
-        type="date"
+      <DateInput
         className={'ber-inp' + fe(k)}
         value={iso}
         onChange={e => patchL({ [k]: e.target.value })}
@@ -376,7 +377,7 @@ function BesonderheitenUnten(p: BlK) {
 }
 
 function Aufkleber(p: BlK) {
-  const { d, fe, f, pruef, patchL, commit } = p
+  const { d, fe, f, pruef, speichDetail } = p
   return (
     <>
       <div className="ber-grid-2">
@@ -386,11 +387,10 @@ function Aufkleber(p: BlK) {
             value={String((d as Record<string, string>).material ?? '')}
             onChange={e => {
               const v = e.target.value
-              const patch: LfpDetailJson = { material: v }
-              if (v !== '3551') patch.material_3551_variante = null
-              patchL(patch)
+              const next: LfpDetailJson = { ...d, material: v }
+              if (v !== '3551') next.material_3551_variante = null
+              speichDetail(next)
             }}
-            onBlur={commit}
           >
             <option value="">—</option>
             {LFP_AUFKLEBER_MATERIALIEN.map(x => (
@@ -418,9 +418,11 @@ function Aufkleber(p: BlK) {
               className="ber-inp"
               value={String((d as Record<string, string | null>).material_3551_variante ?? '')}
               onChange={e =>
-                patchL({ material_3551_variante: e.target.value || null } as LfpDetailJson)
+                speichDetail({
+                  ...d,
+                  material_3551_variante: e.target.value || null,
+                } as LfpDetailJson)
               }
-              onBlur={commit}
             >
               {LFP_3551_VARIANTEN.map(x => (
                 <option key={String(x.wert)} value={String(x.wert ?? '')}>
@@ -592,7 +594,7 @@ function Folienplott(p: BlK) {
 }
 
 function BannerF(p: BlK) {
-  const { d, fe, f, pruef, patchL, commit, speichDetail } = p
+  const { d, fe, f, pruef, speichDetail } = p
   return (
     <>
       <BerZeile l="Material" e={pruef ? f.material : undefined}>
@@ -611,12 +613,8 @@ function BannerF(p: BlK) {
                 oesen: true,
               })
             } else {
-              patchL({ material: v })
+              speichDetail({ ...d, material: v })
             }
-          }}
-          onBlur={e => {
-            if (e.target.value === 'BAUZAUNBANNER') return
-            commit()
           }}
         >
           <option value="">—</option>
@@ -669,9 +667,8 @@ function RollupF(p: BlK) {
           value={br === 85 || br === 100 ? String(br) : ''}
           onChange={e => {
             const n = e.target.value === '' ? null : parseInt(e.target.value, 10)
-            p.patchL({ breite: n } as LfpDetailJson)
+            p.speichDetail({ ...p.d, breite: n } as LfpDetailJson)
           }}
-          onBlur={p.commit}
         >
           <option value="">—</option>
           <option value="85">85 cm</option>
@@ -684,7 +681,7 @@ function RollupF(p: BlK) {
 }
 
 function FzB(p: BlK) {
-  const { d, fe, f, pruef, patchL, commit } = p
+  const { d, fe, f, pruef, speichDetail } = p
   return (
     <>
       <Txt {...p} k="marke" l="Marke" />
@@ -699,12 +696,16 @@ function FzB(p: BlK) {
           onChange={e => {
             const v = e.target.value
             if (v === 'OHNE') {
-              patchL({ montage: 'OHNE', montagetermin: null, altbeklebung: null } as LfpDetailJson)
+              speichDetail({
+                ...d,
+                montage: 'OHNE',
+                montagetermin: null,
+                altbeklebung: null,
+              } as LfpDetailJson)
             } else {
-              patchL({ montage: v } as LfpDetailJson)
+              speichDetail({ ...d, montage: v } as LfpDetailJson)
             }
           }}
-          onBlur={commit}
         >
           <option value="">—</option>
           <option value="MIT">Mit</option>

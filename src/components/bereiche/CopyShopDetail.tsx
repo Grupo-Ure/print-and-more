@@ -337,7 +337,7 @@ function NmbStueckzahl(a: BlK) {
 }
 
 function ProduktionswegSel(a: BlK) {
-  const { d, fe, f, pruef, patchL, commit } = a
+  const { d, fe, f, pruef, speichDetail } = a
   const v = (d.produktionsweg as string | null | undefined) ?? ''
   return (
     <BerZeile l="Produktionsweg" e={pruef && f.produktionsweg ? f.produktionsweg : undefined}>
@@ -346,9 +346,8 @@ function ProduktionswegSel(a: BlK) {
         value={v}
         onChange={e => {
           const x = e.target.value
-          patchL({ produktionsweg: x === '' ? null : x } as CopyShopDetailJson)
+          speichDetail({ ...d, produktionsweg: x === '' ? null : x } as CopyShopDetailJson)
         }}
-        onBlur={commit}
       >
         <option value="">—</option>
         <option value="COPYSHOP">Copy-Shop</option>
@@ -361,14 +360,15 @@ function ProduktionswegSel(a: BlK) {
 function SelB(
   a: BlK & { k: string; l?: string; o: { v: string; t: string }[] },
 ) {
-  const { k, o, d, fe, f, pruef, patchL, commit, l: lb } = a
+  const { k, o, d, fe, f, pruef, speichDetail, l: lb } = a
   return (
     <BerZeile l={lb ?? k} e={pruef ? f[k] : undefined}>
       <select
         className={'ber-inp' + fe(k)}
         value={String((d as Record<string, string>)[k] ?? '')}
-        onChange={e => patchL({ [k]: e.target.value } as CopyShopDetailJson)}
-        onBlur={commit}
+        onChange={e =>
+          speichDetail({ ...d, [k]: e.target.value } as CopyShopDetailJson)
+        }
       >
         <option value="">—</option>
         {o.map(x => (
@@ -382,7 +382,7 @@ function SelB(
 }
 
 function boolSel(a: BlK & { k: string; l?: string }) {
-  const { k, d, fe, f, pruef, patchL, commit, l: lb } = a
+  const { k, d, fe, f, pruef, speichDetail, l: lb } = a
   const v = (d as Record<string, unknown>)[k]
   const s = v === true ? 'true' : v === false ? 'false' : ''
   return (
@@ -393,9 +393,8 @@ function boolSel(a: BlK & { k: string; l?: string }) {
         onChange={e => {
           const t = e.target.value
           const b: true | false | undefined = t === 'true' ? true : t === 'false' ? false : undefined
-          patchL({ [k]: b } as CopyShopDetailJson)
+          speichDetail({ ...d, [k]: b } as CopyShopDetailJson)
         }}
-        onBlur={commit}
       >
         <option value="">—</option>
         <option value="true">Ja</option>
@@ -802,6 +801,7 @@ function KarteFlyer(p: BlK) {
           pruef={p.pruef}
           patchL={p.patchL}
           commit={p.commit}
+          speichDetail={p.speichDetail}
           kMat="material_cc"
           kSon="material_cc_sonstige"
           label="Material"
@@ -851,6 +851,7 @@ function Falzflyer(p: BlK) {
           pruef={p.pruef}
           patchL={p.patchL}
           commit={p.commit}
+          speichDetail={p.speichDetail}
           kMat="material_cc"
           kSon="material_cc_sonstige"
           label="Material"
@@ -877,8 +878,9 @@ function Broschuere(p: BlK) {
         <select
           className={'ber-inp' + (pruef && f.brosch_quer_cc ? fe('brosch_quer_cc') : fe('orientierung'))}
           value={oStr}
-          onChange={e => p.patchL({ orientierung: e.target.value } as CopyShopDetailJson)}
-          onBlur={p.commit}
+          onChange={e =>
+            p.speichDetail({ ...d, orientierung: e.target.value } as CopyShopDetailJson)
+          }
         >
           <option value="">—</option>
           <option value="HOCHFORMAT">Hochformat</option>
@@ -897,6 +899,7 @@ function Broschuere(p: BlK) {
             pruef={p.pruef}
             patchL={p.patchL}
             commit={p.commit}
+            speichDetail={p.speichDetail}
             kMat="cc_umschlag"
             kSon="cc_umschlag_sonstige"
             label="Umschlag"
@@ -908,6 +911,7 @@ function Broschuere(p: BlK) {
             pruef={p.pruef}
             patchL={p.patchL}
             commit={p.commit}
+            speichDetail={p.speichDetail}
             kMat="cc_inhalt"
             kSon="cc_inhalt_sonstige"
             label="Inhalt"
@@ -1054,7 +1058,7 @@ function BindungFreiMasse(p: BlK) {
 }
 
 function BindungF(p: BlK) {
-  const { d, fe, f, pruef, patchL, commit, speichDetail } = p
+  const { d, fe, f, pruef, speichDetail } = p
   const r = d as Record<string, string>
   const ba = String(r.bindungsart ?? '') as
     | 'WIRE_O'
@@ -1127,10 +1131,9 @@ function BindungF(p: BlK) {
                 format_hoehe: null,
               } as CopyShopDetailJson)
             } else {
-              patchL({ bindungsart: v || null } as CopyShopDetailJson)
+              speichDetail({ ...d, bindungsart: v || null } as CopyShopDetailJson)
             }
           }}
-          onBlur={commit}
         >
           <option value="">—</option>
           <option value="WIRE_O">Wire-O</option>
@@ -1167,7 +1170,6 @@ function BindungF(p: BlK) {
                 speichDetail({ ...d, format: v } as CopyShopDetailJson)
               }
             }}
-            onBlur={commit}
           >
             <option value="">—</option>
             <option value="A5">A5</option>
@@ -1217,7 +1219,7 @@ function FarbeBindung(
     bindungsart: 'WIRE_O' | 'KUNSTSTOFFSPIRALE' | 'SOFTCOVER' | 'HARDCOVER' | ''
   },
 ) {
-  const { bindungsart: ba, d, fe, f, pruef, patchL, commit } = p
+  const { bindungsart: ba, d, fe, f, pruef, speichDetail } = p
   let o: { v: string; t: string }[] = []
   if (ba === 'WIRE_O') {
     o = [
@@ -1241,8 +1243,9 @@ function FarbeBindung(
       <select
         className={'ber-inp' + fe('bindungsart_farbe')}
         value={String((d as Record<string, string>).bindungsart_farbe ?? '')}
-        onChange={e => patchL({ bindungsart_farbe: e.target.value } as CopyShopDetailJson)}
-        onBlur={commit}
+        onChange={e =>
+          speichDetail({ ...d, bindungsart_farbe: e.target.value } as CopyShopDetailJson)
+        }
         disabled={!ba}
       >
         <option value="">—</option>
@@ -1257,7 +1260,7 @@ function FarbeBindung(
 }
 
 function AusdruckF(p: BlK) {
-  const { d, fe, f, pruef, patchL, commit } = p
+  const { d, fe, f, pruef, speichDetail } = p
   const mat = String((d as Record<string, string>).material ?? '')
   return (
     <>
@@ -1278,12 +1281,11 @@ function AusdruckF(p: BlK) {
           onChange={e => {
             const v = e.target.value
             if (v === 'SONSTIGE') {
-              patchL({ material: v } as CopyShopDetailJson)
+              speichDetail({ ...d, material: v } as CopyShopDetailJson)
             } else {
-              patchL({ material: v, material_sonstige: null } as CopyShopDetailJson)
+              speichDetail({ ...d, material: v, material_sonstige: null } as CopyShopDetailJson)
             }
           }}
-          onBlur={commit}
         >
           <option value="">—</option>
           {AUSDRUCK_MATERIALIEN.map(x => (

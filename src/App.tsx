@@ -10,9 +10,15 @@ import { NeuerAuftragDialog, type NeuerAuftragInsertRow } from './components/Neu
 import { KundeDialog } from './components/KundeDialog'
 import { kontaktJoinZuKunde } from './lib/kunden'
 import type { Kunde } from './lib/kunden'
-import type { Auftrag, KundeKontaktJoin, TeilauftragRow } from './types/database'
+import type { Auftrag, AuftragStatus, KundeKontaktJoin, TeilauftragRow } from './types/database'
 import type { Datei } from './components/DateiListe'
 import { BestandspflegeSeite } from './pages/BestandspflegeSeite'
+
+const ORDER_LIST_IN_PLACE_INITIAL: { tick: number; id: string; status: AuftragStatus } = {
+  tick: 0,
+  id: '',
+  status: 'ANGEBOT',
+}
 
 function HauptApp() {
   const [session, setSession] = useState<Session | null>(null)
@@ -24,6 +30,7 @@ function HauptApp() {
   const [auftragDateien, setAuftragDateien] = useState<Datei[]>([])
   const [kontextAktualisiert, setKontextAktualisiert] = useState(0)
   const [orderListKey, setOrderListKey] = useState(0)
+  const [orderInPlace, setOrderInPlace] = useState(ORDER_LIST_IN_PLACE_INITIAL)
   const [neuerAuftragOffen, setNeuerAuftragOffen] = useState(false)
   const [kundeDialog, setKundeDialog] = useState<{ offen: boolean; k: Kunde | null }>({
     offen: false,
@@ -70,6 +77,9 @@ function HauptApp() {
     if (a.archiviert) {
       setAktiverAuftragId(null)
       setOrderListKey(k => k + 1)
+      setOrderInPlace(ORDER_LIST_IN_PLACE_INITIAL)
+    } else {
+      setOrderInPlace(p => ({ tick: p.tick + 1, id: a.id, status: a.status }))
     }
     setKontextAktualisiert(x => x + 1)
   }, [])
@@ -78,6 +88,7 @@ function HauptApp() {
     setAktiverAuftragId(null)
     setAktiverTeilauftrag(null)
     setOrderListKey(k => k + 1)
+    setOrderInPlace(ORDER_LIST_IN_PLACE_INITIAL)
     setKontextAktualisiert(x => x + 1)
   }, [])
 
@@ -94,6 +105,7 @@ function HauptApp() {
   const handleKundeGespeichert = useCallback((_: Kunde) => {
     setKundeDialog({ offen: false, k: null })
     setOrderListKey(k => k + 1)
+    setOrderInPlace(ORDER_LIST_IN_PLACE_INITIAL)
     setKontextAktualisiert(x => x + 1)
   }, [])
 
@@ -101,6 +113,7 @@ function HauptApp() {
     setNeuerAuftragOffen(false)
     setAktiverAuftragId(a.id)
     setOrderListKey(k => k + 1)
+    setOrderInPlace(ORDER_LIST_IN_PLACE_INITIAL)
   }, [])
 
   const openKundeBearbeiten = useCallback(() => {
@@ -128,6 +141,7 @@ function HauptApp() {
       >
         <OrderList
           key={orderListKey}
+          orderInPlace={orderInPlace}
           aktiverAuftragId={aktiverAuftragId}
           onAuftragWaehlen={id => setAktiverAuftragId(id)}
           onNeuerAuftrag={() => setNeuerAuftragOffen(true)}
@@ -141,6 +155,7 @@ function HauptApp() {
           onAuftragKundeGeladen={onAuftragKundeGeladen}
           onAuftragVomArbeitsbereich={onAuftragVomArbeitsbereich}
           onAuftragDateienGeaendert={onAuftragDateienGeaendert}
+          onAuftragAktualisiert={handleAuftragAktualisiert}
           onKundeBearbeiten={openKundeBearbeiten}
         />
       </div>

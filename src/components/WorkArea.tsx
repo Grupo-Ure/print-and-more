@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabase'
 import { kundenName } from '../lib/kunde'
+import { synchronisiereAuftragsstatus } from '../lib/auftragsStatus'
 import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
 import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
 import {
@@ -14,6 +15,7 @@ import {
   type TeilauftragRow,
 } from '../types/database'
 import { AddTeilauftragOverlay } from './AddTeilauftragOverlay'
+import { DateInput } from './DateInput'
 import { DateiListe, type Datei } from './DateiListe'
 import { TeilauftragDetail } from './TeilauftragDetail'
 import './WorkArea.css'
@@ -75,6 +77,7 @@ type Props = {
   onAuftragKundeGeladen: (k: KundeKontaktJoin | null) => void
   onAuftragVomArbeitsbereich: (a: Auftrag | null) => void
   onAuftragDateienGeaendert: (d: Datei[]) => void
+  onAuftragAktualisiert: (a: Auftrag) => void
   onKundeBearbeiten: () => void
 }
 
@@ -85,6 +88,7 @@ export function WorkArea({
   onAuftragKundeGeladen,
   onAuftragVomArbeitsbereich,
   onAuftragDateienGeaendert,
+  onAuftragAktualisiert,
   onKundeBearbeiten,
 }: Props) {
   const [auftrag, setAuftrag] = useState<AuftragDetailRow | null>(null)
@@ -239,6 +243,22 @@ export function WorkArea({
     return sichtbareTeile.find(t => t.id === aktiverTeilauftragId) ?? null
   }, [sichtbareTeile, aktiverTeilauftragId])
 
+  const handhabeTeilAktualisiert = useCallback(
+    (row: TeilauftragRow) => {
+      setTeilauftraege(list => list.map(t => (t.id === row.id ? row : t)))
+      if (!auftrag) return
+      void (async () => {
+        try {
+          const a = await synchronisiereAuftragsstatus(auftrag.id)
+          onAuftragAktualisiert(a)
+        } catch (e) {
+          console.error(e)
+        }
+      })()
+    },
+    [auftrag, onAuftragAktualisiert]
+  )
+
   useEffect(() => {
     if (aktiverAuftragId == null) {
       onAuftragVomArbeitsbereich(null)
@@ -265,18 +285,36 @@ export function WorkArea({
   ])
 
   const handleNeuerTeilauftrag = async (bereich: Bereich) => {
-    if (!aktiverAuftragId) return
+    if (!aktiverAuftragId || !auftrag) return
     setSpeichert(true)
     setFehler(null)
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user?.id) {
+      setFehler('Nicht angemeldet')
+      setSpeichert(false)
+      return
+    }
+    const heute = new Date()
+    const terminIso = auftrag.termin
+      ? auftrag.termin.length > 10
+        ? auftrag.termin.slice(0, 10)
+        : auftrag.termin
+      : `${heute.getFullYear()}-${String(heute.getMonth() + 1).padStart(2, '0')}-${String(heute.getDate()).padStart(2, '0')}`
+    const priorVal = (auftrag.prioritaet && auftrag.prioritaet.trim()) || 'NORMAL'
+    const lief = auftrag.lieferung ?? 'ABHOLUNG'
     const { data, error } = await supabase
       .from('teilauftraege')
       .insert({
         auftrag_id: aktiverAuftragId,
         bereich,
         status: 'UNVOLLSTAENDIG',
-        prioritaet: 'NORMAL',
+        prioritaet: priorVal,
         detail: {} as never,
-        lieferung: null,
+        termin: terminIso,
+        lieferung: lief,
+        verantwortlicher_id: user.id,
         notfall_aktiv: false,
         notfall_begruendung: null,
         storniert: false,
@@ -381,8 +419,7 @@ export function WorkArea({
         <div className="wa-kopf-metas">
           <label className="wa-inline-pill" title="Termin">
             <span aria-hidden>📅</span>
-            <input
-              type="date"
+            <DateInput
               className="wa-inline-date"
               value={kopfTermin}
               onChange={e => setKopfTermin(e.target.value)}
@@ -493,11 +530,11 @@ export function WorkArea({
           <TeilauftragDetail
             teil={aktiverTeil}
             auftragTermin={auftrag.termin}
+            auftragLieferung={auftrag.lieferung}
+            auftragPrioritaet={auftrag.prioritaet}
             auftragKunde={auftrag.kunden}
             auftragDateien={dateien}
-            onAktualisiert={row =>
-              setTeilauftraege(list => list.map(t => (t.id === row.id ? row : t)))
-            }
+            onAktualisiert={handhabeTeilAktualisiert}
           />
         ) : (
           <p className="wa-hint">Noch keine Teilaufträge. Nutzen Sie +, um einen Bereich anzulegen.</p>

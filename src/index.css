@@ -1,3 +1,5 @@
+html { font-size: 90%; }
+
 :root {
   /* Abstände (App-Shell) */
   --spacing-xs: 4px;

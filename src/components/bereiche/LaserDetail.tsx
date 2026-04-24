@@ -191,7 +191,7 @@ function NmbStueckzahl(a: BlK) {
 }
 
 function boolSel(a: BlK & { k: string; l: string }) {
-  const { k, d, fe, f, pruef, patchL, commit, l: lb } = a
+  const { k, d, fe, f, pruef, speichDetail, l: lb } = a
   const v = (d as Record<string, unknown>)[k]
   const s = v === true ? 'true' : v === false ? 'false' : ''
   return (
@@ -202,9 +202,8 @@ function boolSel(a: BlK & { k: string; l: string }) {
         onChange={e => {
           const t = e.target.value
           const b: true | false | undefined = t === 'true' ? true : t === 'false' ? false : undefined
-          patchL({ [k]: b } as LaserDetailJson)
+          speichDetail({ ...d, [k]: b } as LaserDetailJson)
         }}
-        onBlur={commit}
       >
         <option value="">—</option>
         <option value="true">Ja</option>
@@ -313,12 +312,12 @@ function SchildGruppe({ p, schildTyp }: { p: BlK; schildTyp: string }) {
               value={m}
               onChange={e => {
                 const v = e.target.value
-                p.patchL({
+                p.speichDetail({
+                  ...p.d,
                   material: v || null,
                   material_sonstige: v === 'SONSTIGE' ? d.material_sonstige : null,
                 } as LaserDetailJson)
               }}
-              onBlur={p.commit}
             >
               <option value="">—</option>
               {LASER_MAT_SCHILD.map(fv => (
@@ -362,8 +361,9 @@ function GeschenkGruppe({ p }: { p: BlK }) {
           <select
             className={'ber-inp' + p.fe('herkunft')}
             value={d.herkunft ?? ''}
-            onChange={e => p.patchL({ herkunft: e.target.value || null } as LaserDetailJson)}
-            onBlur={p.commit}
+            onChange={e =>
+              p.speichDetail({ ...p.d, herkunft: e.target.value || null } as LaserDetailJson)
+            }
           >
             <option value="">—</option>
             {LASER_HERKUNFT.map(hk => (
@@ -392,8 +392,9 @@ function SonstigeLaserGruppe({ p }: { p: BlK }) {
           <select
             className={'ber-inp' + p.fe('herkunft')}
             value={d.herkunft ?? ''}
-            onChange={e => p.patchL({ herkunft: e.target.value || null } as LaserDetailJson)}
-            onBlur={p.commit}
+            onChange={e =>
+              p.speichDetail({ ...p.d, herkunft: e.target.value || null } as LaserDetailJson)
+            }
           >
             <option value="">—</option>
             {LASER_HERKUNFT.map(hk => (

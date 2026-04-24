@@ -26,19 +26,11 @@ type Props = {
   onErfolg: (a: NeuerAuftragInsertRow) => void
 }
 
-function toOptionalDate(v: string): string | null {
-  if (!v.trim()) return null
-  return v
-}
-
 export function NeuerAuftragDialog({ offen, onSchliessen, onErfolg }: Props) {
   const [gewaehlterKunde, setGewaehlterKunde] = useState<Kunde | null>(null)
   const [suchBegr, setSuchBegr] = useState('')
   const [suchTreffer, setSuchTreffer] = useState<Kunde[]>([])
   const [suchLaden, setSuchLaden] = useState(false)
-  const [termin, setTermin] = useState('')
-  const [lieferung, setLieferung] = useState<LieferungWahl | ''>('')
-  const [prioritaet, setPrioritaet] = useState<'NORMAL' | 'HOCH'>('NORMAL')
   const [anlegenLaeuft, setAnlegenLaeuft] = useState(false)
   const [fehler, setFehler] = useState<string | null>(null)
   const [kundeSubDialog, setKundeSubDialog] = useState<'neu' | 'bearbeiten' | null>(null)
@@ -51,9 +43,6 @@ export function NeuerAuftragDialog({ offen, onSchliessen, onErfolg }: Props) {
     setGewaehlterKunde(null)
     setSuchBegr('')
     setSuchTreffer([])
-    setTermin('')
-    setLieferung('')
-    setPrioritaet('NORMAL')
     setFehler(null)
     setKundeSubDialog(null)
     setKundeFuerFormular(null)
@@ -68,7 +57,7 @@ export function NeuerAuftragDialog({ offen, onSchliessen, onErfolg }: Props) {
     setSuchLaden(true)
     const { data, error } = await supabase
       .from('kunden')
-      .select('id, name, email, telefon')
+      .select('id, name, email, telefon, notiz, strasse, hausnummer, plz, ort')
       .ilike('name', `%${t}%`)
       .eq('archiviert', false)
       .order('name')
@@ -79,16 +68,8 @@ export function NeuerAuftragDialog({ offen, onSchliessen, onErfolg }: Props) {
       setSuchTreffer([])
       return
     }
-    const rows = (data ?? []) as { id: string; name: string; email: string | null; telefon: string | null }[]
-    setSuchTreffer(
-      rows.map(r => ({
-        id: r.id,
-        name: r.name,
-        email: r.email,
-        telefon: r.telefon,
-        notiz: null,
-      }))
-    )
+    const rows = (data ?? []) as Kunde[]
+    setSuchTreffer(rows)
   }, [])
 
   useEffect(() => {
@@ -104,7 +85,7 @@ export function NeuerAuftragDialog({ offen, onSchliessen, onErfolg }: Props) {
     setKundeFuerBearbLaeuft(true)
     const { data, error } = await supabase
       .from('kunden')
-      .select('id, name, email, telefon, notiz')
+      .select('id, name, email, telefon, notiz, strasse, hausnummer, plz, ort')
       .eq('id', gewaehlterKunde.id)
       .single()
     setKundeFuerBearbLaeuft(false)
@@ -128,16 +109,14 @@ export function NeuerAuftragDialog({ offen, onSchliessen, onErfolg }: Props) {
     if (!gewaehlterKunde) return
     setFehler(null)
     setAnlegenLaeuft(true)
-    const t = toOptionalDate(termin)
-    const l = lieferung === '' ? null : (lieferung as LieferungWahl)
     const { data, error } = await supabase
       .from('auftraege')
       .insert({
         kunde_id: gewaehlterKunde.id,
         status: 'ANGEBOT',
-        termin: t,
-        lieferung: l,
-        prioritaet,
+        termin: null,
+        lieferung: 'ABHOLUNG',
+        prioritaet: 'NORMAL',
       } as never)
       .select(
         'id, auftragsnummer, status, erstellt_am, kunde_id, termin, lieferung, prioritaet, notfall_aktiv, archiviert, erp_exportiert'
@@ -167,7 +146,7 @@ export function NeuerAuftragDialog({ offen, onSchliessen, onErfolg }: Props) {
           )}
 
           <h4 className="ber-h3" style={{ marginTop: 0, fontSize: '0.8rem' }}>
-            Schritt 1: Kunde
+            Kunde
           </h4>
           {gewaehlterKunde == null && (
             <>
@@ -256,55 +235,6 @@ export function NeuerAuftragDialog({ offen, onSchliessen, onErfolg }: Props) {
                 </div>
               </div>
             </div>
-          )}
-
-          {gewaehlterKunde && (
-            <>
-              <h4 className="ber-h3" style={{ fontSize: '0.8rem' }}>
-                Schritt 2: Auftragskopf
-              </h4>
-              <div className="ber-zeile">
-                <span className="ber-lbl">Termin</span>
-                <div>
-                  <input
-                    type="date"
-                    className="ber-inp"
-                    value={termin}
-                    onChange={e => setTermin(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="ber-zeile">
-                <span className="ber-lbl">Lieferung</span>
-                <div>
-                  <select
-                    className="ber-inp"
-                    value={lieferung}
-                    onChange={e => {
-                      const v = e.target.value
-                      setLieferung(v === '' ? '' : (v as LieferungWahl))
-                    }}
-                  >
-                    <option value="">—</option>
-                    <option value="ABHOLUNG">Abholung</option>
-                    <option value="VERSAND">Versand</option>
-                  </select>
-                </div>
-              </div>
-              <div className="ber-zeile">
-                <span className="ber-lbl">Priorität *</span>
-                <div>
-                  <select
-                    className="ber-inp"
-                    value={prioritaet}
-                    onChange={e => setPrioritaet(e.target.value as 'NORMAL' | 'HOCH')}
-                  >
-                    <option value="NORMAL">Normal</option>
-                    <option value="HOCH">Hoch</option>
-                  </select>
-                </div>
-              </div>
-            </>
           )}
 
           <div className="cp-modal-bar" style={{ marginTop: 16 }}>

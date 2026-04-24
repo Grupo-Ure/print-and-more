@@ -8,6 +8,7 @@ import { LFP_TEILTYP_ANZEIGE } from '../types/lfp'
 import { COPY_SHOP_TYPS_ANZEIGE } from '../types/copyshop'
 import { STEMPEL_TYP_ANZEIGE } from '../types/stempel'
 import { LASER_TYP_ANZEIGE } from '../types/laser'
+import { DateInput } from './DateInput'
 
 type Props = {
   auftrag: Auftrag
@@ -223,8 +224,7 @@ export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbreche
 
             <div style={{ marginTop: 10 }}>
               <p className="cp-hinweis">Neuer Termin (optional)</p>
-              <input
-                type="date"
+              <DateInput
                 className="cp-select"
                 value={terminNeu}
                 onChange={e => setTerminNeu(e.target.value)}

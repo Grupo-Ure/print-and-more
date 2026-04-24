@@ -9,12 +9,18 @@ type Props = {
   onAbbrechen: () => void
 }
 
-function validiere(name: string, email: string, telefon: string): string | null {
-  const n = name.trim()
-  if (!n) return 'Name und mind. E-Mail oder Telefon sind erforderlich'
-  if (!email.trim() && !telefon.trim()) return 'Name und mind. E-Mail oder Telefon sind erforderlich'
+function hatAdressdaten(k: Kunde | null | undefined): boolean {
+  if (k == null) return false
+  return [k.strasse, k.hausnummer, k.plz, k.ort].some(s => s != null && String(s).trim() !== '')
+}
+
+function validiere(name: string): string | null {
+  if (!name.trim()) return 'Name ist erforderlich'
   return null
 }
+
+const KUNDEN_SPALTEN =
+  'id, name, email, telefon, notiz, strasse, hausnummer, plz, ort' as const
 
 export function KundeDialog({ kunde, onGespeichert, onAbbrechen }: Props) {
   const istBearbeiten = kunde != null
@@ -22,6 +28,11 @@ export function KundeDialog({ kunde, onGespeichert, onAbbrechen }: Props) {
   const [email, setEmail] = useState(kunde?.email ?? '')
   const [telefon, setTelefon] = useState(kunde?.telefon ?? '')
   const [notiz, setNotiz] = useState(kunde?.notiz ?? '')
+  const [strasse, setStrasse] = useState(kunde?.strasse ?? '')
+  const [hausnummer, setHausnummer] = useState(kunde?.hausnummer ?? '')
+  const [plz, setPlz] = useState(kunde?.plz ?? '')
+  const [ort, setOrt] = useState(kunde?.ort ?? '')
+  const [adresseAufgeklappt, setAdresseAufgeklappt] = useState(() => hatAdressdaten(kunde))
   const [fehler, setFehler] = useState<string | null>(null)
   const [speichert, setSpeichert] = useState(false)
 
@@ -30,11 +41,16 @@ export function KundeDialog({ kunde, onGespeichert, onAbbrechen }: Props) {
     setEmail(kunde?.email ?? '')
     setTelefon(kunde?.telefon ?? '')
     setNotiz(kunde?.notiz ?? '')
+    setStrasse(kunde?.strasse ?? '')
+    setHausnummer(kunde?.hausnummer ?? '')
+    setPlz(kunde?.plz ?? '')
+    setOrt(kunde?.ort ?? '')
+    setAdresseAufgeklappt(hatAdressdaten(kunde))
     setFehler(null)
   }, [kunde])
 
   const speichern = async () => {
-    const v = validiere(name, email, telefon)
+    const v = validiere(name)
     if (v) {
       setFehler(v)
       return
@@ -46,13 +62,17 @@ export function KundeDialog({ kunde, onGespeichert, onAbbrechen }: Props) {
       email: email.trim() || null,
       telefon: telefon.trim() || null,
       notiz: notiz.trim() || null,
+      strasse: strasse.trim() || null,
+      hausnummer: hausnummer.trim() || null,
+      plz: plz.trim() || null,
+      ort: ort.trim() || null,
     }
     if (istBearbeiten) {
       const { data, error } = await supabase
         .from('kunden')
         .update(payload)
         .eq('id', kunde.id)
-        .select('id, name, email, telefon, notiz')
+        .select(KUNDEN_SPALTEN)
         .single()
       setSpeichert(false)
       if (error) {
@@ -62,7 +82,11 @@ export function KundeDialog({ kunde, onGespeichert, onAbbrechen }: Props) {
       }
       if (data) onGespeichert(data as Kunde)
     } else {
-      const { data, error } = await supabase.from('kunden').insert(payload).select('id, name, email, telefon, notiz').single()
+      const { data, error } = await supabase
+        .from('kunden')
+        .insert(payload)
+        .select(KUNDEN_SPALTEN)
+        .single()
       setSpeichert(false)
       if (error) {
         console.error(error)
@@ -123,7 +147,63 @@ export function KundeDialog({ kunde, onGespeichert, onAbbrechen }: Props) {
           Notiz
         </label>
         <textarea className="cp-textarea" rows={3} value={notiz} onChange={e => setNotiz(e.target.value)} />
-        <div className="cp-modal-bar">
+
+        <div style={{ marginTop: 12, marginBottom: 6 }}>
+          <button
+            type="button"
+            className="cp-btn cp-btn-grau"
+            style={{ width: '100%', textAlign: 'left', fontWeight: 500 }}
+            onClick={() => setAdresseAufgeklappt(o => !o)}
+          >
+            {adresseAufgeklappt ? 'Adresse ausblenden ▴' : 'Adresse hinzufügen ▾'}
+          </button>
+        </div>
+        {adresseAufgeklappt && (
+          <div style={{ marginBottom: 10 }}>
+            <label className="cp-hinweis" style={{ display: 'block', marginBottom: 4 }}>
+              Straße
+            </label>
+            <input
+              type="text"
+              className="cp-textarea"
+              style={{ marginBottom: 8, minHeight: 0 }}
+              value={strasse}
+              onChange={e => setStrasse(e.target.value)}
+            />
+            <label className="cp-hinweis" style={{ display: 'block', marginBottom: 4 }}>
+              Hausnummer
+            </label>
+            <input
+              type="text"
+              className="cp-textarea"
+              style={{ marginBottom: 8, minHeight: 0 }}
+              value={hausnummer}
+              onChange={e => setHausnummer(e.target.value)}
+            />
+            <label className="cp-hinweis" style={{ display: 'block', marginBottom: 4 }}>
+              PLZ
+            </label>
+            <input
+              type="text"
+              className="cp-textarea"
+              style={{ marginBottom: 8, minHeight: 0 }}
+              value={plz}
+              onChange={e => setPlz(e.target.value)}
+            />
+            <label className="cp-hinweis" style={{ display: 'block', marginBottom: 4 }}>
+              Ort
+            </label>
+            <input
+              type="text"
+              className="cp-textarea"
+              style={{ marginBottom: 0, minHeight: 0 }}
+              value={ort}
+              onChange={e => setOrt(e.target.value)}
+            />
+          </div>
+        )}
+
+        <div className="cp-modal-bar" style={{ marginTop: 14 }}>
           <button type="button" className="cp-btn" onClick={onAbbrechen} disabled={speichert}>
             Abbrechen
           </button>

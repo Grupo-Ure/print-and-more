@@ -10,10 +10,14 @@ import {
   type AuftragStatus,
   type TeilauftragRow,
 } from '../types/database'
+import { DateInput } from './DateInput'
 import { DuplizierenDialog } from './DuplizierenDialog'
 import './OrderList.css'
 
+type OrderInPlace = { tick: number; id: string; status: AuftragStatus }
+
 type Props = {
+  orderInPlace: OrderInPlace
   aktiverAuftragId: string | null
   onAuftragWaehlen: (id: string) => void
   onNeuerAuftrag: () => void
@@ -28,7 +32,7 @@ const STATUS_ORDER: AuftragStatus[] = [
 ]
 
 const DEFAULT_STATUS_TOGGLES: Record<AuftragStatus, boolean> = {
-  ANGEBOT: false,
+  ANGEBOT: true,
   UNVOLLSTAENDIG: true,
   PREPRESS_BEREIT: true,
   PRODUKTION_BEREIT: true,
@@ -135,7 +139,7 @@ function statusLabel(s: AuftragStatus): string {
   return m[s] ?? s
 }
 
-export function OrderList({ aktiverAuftragId, onAuftragWaehlen, onNeuerAuftrag }: Props) {
+export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, onNeuerAuftrag }: Props) {
   const [filter, setFilter] = useState<FilterState>(() => defaultFilterState())
   const { searchInput, searchDebounced, statusAlle, statusToggles, terminVon, terminBis, annVon, annBis, bereich } =
     filter
@@ -223,6 +227,13 @@ export function OrderList({ aktiverAuftragId, onAuftragWaehlen, onNeuerAuftrag }
   useEffect(() => {
     ladeAuftraege()
   }, [ladeAuftraege])
+
+  useEffect(() => {
+    if (orderInPlace.tick === 0) return
+    setQuelle(q =>
+      q.map(r => (r.id === orderInPlace.id ? { ...r, status: orderInPlace.status } : r))
+    )
+  }, [orderInPlace])
 
   const auftraege = useMemo(() => {
     if (bereich === 'Alle') return quelle
@@ -323,107 +334,100 @@ export function OrderList({ aktiverAuftragId, onAuftragWaehlen, onNeuerAuftrag }
 
         {filterPopOffen && (
           <div className="ol-filter-pop">
-            <details>
-              <summary>Filter-Optionen</summary>
-              <div className="ol-filter-inhalt">
-                <div className="ol-filter-row">
-                  <span className="ol-label">Status</span>
-                  <div className="ol-status-row">
-                    <label className="ol-cb">
-                      <input
-                        type="checkbox"
-                        checked={statusAlle}
-                        onChange={e => {
-                          const c = e.target.checked
-                          setFilter(f => ({ ...f, statusAlle: c }))
-                        }}
-                      />
-                      Alle
-                    </label>
-                    {!statusAlle &&
-                      STATUS_ORDER.map(s => (
-                        <label key={s} className="ol-cb" title={s}>
-                          <input
-                            type="checkbox"
-                            checked={statusToggles[s]}
-                            onChange={e => {
-                              const c = e.target.checked
-                              setFilter(f => ({
-                                ...f,
-                                statusAlle: false,
-                                statusToggles: { ...f.statusToggles, [s]: c },
-                              }))
-                            }}
-                          />
-                          {STATUS_CBX_KURZ[s]}
-                        </label>
-                      ))}
-                  </div>
-                </div>
-
-                <div className="ol-filter-row">
-                  <label className="ol-label" htmlFor="ol-bereich">
-                    Bereich
+            <div className="ol-filter-inhalt">
+              <div className="ol-filter-row">
+                <span className="ol-label">Status</span>
+                <div className="ol-status-row">
+                  <label className="ol-cb">
+                    <input
+                      type="checkbox"
+                      checked={statusAlle}
+                      onChange={e => {
+                        const c = e.target.checked
+                        setFilter(f => ({ ...f, statusAlle: c }))
+                      }}
+                    />
+                    Alle
                   </label>
-                  <select
-                    id="ol-bereich"
-                    className="input-compact"
-                    value={bereich}
-                    onChange={e =>
-                      setFilter(f => ({ ...f, bereich: e.target.value as FilterState['bereich'] }))
-                    }
-                    style={{ width: '100%', boxSizing: 'border-box' }}
-                  >
-                    <option value="Alle">Alle</option>
-                    {TEILAUFTRAG_BEREICHE.map(b => (
-                      <option key={b} value={b}>
-                        {TEILAUFTRAG_BEREICH_ANZEIGE[b]}
-                      </option>
+                  {!statusAlle &&
+                    STATUS_ORDER.map(s => (
+                      <label key={s} className="ol-cb" title={s}>
+                        <input
+                          type="checkbox"
+                          checked={statusToggles[s]}
+                          onChange={e => {
+                            const c = e.target.checked
+                            setFilter(f => ({
+                              ...f,
+                              statusAlle: false,
+                              statusToggles: { ...f.statusToggles, [s]: c },
+                            }))
+                          }}
+                        />
+                        {STATUS_CBX_KURZ[s]}
+                      </label>
                     ))}
-                  </select>
                 </div>
-
-                <div className="ol-filter-row">
-                  <span className="ol-label">Termin (von / bis)</span>
-                  <div className="ol-filter-dates">
-                    <input
-                      className="input-compact"
-                      type="date"
-                      value={terminVon}
-                      onChange={e => setFilter(f => ({ ...f, terminVon: e.target.value }))}
-                    />
-                    <input
-                      className="input-compact"
-                      type="date"
-                      value={terminBis}
-                      onChange={e => setFilter(f => ({ ...f, terminBis: e.target.value }))}
-                    />
-                  </div>
-                </div>
-
-                <div className="ol-filter-row">
-                  <span className="ol-label">Annahme (von / bis)</span>
-                  <div className="ol-filter-dates">
-                    <input
-                      className="input-compact"
-                      type="date"
-                      value={annVon}
-                      onChange={e => setFilter(f => ({ ...f, annVon: e.target.value }))}
-                    />
-                    <input
-                      className="input-compact"
-                      type="date"
-                      value={annBis}
-                      onChange={e => setFilter(f => ({ ...f, annBis: e.target.value }))}
-                    />
-                  </div>
-                </div>
-
-                <button type="button" className="ol-filter-reset" onClick={filterZuruecksetzen}>
-                  Filter zurücksetzen
-                </button>
               </div>
-            </details>
+
+              <div className="ol-filter-row">
+                <label className="ol-label" htmlFor="ol-bereich">
+                  Bereich
+                </label>
+                <select
+                  id="ol-bereich"
+                  className="input-compact"
+                  value={bereich}
+                  onChange={e =>
+                    setFilter(f => ({ ...f, bereich: e.target.value as FilterState['bereich'] }))
+                  }
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                >
+                  <option value="Alle">Alle</option>
+                  {TEILAUFTRAG_BEREICHE.map(b => (
+                    <option key={b} value={b}>
+                      {TEILAUFTRAG_BEREICH_ANZEIGE[b]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="ol-filter-row">
+                <span className="ol-label">Termin (von / bis)</span>
+                <div className="ol-filter-dates">
+                  <DateInput
+                    className="input-compact"
+                    value={terminVon}
+                    onChange={e => setFilter(f => ({ ...f, terminVon: e.target.value }))}
+                  />
+                  <DateInput
+                    className="input-compact"
+                    value={terminBis}
+                    onChange={e => setFilter(f => ({ ...f, terminBis: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="ol-filter-row">
+                <span className="ol-label">Annahme (von / bis)</span>
+                <div className="ol-filter-dates">
+                  <DateInput
+                    className="input-compact"
+                    value={annVon}
+                    onChange={e => setFilter(f => ({ ...f, annVon: e.target.value }))}
+                  />
+                  <DateInput
+                    className="input-compact"
+                    value={annBis}
+                    onChange={e => setFilter(f => ({ ...f, annBis: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <button type="button" className="ol-filter-reset" onClick={filterZuruecksetzen}>
+                Filter zurücksetzen
+              </button>
+            </div>
           </div>
         )}
       </div>

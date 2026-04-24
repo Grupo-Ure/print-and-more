@@ -76,8 +76,9 @@ export function MaterialOffset(p: MatOffProps) {
             <select
               className={'ber-inp' + fe('offset_grammatur')}
               value={String(r.offset_grammatur ?? '')}
-              onChange={e => patchL({ offset_grammatur: e.target.value } as CopyShopDetailJson)}
-              onBlur={commit}
+              onChange={e =>
+                speichDetail({ ...d, offset_grammatur: e.target.value } as CopyShopDetailJson)
+              }
             >
               <option value="">—</option>
               {(['115G', '135G', '170G', '250G', '300G', '350G', '400G'] as const).map(x => (
@@ -94,8 +95,9 @@ export function MaterialOffset(p: MatOffProps) {
             <select
               className={'ber-inp' + fe('offset_oberflaeche')}
               value={String(r.offset_oberflaeche ?? '')}
-              onChange={e => patchL({ offset_oberflaeche: e.target.value } as CopyShopDetailJson)}
-              onBlur={commit}
+              onChange={e =>
+                speichDetail({ ...d, offset_oberflaeche: e.target.value } as CopyShopDetailJson)
+              }
             >
               <option value="">—</option>
               <option value="MATT">Matt</option>
@@ -113,8 +115,9 @@ export function MaterialOffset(p: MatOffProps) {
           <select
             className={'ber-inp' + fe('offset_grammatur')}
             value={String(r.offset_grammatur ?? '')}
-            onChange={e => patchL({ offset_grammatur: e.target.value } as CopyShopDetailJson)}
-            onBlur={commit}
+            onChange={e =>
+              speichDetail({ ...d, offset_grammatur: e.target.value } as CopyShopDetailJson)
+            }
           >
             <option value="">—</option>
             {(['80G', '90G', '100G', '120G', '150G', '250G'] as const).map(x => (
@@ -163,8 +166,9 @@ export function MaterialOffset(p: MatOffProps) {
                 <select
                   className={'ber-inp' + fe('kaschierung')}
                   value={String(r.kaschierung ?? '')}
-                  onChange={e => patchL({ kaschierung: e.target.value } as CopyShopDetailJson)}
-                  onBlur={commit}
+                  onChange={e =>
+                    speichDetail({ ...d, kaschierung: e.target.value } as CopyShopDetailJson)
+                  }
                 >
                   <option value="">—</option>
                   <option value="MATT">Matt</option>
@@ -178,8 +182,9 @@ export function MaterialOffset(p: MatOffProps) {
                 <select
                   className={'ber-inp' + fe('kaschierung_seiten')}
                   value={String(r.kaschierung_seiten ?? '')}
-                  onChange={e => patchL({ kaschierung_seiten: e.target.value } as CopyShopDetailJson)}
-                  onBlur={commit}
+                  onChange={e =>
+                    speichDetail({ ...d, kaschierung_seiten: e.target.value } as CopyShopDetailJson)
+                  }
                 >
                   <option value="">—</option>
                   <option value="EINSEITIG">Einseitig</option>
@@ -196,8 +201,9 @@ export function MaterialOffset(p: MatOffProps) {
               <select
                 className={'ber-inp' + fe('recycling_grammatur')}
                 value={String(r.recycling_grammatur ?? '')}
-                onChange={e => patchL({ recycling_grammatur: e.target.value } as CopyShopDetailJson)}
-                onBlur={commit}
+                onChange={e =>
+                  speichDetail({ ...d, recycling_grammatur: e.target.value } as CopyShopDetailJson)
+                }
               >
                 <option value="">—</option>
                 {(['80G', '135G', '150G', '300G'] as const).map(x => (

@@ -39,12 +39,12 @@ export function validateGlobalTeilfelder(
 ): Record<string, string> {
   const o: Record<string, string> = {}
   if (teilStatus === 'ANGEBOT') return o
-  if (!t.termin || String(t.termin).trim() === '') o.termin = 'Pflichtfeld'
   if (t.lieferung !== 'ABHOLUNG' && t.lieferung !== 'VERSAND') o.lieferung = 'Pflichtfeld'
-  if (t.prioritaet !== 'NORMAL' && t.prioritaet !== 'HOCH') o.prioritaet = 'Pflichtfeld'
+  if (t.prioritaet !== 'NIEDRIG' && t.prioritaet !== 'NORMAL' && t.prioritaet !== 'HOCH') {
+    o.prioritaet = 'Pflichtfeld'
+  }
   const vid = t.verantwortlicher_id?.trim() ?? ''
-  if (!vid) o.verantwortlicher_id = 'Pflichtfeld'
-  else if (!UUID_LOOSE.test(vid)) o.verantwortlicher_id = 'Gültige UUID'
+  if (vid && !UUID_LOOSE.test(vid)) o.verantwortlicher_id = 'Gültige UUID'
   if (t.satzzeit_minuten != null) {
     const n = Number(t.satzzeit_minuten)
     if (!Number.isInteger(n) || n <= 0) o.satzzeit_minuten = 'Ganze Zahl > 0'

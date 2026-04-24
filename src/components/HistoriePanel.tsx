@@ -38,6 +38,7 @@ const EREIGNIS_LABEL: Record<string, string> = {
   KUNDENFREIGABE_UEBERGANGEN: 'Kundenfreigabe übergangen',
   RUECKSPRUNG: 'Rücksprung',
   ERP_EXPORTIERT: 'ERP exportiert',
+  STORNIERT: 'Auftrag storniert',
 }
 
 function ereignisLabel(art: string): string {
