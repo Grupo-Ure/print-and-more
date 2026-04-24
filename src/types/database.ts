@@ -1,3 +1,5 @@
+import type { Json } from './supabase'
+
 /** Gemeinsame Status-Werte (Auftrag: Aggregat; Teilauftrag: ohne ANGEBOT) */
 export type AuftragStatus =
   | 'ANGEBOT'
@@ -36,7 +38,17 @@ export function teilauftragBereichLabel(bereich: string): string {
   return bereich
 }
 
-export type Prioritaet = 'NIEDRIG' | 'NORMAL' | 'HOCH'
+/** Entspricht `prioritaet_typ` in der DB (Auftrag und Teilauftrag). */
+export type Prioritaet = 'NORMAL' | 'HOCH'
+
+/** Flaches Objekt für Validierung von JSONB-Details; Arrays/Primitiv oben = leer. */
+export function teilJsonAlsFeldertabelle(d: Json | null): Record<string, unknown> {
+  if (d === null) return {}
+  if (typeof d === 'object' && !Array.isArray(d)) {
+    return d
+  }
+  return {}
+}
 
 export type KundeName = {
   name: string
@@ -78,8 +90,7 @@ export type AuftragDetailRow = {
   archiviert: boolean
   termin: string | null
   lieferung: LieferungWahl | null
-  /** Auftrag: i. d. R. NORMAL | HOCH */
-  prioritaet: string
+  prioritaet: Prioritaet
   notfall_aktiv: boolean
   erstellt_am: string
 }
@@ -97,11 +108,11 @@ export type TeilauftragRow = {
   status: AuftragStatus
   termin: string | null
   lieferung: LieferungWahl | null
-  prioritaet: string
+  prioritaet: Prioritaet
   verantwortlicher_id: string | null
   satzzeit_minuten: number | null
   /** Bereichsspezifische Daten (LFP, …) — JSONB */
-  detail: Record<string, unknown> | null
+  detail: Json | null
   notfall_aktiv: boolean
   notfall_begruendung: string | null
   storniert: boolean

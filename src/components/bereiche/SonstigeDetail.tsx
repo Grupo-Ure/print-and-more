@@ -41,10 +41,7 @@ export function SonstigeDetail({ teil, teilStatus, onDetailPatch }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teil.id, teil.detail])
 
-  const fehler = validateSonstigeDetail(
-    (detail as Record<string, unknown> | null) ?? null,
-    teilStatus
-  )
+  const fehler = validateSonstigeDetail(detail, teilStatus)
   const pruef = teilStatus !== 'ANGEBOT'
   const fe = (k: string) => (pruef && fehler[k] ? ' ber-inp--err' : '')
 
@@ -100,7 +97,7 @@ export function SonstigeDetail({ teil, teilStatus, onDetailPatch }: Props) {
             <textarea
               className={'ber-inp' + fe('beschreibung')}
               rows={8}
-              value={String((detail as Record<string, string>).beschreibung ?? '')}
+              value={String(detail['beschreibung'] ?? '')}
               onChange={e => patchL({ beschreibung: e.target.value || null } as SonstigeDetailJson)}
               onBlur={commit}
             />

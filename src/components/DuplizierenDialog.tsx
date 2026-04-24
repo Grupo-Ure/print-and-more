@@ -2,13 +2,14 @@ import { useMemo, useState } from 'react'
 import { supabase } from '../supabase'
 import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
 import { kundenName } from '../lib/kunde'
-import type { Auftrag, TeilauftragRow } from '../types/database'
+import { teilJsonAlsFeldertabelle, type Auftrag, type TeilauftragRow } from '../types/database'
 import { TEILAUFTRAG_BEREICH_ANZEIGE, teilauftragBereichLabel } from '../types/database'
 import { LFP_TEILTYP_ANZEIGE } from '../types/lfp'
 import { COPY_SHOP_TYPS_ANZEIGE } from '../types/copyshop'
 import { STEMPEL_TYP_ANZEIGE } from '../types/stempel'
 import { LASER_TYP_ANZEIGE } from '../types/laser'
 import { DateInput } from './DateInput'
+import { useToast } from './Toast'
 
 type Props = {
   auftrag: Auftrag
@@ -31,10 +32,10 @@ function typLesbar(bereich: string, typ: string | null): string {
   return typ
 }
 
-function formatAusDetail(detail: Record<string, unknown> | null): string {
-  if (!detail) return ''
-  const b = detail.format_breite
-  const h = detail.format_hoehe
+function formatAusDetail(detail: import('../types/database').TeilauftragRow['detail']): string {
+  const o = teilJsonAlsFeldertabelle(detail)
+  const b = o.format_breite
+  const h = o.format_hoehe
   const bn = typeof b === 'number' ? b : typeof b === 'string' && b.trim() !== '' ? Number(b) : null
   const hn = typeof h === 'number' ? h : typeof h === 'string' && h.trim() !== '' ? Number(h) : null
   const bOk = bn != null && Number.isFinite(bn) && bn > 0
@@ -61,6 +62,7 @@ export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbreche
   const [terminNeu, setTerminNeu] = useState<string>('')
   const [busy, setBusy] = useState(false)
   const [fehler, setFehler] = useState<string | null>(null)
+  const { fehler: toastFehler, erfolg } = useToast()
 
   const gewaehlte = useMemo(() => aktive.filter(t => auswahl[t.id]), [aktive, auswahl])
   const minEins = gewaehlte.length >= 1
@@ -148,14 +150,14 @@ export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbreche
             dupliziert_von_nummer: auftrag.auftragsnummer,
           },
         } as never)
-      } catch (e) {
+      } catch {
         // Historie darf die Duplizierung nicht blockieren.
-        console.error(e)
       }
 
+      erfolg('Auftrag dupliziert')
       onErfolg(neuerAuftrag)
     } catch (e) {
-      console.error(e)
+      toastFehler('Auftrag konnte nicht dupliziert werden')
       setFehler(e instanceof Error ? e.message : String(e))
     } finally {
       setBusy(false)

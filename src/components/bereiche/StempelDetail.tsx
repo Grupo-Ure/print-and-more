@@ -7,7 +7,7 @@ import {
   type StempelDetailJson,
 } from '../../types/stempel'
 import { validateStempelDetail } from '../../lib/stempel/validateStempelDetail'
-import type { AuftragStatus, TeilauftragRow } from '../../types/database'
+import { teilJsonAlsFeldertabelle, type AuftragStatus, type TeilauftragRow } from '../../types/database'
 import { supabase } from '../../supabase'
 import '../WorkArea.css'
 
@@ -18,8 +18,7 @@ type Props = {
 }
 
 function stempelRoh(teil: TeilauftragRow): StempelDetailJson {
-  const d = teil.detail
-  return d && typeof d === 'object' && !Array.isArray(d) ? { ...d } : {}
+  return { ...teilJsonAlsFeldertabelle(teil.detail) }
 }
 
 type BlK = {
@@ -152,14 +151,16 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
   const [modelleLaden, setModelleLaden] = useState(false)
   const [modelleFehler, setModelleFehler] = useState<string | null>(null)
 
-  const modellName = String((detail as Record<string, unknown>).modell_name ?? '')
+  const modellName = String(detail['modell_name'] ?? '')
 
-  const [gewaehltesModellId, setGewaehltesModellId] = useState<string | null>(
-    String(((teil.detail as Record<string, unknown> | null) ?? {}).modell_id ?? '') || null
-  )
-  const [gewaehltesModellName, setGewaehltesModellName] = useState<string | null>(
-    String(((teil.detail as Record<string, unknown> | null) ?? {}).modell_name ?? '') || null
-  )
+  const [gewaehltesModellId, setGewaehltesModellId] = useState<string | null>(() => {
+    const td = teilJsonAlsFeldertabelle(teil.detail)
+    return String(td['modell_id'] ?? '') || null
+  })
+  const [gewaehltesModellName, setGewaehltesModellName] = useState<string | null>(() => {
+    const td = teilJsonAlsFeldertabelle(teil.detail)
+    return String(td['modell_name'] ?? '') || null
+  })
 
   const [ersatzKissen, setErsatzKissen] = useState<ErsatzKissenZeile[] | null>(null)
 
@@ -171,9 +172,9 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
   const [kissenFarbOptionen, setKissenFarbOptionen] = useState<KissenFarbButton[]>([])
 
   useEffect(() => {
-    const td = ((teil.detail as Record<string, unknown> | null) ?? {}) as Record<string, unknown>
-    setGewaehltesModellId(String(td.modell_id ?? '') || null)
-    setGewaehltesModellName(String(td.modell_name ?? '') || null)
+    const td = teilJsonAlsFeldertabelle(teil.detail)
+    setGewaehltesModellId(String(td['modell_id'] ?? '') || null)
+    setGewaehltesModellName(String(td['modell_name'] ?? '') || null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teil.id, teil.detail])
 
@@ -383,8 +384,8 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
       setKissenFarbOptionen([])
       return
     }
-    const d = (detail as Record<string, unknown>) ?? {}
-    const art = String(d.kissen_artikelnummer ?? '').trim()
+    const d = detail
+    const art = String(d['kissen_artikelnummer'] ?? '').trim()
     if (!art) {
       setKissenFarbOptionen([])
       return
@@ -433,15 +434,15 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
 
   const typOptionen = [...STEMPEL_TYPEN, ...EXTRA_TYPEN] as readonly string[]
 
-  const dRec = (detail as Record<string, unknown>) ?? {}
-  const trodatKissenArt = String(dRec.kissen_artikelnummer ?? '').trim()
-  const trodatKissenModellId = String(dRec.kissen_modell_id ?? '').trim()
+  const dRec = detail
+  const trodatKissenArt = String(dRec['kissen_artikelnummer'] ?? '').trim()
+  const trodatKissenModellId = String(dRec['kissen_modell_id'] ?? '').trim()
   const trodatBadgeBestand =
     (trodatKissenModellId && kissenFarbOptionen.find(f => f.id === trodatKissenModellId)?.bestand) ?? null
   const trodatFarbeLabel =
-    dRec.farbe && typeof dRec.farbe === 'string' && dRec.farbe in STEMPEL_FARBE_ANZEIGE
-      ? STEMPEL_FARBE_ANZEIGE[dRec.farbe as keyof typeof STEMPEL_FARBE_ANZEIGE]
-      : String(dRec.farbe ?? '—')
+    dRec['farbe'] && typeof dRec['farbe'] === 'string' && dRec['farbe'] in STEMPEL_FARBE_ANZEIGE
+      ? STEMPEL_FARBE_ANZEIGE[dRec['farbe'] as keyof typeof STEMPEL_FARBE_ANZEIGE]
+      : String(dRec['farbe'] ?? '—')
 
   return (
     <div className="ber-lfp">
@@ -641,7 +642,7 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
         <BerZeile l="Größe" e={pruef && fehler.groesse ? fehler.groesse : undefined}>
           <select
             className={'ber-inp' + fe('groesse')}
-            value={String((detail as Record<string, string>).groesse ?? '')}
+            value={String(detail['groesse'] ?? '')}
             onChange={e =>
               speichDetail({ ...detail, groesse: e.target.value || null } as StempelDetailJson)
             }
@@ -670,7 +671,7 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
             <div>
               <select
                 className={'ber-inp' + fe('farbe')}
-                value={String((detail as Record<string, string>).farbe ?? '')}
+                value={String(detail['farbe'] ?? '')}
                 onChange={e => {
                   const v = e.target.value
                   const next: StempelDetailJson = { ...detail, farbe: v || null }
@@ -687,13 +688,13 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
                   )
                 )}
               </select>
-              {String((detail as Record<string, string>).farbe ?? '') === 'SONSTIGE' && typ !== 'NACHFUELLFARBE' && (
+              {String(detail['farbe'] ?? '') === 'SONSTIGE' && typ !== 'NACHFUELLFARBE' && (
                 <div style={{ marginTop: 8 }}>
                   <input
                     type="text"
                     className={'ber-inp' + fe('farbe_sonstige')}
                     placeholder="Farbe (Freitext)"
-                    value={String((detail as Record<string, string>).farbe_sonstige ?? '')}
+                    value={String(detail['farbe_sonstige'] ?? '')}
                     onChange={e => patchL({ farbe_sonstige: e.target.value || null } as StempelDetailJson)}
                     onBlur={commit}
                   />
@@ -708,7 +709,7 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
         <BerZeile l="Typ" e={pruef && fehler.tinte_typ ? fehler.tinte_typ : undefined}>
           <select
             className={'ber-inp' + fe('tinte_typ')}
-            value={String((detail as Record<string, string>).tinte_typ ?? '')}
+            value={String(detail['tinte_typ'] ?? '')}
             onChange={e =>
               speichDetail({ ...detail, tinte_typ: e.target.value || null } as StempelDetailJson)
             }
@@ -895,7 +896,7 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
               <textarea
                 className={'ber-inp' + fe('beschreibung')}
                 rows={6}
-                value={String((detail as Record<string, string>).beschreibung ?? '')}
+                value={String(detail['beschreibung'] ?? '')}
                 onChange={e => patchL({ beschreibung: e.target.value || null } as StempelDetailJson)}
                 onBlur={commit}
               />
@@ -913,7 +914,7 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
             className="ber-inp"
             rows={2}
             placeholder="Besonderheiten, Hinweise..."
-            value={String((detail as Record<string, string>).hinweis ?? '')}
+            value={String(detail['hinweis'] ?? '')}
             onChange={e => patchL({ hinweis: e.target.value || null } as StempelDetailJson)}
             onBlur={commit}
           />

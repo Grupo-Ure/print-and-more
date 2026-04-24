@@ -6,6 +6,7 @@ import { kundenName } from '../lib/kunde'
 import { schreibeHistorie } from '../lib/historie'
 import { parseStatusFromRpc } from '../lib/auftragsStatus'
 import {
+  teilJsonAlsFeldertabelle,
   type Auftrag,
   type AuftragStatus,
   type KundeJoin,
@@ -15,6 +16,7 @@ import {
 } from '../types/database'
 import type { Datei } from './DateiListe'
 import { HistoriePanel } from './HistoriePanel'
+import { useToast } from './Toast'
 import './ContextPanel.css'
 
 type Props = {
@@ -197,6 +199,7 @@ export function ContextPanel({
   const [kissenBestand, setKissenBestand] = useState<number | null>(null)
   const [dialogProduktionBestand0, setDialogProduktionBestand0] = useState(false)
   const [verantwortlichAnzeige, setVerantwortlichAnzeige] = useState<string | null>(null)
+  const { fehler, erfolg } = useToast()
 
   useEffect(() => {
     void supabase.auth.getUser().then(({ data: { user } }) => {
@@ -210,7 +213,7 @@ export function ContextPanel({
       setKissenBestand(null)
       return
     }
-    const det = (aktiverTeilauftrag.detail as Record<string, unknown> | null) ?? {}
+    const det = teilJsonAlsFeldertabelle(aktiverTeilauftrag.detail)
     let alive = true
     void ladeStempelBestand(det).then(r => {
       if (alive) {
@@ -234,13 +237,13 @@ export function ContextPanel({
       .eq('auftrag_id', auftrag.id)
       .then(({ data, error }) => {
         if (error) {
-          console.error(error)
+          fehler('Daten konnten nicht geladen werden')
           setTeilBereichListe([])
           return
         }
         setTeilBereichListe((data ?? []) as { id: string; bereich: string }[])
       })
-  }, [auftrag, kontextAktualisiert])
+  }, [auftrag, kontextAktualisiert, fehler])
 
   const kundeNameForExport = kundeNameSafe(auftragKunde)
 
@@ -292,7 +295,7 @@ export function ContextPanel({
       if (u2) throw u2
       onAuftragAktualisiert({ ...auftrag, status: neuerStatus })
     } catch (e) {
-      console.error(e)
+      fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
     }
@@ -330,8 +333,9 @@ export function ContextPanel({
         meta: { modus: erpModus } as unknown as Record<string, unknown>,
       })
       onAuftragAktualisiert(await ladeAuftrag(auftrag.id))
+      erfolg('ERP-Export erfolgreich')
     } catch (e) {
-      console.error(e)
+      fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
     }
@@ -346,7 +350,7 @@ export function ContextPanel({
       if (error) throw error
       onAuftragAktualisiert({ ...auftrag, archiviert: true })
     } catch (e) {
-      console.error(e)
+      fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
     }
@@ -375,7 +379,7 @@ export function ContextPanel({
       await schreibeHistorie({ auftrag_id: auftrag.id, ereignisart: 'STORNIERT' })
       onAuftragAktualisiert({ ...auftrag, archiviert: true })
     } catch (e) {
-      console.error(e)
+      fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
     }
@@ -395,7 +399,7 @@ export function ContextPanel({
       if (error) throw error
       onAuftragGeloescht(auftrag.id)
     } catch (e) {
-      console.error(e)
+      fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
     }
@@ -434,7 +438,7 @@ export function ContextPanel({
       onTeilauftragAktualisiert(data as TeilauftragRow)
       await teilNaechstNachTeilAktion()
     } catch (e) {
-      console.error(e)
+      fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
     }
@@ -460,7 +464,7 @@ export function ContextPanel({
       onTeilauftragAktualisiert(data as TeilauftragRow)
       await teilNaechstNachTeilAktion()
     } catch (e) {
-      console.error(e)
+      fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
     }
@@ -481,7 +485,7 @@ export function ContextPanel({
   const handleFertigMelden = async () => {
     if (busy || !teil || teil.status !== 'PRODUKTION_BEREIT') return
     if (teil.bereich === 'STEMPEL') {
-      const d = (teil.detail as Record<string, unknown> | null) ?? {}
+      const d = teilJsonAlsFeldertabelle(teil.detail)
       if (hatStempelModellVerknuepft(d) && istStempelBereichBestandKritisch(stempelBestand, kissenBestand)) {
         return
       }
@@ -502,7 +506,7 @@ export function ContextPanel({
         ereignisart: 'FERTIG_GEMELDET',
       })
       const row = data as TeilauftragRow
-      const det = (row.detail as Record<string, unknown> | null) ?? {}
+      const det = teilJsonAlsFeldertabelle(row.detail)
       const rawM = det.stueckzahl
       const mengeParsed =
         typeof rawM === 'number'
@@ -521,7 +525,7 @@ export function ContextPanel({
           .eq('id', modellId)
           .single()
         if (eMod) {
-          console.error(eMod)
+          fehler('Bestand konnte nicht geladen werden')
           return
         }
         if (!modell) return
@@ -533,7 +537,7 @@ export function ContextPanel({
           .update({ bestand: neuerBestand } as never)
           .eq('id', modellId)
         if (eUp) {
-          console.error(eUp)
+          fehler('Bestand konnte nicht geladen werden')
           return
         }
         const {
@@ -546,7 +550,7 @@ export function ContextPanel({
           notiz,
           person_id: user?.id ?? null,
         } as never)
-        if (eIns) console.error(eIns)
+        if (eIns) fehler('Bestand konnte nicht geladen werden')
       }
 
       if (row.bereich === 'STEMPEL') {
@@ -564,7 +568,7 @@ export function ContextPanel({
               .eq('id', stampId)
               .single()
             if (eErs) {
-              console.error(eErs)
+              fehler('Bestand konnte nicht geladen werden')
             } else if (stRow) {
               const ers = (stRow as { ersatzkissen_artikelnummer: string | null }).ersatzkissen_artikelnummer
               const artikel = ers && String(ers).trim()
@@ -577,7 +581,7 @@ export function ContextPanel({
                   .eq('farbe', String(fr))
                   .maybeSingle()
                 if (eKis) {
-                  console.error(eKis)
+                  fehler('Bestand konnte nicht geladen werden')
                 } else if (kissen) {
                   const b = (kissen as { bestand: number | null; id: string }).bestand ?? 0
                   if (b > 0) {
@@ -593,7 +597,7 @@ export function ContextPanel({
       onTeilauftragAktualisiert(data as TeilauftragRow)
       await teilNaechstNachTeilAktion()
     } catch (e) {
-      console.error(e)
+      fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
     }
@@ -638,7 +642,7 @@ export function ContextPanel({
       onTeilauftragAktualisiert(data as TeilauftragRow)
       await teilNaechstNachTeilAktion()
     } catch (e) {
-      console.error(e)
+      fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
     }
@@ -667,7 +671,7 @@ export function ContextPanel({
       onTeilauftragAktualisiert(data as TeilauftragRow)
       await teilNaechstNachTeilAktion()
     } catch (e) {
-      console.error(e)
+      fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
     }
@@ -701,7 +705,7 @@ export function ContextPanel({
       onTeilauftragAktualisiert(data as TeilauftragRow)
       await teilNaechstNachTeilAktion()
     } catch (e) {
-      console.error(e)
+      fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
     }
@@ -736,8 +740,9 @@ export function ContextPanel({
       })
       onTeilauftragAktualisiert(data as TeilauftragRow)
       await teilNaechstNachTeilAktion()
+      erfolg('Freigabe erteilt')
     } catch (e) {
-      console.error(e)
+      fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
     }
@@ -757,10 +762,10 @@ export function ContextPanel({
       try {
         await teilNaechstNachTeilAktion()
       } catch (e) {
-        console.error(e)
+        fehler('Status konnte nicht geändert werden')
       }
     } catch (e) {
-      console.error(e)
+      fehler('Status konnte nicht geändert werden')
     } finally {
       setStornoLaeuft(false)
     }
@@ -777,10 +782,10 @@ export function ContextPanel({
       try {
         await teilNaechstNachTeilAktion()
       } catch (e) {
-        console.error(e)
+        fehler('Status konnte nicht geändert werden')
       }
     } catch (e) {
-      console.error(e)
+      fehler('Status konnte nicht geändert werden')
     } finally {
       setLoeschenLaeuft(false)
     }
@@ -788,7 +793,7 @@ export function ContextPanel({
 
   const prodDisabled =
     !!teil && teil.status === 'PREPRESS_BEREIT' && teil.kundenfreigabe_erforderlich && !teil.kundenfreigabe_liegt_vor
-  const stempelDetailAktuell = teil ? ((teil.detail as Record<string, unknown> | null) ?? {}) : {}
+  const stempelDetailAktuell = teil ? teilJsonAlsFeldertabelle(teil.detail) : {}
   const fertigGesperrtWegenBestand =
     !!teil &&
     teil.bereich === 'STEMPEL' &&

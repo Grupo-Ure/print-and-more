@@ -12,9 +12,11 @@ import {
   type AuftragStatus,
   type KundeKontaktJoin,
   type LieferungWahl,
+  type Prioritaet,
   type TeilauftragRow,
 } from '../types/database'
 import { DateInput } from './DateInput'
+import { useToast } from './Toast'
 import { CopyShopDetail } from './bereiche/CopyShopDetail'
 import { LFPDetail } from './bereiche/LFPDetail'
 import { StempelDetail } from './bereiche/StempelDetail'
@@ -35,7 +37,7 @@ type Props = {
   /** Auftrags-Lieferung (Vererbung) */
   auftragLieferung: LieferungWahl | null
   /** Auftrags-Priorität (Vererbung) */
-  auftragPrioritaet: string
+  auftragPrioritaet: Prioritaet
   /** Server-Join für Kundenkontakt (name, email, telefon) */
   auftragKunde: KundeKontaktJoin
   auftragDateien: Datei[]
@@ -87,15 +89,32 @@ export function TeilauftragDetail({
   const lokalR = useRef(teil)
   const [lokal, setLokal] = useState(teil)
   const [speichLad, setSpeichLad] = useState(false)
+  const { fehler } = useToast()
 
   const auftragLief = (auftragLieferung ?? 'ABHOLUNG') as LieferungWahl
-  const auftragPrio = (auftragPrioritaet && auftragPrioritaet.trim()) || 'NORMAL'
+  const auftragPrio: Prioritaet = auftragPrioritaet
 
   useEffect(() => {
-    snapR.current = teil
-    lokalR.current = teil
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- externe Prop: Server-Teilauftrag nach Reload/Eltern-Update
-    setLokal(teil)
+    if (teil.id !== lokalR.current.id) {
+      // Anderer Teilaufrag — immer neu laden
+      setLokal(teil)
+      snapR.current = teil
+      lokalR.current = teil
+      return
+    }
+    // Gleicher Teilaufrag — nur updaten, wenn Status oder Detail sich geändert haben
+    if (
+      teil.status !== lokalR.current.status ||
+      JSON.stringify(teil.detail) !== JSON.stringify(lokalR.current.detail)
+    ) {
+      setLokal(prev => ({
+        ...prev,
+        status: teil.status,
+        detail: teil.detail,
+      }))
+      snapR.current = teil
+      lokalR.current = teil
+    }
   }, [teil])
 
   useEffect(() => {
@@ -145,7 +164,7 @@ export function TeilauftragDetail({
         .single()
       setSpeichLad(false)
       if (error) {
-        console.error(error)
+        fehler('Speichern fehlgeschlagen')
         return
       }
       if (data) {
@@ -156,7 +175,7 @@ export function TeilauftragDetail({
         onAktualisiert(row)
       }
     },
-    [auftragLief, auftragPrio, teil.id, onAktualisiert, kundePre]
+    [auftragLief, auftragPrio, teil.id, onAktualisiert, kundePre, fehler]
   )
 
   const onLfpPatch = useCallback(
@@ -260,13 +279,13 @@ export function TeilauftragDetail({
           onAktualisiert(row)
         }
       } catch (e) {
-        console.error(e)
+        fehler('Speichern fehlgeschlagen')
       }
     })()
     return () => {
       alive = false
     }
-  }, [auftragIso, onAktualisiert, teil.id])
+  }, [auftragIso, onAktualisiert, teil.id, fehler])
 
   useEffect(() => {
     if (!teil.id) return
@@ -290,13 +309,13 @@ export function TeilauftragDetail({
           onAktualisiert(row)
         }
       } catch (e) {
-        console.error(e)
+        fehler('Speichern fehlgeschlagen')
       }
     })()
     return () => {
       alive = false
     }
-  }, [auftragLief, lokal.lieferung, onAktualisiert, teil.id])
+  }, [auftragLief, lokal.lieferung, onAktualisiert, teil.id, fehler])
 
   useEffect(() => {
     if (!teil.id) return
@@ -307,7 +326,7 @@ export function TeilauftragDetail({
       try {
         const { data, error } = await supabase
           .from('teilauftraege')
-          .update({ prioritaet: auftragPrio } as never)
+          .update({ prioritaet: auftragPrio })
           .eq('id', teil.id)
           .select(TEILAUFTRAG_SPALTEN)
           .single()
@@ -321,13 +340,13 @@ export function TeilauftragDetail({
           onAktualisiert(row)
         }
       } catch (e) {
-        console.error(e)
+        fehler('Speichern fehlgeschlagen')
       }
     })()
     return () => {
       alive = false
     }
-  }, [auftragPrio, lokal.prioritaet, onAktualisiert, teil.id])
+  }, [auftragPrio, lokal.prioritaet, onAktualisiert, teil.id, fehler])
 
   const tBadge = teilStatusBadgeAuf(lokal.status)
 
@@ -466,8 +485,7 @@ export function TeilauftragDetail({
                 if (!an) {
                   void speichere({ prioritaet: auftragPrio })
                 } else {
-                  const alt =
-                    auftragPrio === 'HOCH' ? 'NORMAL' : auftragPrio === 'NIEDRIG' ? 'NORMAL' : 'HOCH'
+                  const alt: Prioritaet = auftragPrio === 'HOCH' ? 'NORMAL' : 'HOCH'
                   void speichere({ prioritaet: alt })
                 }
               }}
@@ -479,14 +497,17 @@ export function TeilauftragDetail({
               <select
                 className={'ber-inp' + gFe('prioritaet')}
                 value={lokal.prioritaet}
-                onChange={e => setLokal(s => ({ ...s, prioritaet: e.target.value }))}
+                onChange={e => {
+                  const v = e.target.value
+                  if (v === 'NORMAL' || v === 'HOCH') setLokal(s => ({ ...s, prioritaet: v }))
+                }}
                 onBlur={e => {
-                  if (e.target.value !== snapR.current.prioritaet) {
-                    void speichere({ prioritaet: e.target.value })
+                  const v = e.target.value
+                  if ((v === 'NORMAL' || v === 'HOCH') && v !== snapR.current.prioritaet) {
+                    void speichere({ prioritaet: v })
                   }
                 }}
               >
-                <option value="NIEDRIG">Niedrig</option>
                 <option value="NORMAL">Normal</option>
                 <option value="HOCH">Hoch</option>
               </select>
@@ -494,7 +515,7 @@ export function TeilauftragDetail({
             </div>
           ) : (
             <div className="cp-hinweis" style={{ marginTop: 6, marginBottom: 0 }}>
-              {effPrioritaet === 'NIEDRIG' ? 'Niedrig' : effPrioritaet === 'HOCH' ? 'Hoch' : 'Normal'}
+              {effPrioritaet === 'HOCH' ? 'Hoch' : 'Normal'}
               {pruef && gErr.prioritaet && <p className="td-feld-err">{gErr.prioritaet}</p>}
             </div>
           )}

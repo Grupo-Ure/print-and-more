@@ -1,4 +1,4 @@
-import type { AuftragStatus, TeilauftragRow } from '../types/database'
+import { teilJsonAlsFeldertabelle, type AuftragStatus, type TeilauftragRow } from '../types/database'
 import { validateCopyShopDetail } from './copyshop/validateCopyShopDetail'
 import { validateLfpDetail } from './lfp/validateLfpDetail'
 import { validateStempelDetail } from './stempel/validateStempelDetail'
@@ -40,7 +40,7 @@ export function validateGlobalTeilfelder(
   const o: Record<string, string> = {}
   if (teilStatus === 'ANGEBOT') return o
   if (t.lieferung !== 'ABHOLUNG' && t.lieferung !== 'VERSAND') o.lieferung = 'Pflichtfeld'
-  if (t.prioritaet !== 'NIEDRIG' && t.prioritaet !== 'NORMAL' && t.prioritaet !== 'HOCH') {
+  if (t.prioritaet !== 'NORMAL' && t.prioritaet !== 'HOCH') {
     o.prioritaet = 'Pflichtfeld'
   }
   const vid = t.verantwortlicher_id?.trim() ?? ''
@@ -69,8 +69,8 @@ function beschreibungDetailNachProdAenderung(snap: TeilauftragRow, merged: Teila
     merged.verantwortlicher_id !== snap.verantwortlicher_id ||
     merged.satzzeit_minuten !== snap.satzzeit_minuten
   if (rowAenderung) return true
-  const sd = (snap.detail as Record<string, unknown> | null) ?? {}
-  const md = (merged.detail as Record<string, unknown> | null) ?? {}
+  const sd = teilJsonAlsFeldertabelle(snap.detail)
+  const md = teilJsonAlsFeldertabelle(merged.detail)
   return String(sd.beschreibung ?? '') !== String(md.beschreibung ?? '')
 }
 
@@ -84,8 +84,8 @@ function motivDetailNachProdAenderung(snap: TeilauftragRow, merged: TeilauftragR
     merged.verantwortlicher_id !== snap.verantwortlicher_id ||
     merged.satzzeit_minuten !== snap.satzzeit_minuten
   if (rowAenderung) return true
-  const sd = (snap.detail as Record<string, unknown> | null) ?? {}
-  const md = (merged.detail as Record<string, unknown> | null) ?? {}
+  const sd = teilJsonAlsFeldertabelle(snap.detail)
+  const md = teilJsonAlsFeldertabelle(merged.detail)
   return String(sd.motiv ?? '') !== String(md.motiv ?? '')
 }
 
@@ -109,27 +109,27 @@ export function istTeilAuftragVollstaendig(t: TeilauftragRow, teilStatus: Auftra
   const g = validateGlobalTeilfelder(t, teilStatus)
   if (Object.keys(g).length > 0) return false
   if (t.bereich === 'LFP') {
-    const d = (t.detail as Record<string, unknown> | null) ?? {}
+    const d = teilJsonAlsFeldertabelle(t.detail)
     const lf = validateLfpDetail(t.typ, d, teilStatus)
     return Object.keys(lf).length === 0
   }
   if (t.bereich === 'COPYSHOP') {
-    const d = (t.detail as Record<string, unknown> | null) ?? {}
+    const d = teilJsonAlsFeldertabelle(t.detail)
     const c = validateCopyShopDetail(t.typ, d, teilStatus)
     return Object.keys(c).length === 0
   }
   if (t.bereich === 'STEMPEL') {
-    const d = (t.detail as Record<string, unknown> | null) ?? {}
+    const d = teilJsonAlsFeldertabelle(t.detail)
     const s = validateStempelDetail(t.typ, d, teilStatus)
     return Object.keys(s).length === 0
   }
   if (t.bereich === 'SONSTIGE') {
-    const d = (t.detail as Record<string, unknown> | null) ?? {}
+    const d = teilJsonAlsFeldertabelle(t.detail)
     const s = validateSonstigeDetail(d, teilStatus)
     return Object.keys(s).length === 0
   }
   if (t.bereich === 'LASERGRAVUR') {
-    const d = (t.detail as Record<string, unknown> | null) ?? {}
+    const d = teilJsonAlsFeldertabelle(t.detail)
     const s = validateLaserDetail(t.typ, d, teilStatus)
     return Object.keys(s).length === 0
   }

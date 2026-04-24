@@ -12,8 +12,10 @@ import {
   type Bereich,
   type KundeKontaktJoin,
   type LieferungWahl,
+  type Prioritaet,
   type TeilauftragRow,
 } from '../types/database'
+import { useToast } from './Toast'
 import { AddTeilauftragOverlay } from './AddTeilauftragOverlay'
 import { DateInput } from './DateInput'
 import { DateiListe, type Datei } from './DateiListe'
@@ -102,9 +104,15 @@ export function WorkArea({
   const [dateienLaden, setDateienLaden] = useState(false)
   const [kopfTermin, setKopfTermin] = useState('')
   const [kopfLieferung, setKopfLieferung] = useState<LieferungWahl | ''>('')
-  const [kopfPrioritaet, setKopfPrioritaet] = useState('NORMAL')
+  const [kopfPrioritaet, setKopfPrioritaet] = useState<Prioritaet>('NORMAL')
   const [kopfSpeichert, setKopfSpeichert] = useState(false)
-  const kopfSnap = useRef({ termin: null as string | null, lieferung: null as LieferungWahl | null, prioritaet: 'NORMAL' })
+  const kopfSnap = useRef<{
+    termin: string | null
+    lieferung: LieferungWahl | null
+    prioritaet: Prioritaet
+  }>({ termin: null, lieferung: null, prioritaet: 'NORMAL' })
+  const { fehler: toastFehler } = useToast()
+  const ladeAuftragRequestIdRef = useRef(0)
 
   const reloadDateien = useCallback(async () => {
     if (!aktiverAuftragId) return
@@ -116,11 +124,12 @@ export function WorkArea({
       .order('erstellt_am', { ascending: true })
     if (error) {
       setDateien([])
+      toastFehler('Dateien konnten nicht geladen werden')
     } else {
       setDateien((data ?? []) as Datei[])
     }
     setDateienLaden(false)
-  }, [aktiverAuftragId])
+  }, [aktiverAuftragId, toastFehler])
 
   useEffect(() => {
     if (!aktiverAuftragId) {
@@ -131,58 +140,87 @@ export function WorkArea({
     void reloadDateien()
   }, [aktiverAuftragId, reloadDateien])
 
-  const ladeAuftragUndTeilauftraege = useCallback(
-    async (auftragId: string) => {
+  useEffect(() => {
+    if (!aktiverAuftragId) {
+      setAuftrag(null)
+      setTeilauftraege([])
+      setAktiverTeilauftragId(null)
+      setFehler(null)
+      setLaden(false)
+      return
+    }
+
+    const meineRequestId = ++ladeAuftragRequestIdRef.current
+    let abgebrochen = false
+    const auftragId = aktiverAuftragId
+    const abort = new AbortController()
+
+    const laden = async () => {
       setFehler(null)
       setLaden(true)
-      const [aufRes, tRes] = await Promise.all([
-        supabase
-          .from('auftraege')
-          .select(AUFTRAG_SPALTEN)
-          .eq('id', auftragId)
-          .single(),
-        supabase
-          .from('teilauftraege')
-          .select(TEILAUFTRAG_SPALTEN)
-          .eq('auftrag_id', auftragId)
-          .order('id', { ascending: true }),
-      ])
+      try {
+        const [aufRes, tRes] = await Promise.all([
+          supabase
+            .from('auftraege')
+            .select(AUFTRAG_SPALTEN)
+            .eq('id', auftragId)
+            .single(),
+          supabase
+            .from('teilauftraege')
+            .select(TEILAUFTRAG_SPALTEN)
+            .eq('auftrag_id', auftragId)
+            .order('id', { ascending: true }),
+        ])
+        if (abgebrochen || meineRequestId !== ladeAuftragRequestIdRef.current) return
 
-      if (aufRes.error) {
-        setFehler(aufRes.error.message)
+        if (aufRes.error) {
+          if (abgebrochen || meineRequestId !== ladeAuftragRequestIdRef.current) return
+          setFehler(aufRes.error.message)
+          toastFehler('Auftrag konnte nicht geladen werden')
+          setAuftrag(null)
+          setTeilauftraege([])
+          setAktiverTeilauftragId(null)
+          return
+        }
+        if (tRes.error) {
+          if (abgebrochen || meineRequestId !== ladeAuftragRequestIdRef.current) return
+          setFehler(tRes.error.message)
+          toastFehler('Auftrag konnte nicht geladen werden')
+          setAuftrag(aufRes.data as AuftragDetailRow)
+          setTeilauftraege([])
+          setAktiverTeilauftragId(null)
+          return
+        }
+
+        if (abgebrochen || meineRequestId !== ladeAuftragRequestIdRef.current) return
+        setAuftrag(aufRes.data as AuftragDetailRow)
+        const teile = tRes.data ?? []
+        setTeilauftraege(teile)
+        setAktiverTeilauftragId(t => {
+          const sichtbar = teile.filter(x => !x.storniert)
+          if (t && sichtbar.some(x => x.id === t)) return t
+          return sichtbar[0]?.id ?? null
+        })
+      } catch (err) {
+        if (abgebrochen || meineRequestId !== ladeAuftragRequestIdRef.current) return
+        setFehler(err instanceof Error ? err.message : String(err))
+        toastFehler('Auftrag konnte nicht geladen werden')
         setAuftrag(null)
         setTeilauftraege([])
         setAktiverTeilauftragId(null)
-        setLaden(false)
-        return
+      } finally {
+        if (!abgebrochen && meineRequestId === ladeAuftragRequestIdRef.current) {
+          setLaden(false)
+        }
       }
-      if (tRes.error) {
-        setFehler(tRes.error.message)
-        setAuftrag(aufRes.data)
-        setTeilauftraege([])
-        setAktiverTeilauftragId(null)
-        setLaden(false)
-        return
-      }
+    }
 
-      setAuftrag(aufRes.data)
-      const teile = tRes.data ?? []
-      setTeilauftraege(teile)
-      setAktiverTeilauftragId(t => {
-        const sichtbar = teile.filter(x => !x.storniert)
-        if (t && sichtbar.some(x => x.id === t)) return t
-        return sichtbar[0]?.id ?? null
-      })
-      setLaden(false)
-    },
-    []
-  )
-
-  useEffect(() => {
-    if (!aktiverAuftragId) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Supabase-Abfrage; setState erst nach await in ladeAuftragUndTeilauftraege
-    void ladeAuftragUndTeilauftraege(aktiverAuftragId)
-  }, [aktiverAuftragId, ladeAuftragUndTeilauftraege, kontextAktualisiert])
+    void laden()
+    return () => {
+      abgebrochen = true
+      abort.abort()
+    }
+  }, [aktiverAuftragId, kontextAktualisiert, toastFehler])
 
   useEffect(() => {
     if (!auftrag) return
@@ -196,7 +234,7 @@ export function WorkArea({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Formular spiegelt Server-Zeile
     setKopfTermin(iso)
     setKopfLieferung(auftrag.lieferung ?? '')
-    setKopfPrioritaet(auftrag.prioritaet?.trim() ? auftrag.prioritaet : 'NORMAL')
+    setKopfPrioritaet(auftrag.prioritaet)
     kopfSnap.current = {
       termin: raw,
       lieferung: auftrag.lieferung,
@@ -216,7 +254,7 @@ export function WorkArea({
         .single()
       setKopfSpeichert(false)
       if (error) {
-        console.error(error)
+        toastFehler('Auftrag konnte nicht gespeichert werden')
         return
       }
       if (data) {
@@ -231,7 +269,7 @@ export function WorkArea({
         }
       }
     },
-    [aktiverAuftragId, onAuftragVomArbeitsbereich, onAuftragKundeGeladen]
+    [aktiverAuftragId, onAuftragVomArbeitsbereich, onAuftragKundeGeladen, toastFehler]
   )
 
   const sichtbareTeile = useMemo(
@@ -252,11 +290,11 @@ export function WorkArea({
           const a = await synchronisiereAuftragsstatus(auftrag.id)
           onAuftragAktualisiert(a)
         } catch (e) {
-          console.error(e)
+          toastFehler('Auftragsstatus konnte nicht aktualisiert werden')
         }
       })()
     },
-    [auftrag, onAuftragAktualisiert]
+    [auftrag, onAuftragAktualisiert, toastFehler]
   )
 
   useEffect(() => {
@@ -302,7 +340,7 @@ export function WorkArea({
         ? auftrag.termin.slice(0, 10)
         : auftrag.termin
       : `${heute.getFullYear()}-${String(heute.getMonth() + 1).padStart(2, '0')}-${String(heute.getDate()).padStart(2, '0')}`
-    const priorVal = (auftrag.prioritaet && auftrag.prioritaet.trim()) || 'NORMAL'
+    const priorVal = auftrag.prioritaet
     const lief = auftrag.lieferung ?? 'ABHOLUNG'
     const { data, error } = await supabase
       .from('teilauftraege')
@@ -311,7 +349,7 @@ export function WorkArea({
         bereich,
         status: 'UNVOLLSTAENDIG',
         prioritaet: priorVal,
-        detail: {} as never,
+        detail: {},
         termin: terminIso,
         lieferung: lief,
         verantwortlicher_id: user.id,
@@ -321,7 +359,7 @@ export function WorkArea({
         kundenfreigabe_erforderlich: false,
         kundenfreigabe_liegt_vor: false,
         kundenfreigabe_datei_id: null,
-      } as never)
+      })
       .select(TEILAUFTRAG_SPALTEN)
       .single()
 
@@ -380,11 +418,7 @@ export function WorkArea({
   const statusP = auftragStatusPillAuf(auftrag.status)
   const kontaktZeile = kundeKontaktEineLinie(auftrag.kunden)
 
-  const prioritaetGlyph = (p: string) => {
-    if (p === 'NIEDRIG') return '○'
-    if (p === 'HOCH') return '▲'
-    return '●'
-  }
+  const prioritaetGlyph = (p: Prioritaet) => (p === 'HOCH' ? '▲' : '●')
 
   return (
     <div className="wa">
@@ -460,13 +494,14 @@ export function WorkArea({
               value={kopfPrioritaet}
               onChange={e => {
                 const v = e.target.value
-                setKopfPrioritaet(v)
-                if (v !== kopfSnap.current.prioritaet) {
-                  void speichereAuftragKopf({ prioritaet: v })
+                if (v === 'NORMAL' || v === 'HOCH') {
+                  setKopfPrioritaet(v)
+                  if (v !== kopfSnap.current.prioritaet) {
+                    void speichereAuftragKopf({ prioritaet: v })
+                  }
                 }
               }}
             >
-              {kopfPrioritaet === 'NIEDRIG' && <option value="NIEDRIG">Niedrig</option>}
               <option value="NORMAL">Normal</option>
               <option value="HOCH">Hoch</option>
             </select>

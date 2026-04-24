@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../supabase'
 import { Login } from '../components/Login'
+import { useToast } from '../components/Toast'
+import { teilJsonAlsFeldertabelle } from '../types/database'
+import type { Json } from '../types/supabase'
 
 type StempelTyp =
   | 'TRODAT_PRINTY'
@@ -178,6 +181,7 @@ function statusInfo(m: StempelModellRow): { cls: string; label: string; rank: nu
 }
 
 export function BestandspflegeSeite() {
+  const { fehler } = useToast()
   const [session, setSession] = useState<Session | null>(null)
   const [laden, setLaden] = useState(true)
 
@@ -215,14 +219,14 @@ export function BestandspflegeSeite() {
       .select('id, email')
       .then(({ data, error }) => {
         if (error) {
-          console.error(error)
+          fehler('Buchung fehlgeschlagen')
           return
         }
         const m = new Map<string, string>()
         for (const r of (data ?? []) as { id: string; email: string }[]) m.set(r.id, r.email)
         setMitarbeiterEmailById(m)
       })
-  }, [session])
+  }, [fehler, session])
 
   // ------------------------------------------------------------
   // Tab 1: Übersicht
@@ -266,7 +270,7 @@ export function BestandspflegeSeite() {
       })
       setModelle(list)
     } catch (e) {
-      console.error(e)
+      fehler('Buchung fehlgeschlagen')
       setModelle([])
       setModelleFehler(e instanceof Error ? e.message : String(e))
     } finally {
@@ -392,7 +396,7 @@ export function BestandspflegeSeite() {
       setModelle(list => list.map(m => (m.id === modell.id ? { ...m, bestand: nextBestand } : m)))
       setBuchMenge(m => ({ ...m, [modell.id]: '' }))
     } catch (e) {
-      console.error(e)
+      fehler('Buchung fehlgeschlagen')
       setBuchFehler(m => ({ ...m, [modell.id]: e instanceof Error ? e.message : String(e) }))
     } finally {
       setBuchBusyId(null)
@@ -410,7 +414,7 @@ export function BestandspflegeSeite() {
       .update({ mindestbestand: n } as never)
       .eq('id', modell.id)
     if (error) {
-      console.error(error)
+      fehler('Buchung fehlgeschlagen')
       return
     }
     setModelle(list => list.map(m => (m.id === modell.id ? { ...m, mindestbestand: n } : m)))
@@ -437,7 +441,7 @@ export function BestandspflegeSeite() {
       if (error) throw error
       setBewegungen((data ?? []) as LagerBewegungRow[])
     } catch (e) {
-      console.error(e)
+      fehler('Buchung fehlgeschlagen')
       setBewegungen([])
       setBewegungenFehler(e instanceof Error ? e.message : String(e))
     } finally {
@@ -493,8 +497,8 @@ export function BestandspflegeSeite() {
       const idSet = new Set(modelleAktiv.map(m => m.id))
       const bedarf = new Map<string, number>()
 
-      for (const t of (teilData ?? []) as { detail: unknown }[]) {
-        const det = (t.detail as Record<string, unknown> | null) ?? {}
+      for (const t of (teilData ?? []) as { detail: Json }[]) {
+        const det = teilJsonAlsFeldertabelle(t.detail)
         const menge = parseStueckzahlTeilauftrag(det.stueckzahl)
         const mid = det.modell_id != null && String(det.modell_id).trim() !== '' ? String(det.modell_id) : null
         const kid = det.kissen_modell_id != null && String(det.kissen_modell_id).trim() !== '' ? String(det.kissen_modell_id) : null
@@ -522,7 +526,7 @@ export function BestandspflegeSeite() {
       zeilen.sort((a, b) => b.bestellmenge - a.bestellmenge)
       setBestelllisteZeilen(zeilen)
     } catch (e) {
-      console.error(e)
+      fehler('Buchung fehlgeschlagen')
       setBestelllisteZeilen([])
       setBestelllisteFehler(fehlerAlsString(e))
     } finally {
@@ -555,8 +559,8 @@ export function BestandspflegeSeite() {
       await navigator.clipboard.writeText(bestelllisteTextFuerKopie)
       setBestelllisteKopiert(true)
       window.setTimeout(() => setBestelllisteKopiert(false), 2000)
-    } catch (e) {
-      console.error(e)
+    } catch {
+      fehler('Kopieren fehlgeschlagen')
     }
   }
 

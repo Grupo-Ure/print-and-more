@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { supabase } from '../supabase'
+import { useToast } from './Toast'
 
 export type DateiRolle = 'PRODUKTIONSDATEI' | 'VORSCHAU' | 'KUNDENFREIGABE' | 'REFERENZ'
 
@@ -35,6 +36,7 @@ type Props = {
 function useDateienState(auftragId: string) {
   const [dateien, setDateien] = useState<Datei[]>([])
   const [laden, setLaden] = useState(true)
+  const { fehler } = useToast()
   const reload = useCallback(async () => {
     setLaden(true)
     const { data, error } = await supabase
@@ -44,11 +46,12 @@ function useDateienState(auftragId: string) {
       .order('erstellt_am', { ascending: true })
     if (error) {
       setDateien([])
+      fehler('Dateien konnten nicht geladen werden')
     } else {
       setDateien((data ?? []) as Datei[])
     }
     setLaden(false)
-  }, [auftragId])
+  }, [auftragId, fehler])
 
   useEffect(() => {
     void reload()

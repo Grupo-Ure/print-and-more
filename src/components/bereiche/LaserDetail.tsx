@@ -54,7 +54,7 @@ export function LaserDetail({ teil, teilStatus, onDetailPatch }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teil.id, teil.typ, teil.detail])
 
-  const fehler = validateLaserDetail(typ, detail as Record<string, unknown> | null, teilStatus)
+  const fehler = validateLaserDetail(typ, detail, teilStatus)
   const pruef = teilStatus !== 'ANGEBOT'
   const fe = (k: string) => (pruef && fehler[k] ? ' ber-inp--err' : '')
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../supabase'
-import type { LieferungWahl, AuftragStatus } from '../types/database'
+import type { LieferungWahl, AuftragStatus, Prioritaet } from '../types/database'
 import type { Kunde } from '../lib/kunden'
 import { KundeDialog } from './KundeDialog'
 import './ContextPanel.css'
@@ -14,7 +14,7 @@ export type NeuerAuftragInsertRow = {
   kunde_id: string
   termin: string | null
   lieferung: LieferungWahl | null
-  prioritaet: string
+  prioritaet: Prioritaet
   notfall_aktiv: boolean
   archiviert: boolean
   erp_exportiert: boolean

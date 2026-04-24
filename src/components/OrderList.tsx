@@ -12,6 +12,7 @@ import {
 } from '../types/database'
 import { DateInput } from './DateInput'
 import { DuplizierenDialog } from './DuplizierenDialog'
+import { useToast } from './Toast'
 import './OrderList.css'
 
 type OrderInPlace = { tick: number; id: string; status: AuftragStatus }
@@ -64,7 +65,7 @@ type OrderListAuftragRow = {
   status: AuftragStatus
   erstellt_am: string
   termin: string | null
-  prioritaet: string
+  prioritaet: 'NORMAL' | 'HOCH'
   notfall_aktiv: boolean
   kunde_id: string
   kunden: { name: string } | { name: string }[] | null
@@ -159,73 +160,95 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
   const [initLaden, setInitLaden] = useState(true)
   const [aktualisiere, setAktualisiere] = useState(false)
   const mindestensEinmalGeladen = useRef(false)
+  const ladeAuftraegeRequestIdRef = useRef(0)
   const filterAktiv = isFilterAktiv(filter)
+  const { fehler } = useToast()
 
-  const ladeAuftraege = useCallback(async () => {
-    if (mindestensEinmalGeladen.current) setAktualisiere(true)
-    const qtrim = searchDebounced.trim()
-    let kundenIds: string[] | null = null
-    if (qtrim) {
-      const { data: kunden, error: ek } = await supabase
-        .from('kunden')
-        .select('id')
-        .ilike('name', `%${qtrim}%`)
-      if (ek) {
-        console.error(ek)
+  const ladeAuftraege = useCallback(
+    async (opts?: { abgebrochen?: { v: boolean } }) => {
+      const meineRequestId = ++ladeAuftraegeRequestIdRef.current
+      const isStale = () =>
+        (opts?.abgebrochen?.v ?? false) || meineRequestId !== ladeAuftraegeRequestIdRef.current
+
+      if (mindestensEinmalGeladen.current) setAktualisiere(true)
+      const qtrim = searchDebounced.trim()
+      let kundenIds: string[] | null = null
+      if (qtrim) {
+        const { data: kunden, error: ek } = await supabase
+          .from('kunden')
+          .select('id')
+          .ilike('name', `%${qtrim}%`)
+        if (isStale()) return
+        if (ek) {
+          fehler('Aufträge konnten nicht geladen werden')
+          setQuelle([])
+          mindestensEinmalGeladen.current = true
+          setInitLaden(false)
+          setAktualisiere(false)
+          return
+        }
+        kundenIds = (kunden ?? []).map(r => r.id)
+        if (kundenIds.length === 0) {
+          if (isStale()) return
+          setQuelle([])
+          mindestensEinmalGeladen.current = true
+          setInitLaden(false)
+          setAktualisiere(false)
+          return
+        }
+      }
+
+      const chosen = statusTogglesToIn(statusToggles)
+      if (!statusAlle && chosen.length === 0) {
+        if (isStale()) return
         setQuelle([])
         mindestensEinmalGeladen.current = true
         setInitLaden(false)
         setAktualisiere(false)
         return
       }
-      kundenIds = (kunden ?? []).map(r => r.id)
-      if (kundenIds.length === 0) {
-        setQuelle([])
-        mindestensEinmalGeladen.current = true
-        setInitLaden(false)
-        setAktualisiere(false)
-        return
-      }
-    }
 
-    const chosen = statusTogglesToIn(statusToggles)
-    if (!statusAlle && chosen.length === 0) {
-      setQuelle([])
+      if (isStale()) return
+
+      let query = supabase
+        .from('auftraege')
+        .select(
+          'id, auftragsnummer, status, erstellt_am, termin, prioritaet, notfall_aktiv, kunde_id, kunden(name), teilauftraege(bereich, status)',
+        )
+        .eq('archiviert', false)
+        .order('erstellt_am', { ascending: false })
+
+      if (kundenIds) query = query.in('kunde_id', kundenIds)
+      if (!statusAlle) query = query.in('status', chosen)
+      if (terminVon) query = query.gte('termin', terminVon)
+      if (terminBis) query = query.lte('termin', terminBis)
+      if (annVon) query = query.gte('erstellt_am', `${annVon}T00:00:00`)
+      if (annBis) query = query.lte('erstellt_am', `${annBis}T23:59:59.999`)
+
+      const { data, error } = await query
+      if (isStale()) return
+      if (error) {
+        fehler('Aufträge konnten nicht geladen werden')
+        setQuelle([])
+      } else {
+        setQuelle((data as OrderListAuftragRow[]) ?? [])
+      }
+      if (isStale()) return
       mindestensEinmalGeladen.current = true
       setInitLaden(false)
       setAktualisiere(false)
-      return
-    }
-
-    let query = supabase
-      .from('auftraege')
-      .select(
-        'id, auftragsnummer, status, erstellt_am, termin, prioritaet, notfall_aktiv, kunde_id, kunden(name), teilauftraege(bereich, status)',
-      )
-      .eq('archiviert', false)
-      .order('erstellt_am', { ascending: false })
-
-    if (kundenIds) query = query.in('kunde_id', kundenIds)
-    if (!statusAlle) query = query.in('status', chosen)
-    if (terminVon) query = query.gte('termin', terminVon)
-    if (terminBis) query = query.lte('termin', terminBis)
-    if (annVon) query = query.gte('erstellt_am', `${annVon}T00:00:00`)
-    if (annBis) query = query.lte('erstellt_am', `${annBis}T23:59:59.999`)
-
-    const { data, error } = await query
-    if (error) {
-      console.error(error)
-      setQuelle([])
-    } else {
-      setQuelle((data as OrderListAuftragRow[]) ?? [])
-    }
-    mindestensEinmalGeladen.current = true
-    setInitLaden(false)
-    setAktualisiere(false)
-  }, [annBis, annVon, searchDebounced, statusAlle, statusToggles, terminBis, terminVon])
+    },
+    [annBis, annVon, fehler, searchDebounced, statusAlle, statusToggles, terminBis, terminVon]
+  )
 
   useEffect(() => {
-    ladeAuftraege()
+    const ab = { v: false }
+    const abort = new AbortController()
+    void ladeAuftraege({ abgebrochen: ab })
+    return () => {
+      ab.v = true
+      abort.abort()
+    }
   }, [ladeAuftraege])
 
   useEffect(() => {
@@ -275,13 +298,13 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
         setDuplTeil((t ?? []) as TeilauftragRow[])
         setDuplOffen(true)
       } catch (e) {
-        console.error(e)
+        fehler('Aufträge konnten nicht geladen werden')
         setDuplFehler(e instanceof Error ? e.message : String(e))
       } finally {
         setDuplBusy(false)
       }
     },
-    [duplBusy]
+    [duplBusy, fehler]
   )
 
   return (
