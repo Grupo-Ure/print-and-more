@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabase'
+import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
+import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
 import { kundenName } from '../lib/kunde'
 import {
   TEILAUFTRAG_BEREICHE,
   TEILAUFTRAG_BEREICH_ANZEIGE,
+  type Auftrag,
   type AuftragStatus,
+  type TeilauftragRow,
 } from '../types/database'
+import { DuplizierenDialog } from './DuplizierenDialog'
 import './OrderList.css'
 
 type Props = {
@@ -231,6 +236,42 @@ export function OrderList({ aktiverAuftragId, onAuftragWaehlen, onNeuerAuftrag }
   }
 
   const leer = !initLaden && auftraege.length === 0
+
+  const [duplOffen, setDuplOffen] = useState(false)
+  const [duplBusy, setDuplBusy] = useState(false)
+  const [duplFehler, setDuplFehler] = useState<string | null>(null)
+  const [duplAuftrag, setDuplAuftrag] = useState<Auftrag | null>(null)
+  const [duplTeil, setDuplTeil] = useState<TeilauftragRow[]>([])
+
+  const openDuplizieren = useCallback(
+    async (auftragId: string) => {
+      if (duplBusy) return
+      setDuplBusy(true)
+      setDuplFehler(null)
+      try {
+        const { data: a, error: e1 } = await supabase
+          .from('auftraege')
+          .select(AUFTRAG_SPALTEN)
+          .eq('id', auftragId)
+          .single()
+        if (e1) throw e1
+        const { data: t, error: e2 } = await supabase
+          .from('teilauftraege')
+          .select(TEILAUFTRAG_SPALTEN)
+          .eq('auftrag_id', auftragId)
+        if (e2) throw e2
+        setDuplAuftrag(a as Auftrag)
+        setDuplTeil((t ?? []) as TeilauftragRow[])
+        setDuplOffen(true)
+      } catch (e) {
+        console.error(e)
+        setDuplFehler(e instanceof Error ? e.message : String(e))
+      } finally {
+        setDuplBusy(false)
+      }
+    },
+    [duplBusy]
+  )
 
   return (
     <div className="ol-root">
@@ -461,6 +502,36 @@ export function OrderList({ aktiverAuftragId, onAuftragWaehlen, onNeuerAuftrag }
                     ))}
                     {mehr > 0 && <span className="ol-bereich-tag">+{mehr}</span>}
                   </div>
+
+                  {aktiv && (
+                    <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                      <button
+                        type="button"
+                        className="ol-icon-btn"
+                        title="Auftrag duplizieren"
+                        aria-label="Auftrag duplizieren"
+                        disabled={duplBusy}
+                        onClick={e => {
+                          e.stopPropagation()
+                          void openDuplizieren(a.id)
+                        }}
+                      >
+                        ⎘
+                      </button>
+                      <button
+                        type="button"
+                        className="ol-filter-reset"
+                        disabled={duplBusy}
+                        onClick={e => {
+                          e.stopPropagation()
+                          void openDuplizieren(a.id)
+                        }}
+                        style={{ padding: '6px 10px' }}
+                      >
+                        Auftrag duplizieren
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )
@@ -472,6 +543,21 @@ export function OrderList({ aktiverAuftragId, onAuftragWaehlen, onNeuerAuftrag }
           + Neuer Auftrag
         </button>
       </div>
+
+      {duplFehler && <div className="ol-aktual">{duplFehler}</div>}
+
+      {duplOffen && duplAuftrag && (
+        <DuplizierenDialog
+          auftrag={duplAuftrag}
+          teilauftraege={duplTeil}
+          onAbbrechen={() => setDuplOffen(false)}
+          onErfolg={neu => {
+            setDuplOffen(false)
+            ladeAuftraege()
+            onAuftragWaehlen(neu.id)
+          }}
+        />
+      )}
     </div>
   )
 }

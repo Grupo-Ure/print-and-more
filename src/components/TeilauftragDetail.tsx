@@ -28,6 +28,8 @@ import './WorkArea.css'
 
 type Props = {
   teil: TeilauftragRow
+  /** Auftragstermin (fallback/Vererbung) */
+  auftragTermin: string | null
   /** Server-Join für Kundenkontakt (name, email, telefon) */
   auftragKunde: KundeKontaktJoin
   auftragDateien: Datei[]
@@ -63,7 +65,7 @@ function teilStatusBadgeAuf(s: AuftragStatus): { cls: string; label: string } {
   return m[s] ?? { cls: 'badge-grau', label: s }
 }
 
-export function TeilauftragDetail({ teil, auftragKunde, auftragDateien, onAktualisiert }: Props) {
+export function TeilauftragDetail({ teil, auftragTermin, auftragKunde, auftragDateien, onAktualisiert }: Props) {
   const snapR = useRef(teil)
   const lokalR = useRef(teil)
   const [lokal, setLokal] = useState(teil)
@@ -196,12 +198,56 @@ export function TeilauftragDetail({ teil, auftragKunde, auftragDateien, onAktual
     [onAktualisiert]
   )
 
-  const globTermin = lokal.termin
+  const globTermin = lokal.termin ?? auftragTermin
   const iso = globTermin
     ? globTermin.length > 10
       ? globTermin.slice(0, 10)
       : globTermin
     : ''
+
+  const auftragIso = auftragTermin ? (auftragTermin.length > 10 ? auftragTermin.slice(0, 10) : auftragTermin) : ''
+
+  const [sepTermin, setSepTermin] = useState(false)
+
+  useEffect(() => {
+    const tIso = lokal.termin ? (lokal.termin.length > 10 ? lokal.termin.slice(0, 10) : lokal.termin) : ''
+    const aIso = auftragIso
+    const derived = tIso ? (aIso ? tIso !== aIso : true) : false
+    setSepTermin(derived)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teil.id, teil.termin, auftragIso])
+
+  useEffect(() => {
+    // Vererbung beim Laden: wenn Teilauftrag-Termin null und Auftrag hat Termin → im Hintergrund speichern.
+    if (!teil.id) return
+    if (snapR.current.termin != null) return
+    if (!auftragIso) return
+    let alive = true
+    void (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('teilauftraege')
+          .update({ termin: auftragIso } as never)
+          .eq('id', teil.id)
+          .select(TEILAUFTRAG_SPALTEN)
+          .single()
+        if (!alive) return
+        if (error) throw error
+        if (data) {
+          const row = data as TeilauftragRow
+          snapR.current = row
+          lokalR.current = row
+          setLokal(row)
+          onAktualisiert(row)
+        }
+      } catch (e) {
+        console.error(e)
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [auftragIso, onAktualisiert, teil.id])
 
   const bekannteMitarbeiterIds = new Set(mitarbeiter.map(m => m.id))
   const verantwortIdOhneEintrag =
@@ -235,24 +281,56 @@ export function TeilauftragDetail({ teil, auftragKunde, auftragDateien, onAktual
       </h2>
       <div className="ber-grid-2">
         <div className="ber-zeile-stack">
-          <span className="ber-lbl">Termin</span>
+          <span className="ber-lbl">Lieferdatum</span>
           <div>
-            <input
-              type="date"
-              className={'ber-inp' + gFe('termin')}
-              value={iso}
-              onChange={e => {
-                const v = e.target.value
-                setLokal(s => ({ ...s, termin: v || null }))
-              }}
-              onBlur={e => {
-                const v = e.target.value || null
-                if (v !== (snapR.current.termin ? snapR.current.termin.slice(0, 10) : '')) {
-                  void speichere({ termin: v })
-                }
-              }}
-            />
-            {pruef && gErr.termin && <p className="td-feld-err">{gErr.termin}</p>}
+            <label className="cp-toggle" style={{ marginTop: 4 }}>
+              <input
+                type="checkbox"
+                checked={sepTermin}
+                onChange={e => {
+                  const next = e.target.checked
+                  setSepTermin(next)
+                  if (!next) {
+                    const nextIso = auftragIso || ''
+                    const nextTermin = nextIso ? nextIso : null
+                    setLokal(s => ({ ...s, termin: nextTermin }))
+                    void speichere({ termin: nextTermin })
+                  } else {
+                    // Beim Aktivieren: Eingabefeld soll den aktuellen Wert (Teilauftrag oder Auftrag) zeigen.
+                    const cur = lokalR.current
+                    const curIso = cur.termin
+                      ? cur.termin.length > 10
+                        ? cur.termin.slice(0, 10)
+                        : cur.termin
+                      : ''
+                    if (!curIso && auftragIso) setLokal(s => ({ ...s, termin: auftragIso }))
+                  }
+                }}
+              />
+              <span>Separates Lieferdatum</span>
+            </label>
+            {sepTermin && (
+              <div style={{ marginTop: 8 }}>
+                <input
+                  type="date"
+                  className={'ber-inp' + gFe('termin')}
+                  value={lokal.termin ? (lokal.termin.length > 10 ? lokal.termin.slice(0, 10) : lokal.termin) : iso}
+                  onChange={e => {
+                    const v = e.target.value
+                    setLokal(s => ({ ...s, termin: v || null }))
+                  }}
+                  onBlur={e => {
+                    const v = e.target.value || null
+                    const snapIso = snapR.current.termin ? snapR.current.termin.slice(0, 10) : ''
+                    if ((v ?? '') !== (snapIso ?? '')) {
+                      void speichere({ termin: v })
+                    }
+                  }}
+                />
+                {pruef && gErr.termin && <p className="td-feld-err">{gErr.termin}</p>}
+              </div>
+            )}
+            {!sepTermin && pruef && gErr.termin && <p className="td-feld-err">{gErr.termin}</p>}
           </div>
         </div>
         <div className="ber-zeile-stack">

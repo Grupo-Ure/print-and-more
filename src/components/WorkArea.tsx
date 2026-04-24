@@ -492,6 +492,7 @@ export function WorkArea({
         {aktiverTeil ? (
           <TeilauftragDetail
             teil={aktiverTeil}
+            auftragTermin={auftrag.termin}
             auftragKunde={auftrag.kunden}
             auftragDateien={dateien}
             onAktualisiert={row =>
