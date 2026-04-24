@@ -3,7 +3,62 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../supabase'
 import { Login } from '../components/Login'
 
-type StempelTyp = 'TRODAT_PRINTY' | 'HOLZSTEMPEL' | 'STATIVSTEMPEL' | 'DATUMSSTEMPEL'
+type StempelTyp =
+  | 'TRODAT_PRINTY'
+  | 'HOLZSTEMPEL'
+  | 'STATIVSTEMPEL'
+  | 'DATUMSSTEMPEL'
+  | 'STEMPELKISSEN_PRODUKT'
+  | 'TRODAT_KISSEN'
+
+const STEMPEL_TYP_LABEL: Record<StempelTyp, string> = {
+  TRODAT_PRINTY: 'Trodat Printy',
+  HOLZSTEMPEL: 'Holzstempel',
+  STATIVSTEMPEL: 'Stativstempel',
+  DATUMSSTEMPEL: 'Datumsstempel',
+  STEMPELKISSEN_PRODUKT: 'Stempelkissen',
+  TRODAT_KISSEN: 'Trodat Kissen',
+}
+
+function typAnzeige(typ: string): string {
+  return (STEMPEL_TYP_LABEL as Record<string, string>)[typ] ?? typ
+}
+
+const STEMPEL_TYP_FILTER_OPTIONS: { value: StempelTyp; label: string }[] = [
+  { value: 'TRODAT_PRINTY', label: STEMPEL_TYP_LABEL.TRODAT_PRINTY },
+  { value: 'HOLZSTEMPEL', label: STEMPEL_TYP_LABEL.HOLZSTEMPEL },
+  { value: 'STATIVSTEMPEL', label: STEMPEL_TYP_LABEL.STATIVSTEMPEL },
+  { value: 'DATUMSSTEMPEL', label: STEMPEL_TYP_LABEL.DATUMSSTEMPEL },
+  { value: 'TRODAT_KISSEN', label: STEMPEL_TYP_LABEL.TRODAT_KISSEN },
+  { value: 'STEMPELKISSEN_PRODUKT', label: STEMPEL_TYP_LABEL.STEMPELKISSEN_PRODUKT },
+]
+
+function fmtVkPreisNetto(v: number | null | undefined): string {
+  if (v == null || !Number.isFinite(v)) return '—'
+  return new Intl.NumberFormat('de-DE', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(v)
+}
+
+type StempelFarbeDb = 'SCHWARZ' | 'ROT' | 'BLAU' | 'GRUEN'
+
+const STEMPEL_FARBE_ANZEIGE: Record<StempelFarbeDb, string> = {
+  SCHWARZ: 'Schwarz',
+  ROT: 'Rot',
+  BLAU: 'Blau',
+  GRUEN: 'Grün',
+}
+
+function farbeAnzeige(f: string | null | undefined): string {
+  if (f == null || f === '') return '—'
+  if ((Object.keys(STEMPEL_FARBE_ANZEIGE) as StempelFarbeDb[]).includes(f as StempelFarbeDb)) {
+    return STEMPEL_FARBE_ANZEIGE[f as StempelFarbeDb]
+  }
+  return f
+}
 
 type StempelModellRow = {
   id: string
@@ -15,6 +70,8 @@ type StempelModellRow = {
   artikelnummer: string | null
   bestand: number
   mindestbestand: number
+  farbe: string | null
+  vk_preis_netto: number | null
   aktiv: boolean
   notiz: string | null
   erstellt_am: string
@@ -112,8 +169,9 @@ export function BestandspflegeSeite() {
 
   const [filterNachbestellen, setFilterNachbestellen] = useState(false)
   const [filterTyp, setFilterTyp] = useState<string>('ALLE')
+  const [filterFarbe, setFilterFarbe] = useState<string>('ALLE')
 
-  type SortKey = 'name' | 'druckflaeche' | 'typ' | 'bestand' | 'mindestbestand' | 'status'
+  type SortKey = 'name' | 'farbe' | 'druckflaeche' | 'typ' | 'bestand' | 'mindestbestand' | 'status'
   const [sortierung, setSortierung] = useState<{ key: SortKey; dir: 'asc' | 'desc' } | null>(null)
 
   const toggleSort = (key: SortKey) => {
@@ -161,6 +219,12 @@ export function BestandspflegeSeite() {
   const modelleGefiltert = useMemo(() => {
     let list = modelle.slice()
     if (filterTyp !== 'ALLE') list = list.filter(m => m.typ === filterTyp)
+    if (
+      filterFarbe !== 'ALLE' &&
+      (filterTyp === 'TRODAT_KISSEN' || filterTyp === 'STEMPELKISSEN_PRODUKT')
+    ) {
+      list = list.filter(m => m.farbe === filterFarbe)
+    }
     if (filterNachbestellen) {
       list = list.filter(m => {
         const b = m.bestand ?? 0
@@ -175,7 +239,9 @@ export function BestandspflegeSeite() {
         const av =
           key === 'name'
             ? a.name
-            : key === 'druckflaeche'
+            : key === 'farbe'
+              ? (a.farbe ?? '')
+              : key === 'druckflaeche'
               ? (a.druckflaeche ?? '')
               : key === 'typ'
                 ? a.typ
@@ -187,7 +253,9 @@ export function BestandspflegeSeite() {
         const bv =
           key === 'name'
             ? b.name
-            : key === 'druckflaeche'
+            : key === 'farbe'
+              ? (b.farbe ?? '')
+              : key === 'druckflaeche'
               ? (b.druckflaeche ?? '')
               : key === 'typ'
                 ? b.typ
@@ -210,7 +278,7 @@ export function BestandspflegeSeite() {
       })
     }
     return list
-  }, [filterNachbestellen, filterTyp, modelle, sortierung])
+  }, [filterFarbe, filterNachbestellen, filterTyp, modelle, sortierung])
 
   const [buchMenge, setBuchMenge] = useState<Record<string, string>>({})
   const [buchBusyId, setBuchBusyId] = useState<string | null>(null)
@@ -372,15 +440,36 @@ export function BestandspflegeSeite() {
             <select
               className="cp-select"
               value={filterTyp}
-              onChange={e => setFilterTyp(e.target.value)}
+              onChange={e => {
+                const v = e.target.value
+                setFilterTyp(v)
+                if (v !== 'TRODAT_KISSEN' && v !== 'STEMPELKISSEN_PRODUKT') setFilterFarbe('ALLE')
+              }}
               style={{ maxWidth: 260 }}
             >
               <option value="ALLE">Alle Typen</option>
-              <option value="TRODAT_PRINTY">TRODAT_PRINTY</option>
-              <option value="HOLZSTEMPEL">HOLZSTEMPEL</option>
-              <option value="STATIVSTEMPEL">STATIVSTEMPEL</option>
-              <option value="DATUMSSTEMPEL">DATUMSSTEMPEL</option>
+              {STEMPEL_TYP_FILTER_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
             </select>
+            {(filterTyp === 'TRODAT_KISSEN' || filterTyp === 'STEMPELKISSEN_PRODUKT') && (
+              <select
+                className="cp-select"
+                value={filterFarbe}
+                onChange={e => setFilterFarbe(e.target.value)}
+                style={{ maxWidth: 200 }}
+                aria-label="Filter Farbe"
+              >
+                <option value="ALLE">Alle Farben</option>
+                {(Object.keys(STEMPEL_FARBE_ANZEIGE) as StempelFarbeDb[]).map(f => (
+                  <option key={f} value={f}>
+                    {STEMPEL_FARBE_ANZEIGE[f]}
+                  </option>
+                ))}
+              </select>
+            )}
             <button type="button" className="cp-btn cp-btn-grau" onClick={() => void ladeModelle()} disabled={modelleLaden}>
               Neu laden
             </button>
@@ -399,6 +488,13 @@ export function BestandspflegeSeite() {
                     title="Sortieren"
                   >
                     Name{sortierung?.key === 'name' ? (sortierung.dir === 'asc' ? ' ↑' : ' ↓') : ''}
+                  </th>
+                  <th
+                    style={{ padding: '8px 6px', cursor: 'pointer', userSelect: 'none' }}
+                    onClick={() => toggleSort('farbe')}
+                    title="Sortieren"
+                  >
+                    Farbe{sortierung?.key === 'farbe' ? (sortierung.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer', userSelect: 'none' }}
@@ -429,6 +525,7 @@ export function BestandspflegeSeite() {
                     Mindestbestand
                     {sortierung?.key === 'mindestbestand' ? (sortierung.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
+                  <th style={{ padding: '8px 6px' }}>VK-Preis</th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer', userSelect: 'none' }}
                     onClick={() => toggleSort('status')}
@@ -451,8 +548,9 @@ export function BestandspflegeSeite() {
                   return (
                     <tr key={m.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                       <td style={{ padding: '8px 6px', fontWeight: 600 }}>{m.name}</td>
+                      <td style={{ padding: '8px 6px', opacity: 0.9 }}>{farbeAnzeige(m.farbe)}</td>
                       <td style={{ padding: '8px 6px', opacity: 0.85 }}>{m.druckflaeche ?? ''}</td>
-                      <td style={{ padding: '8px 6px', opacity: 0.9 }}>{m.typ}</td>
+                      <td style={{ padding: '8px 6px', opacity: 0.9 }}>{typAnzeige(m.typ)}</td>
                       <td style={{ padding: '8px 6px' }}>{m.bestand ?? 0}</td>
                       <td style={{ padding: '8px 6px' }}>
                         <input
@@ -466,6 +564,7 @@ export function BestandspflegeSeite() {
                           style={{ maxWidth: 110 }}
                         />
                       </td>
+                      <td style={{ padding: '8px 6px' }}>{fmtVkPreisNetto(m.vk_preis_netto)}</td>
                       <td style={{ padding: '8px 6px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                           <span className={`badge ${st.cls}`}>{st.label}</span>

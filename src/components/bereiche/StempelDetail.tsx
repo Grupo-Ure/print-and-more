@@ -61,7 +61,12 @@ type StempelModell = {
   max_hoehe_mm: number | null
   druckflaeche: string | null
   bestand: number | null
+  ersatzkissen_artikelnummer: string | null
 }
+
+const ERSATZ_KISSEN_FARBEN_REIHE = ['SCHWARZ', 'ROT', 'BLAU', 'GRUEN'] as const
+
+type ErsatzKissenZeile = { farbe: string; label: string; bestand: number }
 
 function toPosIntOrNull(v: unknown): number | null {
   if (v == null || v === '') return null
@@ -122,6 +127,8 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
     String(((teil.detail as Record<string, unknown> | null) ?? {}).modell_name ?? '') || null
   )
 
+  const [ersatzKissen, setErsatzKissen] = useState<ErsatzKissenZeile[] | null>(null)
+
   useEffect(() => {
     const td = ((teil.detail as Record<string, unknown> | null) ?? {}) as Record<string, unknown>
     setGewaehltesModellId(String(td.modell_id ?? '') || null)
@@ -149,7 +156,7 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
 
     const q0 = supabase
       .from('stempel_modelle')
-      .select('id, name, max_breite_mm, max_hoehe_mm, druckflaeche, bestand')
+      .select('id, name, max_breite_mm, max_hoehe_mm, druckflaeche, bestand, ersatzkissen_artikelnummer')
       .eq('typ', t as string)
       .eq('aktiv', true)
 
@@ -202,6 +209,65 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
       alive = false
     }
   }, [typ, bVal, hVal])
+
+  useEffect(() => {
+    if (!gewaehltesModellId) {
+      setErsatzKissen(null)
+      return
+    }
+    let alive = true
+    void (async () => {
+      const fromList = modelle.find(m => m.id === gewaehltesModellId)
+      let art: string | null = (fromList?.ersatzkissen_artikelnummer && String(fromList.ersatzkissen_artikelnummer).trim()) || null
+      if (!art) {
+        const { data, error } = await supabase
+          .from('stempel_modelle')
+          .select('ersatzkissen_artikelnummer')
+          .eq('id', gewaehltesModellId)
+          .single()
+        if (!alive) return
+        if (error || !data) {
+          setErsatzKissen(null)
+          return
+        }
+        const raw = (data as { ersatzkissen_artikelnummer: string | null }).ersatzkissen_artikelnummer
+        art = (raw && String(raw).trim()) || null
+      }
+      if (!art) {
+        if (alive) setErsatzKissen(null)
+        return
+      }
+      const { data: rows, error: e2 } = await supabase
+        .from('stempel_modelle')
+        .select('id, name, farbe, bestand')
+        .eq('artikelnummer', art)
+        .eq('typ', 'TRODAT_KISSEN')
+        .order('farbe', { ascending: true })
+      if (!alive) return
+      if (e2) {
+        setErsatzKissen(null)
+        return
+      }
+      const list = (rows ?? []) as { id: string; name: string; farbe: string | null; bestand: number | null }[]
+      const byFarbe = new Map<string, (typeof list)[0]>()
+      for (const r of list) {
+        if (r.farbe) byFarbe.set(r.farbe, r)
+      }
+      setErsatzKissen(
+        ERSATZ_KISSEN_FARBEN_REIHE.map(farbe => {
+          const r = byFarbe.get(farbe)
+          return {
+            farbe,
+            label: STEMPEL_FARBE_ANZEIGE[farbe],
+            bestand: r ? Number(r.bestand) || 0 : 0,
+          }
+        })
+      )
+    })()
+    return () => {
+      alive = false
+    }
+  }, [gewaehltesModellId, modelle])
 
   const speich = useCallback(
     async (nextTyp: string | null, d: StempelDetailJson) => {
@@ -446,6 +512,21 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
                     ×
                   </span>
                 </div>
+                {ersatzKissen && ersatzKissen.length > 0 && (
+                  <div style={{ margin: '6px 0 0 0', fontSize: 12, opacity: 0.92 }}>
+                    {ersatzKissen.map(z => (
+                      <div
+                        key={z.farbe}
+                        style={{
+                          color: z.bestand <= 0 ? '#f59e0b' : undefined,
+                          fontWeight: z.bestand <= 0 ? 600 : undefined,
+                        }}
+                      >
+                        {z.label}: Bestand {z.bestand}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
