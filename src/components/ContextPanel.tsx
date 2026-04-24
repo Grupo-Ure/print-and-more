@@ -60,6 +60,111 @@ function kundeNameSafe(k: KundeKontaktJoin | null): string {
   return kundenName(k as KundeJoin)
 }
 
+function hatStempelModellVerknuepft(detail: Record<string, unknown>): boolean {
+  const k = detail.kissen_modell_id
+  const m = detail.modell_id
+  return !!(k && String(k).trim()) || !!(m && String(m).trim())
+}
+
+function istStempelBereichBestandKritisch(
+  stempelBestand: number | null,
+  kissenBestand: number | null
+): boolean {
+  return (
+    (stempelBestand !== null && stempelBestand === 0) ||
+    (kissenBestand !== null && kissenBestand === 0)
+  )
+}
+
+function fertigGesperrtHinweis(
+  stempelBestand: number | null,
+  kissenBestand: number | null
+): string {
+  const st0 = stempelBestand !== null && stempelBestand === 0
+  const k0 = kissenBestand !== null && kissenBestand === 0
+  if (st0 && k0) {
+    return 'Fertigmeldung nicht möglich — Stempel- und Kissen-Bestand sind 0'
+  }
+  if (st0) return 'Fertigmeldung nicht möglich — Stempel-Bestand ist 0'
+  if (k0) return 'Fertigmeldung nicht möglich — Kissen-Bestand ist 0'
+  return ''
+}
+
+function produktionBestandModalTitel(
+  stempelBestand: number | null,
+  kissenBestand: number | null
+): string {
+  const st0 = stempelBestand !== null && stempelBestand === 0
+  const k0 = kissenBestand !== null && kissenBestand === 0
+  if (st0 && k0) return 'Achtung: Stempel- und Kissen-Bestand sind 0'
+  if (st0) return 'Achtung: Stempel-Bestand ist 0'
+  if (k0) return 'Achtung: Kissen-Bestand ist 0'
+  return 'Achtung: Bestand ist 0'
+}
+
+type StempelKissenBestand = { stempelBestand: number | null; kissenBestand: number | null }
+
+/**
+ * Lädt Stempel- und/oder Kissen-`bestand` je nach verknüpftem Modell, Farbe und Auftragstyp.
+ */
+async function ladeStempelBestand(detail: Record<string, unknown>): Promise<StempelKissenBestand> {
+  const hasMod = detail.modell_id && String(detail.modell_id).trim()
+  const hasKis = detail.kissen_modell_id && String(detail.kissen_modell_id).trim()
+  const fr = detail.farbe
+  const farbeSet = fr != null && String(fr).trim() !== ''
+
+  async function bestandById(id: string): Promise<number | null> {
+    const { data, error } = await supabase
+      .from('stempel_modelle')
+      .select('bestand')
+      .eq('id', id)
+      .single()
+    if (error || !data) return null
+    return (data as { bestand: number | null }).bestand ?? 0
+  }
+
+  if (hasKis && !hasMod) {
+    const kb = await bestandById(String(detail.kissen_modell_id))
+    return { stempelBestand: null, kissenBestand: kb }
+  }
+
+  let st: number | null = null
+  let kis: number | null = null
+
+  if (hasMod) {
+    st = await bestandById(String(detail.modell_id))
+    if (farbeSet) {
+      const { data: stRow, error: eE } = await supabase
+        .from('stempel_modelle')
+        .select('ersatzkissen_artikelnummer')
+        .eq('id', String(detail.modell_id))
+        .single()
+      if (!eE && stRow) {
+        const ers = (stRow as { ersatzkissen_artikelnummer: string | null }).ersatzkissen_artikelnummer
+        const artikel = ers && String(ers).trim()
+        if (artikel) {
+          const { data: kissen, error: eKis } = await supabase
+            .from('stempel_modelle')
+            .select('bestand')
+            .eq('typ', 'TRODAT_KISSEN')
+            .eq('artikelnummer', artikel)
+            .eq('farbe', String(fr))
+            .maybeSingle()
+          if (eKis) {
+            kis = 0
+          } else if (kissen) {
+            kis = (kissen as { bestand: number | null }).bestand ?? 0
+          } else {
+            kis = 0
+          }
+        }
+      }
+    }
+  }
+
+  return { stempelBestand: st, kissenBestand: kis }
+}
+
 export function ContextPanel({
   auftrag,
   aktiverTeilauftrag,
@@ -82,6 +187,28 @@ export function ContextPanel({
   const [notfallBegr, setNotfallBegr] = useState('')
   const [dialogKfDatei, setDialogKfDatei] = useState(false)
   const [kfDateiId, setKfDateiId] = useState('')
+  const [stempelBestand, setStempelBestand] = useState<number | null>(null)
+  const [kissenBestand, setKissenBestand] = useState<number | null>(null)
+  const [dialogProduktionBestand0, setDialogProduktionBestand0] = useState(false)
+
+  useEffect(() => {
+    if (!aktiverTeilauftrag || aktiverTeilauftrag.bereich !== 'STEMPEL') {
+      setStempelBestand(null)
+      setKissenBestand(null)
+      return
+    }
+    const det = (aktiverTeilauftrag.detail as Record<string, unknown> | null) ?? {}
+    let alive = true
+    void ladeStempelBestand(det).then(r => {
+      if (alive) {
+        setStempelBestand(r.stempelBestand)
+        setKissenBestand(r.kissenBestand)
+      }
+    })
+    return () => {
+      alive = false
+    }
+  }, [aktiverTeilauftrag, kontextAktualisiert])
 
   useEffect(() => {
     if (!auftrag) {
@@ -250,7 +377,7 @@ export function ContextPanel({
     }
   }
 
-  const handleProduktionFrei = async () => {
+  const ausfuehrenProduktionFrei = async () => {
     if (busy || !teil || teil.status !== 'PREPRESS_BEREIT') return
     if (teil.kundenfreigabe_erforderlich && !teil.kundenfreigabe_liegt_vor) return
     setBusy(true)
@@ -276,8 +403,26 @@ export function ContextPanel({
     }
   }
 
+  const handleProduktionFrei = () => {
+    if (busy || !teil || teil.status !== 'PREPRESS_BEREIT') return
+    if (teil.kundenfreigabe_erforderlich && !teil.kundenfreigabe_liegt_vor) return
+    if (teil.bereich === 'STEMPEL') {
+      if (istStempelBereichBestandKritisch(stempelBestand, kissenBestand)) {
+        setDialogProduktionBestand0(true)
+        return
+      }
+    }
+    void ausfuehrenProduktionFrei()
+  }
+
   const handleFertigMelden = async () => {
     if (busy || !teil || teil.status !== 'PRODUKTION_BEREIT') return
+    if (teil.bereich === 'STEMPEL') {
+      const d = (teil.detail as Record<string, unknown> | null) ?? {}
+      if (hatStempelModellVerknuepft(d) && istStempelBereichBestandKritisch(stempelBestand, kissenBestand)) {
+        return
+      }
+    }
     if (!window.confirm('Teilauftrag als fertig markieren?')) return
     setBusy(true)
     try {
@@ -582,6 +727,13 @@ export function ContextPanel({
 
   const prodDisabled =
     !!teil && teil.status === 'PREPRESS_BEREIT' && teil.kundenfreigabe_erforderlich && !teil.kundenfreigabe_liegt_vor
+  const stempelDetailAktuell = teil ? ((teil.detail as Record<string, unknown> | null) ?? {}) : {}
+  const fertigGesperrtWegenBestand =
+    !!teil &&
+    teil.bereich === 'STEMPEL' &&
+    teil.status === 'PRODUKTION_BEREIT' &&
+    hatStempelModellVerknuepft(stempelDetailAktuell) &&
+    istStempelBereichBestandKritisch(stempelBestand, kissenBestand)
   const notfallSichtbar =
     teil && teil.status !== 'ANGEBOT' && teil.status !== 'FERTIG' && naechsterNotfallStatus(teil.status) !== teil.status
   const kfErteilenSichtbar =
@@ -699,14 +851,21 @@ export function ContextPanel({
                 </>
               )}
               {teil.status === 'PRODUKTION_BEREIT' && (
-                <button
-                  type="button"
-                  className="cp-btn"
-                  disabled={busy}
-                  onClick={() => void handleFertigMelden()}
-                >
-                  Als fertig melden
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="cp-btn"
+                    disabled={busy || fertigGesperrtWegenBestand}
+                    onClick={() => void handleFertigMelden()}
+                  >
+                    Als fertig melden
+                  </button>
+                  {fertigGesperrtWegenBestand && (
+                    <p className="cp-sublabel">
+                      {fertigGesperrtHinweis(stempelBestand, kissenBestand)}
+                    </p>
+                  )}
+                </>
               )}
             </div>
             <div className="cp-gruppe-trenn" />
@@ -879,6 +1038,36 @@ export function ContextPanel({
                 onClick={() => void handleNotfallBestaetigt()}
               >
                 Bestätigen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {dialogProduktionBestand0 && teil && (
+        <div
+          className="cp-modal-bg"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Bestand"
+        >
+          <div className="cp-modal">
+            <h3>{produktionBestandModalTitel(stempelBestand, kissenBestand)}</h3>
+            <p className="cp-hinweis">Trotzdem auf Produktion setzen?</p>
+            <div className="cp-modal-bar">
+              <button type="button" className="cp-btn" onClick={() => setDialogProduktionBestand0(false)}>
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                className="cp-btn"
+                disabled={busy}
+                onClick={() => {
+                  setDialogProduktionBestand0(false)
+                  void ausfuehrenProduktionFrei()
+                }}
+              >
+                Trotzdem freigeben
               </button>
             </div>
           </div>
