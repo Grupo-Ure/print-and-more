@@ -1,6 +1,6 @@
 # Systemstand — Auftragserfassung & Produktionssteuerung
 
-Stand: **24.04.2026** · interne Codebasis (Vite 8 / React 19 / TypeScript + Supabase). Diese Datei beschreibt den **Ist-Zustand** der App, der relevanten Dateien und des fachlichen Modells. *(Zusammenführung der früheren `SYSTEM_STATE.md` und `SYSTEM_STATUS.md`.)*
+Stand: **25.04.2026** · interne Codebasis (Vite 8 / React 19 / TypeScript + Supabase). Diese Datei beschreibt den **Ist-Zustand** der App, der relevanten Dateien und des fachlichen Modells. *(Zusammenführung der früheren `SYSTEM_STATE.md` und `SYSTEM_STATUS.md`.)*
 
 ## Tech-Stack
 
@@ -26,10 +26,16 @@ Dreispaltig, volle Höhe:
 
 **Auth:** `Login` mit `supabase.auth.signInWithPassword`; Session-Typ `Session | null`. Ohne Session wird nur das Login-Layout gezeigt.
 
+**Zusätzliche Vollbild-Routen (ohne Dreispalter):** `Route path="/bestandspflege"` → `BestandspflegeSeite` (Stempel-Lager); `Route path="/textil-bestand"` → `TextilBestandSeite` (Textil-Stammdaten & Varianten-Bestand). Im `ContextPanel` öffnen beide per Button in neuem Tab (`/bestandspflege`, `/textil-bestand`).
+
 ## `ContextPanel` (`src/components/ContextPanel.tsx`)
 
 - **Sektion Status:** farbige Badges für Auftrags- und (optional) Teilauftragsstatus; **NOTFALL** + Begründung bei `notfall_aktiv`.
 - **Sektion Aktionen (Auszug):** Auftrags-Workflow; bei `ANGEBOT` u. a. *In Bearbeitung nehmen* und daneben *Kunde bearbeiten* (`onKundeBearbeiten`); *ERP exportieren* mit Modus, *Archivieren*; Teilauftrags-Workflow (Prepress/Produktion freigeben, fertig melden, Notfall, Kundenfreigabe-Toggle und -erteilung, Storno, Löschen). **Kundenfreigabe** blockiert ausschließlich **Produktion freigeben** (`prodDisabled`); Löschen/Stornieren nutzen **nicht** den globalen `busy`-Sperrstatus (eigene `stornoLaeuft` / `loeschenLaeuft`).
+- **Produktion freigeben** (`PREPRESS_BEREIT` → `PRODUKTION_BEREIT`): Nach erfolgreichem Status-Update werden **automatische Lagerabgänge** gebucht (nur hier, nicht beim Fertigmelden):
+  - **STEMPEL:** wie bisher Stempel- und ggf. Kissen-Bestand reduzieren, `lager_bewegungen` mit `typ: 'AUTOABGANG'`, Notiz **`Automatisch bei Produktionsfreigabe …`** + Auftragsnummer. Vor dem Freigeben-Dialog: Warnung/Modal, wenn Stempel- und/oder Kissen-Bestand **0** (bestehende Logik).
+  - **TEXTIL:** alle `textil_positionen` dieses Teilauftrags mit `herkunft = 'EIGENWARE'` und gesetzter `variante_id`: je Position `bestand` der Variante um `stueckzahl` reduzieren (min. 0), bei `bestand > 0` Eintrag in **`textil_lager_bewegungen`** (`AUTOABGANG`, gleiche Notiz-Form).
+- **Fertig melden** (`PRODUKTION_BEREIT` → `FERTIG`): **Kein** Stempel-Lagerabgang mehr; Stempel-Bestandsprüfung, die FERTIG blockierte, entfällt.
 - **Sektion Hinweise:** kontextabhängige Texte (Kundenfreigabe, Notfall, ERP ausstehend, …).
 - **Supabase-Aufrufe** inkl. `schreibeHistorie` (`src/lib/historie.ts`) und `synchronisiereAuftragsstatus` via RPC `fn_berechne_auftragsstatus` (`src/lib/auftragsStatus.ts`); `auftraege`-Selects nutzen `AUFTRAG_SPALTEN` (`src/const/auftragSelect.ts`) inkl. `kunden(id, name, email, telefon, notiz)`.
 
@@ -83,7 +89,9 @@ Dreispaltig, volle Höhe:
 | `src/components/bereiche/StempelDetail.tsx` | … |
 | `src/components/bereiche/SonstigeDetail.tsx` | … |
 | `src/components/bereiche/LaserDetail.tsx` | … |
-| `src/components/bereiche/TextilDetail.tsx` | Textil-Tabellen; `detail.textil` + Status |
+| `src/components/bereiche/TextilDetail.tsx` | Textil-Tabellen; `detail.textil` + Status; Eigenware **STAMMDATEN** (Marke/Produkt/Farbe+Größe → `variante_id`, Join-Felder) vs **FREITEXT**; `detail.eigenware_modus` (`STAMMDATEN` \| `FREITEXT`); Farben aus `textil_varianten` mit **`farbe_hex`** |
+| `src/pages/BestandspflegeSeite.tsx` | Stempel-Bestandspflege (eigene Route) |
+| `src/pages/TextilBestandSeite.tsx` | Textil-Stammdaten (Marken/Produkte/Varianten), Bestand, Bestellliste (eigene Route) |
 | `src/components/AddTeilauftragOverlay.tsx` | Neuer TA |
 | `src/components/WorkArea.css` | Layout, Formulare |
 | `src/components/Login.tsx` | Anmeldung |
@@ -93,7 +101,7 @@ Dreispaltig, volle Höhe:
 - **Kunde** — Tabelle `kunden` (u. a. `name`, `email`, `telefon`, `notiz`, `archiviert`); Anlage/Bearbeitung über `KundeDialog`; in der Auftragssuche (`NeuerAuftragDialog`) Freitextsuche per `ilike` auf `name` (nur `archiviert = false`). Join auf Auftragszeilen: `KundeKontaktRow` inkl. `id` / `notiz` für Anzeige und Formulare.
 - **Auftrag** — `kunde_id` → Kunde, `status` (u. a. per `fn_berechne_auftragsstatus` abgeglichen), **Kopf:** optional `termin`, `lieferung` (`ABHOLUNG` \| `VERSAND`), `prioritaet` (z. B. `NORMAL` \| `HOCH`), `notfall_aktiv`, `erstellt_am`, `erp_exportiert`, `archiviert`, 1…n **Teilaufträge**; **neue Aufträge** aus `NeuerAuftragDialog` mit Status `ANGEBOT`. In der Mitte/Context wird `auftraege` inkl. Join gelesen/aktualisiert.
 - **Dateien** — gehören zum **Auftrag** (`dateien.auftrag_id`); in der App zentral in der `WorkArea` geladen; für Kundenfreigabe im `ContextPanel` wählbar.
-- **Teilauftrag** — u. a. bisherige Spalten plus **`notfall_aktiv`**, **`notfall_begruendung`**, **`storniert`**, Kundenfreigabe-Felder; **`detail` (JSONB)** für LFP, Copy-Shop, etc.; **TEXTIL** wie zuvor mit Tabellen.
+- **Teilauftrag** — u. a. bisherige Spalten plus **`notfall_aktiv`**, **`notfall_begruendung`**, **`storniert`**, Kundenfreigabe-Felder; **`detail` (JSONB)** für LFP, Copy-Shop, etc.; **TEXTIL** mit Tabellen **`textil_motive`**, **`textil_positionen`**, **`textil_zuordnungen`**; in `detail` u. a. **`eigenware_modus`** für Eigenware-Erfassung (Stammdaten vs. Freitext). Positionen können **`variante_id`** (FK auf `textil_varianten`) tragen.
 
 ### Status (Auftrag & Teilauftrag)
 
@@ -124,6 +132,9 @@ Unverändert: dieselben DB-Enum-Strings, `teilauftragBereichLabel()`.
 - **`historie`:** Ereignisse inkl. `ereignisart`, `person_id` (Auth-User), optional `teilauftrag_id`, `begruendung`, `meta`.
 - **`erp_exporte`:** u. a. `auftrag_id`, `modus` (`EINZELN` \| `GESAMMELT`), `exportdaten` (JSON).
 - **`textil_motive`**, **`textil_positionen`**, **`textil_zuordnungen`:** Textil-Detail.
+- **`textil_marken`**, **`textil_produkte`**, **`textil_varianten`:** Textil-Stammdaten (u. a. `farbe_hex` auf Varianten, `bestand`, `mindestbestand`); von `TextilBestandSeite` und Eigenware-Stammdaten in `TextilDetail` genutzt.
+- **`textil_lager_bewegungen`:** Lagerbewegungen je Variante (`variante_id`, `typ`, `menge`, `notiz`, `person_id`).
+- **`textil_positionen`:** u. a. **`variante_id`** (optional, UUID) für Eigenware aus Stammdaten.
 - **`stempel_modelle`:** Stammdaten für **Modellvorschläge** im Bereich STEMPEL (`id`, `name`, `typ`, `max_breite_mm`, `max_hoehe_mm`, `druckflaeche`, `bestand`, `aktiv`, …); RLS aktiv, Zugriff für `authenticated`.
 - **`mitarbeiter`:** `id`, `email` (Verantwortlicher).
 - **RPC** `fn_berechne_auftragsstatus(p_auftrag_id)` — Ergebnis wird als Soll-`status` in `auftraege` geschrieben (Client: `synchronisiereAuftragsstatus`).
