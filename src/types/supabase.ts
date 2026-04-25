@@ -537,6 +537,72 @@ export type Database = {
           },
         ]
       }
+      textil_lager_bewegungen: {
+        Row: {
+          erstellt_am: string
+          id: string
+          menge: number
+          notiz: string | null
+          person_id: string | null
+          typ: string
+          variante_id: string
+        }
+        Insert: {
+          erstellt_am?: string
+          id?: string
+          menge: number
+          notiz?: string | null
+          person_id?: string | null
+          typ: string
+          variante_id: string
+        }
+        Update: {
+          erstellt_am?: string
+          id?: string
+          menge?: number
+          notiz?: string | null
+          person_id?: string | null
+          typ?: string
+          variante_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "textil_lager_bewegungen_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "mitarbeiter"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "textil_lager_bewegungen_variante_id_fkey"
+            columns: ["variante_id"]
+            isOneToOne: false
+            referencedRelation: "textil_varianten"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      textil_marken: {
+        Row: {
+          aktiv: boolean
+          erstellt_am: string
+          id: string
+          name: string
+        }
+        Insert: {
+          aktiv?: boolean
+          erstellt_am?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          aktiv?: boolean
+          erstellt_am?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       textil_motive: {
         Row: {
           datei_id: string | null
@@ -606,6 +672,7 @@ export type Database = {
           stueckzahl: number
           teilauftrag_id: string
           typ: string | null
+          variante_id: string | null
         }
         Insert: {
           erstellt_am?: string
@@ -618,6 +685,7 @@ export type Database = {
           stueckzahl: number
           teilauftrag_id: string
           typ?: string | null
+          variante_id?: string | null
         }
         Update: {
           erstellt_am?: string
@@ -630,6 +698,7 @@ export type Database = {
           stueckzahl?: number
           teilauftrag_id?: string
           typ?: string | null
+          variante_id?: string | null
         }
         Relationships: [
           {
@@ -637,6 +706,101 @@ export type Database = {
             columns: ["teilauftrag_id"]
             isOneToOne: false
             referencedRelation: "teilauftraege"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "textil_positionen_variante_id_fkey"
+            columns: ["variante_id"]
+            isOneToOne: false
+            referencedRelation: "textil_varianten"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      textil_produkte: {
+        Row: {
+          aktiv: boolean
+          artikelnummer: string | null
+          beschreibung: string | null
+          erstellt_am: string
+          id: string
+          marke_id: string
+          name: string
+        }
+        Insert: {
+          aktiv?: boolean
+          artikelnummer?: string | null
+          beschreibung?: string | null
+          erstellt_am?: string
+          id?: string
+          marke_id: string
+          name: string
+        }
+        Update: {
+          aktiv?: boolean
+          artikelnummer?: string | null
+          beschreibung?: string | null
+          erstellt_am?: string
+          id?: string
+          marke_id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "textil_produkte_marke_id_fkey"
+            columns: ["marke_id"]
+            isOneToOne: false
+            referencedRelation: "textil_marken"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      textil_varianten: {
+        Row: {
+          aktiv: boolean
+          bestand: number
+          erstellt_am: string
+          farbe: string
+          farbcode: string | null
+          groesse: string
+          id: string
+          ist_muster: boolean
+          mindestbestand: number
+          produkt_id: string
+          sort_order: number
+        }
+        Insert: {
+          aktiv?: boolean
+          bestand?: number
+          erstellt_am?: string
+          farbe: string
+          farbcode?: string | null
+          groesse: string
+          id?: string
+          ist_muster?: boolean
+          mindestbestand?: number
+          produkt_id: string
+          sort_order?: number
+        }
+        Update: {
+          aktiv?: boolean
+          bestand?: number
+          erstellt_am?: string
+          farbe?: string
+          farbcode?: string | null
+          groesse?: string
+          id?: string
+          ist_muster?: boolean
+          mindestbestand?: number
+          produkt_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "textil_varianten_produkt_id_fkey"
+            columns: ["produkt_id"]
+            isOneToOne: false
+            referencedRelation: "textil_produkte"
             referencedColumns: ["id"]
           },
         ]

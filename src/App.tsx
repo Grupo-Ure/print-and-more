@@ -13,6 +13,7 @@ import type { Kunde } from './lib/kunden'
 import type { Auftrag, AuftragStatus, KundeKontaktJoin, TeilauftragRow } from './types/database'
 import type { Datei } from './components/DateiListe'
 import { BestandspflegeSeite } from './pages/BestandspflegeSeite'
+import { TextilBestandSeite } from './pages/TextilBestandSeite'
 import { ToastContainer, ToastProvider } from './components/Toast'
 
 const ORDER_LIST_IN_PLACE_INITIAL: { tick: number; id: string; status: AuftragStatus } = {
@@ -205,6 +206,7 @@ function App() {
       <Routes>
         <Route path="/" element={<HauptApp />} />
         <Route path="/bestandspflege" element={<BestandspflegeSeite />} />
+        <Route path="/textil-bestand" element={<TextilBestandSeite />} />
       </Routes>
     </ToastProvider>
   )

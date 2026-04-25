@@ -1062,14 +1062,22 @@ export function ContextPanel({
       )}
 
       <div className="cp-sektion">
-        <div className="cp-gruppe">
+        <div className="cp-gruppe" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
           <button
             type="button"
             className="cp-btn cp-btn-grau"
             onClick={() => window.open('/bestandspflege', '_blank')}
-            title="Bestandspflege öffnen"
+            title="Stempel-Bestandspflege öffnen"
           >
             Bestandspflege ↗
+          </button>
+          <button
+            type="button"
+            className="cp-btn cp-btn-grau"
+            onClick={() => window.open('/textil-bestand', '_blank')}
+            title="Textil-Bestand öffnen"
+          >
+            Textil-Bestand ↗
           </button>
         </div>
       </div>

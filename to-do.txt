@@ -1,0 +1,34 @@
+Kurzfristig — vor dem Go-Live:
+Funktional:
+	•	Laser-Korrekturen (wartet auf Bucket-List vom Personal)
+	•	Restliche Teilauftrag-Bugs (aus der heutigen Liste, falls noch offen)
+	•	Datenbank-Trigger für neue Stempel-Typen war bereits erledigt — nochmal prüfen ob alle Typen drin sind
+UI/Design:
+	•	Figma: Foundations + Components + 3 Screens
+	•	UI-Redesign mit Cursor + shadcn/ui basierend auf Figma
+	•	Responsive für Tablet (Bestandspflege) — optional, eher V2
+Technisch:
+	•	Restliche as never Casts bereinigen (beim UI-Redesign)
+	•	Doppelte Ladelogik bereinigen (beim UI-Redesign)
+
+Serverumzug:
+	•	Supabase self-hosted auf Windows-Server (Docker)
+	•	pg_dump Cloud → psql Server
+	•	.env tauschen
+	•	Webserver einrichten (nginx oder IIS)
+	•	Mitarbeiter-Accounts neu anlegen
+
+V2 — beschlossen aber nicht gebaut:
+	•	Bestandsführung für andere Bereiche (LFP-Folien, CopyShop-Papiere)
+	•	Auftrag duplizieren als Vorlage speichern
+	•	Kalkulationsmodul
+	•	Wiedervorlagen / Erinnerungen
+	•	KI-gestützte Eingangsverarbeitung
+	•	Auswertung und Dashboard
+	•	ERP-Export CSV-Struktur für Orgamax
+	•	Tablet-Ansicht Bestandspflege
+
+Laser (sobald Personal-Input da ist):
+	•	Bucket-List durcharbeiten
+	•	Neue Felder / Typen ergänzen
+	•	Trigger in DB aktualisieren
