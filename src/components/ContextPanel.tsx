@@ -461,99 +461,58 @@ export function ContextPanel({
         teilauftrag_id: teil.id,
         ereignisart: 'PRODUKTION_BEREIT_GESETZT',
       })
-      onTeilauftragAktualisiert(data as TeilauftragRow)
-      await teilNaechstNachTeilAktion()
-    } catch (e) {
-      fehler('Status konnte nicht geändert werden')
-    } finally {
-      setBusy(false)
-    }
-  }
 
-  const handleProduktionFrei = () => {
-    if (busy || !teil || teil.status !== 'PREPRESS_BEREIT') return
-    if (teil.kundenfreigabe_erforderlich && !teil.kundenfreigabe_liegt_vor) return
-    if (teil.bereich === 'STEMPEL') {
-      if (istStempelBereichBestandKritisch(stempelBestand, kissenBestand)) {
-        setDialogProduktionBestand0(true)
-        return
-      }
-    }
-    void ausfuehrenProduktionFrei()
-  }
-
-  const handleFertigMelden = async () => {
-    if (busy || !teil || teil.status !== 'PRODUKTION_BEREIT') return
-    if (teil.bereich === 'STEMPEL') {
-      const d = teilJsonAlsFeldertabelle(teil.detail)
-      if (hatStempelModellVerknuepft(d) && istStempelBereichBestandKritisch(stempelBestand, kissenBestand)) {
-        return
-      }
-    }
-    if (!window.confirm('Teilauftrag als fertig markieren?')) return
-    setBusy(true)
-    try {
-      const { data, error } = await supabase
-        .from('teilauftraege')
-        .update({ status: 'FERTIG' as AuftragStatus })
-        .eq('id', teil.id)
-        .select(TEILAUFTRAG_SPALTEN)
-        .single()
-      if (error) throw error
-      await schreibeHistorie({
-        auftrag_id: auftrag.id,
-        teilauftrag_id: teil.id,
-        ereignisart: 'FERTIG_GEMELDET',
-      })
       const row = data as TeilauftragRow
-      const det = teilJsonAlsFeldertabelle(row.detail)
-      const rawM = det.stueckzahl
-      const mengeParsed =
-        typeof rawM === 'number'
-          ? rawM
-          : typeof rawM === 'string' && rawM.trim() !== ''
-            ? parseInt(rawM, 10)
-            : 1
-      const menge = Number.isFinite(mengeParsed) && mengeParsed >= 1 ? Math.floor(mengeParsed) : 1
 
-      const notizStempel = 'Automatisch bei Fertigmeldung ' + (auftrag.auftragsnummer ?? '')
-
-      const lagerAutoabgang = async (modellId: string, mengeLocal: number, notiz: string) => {
-        const { data: modell, error: eMod } = await supabase
-          .from('stempel_modelle')
-          .select('bestand')
-          .eq('id', modellId)
-          .single()
-        if (eMod) {
-          fehler('Bestand konnte nicht geladen werden')
-          return
-        }
-        if (!modell) return
-        const alt = (modell as { bestand: number | null }).bestand ?? 0
-        if (alt <= 0) return
-        const neuerBestand = Math.max(0, alt - mengeLocal)
-        const { error: eUp } = await supabase
-          .from('stempel_modelle')
-          .update({ bestand: neuerBestand } as never)
-          .eq('id', modellId)
-        if (eUp) {
-          fehler('Bestand konnte nicht geladen werden')
-          return
-        }
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-        const { error: eIns } = await supabase.from('lager_bewegungen').insert({
-          modell_id: modellId,
-          menge: mengeLocal,
-          typ: 'AUTOABGANG',
-          notiz,
-          person_id: user?.id ?? null,
-        } as never)
-        if (eIns) fehler('Bestand konnte nicht geladen werden')
-      }
-
+      // Stempel: Automatischer Lagerabgang bei Produktionsfreigabe (Stempel + ggf. Kissen).
       if (row.bereich === 'STEMPEL') {
+        const det = teilJsonAlsFeldertabelle(row.detail)
+        const rawM = det.stueckzahl
+        const mengeParsed =
+          typeof rawM === 'number'
+            ? rawM
+            : typeof rawM === 'string' && rawM.trim() !== ''
+              ? parseInt(rawM, 10)
+              : 1
+        const menge = Number.isFinite(mengeParsed) && mengeParsed >= 1 ? Math.floor(mengeParsed) : 1
+
+        const notizStempel = 'Automatisch bei Produktionsfreigabe ' + (auftrag.auftragsnummer ?? '')
+
+        const lagerAutoabgang = async (modellId: string, mengeLocal: number, notiz: string) => {
+          const { data: modell, error: eMod } = await supabase
+            .from('stempel_modelle')
+            .select('bestand')
+            .eq('id', modellId)
+            .single()
+          if (eMod) {
+            fehler('Bestand konnte nicht geladen werden')
+            return
+          }
+          if (!modell) return
+          const alt = (modell as { bestand: number | null }).bestand ?? 0
+          if (alt <= 0) return
+          const neuerBestand = Math.max(0, alt - mengeLocal)
+          const { error: eUp } = await supabase
+            .from('stempel_modelle')
+            .update({ bestand: neuerBestand } as never)
+            .eq('id', modellId)
+          if (eUp) {
+            fehler('Bestand konnte nicht geladen werden')
+            return
+          }
+          const {
+            data: { user },
+          } = await supabase.auth.getUser()
+          const { error: eIns } = await supabase.from('lager_bewegungen').insert({
+            modell_id: modellId,
+            menge: mengeLocal,
+            typ: 'AUTOABGANG',
+            notiz,
+            person_id: user?.id ?? null,
+          } as never)
+          if (eIns) fehler('Bestand konnte nicht geladen werden')
+        }
+
         if (row.typ === 'TRODAT_KISSEN' && det.kissen_modell_id) {
           await lagerAutoabgang(String(det.kissen_modell_id), menge, notizStempel)
         } else if (det.modell_id) {
@@ -594,6 +553,96 @@ export function ContextPanel({
           }
         }
       }
+
+      // Textil: Automatischer Lagerabgang bei Produktionsfreigabe (nur Eigenware-Positionen mit variante_id).
+      if (row.bereich === 'TEXTIL') {
+        const notizTextil = 'Automatisch bei Produktionsfreigabe ' + (auftrag.auftragsnummer ?? '')
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        const userId = user?.id ?? null
+
+        const { data: posData, error: ePos } = await supabase
+          .from('textil_positionen')
+          .select('id, variante_id, stueckzahl, herkunft')
+          .eq('teilauftrag_id', row.id)
+          .eq('herkunft', 'EIGENWARE')
+          .not('variante_id', 'is', null)
+        if (ePos) throw ePos
+
+        const posList = (posData ?? []) as {
+          id: string
+          variante_id: string | null
+          stueckzahl: number
+          herkunft: string
+        }[]
+
+        for (const p of posList) {
+          const vid = p.variante_id ? String(p.variante_id) : ''
+          if (!vid) continue
+          const mengeLocal = Number.isFinite(p.stueckzahl) && p.stueckzahl >= 1 ? Math.floor(p.stueckzahl) : 1
+
+          const { data: vRow, error: eVar } = await supabase
+            .from('textil_varianten')
+            .select('bestand')
+            .eq('id', vid)
+            .single()
+          if (eVar) throw eVar
+          const alt = (vRow as { bestand: number | null } | null)?.bestand ?? 0
+          if (alt <= 0) continue
+
+          const neuerBestand = Math.max(0, alt - mengeLocal)
+          const { error: eUp } = await supabase.from('textil_varianten').update({ bestand: neuerBestand } as never).eq('id', vid)
+          if (eUp) throw eUp
+
+          const { error: eIns } = await supabase.from('textil_lager_bewegungen').insert({
+            variante_id: vid,
+            menge: mengeLocal,
+            typ: 'AUTOABGANG',
+            notiz: notizTextil,
+            person_id: userId,
+          } as never)
+          if (eIns) throw eIns
+        }
+      }
+      onTeilauftragAktualisiert(data as TeilauftragRow)
+      await teilNaechstNachTeilAktion()
+    } catch (e) {
+      fehler('Status konnte nicht geändert werden')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleProduktionFrei = () => {
+    if (busy || !teil || teil.status !== 'PREPRESS_BEREIT') return
+    if (teil.kundenfreigabe_erforderlich && !teil.kundenfreigabe_liegt_vor) return
+    if (teil.bereich === 'STEMPEL') {
+      if (istStempelBereichBestandKritisch(stempelBestand, kissenBestand)) {
+        setDialogProduktionBestand0(true)
+        return
+      }
+    }
+    void ausfuehrenProduktionFrei()
+  }
+
+  const handleFertigMelden = async () => {
+    if (busy || !teil || teil.status !== 'PRODUKTION_BEREIT') return
+    if (!window.confirm('Teilauftrag als fertig markieren?')) return
+    setBusy(true)
+    try {
+      const { data, error } = await supabase
+        .from('teilauftraege')
+        .update({ status: 'FERTIG' as AuftragStatus })
+        .eq('id', teil.id)
+        .select(TEILAUFTRAG_SPALTEN)
+        .single()
+      if (error) throw error
+      await schreibeHistorie({
+        auftrag_id: auftrag.id,
+        teilauftrag_id: teil.id,
+        ereignisart: 'FERTIG_GEMELDET',
+      })
       onTeilauftragAktualisiert(data as TeilauftragRow)
       await teilNaechstNachTeilAktion()
     } catch (e) {

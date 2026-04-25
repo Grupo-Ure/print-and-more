@@ -14,8 +14,34 @@ type VarianteRow = Database['public']['Tables']['textil_varianten']['Row'] & {
 }
 type Tab = 'PRODUKTE' | 'BESTAND' | 'BESTELLLISTE'
 
-const STANDARD_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'] as const
-const KIDS_SIZES = ['98/104', '110/116', '122/128', '134/146', '152/161'] as const
+const GROESSENLAEUFE = {
+  STANDARD: ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'],
+  REDUZIERT: ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'],
+  KIDS: ['98/104', '110/116', '122/128', '134/146', '152/161'],
+  UNISEX: ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'],
+} as const
+
+type MatrixLaufPreset = keyof typeof GROESSENLAEUFE | 'EIGENE'
+
+function groessenFuerPreset(p: MatrixLaufPreset, eigene: readonly string[]): string[] {
+  if (p === 'EIGENE') return [...eigene]
+  return [...GROESSENLAEUFE[p]]
+}
+
+function groessenlaufLabel(p: MatrixLaufPreset, eigene: readonly string[]): string {
+  switch (p) {
+    case 'STANDARD':
+      return 'XS–5XL'
+    case 'REDUZIERT':
+      return 'XS–3XL'
+    case 'KIDS':
+      return 'Kids'
+    case 'UNISEX':
+      return 'Unisex (XS–5XL)'
+    case 'EIGENE':
+      return eigene.length ? eigene.join(' · ') : 'Eigene'
+  }
+}
 
 function joinName(x: unknown): string {
   if (!x) return ''
@@ -249,15 +275,20 @@ export function TextilBestandSeite() {
   const [editVarMin, setEditVarMin] = useState('0')
   const [editVarAktiv, setEditVarAktiv] = useState(true)
 
-  // Matrix-Anlegen (Farben × Größen)
-  type MatrixFarbe = { name: string; hex: string }
+  // Matrix-Anlegen: je Farbe eigener Größenlauf
+  type MatrixFarbe = {
+    id: string
+    name: string
+    hex: string
+    lauf: MatrixLaufPreset
+    eigeneGroessen: string[]
+  }
   const [matrixFarben, setMatrixFarben] = useState<MatrixFarbe[]>([])
   const [matrixFarbName, setMatrixFarbName] = useState('')
   const [matrixFarbHex, setMatrixFarbHex] = useState('#000000')
-  const [matrixSelectedSizes, setMatrixSelectedSizes] = useState<string[]>([])
-  const [matrixCustomSizes, setMatrixCustomSizes] = useState<string[]>([])
-  const [matrixCustomInput, setMatrixCustomInput] = useState('')
-  const [matrixEigeneOffen, setMatrixEigeneOffen] = useState(false)
+  const [matrixFarbLauf, setMatrixFarbLauf] = useState<MatrixLaufPreset>('STANDARD')
+  const [matrixEigeneInput, setMatrixEigeneInput] = useState('')
+  const [matrixEigeneTags, setMatrixEigeneTags] = useState<string[]>([])
   const [matrixMin, setMatrixMin] = useState('0')
   const [matrixAlleMuster, setMatrixAlleMuster] = useState(false)
   const [matrixBusy, setMatrixBusy] = useState(false)
@@ -714,69 +745,68 @@ export function TextilBestandSeite() {
     setMatrixFarben([])
     setMatrixFarbName('')
     setMatrixFarbHex('#000000')
-    setMatrixSelectedSizes([])
-    setMatrixCustomSizes([])
-    setMatrixCustomInput('')
-    setMatrixEigeneOffen(false)
+    setMatrixFarbLauf('STANDARD')
+    setMatrixEigeneInput('')
+    setMatrixEigeneTags([])
     setMatrixMin('0')
     setMatrixAlleMuster(false)
   }
 
-  const matrixSizeOrder = useMemo(() => {
-    const base = [...STANDARD_SIZES, ...KIDS_SIZES] as string[]
-    const all = [...base, ...matrixCustomSizes]
-    // unique, stable
-    const seen = new Set<string>()
-    const out: string[] = []
-    for (const s of all) {
-      const t = String(s).trim()
-      if (!t || seen.has(t)) continue
-      seen.add(t)
-      out.push(t)
+  const matrixVorschau = useMemo(() => {
+    if (matrixFarben.length === 0) return { teile: [] as string[], gesamt: 0, text: '' }
+    const teile: string[] = []
+    let gesamt = 0
+    for (const f of matrixFarben) {
+      const n = groessenFuerPreset(f.lauf, f.eigeneGroessen).length
+      gesamt += n
+      teile.push(`${f.name} (${n} Größen)`)
     }
-    return out
-  }, [matrixCustomSizes])
+    const text = `${teile.join(' + ')} = ${gesamt} Varianten gesamt`
+    return { teile, gesamt, text }
+  }, [matrixFarben])
 
-  const toggleMatrixSize = (s: string) => {
-    setMatrixSelectedSizes(prev => (prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]))
-  }
-
-  const addMatrixRun = (sizes: readonly string[]) => {
-    setMatrixSelectedSizes(prev => {
-      const set = new Set(prev)
-      for (const s of sizes) set.add(s)
-      return Array.from(set)
-    })
-  }
-
-  const addCustomSize = () => {
-    const raw = matrixCustomInput.trim()
+  const addMatrixEigeneTag = () => {
+    const raw = matrixEigeneInput.trim()
     if (!raw) return
     const clean = raw.replace(/\s+/g, ' ')
-    setMatrixCustomSizes(prev => (prev.includes(clean) ? prev : [...prev, clean]))
-    setMatrixSelectedSizes(prev => (prev.includes(clean) ? prev : [...prev, clean]))
-    setMatrixCustomInput('')
+    setMatrixEigeneTags(prev => (prev.includes(clean) ? prev : [...prev, clean]))
+    setMatrixEigeneInput('')
   }
 
-  const removeCustomSize = (s: string) => {
-    setMatrixCustomSizes(prev => prev.filter(x => x !== s))
-    setMatrixSelectedSizes(prev => prev.filter(x => x !== s))
+  const removeMatrixEigeneTag = (s: string) => {
+    setMatrixEigeneTags(prev => prev.filter(x => x !== s))
   }
 
   const addMatrixFarbe = () => {
     const name = matrixFarbName.trim()
     if (!name) return
+    if (matrixFarbLauf === 'EIGENE' && matrixEigeneTags.length === 0) {
+      fehler('Bei „Eigene…“ mindestens eine Größe als Tag hinzufügen')
+      return
+    }
     const hex = (matrixFarbHex || '#000000').toUpperCase()
     const key = name.toLowerCase()
+    const eigene = matrixFarbLauf === 'EIGENE' ? [...matrixEigeneTags] : []
     setMatrixFarben(prev => {
       if (prev.some(f => f.name.toLowerCase() === key)) return prev
-      return [...prev, { name, hex }]
+      return [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          name,
+          hex,
+          lauf: matrixFarbLauf,
+          eigeneGroessen: eigene,
+        },
+      ]
     })
     setMatrixFarbName('')
+    setMatrixEigeneTags([])
+    setMatrixEigeneInput('')
   }
 
-  const removeMatrixFarbe = (name: string) => {
-    setMatrixFarben(prev => prev.filter(f => f.name !== name))
+  const removeMatrixFarbe = (id: string) => {
+    setMatrixFarben(prev => prev.filter(f => f.id !== id))
   }
 
   const legeVariantenMatrixAn = async () => {
@@ -784,14 +814,16 @@ export function TextilBestandSeite() {
     if (matrixBusy) return
 
     const farben = matrixFarben.slice()
-    const groessen = matrixSelectedSizes.map(s => s.trim()).filter(Boolean)
     if (farben.length === 0) {
       fehler('Mindestens 1 Farbe hinzufügen')
       return
     }
-    if (groessen.length === 0) {
-      fehler('Mindestens 1 Größe auswählen')
-      return
+    for (const f of farben) {
+      const gs = groessenFuerPreset(f.lauf, f.eigeneGroessen)
+      if (gs.length === 0) {
+        fehler(`Keine Größen für Farbe „${f.name}“`)
+        return
+      }
     }
     const minRaw = matrixMin.trim()
     const min = minRaw === '' ? 0 : parseInt(minRaw, 10)
@@ -800,15 +832,21 @@ export function TextilBestandSeite() {
       return
     }
 
+    const alleFarben = farben.map(f => f.name)
+    const alleGroessen = new Set<string>()
+    for (const f of farben) {
+      for (const g of groessenFuerPreset(f.lauf, f.eigeneGroessen)) alleGroessen.add(g)
+    }
+    const groessenListe = [...alleGroessen]
+
     setMatrixBusy(true)
     try {
-      // vorhandene Kombinationen laden (Duplikate überspringen)
       const { data: exist, error: eExist } = await supabase
         .from('textil_varianten')
         .select('farbe, groesse')
         .eq('produkt_id', produktIdVarianten)
-        .in('farbe', farben.map(f => f.name))
-        .in('groesse', groessen)
+        .in('farbe', alleFarben)
+        .in('groesse', groessenListe)
       if (eExist) throw eExist
 
       const existSet = new Set<string>()
@@ -816,14 +854,12 @@ export function TextilBestandSeite() {
         existSet.add(`${r.farbe}|||${r.groesse}`)
       }
 
-      const orderIndex = new Map<string, number>()
-      for (let i = 0; i < matrixSizeOrder.length; i++) orderIndex.set(matrixSizeOrder[i], i)
-
       const inserts: Database['public']['Tables']['textil_varianten']['Insert'][] = []
       for (const f of farben) {
-        for (const g of groessen) {
+        const groessen = groessenFuerPreset(f.lauf, f.eigeneGroessen)
+        groessen.forEach((g, idx) => {
           const k = `${f.name}|||${g}`
-          if (existSet.has(k)) continue
+          if (existSet.has(k)) return
           inserts.push({
             produkt_id: produktIdVarianten,
             farbe: f.name,
@@ -832,10 +868,10 @@ export function TextilBestandSeite() {
             ist_muster: matrixAlleMuster,
             mindestbestand: min,
             bestand: 0,
-            sort_order: orderIndex.get(g) ?? 0,
+            sort_order: idx,
             aktiv: true,
           })
-        }
+        })
       }
 
       if (inserts.length === 0) {
@@ -843,7 +879,7 @@ export function TextilBestandSeite() {
         return
       }
 
-      const { error: eIns } = await supabase.from('textil_varianten').insert(inserts as any)
+      const { error: eIns } = await supabase.from('textil_varianten').insert(inserts as never)
       if (eIns) throw eIns
 
       erfolg(`${inserts.length} Varianten angelegt`)
@@ -1353,9 +1389,11 @@ export function TextilBestandSeite() {
                 }}
               >
                 <div style={{ display: 'grid', gap: 12 }}>
-                  {/* Schritt 1: Farben */}
+                  {/* Schritt 1: Farben mit je eigenem Größenlauf */}
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Schritt 1: Farben</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>
+                      Schritt 1: Farben mit je eigenem Größenlauf
+                    </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
                       <input
                         className="cp-select"
@@ -1368,7 +1406,7 @@ export function TextilBestandSeite() {
                             addMatrixFarbe()
                           }
                         }}
-                        style={{ minWidth: 180 }}
+                        style={{ minWidth: 160 }}
                       />
                       <input
                         type="color"
@@ -1377,6 +1415,20 @@ export function TextilBestandSeite() {
                         style={{ width: 44, height: 32, padding: 0, border: 'none' }}
                         aria-label="Farbwähler"
                       />
+                      <select
+                        className="cp-select"
+                        value={matrixFarbLauf}
+                        onChange={e => setMatrixFarbLauf(e.target.value as MatrixLaufPreset)}
+                        disabled={matrixBusy}
+                        style={{ minWidth: 220 }}
+                        aria-label="Größenlauf wählen"
+                      >
+                        <option value="STANDARD">Standard (XS–5XL)</option>
+                        <option value="REDUZIERT">Reduziert (XS–3XL)</option>
+                        <option value="KIDS">Kids</option>
+                        <option value="UNISEX">Unisex (XS–5XL)</option>
+                        <option value="EIGENE">Eigene…</option>
+                      </select>
                       <button
                         type="button"
                         className="cp-btn cp-btn-grau"
@@ -1386,11 +1438,76 @@ export function TextilBestandSeite() {
                         + Hinzufügen
                       </button>
                     </div>
+                    {matrixFarbLauf === 'EIGENE' && (
+                      <div style={{ marginTop: 10 }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                          <input
+                            className="cp-select"
+                            placeholder="Größe tippen + Enter"
+                            value={matrixEigeneInput}
+                            onChange={e => setMatrixEigeneInput(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                addMatrixEigeneTag()
+                              }
+                            }}
+                            style={{ minWidth: 200 }}
+                          />
+                          <button
+                            type="button"
+                            className="cp-btn cp-btn-grau"
+                            onClick={() => addMatrixEigeneTag()}
+                            disabled={matrixBusy}
+                          >
+                            + Hinzufügen
+                          </button>
+                        </div>
+                        {matrixEigeneTags.length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                            {matrixEigeneTags.map(s => (
+                              <span
+                                key={s}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 8,
+                                  border: '1px solid #e5e7eb',
+                                  borderRadius: 999,
+                                  padding: '6px 10px',
+                                  fontSize: 13,
+                                  background: '#f8fafc',
+                                }}
+                              >
+                                {s}
+                                <button
+                                  type="button"
+                                  onClick={() => removeMatrixEigeneTag(s)}
+                                  style={{
+                                    border: 'none',
+                                    background: 'transparent',
+                                    cursor: 'pointer',
+                                    fontSize: 14,
+                                    lineHeight: 1,
+                                    padding: 0,
+                                    opacity: 0.75,
+                                  }}
+                                  aria-label={`${s} entfernen`}
+                                  disabled={matrixBusy}
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {matrixFarben.length > 0 && (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
                         {matrixFarben.map(f => (
                           <span
-                            key={f.name}
+                            key={f.id}
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -1412,10 +1529,22 @@ export function TextilBestandSeite() {
                                 border: '1px solid rgba(0,0,0,0.15)',
                               }}
                             />
-                            {f.name} <span style={{ opacity: 0.75 }}>{f.hex.toUpperCase()}</span>
+                            <span style={{ fontWeight: 600 }}>{f.name}</span>
+                            <span style={{ opacity: 0.75 }}>{f.hex.toUpperCase()}</span>
+                            <span
+                              style={{
+                                fontSize: 12,
+                                padding: '2px 8px',
+                                borderRadius: 999,
+                                background: '#e2e8f0',
+                                color: '#334155',
+                              }}
+                            >
+                              {groessenlaufLabel(f.lauf, f.eigeneGroessen)}
+                            </span>
                             <button
                               type="button"
-                              onClick={() => removeMatrixFarbe(f.name)}
+                              onClick={() => removeMatrixFarbe(f.id)}
                               style={{
                                 border: 'none',
                                 background: 'transparent',
@@ -1436,134 +1565,22 @@ export function TextilBestandSeite() {
                     )}
                   </div>
 
-                  {/* Schritt 2: Größenlauf */}
+                  {/* Schritt 2: Vorschau */}
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Schritt 2: Größenlauf</div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                      <button
-                        type="button"
-                        className="cp-btn cp-btn-grau"
-                        onClick={() => addMatrixRun(STANDARD_SIZES)}
-                        disabled={matrixBusy}
-                      >
-                        Standard
-                      </button>
-                      <button
-                        type="button"
-                        className="cp-btn cp-btn-grau"
-                        onClick={() => addMatrixRun(KIDS_SIZES)}
-                        disabled={matrixBusy}
-                      >
-                        Kids
-                      </button>
-                      <button
-                        type="button"
-                        className="cp-btn cp-btn-grau"
-                        onClick={() => addMatrixRun(STANDARD_SIZES)}
-                        disabled={matrixBusy}
-                      >
-                        Unisex
-                      </button>
-                      <button
-                        type="button"
-                        className={matrixEigeneOffen ? 'cp-btn' : 'cp-btn cp-btn-grau'}
-                        onClick={() => setMatrixEigeneOffen(o => !o)}
-                        disabled={matrixBusy}
-                      >
-                        Eigene…
-                      </button>
-                    </div>
-
-                    {matrixEigeneOffen && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 10 }}>
-                        <input
-                          className="cp-select"
-                          placeholder="Größe tippen + Enter"
-                          value={matrixCustomInput}
-                          onChange={e => setMatrixCustomInput(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault()
-                              addCustomSize()
-                            }
-                          }}
-                          style={{ minWidth: 220 }}
-                        />
-                        <button
-                          type="button"
-                          className="cp-btn cp-btn-grau"
-                          onClick={() => addCustomSize()}
-                          disabled={matrixBusy}
-                        >
-                          + Hinzufügen
-                        </button>
-                        {matrixCustomSizes.length > 0 && (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                            {matrixCustomSizes.map(s => (
-                              <span
-                                key={s}
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: 8,
-                                  border: '1px solid #e5e7eb',
-                                  borderRadius: 999,
-                                  padding: '6px 10px',
-                                  fontSize: 13,
-                                  background: '#f8fafc',
-                                }}
-                              >
-                                {s}
-                                <button
-                                  type="button"
-                                  onClick={() => removeCustomSize(s)}
-                                  style={{
-                                    border: 'none',
-                                    background: 'transparent',
-                                    cursor: 'pointer',
-                                    fontSize: 14,
-                                    lineHeight: 1,
-                                    padding: 0,
-                                    opacity: 0.75,
-                                  }}
-                                  aria-label={`${s} entfernen`}
-                                  disabled={matrixBusy}
-                                >
-                                  ×
-                                </button>
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                      {matrixSizeOrder.map(s => {
-                        const on = matrixSelectedSizes.includes(s)
-                        return (
-                          <button
-                            key={s}
-                            type="button"
-                            className={on ? 'cp-btn' : 'cp-btn cp-btn-grau'}
-                            style={{ padding: '4px 10px' }}
-                            onClick={() => toggleMatrixSize(s)}
-                            disabled={matrixBusy}
-                            title={on ? 'Abwählen' : 'Auswählen'}
-                          >
-                            {s}
-                          </button>
-                        )
-                      })}
-                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Schritt 2: Vorschau</div>
+                    <p style={{ margin: 0, fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>
+                      {matrixFarben.length === 0
+                        ? 'Noch keine Farben — Vorschau erscheint nach dem Hinzufügen.'
+                        : matrixVorschau.text}
+                    </p>
                   </div>
 
-                  {/* Schritt 3: Optionen */}
+                  {/* Schritt 3: Optionen + Anlegen */}
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Schritt 3: Optionen</div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 10 }}>
                       <label style={{ display: 'inline-flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
-                        Mindestbestand
+                        Mindestbestand für alle
                         <input
                           type="number"
                           className="cp-select"
@@ -1584,30 +1601,24 @@ export function TextilBestandSeite() {
                         Alle als Muster markieren
                       </label>
                     </div>
-                  </div>
-
-                  {/* Schritt 4: Vorschau + Anlegen */}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
-                    <span style={{ fontSize: 13, color: '#64748b' }}>
-                      [{matrixFarben.length}] Farben × [{matrixSelectedSizes.length}] Größen ={' '}
-                      <strong>{matrixFarben.length * matrixSelectedSizes.length}</strong> Varianten werden angelegt
-                    </span>
-                    <button
-                      type="button"
-                      className="cp-btn"
-                      onClick={() => void legeVariantenMatrixAn()}
-                      disabled={matrixBusy || matrixFarben.length === 0 || matrixSelectedSizes.length === 0}
-                    >
-                      Varianten anlegen
-                    </button>
-                    <button
-                      type="button"
-                      className="cp-btn cp-btn-grau"
-                      onClick={() => resetMatrix()}
-                      disabled={matrixBusy}
-                    >
-                      Zurücksetzen
-                    </button>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        className="cp-btn"
+                        onClick={() => void legeVariantenMatrixAn()}
+                        disabled={matrixBusy || matrixFarben.length === 0 || matrixVorschau.gesamt === 0}
+                      >
+                        Varianten anlegen
+                      </button>
+                      <button
+                        type="button"
+                        className="cp-btn cp-btn-grau"
+                        onClick={() => resetMatrix()}
+                        disabled={matrixBusy}
+                      >
+                        Zurücksetzen
+                      </button>
+                    </div>
                   </div>
 
                   <button

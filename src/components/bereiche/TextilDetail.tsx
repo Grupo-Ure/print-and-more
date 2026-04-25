@@ -71,6 +71,8 @@ const GROESSE_ANZEIGE: Record<Exclude<TextilGroesseEnum, 'FREI'>, string> = {
 
 const GROESSE_WAHL: TextilGroesseEnum[] = ['KLEIN', 'MITTEL', 'GROSS', 'FREI']
 
+type EigenwareModus = 'STAMMDATEN' | 'FREITEXT'
+
 function one<T>(x: T | T[] | null | undefined): T | null {
   if (x == null) return null
   return Array.isArray(x) ? (x[0] ?? null) : x
@@ -113,6 +115,9 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
   const [motive, setMotive] = useState<TextilMotiveRow[]>([])
   const [positionen, setPositionen] = useState<TextilPositionenRow[]>([])
   const [zuordnungen, setZuordnungen] = useState<TextilZuordnungRow[]>([])
+  const [varianteInfoById, setVarianteInfoById] = useState<
+    Map<string, { bestand: number; farbe: string; groesse: string; ist_muster: boolean; produkt: string; marke: string }>
+  >(new Map())
 
   const [laden, setLaden] = useState(true)
   const [fehler, setFehler] = useState<string | null>(null)
@@ -132,6 +137,9 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
   const [pMarke, setPMarke] = useState('')
   const [pModell, setPModell] = useState('')
   const [pGroesse, setPGroesse] = useState('')
+
+  // Eigenware-Modus (in Teilauftrag-Detail gespeichert)
+  const [eigenwareModus, setEigenwareModus] = useState<EigenwareModus>('STAMMDATEN')
 
   const [zMot, setZMot] = useState('')
   const [zPos, setZPos] = useState('')
@@ -184,6 +192,8 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
   const syncRef = useRef(syncTeil)
   syncRef.current = syncTeil
 
+  const lastLoadTeilId = useRef<string | null>(null)
+
   const ladeAlles = useCallback(async () => {
     setLaden(true)
     setFehler(null)
@@ -207,11 +217,67 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
     setMotive(m)
     setPositionen(p)
     setZuordnungen(z0)
+
+    // Variante-Infos für Positionsliste (Bestand/Labels) laden
+    try {
+      const ids = Array.from(
+        new Set(
+          (p as any[])
+            .map(r => (r && typeof r === 'object' ? (r as any).variante_id : null))
+            .filter((x: any) => typeof x === 'string' && x.trim() !== '')
+        )
+      ) as string[]
+      if (ids.length === 0) {
+        setVarianteInfoById(new Map())
+      } else {
+        const { data: vData, error: vErr } = await supabase
+          .from('textil_varianten')
+          .select('id, bestand, farbe, groesse, ist_muster, textil_produkte(name, textil_marken(name))')
+          .in('id', ids)
+        if (vErr) throw vErr
+        const map = new Map<
+          string,
+          { bestand: number; farbe: string; groesse: string; ist_muster: boolean; produkt: string; marke: string }
+        >()
+        for (const r of (vData ?? []) as any[]) {
+          const produkt = one(r.textil_produkte) as any
+          const marke = produkt ? one(produkt.textil_marken) : null
+          map.set(String(r.id), {
+            bestand: Number(r.bestand) || 0,
+            farbe: String(r.farbe ?? ''),
+            groesse: String(r.groesse ?? ''),
+            ist_muster: Boolean(r.ist_muster),
+            produkt: String(produkt?.name ?? ''),
+            marke: String(marke?.name ?? ''),
+          })
+        }
+        setVarianteInfoById(map)
+      }
+    } catch {
+      // optional: Bestand-Infos sind nice-to-have; Fehler nicht blockierend
+      setVarianteInfoById(new Map())
+    }
+
     setLaden(false)
-    await syncRef.current(m, p, z0, false)
+    // Guard: Beim reinen Laden nur dann DB-Sync auslösen, wenn sich der "voll"-Wert tatsächlich ändert.
+    // Sonst kann das (je nach Parent-Update-Strategie) unnötige Updates/Reloads auslösen.
+    const vollData = textilDatensaetzeErlaubenPraepress(m, p, z0)
+    const det = teilR.current.detail
+    const detObj = det && typeof det === 'object' && !Array.isArray(det) ? (det as Record<string, unknown>) : null
+    const textilObj =
+      detObj && detObj.textil && typeof detObj.textil === 'object' && !Array.isArray(detObj.textil)
+        ? (detObj.textil as Record<string, unknown>)
+        : null
+    const altVoll = textilObj && typeof textilObj.voll === 'boolean' ? (textilObj.voll as boolean) : null
+    if (altVoll !== vollData) {
+      await syncRef.current(m, p, z0, false)
+    }
   }, [])
 
   useEffect(() => {
+    // Guard gegen Endlosschleifen: nur 1× pro Teilauftrag-ID laden.
+    if (lastLoadTeilId.current === teil.id) return
+    lastLoadTeilId.current = teil.id
     void ladeAlles()
   }, [ladeAlles, teil.id])
 
@@ -220,6 +286,164 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
     setPosFormOffen(false)
     setZuoFormOffen(false)
   }, [teil.id])
+
+  useEffect(() => {
+    const d = teil.detail
+    const obj = d && typeof d === 'object' && !Array.isArray(d) ? (d as Record<string, unknown>) : {}
+    const raw = obj.eigenware_modus
+    if (raw === 'FREITEXT' || raw === 'STAMMDATEN') {
+      setEigenwareModus(raw)
+    } else {
+      setEigenwareModus('STAMMDATEN')
+    }
+  }, [teil.id, teil.detail])
+
+  const speichereEigenwareModus = useCallback(
+    async (modus: EigenwareModus) => {
+      const t = teilR.current
+      const d = t.detail
+      const oldD = d && typeof d === 'object' && !Array.isArray(d) ? { ...(d as Record<string, unknown>) } : {}
+      const newDetail = { ...oldD, eigenware_modus: modus }
+      setSMut(true)
+      const { data, error } = await supabase
+        .from('teilauftraege')
+        .update({ detail: newDetail } as never)
+        .eq('id', t.id)
+        .select(TEILAUFTRAG_SPALTEN)
+        .single()
+      setSMut(false)
+      if (error) {
+        setFehler(error.message)
+        return
+      }
+      if (data) {
+        const row = data as TeilauftragRow
+        teilR.current = row
+        onAktualisiert(row)
+      }
+    },
+    [onAktualisiert]
+  )
+
+  // Stammdaten-Auswahl (nur Eigenware + STAMMDATEN)
+  const [sdMarken, setSdMarken] = useState<{ id: string; name: string }[]>([])
+  const [sdProdukte, setSdProdukte] = useState<{ id: string; name: string; artikelnummer: string | null }[]>([])
+  const [sdFarben, setSdFarben] = useState<{ farbe: string; farbe_hex: string | null }[]>([])
+  const [sdGroessen, setSdGroessen] = useState<{ id: string; groesse: string; bestand: number; ist_muster: boolean }[]>([])
+  const [sdMarkeId, setSdMarkeId] = useState('')
+  const [sdProduktId, setSdProduktId] = useState('')
+  const [sdFarbe, setSdFarbe] = useState('')
+  const [sdVarianteId, setSdVarianteId] = useState('') // wird bei Größenwahl gesetzt
+  const [sdLaden, setSdLaden] = useState(false)
+
+  useEffect(() => {
+    if (pHerk !== 'EIGENWARE') return
+    if (eigenwareModus !== 'STAMMDATEN') return
+    setSdLaden(true)
+    supabase
+      .from('textil_marken')
+      .select('id, name')
+      .eq('aktiv', true)
+      .order('name')
+      .then(({ data, error }) => {
+        setSdLaden(false)
+        if (error) return
+        setSdMarken((data ?? []) as { id: string; name: string }[])
+      })
+  }, [eigenwareModus, pHerk])
+
+  useEffect(() => {
+    if (pHerk !== 'EIGENWARE') return
+    if (eigenwareModus !== 'STAMMDATEN') return
+    if (!sdMarkeId) {
+      setSdProdukte([])
+      setSdProduktId('')
+      setSdFarben([])
+      setSdGroessen([])
+      setSdFarbe('')
+      setSdVarianteId('')
+      return
+    }
+    setSdLaden(true)
+    supabase
+      .from('textil_produkte')
+      .select('id, name, artikelnummer')
+      .eq('marke_id', sdMarkeId)
+      .eq('aktiv', true)
+      .order('name')
+      .then(({ data, error }) => {
+        setSdLaden(false)
+        if (error) return
+        setSdProdukte((data ?? []) as { id: string; name: string; artikelnummer: string | null }[])
+      })
+  }, [eigenwareModus, pHerk, sdMarkeId])
+
+  useEffect(() => {
+    if (pHerk !== 'EIGENWARE') return
+    if (eigenwareModus !== 'STAMMDATEN') return
+    if (!sdProduktId) {
+      setSdFarben([])
+      setSdGroessen([])
+      setSdFarbe('')
+      setSdVarianteId('')
+      return
+    }
+    setSdLaden(true)
+    ;(supabase as any)
+      .from('textil_varianten')
+      .select('farbe, farbe_hex')
+      .eq('produkt_id', sdProduktId)
+      .eq('aktiv', true)
+      .order('farbe')
+      .then((res: { data: unknown; error: unknown }) => {
+        const { data, error } = res as any
+        setSdLaden(false)
+        if (error) return
+        const rows = (data ?? []) as unknown as { farbe: string | null; farbe_hex: string | null }[]
+        const seen = new Set<string>()
+        const out: { farbe: string; farbe_hex: string | null }[] = []
+        for (const r of rows) {
+          const f = String(r.farbe ?? '').trim()
+          if (!f) continue
+          const key = f.toLowerCase()
+          if (seen.has(key)) continue
+          seen.add(key)
+          out.push({ farbe: f, farbe_hex: r.farbe_hex ?? null })
+        }
+        setSdFarben(out)
+      })
+  }, [eigenwareModus, pHerk, sdProduktId])
+
+  useEffect(() => {
+    if (pHerk !== 'EIGENWARE') return
+    if (eigenwareModus !== 'STAMMDATEN') return
+    if (!sdProduktId || !sdFarbe) {
+      setSdGroessen([])
+      setSdVarianteId('')
+      return
+    }
+    setSdLaden(true)
+    supabase
+      .from('textil_varianten')
+      .select('id, groesse, bestand, ist_muster')
+      .eq('produkt_id', sdProduktId)
+      .eq('farbe', sdFarbe)
+      .eq('aktiv', true)
+      .order('sort_order')
+      .then(({ data, error }) => {
+        setSdLaden(false)
+        if (error) return
+        const rows = (data ?? []) as { id: string; groesse: string | null; bestand: number | null; ist_muster: boolean | null }[]
+        setSdGroessen(
+          rows.map(r => ({
+            id: String(r.id),
+            groesse: String(r.groesse ?? ''),
+            bestand: Number(r.bestand) || 0,
+            ist_muster: Boolean(r.ist_muster),
+          }))
+        )
+      })
+  }, [eigenwareModus, pHerk, sdFarbe, sdProduktId])
 
   const dateiNameById = new Map<string, string>()
   for (const d of auftragDateien) {
@@ -242,6 +466,10 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
     setPMarke('')
     setPModell('')
     setPGroesse('')
+    setSdMarkeId('')
+    setSdProduktId('')
+    setSdFarbe('')
+    setSdVarianteId('')
   }
   const resetZForm = () => {
     setZMot('')
@@ -381,9 +609,27 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
         void syncTeil(motive, nextP, zuordnungen, prod)
       }
     } else {
-      if (!pMarke.trim() || !pModell.trim() || !pFarbe.trim() || !pGroesse.trim()) {
-        setFehler('Marke, Modell, Farbe und Größe sind erforderlich.')
-        return
+      if (eigenwareModus === 'STAMMDATEN') {
+        if (!sdMarkeId || !sdProduktId || !sdVarianteId) {
+          setFehler('Bitte Marke, Produkt und Variante aus Stammdaten wählen.')
+          return
+        }
+        const markeName = sdMarken.find(x => x.id === sdMarkeId)?.name ?? ''
+        const produktName = sdProdukte.find(x => x.id === sdProduktId)?.name ?? ''
+        const gro = sdGroessen.find(x => x.id === sdVarianteId)?.groesse ?? ''
+        if (!markeName || !produktName || !sdFarbe || !gro) {
+          setFehler('Stammdaten-Auswahl unvollständig.')
+          return
+        }
+        setPMarke(markeName)
+        setPModell(produktName)
+        setPFarbe(sdFarbe)
+        setPGroesse(gro)
+      } else {
+        if (!pMarke.trim() || !pModell.trim() || !pFarbe.trim() || !pGroesse.trim()) {
+          setFehler('Marke, Modell, Farbe und Größe sind erforderlich.')
+          return
+        }
       }
       setSMut(true)
       const { data, error } = await supabase
@@ -397,6 +643,7 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
           marke: pMarke.trim(),
           modell: pModell.trim(),
           groesse: pGroesse.trim(),
+          variante_id: eigenwareModus === 'STAMMDATEN' ? (sdVarianteId || null) : null,
         } as never)
         .select('*')
         .single()
@@ -409,6 +656,25 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
         const r = data as TextilPositionenRow
         const nextP = [...positionen, r]
         setPositionen(nextP)
+        if (eigenwareModus === 'STAMMDATEN' && sdVarianteId) {
+          const markeName = sdMarken.find(x => x.id === sdMarkeId)?.name ?? ''
+          const produktName = sdProdukte.find(x => x.id === sdProduktId)?.name ?? ''
+          const v = sdGroessen.find(x => x.id === sdVarianteId) ?? null
+          if (v && markeName && produktName) {
+            setVarianteInfoById(prev => {
+              const m = new Map(prev)
+              m.set(sdVarianteId, {
+                bestand: v.bestand,
+                farbe: sdFarbe,
+                groesse: v.groesse,
+                ist_muster: v.ist_muster,
+                produkt: produktName,
+                marke: markeName,
+              })
+              return m
+            })
+          }
+        }
         resetPForm()
         setPosFormOffen(false)
         const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
@@ -771,51 +1037,265 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
               {pHerk === 'EIGENWARE' && (
                 <>
                   <div className="ber-zeile">
-                    <label className="ber-lbl" htmlFor="px-mk">
-                      Marke
-                    </label>
-                    <input id="px-mk" className="ber-inp" value={pMarke} onChange={e => setPMarke(e.target.value)} />
-                  </div>
-                  <div className="ber-zeile">
-                    <label className="ber-lbl" htmlFor="px-mo">
-                      Modell
-                    </label>
-                    <input id="px-mo" className="ber-inp" value={pModell} onChange={e => setPModell(e.target.value)} />
-                  </div>
-                  <div className="ber-zeile">
-                    <label className="ber-lbl" htmlFor="px-f2">
-                      Farbe
-                    </label>
-                    <input id="px-f2" className="ber-inp" value={pFarbe} onChange={e => setPFarbe(e.target.value)} />
-                  </div>
-                  <div className="ber-zeile">
-                    <label className="ber-lbl" htmlFor="px-gr">
-                      Größe
-                    </label>
-                    <div>
-                      <input id="px-gr" className="ber-inp" value={pGroesse} onChange={e => setPGroesse(e.target.value)} />
+                    <span className="ber-lbl">Eigenware-Modus</span>
+                    <div className="ber-nmb" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
+                      <label>
+                        <input
+                          type="radio"
+                          name="ewm"
+                          checked={eigenwareModus === 'STAMMDATEN'}
+                          onChange={() => {
+                            setEigenwareModus('STAMMDATEN')
+                            void speichereEigenwareModus('STAMMDATEN')
+                            setSdMarkeId('')
+                            setSdProduktId('')
+                            setSdVarianteId('')
+                          }}
+                        />{' '}
+                        Aus Stammdaten wählen
+                      </label>
+                      <label>
+                        <input
+                          type="radio"
+                          name="ewm"
+                          checked={eigenwareModus === 'FREITEXT'}
+                          onChange={() => {
+                            setEigenwareModus('FREITEXT')
+                            void speichereEigenwareModus('FREITEXT')
+                            setSdMarkeId('')
+                            setSdProduktId('')
+                            setSdVarianteId('')
+                          }}
+                        />{' '}
+                        Freitext (Artikel nicht in Stammdaten)
+                      </label>
                     </div>
                   </div>
+
+                  {eigenwareModus === 'STAMMDATEN' && (
+                    <>
+                      <div className="ber-zeile">
+                        <span className="ber-lbl">Marke</span>
+                        <div>
+                          <select
+                            className="ber-inp"
+                            value={sdMarkeId}
+                            onChange={e => {
+                              setSdMarkeId(e.target.value)
+                              setSdProduktId('')
+                              setSdFarbe('')
+                              setSdVarianteId('')
+                            }}
+                            required
+                          >
+                            <option value="">—</option>
+                            {sdMarken.map(m => (
+                              <option key={m.id} value={m.id}>
+                                {m.name}
+                              </option>
+                            ))}
+                          </select>
+                          {sdLaden && <p className="ber-hinweis">Lädt Stammdaten …</p>}
+                        </div>
+                      </div>
+
+                      {sdMarkeId && (
+                        <div className="ber-zeile">
+                          <span className="ber-lbl">Produkt</span>
+                          <select
+                            className="ber-inp"
+                            value={sdProduktId}
+                            onChange={e => {
+                              setSdProduktId(e.target.value)
+                              setSdFarbe('')
+                              setSdVarianteId('')
+                            }}
+                            required
+                          >
+                            <option value="">—</option>
+                            {sdProdukte.map(p => (
+                              <option key={p.id} value={p.id}>
+                                {p.name}
+                                {p.artikelnummer ? ` (${p.artikelnummer})` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {sdProduktId && (
+                        <div className="ber-zeile">
+                          <span className="ber-lbl">Farbe</span>
+                          <div>
+                            <select
+                              className="ber-inp"
+                              value={sdFarbe}
+                              onChange={e => {
+                                const f = e.target.value
+                                setSdFarbe(f)
+                                setSdVarianteId('')
+                                if (f) {
+                                  const markeName = sdMarken.find(x => x.id === sdMarkeId)?.name ?? ''
+                                  const produktName = sdProdukte.find(x => x.id === sdProduktId)?.name ?? ''
+                                  setPMarke(markeName)
+                                  setPModell(produktName)
+                                  setPFarbe(f)
+                                  setPGroesse('')
+                                } else {
+                                  setPFarbe('')
+                                  setPGroesse('')
+                                }
+                              }}
+                              required
+                            >
+                              <option value="">—</option>
+                              {sdFarben.map(v => (
+                                <option key={v.farbe} value={v.farbe}>
+                                  {v.farbe_hex ? '● ' : ''}
+                                  {v.farbe}
+                                </option>
+                              ))}
+                            </select>
+                            {sdFarbe && (
+                              <p
+                                className="ber-hinweis"
+                                style={{
+                                  fontStyle: 'normal',
+                                }}
+                              >
+                                Auswahl: {pMarke} · {pModell} · {sdFarbe}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {sdProduktId && sdFarbe && (
+                        <div className="ber-zeile">
+                          <span className="ber-lbl">Größe</span>
+                          <div>
+                            <select
+                              className="ber-inp"
+                              value={sdVarianteId}
+                              onChange={e => {
+                                const vId = e.target.value
+                                setSdVarianteId(vId)
+                                const v = sdGroessen.find(x => x.id === vId) ?? null
+                                if (v) {
+                                  setPGroesse(v.groesse)
+                                } else {
+                                  setPGroesse('')
+                                }
+                              }}
+                              required
+                            >
+                              <option value="">—</option>
+                              {sdGroessen.map(v => (
+                                <option key={v.id} value={v.id}>
+                                  {(v.bestand ?? 0) <= 0 ? '⚠ ' : ''}
+                                  {v.groesse} (Bestand: {v.bestand ?? 0}){v.ist_muster ? ' · Muster' : ''}
+                                </option>
+                              ))}
+                            </select>
+                            {sdVarianteId && (
+                              <p
+                                className="ber-hinweis"
+                                style={{
+                                  fontStyle: 'normal',
+                                  color: (sdGroessen.find(x => x.id === sdVarianteId)?.bestand ?? 0) <= 0 ? '#f59e0b' : undefined,
+                                }}
+                              >
+                                Auswahl: {pMarke} · {pModell} · {sdFarbe} · {pGroesse}
+                              </p>
+                            )}
+                            {!sdVarianteId && sdGroessen.length > 0 && (
+                              <p className="ber-hinweis" style={{ fontStyle: 'normal' }}>
+                                Größe wählen (Pflicht)
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {eigenwareModus === 'FREITEXT' && (
+                    <>
+                      <div className="ber-zeile">
+                        <label className="ber-lbl" htmlFor="px-mk">
+                          Marke
+                        </label>
+                        <input
+                          id="px-mk"
+                          className="ber-inp"
+                          value={pMarke}
+                          onChange={e => setPMarke(e.target.value)}
+                        />
+                      </div>
+                      <div className="ber-zeile">
+                        <label className="ber-lbl" htmlFor="px-mo">
+                          Modell
+                        </label>
+                        <input
+                          id="px-mo"
+                          className="ber-inp"
+                          value={pModell}
+                          onChange={e => setPModell(e.target.value)}
+                        />
+                      </div>
+                      <div className="ber-zeile">
+                        <label className="ber-lbl" htmlFor="px-f2">
+                          Farbe
+                        </label>
+                        <input
+                          id="px-f2"
+                          className="ber-inp"
+                          value={pFarbe}
+                          onChange={e => setPFarbe(e.target.value)}
+                        />
+                      </div>
+                      <div className="ber-zeile">
+                        <label className="ber-lbl" htmlFor="px-gr">
+                          Größe
+                        </label>
+                        <div>
+                          <input
+                            id="px-gr"
+                            className="ber-inp"
+                            value={pGroesse}
+                            onChange={e => setPGroesse(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
-              <div className="ber-zeile">
-                <label className="ber-lbl" htmlFor="px-st">
-                  Stückzahl
-                </label>
-                <input
-                  id="px-st"
-                  type="number"
-                  className="ber-inp"
-                  min={1}
-                  step={1}
-                  value={pSt}
-                  onChange={e => setPSt(parseInt(e.target.value, 10) || 0)}
-                />
-              </div>
+              {(pHerk !== 'EIGENWARE' || eigenwareModus !== 'STAMMDATEN' || sdVarianteId) && (
+                <div className="ber-zeile">
+                  <label className="ber-lbl" htmlFor="px-st">
+                    Stückzahl
+                  </label>
+                  <input
+                    id="px-st"
+                    type="number"
+                    className="ber-inp"
+                    min={1}
+                    step={1}
+                    value={pSt}
+                    onChange={e => setPSt(parseInt(e.target.value, 10) || 0)}
+                  />
+                </div>
+              )}
               <div className="ber-zeile">
                 <span className="ber-lbl" />
                 <div className="ber-nmb" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <button type="submit" className="wa-bereich-btn" disabled={sMut || laden}>
+                  <button
+                    type="submit"
+                    className="wa-bereich-btn"
+                    disabled={sMut || laden || (pHerk === 'EIGENWARE' && eigenwareModus === 'STAMMDATEN' && !sdVarianteId)}
+                    title={pHerk === 'EIGENWARE' && eigenwareModus === 'STAMMDATEN' && !sdVarianteId ? 'Bitte Größe wählen' : undefined}
+                  >
                     + Hinzufügen
                   </button>
                   <button type="button" className="wa-ghost-btn" onClick={abbruchPosForm} disabled={sMut || laden}>
@@ -851,10 +1331,38 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
               >
                 {p.herkunft === 'KUNDENWARE' ? 'KUNDE' : 'EIGEN'}
               </span>
+              {p.herkunft === 'EIGENWARE' && (
+                <span
+                  style={{
+                    fontSize: '0.68rem',
+                    fontWeight: 700,
+                    padding: '0.12rem 0.4rem',
+                    border: '1px solid var(--border)',
+                    borderRadius: 4,
+                    background: (p as any).variante_id ? '#dcfce7' : '#f1f5f9',
+                    color: (p as any).variante_id ? '#166534' : '#475569',
+                  }}
+                >
+                  {(p as any).variante_id ? 'Stammdaten' : 'Freitext'}
+                </span>
+              )}
               <span>
-                {p.herkunft === 'KUNDENWARE'
-                  ? `${kleidungLabel(p.typ)} · ${p.farbe} · ${p.stueckzahl} Stück`
-                  : `${p.marke} · ${p.modell} · ${p.farbe} · ${p.groesse} · ${p.stueckzahl} Stück`}
+                {p.herkunft === 'KUNDENWARE' ? (
+                  `${kleidungLabel(p.typ)} · ${p.farbe} · Stückzahl: ${p.stueckzahl}`
+                ) : (p as any).variante_id ? (
+                  (() => {
+                    const vid = String((p as any).variante_id)
+                    const v = varianteInfoById.get(vid)
+                    const marke = v?.marke || (p.marke ?? '')
+                    const prod = v?.produkt || (p.modell ?? '')
+                    const farbe = v?.farbe || (p.farbe ?? '')
+                    const gr = v?.groesse || (p.groesse ?? '')
+                    const best = v ? v.bestand : null
+                    return `${marke} ${prod} ${farbe} / ${gr} · Bestand: ${best == null ? '—' : best} · Stückzahl: ${p.stueckzahl}`
+                  })()
+                ) : (
+                  `${p.marke} ${p.modell} ${p.farbe} / ${p.groesse} · Stückzahl: ${p.stueckzahl}`
+                )}
               </span>
               <button type="button" className="wa-ghost-btn" onClick={() => void delPos(p.id)} disabled={sMut}>
                 Entfernen
