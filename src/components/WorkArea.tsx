@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabase'
 import { kundenName } from '../lib/kunde'
+import { synchronisiereAuftragsstatus } from '../lib/auftragsStatus'
+import { bereichKuerzel } from '../const/bereichKuerzel'
 import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
 import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
 import {
@@ -28,19 +30,6 @@ function kundeKontaktEineLinie(k: KundeKontaktJoin | null): string {
   if (z.email?.trim()) return z.email.trim()
   if (z.telefon?.trim()) return z.telefon.trim()
   return '—'
-}
-
-const TEIL_BEREICH_TAB_K: Record<string, string> = {
-  LFP: 'LFP',
-  COPYSHOP: 'CP',
-  TEXTIL: 'TX',
-  STEMPEL: 'ST',
-  LASERGRAVUR: 'LA',
-  SONSTIGE: 'SO',
-}
-
-function teilTabBereichKurz(b: string): string {
-  return TEIL_BEREICH_TAB_K[b] ?? b
 }
 
 function teilStatusDotClass(s: AuftragStatus): string {
@@ -491,7 +480,7 @@ export function WorkArea({
       <div className="work-area__tabs" role="tablist" aria-label="Teilaufträge">
         {sichtbareTeile.map(t => {
           const active = t.id === aktiverTeilauftragId
-          const bkz = teilTabBereichKurz(t.bereich)
+          const bkz = bereichKuerzel(t.bereich)
           const ttitle = `${teilauftragBereichLabel(t.bereich)} · ${t.status}`
           return (
             <button

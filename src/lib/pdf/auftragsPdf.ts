@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { formatDatumDe } from '../formatDatum'
 import { supabase } from '../../supabase'
 import type { Database } from '../../types/supabase'
 
@@ -163,13 +164,6 @@ function berechneDateiname(
   const typ = bereich.toLowerCase()
   const nr = normalisiereDateinameSegment(auftragsnummer) || auftragsnummer.toLowerCase().replace(/\s+/g, '_')
   return `${kn}_${ym}_${typ}_${nr}.pdf`
-}
-
-function formatDatumDe(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 function formatLieferung(v: Database['public']['Enums']['lieferung_typ'] | null | undefined): string {

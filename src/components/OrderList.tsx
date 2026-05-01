@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabase'
 import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
 import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
+import { formatDatumDe } from '../lib/formatDatum'
 import { kundenName } from '../lib/kunde'
 import {
   TEILAUFTRAG_BEREICHE,
@@ -104,12 +105,6 @@ function isFilterAktiv(f: FilterState): boolean {
     if (f.statusToggles[s] !== d.statusToggles[s]) return true
   }
   return false
-}
-
-function formatListDatum(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 function statusBadgeKlasse(s: AuftragStatus): string {
@@ -518,7 +513,7 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
                         </span>
                       )}
                     </div>
-                    <span className="ol-datum">{formatListDatum(a.erstellt_am)}</span>
+                    <span className="ol-datum">{formatDatumDe(a.erstellt_am)}</span>
                   </div>
                   <div className="ol-ze2">
                     <span className={`badge ${statusBadgeKlasse(a.status)}`}>{statusLabel(a.status)}</span>

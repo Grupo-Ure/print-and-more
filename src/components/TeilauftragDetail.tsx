@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../supabase'
+import { bereichKuerzel } from '../const/bereichKuerzel'
 import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
 import { kundeErfuelltPrepressKontakt } from '../lib/kunde'
 import {
@@ -44,19 +45,6 @@ type Props = {
   auftragKunde: KundeKontaktJoin
   auftragDateien: Datei[]
   onAktualisiert: (t: TeilauftragRow) => void
-}
-
-const TEIL_BKZ: Record<string, string> = {
-  LFP: 'LFP',
-  COPYSHOP: 'CP',
-  TEXTIL: 'TX',
-  STEMPEL: 'ST',
-  LASERGRAVUR: 'LA',
-  SONSTIGE: 'SO',
-}
-
-function teilBereichKurz(b: string): string {
-  return TEIL_BKZ[b] ?? b
 }
 
 /** YYYY-MM-DD für Vergleich (Lieferdatum vs. Auftrags-Deadline) */
@@ -360,7 +348,7 @@ export function TeilauftragDetail({
   return (
     <div className="td">
       <div className="td-kopf" aria-label="Teilauftrag">
-        <span className="td-bkz">[{teilBereichKurz(lokal.bereich)}]</span>
+        <span className="td-bkz">[{bereichKuerzel(lokal.bereich)}]</span>
         <span className={`badge ${tBadge.cls}`}>
           {tBadge.label}
           {speichLad ? ' …' : ''}
