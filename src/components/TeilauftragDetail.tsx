@@ -28,6 +28,7 @@ import type { LfpDetailJson } from '../types/lfp'
 import type { CopyShopDetailJson } from '../types/copyshop'
 import type { StempelDetailJson } from '../types/stempel'
 import type { LaserDetailJson } from '../types/laser'
+import { generiereUndLadePdf } from '../lib/pdf/auftragsPdf'
 import './WorkArea.css'
 
 type Props = {
@@ -155,6 +156,7 @@ export function TeilauftragDetail({
       }
       const voll = istTeilAuftragVollstaendig(mergedNorm, snap.status)
       const nSt = nextTeilStatus(snap.status, snap, merged, voll, kundePre)
+      const statusVorher = snapR.current.status
       setSpeichLad(true)
       const { data, error } = await supabase
         .from('teilauftraege')
@@ -173,9 +175,12 @@ export function TeilauftragDetail({
         lokalR.current = row
         setLokal(row)
         onAktualisiert(row)
+        if (row.status === 'PREPRESS_BEREIT' && statusVorher !== 'PREPRESS_BEREIT') {
+          void generiereUndLadePdf(teil.id, teil.auftrag_id)
+        }
       }
     },
-    [auftragLief, auftragPrio, teil.id, onAktualisiert, kundePre, fehler]
+    [auftragLief, auftragPrio, teil.id, teil.auftrag_id, onAktualisiert, kundePre, fehler]
   )
 
   const onLfpPatch = useCallback(

@@ -5,6 +5,7 @@ import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
 import { kundenName } from '../lib/kunde'
 import { schreibeHistorie } from '../lib/historie'
 import { parseStatusFromRpc } from '../lib/auftragsStatus'
+import { generiereUndLadePdf } from '../lib/pdf/auftragsPdf'
 import {
   teilJsonAlsFeldertabelle,
   type Auftrag,
@@ -436,6 +437,7 @@ export function ContextPanel({
         ereignisart: 'PREPRESS_BEREIT_MANUELL',
       })
       onTeilauftragAktualisiert(data as TeilauftragRow)
+      void generiereUndLadePdf(teil.id, auftrag.id)
       await teilNaechstNachTeilAktion()
     } catch (e) {
       fehler('Status konnte nicht geändert werden')
@@ -1032,6 +1034,16 @@ export function ContextPanel({
                     </p>
                   )}
                 </>
+              )}
+              {teilBlock && teil.status !== 'ANGEBOT' && (
+                <button
+                  type="button"
+                  className="cp-btn cp-btn-grau"
+                  disabled={busy}
+                  onClick={() => void generiereUndLadePdf(teil.id, auftrag.id)}
+                >
+                  PDF laden
+                </button>
               )}
             </div>
             <div className="cp-gruppe-trenn" />
