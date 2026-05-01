@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
-import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
 import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
-import { kundenName } from '../lib/kunde'
 import { schreibeHistorie } from '../lib/historie'
 import { parseStatusFromRpc } from '../lib/auftragsStatus'
 import { generiereUndLadePdf } from '../lib/pdf/auftragsPdf'
@@ -10,7 +8,6 @@ import {
   teilJsonAlsFeldertabelle,
   type Auftrag,
   type AuftragStatus,
-  type KundeJoin,
   type KundeKontaktJoin,
   type KundeKontaktRow,
   type TeilauftragRow,
@@ -32,8 +29,6 @@ type Props = {
   onKundeBearbeiten: () => void
   kontextAktualisiert: number
 }
-
-type ErpModus = 'EINZELN' | 'GESAMMELT'
 
 function statusBadgeGlobal(s: AuftragStatus): string {
   switch (s) {
@@ -57,11 +52,6 @@ function naechsterNotfallStatus(s: AuftragStatus): AuftragStatus {
   if (s === 'PREPRESS_BEREIT') return 'PRODUKTION_BEREIT'
   if (s === 'PRODUKTION_BEREIT') return 'FERTIG'
   return s
-}
-
-function kundeNameSafe(k: KundeKontaktJoin | null): string {
-  if (k == null) return ''
-  return kundenName(k as KundeJoin)
 }
 
 function einKundeKontakt(k: KundeKontaktJoin | null): KundeKontaktRow | null {
@@ -190,8 +180,6 @@ export function ContextPanel({
   const [teilBereichListe, setTeilBereichListe] = useState<{ id: string; bereich: string }[]>([])
   const [stornoLaeuft, setStornoLaeuft] = useState(false)
   const [loeschenLaeuft, setLoeschenLaeuft] = useState(false)
-  const [dialogErp, setDialogErp] = useState(false)
-  const [erpModus, setErpModus] = useState<ErpModus>('EINZELN')
   const [dialogNotfall, setDialogNotfall] = useState(false)
   const [notfallBegr, setNotfallBegr] = useState('')
   const [dialogKfDatei, setDialogKfDatei] = useState(false)
@@ -246,18 +234,6 @@ export function ContextPanel({
       })
   }, [auftrag, kontextAktualisiert, fehler])
 
-  const kundeNameForExport = kundeNameSafe(auftragKunde)
-
-  async function ladeAuftrag(auftragId: string): Promise<Auftrag> {
-    const { data, error } = await supabase
-      .from('auftraege')
-      .select(AUFTRAG_SPALTEN)
-      .eq('id', auftragId)
-      .single()
-    if (error) throw error
-    return data as Auftrag
-  }
-
   if (!auftrag) {
     return (
       <div className="cp" style={{ padding: 0 }}>
@@ -295,46 +271,6 @@ export function ContextPanel({
         .eq('id', auftrag.id)
       if (u2) throw u2
       onAuftragAktualisiert({ ...auftrag, status: neuerStatus })
-    } catch (e) {
-      fehler('Status konnte nicht geändert werden')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const handleErpStart = () => {
-    if (busy || auftrag.status !== 'FERTIG' || auftrag.erp_exportiert) return
-    setErpModus('EINZELN')
-    setDialogErp(true)
-  }
-
-  const handleErpBestaetigt = async () => {
-    if (busy) return
-    setBusy(true)
-    setDialogErp(false)
-    try {
-      const { error: e1 } = await supabase.from('erp_exporte').insert({
-        auftrag_id: auftrag.id,
-        modus: erpModus,
-        exportdaten: {
-          auftragsnummer: auftrag.auftragsnummer,
-          kunde_name: kundeNameForExport,
-          zeitpunkt: new Date().toISOString(),
-        },
-      } as never)
-      if (e1) throw e1
-      const { error: e2 } = await supabase
-        .from('auftraege')
-        .update({ erp_exportiert: true })
-        .eq('id', auftrag.id)
-      if (e2) throw e2
-      await schreibeHistorie({
-        auftrag_id: auftrag.id,
-        ereignisart: 'ERP_EXPORTIERT',
-        meta: { modus: erpModus } as unknown as Record<string, unknown>,
-      })
-      onAuftragAktualisiert(await ladeAuftrag(auftrag.id))
-      erfolg('ERP-Export erfolgreich')
     } catch (e) {
       fehler('Status konnte nicht geändert werden')
     } finally {
@@ -871,9 +807,6 @@ export function ContextPanel({
   }
   if (auftrag.status === 'FERTIG') {
     hinweise.push('Auftrag abgeschlossen')
-    if (!auftrag.erp_exportiert) {
-      hinweise.push('ERP-Export ausstehend')
-    }
   }
 
   return (
@@ -959,11 +892,6 @@ export function ContextPanel({
           {auftrag.status === 'ANGEBOT' && (
             <button type="button" className="cp-btn" disabled={busy} onClick={onKundeBearbeiten}>
               Kunde bearbeiten
-            </button>
-          )}
-          {auftrag.status === 'FERTIG' && !auftrag.erp_exportiert && (
-            <button type="button" className="cp-btn" disabled={busy} onClick={handleErpStart}>
-              ERP exportieren
             </button>
           )}
           <button type="button" className="cp-btn" disabled={busy} onClick={() => void handleArchiv()}>
@@ -1148,53 +1076,6 @@ export function ContextPanel({
         kontextAktualisiert={kontextAktualisiert}
         teilauftraege={teilBereichListe}
       />
-
-      {dialogErp && (
-        <div
-          className="cp-modal-bg"
-          role="dialog"
-          aria-modal="true"
-          aria-label="ERP exportieren"
-        >
-          <div className="cp-modal">
-            <h3>ERP exportieren</h3>
-            <p className="cp-hinweis">Modus wählen:</p>
-            <div className="cp-stack" style={{ marginBottom: 12 }}>
-              <label className="cp-toggle">
-                <input
-                  type="radio"
-                  name="erp-modus"
-                  checked={erpModus === 'EINZELN'}
-                  onChange={() => setErpModus('EINZELN')}
-                />
-                <span>EINZELN</span>
-              </label>
-              <label className="cp-toggle">
-                <input
-                  type="radio"
-                  name="erp-modus"
-                  checked={erpModus === 'GESAMMELT'}
-                  onChange={() => setErpModus('GESAMMELT')}
-                />
-                <span>GESAMMELT</span>
-              </label>
-            </div>
-            <div className="cp-modal-bar">
-              <button type="button" className="cp-btn" onClick={() => setDialogErp(false)}>
-                Abbrechen
-              </button>
-              <button
-                type="button"
-                className="cp-btn"
-                disabled={busy}
-                onClick={() => void handleErpBestaetigt()}
-              >
-                Exportieren
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {dialogNotfall && teil && (
         <div
