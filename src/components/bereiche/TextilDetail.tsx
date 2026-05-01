@@ -190,7 +190,9 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
   )
 
   const syncRef = useRef(syncTeil)
-  syncRef.current = syncTeil
+  useEffect(() => {
+    syncRef.current = syncTeil
+  })
 
   const lastLoadTeilId = useRef<string | null>(null)
 

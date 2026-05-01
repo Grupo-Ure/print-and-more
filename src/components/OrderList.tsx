@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabase'
 import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
+import { bereichKuerzel } from '../const/bereichKuerzel'
 import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
 import { formatDatumDe } from '../lib/formatDatum'
 import { kundenName } from '../lib/kunde'
@@ -48,15 +49,6 @@ const STATUS_CBX_KURZ: Record<AuftragStatus, string> = {
   PREPRESS_BEREIT: 'PrePress',
   PRODUKTION_BEREIT: 'Produkt.',
   FERTIG: 'Fertig',
-}
-
-const BEREICH_KURZ: Record<string, string> = {
-  LFP: 'LFP',
-  COPYSHOP: 'CP',
-  TEXTIL: 'TX',
-  STEMPEL: 'ST',
-  LASERGRAVUR: 'LA',
-  SONSTIGE: 'SO',
 }
 
 type TeilBereichRow = { bereich: string; status: string }
@@ -473,7 +465,7 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
               uniqueBereiche.push(b)
             }
             const maxTag = 4
-            const tagLabels = uniqueBereiche.map(b => BEREICH_KURZ[b] ?? b)
+            const tagLabels = uniqueBereiche.map(b => bereichKuerzel(b))
             const sichtTags = tagLabels.slice(0, maxTag)
             const mehr = tagLabels.length - maxTag
             return (
