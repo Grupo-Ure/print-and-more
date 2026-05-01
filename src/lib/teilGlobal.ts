@@ -148,8 +148,16 @@ export function nextTeilStatus(
   snap: TeilauftragRow,
   merged: TeilauftragRow,
   vollstaendig: boolean,
-  kundePrepressOk: boolean
+  kundePrepressOk: boolean,
+  auftragStatus?: AuftragStatus
 ): AuftragStatus {
+  function capPrepress(status: AuftragStatus): AuftragStatus {
+    if (auftragStatus === 'ANGEBOT' && status === 'PREPRESS_BEREIT') {
+      return 'UNVOLLSTAENDIG'
+    }
+    return status
+  }
+
   if (before === 'ANGEBOT') return 'ANGEBOT'
   if (before === 'PRODUKTION_BEREIT' || before === 'FERTIG') {
     if (merged.bereich === 'STEMPEL' || merged.bereich === 'SONSTIGE') {
@@ -171,7 +179,7 @@ export function nextTeilStatus(
   const textil = merged.bereich === 'TEXTIL'
   if (textil) {
     if (!vollstaendig) return 'UNVOLLSTAENDIG'
-    if (vollstaendig && kundePrepressOk) return 'PREPRESS_BEREIT'
+    if (vollstaendig && kundePrepressOk) return capPrepress('PREPRESS_BEREIT')
     if (before === 'PREPRESS_BEREIT' && (!vollstaendig || !kundePrepressOk)) {
       return 'UNVOLLSTAENDIG'
     }
@@ -185,25 +193,26 @@ export function nextTeilStatus(
   }
   if (sonstige) {
     if (!vollstaendig) return 'UNVOLLSTAENDIG'
-    if (before === 'PREPRESS_BEREIT') return 'PREPRESS_BEREIT'
+    if (before === 'PREPRESS_BEREIT') return capPrepress('PREPRESS_BEREIT')
     return 'UNVOLLSTAENDIG'
   }
   if (laser && merged.typ === 'SONSTIGE_LASER') {
     if (!vollstaendig) return 'UNVOLLSTAENDIG'
-    if (before === 'PREPRESS_BEREIT') return 'PREPRESS_BEREIT'
+    if (before === 'PREPRESS_BEREIT') return capPrepress('PREPRESS_BEREIT')
     return 'UNVOLLSTAENDIG'
   }
   if (lfp && merged.typ === 'SONSTIGE_LFP') {
     if (!vollstaendig) return 'UNVOLLSTAENDIG'
-    if (before === 'PREPRESS_BEREIT') return 'PREPRESS_BEREIT'
+    if (before === 'PREPRESS_BEREIT') return capPrepress('PREPRESS_BEREIT')
     return 'UNVOLLSTAENDIG'
   }
   if (stempel && merged.typ === 'SONSTIGE_STEMPEL') {
     if (!vollstaendig) return 'UNVOLLSTAENDIG'
-    if (before === 'PREPRESS_BEREIT') return 'PREPRESS_BEREIT'
+    if (before === 'PREPRESS_BEREIT') return capPrepress('PREPRESS_BEREIT')
     return 'UNVOLLSTAENDIG'
   }
-  if (vollstaendig && kundePrepressOk && automatischesPrepressErlaubt(merged)) return 'PREPRESS_BEREIT'
+  if (vollstaendig && kundePrepressOk && automatischesPrepressErlaubt(merged))
+    return capPrepress('PREPRESS_BEREIT')
   if (before === 'PREPRESS_BEREIT' && (!vollstaendig || !kundePrepressOk)) {
     return 'UNVOLLSTAENDIG'
   }

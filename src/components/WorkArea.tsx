@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabase'
 import { kundenName } from '../lib/kunde'
-import { synchronisiereAuftragsstatus } from '../lib/auftragsStatus'
 import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
 import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
 import {
@@ -18,7 +17,7 @@ import {
 import { useToast } from './Toast'
 import { AddTeilauftragOverlay } from './AddTeilauftragOverlay'
 import { DateInput } from './DateInput'
-import { DateiListe, type Datei } from './DateiListe'
+import type { Datei } from './DateiListe'
 import { TeilauftragDetail } from './TeilauftragDetail'
 import './WorkArea.css'
 
@@ -29,17 +28,6 @@ function kundeKontaktEineLinie(k: KundeKontaktJoin | null): string {
   if (z.email?.trim()) return z.email.trim()
   if (z.telefon?.trim()) return z.telefon.trim()
   return '—'
-}
-
-function auftragStatusPillAuf(s: AuftragStatus): { cls: string; label: string } {
-  const m: Record<AuftragStatus, { cls: string; label: string }> = {
-    ANGEBOT: { cls: 'badge-grau', label: 'Angebot' },
-    UNVOLLSTAENDIG: { cls: 'badge-orange', label: 'Unvollständig' },
-    PREPRESS_BEREIT: { cls: 'badge-blau', label: 'PrePress' },
-    PRODUKTION_BEREIT: { cls: 'badge-lila', label: 'Produktion' },
-    FERTIG: { cls: 'badge-gruen', label: 'Fertig' },
-  }
-  return m[s] ?? { cls: 'badge-grau', label: s }
 }
 
 const TEIL_BEREICH_TAB_K: Record<string, string> = {
@@ -101,11 +89,11 @@ export function WorkArea({
   const [overlayOffen, setOverlayOffen] = useState(false)
   const [speichert, setSpeichert] = useState(false)
   const [dateien, setDateien] = useState<Datei[]>([])
-  const [dateienLaden, setDateienLaden] = useState(false)
+  const [, setDateienLaden] = useState(false)
   const [kopfTermin, setKopfTermin] = useState('')
   const [kopfLieferung, setKopfLieferung] = useState<LieferungWahl | ''>('')
   const [kopfPrioritaet, setKopfPrioritaet] = useState<Prioritaet>('NORMAL')
-  const [kopfSpeichert, setKopfSpeichert] = useState(false)
+  const [, setKopfSpeichert] = useState(false)
   const kopfSnap = useRef<{
     termin: string | null
     lieferung: LieferungWahl | null
@@ -138,7 +126,7 @@ export function WorkArea({
       return
     }
     void reloadDateien()
-  }, [aktiverAuftragId, reloadDateien])
+  }, [aktiverAuftragId, kontextAktualisiert, reloadDateien])
 
   useEffect(() => {
     if (!aktiverAuftragId) {
@@ -151,9 +139,8 @@ export function WorkArea({
     }
 
     const meineRequestId = ++ladeAuftragRequestIdRef.current
-    let abgebrochen = false
+    const isStale = () => meineRequestId !== ladeAuftragRequestIdRef.current
     const auftragId = aktiverAuftragId
-    const abort = new AbortController()
 
     const laden = async () => {
       setFehler(null)
@@ -171,10 +158,10 @@ export function WorkArea({
             .eq('auftrag_id', auftragId)
             .order('id', { ascending: true }),
         ])
-        if (abgebrochen || meineRequestId !== ladeAuftragRequestIdRef.current) return
+        if (isStale()) return
 
         if (aufRes.error) {
-          if (abgebrochen || meineRequestId !== ladeAuftragRequestIdRef.current) return
+          if (isStale()) return
           setFehler(aufRes.error.message)
           toastFehler('Auftrag konnte nicht geladen werden')
           setAuftrag(null)
@@ -183,7 +170,7 @@ export function WorkArea({
           return
         }
         if (tRes.error) {
-          if (abgebrochen || meineRequestId !== ladeAuftragRequestIdRef.current) return
+          if (isStale()) return
           setFehler(tRes.error.message)
           toastFehler('Auftrag konnte nicht geladen werden')
           setAuftrag(aufRes.data as AuftragDetailRow)
@@ -192,7 +179,7 @@ export function WorkArea({
           return
         }
 
-        if (abgebrochen || meineRequestId !== ladeAuftragRequestIdRef.current) return
+        if (isStale()) return
         setAuftrag(aufRes.data as AuftragDetailRow)
         const teile = tRes.data ?? []
         setTeilauftraege(teile)
@@ -202,24 +189,21 @@ export function WorkArea({
           return sichtbar[0]?.id ?? null
         })
       } catch (err) {
-        if (abgebrochen || meineRequestId !== ladeAuftragRequestIdRef.current) return
+        if (isStale()) return
         setFehler(err instanceof Error ? err.message : String(err))
         toastFehler('Auftrag konnte nicht geladen werden')
         setAuftrag(null)
         setTeilauftraege([])
         setAktiverTeilauftragId(null)
       } finally {
-        if (!abgebrochen && meineRequestId === ladeAuftragRequestIdRef.current) {
+        if (!isStale()) {
           setLaden(false)
         }
       }
     }
 
     void laden()
-    return () => {
-      abgebrochen = true
-      abort.abort()
-    }
+    return () => {}
   }, [aktiverAuftragId, kontextAktualisiert, toastFehler])
 
   useEffect(() => {
@@ -282,19 +266,11 @@ export function WorkArea({
   }, [sichtbareTeile, aktiverTeilauftragId])
 
   const handhabeTeilAktualisiert = useCallback(
-    (row: TeilauftragRow) => {
-      setTeilauftraege(list => list.map(t => (t.id === row.id ? row : t)))
-      if (!auftrag) return
-      void (async () => {
-        try {
-          const a = await synchronisiereAuftragsstatus(auftrag.id)
-          onAuftragAktualisiert(a)
-        } catch (e) {
-          toastFehler('Auftragsstatus konnte nicht aktualisiert werden')
-        }
-      })()
+    (t: TeilauftragRow) => {
+      setTeilauftraege(list => list.map(x => (x.id === t.id ? t : x)))
+      onAktiverTeilauftragGeaendert(t)
     },
-    [auftrag, onAuftragAktualisiert, toastFehler]
+    [onAktiverTeilauftragGeaendert]
   )
 
   useEffect(() => {
@@ -376,13 +352,21 @@ export function WorkArea({
         return next
       })
       setAktiverTeilauftragId(data.id)
+
+      try {
+        const a = await synchronisiereAuftragsstatus(auftrag.id)
+        setAuftrag(prev => (prev ? ({ ...prev, status: a.status } as AuftragDetailRow) : prev))
+        onAuftragAktualisiert({ ...(auftrag as unknown as Auftrag), status: a.status })
+      } catch {
+        toastFehler('Auftragsstatus konnte nicht aktualisiert werden')
+      }
     }
     setOverlayOffen(false)
   }
 
   if (!aktiverAuftragId) {
     return (
-      <div className="wa">
+      <div className="work-area work-area--empty">
         <p className="wa-hint">Wählen Sie links einen Auftrag aus, um Details und Teilaufträge zu bearbeiten.</p>
       </div>
     )
@@ -390,7 +374,7 @@ export function WorkArea({
 
   if (laden) {
     return (
-      <div className="wa">
+      <div className="work-area work-area--empty">
         <p className="wa-laden">Lädt Auftrag …</p>
       </div>
     )
@@ -398,7 +382,7 @@ export function WorkArea({
 
   if (fehler && !auftrag) {
     return (
-      <div className="wa">
+      <div className="work-area work-area--empty">
         <p className="wa-fehler">{fehler}</p>
       </div>
     )
@@ -406,7 +390,7 @@ export function WorkArea({
 
   if (!auftrag) {
     return (
-      <div className="wa">
+      <div className="work-area work-area--empty">
         <p className="wa-hint">Auftrag nicht gefunden.</p>
       </div>
     )
@@ -415,144 +399,126 @@ export function WorkArea({
   const kunde = kundenName(auftrag.kunden)
   const aktiverTeil = aktiverTeilFuerKontext
   const termSlice = (t: string | null) => (t && t.length > 10 ? t.slice(0, 10) : t || '')
-  const statusP = auftragStatusPillAuf(auftrag.status)
   const kontaktZeile = kundeKontaktEineLinie(auftrag.kunden)
 
   const prioritaetGlyph = (p: Prioritaet) => (p === 'HOCH' ? '▲' : '●')
 
   return (
-    <div className="wa">
-      <header className="wa-kopf">
-        <div className="wa-k1">
-          <h1 className="wa-kunde-titel">{kunde}</h1>
-          <span className="wa-auftr-nr">{auftrag.auftragsnummer}</span>
-          <button
-            type="button"
-            className="wa-gear"
-            onClick={onKundeBearbeiten}
-            title="Kunde bearbeiten"
-            aria-label="Kunde bearbeiten"
-          >
-            <span className="wa-gear-ico" aria-hidden>
-              ⚙
-            </span>
-          </button>
-        </div>
-        <div className="wa-k2">
-          <span className="wa-k2-kontakt" title={kontaktZeile}>
+    <div className="work-area">
+      <header className="work-area__header">
+        <div className="work-area__header-main">
+          <div className="work-area__title-line">
+            <h1 className="work-area__kunde">{kunde}</h1>
+            <span className="work-area__auftragsnummer">{auftrag.auftragsnummer}</span>
+            <button
+              type="button"
+              className="wa-gear"
+              onClick={onKundeBearbeiten}
+              title="Kunde bearbeiten"
+              aria-label="Kunde bearbeiten"
+            >
+              <span className="wa-gear-ico" aria-hidden>
+                ⚙
+              </span>
+            </button>
+          </div>
+          <div className="work-area__kontakt" title={kontaktZeile}>
             {kontaktZeile}
-          </span>
-          <span className="wa-k2-sep" aria-hidden>
-            |
-          </span>
-          <span className={`badge ${statusP.cls}`}>
-            {statusP.label}
-            {kopfSpeichert ? ' …' : ''}
-          </span>
+          </div>
         </div>
-        <div className="wa-kopf-metas">
-          <label className="wa-inline-pill" title="Termin">
-            <span aria-hidden>📅</span>
-            <DateInput
-              className="wa-inline-date"
-              value={kopfTermin}
-              onChange={e => setKopfTermin(e.target.value)}
-              onBlur={e => {
-                const v = e.target.value || null
-                const s = termSlice(kopfSnap.current.termin)
-                if ((v || '') !== (s || '')) {
-                  void speichereAuftragKopf({ termin: v })
-                }
-              }}
-            />
-          </label>
-          <label className="wa-inline-pill" title="Lieferung">
-            <span aria-hidden>🚚</span>
-            <select
-              className="wa-inline-sel"
-              value={kopfLieferung}
-              onChange={e => {
-                const v = e.target.value
-                setKopfLieferung(v === '' ? '' : (v as LieferungWahl))
-                const liefer = (v as LieferungWahl) || null
-                if (liefer !== kopfSnap.current.lieferung) {
-                  void speichereAuftragKopf({ lieferung: liefer })
-                }
-              }}
-            >
-              <option value="">—</option>
-              <option value="ABHOLUNG">Abholung</option>
-              <option value="VERSAND">Versand</option>
-            </select>
-          </label>
-          <label className="wa-inline-pill" title="Priorität">
-            <span className="wa-prio-glyph" aria-hidden>
-              {prioritaetGlyph(kopfPrioritaet)}
-            </span>
-            <select
-              className="wa-inline-sel"
-              value={kopfPrioritaet}
-              onChange={e => {
-                const v = e.target.value
-                if (v === 'NORMAL' || v === 'HOCH') {
-                  setKopfPrioritaet(v)
-                  if (v !== kopfSnap.current.prioritaet) {
-                    void speichereAuftragKopf({ prioritaet: v })
-                  }
-                }
-              }}
-            >
-              <option value="NORMAL">Normal</option>
-              <option value="HOCH">Hoch</option>
-            </select>
-          </label>
+        <div className="work-area__verantwortlich" aria-hidden>
+          {'\u00a0'}
         </div>
       </header>
 
       {fehler && <p className="wa-fehler">{fehler}</p>}
 
-      <DateiListe
-        aktiverAuftragId={aktiverAuftragId}
-        dateien={dateien}
-        dateienLaden={dateienLaden}
-        onDateiGeaendert={reloadDateien}
-      />
+      <section className="work-area__meta" aria-label="Auftrags-Meta">
+        <label className="meta-pill" title="Termin">
+          <span aria-hidden>📅</span>
+          <DateInput
+            value={kopfTermin}
+            onChange={e => setKopfTermin(e.target.value)}
+            onBlur={e => {
+              const v = e.target.value || null
+              const s = termSlice(kopfSnap.current.termin)
+              if ((v || '') !== (s || '')) {
+                void speichereAuftragKopf({ termin: v })
+              }
+            }}
+          />
+        </label>
+        <label className="meta-pill" title="Lieferung">
+          <span aria-hidden>🚚</span>
+          <select
+            value={kopfLieferung}
+            onChange={e => {
+              const v = e.target.value
+              setKopfLieferung(v === '' ? '' : (v as LieferungWahl))
+              const liefer = (v as LieferungWahl) || null
+              if (liefer !== kopfSnap.current.lieferung) {
+                void speichereAuftragKopf({ lieferung: liefer })
+              }
+            }}
+          >
+            <option value="">—</option>
+            <option value="ABHOLUNG">Abholung</option>
+            <option value="VERSAND">Versand</option>
+          </select>
+        </label>
+        <label className="meta-pill" title="Priorität">
+          <span className="wa-prio-glyph" aria-hidden>
+            {prioritaetGlyph(kopfPrioritaet)}
+          </span>
+          <select
+            value={kopfPrioritaet}
+            onChange={e => {
+              const v = e.target.value
+              if (v === 'NORMAL' || v === 'HOCH') {
+                setKopfPrioritaet(v)
+                if (v !== kopfSnap.current.prioritaet) {
+                  void speichereAuftragKopf({ prioritaet: v })
+                }
+              }
+            }}
+          >
+            <option value="NORMAL">Normal</option>
+            <option value="HOCH">Hoch</option>
+          </select>
+        </label>
+      </section>
 
-      <div style={{ borderTop: '1px solid var(--border)', marginTop: '0.5rem' }} aria-hidden="true" />
-
-      <div className="wa-leiste">
-        <div className="wa-tabs" role="tablist" aria-label="Teilaufträge">
-          {sichtbareTeile.map(t => {
-            const active = t.id === aktiverTeilauftragId
-            const bkz = teilTabBereichKurz(t.bereich)
-            const ttitle = `${teilauftragBereichLabel(t.bereich)} · ${t.status}`
-            return (
-              <button
-                key={t.id}
-                type="button"
-                role="tab"
-                className={active ? 'wa-tab wa-tab--aktiv' : 'wa-tab'}
-                aria-selected={active}
-                onClick={() => setAktiverTeilauftragId(t.id)}
-                title={ttitle}
-              >
-                <span className="wa-tab-kz">{bkz}</span>
-                <span className="wa-tab-sep" aria-hidden>
-                  {' '}
-                  ·{' '}
-                </span>
-                <span
-                  className={teilStatusDotClass(t.status)}
-                  title={t.status}
-                  aria-label={t.status}
-                />
-              </button>
-            )
-          })}
-        </div>
+      <div className="work-area__tabs" role="tablist" aria-label="Teilaufträge">
+        {sichtbareTeile.map(t => {
+          const active = t.id === aktiverTeilauftragId
+          const bkz = teilTabBereichKurz(t.bereich)
+          const ttitle = `${teilauftragBereichLabel(t.bereich)} · ${t.status}`
+          return (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              className={active ? 'tab-btn tab-btn--active' : 'tab-btn'}
+              aria-selected={active}
+              onClick={() => setAktiverTeilauftragId(t.id)}
+              title={ttitle}
+            >
+              <span className="wa-tab-kz">{bkz}</span>
+              <span className="wa-tab-sep" aria-hidden>
+                {' '}
+                ·{' '}
+              </span>
+              <span
+                className={teilStatusDotClass(t.status)}
+                title={t.status}
+                aria-label={t.status}
+              />
+            </button>
+          )
+        })}
         <button
           type="button"
-          className="wa-add"
+          className="tab-add-btn"
           onClick={() => setOverlayOffen(true)}
           aria-label="Teilauftrag hinzufügen"
         >
@@ -560,10 +526,11 @@ export function WorkArea({
         </button>
       </div>
 
-      <div className="wa-inhalt" role="tabpanel">
+      <div className="work-area__formular" role="tabpanel">
         {aktiverTeil ? (
           <TeilauftragDetail
             teil={aktiverTeil}
+            auftragStatus={auftrag.status}
             auftragTermin={auftrag.termin}
             auftragLieferung={auftrag.lieferung}
             auftragPrioritaet={auftrag.prioritaet}

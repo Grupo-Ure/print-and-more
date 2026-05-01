@@ -33,6 +33,7 @@ import './WorkArea.css'
 
 type Props = {
   teil: TeilauftragRow
+  auftragStatus: AuftragStatus
   /** Auftragstermin (fallback/Vererbung) */
   auftragTermin: string | null
   /** Auftrags-Lieferung (Vererbung) */
@@ -79,6 +80,7 @@ function teilStatusBadgeAuf(s: AuftragStatus): { cls: string; label: string } {
 
 export function TeilauftragDetail({
   teil,
+  auftragStatus,
   auftragTermin,
   auftragLieferung,
   auftragPrioritaet,
@@ -155,7 +157,7 @@ export function TeilauftragDetail({
         lieferung: (merged.lieferung ?? auftragLief) as LieferungWahl,
       }
       const voll = istTeilAuftragVollstaendig(mergedNorm, snap.status)
-      const nSt = nextTeilStatus(snap.status, snap, merged, voll, kundePre)
+      const nSt = nextTeilStatus(snap.status, snap, merged, voll, kundePre, auftragStatus)
       const statusVorher = snapR.current.status
       setSpeichLad(true)
       const { data, error } = await supabase
@@ -180,7 +182,7 @@ export function TeilauftragDetail({
         }
       }
     },
-    [auftragLief, auftragPrio, teil.id, teil.auftrag_id, onAktualisiert, kundePre, fehler]
+    [auftragLief, auftragPrio, teil.id, teil.auftrag_id, auftragStatus, onAktualisiert, kundePre, fehler]
   )
 
   const onLfpPatch = useCallback(
