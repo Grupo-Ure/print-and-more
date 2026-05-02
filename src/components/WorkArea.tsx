@@ -83,6 +83,7 @@ export function WorkArea({
   const [kopfLieferung, setKopfLieferung] = useState<LieferungWahl | ''>('')
   const [kopfPrioritaet, setKopfPrioritaet] = useState<Prioritaet>('NORMAL')
   const [, setKopfSpeichert] = useState(false)
+  const [verantwortlicherName, setVerantwortlicherName] = useState<string | null>(null)
   const kopfSnap = useRef<{
     termin: string | null
     lieferung: LieferungWahl | null
@@ -254,6 +255,34 @@ export function WorkArea({
     return sichtbareTeile.find(t => t.id === aktiverTeilauftragId) ?? null
   }, [sichtbareTeile, aktiverTeilauftragId])
 
+  useEffect(() => {
+    const vid = aktiverTeilFuerKontext?.verantwortlicher_id ?? null
+    if (!vid) {
+      setVerantwortlicherName(null)
+      return
+    }
+    let alive = true
+    void (async () => {
+      /* eslint-disable @typescript-eslint/no-explicit-any -- Tabelle profile ggf. nicht in generierten Supabase-Typen */
+      const { data, error } = await (supabase as any)
+        .from('profile')
+        .select('id, name')
+        .eq('id', vid)
+        .single()
+      /* eslint-enable @typescript-eslint/no-explicit-any */
+      if (!alive) return
+      if (error) {
+        console.error(error)
+        return
+      }
+      const row = data as { name: string | null } | null
+      setVerantwortlicherName(row?.name ?? null)
+    })()
+    return () => {
+      alive = false
+    }
+  }, [aktiverTeilFuerKontext?.verantwortlicher_id])
+
   const handhabeTeilAktualisiert = useCallback(
     (t: TeilauftragRow) => {
       setTeilauftraege(list => list.map(x => (x.id === t.id ? t : x)))
@@ -416,7 +445,7 @@ export function WorkArea({
           </div>
         </div>
         <div className="work-area__verantwortlich" aria-hidden>
-          {'\u00a0'}
+          {verantwortlicherName ?? ''}
         </div>
       </header>
 

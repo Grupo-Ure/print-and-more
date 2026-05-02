@@ -189,14 +189,7 @@ export function ContextPanel({
   const [stempelBestand, setStempelBestand] = useState<number | null>(null)
   const [kissenBestand, setKissenBestand] = useState<number | null>(null)
   const [dialogProduktionBestand0, setDialogProduktionBestand0] = useState(false)
-  const [verantwortlichAnzeige, setVerantwortlichAnzeige] = useState<string | null>(null)
   const { fehler, erfolg } = useToast()
-
-  useEffect(() => {
-    void supabase.auth.getUser().then(({ data: { user } }) => {
-      setVerantwortlichAnzeige(user?.email?.trim() || user?.id || null)
-    })
-  }, [])
 
   useEffect(() => {
     if (!aktiverTeilauftrag || aktiverTeilauftrag.bereich !== 'STEMPEL') {
@@ -813,14 +806,24 @@ export function ContextPanel({
 
   return (
     <div className="cp">
-      {verantwortlichAnzeige && (
-        <p
-          className="cp-hinweis cp-hinweis--komp"
-          style={{ margin: '0 0 10px' }}
-        >
-          Verantwortlich: {verantwortlichAnzeige}
-        </p>
-      )}
+      <div className="cp-sektion">
+        <h2>Status</h2>
+        <div className="cp-status-komp">
+          {teil && (
+            <div className="cp-st-zeile">
+              <span className={`badge ${statusBadgeGlobal(teil.status)} cp-badge-lg`}>{teil.status}</span>
+            </div>
+          )}
+          {teil?.notfall_aktiv && (
+            <div className="cp-st-notfall">
+              <span className="badge badge-rot cp-badge-lg">!! NOTFALL !!</span>
+              {teil.notfall_begruendung && (
+                <p className="cp-hinweis cp-hinweis--komp">{teil.notfall_begruendung}</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
       {(() => {
         const row = einKundeKontakt(auftragKunde)
         if (!row) return null
@@ -852,32 +855,6 @@ export function ContextPanel({
           </div>
         )
       })()}
-      <div className="cp-sektion">
-        <h2>Status</h2>
-        <div className="cp-status-komp">
-          <div className="cp-st-zeile">
-            <span className="cp-st-l">Auftrag</span>
-            <span className={`badge ${statusBadgeGlobal(auftrag.status)} cp-badge-lg`}>
-              {auftrag.status}
-            </span>
-          </div>
-          {teil && (
-            <div className="cp-st-zeile">
-              <span className="cp-st-l">Teilauftrag</span>
-              <span className={`badge ${statusBadgeGlobal(teil.status)} cp-badge-lg`}>{teil.status}</span>
-            </div>
-          )}
-          {teil?.notfall_aktiv && (
-            <div className="cp-st-notfall">
-              <span className="badge badge-rot cp-badge-lg">!! NOTFALL !!</span>
-              {teil.notfall_begruendung && (
-                <p className="cp-hinweis cp-hinweis--komp">{teil.notfall_begruendung}</p>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
       <div className="cp-sektion">
         <h2>Aktionen</h2>
         <div className="cp-gruppe">
