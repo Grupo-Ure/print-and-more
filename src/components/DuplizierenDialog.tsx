@@ -245,7 +245,7 @@ export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbreche
           },
         } as never)
       } catch {
-        // Historie darf die Duplizierung nicht blockieren.
+        console.error('Historie-Insert fehlgeschlagen')
       }
 
       erfolg('Auftrag dupliziert')

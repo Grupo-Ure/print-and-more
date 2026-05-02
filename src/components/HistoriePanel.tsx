@@ -20,11 +20,6 @@ type HistorieZeile = {
   person_id: string | null
 }
 
-type MitarbeiterZeile = {
-  id: string
-  name: string | null
-}
-
 const EREIGNIS_LABEL: Record<string, string> = {
   AUFTRAG_ERSTELLT: 'Auftrag erstellt',
   IN_BEARBEITUNG_GENOMMEN: 'In Bearbeitung genommen',
@@ -66,20 +61,25 @@ export function HistoriePanel({ aktiverAuftragId, kontextAktualisiert, teilauftr
   const [laden, setLaden] = useState(false)
 
   useEffect(() => {
+    let alive = true
     supabase
       .from('profile')
       .select('id, name')
       .then(({ data, error }) => {
+        if (!alive) return
         if (error) {
           toastFehler('Mitarbeiterdaten konnten nicht geladen werden')
           return
         }
         const m = new Map<string, string>()
-        for (const z of (data ?? []) as unknown as MitarbeiterZeile[]) {
+        for (const z of (data ?? []) as { id: string; name: string | null }[]) {
           m.set(z.id, z.name ?? z.id)
         }
         setMitarbeiterById(m)
       })
+    return () => {
+      alive = false
+    }
   }, [toastFehler])
 
   const ladeHistorie = useCallback(async () => {
