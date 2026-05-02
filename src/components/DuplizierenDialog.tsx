@@ -148,10 +148,11 @@ export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbreche
         if (ta.bereich === 'TEXTIL') {
           // Textil: Motive + Positionen + Zuordnungen mit ID-Mapping kopieren
 
-          const { data: altMotive } = await supabase
+          const { data: altMotive, error: eMotiv } = await supabase
             .from('textil_motive')
             .select('*')
             .eq('teilauftrag_id', ta.id)
+          if (eMotiv) throw eMotiv
 
           const motivIdMap = new Map<string, string>()
 
@@ -167,10 +168,11 @@ export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbreche
             motivIdMap.set(_altMotivId, (neuMotiv as { id: string }).id)
           }
 
-          const { data: altPositionen } = await supabase
+          const { data: altPositionen, error: ePos } = await supabase
             .from('textil_positionen')
             .select('*')
             .eq('teilauftrag_id', ta.id)
+          if (ePos) throw ePos
 
           const posIdMap = new Map<string, string>()
 
@@ -186,10 +188,11 @@ export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbreche
             posIdMap.set(_altPosId, (neuPos as { id: string }).id)
           }
 
-          const { data: altZuordnungen } = await supabase
+          const { data: altZuordnungen, error: eZuo } = await supabase
             .from('textil_zuordnungen')
             .select('*')
             .eq('teilauftrag_id', ta.id)
+          if (eZuo) throw eZuo
 
           for (const z of altZuordnungen ?? []) {
             const row = z as TextilZuordnungRow
@@ -209,11 +212,12 @@ export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbreche
           }
         } else {
           // Alle anderen Bereiche: teilauftrag_produkte kopieren
-          const { data: altProdukte } = await supabase
+          const { data: altProdukte, error: eProd } = await supabase
             .from('teilauftrag_produkte')
             .select('*')
             .eq('teilauftrag_id', ta.id)
             .order('sort_order')
+          if (eProd) throw eProd
 
           for (const p of (altProdukte ?? []) as Record<string, unknown>[]) {
             const { id: _altPId, teilauftrag_id: _old, ...pRest } = p as {
