@@ -611,11 +611,9 @@ export type Database = {
           id: string
           inhalt: string | null
           schriftart: string | null
-          schriftklasse:
-            | Database["public"]["Enums"]["textil_schriftklasse"]
-            | null
+          schriftklasse: string | null
           teilauftrag_id: string
-          typ: Database["public"]["Enums"]["textil_motiv_typ"]
+          typ: string
         }
         Insert: {
           datei_id?: string | null
@@ -624,11 +622,9 @@ export type Database = {
           id?: string
           inhalt?: string | null
           schriftart?: string | null
-          schriftklasse?:
-            | Database["public"]["Enums"]["textil_schriftklasse"]
-            | null
+          schriftklasse?: string | null
           teilauftrag_id: string
-          typ: Database["public"]["Enums"]["textil_motiv_typ"]
+          typ: string
         }
         Update: {
           datei_id?: string | null
@@ -637,35 +633,18 @@ export type Database = {
           id?: string
           inhalt?: string | null
           schriftart?: string | null
-          schriftklasse?:
-            | Database["public"]["Enums"]["textil_schriftklasse"]
-            | null
+          schriftklasse?: string | null
           teilauftrag_id?: string
-          typ?: Database["public"]["Enums"]["textil_motiv_typ"]
+          typ?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "textil_motive_datei_id_fkey"
-            columns: ["datei_id"]
-            isOneToOne: false
-            referencedRelation: "dateien"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "textil_motive_teilauftrag_id_fkey"
-            columns: ["teilauftrag_id"]
-            isOneToOne: false
-            referencedRelation: "teilauftraege"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       textil_positionen: {
         Row: {
           erstellt_am: string
           farbe: string | null
           groesse: string | null
-          herkunft: Database["public"]["Enums"]["textil_herkunft"]
+          herkunft: string
           id: string
           marke: string | null
           modell: string | null
@@ -678,7 +657,7 @@ export type Database = {
           erstellt_am?: string
           farbe?: string | null
           groesse?: string | null
-          herkunft: Database["public"]["Enums"]["textil_herkunft"]
+          herkunft: string
           id?: string
           marke?: string | null
           modell?: string | null
@@ -691,7 +670,7 @@ export type Database = {
           erstellt_am?: string
           farbe?: string | null
           groesse?: string | null
-          herkunft?: Database["public"]["Enums"]["textil_herkunft"]
+          herkunft?: string
           id?: string
           marke?: string | null
           modell?: string | null
@@ -700,22 +679,7 @@ export type Database = {
           typ?: string | null
           variante_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "textil_positionen_teilauftrag_id_fkey"
-            columns: ["teilauftrag_id"]
-            isOneToOne: false
-            referencedRelation: "teilauftraege"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "textil_positionen_variante_id_fkey"
-            columns: ["variante_id"]
-            isOneToOne: false
-            referencedRelation: "textil_varianten"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       textil_produkte: {
         Row: {
@@ -761,10 +725,11 @@ export type Database = {
           bestand: number
           erstellt_am: string
           farbe: string
-          farbcode: string | null
+          farbe_hex: string | null
           groesse: string
           id: string
           ist_muster: boolean
+          material: string | null
           mindestbestand: number
           produkt_id: string
           sort_order: number
@@ -774,10 +739,11 @@ export type Database = {
           bestand?: number
           erstellt_am?: string
           farbe: string
-          farbcode?: string | null
+          farbe_hex?: string | null
           groesse: string
           id?: string
           ist_muster?: boolean
+          material?: string | null
           mindestbestand?: number
           produkt_id: string
           sort_order?: number
@@ -787,23 +753,16 @@ export type Database = {
           bestand?: number
           erstellt_am?: string
           farbe?: string
-          farbcode?: string | null
+          farbe_hex?: string | null
           groesse?: string
           id?: string
           ist_muster?: boolean
+          material?: string | null
           mindestbestand?: number
           produkt_id?: string
           sort_order?: number
         }
-        Relationships: [
-          {
-            foreignKeyName: "textil_varianten_produkt_id_fkey"
-            columns: ["produkt_id"]
-            isOneToOne: false
-            referencedRelation: "textil_produkte"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       textil_zuordnungen: {
         Row: {
@@ -836,29 +795,7 @@ export type Database = {
           position_id?: string
           teilauftrag_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "textil_zuordnungen_motiv_id_fkey"
-            columns: ["motiv_id"]
-            isOneToOne: false
-            referencedRelation: "textil_motive"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "textil_zuordnungen_position_id_fkey"
-            columns: ["position_id"]
-            isOneToOne: false
-            referencedRelation: "textil_positionen"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "textil_zuordnungen_teilauftrag_id_fkey"
-            columns: ["teilauftrag_id"]
-            isOneToOne: false
-            referencedRelation: "teilauftraege"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       profile: {
         Row: {

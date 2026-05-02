@@ -10,6 +10,11 @@ import { STEMPEL_TYP_ANZEIGE } from '../types/stempel'
 import { LASER_TYP_ANZEIGE } from '../types/laser'
 import { DateInput } from './DateInput'
 import { useToast } from './Toast'
+import type { Database } from '../types/supabase'
+
+type TextilMotiveRow = Database['public']['Tables']['textil_motive']['Row']
+type TextilPositionenRow = Database['public']['Tables']['textil_positionen']['Row']
+type TextilZuordnungRow = Database['public']['Tables']['textil_zuordnungen']['Row']
 
 type Props = {
   auftrag: Auftrag
@@ -150,15 +155,12 @@ export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbreche
 
           const motivIdMap = new Map<string, string>()
 
-          for (const m of (altMotive ?? []) as Record<string, unknown>[]) {
-            const { id: _altMotivId, teilauftrag_id: _old, ...motivRest } = m as {
-              id: string
-              teilauftrag_id: string
-              [k: string]: unknown
-            }
+          for (const m of altMotive ?? []) {
+            const row = m as TextilMotiveRow
+            const { id: _altMotivId, teilauftrag_id: _old, ...motivRest } = row
             const { data: neuMotiv, error: emErr } = await supabase
               .from('textil_motive')
-              .insert({ ...motivRest, teilauftrag_id: neuTaId } as never)
+              .insert({ ...motivRest, teilauftrag_id: neuTaId })
               .select('id')
               .single()
             if (emErr) throw emErr
@@ -172,15 +174,12 @@ export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbreche
 
           const posIdMap = new Map<string, string>()
 
-          for (const p of (altPositionen ?? []) as Record<string, unknown>[]) {
-            const { id: _altPosId, teilauftrag_id: _old, ...posRest } = p as {
-              id: string
-              teilauftrag_id: string
-              [k: string]: unknown
-            }
+          for (const p of altPositionen ?? []) {
+            const row = p as TextilPositionenRow
+            const { id: _altPosId, teilauftrag_id: _old, ...posRest } = row
             const { data: neuPos, error: epErr } = await supabase
               .from('textil_positionen')
-              .insert({ ...posRest, teilauftrag_id: neuTaId } as never)
+              .insert({ ...posRest, teilauftrag_id: neuTaId })
               .select('id')
               .single()
             if (epErr) throw epErr
@@ -192,22 +191,20 @@ export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbreche
             .select('*')
             .eq('teilauftrag_id', ta.id)
 
-          for (const z of (altZuordnungen ?? []) as Record<string, unknown>[]) {
-            const { id: _altZId, teilauftrag_id: _old, motiv_id: altMotivId, position_id: altPosId, ...zRest } = z as {
-              id: string
-              teilauftrag_id: string
-              motiv_id: string | null
-              position_id: string | null
-              [k: string]: unknown
-            }
-            const { error: ezErr } = await supabase
-              .from('textil_zuordnungen')
-              .insert({
-                ...zRest,
-                teilauftrag_id: neuTaId,
-                motiv_id: altMotivId ? (motivIdMap.get(altMotivId) ?? null) : null,
-                position_id: altPosId ? (posIdMap.get(altPosId) ?? null) : null,
-              } as never)
+          for (const z of altZuordnungen ?? []) {
+            const row = z as TextilZuordnungRow
+            const { id: _altZId, teilauftrag_id: _old, motiv_id: altMotivId, position_id: altPosId, ...zRest } =
+              row
+            const neuMotivId = altMotivId ? motivIdMap.get(altMotivId) : undefined
+            const neuPosId = altPosId ? posIdMap.get(altPosId) : undefined
+            if (altMotivId && neuMotivId == null) throw new Error('Duplizieren: Motiv-Zuordnung fehlgeschlagen')
+            if (altPosId && neuPosId == null) throw new Error('Duplizieren: Positions-Zuordnung fehlgeschlagen')
+            const { error: ezErr } = await supabase.from('textil_zuordnungen').insert({
+              ...zRest,
+              teilauftrag_id: neuTaId,
+              motiv_id: neuMotivId ?? altMotivId,
+              position_id: neuPosId ?? altPosId,
+            })
             if (ezErr) throw ezErr
           }
         } else {

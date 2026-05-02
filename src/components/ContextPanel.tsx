@@ -551,7 +551,7 @@ export function ContextPanel({
           if (alt <= 0) continue
 
           const neuerBestand = Math.max(0, alt - mengeLocal)
-          const { error: eUp } = await supabase.from('textil_varianten').update({ bestand: neuerBestand } as never).eq('id', vid)
+          const { error: eUp } = await supabase.from('textil_varianten').update({ bestand: neuerBestand }).eq('id', vid)
           if (eUp) throw eUp
 
           const { error: eIns } = await supabase.from('textil_lager_bewegungen').insert({

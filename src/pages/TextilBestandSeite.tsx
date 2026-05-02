@@ -261,7 +261,7 @@ export function TextilBestandSeite() {
 
   const [neueVariante, setNeueVariante] = useState({
     farbe: '',
-    farbcode: '' as string,
+    farbe_hex: '' as string,
     groesse: '',
     ist_muster: false,
     mindestbestand: '0',
@@ -269,7 +269,7 @@ export function TextilBestandSeite() {
   const [varianteFormOffen, setVarianteFormOffen] = useState(false)
   const [editVariante, setEditVariante] = useState<VarianteRow | null>(null)
   const [editVarFarbe, setEditVarFarbe] = useState('')
-  const [editVarFarbcode, setEditVarFarbcode] = useState('')
+  const [editVarFarbeHex, setEditVarFarbeHex] = useState('')
   const [editVarGroesse, setEditVarGroesse] = useState('')
   const [editVarMuster, setEditVarMuster] = useState(false)
   const [editVarMin, setEditVarMin] = useState('0')
@@ -718,7 +718,7 @@ export function TextilBestandSeite() {
     const { error: err } = await supabase.from('textil_varianten').insert({
       produkt_id: produktIdVarianten,
       farbe,
-      farbcode: neueVariante.farbcode.trim() || null,
+      farbe_hex: neueVariante.farbe_hex.trim() || null,
       groesse,
       ist_muster: neueVariante.ist_muster,
       mindestbestand: min,
@@ -732,7 +732,7 @@ export function TextilBestandSeite() {
     }
     setNeueVariante({
       farbe: '',
-      farbcode: '',
+      farbe_hex: '',
       groesse: '',
       ist_muster: false,
       mindestbestand: '0',
@@ -863,7 +863,7 @@ export function TextilBestandSeite() {
           inserts.push({
             produkt_id: produktIdVarianten,
             farbe: f.name,
-            farbcode: f.hex,
+            farbe_hex: f.hex,
             groesse: g,
             ist_muster: matrixAlleMuster,
             mindestbestand: min,
@@ -879,7 +879,7 @@ export function TextilBestandSeite() {
         return
       }
 
-      const { error: eIns } = await supabase.from('textil_varianten').insert(inserts as never)
+      const { error: eIns } = await supabase.from('textil_varianten').insert(inserts)
       if (eIns) throw eIns
 
       erfolg(`${inserts.length} Varianten angelegt`)
@@ -908,7 +908,7 @@ export function TextilBestandSeite() {
       .from('textil_varianten')
       .update({
         farbe,
-        farbcode: editVarFarbcode.trim() || null,
+        farbe_hex: editVarFarbeHex.trim() || null,
         groesse,
         ist_muster: editVarMuster,
         mindestbestand: min,
@@ -1668,8 +1668,8 @@ export function TextilBestandSeite() {
                     <span style={{ fontSize: 12 }}>Farbcode</span>
                     <input
                       type="color"
-                      value={neueVariante.farbcode || '#000000'}
-                      onChange={e => setNeueVariante(s => ({ ...s, farbcode: e.target.value }))}
+                      value={neueVariante.farbe_hex || '#000000'}
+                      onChange={e => setNeueVariante(s => ({ ...s, farbe_hex: e.target.value }))}
                       style={{ width: 44, height: 32, padding: 0, border: 'none' }}
                     />
                   </div>
@@ -1723,7 +1723,7 @@ export function TextilBestandSeite() {
                         return (
                           <tr key={v.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                             <td style={{ padding: '8px 6px' }}>{v.farbe}</td>
-                            <td style={{ padding: '8px 6px' }}>{v.farbcode || '—'}</td>
+                            <td style={{ padding: '8px 6px' }}>{v.farbe_hex || '—'}</td>
                             <td style={{ padding: '8px 6px' }}>{v.groesse}</td>
                             <td style={{ padding: '8px 6px' }}>
                               {v.ist_muster ? <span className="badge badge-grau">Muster</span> : '—'}
@@ -1748,7 +1748,7 @@ export function TextilBestandSeite() {
                                 onClick={() => {
                                   setEditVariante(v)
                                   setEditVarFarbe(v.farbe)
-                                  setEditVarFarbcode(v.farbcode ?? '')
+                                  setEditVarFarbeHex(v.farbe_hex ?? '')
                                   setEditVarGroesse(v.groesse)
                                   setEditVarMuster(v.ist_muster)
                                   setEditVarMin(String(v.mindestbestand ?? 0))
@@ -1799,8 +1799,8 @@ export function TextilBestandSeite() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <input
                         type="color"
-                        value={editVarFarbcode || '#000000'}
-                        onChange={e => setEditVarFarbcode(e.target.value)}
+                        value={editVarFarbeHex || '#000000'}
+                        onChange={e => setEditVarFarbeHex(e.target.value)}
                         style={{ width: 44, height: 32, padding: 0, border: 'none' }}
                       />
                     </div>

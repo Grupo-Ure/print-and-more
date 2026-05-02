@@ -391,14 +391,14 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
       return
     }
     setSdLaden(true)
-    ;(supabase as any)
+    void supabase
       .from('textil_varianten')
       .select('farbe, farbe_hex')
       .eq('produkt_id', sdProduktId)
       .eq('aktiv', true)
       .order('farbe')
-      .then((res: { data: unknown; error: unknown }) => {
-        const { data, error } = res as any
+      .then(res => {
+        const { data, error } = res
         setSdLaden(false)
         if (error) return
         const rows = (data ?? []) as unknown as { farbe: string | null; farbe_hex: string | null }[]
@@ -515,7 +515,7 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
           schriftklasse: mSchriftkl,
           schriftart: mSchriftart.trim() || null,
           datei_id: null,
-        } as never)
+        })
         .select('*')
         .single()
       setSMut(false)
@@ -548,7 +548,7 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
           schriftklasse: null,
           schriftart: null,
           datei_id: mDatei,
-        } as never)
+        })
         .select('*')
         .single()
       setSMut(false)
@@ -593,7 +593,7 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
           marke: null,
           modell: null,
           groesse: null,
-        } as never)
+        })
         .select('*')
         .single()
       setSMut(false)
@@ -646,7 +646,7 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
           modell: pModell.trim(),
           groesse: pGroesse.trim(),
           variante_id: eigenwareModus === 'STAMMDATEN' ? (sdVarianteId || null) : null,
-        } as never)
+        })
         .select('*')
         .single()
       setSMut(false)
@@ -712,7 +712,7 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
         platz: zPlatz,
         groesse: gro,
         druckart: zDruck.trim() || null,
-      } as never)
+      })
       .select(
         'id, teilauftrag_id, motiv_id, position_id, platz, groesse, druckart, textil_motive(typ, inhalt, datei_id), textil_positionen(herkunft, typ, farbe, marke, modell, groesse)'
       )
