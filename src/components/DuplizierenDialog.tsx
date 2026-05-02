@@ -281,6 +281,7 @@ export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbreche
         } as never)
       } catch {
         console.error('Historie-Insert fehlgeschlagen')
+        toastFehler('Auftrag dupliziert, aber Verlaufseintrag fehlgeschlagen')
       }
 
       erfolg('Auftrag dupliziert')

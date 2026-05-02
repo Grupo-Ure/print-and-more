@@ -1,181 +1,186 @@
 # Systemstand — Auftragserfassung & Produktionssteuerung
 
-Stand: **25.04.2026** · interne Codebasis (Vite 8 / React 19 / TypeScript + Supabase). Diese Datei beschreibt den **Ist-Zustand** der App, der relevanten Dateien und des fachlichen Modells. *(Zusammenführung der früheren `SYSTEM_STATE.md` und `SYSTEM_STATUS.md`.)*
+Stand: **02.05.2026** · Codebasis unter `/Users/jurgensenwerbung/Desktop/pam app V2/auftragssystem`. Diese Datei beschreibt den **Ist-Zustand** (Tech-Stack, Supabase-Schema laut `src/types/supabase.ts`, Workflows und zentrale Logik). Keine Migrationsdateien im Repo — die Datenbank wird über Supabase gepflegt.
+
+Letzte dokumentierte Commit-Reihe (Auszug vom ältesten zum neuesten): Start → LFP/CC/Stempel/Laser/Sonstige/Textil → Dateiupload → rechte Spalte → Suche/Filter/Historie → Stempel-Umbau → Duplizieren → Bestandspflege Textil/Stempel → diverse Bugfixes → Textilbestand → CSS-Umbau → PDF/ABGERECHNET → ERP-Export UI entfernt, Abrechnen vereinfacht → DateiListe/Duplizieren/konsolidierte Konstanten → ContextPanel/WorkArea-Fixes → `supabase.ts`/Historie/Duplizieren → Produkttabellen + `hat_produkte` → Realtime Kunden → Historie/Auth-Fixes → DateiListe Suchfeld/Ordner → Callbacks `datei_id` → exhaustive-deps → `.gitignore` `.env` → Validierung `VITE_*` → Freigabelogik/Vollständigkeit/Termin/Textil `capPrepress` → UI-Banner/Stempel/DateiListe → Entsperr-Dialog PrePress/Produktion → Datei-Dropdown → Textil 2-Blöcke → Motiv-Frame-Dropdown → **`produkt_dateien`** über alle Bereiche → **Duplizieren kopiert `produkt_dateien`**.
+
+---
 
 ## Tech-Stack
 
-- **Frontend:** React 19, TypeScript, Vite 8
-- **Backend:** Supabase (PostgreSQL, Auth, RLS — Policies in Supabase, nicht in diesem Repo)
-- **Client:** `src/supabase.ts` (`createClient`)
+- **Runtime / Build:** [Vite](https://vitejs.dev/) 8.x, TypeScript ~6.0, ES-Module.
+- **UI:** React 19.x, `react-dom`, `react-router-dom` 7.x (Routen z. B. `/bestandspflege`, `/textil-bestand`).
+- **Backend / Daten:** Supabase (`@supabase/supabase-js` 2.x): PostgreSQL, Auth; **RLS und Policies** nur in Supabase, nicht im Repo.
+- **Client:** `src/supabase.ts` — `createClient<Database>(url, key)`; beim Start **Pflicht:** Umgebungsvariablen `VITE_SUPABASE_URL` und `VITE_SUPABASE_ANON_KEY` (sonst throw).
+- **PDF:** `jspdf`, `jspdf-autotable` (Auftragsexporte).
+- **Lint:** ESLint 10.x mit `typescript-eslint`, `eslint-plugin-react-hooks`.
 
-## UI-Layout (`App.tsx`)
+---
 
-Dreispaltig, volle Höhe:
+## Datenbankstruktur (alle Tabellen, Views, Enums)
 
-| Spalte | Breite   | Inhalt |
-|--------|----------|--------|
-| Links  | 280px    | `OrderList` — **„+ Neuer Auftrag“** (öffnet `NeuerAuftragDialog`); Auftragsliste, Auswahl; **keine** archivierten (`.eq('archiviert', false)`) |
-| Mitte  | 1fr      | `WorkArea` — Auftragskontext, **Dateien**, Teilaufträge, Detail |
-| Rechts | 300px    | `ContextPanel` — Status, Aktionen, Hinweise (Auftrags- und Teilauftrags-Workflow) |
+Quelle: `src/types/supabase.ts` (generierter Stand, PostgREST 14.5).
 
-**Gemeinsamer Zustand in `App`:** `aktiverAuftragId`, `aktiverAuftrag` (volles `Auftrag`-Objekt inkl. Kopfdaten, `kunden`-Join, `erp_exportiert`, `archiviert`), `aktiverTeilauftrag`, `auftragKunde`, `auftragDateien`, `kontextAktualisiert` (triggert Refetch in `WorkArea` nach Aktionen im Kontext), `orderListKey` (remount/Refresh der `OrderList` z. B. nach Archivieren, **neu angelegtem Auftrag** oder **gespeichertem Kunde**), `neuerAuftragOffen` (Modal), `kundeDialog` (bearbeiten via `KundeDialog`).
+### Tabellen (`public.Tables`)
 
-`WorkArea` stößt per Callbacks die Kontext-Synchronisation an: `onAuftragVomArbeitsbereich`, `onAuftragKundeGeladen`, `onAktiverTeilauftragGeaendert`, `onAuftragDateienGeaendert`, `onKundeBearbeiten` (öffnet `KundeDialog` mit Kunde aus `auftragKunde` / Join).
+| Tabelle | Kurzbeschreibung |
+|---------|------------------|
+| `auftraege` | Auftragskopf: `kunde_id`, `auftragsnummer`, `status`, `termin`, `lieferung`, `prioritaet`, `notfall_aktiv`, `archiviert`, `erp_exportiert`, `kaufmaennische_notiz`, `erstellt_am`, `erstellt_von` |
+| `auftragsnummer_counter` | Zähler für Auftragsnummern (`jahr`, `monat`, `letzter`) |
+| `kunden` | Stammdaten inkl. Adresse, `notiz`, `archiviert` |
+| `teilauftraege` | Teilauftrag: `bereich`, `typ`, `status`, `detail` (JSONB), `sortierung`, `datenstatus`, Notfall/Storno, Kundenfreigabe-Felder inkl. `kundenfreigabe_datei_id`, Termin/Lieferung/Priorität, `verantwortlicher_id`, `satzzeit_minuten` |
+| `teilauftrag_produkte` | Produkte je Teilauftrag: `teilauftrag_id`, `bereich`, `detail` (JSONB), `sort_order`, `erstellt_am` |
+| `produkt_dateien` | Verknüpfung **Produkt → Datei:** `produkt_id`, `datei_id`, `erstellt_am` |
+| `dateien` | Auftragsdateien: `auftrag_id`, `anzeigename`, `pfad`, `rolle`, `version`, `ersetzt_datei_id`, `thumbnail_pfad`, `erstellt_von` |
+| `historie` | Ereignisprotokoll: `ereignisart`, `teilauftrag_id`, `begruendung`, `meta`, `person_id` |
+| `fehler` | Fehlertexte zu Auftrag/Teilauftrag |
+| `erp_exporte` | Legacy-Tabelle (Export-Historie); **kein ERP-Export-UI** mehr in der App |
+| `lager_bewegungen` | Stempel-Lager (`modell_id` → `stempel_modelle`) |
+| `stempel_modelle` | Stempel-Stammdaten inkl. `bestand`, `mindestbestand`, Maße, `typ`, `aktiv` |
+| `textil_marken`, `textil_produkte`, `textil_varianten` | Textil-Stammdaten (`farbe_hex`, `bestand`, …) |
+| `textil_motive`, `textil_positionen`, `textil_zuordnungen` | Textil-Fachdaten je Teilauftrag |
+| `textil_lager_bewegungen` | Textil-Lager je `variante_id` |
+| `profile` | Nutzeranzeigenamen (`id`, `name`) |
 
-**Dialoge (global in `App`):** `NeuerAuftragDialog` (Auftrag anlegen), `KundeDialog` (Kunde bearbeiten, aus `WorkArea`-Stift oder `ContextPanel` bei Status `ANGEBOT`). Erfolg: `orderListKey` + ggf. `kontextAktualisiert` / `setAktiverAuftragId` (neuer Auftrag).
+### Views
 
-**Auth:** `Login` mit `supabase.auth.signInWithPassword`; Session-Typ `Session | null`. Ohne Session wird nur das Login-Layout gezeigt.
+| View | Entspricht |
+|------|------------|
+| `mitarbeiter` | `id`, `email` — Verknüpfung für `verantwortlicher_id`, Historie, etc. |
 
-**Zusätzliche Vollbild-Routen (ohne Dreispalter):** `Route path="/bestandspflege"` → `BestandspflegeSeite` (Stempel-Lager); `Route path="/textil-bestand"` → `TextilBestandSeite` (Textil-Stammdaten & Varianten-Bestand). Im `ContextPanel` öffnen beide per Button in neuem Tab (`/bestandspflege`, `/textil-bestand`).
+### Funktionen (RPC)
 
-## `ContextPanel` (`src/components/ContextPanel.tsx`)
+| Funktion | Rückgabe |
+|----------|----------|
+| `fn_berechne_auftragsstatus(p_auftrag_id)` | `auftrag_status` — wird vom Client genutzt (`src/lib/auftragsStatus.ts`), um den aggregierten Auftragsstatus zu setzen |
 
-- **Sektion Status:** farbige Badges für Auftrags- und (optional) Teilauftragsstatus; **NOTFALL** + Begründung bei `notfall_aktiv`.
-- **Sektion Aktionen (Auszug):** Auftrags-Workflow; bei `ANGEBOT` u. a. *In Bearbeitung nehmen* und daneben *Kunde bearbeiten* (`onKundeBearbeiten`); *ERP exportieren* mit Modus, *Archivieren*; Teilauftrags-Workflow (Prepress/Produktion freigeben, fertig melden, Notfall, Kundenfreigabe-Toggle und -erteilung, Storno, Löschen). **Kundenfreigabe** blockiert ausschließlich **Produktion freigeben** (`prodDisabled`); Löschen/Stornieren nutzen **nicht** den globalen `busy`-Sperrstatus (eigene `stornoLaeuft` / `loeschenLaeuft`).
-- **Produktion freigeben** (`PREPRESS_BEREIT` → `PRODUKTION_BEREIT`): Nach erfolgreichem Status-Update werden **automatische Lagerabgänge** gebucht (nur hier, nicht beim Fertigmelden):
-  - **STEMPEL:** wie bisher Stempel- und ggf. Kissen-Bestand reduzieren, `lager_bewegungen` mit `typ: 'AUTOABGANG'`, Notiz **`Automatisch bei Produktionsfreigabe …`** + Auftragsnummer. Vor dem Freigeben-Dialog: Warnung/Modal, wenn Stempel- und/oder Kissen-Bestand **0** (bestehende Logik).
-  - **TEXTIL:** alle `textil_positionen` dieses Teilauftrags mit `herkunft = 'EIGENWARE'` und gesetzter `variante_id`: je Position `bestand` der Variante um `stueckzahl` reduzieren (min. 0), bei `bestand > 0` Eintrag in **`textil_lager_bewegungen`** (`AUTOABGANG`, gleiche Notiz-Form).
-- **Fertig melden** (`PRODUKTION_BEREIT` → `FERTIG`): **Kein** Stempel-Lagerabgang mehr; Stempel-Bestandsprüfung, die FERTIG blockierte, entfällt.
-- **Sektion Hinweise:** kontextabhängige Texte (Kundenfreigabe, Notfall, ERP ausstehend, …).
-- **Supabase-Aufrufe** inkl. `schreibeHistorie` (`src/lib/historie.ts`) und `synchronisiereAuftragsstatus` via RPC `fn_berechne_auftragsstatus` (`src/lib/auftragsStatus.ts`); `auftraege`-Selects nutzen `AUFTRAG_SPALTEN` (`src/const/auftragSelect.ts`) inkl. `kunden(id, name, email, telefon, notiz)`.
+### Enums
 
-`ContextPanel.css` — Styles für Sektionen, Badges, Modale.
+- **`auftrag_status`:** `ANGEBOT`, `UNVOLLSTAENDIG`, `PREPRESS_BEREIT`, `PRODUKTION_BEREIT`, `FERTIG`, `ABGERECHNET`
+- **`teilauftrag_bereich`:** `LFP`, `COPYSHOP`, `TEXTIL`, `STEMPEL`, `LASERGRAVUR`, `SONSTIGE`
+- **`lieferung_typ`:** `ABHOLUNG`, `VERSAND`
+- **`prioritaet_typ`:** `NORMAL`, `HOCH`
+- **`datei_rolle`:** `PRODUKTIONSDATEI`, `VORSCHAU`, `KUNDENFREIGABE`, `REFERENZ`
+- **`historie_ereignis`:** u. a. `AUFTRAG_ERSTELLT`, `IN_BEARBEITUNG_GENOMMEN`, `PREPRESS_BEREIT_AUTO`, `PREPRESS_BEREIT_MANUELL`, `PRODUKTION_BEREIT_GESETZT`, `FERTIG_GEMELDET`, Notfall/Kundenfreigabe-Varianten, `RUECKSPRUNG`, `STORNIERT`, `ERP_EXPORTIERT`
+- **`textil_herkunft`:** `KUNDENWARE`, `EIGENWARE`
+- **`textil_motiv_typ`:** `TEXT`, `DATEI`
+- **`textil_schriftklasse`:** `SERIFENLOS`, `SERIFEN`, `ELEGANT`, `VERSPIELT`
 
-## WorkArea (`src/components/WorkArea.tsx`) — Ablauf von oben nach unten
+---
 
-1. **Auftragskopf:** Kundenname **+ Stift** „Kunde bearbeiten“ (`onKundeBearbeiten`); Auftragsnummer, Auftragsstatus. **Direkt editierbar** (lokal, `onBlur` → Speichern): **Termin** (optional, Datum), **Lieferung** (`ABHOLUNG` / `VERSAND` / leer), **Priorität** (u. a. `NORMAL` / `HOCH`, optional `NIEDRIG` aus der DB sichtbar). Update: `auftraege` mit `termin`, `lieferung`, `prioritaet`.
-2. **Dateien (`DateiListe`):** auftragsweite Dateiverknüpfungen; Titel in der UI: **„Dateien“**.
-3. Trennlinie.
-4. **Teilauftrags-Tabs** (nur **nicht stornierte** Zeilen) + **„+“** (`AddTeilauftragOverlay`).
-5. **Aktives Detail** (`TeilauftragDetail` je Bereich).
+## Statusworkflow (Auftrag + Teilauftrag)
 
-**Zentraler Datei-State:** `dateien: Datei[]`, `dateienLaden`, `reloadDateien()`; bei Wechsel `aktiverAuftragId` und Anstoß `kontextAktualisiert` (aus `App`).
+### Gemeinsame Status-Enum
 
-**Datenladung:** `ladeAuftragUndTeilauftraege(auftragId)`: `auftraege` mit `AUFTRAG_SPALTEN` — u. a. `kunden(id, name, email, telefon, notiz)`, `termin`, `lieferung`, `prioritaet`, `notfall_aktiv`, `erstellt_am`, `erp_exportiert`, `archiviert` + `teilauftraege` (volle `TEILAUFTRAG_SPALTEN`); erster sichtbarer (nicht stornierter) Tab bzw. gültige beibehaltene ID.
+Reihenfolge der Phasen (fachlich): `ANGEBOT` → `UNVOLLSTAENDIG` → `PREPRESS_BEREIT` → `PRODUKTION_BEREIT` → `FERTIG` → `ABGERECHNET`.
 
-**Neuer Teilauftrag (Insert):** u. a. `notfall_aktiv: false`, `storniert: false`, Kundenfreigabe-Felder initial “aus”, siehe `WorkArea`.
+### Auftrag
 
-## Wichtige Dateien (Auswahl)
+- Aggregierter Status über `fn_berechne_auftragsstatus` und Update von `auftraege.status` (`synchronisiereAuftragsstatus`).
+- Neuer Auftrag startet typischerweise mit `ANGEBOT` (siehe `NeuerAuftragDialog`).
 
-| Pfad | Rolle |
-|------|--------|
-| `src/types/database.ts` | `Auftrag` / `AuftragDetailRow` inkl. `termin`, `lieferung`, `prioritaet`, `notfall_aktiv`, `erstellt_am`, `erp_exportiert`, `archiviert`; `KundeKontaktRow` inkl. `id`, `notiz`; `TeilauftragRow` inkl. Notfall, Storno, Kundenfreigabe; Enums, `TEILAUFTRAG_BEREICHE` / `teilauftragBereichLabel()` |
-| `src/lib/historie.ts` | `schreibeHistorie()`, `HistorieEreignis` |
-| `src/lib/auftragsStatus.ts` | `synchronisiereAuftragsstatus(auftragId)` → RPC + Update `auftraege.status` |
-| `src/const/teilauftragSelect.ts` | `TEILAUFTRAG_SPALTEN` (siehe unten) |
-| `src/const/auftragSelect.ts` | `AUFTRAG_SPALTEN` — `auftraege` + Kunden-Join (einheitlich in `WorkArea`, `ContextPanel`, `auftragsStatus`) |
-| `src/lib/kunden.ts` | `Kunde` (Tabelle), `kontaktJoinZuKunde()` |
-| `src/components/NeuerAuftragDialog.tsx` | Neuer Auftrag: Kundensuche, `KundeDialog`, Insert `auftraege` (`kunde_id`, Status `ANGEBOT`, optional Termin/Lieferung, Priorität) |
-| `src/components/KundeDialog.tsx` | Kunde anlegen/ändern (`kunden` insert/update) |
-| `src/types/lfp.ts` | LFP-Teiltypen, `LfpDetailJson` |
-| `src/types/copyshop.ts` | Copy-Shop-Teiltypen, `CopyShopDetailJson` |
-| `src/types/textil.ts` | Textil-Enums, Zeilen-Typen (Motive, Positionen, Zuordnungen) |
-| `src/lib/kunde.ts` | `kundenName()`; `kundeErfuelltPrepressKontakt()` (Kontakt aus `KundeKontaktRow`) |
-| `src/lib/teilGlobal.ts` | Globale Pflichtfeld-Validierung, `istTeilAuftragVollstaendig`, `nextTeilStatus` inkl. **automatischesPrepressErlaubt()** (z. B. SONSTIGE-Teiltypen nur manuell; STEMPEL inkl. neuer Typen) |
-| `src/lib/lfp/validateLfpDetail.ts` | LFP-`detail`-Validierung |
-| `src/lib/copyshop/validateCopyShopDetail.ts` | Copy-Shop-`detail` |
-| `src/lib/stempel/validateStempelDetail.ts` | Stempel-`detail` |
-| `src/lib/sonstige/validateSonstigeDetail.ts` | Sonstige-`detail` |
-| `src/lib/laser/validateLaserDetail.ts` | Laser-`detail` |
-| `src/lib/textil/validateTextilDetail.ts` | Textil: `textil.voll` / Tabellenlogik |
-| `src/App.tsx` | Layout, Zustand, `ContextPanel` + `WorkArea` + `OrderList` |
-| `src/components/OrderList.tsx` | `auftraege` (Join `kunden(name)`); **„+ Neuer Auftrag“**; Auswahl, aktive Zeile; Filter archiviert |
-| `src/components/ContextPanel.tsx` | Rechte Spalte: Status, Aktionen, Historie-Integration |
-| `src/components/WorkArea.tsx` | Auftrag, Teilaufträge, Datei-State, `DateiListe`, Tabs, Callbacks fürs Kontext-Panel; **storniert**e aus Tabs ausgeblendet |
-| `src/components/DateiListe.tsx` | Dateien-UI; `export type Datei` |
-| `src/components/TeilauftragDetail.tsx` | Globale Felder; Bereichsmasken; `auftragDateien` u. a. an Textil |
-| `src/components/bereiche/LFPDetail.tsx` | … (wie bisher) |
-| `src/components/bereiche/CopyShopDetail.tsx` | … |
-| `src/components/bereiche/StempelDetail.tsx` | … |
-| `src/components/bereiche/SonstigeDetail.tsx` | … |
-| `src/components/bereiche/LaserDetail.tsx` | … |
-| `src/components/bereiche/TextilDetail.tsx` | Textil-Tabellen; `detail.textil` + Status; Eigenware **STAMMDATEN** (Marke/Produkt/Farbe+Größe → `variante_id`, Join-Felder) vs **FREITEXT**; `detail.eigenware_modus` (`STAMMDATEN` \| `FREITEXT`); Farben aus `textil_varianten` mit **`farbe_hex`** |
-| `src/pages/BestandspflegeSeite.tsx` | Stempel-Bestandspflege (eigene Route) |
-| `src/pages/TextilBestandSeite.tsx` | Textil-Stammdaten (Marken/Produkte/Varianten), Bestand, Bestellliste (eigene Route) |
-| `src/components/AddTeilauftragOverlay.tsx` | Neuer TA |
-| `src/components/WorkArea.css` | Layout, Formulare |
-| `src/components/Login.tsx` | Anmeldung |
+### Teilauftrag — Ableitung (`nextTeilStatus` in `src/lib/teilGlobal.ts`)
 
-## Fachliches Modell (Kurz)
+- **`ANGEBOT`:** bleibt `ANGEBOT`, bis der Auftrag in Bearbeitung genommen wird (übergreifend im UI).
+- **`capPrepress`:** Ist der **Auftrag** noch `ANGEBOT`, wird ein errechneter Status `PREPRESS_BEREIT` auf **`UNVOLLSTAENDIG`** gedämpft (kein automatisches Prepress, solange der Auftrag im Angebot ist).
+- **Globale Pflichtfelder** (ab Status ≠ `ANGEBOT`): `termin`, `lieferung` (`ABHOLUNG`/`VERSAND`), `prioritaet`; optional `verantwortlicher_id` (UUID-Format), `satzzeit_minuten` (ganze Zahl > 0).
+- **Nach `PRODUKTION_BEREIT` oder `FERTIG`:** Inhaltliche Änderungen können den Teilauftrag wieder auf `UNVOLLSTAENDIG` setzen:
+  - **STEMPEL** und **SONSTIGE:** nur Änderungen an `detail.beschreibung` (und Zeile/Typ/Zeitfelder) gelten als „kritisch“; andere Detailänderungen nicht.
+  - **LASERGRAVUR:** analog für `detail.motiv`.
+  - **Übrige Bereiche:** jede inhaltliche Abweichung vom letzten Snapshot → `UNVOLLSTAENDIG`.
+- **Automatisches `PREPRESS_BEREIT`:** nur wenn Vollständigkeit + Kundenkontakt für Prepress erfüllt und `automatischesPrepressErlaubt()` true (z. B. **nicht** `SONSTIGE_STEMPEL`, nicht Bereich `SONSTIGE`, nicht `SONSTIGE_LASER`, nicht `SONSTIGE_LFP`; Textil siehe eigene Zweige).
 
-- **Kunde** — Tabelle `kunden` (u. a. `name`, `email`, `telefon`, `notiz`, `archiviert`); Anlage/Bearbeitung über `KundeDialog`; in der Auftragssuche (`NeuerAuftragDialog`) Freitextsuche per `ilike` auf `name` (nur `archiviert = false`). Join auf Auftragszeilen: `KundeKontaktRow` inkl. `id` / `notiz` für Anzeige und Formulare.
-- **Auftrag** — `kunde_id` → Kunde, `status` (u. a. per `fn_berechne_auftragsstatus` abgeglichen), **Kopf:** optional `termin`, `lieferung` (`ABHOLUNG` \| `VERSAND`), `prioritaet` (z. B. `NORMAL` \| `HOCH`), `notfall_aktiv`, `erstellt_am`, `erp_exportiert`, `archiviert`, 1…n **Teilaufträge**; **neue Aufträge** aus `NeuerAuftragDialog` mit Status `ANGEBOT`. In der Mitte/Context wird `auftraege` inkl. Join gelesen/aktualisiert.
-- **Dateien** — gehören zum **Auftrag** (`dateien.auftrag_id`); in der App zentral in der `WorkArea` geladen; für Kundenfreigabe im `ContextPanel` wählbar.
-- **Teilauftrag** — u. a. bisherige Spalten plus **`notfall_aktiv`**, **`notfall_begruendung`**, **`storniert`**, Kundenfreigabe-Felder; **`detail` (JSONB)** für LFP, Copy-Shop, etc.; **TEXTIL** mit Tabellen **`textil_motive`**, **`textil_positionen`**, **`textil_zuordnungen`**; in `detail` u. a. **`eigenware_modus`** für Eigenware-Erfassung (Stammdaten vs. Freitext). Positionen können **`variante_id`** (FK auf `textil_varianten`) tragen.
+### Manuelle / Kontext-Aktionen
 
-### Status (Auftrag & Teilauftrag)
+- Kontext: `ContextPanel` — u. a. Prepress/Produktion freigeben, fertig melden, Notfall, Kundenfreigabe, Storno, **Abrechnen** (nicht mehr ERP-Export-Dialog).
 
-Reihenfolge: `ANGEBOT` → `UNVOLLSTAENDIG` → `PREPRESS_BEREIT` → `PRODUKTION_BEREIT` → `FERTIG`
+---
 
-- **Neue Teilaufträge (Insert):** s. `WorkArea` (inkl. Defaults für Notfall/Storno/Kundenfreigabe).
-- **Bereichs- und `nextTeilStatus`-Logik** unverändert inhaltlich: siehe `teilGlobal` / Validatoren (Detailbeschreibung wie in früheren Ständen).
-- **Kontext-Panel** kann Status manuell setzen, Notfall, ERP-Insert, Archiv, Historieneinträge.
+## Bereiche und Produkttypen
 
-### Teilauftrag-Bereich (Enum `teilauftrag_bereich`)
+Bereiche = Enum `teilauftrag_bereich` / Konstante `TEILAUFTRAG_BEREICHE` in `src/types/database.ts`. Anzeigenamen: `teilauftragBereichLabel()`.
 
-Unverändert: dieselben DB-Enum-Strings, `teilauftragBereichLabel()`.
+| Bereich | Produkt-/Teiltypen (Auswahl in UI / Typ-Spalte) | Speicherung |
+|---------|-----------------------------------------------|-------------|
+| **LFP** | `AUFKLEBER`, `SCHILD_UV`, `SCHILD_FOLIE`, `FOLIENPLOTT`, `BANNER`, `ROLLUP`, `FAHRZEUGBESCHRIFTUNG`, `SONSTIGE_LFP` | `teilauftrag_produkte` + `detail` je Produkt; globales `teilauftraege.detail` mit u. a. `hat_produkte` |
+| **COPYSHOP** | `PLAKAT_POSTER`, `KARTE_FLYER`, `FALZFLYER`, `BROSCHUERE`, `VISITENKARTE`, `BINDUNG`, `AUSDRUCK` | wie LFP (Produkttabelle) |
+| **STEMPEL** | Basis: `TRODAT_PRINTY`, `HOLZSTEMPEL`, `STATIVSTEMPEL`, `DATUMSSTEMPEL`, `SONSTIGE_STEMPEL`; zusätzlich u. a. `NACHFUELLFARBE`, `STEMPELKISSEN`, `STEMPELPLATTE`, `TRODAT_KISSEN` | Produkttabelle + JSONB; Modellauswahl über `stempel_modelle` wo vorgesehen |
+| **LASERGRAVUR** | `SCHILD`, `POKALSCHILD`, `NAMENSSCHILD`, `GESCHENKARTIKEL`, `SONSTIGE_LASER` | Produkttabelle |
+| **SONSTIGE** | Freitext-/Sammelbereich (keine feste Typ-Liste in `types/`) | Produkttabelle |
+| **TEXTIL** | Keine parallele `teilauftrag_produkte`-Produktliste wie oben; Fachdaten in **`textil_motive`**, **`textil_positionen`**, **`textil_zuordnungen`** | Tabellen + JSONB `detail.textil` inkl. Marker `voll` |
 
-## Teilauftrag — Spalten & Speicherung (Client)
+Unterkomponenten Copy-Shop: `copyshop/MaterialCC.tsx`, `copyshop/MaterialOffset.tsx` (Materialwahl CC vs. Offset).
 
-**`TEILAUFTRAG_SPALTEN`:**  
-`id`, `auftrag_id`, `bereich`, `typ`, `status`, `termin`, `lieferung`, `prioritaet`, `verantwortlicher_id`, `satzzeit_minuten`, `detail`, `notfall_aktiv`, `notfall_begruendung`, `storniert`, `kundenfreigabe_erforderlich`, `kundenfreigabe_liegt_vor`, `kundenfreigabe_datei_id`
+---
 
-- Weitere fachliche Felder (`lieferung`, `verantwortlicher_id`, `detail`, …) wie bisher in der Doku.
-- **Auftrag in der Arbeitsfläche / Kontext:** vgl. `AUFTRAG_SPALTEN` — u. a. `kunden(id, name, email, telefon, notiz)`, `termin`, `lieferung`, `prioritaet`, `notfall_aktiv`, `erstellt_am`, `erp_exportiert`, `archiviert` (siehe `src/const/auftragSelect.ts`).
+## Vollständigkeitslogik (`hat_produkte`, Textil)
 
-## Supabase-Tabellen & Funktionen (vom Client genutzt, Auszug)
+Implementierung: `istTeilAuftragVollstaendig()` in `src/lib/teilGlobal.ts`.
 
-- **`kunden`:** `insert` / `update` / Suche (Name) aus `NeuerAuftragDialog` / `KundeDialog`.
-- **`auftraege`:** inkl. `kunde_id`, `status`, `termin`, `lieferung`, `prioritaet`, `notfall_aktiv`, u. a., `erp_exportiert`, `archiviert`, Join `kunden(…)`.
-- **`teilauftraege`:** voll gemäß `TEILAUFTRAG_SPALTEN`.
-- **`dateien`:** u. a. `id`, `auftrag_id`, `anzeigename`, `rolle` …
-- **`historie`:** Ereignisse inkl. `ereignisart`, `person_id` (Auth-User), optional `teilauftrag_id`, `begruendung`, `meta`.
-- **`erp_exporte`:** u. a. `auftrag_id`, `modus` (`EINZELN` \| `GESAMMELT`), `exportdaten` (JSON).
-- **`textil_motive`**, **`textil_positionen`**, **`textil_zuordnungen`:** Textil-Detail.
-- **`textil_marken`**, **`textil_produkte`**, **`textil_varianten`:** Textil-Stammdaten (u. a. `farbe_hex` auf Varianten, `bestand`, `mindestbestand`); von `TextilBestandSeite` und Eigenware-Stammdaten in `TextilDetail` genutzt.
-- **`textil_lager_bewegungen`:** Lagerbewegungen je Variante (`variante_id`, `typ`, `menge`, `notiz`, `person_id`).
-- **`textil_positionen`:** u. a. **`variante_id`** (optional, UUID) für Eigenware aus Stammdaten.
-- **`stempel_modelle`:** Stammdaten für **Modellvorschläge** im Bereich STEMPEL (`id`, `name`, `typ`, `max_breite_mm`, `max_hoehe_mm`, `druckflaeche`, `bestand`, `aktiv`, …); RLS aktiv, Zugriff für `authenticated`.
-- **`mitarbeiter`:** `id`, `email` (Verantwortlicher).
-- **RPC** `fn_berechne_auftragsstatus(p_auftrag_id)` — Ergebnis wird als Soll-`status` in `auftraege` geschrieben (Client: `synchronisiereAuftragsstatus`).
+### Bereiche mit Produkttabelle (LFP, COPYSHOP, STEMPEL, LASERGRAVUR, SONSTIGE)
 
-## Bereich STEMPEL — Detailmaske & Logik (Aktueller Stand)
+1. Globale Pflichtfelder müssen ohne Fehler durch `validateGlobalTeilfelder()` laufen.
+2. Im JSONB-`detail` des Teilauftrags muss **`detail.hat_produkte === true`** sein. Dieses Flag wird in den Bereichskomponenten gesetzt, wenn **mindestens ein** Eintrag in `teilauftrag_produkte` existiert und nach Löschen aller Produkte wieder entfernt bzw. auf `false` gesetzt.
 
-### Typen (`teilauftraege.typ`)
+### Textil
 
-Bestehende Typen:
-`TRODAT_PRINTY`, `HOLZSTEMPEL`, `STATIVSTEMPEL`, `DATUMSSTEMPEL`, `SONSTIGE_STEMPEL`
+- **`hat_produkte` gilt nicht.** Stattdessen: `textilDetailJsonMarkiertVoll(detail)` in `src/lib/textil/validateTextilDetail.ts` — es muss **`detail.textil.voll === true`** sein (wird gesetzt, wenn Motive, Positionen und Zuordnungen fachlich konsistent sind).
+- Für automatisches Prepress zusätzlich: `textilDatensaetzeErlaubenPraepress()` prüft Datenbasis (mind. ein Motiv, eine Position, eine vollständige Zuordnung; Motive TEXT vs. DATEI inkl. `datei_id`; Positionen KUNDENWARE vs. EIGENWARE).
 
-Neue Typen:
-`NACHFUELLFARBE`, `STEMPELKISSEN`, `STEMPELPLATTE`
+---
 
-### Felder in `detail` (JSONB) — Auszug
+## Dateihandling (`DateiListe`, `produkt_dateien`, `datei_id`)
 
-- **Maße (OR-Pflicht)**: `detail.format_breite`, `detail.format_hoehe` (ganze Zahl > 0; mindestens eines muss gesetzt sein)
-  - Gilt für alle Typen **außer** `NACHFUELLFARBE` und `STEMPELKISSEN`
-- **Modellwahl (nur TRODAT_PRINTY / HOLZSTEMPEL)**: `detail.modell_id`, `detail.modell_name`
-- **NACHFUELLFARBE**: `detail.farbe` (ohne SONSTIGE), `detail.tinte_typ` (`NORMAL` | `HAUTVERTRAEGLICH` | `TEXTIL`), Anzahl (siehe unten), optional `detail.hinweis`
-- **STEMPELKISSEN**: `detail.groesse` (`KLEIN` | `MITTEL` | `GROSS`), `detail.farbe` (ohne SONSTIGE), Anzahl, optional `detail.hinweis`
-- **Klassische Stempeltypen**: `detail.farbe` (inkl. `SONSTIGE` + `detail.farbe_sonstige`), `detail.beschreibung`
+### Auftragsebene — `DateiListe` (`src/components/DateiListe.tsx`)
 
-**Anzahl-Feldnamen:** Validierung akzeptiert `detail.anzahl` **oder** `detail.stueckzahl` (UI nutzt weiterhin das Stückzahl-Feld, Label je Typ angepasst).
+- Tabelle **`dateien`**, gefiltert über **`auftrag_id`**.
+- Felder im UI-Typ `Datei`: `id`, `anzeigename`, `pfad`, `rolle`, `erstellt_am`.
+- **`datei_rolle`:** Produktionsdatei, Vorschau, Kundenfreigabe, Referenz.
+- Upload-Erfassung als Pfad/Metadaten (kein Binär-Upload durch die Komponente selbst); Nachbearbeitung löst Callback aus für Kontext-Refresh.
 
-### Modellvorschlag (TRODAT_PRINTY / HOLZSTEMPEL)
+### Produktebene — `produkt_dateien`
 
-- Query: `stempel_modelle` nach `typ`, `aktiv = true`, `gte(max_*)` je gesetztem Maß.
-- Anzeige: vollständige Liste, Auswahl persistiert (Badge „Gewählt: …“ + Hervorhebung in der Liste); Bestand 0 wird orange markiert, bleibt wählbar.
-- Sortierung in der UI:
-  1. **Exakt passend** (beide Maße genau gleich) zuerst
-  2. Danach nach Gesamtabstand: \(|max_breite - breite| + |max_hoehe - hoehe|\)
+- **`teilauftrag_produkte`:** eine Zeile = ein Produkt im Teilauftrag (`id` = `produkt_id` in der Verknüpfung).
+- **`produkt_dateien`:** verbindet **`produkt_id`** mit **`datei_id`** (referenziert einen Eintrag in **`dateien`**).
+- In **LFP, CopyShop, Stempel, Laser, Sonstige** wählt die UI Auftragsdateien aus der `DateiListe`-Liste und legt Zuordnungen in `produkt_dateien` an; Entfernen löscht die Verknüpfung.
 
-### PREPRESS-Automatik (Teilauftragstatus)
+### Textil — `datei_id`
 
-`nextTeilStatus()` nutzt `automatischesPrepressErlaubt()`:
+- **`textil_motive.datei_id`:** Pflicht für Motive vom Typ **DATEI** (Verweis auf eine Auftragsdatei).
 
-- **STEMPEL automatisch erlaubt**: TRODAT_PRINTY, HOLZSTEMPEL, STATIVSTEMPEL, DATUMSSTEMPEL, NACHFUELLFARBE, STEMPELKISSEN, STEMPELPLATTE
-- **STEMPEL manuell**: SONSTIGE_STEMPEL (wie bisher)
+### Kundenfreigabe
 
-## Bekannte Lücken / offene Punkte
+- **`teilauftraege.kundenfreigabe_datei_id`** verweist optional auf eine **`dateien.id`** (Freigabedokument).
 
-- **RLS/Schema in Supabase** müssen die genannten Spalten, Tabellen und die RPC abdecken; das Repo enthält **keine** Migrations-Dateien. Für Auftragskopf, `kunde_id` und erweiterten Kunden-Join muss die DB zu den in `AUFTRAG_SPALTEN` / Dialogen genutzten Spalten passen.
-- Aggregierter `auftraege.status` in der **linken Liste** aktualisiert sich nicht live bei rein mittiger Bearbeitung; Wechsel der Auswahl, Refetch (z. B. `orderListKey` nach Archiv, **neuem Auftrag** oder **Kundenänderung**) aktualisieren.
+### Duplizieren
+
+- Beim Duplizieren eines Teilauftrags werden **`teilauftrag_produkte`** kopiert und für nicht-Textil-Bereiche auch **`produkt_dateien`** auf die gleichen Datei-IDs gesetzt (`DuplizierenDialog`).
+
+---
+
+## Komponenten-Übersicht
+
+### `src/components/bereiche/`
+
+| Datei | Rolle |
+|-------|--------|
+| **`LFPDetail.tsx`** | LFP-Masken nach Teiltyp; **`teilauftrag_produkte`** + **`produkt_dateien`**; Materialkonstanten aus `config/materialien`; Validierung `validateLfpDetail` |
+| **`CopyShopDetail.tsx`** | Copy-Shop-Typen; Produktzeilen + Dateizuordnung; nutzt **`MaterialCC`** / **`MaterialOffset`** für Papier/Material |
+| **`copyshop/MaterialCC.tsx`** | CC-Materialfelder (Grammatur, Sonderformat) |
+| **`copyshop/MaterialOffset.tsx`** | Offset-Material und Sonderoptionen |
+| **`StempelDetail.tsx`** | Stempeltypen inkl. Zusatztypen; **`teilauftrag_produkte`**; Bestandsbezug Trodat-Kissen; `validateStempelDetail` |
+| **`LaserDetail.tsx`** | Laser-Typen; Produktzeilen + Dateien; `validateLaserDetail` |
+| **`SonstigeDetail.tsx`** | Sonstiges; Produktzeilen + Dateien; `validateSonstigeDetail` |
+| **`TextilDetail.tsx`** | Zwei Blockbereiche (Motive / Textilien & Zuordnung); direkt **`textil_*`-Tabellen**; Motive TEXT/DATEI; Eigenware über Varianten; Setzen von **`detail.textil.voll`** |
+
+Weitere zentrale Komponenten (außerhalb `bereiche/`): `App.tsx` (Layout, Session), `WorkArea.tsx` (Auftrag, Tabs, `DateiListe`, `TeilauftragDetail`), `TeilauftragDetail.tsx` (Dispatcher je Bereich), `ContextPanel.tsx`, `OrderList.tsx`, `DateiListe.tsx`, `NeuerAuftragDialog.tsx`, `KundeDialog.tsx`, `DuplizierenDialog.tsx`, `Login.tsx`, Seiten `BestandspflegeSeite`, `TextilBestandSeite`.
+
+---
+
+## Offene Punkte / bekannte Lücken
+
+- **Keine SQL-Migrationen im Repository** — Abgleich von Spalten, RLS und RPCs mit Supabase manuell; Typen in `supabase.ts` können gegenüber der Live-DB veralten.
+- **`erp_exportiert` / `erp_exporte`:** Feld und Tabelle existieren noch; die **ERP-Export-UI wurde entfernt** — Reste nur noch falls Historie/Altlasten.
+- **Aggregierter Auftragsstatus in der linken Liste** aktualisiert sich nicht zwingend live bei jeder mittigen Änderung; Refresh über Auftragswechsel, `orderListKey` oder vergleichbare Trigger.
+- **Generierte Typen:** `teilauftrag_produkte` / `produkt_dateien` haben im Typ keine ausgefüllten `Relationships` — echte FKs können in der DB dennoch existieren.
+- **`src/types/stempel.ts`** listet nur die Basistypen; **zusätzliche Stempel-Typen** (Nachfüllfarbe, Kissen, Platte, Trodat Kissen) sind in **`StempelDetail.tsx`** / **`teilGlobal`** relevant — ENUM in der DB sollte kompatibel sein.

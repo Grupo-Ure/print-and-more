@@ -139,6 +139,7 @@ export function NeuerAuftragDialog({ offen, onSchliessen, onErfolg }: Props) {
         })
       } catch {
         console.error('Historie AUFTRAG_ERSTELLT fehlgeschlagen')
+        toastFehler('Auftrag angelegt, aber Verlaufseintrag fehlgeschlagen')
       }
     }
   }
