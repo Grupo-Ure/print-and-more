@@ -1,8 +1,10 @@
 import { supabase } from '../supabase'
 
 export type HistorieEreignis =
+  | 'AUFTRAG_ERSTELLT'
   | 'IN_BEARBEITUNG_GENOMMEN'
   | 'ERP_EXPORTIERT'
+  | 'PREPRESS_BEREIT_AUTO'
   | 'PREPRESS_BEREIT_MANUELL'
   | 'PRODUKTION_BEREIT_GESETZT'
   | 'FERTIG_GEMELDET'
@@ -10,6 +12,8 @@ export type HistorieEreignis =
   | 'RUECKSPRUNG'
   | 'KUNDENFREIGABE_AKTIVIERT'
   | 'KUNDENFREIGABE_ERTEILT'
+  | 'KUNDENFREIGABE_UEBERGANGEN'
+  | 'KUNDENFREIGABE_VERFALLEN'
   | 'STORNIERT'
 
 export async function schreibeHistorie(params: {

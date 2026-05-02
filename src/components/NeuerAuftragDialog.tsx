@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { schreibeHistorie } from '../lib/historie'
 import { supabase } from '../supabase'
 import type { LieferungWahl, AuftragStatus, Prioritaet } from '../types/database'
 import type { Kunde } from '../lib/kunden'
@@ -131,6 +132,14 @@ export function NeuerAuftragDialog({ offen, onSchliessen, onErfolg }: Props) {
     }
     if (data) {
       onErfolg(data as NeuerAuftragInsertRow)
+      try {
+        await schreibeHistorie({
+          auftrag_id: (data as NeuerAuftragInsertRow).id,
+          ereignisart: 'AUFTRAG_ERSTELLT',
+        })
+      } catch {
+        console.error('Historie AUFTRAG_ERSTELLT fehlgeschlagen')
+      }
     }
   }
 

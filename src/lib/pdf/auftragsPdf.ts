@@ -226,7 +226,7 @@ function zellenWertFuerSchluessel(row: Record<string, unknown>, key: string): st
   return wertAlsString(val)
 }
 
-export async function generiereUndLadePdf(teilauftragId: string, auftragId: string): Promise<void> {
+export async function generiereUndLadePdf(teilauftragId: string, auftragId: string): Promise<boolean> {
   try {
     const produkteQuery = supabase
       .from('teilauftrag_produkte')
@@ -252,11 +252,11 @@ export async function generiereUndLadePdf(teilauftragId: string, auftragId: stri
     if (produkteRes.error) console.error(produkteRes.error)
     if (textilRes.error) console.error(textilRes.error)
 
-    if (auftragRes.error || teilRes.error || produkteRes.error || textilRes.error) return
+    if (auftragRes.error || teilRes.error || produkteRes.error || textilRes.error) return false
 
     const auftrag = auftragRes.data as AuftragPdfRow | null
     const teil = teilRes.data as TeilauftragRow | null
-    if (!auftrag || !teil) return
+    if (!auftrag || !teil) return false
 
     const produkte = (produkteRes.data ?? []) as Record<string, unknown>[]
     const textilPositionen = (textilRes.data ?? []) as TextilPositionRow[]
@@ -410,7 +410,9 @@ export async function generiereUndLadePdf(teilauftragId: string, auftragId: stri
     }
 
     doc.save(dateiname)
+    return true
   } catch (e) {
     console.error(e)
+    return false
   }
 }

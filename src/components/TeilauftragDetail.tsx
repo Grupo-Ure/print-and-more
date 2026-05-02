@@ -183,7 +183,8 @@ export function TeilauftragDetail({
         setLokal(row)
         onAktualisiert(row)
         if (row.status === 'PREPRESS_BEREIT' && statusVorher !== 'PREPRESS_BEREIT') {
-          void generiereUndLadePdf(teil.id, teil.auftrag_id)
+          const pdfOk = await generiereUndLadePdf(teil.id, teil.auftrag_id)
+          if (!pdfOk) fehler('PDF konnte nicht erstellt werden')
         }
       }
     },

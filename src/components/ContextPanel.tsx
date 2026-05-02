@@ -394,7 +394,8 @@ export function ContextPanel({
         ereignisart: 'PREPRESS_BEREIT_MANUELL',
       })
       onTeilauftragAktualisiert(data as TeilauftragRow)
-      void generiereUndLadePdf(teil.id, auftrag.id)
+      const pdfOk = await generiereUndLadePdf(teil.id, auftrag.id)
+      if (!pdfOk) fehler('PDF konnte nicht erstellt werden')
       await teilNaechstNachTeilAktion()
     } catch (e) {
       fehler('Status konnte nicht geändert werden')
@@ -971,7 +972,12 @@ export function ContextPanel({
                   type="button"
                   className="cp-btn cp-btn-grau"
                   disabled={busy}
-                  onClick={() => void generiereUndLadePdf(teil.id, auftrag.id)}
+                  onClick={() =>
+                    void (async () => {
+                      const ok = await generiereUndLadePdf(teil.id, auftrag.id)
+                      if (!ok) fehler('PDF konnte nicht erstellt werden')
+                    })()
+                  }
                 >
                   PDF laden
                 </button>
