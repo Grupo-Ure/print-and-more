@@ -231,14 +231,36 @@ export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbreche
           if (eProd) throw eProd
 
           for (const p of (altProdukte ?? []) as Record<string, unknown>[]) {
+            const altProduktId = String(p.id ?? '')
+            if (!altProduktId) throw new Error('Duplizieren: Produkt ohne id')
             const pRest = { ...p }
             delete pRest.id
             delete pRest.teilauftrag_id
-            const { error: epErr } = await supabase.from('teilauftrag_produkte').insert({
-              ...pRest,
-              teilauftrag_id: neuTaId,
-            } as never)
+            const { data: neuProd, error: epErr } = await supabase
+              .from('teilauftrag_produkte')
+              .insert({
+                ...pRest,
+                teilauftrag_id: neuTaId,
+              } as never)
+              .select('id')
+              .single()
             if (epErr) throw epErr
+            const neuProduktId = (neuProd as { id: string }).id
+
+            const { data: prodDateien, error: ePd } = await supabase
+              .from('produkt_dateien')
+              .select('datei_id')
+              .eq('produkt_id', altProduktId)
+            if (ePd) throw ePd
+
+            for (const row of prodDateien ?? []) {
+              const datei_id = (row as { datei_id: string }).datei_id
+              const { error: eInsPd } = await supabase.from('produkt_dateien').insert({
+                produkt_id: neuProduktId,
+                datei_id,
+              } as never)
+              if (eInsPd) throw eInsPd
+            }
           }
         }
       }
