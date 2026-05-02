@@ -269,7 +269,7 @@ export function ContextPanel({
         .eq('id', auftrag.id)
       if (u2) throw u2
       onAuftragAktualisiert({ ...auftrag, status: neuerStatus })
-    } catch (e) {
+    } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
@@ -284,7 +284,7 @@ export function ContextPanel({
       const { error } = await supabase.from('auftraege').update({ archiviert: true }).eq('id', auftrag.id)
       if (error) throw error
       onAuftragAktualisiert({ ...auftrag, archiviert: true })
-    } catch (e) {
+    } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
@@ -307,7 +307,7 @@ export function ContextPanel({
         meta: { abgerechnet_auftrag: true },
       })
       onAuftragAktualisiert({ ...auftrag, status: 'ABGERECHNET', archiviert: true })
-    } catch (e) {
+    } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
@@ -336,7 +336,7 @@ export function ContextPanel({
       if (e2) throw e2
       await schreibeHistorie({ auftrag_id: auftrag.id, ereignisart: 'STORNIERT' })
       onAuftragAktualisiert({ ...auftrag, archiviert: true })
-    } catch (e) {
+    } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
@@ -356,7 +356,7 @@ export function ContextPanel({
       const { error } = await supabase.from('auftraege').delete().eq('id', auftrag.id)
       if (error) throw error
       onAuftragGeloescht(auftrag.id)
-    } catch (e) {
+    } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
@@ -397,7 +397,7 @@ export function ContextPanel({
       const pdfOk = await generiereUndLadePdf(teil.id, auftrag.id)
       if (!pdfOk) fehler('PDF konnte nicht erstellt werden')
       await teilNaechstNachTeilAktion()
-    } catch (e) {
+    } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
@@ -571,7 +571,7 @@ export function ContextPanel({
       }
       onTeilauftragAktualisiert(data as TeilauftragRow)
       await teilNaechstNachTeilAktion()
-    } catch (e) {
+    } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
@@ -609,7 +609,7 @@ export function ContextPanel({
       })
       onTeilauftragAktualisiert(data as TeilauftragRow)
       await teilNaechstNachTeilAktion()
-    } catch (e) {
+    } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
@@ -657,7 +657,7 @@ export function ContextPanel({
       })
       onTeilauftragAktualisiert(data as TeilauftragRow)
       await teilNaechstNachTeilAktion()
-    } catch (e) {
+    } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
@@ -686,7 +686,7 @@ export function ContextPanel({
       })
       onTeilauftragAktualisiert(data as TeilauftragRow)
       await teilNaechstNachTeilAktion()
-    } catch (e) {
+    } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
@@ -720,7 +720,7 @@ export function ContextPanel({
       })
       onTeilauftragAktualisiert(data as TeilauftragRow)
       await teilNaechstNachTeilAktion()
-    } catch (e) {
+    } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
@@ -757,7 +757,7 @@ export function ContextPanel({
       onTeilauftragAktualisiert(data as TeilauftragRow)
       await teilNaechstNachTeilAktion()
       erfolg('Freigabe erteilt')
-    } catch (e) {
+    } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
       setBusy(false)
@@ -777,10 +777,10 @@ export function ContextPanel({
       onTeilauftragEntfernt(teil.id)
       try {
         await teilNaechstNachTeilAktion()
-      } catch (e) {
+      } catch {
         fehler('Status konnte nicht geändert werden')
       }
-    } catch (e) {
+    } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
       setStornoLaeuft(false)
@@ -797,10 +797,10 @@ export function ContextPanel({
       onTeilauftragEntfernt(teil.id)
       try {
         await teilNaechstNachTeilAktion()
-      } catch (e) {
+      } catch {
         fehler('Status konnte nicht geändert werden')
       }
-    } catch (e) {
+    } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
       setLoeschenLaeuft(false)

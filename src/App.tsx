@@ -89,7 +89,7 @@ function HauptApp() {
     setKontextAktualisiert(x => x + 1)
   }, [])
 
-  const handleAuftragGeloescht = useCallback((_auftragId: string) => {
+  const handleAuftragGeloescht = useCallback(() => {
     setAktiverAuftragId(null)
     setAktiverTeilauftrag(null)
     setOrderListKey(k => k + 1)
@@ -107,7 +107,7 @@ function HauptApp() {
     setKontextAktualisiert(x => x + 1)
   }, [])
 
-  const handleKundeGespeichert = useCallback((_: Kunde) => {
+  const handleKundeGespeichert = useCallback(() => {
     setKundeDialog({ offen: false, k: null })
     setOrderListKey(k => k + 1)
     setOrderInPlace(ORDER_LIST_IN_PLACE_INITIAL)

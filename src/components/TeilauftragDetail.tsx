@@ -316,7 +316,7 @@ export function TeilauftragDetail({
           setLokal(row)
           onAktualisiert(row)
         }
-      } catch (e) {
+      } catch {
         fehler('Speichern fehlgeschlagen')
       }
     })()
@@ -346,7 +346,7 @@ export function TeilauftragDetail({
           setLokal(row)
           onAktualisiert(row)
         }
-      } catch (e) {
+      } catch {
         fehler('Speichern fehlgeschlagen')
       }
     })()
@@ -377,7 +377,7 @@ export function TeilauftragDetail({
           setLokal(row)
           onAktualisiert(row)
         }
-      } catch (e) {
+      } catch {
         fehler('Speichern fehlgeschlagen')
       }
     })()

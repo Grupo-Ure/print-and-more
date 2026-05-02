@@ -158,14 +158,17 @@ export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbreche
 
           for (const m of altMotive ?? []) {
             const row = m as TextilMotiveRow
-            const { id: _altMotivId, teilauftrag_id: _old, ...motivRest } = row
+            const altMotivId = row.id
+            const motivRest = { ...row } as Record<string, unknown>
+            delete motivRest.id
+            delete motivRest.teilauftrag_id
             const { data: neuMotiv, error: emErr } = await supabase
               .from('textil_motive')
-              .insert({ ...motivRest, teilauftrag_id: neuTaId })
+              .insert({ ...motivRest, teilauftrag_id: neuTaId } as never)
               .select('id')
               .single()
             if (emErr) throw emErr
-            motivIdMap.set(_altMotivId, (neuMotiv as { id: string }).id)
+            motivIdMap.set(altMotivId, (neuMotiv as { id: string }).id)
           }
 
           const { data: altPositionen, error: ePos } = await supabase
@@ -178,14 +181,17 @@ export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbreche
 
           for (const p of altPositionen ?? []) {
             const row = p as TextilPositionenRow
-            const { id: _altPosId, teilauftrag_id: _old, ...posRest } = row
+            const altPosId = row.id
+            const posRest = { ...row } as Record<string, unknown>
+            delete posRest.id
+            delete posRest.teilauftrag_id
             const { data: neuPos, error: epErr } = await supabase
               .from('textil_positionen')
-              .insert({ ...posRest, teilauftrag_id: neuTaId })
+              .insert({ ...posRest, teilauftrag_id: neuTaId } as never)
               .select('id')
               .single()
             if (epErr) throw epErr
-            posIdMap.set(_altPosId, (neuPos as { id: string }).id)
+            posIdMap.set(altPosId, (neuPos as { id: string }).id)
           }
 
           const { data: altZuordnungen, error: eZuo } = await supabase
@@ -196,18 +202,23 @@ export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbreche
 
           for (const z of altZuordnungen ?? []) {
             const row = z as TextilZuordnungRow
-            const { id: _altZId, teilauftrag_id: _old, motiv_id: altMotivId, position_id: altPosId, ...zRest } =
-              row
-            const neuMotivId = altMotivId ? motivIdMap.get(altMotivId) : undefined
-            const neuPosId = altPosId ? posIdMap.get(altPosId) : undefined
-            if (altMotivId && neuMotivId == null) throw new Error('Duplizieren: Motiv-Zuordnung fehlgeschlagen')
-            if (altPosId && neuPosId == null) throw new Error('Duplizieren: Positions-Zuordnung fehlgeschlagen')
+            const quellMotivId = row.motiv_id
+            const quellPosId = row.position_id
+            const zRest = { ...row } as Record<string, unknown>
+            delete zRest.id
+            delete zRest.teilauftrag_id
+            delete zRest.motiv_id
+            delete zRest.position_id
+            const neuMotivId = quellMotivId ? motivIdMap.get(quellMotivId) : undefined
+            const neuPosId = quellPosId ? posIdMap.get(quellPosId) : undefined
+            if (quellMotivId && neuMotivId == null) throw new Error('Duplizieren: Motiv-Zuordnung fehlgeschlagen')
+            if (quellPosId && neuPosId == null) throw new Error('Duplizieren: Positions-Zuordnung fehlgeschlagen')
             const { error: ezErr } = await supabase.from('textil_zuordnungen').insert({
               ...zRest,
               teilauftrag_id: neuTaId,
-              motiv_id: neuMotivId ?? altMotivId,
-              position_id: neuPosId ?? altPosId,
-            })
+              motiv_id: neuMotivId ?? quellMotivId,
+              position_id: neuPosId ?? quellPosId,
+            } as never)
             if (ezErr) throw ezErr
           }
         } else {
@@ -220,11 +231,9 @@ export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbreche
           if (eProd) throw eProd
 
           for (const p of (altProdukte ?? []) as Record<string, unknown>[]) {
-            const { id: _altPId, teilauftrag_id: _old, ...pRest } = p as {
-              id: string
-              teilauftrag_id: string
-              [k: string]: unknown
-            }
+            const pRest = { ...p }
+            delete pRest.id
+            delete pRest.teilauftrag_id
             const { error: epErr } = await supabase.from('teilauftrag_produkte').insert({
               ...pRest,
               teilauftrag_id: neuTaId,
