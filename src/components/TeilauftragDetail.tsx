@@ -640,23 +640,23 @@ export function TeilauftragDetail({
       </div>
 
       {lokal.bereich === 'LFP' && (
-        <LFPDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onLfpPatch} />
+        <LFPDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onLfpPatch} auftragDateien={auftragDateien} />
       )}
 
       {lokal.bereich === 'COPYSHOP' && (
-        <CopyShopDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onCopyShopPatch} />
+        <CopyShopDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onCopyShopPatch} auftragDateien={auftragDateien} />
       )}
 
       {lokal.bereich === 'STEMPEL' && (
-        <StempelDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onStempelPatch} />
+        <StempelDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onStempelPatch} auftragDateien={auftragDateien} />
       )}
 
       {lokal.bereich === 'SONSTIGE' && (
-        <SonstigeDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onSonstigePatch} />
+        <SonstigeDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onSonstigePatch} auftragDateien={auftragDateien} />
       )}
 
       {lokal.bereich === 'LASERGRAVUR' && (
-        <LaserDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onLaserPatch} />
+        <LaserDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onLaserPatch} auftragDateien={auftragDateien} />
       )}
 
       {lokal.bereich === 'TEXTIL' && (

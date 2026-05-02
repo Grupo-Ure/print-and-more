@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { supabase } from '../../supabase'
 import { LFP_TEILTYP_ANZEIGE, LFP_TEILTYPEN, type LfpDetailJson } from '../../types/lfp'
 import { validateLfpDetail } from '../../lib/lfp/validateLfpDetail'
@@ -9,6 +17,7 @@ import {
   LFP_AUFKLEBER_MATERIALIEN,
   LFP_FOLIENPLOTT_MATERIALIEN,
 } from '../../config/materialien'
+import type { Datei } from '../DateiListe'
 import { DateInput } from '../DateInput'
 import { useToast } from '../Toast'
 import '../WorkArea.css'
@@ -26,6 +35,8 @@ type Props = {
   teil: TeilauftragRow
   teilStatus: AuftragStatus
   onDetailPatch: (patch: { typ?: string | null; detail: LfpDetailJson | null }) => Promise<void>
+  /** Auftragsdateien für Zuordnung zu Produktzeilen */
+  auftragDateien?: Datei[]
 }
 
 function lfpRoh(teil: TeilauftragRow): LfpDetailJson {
@@ -44,13 +55,23 @@ type BlK = {
   speichDetail: (d: LfpDetailJson) => void
 }
 
-export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
+/** produkt_id → Zuordnungen (datei_id + produkt_dateien-Zeile für Entfernen) */
+type ProduktDateiZuordnung = { zuordnungId: string; dateiId: string }
+
+export function LFPDetail({
+  teil,
+  teilStatus,
+  onDetailPatch,
+  auftragDateien = [],
+}: Props) {
   const { fehler } = useToast()
 
   const [produkte, setProdukte] = useState<ProduktRow[]>([])
+  const [produktDateien, setProduktDateien] = useState<Record<string, ProduktDateiZuordnung[]>>({})
   const [produkteLaden, setProdukteLaden] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [entsperrt, setEntsperrt] = useState(false)
+  const [dateiSelectProduktId, setDateiSelectProduktId] = useState<string | null>(null)
 
   const [typ, setTyp] = useState<string | null>(teil.typ)
   const [detail, setDetail] = useState<LfpDetailJson>(lfpRoh(teil))
@@ -80,8 +101,41 @@ export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
     typR.current = teil.typ
   }, [teil, editingId])
 
+  const ladeDateienFuerProdukte = useCallback(
+    async (produktRows: ProduktRow[]) => {
+      const ids = produktRows.map(p => p.id)
+      if (ids.length === 0) {
+        setProduktDateien({})
+        return
+      }
+      const { data, error } = await supabase
+        .from('produkt_dateien')
+        .select('id, produkt_id, datei_id')
+        .in('produkt_id', ids)
+      if (error) {
+        fehler('Datei-Zuordnungen konnten nicht geladen werden')
+        setProduktDateien({})
+        return
+      }
+      const rows = (data ?? []) as Pick<
+        Database['public']['Tables']['produkt_dateien']['Row'],
+        'id' | 'produkt_id' | 'datei_id'
+      >[]
+      const next: Record<string, ProduktDateiZuordnung[]> = {}
+      for (const row of rows) {
+        const list = next[row.produkt_id] ?? (next[row.produkt_id] = [])
+        list.push({ zuordnungId: row.id, dateiId: row.datei_id })
+      }
+      setProduktDateien(next)
+    },
+    [fehler],
+  )
+
   const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
-    if (!teil.id) return []
+    if (!teil.id) {
+      await ladeDateienFuerProdukte([])
+      return []
+    }
     setProdukteLaden(true)
     const { data, error } = await supabase
       .from('teilauftrag_produkte')
@@ -93,6 +147,7 @@ export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
     if (error) {
       fehler('Produkte konnten nicht geladen werden')
       setProdukte([])
+      await ladeDateienFuerProdukte([])
       return []
     }
     const rows = (data ?? []) as Database['public']['Tables']['teilauftrag_produkte']['Row'][]
@@ -105,12 +160,42 @@ export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
       erstellt_am: r.erstellt_am,
     }))
     setProdukte(mapped)
+    await ladeDateienFuerProdukte(mapped)
     return mapped
-  }, [teil.id, fehler])
+  }, [teil.id, fehler, ladeDateienFuerProdukte])
 
   useEffect(() => {
     void reloadProdukte()
   }, [reloadProdukte])
+
+  const dateiZuProduktZuordnen = useCallback(
+    async (produktId: string, dateiId: string) => {
+      if (produktDateien[produktId]?.some(z => z.dateiId === dateiId)) return
+      const ins: Database['public']['Tables']['produkt_dateien']['Insert'] = {
+        produkt_id: produktId,
+        datei_id: dateiId,
+      }
+      const { error } = await supabase.from('produkt_dateien').insert(ins)
+      if (error) {
+        fehler('Datei konnte nicht zugeordnet werden')
+        return
+      }
+      await ladeDateienFuerProdukte(produkte)
+    },
+    [produktDateien, fehler, produkte, ladeDateienFuerProdukte],
+  )
+
+  const dateiVonProduktEntfernen = useCallback(
+    async (zuordnungId: string) => {
+      const { error } = await supabase.from('produkt_dateien').delete().eq('id', zuordnungId)
+      if (error) {
+        fehler('Zuordnung konnte nicht entfernt werden')
+        return
+      }
+      await ladeDateienFuerProdukte(produkte)
+    },
+    [fehler, produkte, ladeDateienFuerProdukte],
+  )
 
   const resetForm = useCallback(() => {
     setEditingId(null)
@@ -392,33 +477,120 @@ export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
                   const fh = pd.format_hoehe
                   const fmt = fw && fh ? `${fw}×${fh} mm` : '—'
                   const typLabel = (LFP_TEILTYP_ANZEIGE as Record<string, string>)[pt] ?? pt
+                  const zuo = produktDateien[r.id] ?? []
                   return (
-                    <tr key={r.id}>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
-                        {typLabel || '—'}
-                      </td>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{String(st || '—')}</td>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{String(mat)}</td>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{fmt}</td>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          <button
-                            type="button"
-                            className="cp-btn cp-btn-grau"
-                            onClick={() => handleEdit(r)}
+                    <Fragment key={r.id}>
+                      <tr>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
+                          {typLabel || '—'}
+                        </td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
+                          {String(st || '—')}
+                        </td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{String(mat)}</td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{fmt}</td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              className="cp-btn cp-btn-grau"
+                              onClick={() => handleEdit(r)}
+                            >
+                              Bearbeiten
+                            </button>
+                            <button
+                              type="button"
+                              className="cp-btn cp-btn-rot"
+                              onClick={() => void handleDelete(r.id)}
+                            >
+                              Löschen
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td
+                          colSpan={5}
+                          style={{
+                            padding: '4px 8px 10px',
+                            borderBottom: '1px solid #f3f4f6',
+                            background: 'var(--color-muted-bg, #fafafa)',
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              gap: 6,
+                              alignItems: 'center',
+                              fontSize: 12,
+                            }}
                           >
-                            Bearbeiten
-                          </button>
-                          <button
-                            type="button"
-                            className="cp-btn cp-btn-rot"
-                            onClick={() => void handleDelete(r.id)}
-                          >
-                            Löschen
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                            {zuo.map(z => (
+                              <span
+                                key={z.zuordnungId}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  padding: '2px 8px',
+                                  borderRadius: 4,
+                                  background: '#f3f4f6',
+                                  border: '1px solid #e5e7eb',
+                                  maxWidth: '100%',
+                                }}
+                              >
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {auftragDateien.find(d => d.id === z.dateiId)?.anzeigename ?? z.dateiId}
+                                </span>
+                                <button
+                                  type="button"
+                                  className="cp-btn cp-btn-grau"
+                                  style={{ minWidth: 22, padding: '0 6px', fontSize: 14, lineHeight: 1 }}
+                                  title="Zuordnung entfernen"
+                                  onClick={() => void dateiVonProduktEntfernen(z.zuordnungId)}
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))}
+                            <button
+                              type="button"
+                              className="cp-btn cp-btn-grau"
+                              style={{ fontSize: 12, padding: '2px 10px' }}
+                              onClick={() =>
+                                setDateiSelectProduktId(cur => (cur === r.id ? null : r.id))
+                              }
+                            >
+                              Datei zuordnen
+                            </button>
+                            {dateiSelectProduktId === r.id && (
+                              <select
+                                className="ber-inp"
+                                style={{ fontSize: 12, maxWidth: 240 }}
+                                value=""
+                                onChange={e => {
+                                  const v = e.target.value
+                                  if (v) {
+                                    void dateiZuProduktZuordnen(r.id, v)
+                                    setDateiSelectProduktId(null)
+                                  }
+                                }}
+                              >
+                                <option value="">Datei wählen…</option>
+                                {auftragDateien
+                                  .filter(d => !zuo.some(z => z.dateiId === d.id))
+                                  .map(d => (
+                                    <option key={d.id} value={d.id}>
+                                      {d.anzeigename}
+                                    </option>
+                                  ))}
+                              </select>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    </Fragment>
                   )
                 })}
               </tbody>

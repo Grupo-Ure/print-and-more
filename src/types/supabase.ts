@@ -812,6 +812,27 @@ export type Database = {
         }
         Relationships: []
       }
+      produkt_dateien: {
+        Row: {
+          id: string
+          produkt_id: string
+          datei_id: string
+          erstellt_am: string
+        }
+        Insert: {
+          id?: string
+          produkt_id: string
+          datei_id: string
+          erstellt_am?: string
+        }
+        Update: {
+          id?: string
+          produkt_id?: string
+          datei_id?: string
+          erstellt_am?: string
+        }
+        Relationships: []
+      }
       teilauftrag_produkte: {
         Row: {
           id: string
