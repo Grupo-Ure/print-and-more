@@ -910,6 +910,7 @@ export type Database = {
         | "KUNDENFREIGABE_VERFALLEN"
         | "KUNDENFREIGABE_UEBERGANGEN"
         | "RUECKSPRUNG"
+        | "STORNIERT"
         | "ERP_EXPORTIERT"
       lieferung_typ: "ABHOLUNG" | "VERSAND"
       prioritaet_typ: "NORMAL" | "HOCH"
@@ -1077,6 +1078,7 @@ export const Constants = {
         "KUNDENFREIGABE_VERFALLEN",
         "KUNDENFREIGABE_UEBERGANGEN",
         "RUECKSPRUNG",
+        "STORNIERT",
         "ERP_EXPORTIERT",
       ],
       lieferung_typ: ["ABHOLUNG", "VERSAND"],
