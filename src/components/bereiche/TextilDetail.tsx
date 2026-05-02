@@ -40,6 +40,7 @@ type TextilVarianteQueryRow = Pick<
 type Props = {
   teil: TeilauftragRow
   teilStatus: AuftragStatus
+  auftragStatus?: AuftragStatus
   auftragDateien: Datei[]
   auftragKunde: KundeKontaktJoin
   onAktualisiert: (t: TeilauftragRow) => void
@@ -120,7 +121,14 @@ function groesseKurzLabel(g: string): string {
   return g
 }
 
-export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, onAktualisiert }: Props) {
+export function TextilDetail({
+  teil,
+  teilStatus,
+  auftragStatus,
+  auftragDateien,
+  auftragKunde,
+  onAktualisiert,
+}: Props) {
   const teilR = useRef(teil)
   useEffect(() => {
     teilR.current = teil
@@ -180,7 +188,7 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
       if (afterProdMutation && (t.status === 'PRODUKTION_BEREIT' || t.status === 'FERTIG')) {
         nSt = 'UNVOLLSTAENDIG'
       } else {
-        nSt = nextTeilStatus(t.status, t, merged, voll, kOk)
+        nSt = nextTeilStatus(t.status, t, merged, voll, kOk, auftragStatus)
       }
       setSMut(true)
       const { data, error } = await supabase
@@ -200,7 +208,7 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
         onAktualisiert(row)
       }
     },
-    [auftragKunde, onAktualisiert]
+    [auftragKunde, auftragStatus, onAktualisiert]
   )
 
   const syncRef = useRef(syncTeil)

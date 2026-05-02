@@ -15,6 +15,7 @@ import {
 import { DateiListe, type Datei } from './DateiListe'
 import { HistoriePanel } from './HistoriePanel'
 import { useToast } from './Toast'
+import { istTeilAuftragVollstaendig } from '../lib/teilGlobal'
 import './ContextPanel.css'
 
 type Props = {
@@ -379,6 +380,15 @@ export function ContextPanel({
 
   const handlePrepressFrei = async () => {
     if (busy || !teil || teil.status !== 'UNVOLLSTAENDIG') return
+    if (auftrag.status === 'ANGEBOT') {
+      fehler('Auftrag muss zuerst in Bearbeitung genommen werden')
+      return
+    }
+    const voll = istTeilAuftragVollstaendig(teil, teil.status)
+    if (!voll) {
+      fehler('Teilauftrag ist noch nicht vollständig ausgefüllt')
+      return
+    }
     setBusy(true)
     try {
       const { data, error } = await supabase
@@ -934,7 +944,7 @@ export function ContextPanel({
           <>
             <div className="cp-gruppe-trenn" />
             <div className="cp-gruppe">
-              {teil.status === 'UNVOLLSTAENDIG' && (
+              {teil.status === 'UNVOLLSTAENDIG' && auftrag.status !== 'ANGEBOT' && (
                 <button
                   type="button"
                   className="cp-btn"

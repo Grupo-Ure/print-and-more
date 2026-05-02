@@ -644,6 +644,7 @@ export function TeilauftragDetail({
         <TextilDetail
           teil={lokal}
           teilStatus={lokal.status}
+          auftragStatus={auftragStatus}
           auftragDateien={auftragDateien}
           auftragKunde={auftragKunde}
           onAktualisiert={onTextilTeilAktualisiert}

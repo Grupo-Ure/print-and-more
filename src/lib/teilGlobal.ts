@@ -35,6 +35,7 @@ export function validateGlobalTeilfelder(
   const o: Record<string, string> = {}
   if (teilStatus === 'ANGEBOT') return o
   if (t.lieferung !== 'ABHOLUNG' && t.lieferung !== 'VERSAND') o.lieferung = 'Pflichtfeld'
+  if (!t.termin) o.termin = 'Pflichtfeld'
   if (t.prioritaet !== 'NORMAL' && t.prioritaet !== 'HOCH') {
     o.prioritaet = 'Pflichtfeld'
   }
