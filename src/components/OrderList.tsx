@@ -32,6 +32,7 @@ const STATUS_ORDER: AuftragStatus[] = [
   'PREPRESS_BEREIT',
   'PRODUKTION_BEREIT',
   'FERTIG',
+  'ABGERECHNET',
 ]
 
 const DEFAULT_STATUS_TOGGLES: Record<AuftragStatus, boolean> = {
@@ -40,6 +41,7 @@ const DEFAULT_STATUS_TOGGLES: Record<AuftragStatus, boolean> = {
   PREPRESS_BEREIT: true,
   PRODUKTION_BEREIT: true,
   FERTIG: false,
+  ABGERECHNET: false,
 }
 
 /** Anzeige in einer Zeile (kurz) */
@@ -49,6 +51,7 @@ const STATUS_CBX_KURZ: Record<AuftragStatus, string> = {
   PREPRESS_BEREIT: 'PrePress',
   PRODUKTION_BEREIT: 'Produkt.',
   FERTIG: 'Fertig',
+  ABGERECHNET: 'Abgerech.',
 }
 
 type TeilBereichRow = { bereich: string; status: string }
@@ -123,6 +126,7 @@ function statusLabel(s: AuftragStatus): string {
     PREPRESS_BEREIT: 'PrePress',
     PRODUKTION_BEREIT: 'Produktion',
     FERTIG: 'Fertig',
+    ABGERECHNET: 'Abgerechnet',
   }
   return m[s] ?? s
 }
@@ -202,11 +206,25 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
         .select(
           'id, auftragsnummer, status, erstellt_am, termin, prioritaet, notfall_aktiv, kunde_id, kunden(name), teilauftraege(bereich, status)',
         )
-        .eq('archiviert', false)
         .order('erstellt_am', { ascending: false })
 
+      if (statusAlle) {
+        query = query.eq('archiviert', false)
+      } else {
+        const abgerechnetGewaehlt = chosen.includes('ABGERECHNET')
+        const andereGewaehlt = chosen.some(s => s !== 'ABGERECHNET')
+        if (abgerechnetGewaehlt && andereGewaehlt) {
+          // kein archiviert-Filter — zeigt beide
+        } else if (abgerechnetGewaehlt) {
+          query = query.eq('archiviert', true)
+        } else {
+          query = query.eq('archiviert', false)
+        }
+      }
+
       if (kundenIds) query = query.in('kunde_id', kundenIds)
-      if (!statusAlle) query = query.in('status', chosen)
+      if (!statusAlle)
+        query = query.in('status', chosen as string[] as unknown as readonly AuftragStatus[])
       if (terminVon) query = query.gte('termin', terminVon)
       if (terminBis) query = query.lte('termin', terminBis)
       if (annVon) query = query.gte('erstellt_am', `${annVon}T00:00:00`)

@@ -78,6 +78,7 @@ function teilStatusBadgeAuf(s: AuftragStatus): { cls: string; label: string } {
     PREPRESS_BEREIT: { cls: 'badge-blau', label: 'PREPRESS_BEREIT' },
     PRODUKTION_BEREIT: { cls: 'badge-lila', label: 'PRODUKTION_BEREIT' },
     FERTIG: { cls: 'badge-gruen', label: 'FERTIG' },
+    ABGERECHNET: { cls: 'badge-grau', label: 'Abgerechnet' },
   }
   return m[s] ?? { cls: 'badge-grau', label: s }
 }

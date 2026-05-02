@@ -7,6 +7,7 @@ export type AuftragStatus =
   | 'PREPRESS_BEREIT'
   | 'PRODUKTION_BEREIT'
   | 'FERTIG'
+  | 'ABGERECHNET'
 
 /** Werte = Supabase-Enum `teilauftrag_bereich` (Großbuchstaben, kein Leerzeichen) */
 export const TEILAUFTRAG_BEREICHE = [

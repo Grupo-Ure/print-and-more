@@ -43,12 +43,15 @@ function statusBadgeGlobal(s: AuftragStatus): string {
       return 'badge-lila'
     case 'FERTIG':
       return 'badge-gruen'
+    case 'ABGERECHNET':
+      return 'badge-grau'
     default:
       return 'badge-grau'
   }
 }
 
 function naechsterNotfallStatus(s: AuftragStatus): AuftragStatus {
+  if (s === 'ABGERECHNET') return s
   if (s === 'UNVOLLSTAENDIG') return 'PREPRESS_BEREIT'
   if (s === 'PREPRESS_BEREIT') return 'PRODUKTION_BEREIT'
   if (s === 'PRODUKTION_BEREIT') return 'FERTIG'
@@ -281,6 +284,29 @@ export function ContextPanel({
       const { error } = await supabase.from('auftraege').update({ archiviert: true }).eq('id', auftrag.id)
       if (error) throw error
       onAuftragAktualisiert({ ...auftrag, archiviert: true })
+    } catch (e) {
+      fehler('Status konnte nicht geändert werden')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleAbrechnen = async () => {
+    if (busy) return
+    if (!window.confirm('Auftrag als abgerechnet markieren?\nEr wird aus der Liste ausgeblendet.')) return
+    setBusy(true)
+    try {
+      const { error } = await supabase
+        .from('auftraege')
+        .update({ status: 'ABGERECHNET' as AuftragStatus, archiviert: true })
+        .eq('id', auftrag.id)
+      if (error) throw error
+      await schreibeHistorie({
+        auftrag_id: auftrag.id,
+        ereignisart: 'FERTIG_GEMELDET',
+        meta: { abgerechnet_auftrag: true },
+      })
+      onAuftragAktualisiert({ ...auftrag, status: 'ABGERECHNET', archiviert: true })
     } catch (e) {
       fehler('Status konnte nicht geändert werden')
     } finally {
@@ -864,9 +890,16 @@ export function ContextPanel({
               Kunde bearbeiten
             </button>
           )}
-          <button type="button" className="cp-btn" disabled={busy} onClick={() => void handleArchiv()}>
-            Archivieren
-          </button>
+          {auftrag.status === 'FERTIG' && (
+            <button type="button" className="cp-btn" disabled={busy} onClick={() => void handleAbrechnen()}>
+              Abrechnen
+            </button>
+          )}
+          {auftrag.status !== 'ABGERECHNET' && (
+            <button type="button" className="cp-btn" disabled={busy} onClick={() => void handleArchiv()}>
+              Archivieren
+            </button>
+          )}
           {darfAuftragStornieren && (
             <button
               type="button"

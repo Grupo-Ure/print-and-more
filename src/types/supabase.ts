@@ -891,6 +891,7 @@ export type Database = {
         | "PREPRESS_BEREIT"
         | "PRODUKTION_BEREIT"
         | "FERTIG"
+        | "ABGERECHNET"
       datei_rolle:
         | "PRODUKTIONSDATEI"
         | "VORSCHAU"
@@ -1055,6 +1056,7 @@ export const Constants = {
         "PREPRESS_BEREIT",
         "PRODUKTION_BEREIT",
         "FERTIG",
+        "ABGERECHNET",
       ],
       datei_rolle: [
         "PRODUKTIONSDATEI",
