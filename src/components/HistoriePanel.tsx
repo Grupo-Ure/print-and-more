@@ -67,7 +67,6 @@ export function HistoriePanel({ aktiverAuftragId, kontextAktualisiert, teilauftr
 
   useEffect(() => {
     supabase
-      // @ts-expect-error — Tabelle `profile` (name) ist in den generierten DB-Typen noch nicht enthalten
       .from('profile')
       .select('id, name')
       .then(({ data, error }) => {

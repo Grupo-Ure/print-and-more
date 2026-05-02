@@ -261,13 +261,11 @@ export function WorkArea({
     }
     let alive = true
     void (async () => {
-      /* eslint-disable @typescript-eslint/no-explicit-any -- Tabelle profile ggf. nicht in generierten Supabase-Typen */
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('profile')
         .select('id, name')
         .eq('id', vid)
         .single()
-      /* eslint-enable @typescript-eslint/no-explicit-any */
       if (!alive) return
       if (error) {
         console.error(error)

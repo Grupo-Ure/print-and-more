@@ -860,6 +860,48 @@ export type Database = {
           },
         ]
       }
+      profile: {
+        Row: {
+          id: string
+          name: string
+        }
+        Insert: {
+          id?: string
+          name: string
+        }
+        Update: {
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      teilauftrag_produkte: {
+        Row: {
+          id: string
+          teilauftrag_id: string
+          bereich: string
+          detail: Json
+          sort_order: number
+          erstellt_am: string
+        }
+        Insert: {
+          id?: string
+          teilauftrag_id: string
+          bereich: string
+          detail: Json
+          sort_order: number
+          erstellt_am?: string
+        }
+        Update: {
+          id?: string
+          teilauftrag_id?: string
+          bereich?: string
+          detail?: Json
+          sort_order?: number
+          erstellt_am?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       mitarbeiter: {

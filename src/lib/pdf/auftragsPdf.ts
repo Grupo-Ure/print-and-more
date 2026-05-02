@@ -228,8 +228,7 @@ function zellenWertFuerSchluessel(row: Record<string, unknown>, key: string): st
 
 export async function generiereUndLadePdf(teilauftragId: string, auftragId: string): Promise<void> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Tabelle ggf. nicht in generierten Database-Typen
-    const produkteQuery = (supabase as any)
+    const produkteQuery = supabase
       .from('teilauftrag_produkte')
       .select('*')
       .eq('teilauftrag_id', teilauftragId)

@@ -212,9 +212,7 @@ export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbreche
           }
         } else {
           // Alle anderen Bereiche: teilauftrag_produkte kopieren
-          /* eslint-disable @typescript-eslint/no-explicit-any -- Tabelle teilauftrag_produkte fehlt in generierten Supabase-Typen */
-          const sbProdukte = supabase as any
-          const { data: altProdukte } = await sbProdukte
+          const { data: altProdukte } = await supabase
             .from('teilauftrag_produkte')
             .select('*')
             .eq('teilauftrag_id', ta.id)
@@ -226,13 +224,12 @@ export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbreche
               teilauftrag_id: string
               [k: string]: unknown
             }
-            const { error: epErr } = await sbProdukte.from('teilauftrag_produkte').insert({
+            const { error: epErr } = await supabase.from('teilauftrag_produkte').insert({
               ...pRest,
               teilauftrag_id: neuTaId,
-            })
+            } as never)
             if (epErr) throw epErr
           }
-          /* eslint-enable @typescript-eslint/no-explicit-any */
         }
       }
 
