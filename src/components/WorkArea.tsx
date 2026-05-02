@@ -30,6 +30,15 @@ function ersteKontaktZeile(k: KundeKontaktJoin | null): KundeKontaktRow | null {
   return z ?? null
 }
 
+/** Eine Zeile für den Header: E-Mail bevorzugt, sonst Telefon. */
+function kundeKontaktEineLinie(k: KundeKontaktJoin | null): string {
+  const row = ersteKontaktZeile(k)
+  if (!row) return ''
+  const mail = row.email?.trim() ?? ''
+  if (mail !== '') return mail
+  return row.telefon?.trim() ?? ''
+}
+
 function teilStatusDotClass(s: AuftragStatus): string {
   switch (s) {
     case 'ANGEBOT':
@@ -406,9 +415,7 @@ export function WorkArea({
   const kunde = kundenName(auftrag.kunden)
   const aktiverTeil = aktiverTeilFuerKontext
   const termSlice = (t: string | null) => (t && t.length > 10 ? t.slice(0, 10) : t || '')
-  const kontakt = ersteKontaktZeile(auftrag.kunden)
-  const telStr = kontakt?.telefon?.trim() ?? ''
-  const mailStr = kontakt?.email?.trim() ?? ''
+  const kontaktEineZeile = kundeKontaktEineLinie(auftrag.kunden)
 
   const prioritaetGlyph = (p: Prioritaet) => (p === 'HOCH' ? '▲' : '●')
 
@@ -458,25 +465,17 @@ export function WorkArea({
             {verantwortlicherName ?? ''}
           </div>
         </div>
-        {(telStr || mailStr) ? (
+        {kontaktEineZeile ? (
           <div
             style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: 12,
-              flexWrap: 'wrap',
               width: '100%',
               fontSize: 12,
               color: '#6b7280',
               lineHeight: 1.35,
             }}
           >
-            <span style={{ minWidth: 0 }} title={telStr || undefined}>
-              {telStr || '—'}
-            </span>
-            <span style={{ minWidth: 0, textAlign: 'right' }} title={mailStr || undefined}>
-              {mailStr || '—'}
+            <span style={{ minWidth: 0 }} title={kontaktEineZeile}>
+              {kontaktEineZeile}
             </span>
           </div>
         ) : null}

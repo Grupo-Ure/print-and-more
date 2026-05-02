@@ -193,52 +193,77 @@ export function TeilauftragDetail({
 
   const onLfpPatch = useCallback(
     async (p: { typ?: string | null; detail: LfpDetailJson | null }) => {
+      const curDetail = lokal.detail as Record<string, unknown> | null
+      const neuesDetail = detailMitErhaltDateiId(
+        { ...(p.detail ?? {}) } as Record<string, unknown>,
+        (curDetail?.datei_id as string | null) ?? null
+      )
       await speichere({
         typ: p.typ,
-        detail: p.detail,
+        detail: neuesDetail as LfpDetailJson,
       } as Partial<TeilauftragRow>)
     },
-    [speichere]
+    [speichere, lokal.detail]
   )
 
   const onCopyShopPatch = useCallback(
     async (p: { typ?: string | null; detail: CopyShopDetailJson | null }) => {
+      const curDetail = lokal.detail as Record<string, unknown> | null
+      const neuesDetail = detailMitErhaltDateiId(
+        { ...(p.detail ?? {}) } as Record<string, unknown>,
+        (curDetail?.datei_id as string | null) ?? null
+      )
       await speichere({
         typ: p.typ,
-        detail: p.detail,
+        detail: neuesDetail as CopyShopDetailJson,
       } as Partial<TeilauftragRow>)
     },
-    [speichere]
+    [speichere, lokal.detail]
   )
 
   const onStempelPatch = useCallback(
     async (p: { typ?: string | null; detail: StempelDetailJson | null }) => {
+      const curDetail = lokal.detail as Record<string, unknown> | null
+      const neuesDetail = detailMitErhaltDateiId(
+        { ...(p.detail ?? {}) } as Record<string, unknown>,
+        (curDetail?.datei_id as string | null) ?? null
+      )
       await speichere({
         typ: p.typ,
-        detail: p.detail,
+        detail: neuesDetail as StempelDetailJson,
       } as Partial<TeilauftragRow>)
     },
-    [speichere]
+    [speichere, lokal.detail]
   )
 
   const onSonstigePatch = useCallback(
     async (p: { typ?: string | null; detail: SonstigeDetailJson | null }) => {
+      const curDetail = lokal.detail as Record<string, unknown> | null
+      const neuesDetail = detailMitErhaltDateiId(
+        { ...(p.detail ?? {}) } as Record<string, unknown>,
+        (curDetail?.datei_id as string | null) ?? null
+      )
       await speichere({
         typ: p.typ,
-        detail: p.detail,
+        detail: neuesDetail as SonstigeDetailJson,
       } as Partial<TeilauftragRow>)
     },
-    [speichere]
+    [speichere, lokal.detail]
   )
 
   const onLaserPatch = useCallback(
     async (p: { typ?: string | null; detail: LaserDetailJson | null }) => {
+      const curDetail = lokal.detail as Record<string, unknown> | null
+      const neuesDetail = detailMitErhaltDateiId(
+        { ...(p.detail ?? {}) } as Record<string, unknown>,
+        (curDetail?.datei_id as string | null) ?? null
+      )
       await speichere({
         typ: p.typ,
-        detail: p.detail,
+        detail: neuesDetail as LaserDetailJson,
       } as Partial<TeilauftragRow>)
     },
-    [speichere]
+    [speichere, lokal.detail]
   )
 
   const onTextilTeilAktualisiert = useCallback(
