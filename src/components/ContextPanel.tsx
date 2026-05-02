@@ -827,31 +827,22 @@ export function ContextPanel({
       {(() => {
         const row = einKundeKontakt(auftragKunde)
         if (!row) return null
-        const em = row.email?.trim()
-        const tel = row.telefon?.trim()
         const s = row.strasse?.trim()
         const h = row.hausnummer?.trim()
         const p = row.plz?.trim()
         const o = row.ort?.trim()
         const zeile1 = [s, h].filter(Boolean).join(' ')
         const zeile2 = [p, o].filter(Boolean).join(' ')
-        const hatAdr = Boolean(zeile1 || zeile2)
-        if (!em && !tel && !hatAdr) return null
+        if (!zeile1 && !zeile2) return null
         return (
           <div className="cp-sektion">
             <h2>Kunde</h2>
-            {em ? <p className="cp-hinweis cp-hinweis--komp" style={{ margin: '0 0 4px' }}>{em}</p> : null}
-            {tel ? <p className="cp-hinweis cp-hinweis--komp" style={{ margin: '0 0 4px' }}>{tel}</p> : null}
-            {hatAdr ? (
-              <>
-                {zeile1 ? (
-                  <p className="cp-hinweis cp-hinweis--komp" style={{ margin: '0 0 4px' }}>
-                    {zeile1}
-                  </p>
-                ) : null}
-                {zeile2 ? <p className="cp-hinweis cp-hinweis--komp" style={{ margin: 0 }}>{zeile2}</p> : null}
-              </>
+            {zeile1 ? (
+              <p className="cp-hinweis cp-hinweis--komp" style={{ margin: '0 0 4px' }}>
+                {zeile1}
+              </p>
             ) : null}
+            {zeile2 ? <p className="cp-hinweis cp-hinweis--komp" style={{ margin: 0 }}>{zeile2}</p> : null}
           </div>
         )
       })()}

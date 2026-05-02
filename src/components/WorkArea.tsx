@@ -12,6 +12,7 @@ import {
   type AuftragStatus,
   type Bereich,
   type KundeKontaktJoin,
+  type KundeKontaktRow,
   type LieferungWahl,
   type Prioritaet,
   type TeilauftragRow,
@@ -23,13 +24,10 @@ import type { Datei } from './DateiListe'
 import { TeilauftragDetail } from './TeilauftragDetail'
 import './WorkArea.css'
 
-function kundeKontaktEineLinie(k: KundeKontaktJoin | null): string {
-  if (k == null) return '—'
+function ersteKontaktZeile(k: KundeKontaktJoin | null): KundeKontaktRow | null {
+  if (k == null) return null
   const z = Array.isArray(k) ? (k[0] ?? null) : k
-  if (!z) return '—'
-  if (z.email?.trim()) return z.email.trim()
-  if (z.telefon?.trim()) return z.telefon.trim()
-  return '—'
+  return z ?? null
 }
 
 function teilStatusDotClass(s: AuftragStatus): string {
@@ -417,20 +415,45 @@ export function WorkArea({
   const kunde = kundenName(auftrag.kunden)
   const aktiverTeil = aktiverTeilFuerKontext
   const termSlice = (t: string | null) => (t && t.length > 10 ? t.slice(0, 10) : t || '')
-  const kontaktZeile = kundeKontaktEineLinie(auftrag.kunden)
+  const kontakt = ersteKontaktZeile(auftrag.kunden)
+  const telStr = kontakt?.telefon?.trim() ?? ''
+  const mailStr = kontakt?.email?.trim() ?? ''
 
   const prioritaetGlyph = (p: Prioritaet) => (p === 'HOCH' ? '▲' : '●')
 
   return (
     <div className="work-area">
-      <header className="work-area__header">
-        <div className="work-area__header-main">
-          <div className="work-area__title-line">
-            <h1 className="work-area__kunde">{kunde}</h1>
+      <header
+        className="work-area__header"
+        style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 12,
+            flexWrap: 'wrap',
+            width: '100%',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px 12px',
+              flexWrap: 'wrap',
+              minWidth: 0,
+            }}
+          >
+            <h1 className="work-area__kunde" style={{ margin: 0 }}>
+              {kunde}
+            </h1>
             <span className="work-area__auftragsnummer">{auftrag.auftragsnummer}</span>
             <button
               type="button"
               className="wa-gear"
+              style={{ marginLeft: 0 }}
               onClick={onKundeBearbeiten}
               title="Kunde bearbeiten"
               aria-label="Kunde bearbeiten"
@@ -440,13 +463,32 @@ export function WorkArea({
               </span>
             </button>
           </div>
-          <div className="work-area__kontakt" title={kontaktZeile}>
-            {kontaktZeile}
+          <div className="work-area__verantwortlich" aria-hidden style={{ flexShrink: 0, textAlign: 'right' }}>
+            {verantwortlicherName ?? ''}
           </div>
         </div>
-        <div className="work-area__verantwortlich" aria-hidden>
-          {verantwortlicherName ?? ''}
-        </div>
+        {(telStr || mailStr) ? (
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 12,
+              flexWrap: 'wrap',
+              width: '100%',
+              fontSize: 12,
+              color: '#6b7280',
+              lineHeight: 1.35,
+            }}
+          >
+            <span style={{ minWidth: 0 }} title={telStr || undefined}>
+              {telStr || '—'}
+            </span>
+            <span style={{ minWidth: 0, textAlign: 'right' }} title={mailStr || undefined}>
+              {mailStr || '—'}
+            </span>
+          </div>
+        ) : null}
       </header>
 
       {fehler && <p className="wa-fehler">{fehler}</p>}
