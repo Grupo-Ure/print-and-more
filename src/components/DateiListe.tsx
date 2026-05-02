@@ -30,7 +30,7 @@ type Props = {
   aktiverAuftragId: string
   dateien: Datei[]
   dateienLaden: boolean
-  onDateiGeaendert: () => void | Promise<void>
+  onDateiGeaendert: (neueDatei?: Datei) => void | Promise<void>
 }
 
 function useDateienState(auftragId: string) {
@@ -127,7 +127,7 @@ export function DateiListe({ aktiverAuftragId, dateien, dateienLaden, onDateiGea
       setPfad('')
       setRolle('PRODUKTIONSDATEI')
       setFormOffen(false)
-      void onDateiGeaendert()
+      void onDateiGeaendert(data as Datei)
     }
   }
 

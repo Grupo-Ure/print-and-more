@@ -29,7 +29,7 @@ type Props = {
   onTeilauftragEntfernt: (id: string) => void
   onKundeBearbeiten: () => void
   kontextAktualisiert: number
-  onDateiGeaendert?: () => void | Promise<void>
+  onDateiGeaendert?: (neueDatei?: Datei) => void | Promise<void>
 }
 
 function statusBadgeGlobal(s: AuftragStatus): string {

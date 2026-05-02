@@ -77,6 +77,13 @@ function HauptApp() {
     setAuftragDateien(d)
   }, [])
 
+  const handleDateiGeaendert = useCallback((neueDatei?: Datei) => {
+    if (neueDatei) {
+      setAuftragDateien(prev => [...prev, neueDatei])
+    }
+    setKontextAktualisiert(x => x + 1)
+  }, [])
+
   const handleAuftragAktualisiert = useCallback((a: Auftrag) => {
     setAktiverAuftrag(a)
     if (a.archiviert) {
@@ -183,6 +190,7 @@ function HauptApp() {
           onTeilauftragEntfernt={handleTeilauftragEntfernt}
           onKundeBearbeiten={openKundeBearbeiten}
           kontextAktualisiert={kontextAktualisiert}
+          onDateiGeaendert={handleDateiGeaendert}
         />
       </div>
 

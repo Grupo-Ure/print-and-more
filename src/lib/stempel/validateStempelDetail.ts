@@ -73,8 +73,13 @@ export function validateStempelDetail(
     if (!anzahlGueltig(d)) f(o, 'stueckzahl', 'Ganze Zahl ≥ 1')
   }
 
-  // Maße (OR-Pflicht) für alle außer NACHFUELLFARBE, STEMPELKISSEN, TRODAT_KISSEN
-  const needsFormat = t !== 'NACHFUELLFARBE' && t !== 'STEMPELKISSEN' && t !== 'TRODAT_KISSEN'
+  // Maße (OR-Pflicht) für alle außer NACHFUELLFARBE, STEMPELKISSEN, TRODAT_KISSEN, TRODAT_PRINTY, HOLZSTEMPEL
+  const needsFormat =
+    t !== 'NACHFUELLFARBE' &&
+    t !== 'STEMPELKISSEN' &&
+    t !== 'TRODAT_KISSEN' &&
+    t !== 'TRODAT_PRINTY' &&
+    t !== 'HOLZSTEMPEL'
   if (needsFormat) {
     const b = positiveGanzzahlOrNull(d.format_breite)
     const h = positiveGanzzahlOrNull(d.format_hoehe)
@@ -82,6 +87,12 @@ export function validateStempelDetail(
     if (!hasOne) f(o, 'format', 'Mindestens Breite oder Höhe angeben')
     if (d.format_breite != null && d.format_breite !== '' && b == null) f(o, 'format_breite', 'Ganze Zahl > 0')
     if (d.format_hoehe != null && d.format_hoehe !== '' && h == null) f(o, 'format_hoehe', 'Ganze Zahl > 0')
+  }
+
+  if (t === 'TRODAT_PRINTY' || t === 'HOLZSTEMPEL') {
+    if (!reqStr(d?.modell_id)) {
+      f(o, 'modell_id', 'Bitte ein Stempelmodell wählen')
+    }
   }
 
   // Typ-spezifische Pflichtfelder

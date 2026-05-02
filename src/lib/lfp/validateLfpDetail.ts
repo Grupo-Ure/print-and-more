@@ -104,9 +104,6 @@ export function validateLfpDetail(
     if (!['PVC_FRONTLIT', 'MESH', 'BAUZAUNBANNER'].includes(reqStr(d.material) ?? '')) f(o, 'material', 'Pflichtfeld')
     if (!masseErfuellt(d.format_breite, d.format_hoehe)) f(o, 'format_masse', MSG_MASSE)
     if (reqBool(d.saum) === 'missing') f(o, 'saum', 'Pflichtfeld')
-    if (d.saum === true) {
-      if (!reqStr(d.saum_seiten)) f(o, 'saum_seiten', 'Pflichtfeld')
-    }
     if (reqBool(d.oesen) === 'missing') f(o, 'oesen', 'Pflichtfeld')
     if (d.oesen === true) {
       if (!reqStr(d.oesen_detail)) f(o, 'oesen_detail', 'Pflichtfeld')
