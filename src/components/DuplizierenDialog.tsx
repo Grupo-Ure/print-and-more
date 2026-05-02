@@ -124,16 +124,116 @@ export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbreche
       const neuerAuftrag = neuA as Auftrag
 
       for (const ta of gewaehlte) {
-        const { error: e2 } = await supabase.from('teilauftraege').insert({
-          auftrag_id: neuerAuftrag.id,
-          bereich: ta.bereich,
-          typ: ta.typ,
-          status: 'UNVOLLSTAENDIG',
-          prioritaet: ta.prioritaet,
-          lieferung: ta.lieferung,
-          detail: ta.detail,
-        } as never)
+        const { data: neuTa, error: e2 } = await supabase
+          .from('teilauftraege')
+          .insert({
+            auftrag_id: neuerAuftrag.id,
+            bereich: ta.bereich,
+            typ: ta.typ,
+            status: 'UNVOLLSTAENDIG',
+            prioritaet: ta.prioritaet,
+            lieferung: ta.lieferung,
+            detail: ta.detail,
+          } as never)
+          .select('id')
+          .single()
         if (e2) throw e2
+        const neuTaId = (neuTa as { id: string }).id
+
+        if (ta.bereich === 'TEXTIL') {
+          // Textil: Motive + Positionen + Zuordnungen mit ID-Mapping kopieren
+
+          const { data: altMotive } = await supabase
+            .from('textil_motive')
+            .select('*')
+            .eq('teilauftrag_id', ta.id)
+
+          const motivIdMap = new Map<string, string>()
+
+          for (const m of (altMotive ?? []) as Record<string, unknown>[]) {
+            const { id: _altMotivId, teilauftrag_id: _old, ...motivRest } = m as {
+              id: string
+              teilauftrag_id: string
+              [k: string]: unknown
+            }
+            const { data: neuMotiv, error: emErr } = await supabase
+              .from('textil_motive')
+              .insert({ ...motivRest, teilauftrag_id: neuTaId } as never)
+              .select('id')
+              .single()
+            if (emErr) throw emErr
+            motivIdMap.set(_altMotivId, (neuMotiv as { id: string }).id)
+          }
+
+          const { data: altPositionen } = await supabase
+            .from('textil_positionen')
+            .select('*')
+            .eq('teilauftrag_id', ta.id)
+
+          const posIdMap = new Map<string, string>()
+
+          for (const p of (altPositionen ?? []) as Record<string, unknown>[]) {
+            const { id: _altPosId, teilauftrag_id: _old, ...posRest } = p as {
+              id: string
+              teilauftrag_id: string
+              [k: string]: unknown
+            }
+            const { data: neuPos, error: epErr } = await supabase
+              .from('textil_positionen')
+              .insert({ ...posRest, teilauftrag_id: neuTaId } as never)
+              .select('id')
+              .single()
+            if (epErr) throw epErr
+            posIdMap.set(_altPosId, (neuPos as { id: string }).id)
+          }
+
+          const { data: altZuordnungen } = await supabase
+            .from('textil_zuordnungen')
+            .select('*')
+            .eq('teilauftrag_id', ta.id)
+
+          for (const z of (altZuordnungen ?? []) as Record<string, unknown>[]) {
+            const { id: _altZId, teilauftrag_id: _old, motiv_id: altMotivId, position_id: altPosId, ...zRest } = z as {
+              id: string
+              teilauftrag_id: string
+              motiv_id: string | null
+              position_id: string | null
+              [k: string]: unknown
+            }
+            const { error: ezErr } = await supabase
+              .from('textil_zuordnungen')
+              .insert({
+                ...zRest,
+                teilauftrag_id: neuTaId,
+                motiv_id: altMotivId ? (motivIdMap.get(altMotivId) ?? null) : null,
+                position_id: altPosId ? (posIdMap.get(altPosId) ?? null) : null,
+              } as never)
+            if (ezErr) throw ezErr
+          }
+        } else {
+          // Alle anderen Bereiche: teilauftrag_produkte kopieren
+          /* eslint-disable @typescript-eslint/no-explicit-any -- Tabelle teilauftrag_produkte fehlt in generierten Supabase-Typen */
+          const sbProdukte = supabase as any
+          const { data: altProdukte } = await sbProdukte
+            .from('teilauftrag_produkte')
+            .select('*')
+            .eq('teilauftrag_id', ta.id)
+            .order('sort_order')
+
+          for (const p of (altProdukte ?? []) as Record<string, unknown>[]) {
+            const { id: _altPId, teilauftrag_id: _old, ...pRest } = p as {
+              id: string
+              teilauftrag_id: string
+              [k: string]: unknown
+            }
+            const { error: epErr } = await sbProdukte.from('teilauftrag_produkte').insert({
+              ...pRest,
+              teilauftrag_id: neuTaId,
+            })
+            if (epErr) throw epErr
+          }
+          /* eslint-enable @typescript-eslint/no-explicit-any */
+        }
       }
 
       // Historie beim neuen Auftrag (nicht im Typ enthalten → direkt insert).

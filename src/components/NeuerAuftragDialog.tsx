@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 import type { LieferungWahl, AuftragStatus, Prioritaet } from '../types/database'
 import type { Kunde } from '../lib/kunden'
 import { KundeDialog } from './KundeDialog'
+import { useToast } from './Toast'
 import './ContextPanel.css'
 import './WorkArea.css'
 
@@ -27,6 +28,7 @@ type Props = {
 }
 
 export function NeuerAuftragDialog({ offen, onSchliessen, onErfolg }: Props) {
+  const { fehler: toastFehler } = useToast()
   const [gewaehlterKunde, setGewaehlterKunde] = useState<Kunde | null>(null)
   const [suchBegr, setSuchBegr] = useState('')
   const [suchTreffer, setSuchTreffer] = useState<Kunde[]>([])
@@ -64,13 +66,13 @@ export function NeuerAuftragDialog({ offen, onSchliessen, onErfolg }: Props) {
       .limit(20)
     setSuchLaden(false)
     if (error) {
-      console.error(error)
+      toastFehler('Kundensuche fehlgeschlagen')
       setSuchTreffer([])
       return
     }
     const rows = (data ?? []) as Kunde[]
     setSuchTreffer(rows)
-  }, [])
+  }, [toastFehler])
 
   useEffect(() => {
     if (!offen) return
@@ -90,7 +92,7 @@ export function NeuerAuftragDialog({ offen, onSchliessen, onErfolg }: Props) {
       .single()
     setKundeFuerBearbLaeuft(false)
     if (error) {
-      console.error(error)
+      toastFehler('Kunde konnte nicht geladen werden')
       return
     }
     if (data) {

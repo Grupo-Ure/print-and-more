@@ -12,7 +12,7 @@ import {
   type KundeKontaktRow,
   type TeilauftragRow,
 } from '../types/database'
-import type { Datei } from './DateiListe'
+import { DateiListe, type Datei } from './DateiListe'
 import { HistoriePanel } from './HistoriePanel'
 import { useToast } from './Toast'
 import './ContextPanel.css'
@@ -28,6 +28,7 @@ type Props = {
   onTeilauftragEntfernt: (id: string) => void
   onKundeBearbeiten: () => void
   kontextAktualisiert: number
+  onDateiGeaendert?: () => void | Promise<void>
 }
 
 function statusBadgeGlobal(s: AuftragStatus): string {
@@ -175,6 +176,7 @@ export function ContextPanel({
   onTeilauftragEntfernt,
   onKundeBearbeiten,
   kontextAktualisiert,
+  onDateiGeaendert = async () => {},
 }: Props) {
   const [busy, setBusy] = useState(false)
   const [teilBereichListe, setTeilBereichListe] = useState<{ id: string; bereich: string }[]>([])
@@ -1036,6 +1038,14 @@ export function ContextPanel({
               )}
             </div>
           </>
+        )}
+        {auftrag && (
+          <DateiListe
+            aktiverAuftragId={auftrag.id}
+            dateien={auftragDateien}
+            dateienLaden={false}
+            onDateiGeaendert={onDateiGeaendert}
+          />
         )}
       </div>
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { teilauftragBereichLabel } from '../types/database'
+import { useToast } from './Toast'
 import './ContextPanel.css'
 
 type Props = {
@@ -21,7 +22,7 @@ type HistorieZeile = {
 
 type MitarbeiterZeile = {
   id: string
-  email: string
+  name: string | null
 }
 
 const EREIGNIS_LABEL: Record<string, string> = {
@@ -58,6 +59,7 @@ function formatHistZeit(iso: string): string {
 }
 
 export function HistoriePanel({ aktiverAuftragId, kontextAktualisiert, teilauftraege }: Props) {
+  const { fehler: toastFehler } = useToast()
   const [geoefnet, setGeoefnet] = useState(false)
   const [eintraege, setEintraege] = useState<HistorieZeile[]>([])
   const [mitarbeiterById, setMitarbeiterById] = useState<Map<string, string>>(new Map())
@@ -65,20 +67,21 @@ export function HistoriePanel({ aktiverAuftragId, kontextAktualisiert, teilauftr
 
   useEffect(() => {
     supabase
-      .from('mitarbeiter')
-      .select('id, email')
+      // @ts-expect-error — Tabelle `profile` (name) ist in den generierten DB-Typen noch nicht enthalten
+      .from('profile')
+      .select('id, name')
       .then(({ data, error }) => {
         if (error) {
-          console.error(error)
+          toastFehler('Mitarbeiterdaten konnten nicht geladen werden')
           return
         }
         const m = new Map<string, string>()
-        for (const z of (data ?? []) as MitarbeiterZeile[]) {
-          m.set(z.id, z.email)
+        for (const z of (data ?? []) as unknown as MitarbeiterZeile[]) {
+          m.set(z.id, z.name ?? z.id)
         }
         setMitarbeiterById(m)
       })
-  }, [])
+  }, [toastFehler])
 
   const ladeHistorie = useCallback(async () => {
     setLaden(true)
@@ -89,13 +92,13 @@ export function HistoriePanel({ aktiverAuftragId, kontextAktualisiert, teilauftr
       .order('erstellt_am', { ascending: false })
       .limit(50)
     if (error) {
-      console.error(error)
+      toastFehler('Verlauf konnte nicht geladen werden')
       setEintraege([])
     } else {
       setEintraege((data ?? []) as HistorieZeile[])
     }
     setLaden(false)
-  }, [aktiverAuftragId])
+  }, [aktiverAuftragId, toastFehler])
 
   useEffect(() => {
     void ladeHistorie()
