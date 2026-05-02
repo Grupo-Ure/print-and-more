@@ -137,6 +137,7 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
     filter
   const [sucheOffen, setSucheOffen] = useState(false)
   const [filterPopOffen, setFilterPopOffen] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -146,6 +147,11 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
   }, [searchInput])
 
   const setSearchInput = (v: string) => setFilter(f => ({ ...f, searchInput: v }))
+
+  const clearSuche = () => {
+    setFilter(f => ({ ...f, searchInput: '', searchDebounced: '' }))
+    queueMicrotask(() => searchInputRef.current?.focus())
+  }
 
   const [quelle, setQuelle] = useState<OrderListAuftragRow[]>([])
   const quelleRef = useRef(quelle)
@@ -408,15 +414,26 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
         </div>
 
         {sucheOffen && (
-          <div className="ol-suche">
+          <div className="ol-suche" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
+              ref={searchInputRef}
               className="input-compact"
               type="search"
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
               placeholder="Kunde suchen..."
               aria-label="Kunde suchen"
+              style={{ flex: 1, minWidth: 0, boxSizing: 'border-box' }}
             />
+            <button
+              type="button"
+              className="ol-icon-btn"
+              title="Suche löschen"
+              aria-label="Suche löschen"
+              onClick={clearSuche}
+            >
+              ×
+            </button>
           </div>
         )}
 

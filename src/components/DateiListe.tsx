@@ -67,6 +67,7 @@ export function useDateienFuerAuftrag(auftragId: string) {
 
 export function DateiListe({ aktiverAuftragId, dateien, dateienLaden, onDateiGeaendert }: Props) {
   const laden = dateienLaden
+  const { erfolg } = useToast()
   const [anzeigename, setAnzeigename] = useState('')
   const [pfad, setPfad] = useState('')
   const [rolle, setRolle] = useState<DateiRolle>('PRODUKTIONSDATEI')
@@ -74,6 +75,27 @@ export function DateiListe({ aktiverAuftragId, dateien, dateienLaden, onDateiGea
   const [speichert, setSpeichert] = useState(false)
   const [entferntId, setEntferntId] = useState<string | null>(null)
   const [formOffen, setFormOffen] = useState(false)
+
+  const openParentFolder = useCallback(
+    async (rawPfad: string) => {
+      const p = (rawPfad ?? '').trim()
+      if (!p) return
+      const norm = p.replace(/\\/g, '/').replace(/\/+$/g, '')
+      const idx = norm.lastIndexOf('/')
+      const parentPath = idx > 0 ? norm.slice(0, idx) : norm
+      try {
+        window.location.href = 'file://' + parentPath
+      } catch {
+        try {
+          await navigator.clipboard.writeText(p)
+          erfolg('Pfad in Zwischenablage kopiert')
+        } catch {
+          // Clipboard kann im Browser blockiert sein
+        }
+      }
+    },
+    [erfolg],
+  )
 
   const handleHinzufuegen = async (e: FormEvent) => {
     e.preventDefault()
@@ -189,9 +211,22 @@ export function DateiListe({ aktiverAuftragId, dateien, dateienLaden, onDateiGea
         <ul className="wa-dl-list">
           {dateien.map(d => (
             <li key={d.id} className="wa-dl-item">
-              <span className="wa-dl-name" title={d.anzeigename}>
+              <button
+                type="button"
+                className="wa-dl-name"
+                title={`${d.anzeigename}\n${d.pfad}`}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  font: 'inherit',
+                  padding: 0,
+                  textAlign: 'left',
+                }}
+                onClick={() => void openParentFolder(d.pfad)}
+              >
                 <span aria-hidden>📄</span> {d.anzeigename}
-              </span>
+              </button>
               <span className="badge badge-grau" title={ROLLEN.find(r => r.value === d.rolle)?.label ?? d.rolle}>
                 {ROLLE_KURZ[d.rolle]}
               </span>
