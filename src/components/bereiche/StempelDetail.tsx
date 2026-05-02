@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   STEMPEL_FARBE,
   STEMPEL_FARBE_ANZEIGE,
@@ -8,13 +8,24 @@ import {
 } from '../../types/stempel'
 import { validateStempelDetail } from '../../lib/stempel/validateStempelDetail'
 import { teilJsonAlsFeldertabelle, type AuftragStatus, type TeilauftragRow } from '../../types/database'
+import type { Database, Json } from '../../types/supabase'
 import { supabase } from '../../supabase'
+import { useToast } from '../Toast'
 import '../WorkArea.css'
 
 type Props = {
   teil: TeilauftragRow
   teilStatus: AuftragStatus
   onDetailPatch: (patch: { typ?: string | null; detail: StempelDetailJson | null }) => Promise<void>
+}
+
+type ProduktRow = {
+  id: string
+  teilauftrag_id: string
+  bereich: string
+  detail: StempelDetailJson
+  sort_order: number | null
+  erstellt_am: string | null
 }
 
 function stempelRoh(teil: TeilauftragRow): StempelDetailJson {
@@ -111,6 +122,12 @@ function typLabel(t: string): string {
 }
 
 export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
+  const { fehler: toastFehler } = useToast()
+
+  const [produkte, setProdukte] = useState<ProduktRow[]>([])
+  const [produkteLaden, setProdukteLaden] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+
   const [typ, setTyp] = useState<string | null>(teil.typ)
   const [detail, setDetail] = useState<StempelDetailJson>(stempelRoh(teil))
   const detailR = useRef(detail)
@@ -123,15 +140,62 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
   }, [typ])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Eltern-Teil ersetzt (Speichern/Reload)
-    setTyp(teil.typ)
-    setDetail(stempelRoh(teil))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teil.id, teil.typ, teil.detail])
+    setEditingId(null)
+  }, [teil.id])
 
-  const fehler = validateStempelDetail(typ, detail, teilStatus)
+  useEffect(() => {
+    if (editingId !== null) return
+    setTyp(teil.typ)
+    const d = stempelRoh(teil)
+    setDetail(d)
+    detailR.current = d
+    typR.current = teil.typ
+  }, [teil.id, teil.typ, teil.detail, editingId])
+
+  const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
+    if (!teil.id) return []
+    setProdukteLaden(true)
+    const { data, error } = await supabase
+      .from('teilauftrag_produkte')
+      .select('*')
+      .eq('teilauftrag_id', teil.id)
+      .eq('bereich', 'STEMPEL')
+      .order('sort_order')
+    setProdukteLaden(false)
+    if (error) {
+      toastFehler('Produkte konnten nicht geladen werden')
+      setProdukte([])
+      return []
+    }
+    const rows = (data ?? []) as Database['public']['Tables']['teilauftrag_produkte']['Row'][]
+    const mapped: ProduktRow[] = rows.map(r => ({
+      id: r.id,
+      teilauftrag_id: r.teilauftrag_id,
+      bereich: r.bereich,
+      detail: (r.detail ?? {}) as unknown as StempelDetailJson,
+      sort_order: r.sort_order,
+      erstellt_am: r.erstellt_am,
+    }))
+    setProdukte(mapped)
+    return mapped
+  }, [teil.id, toastFehler])
+
+  useEffect(() => {
+    void reloadProdukte()
+  }, [reloadProdukte])
+
+  const resetForm = useCallback(() => {
+    setEditingId(null)
+    setTyp(teil.typ)
+    const d = stempelRoh(teil)
+    setDetail(d)
+    detailR.current = d
+    typR.current = teil.typ
+  }, [teil.typ, teil.detail])
+
+  const stempelFehler = validateStempelDetail(typ, detail, teilStatus)
   const pruef = teilStatus !== 'ANGEBOT'
-  const fe = (k: string) => (pruef && fehler[k] ? ' ber-inp--err' : '')
+  const fe = (k: string) => (pruef && stempelFehler[k] ? ' ber-inp--err' : '')
 
   const bVal = toPosIntOrNull(detail.format_breite)
   const hVal = toPosIntOrNull(detail.format_hoehe)
@@ -404,9 +468,10 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
       setDetail(d)
       detailR.current = d
       setTyp(nextTyp)
+      if (editingId !== null) return
       await onDetailPatch({ typ: nextTyp, detail: d })
     },
-    [onDetailPatch]
+    [onDetailPatch, editingId]
   )
 
   const patchL = useCallback((p: StempelDetailJson) => {
@@ -430,7 +495,102 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
     [speich]
   )
 
-  const p: BlK = { d: detail, fe, pruef, f: fehler, patchL, commit, speichDetail }
+  const p: BlK = { d: detail, fe, pruef, f: stempelFehler, patchL, commit, speichDetail }
+
+  const formOk = useMemo(() => Object.keys(stempelFehler).length === 0, [stempelFehler])
+
+  const handleAddOrSave = useCallback(async () => {
+    const t = typR.current
+    const d = { ...detailR.current }
+    if (!t) return
+    const errors = validateStempelDetail(t, d, teilStatus)
+    if (Object.keys(errors).length > 0) return
+
+    if (editingId) {
+      const patch: Database['public']['Tables']['teilauftrag_produkte']['Update'] = {
+        detail: { ...d, typ: t } as unknown as Json,
+      }
+      const { error } = await supabase.from('teilauftrag_produkte').update(patch).eq('id', editingId)
+      if (error) {
+        toastFehler('Produkt konnte nicht gespeichert werden')
+        return
+      }
+      const list = await reloadProdukte()
+      await onDetailPatch({
+        typ: teil.typ,
+        detail: {
+          ...stempelRoh(teil),
+          hat_produkte: list.length > 0,
+        } as StempelDetailJson,
+      })
+      resetForm()
+      return
+    }
+
+    const ins: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
+      teilauftrag_id: teil.id,
+      bereich: 'STEMPEL',
+      detail: { ...d, typ: t } as unknown as Json,
+      sort_order: produkte.length,
+    }
+    const { error } = await supabase.from('teilauftrag_produkte').insert(ins)
+    if (error) {
+      toastFehler('Produkt konnte nicht hinzugefügt werden')
+      return
+    }
+    const list = await reloadProdukte()
+    await onDetailPatch({
+      typ: teil.typ,
+      detail: {
+        ...stempelRoh(teil),
+        hat_produkte: list.length > 0,
+      } as StempelDetailJson,
+    })
+    resetForm()
+  }, [
+    teil.id,
+    teil.typ,
+    teil.detail,
+    teilStatus,
+    editingId,
+    produkte.length,
+    toastFehler,
+    reloadProdukte,
+    resetForm,
+    onDetailPatch,
+  ])
+
+  const handleDelete = useCallback(
+    async (id: string) => {
+      const { error } = await supabase.from('teilauftrag_produkte').delete().eq('id', id)
+      if (error) {
+        toastFehler('Produkt konnte nicht gelöscht werden')
+        return
+      }
+      const list = await reloadProdukte()
+      await onDetailPatch({
+        typ: teil.typ,
+        detail: {
+          ...stempelRoh(teil),
+          hat_produkte: list.length > 0,
+        } as StempelDetailJson,
+      })
+      if (editingId === id) resetForm()
+    },
+    [toastFehler, reloadProdukte, editingId, resetForm, onDetailPatch, teil.typ, teil.detail]
+  )
+
+  const handleEdit = useCallback((row: ProduktRow) => {
+    setEditingId(row.id)
+    const raw = row.detail ?? {}
+    const dr = raw as Record<string, unknown>
+    const tt = typeof dr.typ === 'string' ? dr.typ : null
+    setTyp(tt)
+    const dd = { ...(raw as StempelDetailJson) }
+    setDetail(dd)
+    detailR.current = dd
+    typR.current = tt
+  }, [])
 
   const typOptionen = [...STEMPEL_TYPEN, ...EXTRA_TYPEN] as readonly string[]
 
@@ -455,7 +615,7 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
 
       <BerZeile
         l="Typ"
-        e={pruef && fehler.typ ? fehler.typ : undefined}
+        e={pruef && stempelFehler.typ ? stempelFehler.typ : undefined}
         c={
           <select
             className={'ber-inp' + fe('typ')}
@@ -467,7 +627,7 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
                 setDetail({})
                 detailR.current = {}
                 typR.current = v || null
-                void speich(v || null, {})
+                if (editingId === null) void speich(v || null, {})
               } else {
                 setTyp(v || null)
                 typR.current = v || null
@@ -489,8 +649,8 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
           <BerZeile
             l="Suche"
             e={
-              pruef && (fehler.kissen_artikelnummer || fehler.kissen_modell_id)
-                ? [fehler.kissen_artikelnummer, fehler.kissen_modell_id].filter(Boolean).join(' — ')
+              pruef && (stempelFehler.kissen_artikelnummer || stempelFehler.kissen_modell_id)
+                ? [stempelFehler.kissen_artikelnummer, stempelFehler.kissen_modell_id].filter(Boolean).join(' — ')
                 : undefined
             }
             c={
@@ -542,7 +702,7 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
           {!!trodatKissenArt && kissenFarbOptionen.length > 0 && (
             <BerZeile
               l="Farbe"
-              e={pruef && (fehler.farbe || fehler.kissen_modell_id) ? [fehler.farbe, fehler.kissen_modell_id].filter(Boolean).join(' — ') : undefined}
+              e={pruef && (stempelFehler.farbe || stempelFehler.kissen_modell_id) ? [stempelFehler.farbe, stempelFehler.kissen_modell_id].filter(Boolean).join(' — ') : undefined}
               c={
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexWrap: 'wrap' }}>
                   {kissenFarbOptionen.map(fv => {
@@ -639,7 +799,7 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
       )}
 
       {typ === 'STEMPELKISSEN' && (
-        <BerZeile l="Größe" e={pruef && fehler.groesse ? fehler.groesse : undefined}>
+        <BerZeile l="Größe" e={pruef && stempelFehler.groesse ? stempelFehler.groesse : undefined}>
           <select
             className={'ber-inp' + fe('groesse')}
             value={String(detail['groesse'] ?? '')}
@@ -663,8 +823,8 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
         <BerZeile
           l="Farbe"
           e={
-            (pruef && fehler.farbe) || (pruef && fehler.farbe_sonstige)
-              ? [fehler.farbe, fehler.farbe_sonstige].filter(Boolean).join(' — ')
+            (pruef && stempelFehler.farbe) || (pruef && stempelFehler.farbe_sonstige)
+              ? [stempelFehler.farbe, stempelFehler.farbe_sonstige].filter(Boolean).join(' — ')
               : undefined
           }
           c={
@@ -706,7 +866,7 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
       )}
 
       {typ === 'NACHFUELLFARBE' && (
-        <BerZeile l="Typ" e={pruef && fehler.tinte_typ ? fehler.tinte_typ : undefined}>
+        <BerZeile l="Typ" e={pruef && stempelFehler.tinte_typ ? stempelFehler.tinte_typ : undefined}>
           <select
             className={'ber-inp' + fe('tinte_typ')}
             value={String(detail['tinte_typ'] ?? '')}
@@ -728,8 +888,8 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
         <BerZeile
           l="Format (mm)"
           e={
-            pruef && (fehler.format || fehler.format_breite || fehler.format_hoehe)
-              ? [fehler.format, fehler.format_breite, fehler.format_hoehe].filter(Boolean).join(' — ')
+            pruef && (stempelFehler.format || stempelFehler.format_breite || stempelFehler.format_hoehe)
+              ? [stempelFehler.format, stempelFehler.format_breite, stempelFehler.format_hoehe].filter(Boolean).join(' — ')
               : undefined
           }
           c={
@@ -890,7 +1050,7 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
       {showBeschreibung && (
         <BerZeile
           l="Beschreibung / Inhalt"
-          e={pruef && fehler.beschreibung ? fehler.beschreibung : undefined}
+          e={pruef && stempelFehler.beschreibung ? stempelFehler.beschreibung : undefined}
           c={
             <div>
               <textarea
@@ -920,6 +1080,87 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
           />
         </BerZeile>
       )}
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className="cp-btn"
+          disabled={!typ || !formOk}
+          onClick={() => void handleAddOrSave()}
+        >
+          {editingId ? 'Speichern' : 'Produkt hinzufügen'}
+        </button>
+        {editingId && (
+          <button type="button" className="cp-btn cp-btn-grau" onClick={() => resetForm()}>
+            Abbrechen
+          </button>
+        )}
+      </div>
+
+      <div style={{ borderTop: '1px solid var(--color-border, #e5e7eb)', marginTop: 10, paddingTop: 10 }}>
+        <h3 className="wa-dl-titel" style={{ margin: 0 }}>
+          Produkte
+        </h3>
+        {produkteLaden ? (
+          <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
+            Lädt Produkte …
+          </p>
+        ) : produkte.length === 0 ? (
+          <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
+            Noch keine Produkte.
+          </p>
+        ) : (
+          <div style={{ overflowX: 'auto', marginTop: 6 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
+                    Typ
+                  </th>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
+                    Stückzahl
+                  </th>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
+                    Kurzinfo
+                  </th>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
+                    Aktionen
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {produkte.map(r => {
+                  const pd = (r.detail ?? {}) as Record<string, unknown>
+                  const pt = typeof pd.typ === 'string' ? pd.typ : ''
+                  const st = pd.stueckzahl ?? ''
+                  const kurz =
+                    String(pd.beschreibung ?? '')
+                      .trim()
+                      .slice(0, 60) || '—'
+                  const typAnz = typLabel(pt)
+                  return (
+                    <tr key={r.id}>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{typAnz || '—'}</td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{String(st || '—')}</td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{kurz}</td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <button type="button" className="cp-btn cp-btn-grau" onClick={() => handleEdit(r)}>
+                            Bearbeiten
+                          </button>
+                          <button type="button" className="cp-btn cp-btn-rot" onClick={() => void handleDelete(r.id)}>
+                            Löschen
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

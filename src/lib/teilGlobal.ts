@@ -1,9 +1,4 @@
 import { teilJsonAlsFeldertabelle, type AuftragStatus, type TeilauftragRow } from '../types/database'
-import { validateCopyShopDetail } from './copyshop/validateCopyShopDetail'
-import { validateLfpDetail } from './lfp/validateLfpDetail'
-import { validateStempelDetail } from './stempel/validateStempelDetail'
-import { validateSonstigeDetail } from './sonstige/validateSonstigeDetail'
-import { validateLaserDetail } from './laser/validateLaserDetail'
 import { textilDetailJsonMarkiertVoll } from './textil/validateTextilDetail'
 
 export type LieferungEnum = 'ABHOLUNG' | 'VERSAND'
@@ -108,30 +103,15 @@ export function istTeilAuftragVollstaendig(t: TeilauftragRow, teilStatus: Auftra
   if (teilStatus === 'ANGEBOT') return true
   const g = validateGlobalTeilfelder(t, teilStatus)
   if (Object.keys(g).length > 0) return false
-  if (t.bereich === 'LFP') {
+  if (
+    t.bereich === 'LFP' ||
+    t.bereich === 'COPYSHOP' ||
+    t.bereich === 'STEMPEL' ||
+    t.bereich === 'LASERGRAVUR' ||
+    t.bereich === 'SONSTIGE'
+  ) {
     const d = teilJsonAlsFeldertabelle(t.detail)
-    const lf = validateLfpDetail(t.typ, d, teilStatus)
-    return Object.keys(lf).length === 0
-  }
-  if (t.bereich === 'COPYSHOP') {
-    const d = teilJsonAlsFeldertabelle(t.detail)
-    const c = validateCopyShopDetail(t.typ, d, teilStatus)
-    return Object.keys(c).length === 0
-  }
-  if (t.bereich === 'STEMPEL') {
-    const d = teilJsonAlsFeldertabelle(t.detail)
-    const s = validateStempelDetail(t.typ, d, teilStatus)
-    return Object.keys(s).length === 0
-  }
-  if (t.bereich === 'SONSTIGE') {
-    const d = teilJsonAlsFeldertabelle(t.detail)
-    const s = validateSonstigeDetail(d, teilStatus)
-    return Object.keys(s).length === 0
-  }
-  if (t.bereich === 'LASERGRAVUR') {
-    const d = teilJsonAlsFeldertabelle(t.detail)
-    const s = validateLaserDetail(t.typ, d, teilStatus)
-    return Object.keys(s).length === 0
+    return d?.hat_produkte === true
   }
   if (t.bereich === 'TEXTIL') {
     if (Object.keys(validateGlobalTeilfelder(t, teilStatus)).length > 0) return false

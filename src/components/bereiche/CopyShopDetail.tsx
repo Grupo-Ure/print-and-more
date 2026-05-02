@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { supabase } from '../../supabase'
 import { COPY_SHOP_TYPS, COPY_SHOP_TYPS_ANZEIGE, type CopyShopDetailJson } from '../../types/copyshop'
 import { BROS_DIN, FALZ_DIN, KARTE_DIN, KARTE_FORMAT_ORDER, FALZ_FORMAT_ORDER, BROSCH_FORMAT_ORDER } from '../../lib/copyshop/dinKfbFormate'
 import { validateCopyShopDetail } from '../../lib/copyshop/validateCopyShopDetail'
 import type { AuftragStatus, TeilauftragRow } from '../../types/database'
+import type { Database, Json } from '../../types/supabase'
+import { useToast } from '../Toast'
 import { MaterialCC } from './copyshop/MaterialCC'
 import { MaterialOffset } from './copyshop/MaterialOffset'
 import {
@@ -18,6 +21,15 @@ type Props = {
   teil: TeilauftragRow
   teilStatus: AuftragStatus
   onDetailPatch: (patch: { typ?: string | null; detail: CopyShopDetailJson | null }) => Promise<void>
+}
+
+type ProduktRow = {
+  id: string
+  teilauftrag_id: string
+  bereich: string
+  detail: CopyShopDetailJson
+  sort_order: number | null
+  erstellt_am: string | null
 }
 
 function copyRoh(teil: TeilauftragRow): CopyShopDetailJson {
@@ -77,6 +89,12 @@ type BlK = {
 }
 
 export function CopyShopDetail({ teil, teilStatus, onDetailPatch }: Props) {
+  const { fehler: toastFehler } = useToast()
+
+  const [produkte, setProdukte] = useState<ProduktRow[]>([])
+  const [produkteLaden, setProdukteLaden] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+
   const [typ, setTyp] = useState<string | null>(teil.typ)
   const [detail, setDetail] = useState<CopyShopDetailJson>(copyRoh(teil))
   const detailR = useRef(detail)
@@ -89,24 +107,72 @@ export function CopyShopDetail({ teil, teilStatus, onDetailPatch }: Props) {
   }, [typ])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Eltern-Teil ersetzt
-    setTyp(teil.typ)
-    setDetail(copyRoh(teil))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teil.id, teil.typ, teil.detail])
+    setEditingId(null)
+  }, [teil.id])
 
-  const fehler = validateCopyShopDetail(typ, detail, teilStatus)
+  useEffect(() => {
+    if (editingId !== null) return
+    setTyp(teil.typ)
+    const d = copyRoh(teil)
+    setDetail(d)
+    detailR.current = d
+    typR.current = teil.typ
+  }, [teil.id, teil.typ, teil.detail, editingId])
+
+  const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
+    if (!teil.id) return []
+    setProdukteLaden(true)
+    const { data, error } = await supabase
+      .from('teilauftrag_produkte')
+      .select('*')
+      .eq('teilauftrag_id', teil.id)
+      .eq('bereich', 'COPYSHOP')
+      .order('sort_order')
+    setProdukteLaden(false)
+    if (error) {
+      toastFehler('Produkte konnten nicht geladen werden')
+      setProdukte([])
+      return []
+    }
+    const rows = (data ?? []) as Database['public']['Tables']['teilauftrag_produkte']['Row'][]
+    const mapped: ProduktRow[] = rows.map(r => ({
+      id: r.id,
+      teilauftrag_id: r.teilauftrag_id,
+      bereich: r.bereich,
+      detail: (r.detail ?? {}) as unknown as CopyShopDetailJson,
+      sort_order: r.sort_order,
+      erstellt_am: r.erstellt_am,
+    }))
+    setProdukte(mapped)
+    return mapped
+  }, [teil.id, toastFehler])
+
+  useEffect(() => {
+    void reloadProdukte()
+  }, [reloadProdukte])
+
+  const resetForm = useCallback(() => {
+    setEditingId(null)
+    setTyp(teil.typ)
+    const d = copyRoh(teil)
+    setDetail(d)
+    detailR.current = d
+    typR.current = teil.typ
+  }, [teil.typ, teil.detail])
+
+  const copyErr = validateCopyShopDetail(typ, detail, teilStatus)
   const pruef = teilStatus !== 'ANGEBOT'
-  const fe = (k: string) => (pruef && fehler[k] ? ' ber-inp--err' : '')
+  const fe = (k: string) => (pruef && copyErr[k] ? ' ber-inp--err' : '')
 
   const speich = useCallback(
     async (nextTyp: string | null, d: CopyShopDetailJson) => {
       setDetail(d)
       detailR.current = d
       setTyp(nextTyp)
+      if (editingId !== null) return
       await onDetailPatch({ typ: nextTyp, detail: d })
     },
-    [onDetailPatch]
+    [onDetailPatch, editingId]
   )
 
   const patchL = useCallback((p: CopyShopDetailJson) => {
@@ -130,7 +196,102 @@ export function CopyShopDetail({ teil, teilStatus, onDetailPatch }: Props) {
     [speich]
   )
 
-  const p: BlK = { d: detail, fe, pruef, f: fehler, patchL, commit, speichDetail }
+  const p: BlK = { d: detail, fe, pruef, f: copyErr, patchL, commit, speichDetail }
+
+  const formOk = useMemo(() => Object.keys(copyErr).length === 0, [copyErr])
+
+  const handleAddOrSave = useCallback(async () => {
+    const t = typR.current
+    const d = { ...detailR.current }
+    if (!t) return
+    const errors = validateCopyShopDetail(t, d, teilStatus)
+    if (Object.keys(errors).length > 0) return
+
+    if (editingId) {
+      const patch: Database['public']['Tables']['teilauftrag_produkte']['Update'] = {
+        detail: { ...d, typ: t } as unknown as Json,
+      }
+      const { error } = await supabase.from('teilauftrag_produkte').update(patch).eq('id', editingId)
+      if (error) {
+        toastFehler('Produkt konnte nicht gespeichert werden')
+        return
+      }
+      const list = await reloadProdukte()
+      await onDetailPatch({
+        typ: teil.typ,
+        detail: {
+          ...copyRoh(teil),
+          hat_produkte: list.length > 0,
+        } as CopyShopDetailJson,
+      })
+      resetForm()
+      return
+    }
+
+    const ins: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
+      teilauftrag_id: teil.id,
+      bereich: 'COPYSHOP',
+      detail: { ...d, typ: t } as unknown as Json,
+      sort_order: produkte.length,
+    }
+    const { error } = await supabase.from('teilauftrag_produkte').insert(ins)
+    if (error) {
+      toastFehler('Produkt konnte nicht hinzugefügt werden')
+      return
+    }
+    const list = await reloadProdukte()
+    await onDetailPatch({
+      typ: teil.typ,
+      detail: {
+        ...copyRoh(teil),
+        hat_produkte: list.length > 0,
+      } as CopyShopDetailJson,
+    })
+    resetForm()
+  }, [
+    teil.id,
+    teil.typ,
+    teil.detail,
+    teilStatus,
+    editingId,
+    produkte.length,
+    toastFehler,
+    reloadProdukte,
+    resetForm,
+    onDetailPatch,
+  ])
+
+  const handleDelete = useCallback(
+    async (id: string) => {
+      const { error } = await supabase.from('teilauftrag_produkte').delete().eq('id', id)
+      if (error) {
+        toastFehler('Produkt konnte nicht gelöscht werden')
+        return
+      }
+      const list = await reloadProdukte()
+      await onDetailPatch({
+        typ: teil.typ,
+        detail: {
+          ...copyRoh(teil),
+          hat_produkte: list.length > 0,
+        } as CopyShopDetailJson,
+      })
+      if (editingId === id) resetForm()
+    },
+    [toastFehler, reloadProdukte, editingId, resetForm, onDetailPatch, teil.typ, teil.detail]
+  )
+
+  const handleEdit = useCallback((row: ProduktRow) => {
+    setEditingId(row.id)
+    const raw = row.detail ?? {}
+    const dr = raw as Record<string, unknown>
+    const tt = typeof dr.typ === 'string' ? dr.typ : null
+    setTyp(tt)
+    const dd = { ...(raw as CopyShopDetailJson) }
+    setDetail(dd)
+    detailR.current = dd
+    typR.current = tt
+  }, [])
 
   useEffect(() => {
     if (typ !== 'BINDUNG') return
@@ -241,7 +402,7 @@ export function CopyShopDetail({ teil, teilStatus, onDetailPatch }: Props) {
 
       <BerZeile
         l="Typ"
-        e={pruef && fehler.typ ? fehler.typ : undefined}
+        e={pruef && copyErr.typ ? copyErr.typ : undefined}
         c={
           <select
             className={'ber-inp' + fe('typ')}
@@ -254,13 +415,13 @@ export function CopyShopDetail({ teil, teilStatus, onDetailPatch }: Props) {
                   setDetail(PLAKAT_DEFAULT)
                   detailR.current = PLAKAT_DEFAULT
                   typR.current = 'PLAKAT_POSTER'
-                  void speich('PLAKAT_POSTER', { ...PLAKAT_DEFAULT } as CopyShopDetailJson)
+                  if (editingId === null) void speich('PLAKAT_POSTER', { ...PLAKAT_DEFAULT } as CopyShopDetailJson)
                 } else {
                   setTyp(v || null)
                   setDetail({})
                   detailR.current = {}
                   typR.current = v || null
-                  void speich(v || null, {})
+                  if (editingId === null) void speich(v || null, {})
                 }
               } else {
                 setTyp(v || null)
@@ -295,6 +456,96 @@ export function CopyShopDetail({ teil, teilStatus, onDetailPatch }: Props) {
       {typ === 'VISITENKARTE' && <Visitenkarte {...p} />}
       {typ === 'BINDUNG' && <BindungF {...p} />}
       {typ === 'AUSDRUCK' && <AusdruckF {...p} />}
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className="cp-btn"
+          disabled={!typ || !formOk}
+          onClick={() => void handleAddOrSave()}
+        >
+          {editingId ? 'Speichern' : 'Produkt hinzufügen'}
+        </button>
+        {editingId && (
+          <button type="button" className="cp-btn cp-btn-grau" onClick={() => resetForm()}>
+            Abbrechen
+          </button>
+        )}
+      </div>
+
+      <div style={{ borderTop: '1px solid var(--color-border, #e5e7eb)', marginTop: 10, paddingTop: 10 }}>
+        <h3 className="wa-dl-titel" style={{ margin: 0 }}>
+          Produkte
+        </h3>
+        {produkteLaden ? (
+          <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
+            Lädt Produkte …
+          </p>
+        ) : produkte.length === 0 ? (
+          <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
+            Noch keine Produkte.
+          </p>
+        ) : (
+          <div style={{ overflowX: 'auto', marginTop: 6 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
+                    Typ
+                  </th>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
+                    Stückzahl
+                  </th>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
+                    Prod.-Weg / Material
+                  </th>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
+                    Format
+                  </th>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
+                    Aktionen
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {produkte.map(r => {
+                  const pd = (r.detail ?? {}) as Record<string, unknown>
+                  const pt = typeof pd.typ === 'string' ? pd.typ : ''
+                  const st = pd.stueckzahl ?? ''
+                  const pwg = pd.produktionsweg != null ? String(pd.produktionsweg) : ''
+                  const mat = pd.material != null ? String(pd.material) : ''
+                  const kurz = pwg || mat || '—'
+                  const fw = pd.format_breite
+                  const fh = pd.format_hoehe
+                  const fmt = fw && fh ? `${fw}×${fh} mm` : '—'
+                  const typLabel =
+                    (COPY_SHOP_TYPS_ANZEIGE as Record<string, string>)[pt] ?? pt
+                  return (
+                    <tr key={r.id}>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
+                        {typLabel || '—'}
+                      </td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{String(st || '—')}</td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{kurz}</td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{fmt}</td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <button type="button" className="cp-btn cp-btn-grau" onClick={() => handleEdit(r)}>
+                            Bearbeiten
+                          </button>
+                          <button type="button" className="cp-btn cp-btn-rot" onClick={() => void handleDelete(r.id)}>
+                            Löschen
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

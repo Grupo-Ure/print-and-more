@@ -76,11 +76,9 @@ export function WorkArea({
   const [overlayOffen, setOverlayOffen] = useState(false)
   const [speichert, setSpeichert] = useState(false)
   const [dateien, setDateien] = useState<Datei[]>([])
-  const [, setDateienLaden] = useState(false)
   const [kopfTermin, setKopfTermin] = useState('')
   const [kopfLieferung, setKopfLieferung] = useState<LieferungWahl | ''>('')
   const [kopfPrioritaet, setKopfPrioritaet] = useState<Prioritaet>('NORMAL')
-  const [, setKopfSpeichert] = useState(false)
   const [verantwortlicherName, setVerantwortlicherName] = useState<string | null>(null)
   const kopfSnap = useRef<{
     termin: string | null
@@ -92,7 +90,6 @@ export function WorkArea({
 
   const reloadDateien = useCallback(async () => {
     if (!aktiverAuftragId) return
-    setDateienLaden(true)
     const { data, error } = await supabase
       .from('dateien')
       .select('id, anzeigename, pfad, rolle, erstellt_am')
@@ -104,13 +101,11 @@ export function WorkArea({
     } else {
       setDateien((data ?? []) as Datei[])
     }
-    setDateienLaden(false)
   }, [aktiverAuftragId, toastFehler])
 
   useEffect(() => {
     if (!aktiverAuftragId) {
       setDateien([])
-      setDateienLaden(false)
       return
     }
     void reloadDateien()
@@ -217,14 +212,12 @@ export function WorkArea({
   const speichereAuftragKopf = useCallback(
     async (patch: Partial<Pick<AuftragDetailRow, 'termin' | 'lieferung' | 'prioritaet'>>) => {
       if (!aktiverAuftragId) return
-      setKopfSpeichert(true)
       const { data, error } = await supabase
         .from('auftraege')
         .update(patch)
         .eq('id', aktiverAuftragId)
         .select(AUFTRAG_SPALTEN)
         .single()
-      setKopfSpeichert(false)
       if (error) {
         toastFehler('Auftrag konnte nicht gespeichert werden')
         return

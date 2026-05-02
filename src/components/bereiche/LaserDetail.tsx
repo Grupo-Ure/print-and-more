@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { supabase } from '../../supabase'
 import {
   LASER_HERKUNFT,
   LASER_HERKUNFT_ANZEIGE,
@@ -10,12 +11,23 @@ import {
 } from '../../types/laser'
 import { validateLaserDetail } from '../../lib/laser/validateLaserDetail'
 import type { AuftragStatus, TeilauftragRow } from '../../types/database'
+import type { Database, Json } from '../../types/supabase'
+import { useToast } from '../Toast'
 import '../WorkArea.css'
 
 type Props = {
   teil: TeilauftragRow
   teilStatus: AuftragStatus
   onDetailPatch: (patch: { typ?: string | null; detail: LaserDetailJson | null }) => Promise<void>
+}
+
+type ProduktRow = {
+  id: string
+  teilauftrag_id: string
+  bereich: string
+  detail: LaserDetailJson
+  sort_order: number | null
+  erstellt_am: string | null
 }
 
 function laserRoh(teil: TeilauftragRow): LaserDetailJson {
@@ -36,6 +48,12 @@ type BlK = {
 const SCHILD_T = new Set(['SCHILD', 'POKALSCHILD', 'NAMENSSCHILD'])
 
 export function LaserDetail({ teil, teilStatus, onDetailPatch }: Props) {
+  const { fehler: toastFehler } = useToast()
+
+  const [produkte, setProdukte] = useState<ProduktRow[]>([])
+  const [produkteLaden, setProdukteLaden] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+
   const [typ, setTyp] = useState<string | null>(teil.typ)
   const [detail, setDetail] = useState<LaserDetailJson>(laserRoh(teil))
   const detailR = useRef(detail)
@@ -48,15 +66,62 @@ export function LaserDetail({ teil, teilStatus, onDetailPatch }: Props) {
   }, [typ])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Eltern-Teil ersetzt
-    setTyp(teil.typ)
-    setDetail(laserRoh(teil))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teil.id, teil.typ, teil.detail])
+    setEditingId(null)
+  }, [teil.id])
 
-  const fehler = validateLaserDetail(typ, detail, teilStatus)
+  useEffect(() => {
+    if (editingId !== null) return
+    setTyp(teil.typ)
+    const d = laserRoh(teil)
+    setDetail(d)
+    detailR.current = d
+    typR.current = teil.typ
+  }, [teil.id, teil.typ, teil.detail, editingId])
+
+  const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
+    if (!teil.id) return []
+    setProdukteLaden(true)
+    const { data, error } = await supabase
+      .from('teilauftrag_produkte')
+      .select('*')
+      .eq('teilauftrag_id', teil.id)
+      .eq('bereich', 'LASERGRAVUR')
+      .order('sort_order')
+    setProdukteLaden(false)
+    if (error) {
+      toastFehler('Produkte konnten nicht geladen werden')
+      setProdukte([])
+      return []
+    }
+    const rows = (data ?? []) as Database['public']['Tables']['teilauftrag_produkte']['Row'][]
+    const mapped: ProduktRow[] = rows.map(r => ({
+      id: r.id,
+      teilauftrag_id: r.teilauftrag_id,
+      bereich: r.bereich,
+      detail: (r.detail ?? {}) as unknown as LaserDetailJson,
+      sort_order: r.sort_order,
+      erstellt_am: r.erstellt_am,
+    }))
+    setProdukte(mapped)
+    return mapped
+  }, [teil.id, toastFehler])
+
+  useEffect(() => {
+    void reloadProdukte()
+  }, [reloadProdukte])
+
+  const resetForm = useCallback(() => {
+    setEditingId(null)
+    setTyp(teil.typ)
+    const d = laserRoh(teil)
+    setDetail(d)
+    detailR.current = d
+    typR.current = teil.typ
+  }, [teil.typ, teil.detail])
+
+  const laserFehler = validateLaserDetail(typ, detail, teilStatus)
   const pruef = teilStatus !== 'ANGEBOT'
-  const fe = (k: string) => (pruef && fehler[k] ? ' ber-inp--err' : '')
+  const fe = (k: string) => (pruef && laserFehler[k] ? ' ber-inp--err' : '')
 
   const speich = useCallback(
     async (nextTyp: string | null, d: LaserDetailJson) => {
@@ -68,9 +133,10 @@ export function LaserDetail({ teil, teilStatus, onDetailPatch }: Props) {
       setDetail(out)
       detailR.current = out
       setTyp(nextTyp)
+      if (editingId !== null) return
       await onDetailPatch({ typ: nextTyp, detail: out })
     },
-    [onDetailPatch]
+    [onDetailPatch, editingId]
   )
 
   const patchL = useCallback((p: LaserDetailJson) => {
@@ -94,7 +160,108 @@ export function LaserDetail({ teil, teilStatus, onDetailPatch }: Props) {
     [speich]
   )
 
-  const p: BlK = { d: detail, fe, pruef, f: fehler, patchL, commit, speichDetail }
+  const p: BlK = { d: detail, fe, pruef, f: laserFehler, patchL, commit, speichDetail }
+
+  const formOk = useMemo(() => Object.keys(laserFehler).length === 0, [laserFehler])
+
+  const handleAddOrSave = useCallback(async () => {
+    const t = typR.current
+    const d0 = { ...detailR.current }
+    if (!t) return
+    const errors = validateLaserDetail(t, d0, teilStatus)
+    if (Object.keys(errors).length > 0) return
+
+    let d = d0
+    if (t === 'NAMENSSCHILD' && d && typeof d === 'object') {
+      d = { ...d0 }
+      delete (d as Record<string, unknown>).selbstklebend
+    }
+
+    if (editingId) {
+      const patch: Database['public']['Tables']['teilauftrag_produkte']['Update'] = {
+        detail: { ...d, typ: t } as unknown as Json,
+      }
+      const { error } = await supabase.from('teilauftrag_produkte').update(patch).eq('id', editingId)
+      if (error) {
+        toastFehler('Produkt konnte nicht gespeichert werden')
+        return
+      }
+      const list = await reloadProdukte()
+      await onDetailPatch({
+        typ: teil.typ,
+        detail: {
+          ...laserRoh(teil),
+          hat_produkte: list.length > 0,
+        } as LaserDetailJson,
+      })
+      resetForm()
+      return
+    }
+
+    const ins: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
+      teilauftrag_id: teil.id,
+      bereich: 'LASERGRAVUR',
+      detail: { ...d, typ: t } as unknown as Json,
+      sort_order: produkte.length,
+    }
+    const { error } = await supabase.from('teilauftrag_produkte').insert(ins)
+    if (error) {
+      toastFehler('Produkt konnte nicht hinzugefügt werden')
+      return
+    }
+    const list = await reloadProdukte()
+    await onDetailPatch({
+      typ: teil.typ,
+      detail: {
+        ...laserRoh(teil),
+        hat_produkte: list.length > 0,
+      } as LaserDetailJson,
+    })
+    resetForm()
+  }, [
+    teil.id,
+    teil.typ,
+    teil.detail,
+    teilStatus,
+    editingId,
+    produkte.length,
+    toastFehler,
+    reloadProdukte,
+    resetForm,
+    onDetailPatch,
+  ])
+
+  const handleDelete = useCallback(
+    async (id: string) => {
+      const { error } = await supabase.from('teilauftrag_produkte').delete().eq('id', id)
+      if (error) {
+        toastFehler('Produkt konnte nicht gelöscht werden')
+        return
+      }
+      const list = await reloadProdukte()
+      await onDetailPatch({
+        typ: teil.typ,
+        detail: {
+          ...laserRoh(teil),
+          hat_produkte: list.length > 0,
+        } as LaserDetailJson,
+      })
+      if (editingId === id) resetForm()
+    },
+    [toastFehler, reloadProdukte, editingId, resetForm, onDetailPatch, teil.typ, teil.detail]
+  )
+
+  const handleEdit = useCallback((row: ProduktRow) => {
+    setEditingId(row.id)
+    const raw = row.detail ?? {}
+    const dr = raw as Record<string, unknown>
+    const tt = typeof dr.typ === 'string' ? dr.typ : null
+    setTyp(tt)
+    const dd = { ...(raw as LaserDetailJson) }
+    setDetail(dd)
+    detailR.current = dd
+    typR.current = tt
+  }, [])
 
   return (
     <div className="ber-lfp">
@@ -105,7 +272,7 @@ export function LaserDetail({ teil, teilStatus, onDetailPatch }: Props) {
 
       <BerZeile
         l="Typ"
-        e={pruef && fehler.typ ? fehler.typ : undefined}
+        e={pruef && laserFehler.typ ? laserFehler.typ : undefined}
         c={
           <select
             className={'ber-inp' + fe('typ')}
@@ -117,7 +284,7 @@ export function LaserDetail({ teil, teilStatus, onDetailPatch }: Props) {
                 setDetail({})
                 detailR.current = {}
                 typR.current = v || null
-                void speich(v || null, {})
+                if (editingId === null) void speich(v || null, {})
               } else {
                 setTyp(v || null)
                 typR.current = v || null
@@ -147,6 +314,92 @@ export function LaserDetail({ teil, teilStatus, onDetailPatch }: Props) {
         rows={3}
         optional
       />
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className="cp-btn"
+          disabled={!typ || !formOk}
+          onClick={() => void handleAddOrSave()}
+        >
+          {editingId ? 'Speichern' : 'Produkt hinzufügen'}
+        </button>
+        {editingId && (
+          <button type="button" className="cp-btn cp-btn-grau" onClick={() => resetForm()}>
+            Abbrechen
+          </button>
+        )}
+      </div>
+
+      <div style={{ borderTop: '1px solid var(--color-border, #e5e7eb)', marginTop: 10, paddingTop: 10 }}>
+        <h3 className="wa-dl-titel" style={{ margin: 0 }}>
+          Produkte
+        </h3>
+        {produkteLaden ? (
+          <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
+            Lädt Produkte …
+          </p>
+        ) : produkte.length === 0 ? (
+          <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
+            Noch keine Produkte.
+          </p>
+        ) : (
+          <div style={{ overflowX: 'auto', marginTop: 6 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
+                    Typ
+                  </th>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
+                    Stückzahl
+                  </th>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
+                    Material
+                  </th>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
+                    Beschreibung
+                  </th>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
+                    Aktionen
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {produkte.map(r => {
+                  const pd = (r.detail ?? {}) as Record<string, unknown>
+                  const pt = typeof pd.typ === 'string' ? pd.typ : ''
+                  const st = pd.stueckzahl ?? ''
+                  const matRaw = pd.material_schild ?? pd.material
+                  const mat = matRaw != null ? String(matRaw) : '—'
+                  const beschr = pd.beschreibung != null ? String(pd.beschreibung).slice(0, 48) : '—'
+                  const typLabel = (LASER_TYP_ANZEIGE as Record<string, string>)[pt] ?? pt
+                  return (
+                    <tr key={r.id}>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
+                        {typLabel || '—'}
+                      </td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{String(st || '—')}</td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{mat}</td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{beschr}</td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <button type="button" className="cp-btn cp-btn-grau" onClick={() => handleEdit(r)}>
+                            Bearbeiten
+                          </button>
+                          <button type="button" className="cp-btn cp-btn-rot" onClick={() => void handleDelete(r.id)}>
+                            Löschen
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

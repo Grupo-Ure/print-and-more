@@ -1,14 +1,26 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { supabase } from '../../supabase'
 import { LFP_TEILTYP_ANZEIGE, LFP_TEILTYPEN, type LfpDetailJson } from '../../types/lfp'
 import { validateLfpDetail } from '../../lib/lfp/validateLfpDetail'
 import type { AuftragStatus, TeilauftragRow } from '../../types/database'
+import type { Database, Json } from '../../types/supabase'
 import {
   LFP_3551_VARIANTEN,
   LFP_AUFKLEBER_MATERIALIEN,
   LFP_FOLIENPLOTT_MATERIALIEN,
 } from '../../config/materialien'
 import { DateInput } from '../DateInput'
+import { useToast } from '../Toast'
 import '../WorkArea.css'
+
+type ProduktRow = {
+  id: string
+  teilauftrag_id: string
+  bereich: string
+  detail: LfpDetailJson
+  sort_order: number | null
+  erstellt_am: string | null
+}
 
 type Props = {
   teil: TeilauftragRow
@@ -33,6 +45,12 @@ type BlK = {
 }
 
 export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
+  const { fehler } = useToast()
+
+  const [produkte, setProdukte] = useState<ProduktRow[]>([])
+  const [produkteLaden, setProdukteLaden] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+
   const [typ, setTyp] = useState<string | null>(teil.typ)
   const [detail, setDetail] = useState<LfpDetailJson>(lfpRoh(teil))
   const detailR = useRef(detail)
@@ -45,11 +63,58 @@ export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
   }, [typ])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Eltern-Teil ersetzt (Speichern/Reload)
+    setEditingId(null)
+  }, [teil.id])
+
+  useEffect(() => {
+    if (editingId !== null) return
     setTyp(teil.typ)
-    setDetail(lfpRoh(teil))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teil.id, teil.typ, teil.detail])
+    const d = lfpRoh(teil)
+    setDetail(d)
+    detailR.current = d
+    typR.current = teil.typ
+  }, [teil.id, teil.typ, teil.detail, editingId])
+
+  const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
+    if (!teil.id) return []
+    setProdukteLaden(true)
+    const { data, error } = await supabase
+      .from('teilauftrag_produkte')
+      .select('*')
+      .eq('teilauftrag_id', teil.id)
+      .eq('bereich', 'LFP')
+      .order('sort_order')
+    setProdukteLaden(false)
+    if (error) {
+      fehler('Produkte konnten nicht geladen werden')
+      setProdukte([])
+      return []
+    }
+    const rows = (data ?? []) as Database['public']['Tables']['teilauftrag_produkte']['Row'][]
+    const mapped: ProduktRow[] = rows.map(r => ({
+      id: r.id,
+      teilauftrag_id: r.teilauftrag_id,
+      bereich: r.bereich,
+      detail: (r.detail ?? {}) as unknown as LfpDetailJson,
+      sort_order: r.sort_order,
+      erstellt_am: r.erstellt_am,
+    }))
+    setProdukte(mapped)
+    return mapped
+  }, [teil.id, fehler])
+
+  useEffect(() => {
+    void reloadProdukte()
+  }, [reloadProdukte])
+
+  const resetForm = useCallback(() => {
+    setEditingId(null)
+    setTyp(teil.typ)
+    const d = lfpRoh(teil)
+    setDetail(d)
+    detailR.current = d
+    typR.current = teil.typ
+  }, [teil.typ, teil.detail])
 
   const lfpFehler = validateLfpDetail(typ, detail, teilStatus)
   const pruef = teilStatus !== 'ANGEBOT'
@@ -60,9 +125,10 @@ export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
       setDetail(d)
       detailR.current = d
       setTyp(nextTyp)
+      if (editingId !== null) return
       await onDetailPatch({ typ: nextTyp, detail: d })
     },
-    [onDetailPatch]
+    [onDetailPatch, editingId]
   )
 
   const patchL = useCallback((p: LfpDetailJson) => {
@@ -87,6 +153,101 @@ export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
   )
 
   const p: BlK = { d: detail, fe, pruef, f: lfpFehler, patchL, commit, speichDetail }
+
+  const formOk = useMemo(() => Object.keys(lfpFehler).length === 0, [lfpFehler])
+
+  const handleAddOrSave = useCallback(async () => {
+    const t = typR.current
+    const d = { ...detailR.current }
+    if (!t) return
+    const errors = validateLfpDetail(t, d, teilStatus)
+    if (Object.keys(errors).length > 0) return
+
+    if (editingId) {
+      const patch: Database['public']['Tables']['teilauftrag_produkte']['Update'] = {
+        detail: { ...d, typ: t } as unknown as Json,
+      }
+      const { error } = await supabase.from('teilauftrag_produkte').update(patch).eq('id', editingId)
+      if (error) {
+        fehler('Produkt konnte nicht gespeichert werden')
+        return
+      }
+      const list = await reloadProdukte()
+      await onDetailPatch({
+        typ: teil.typ,
+        detail: {
+          ...lfpRoh(teil),
+          hat_produkte: list.length > 0,
+        } as LfpDetailJson,
+      })
+      resetForm()
+      return
+    }
+
+    const ins: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
+      teilauftrag_id: teil.id,
+      bereich: 'LFP',
+      detail: { ...d, typ: t } as unknown as Json,
+      sort_order: produkte.length,
+    }
+    const { error } = await supabase.from('teilauftrag_produkte').insert(ins)
+    if (error) {
+      fehler('Produkt konnte nicht hinzugefügt werden')
+      return
+    }
+    const list = await reloadProdukte()
+    await onDetailPatch({
+      typ: teil.typ,
+      detail: {
+        ...lfpRoh(teil),
+        hat_produkte: list.length > 0,
+      } as LfpDetailJson,
+    })
+    resetForm()
+  }, [
+    teil.id,
+    teil.typ,
+    teil.detail,
+    teilStatus,
+    editingId,
+    produkte.length,
+    fehler,
+    reloadProdukte,
+    resetForm,
+    onDetailPatch,
+  ])
+
+  const handleDelete = useCallback(
+    async (id: string) => {
+      const { error } = await supabase.from('teilauftrag_produkte').delete().eq('id', id)
+      if (error) {
+        fehler('Produkt konnte nicht gelöscht werden')
+        return
+      }
+      const list = await reloadProdukte()
+      await onDetailPatch({
+        typ: teil.typ,
+        detail: {
+          ...lfpRoh(teil),
+          hat_produkte: list.length > 0,
+        } as LfpDetailJson,
+      })
+      if (editingId === id) resetForm()
+    },
+    [fehler, reloadProdukte, editingId, resetForm, onDetailPatch, teil.typ, teil.detail]
+  )
+
+  const handleEdit = useCallback((row: ProduktRow) => {
+    setEditingId(row.id)
+    const raw = row.detail ?? {}
+    const d = raw as Record<string, unknown>
+    const tt = typeof d.typ === 'string' ? d.typ : null
+    setTyp(tt)
+    const dd = { ...(raw as LfpDetailJson) }
+    setDetail(dd)
+    detailR.current = dd
+    typR.current = tt
+  }, [])
 
   return (
     <div className="ber-lfp td-bereich-sect">
@@ -116,7 +277,7 @@ export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
                   setDetail({})
                   detailR.current = {}
                   typR.current = v || null
-                  void speich(v || null, {})
+                  if (editingId === null) void speich(v || null, {})
                 } else {
                   setTyp(v || null)
                   typR.current = v || null
@@ -143,6 +304,101 @@ export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
       {typ === 'ROLLUP' && <RollupF {...p} />}
       {typ === 'FAHRZEUGBESCHRIFTUNG' && <FzB {...p} />}
       {typ === 'SONSTIGE_LFP' && <Sons {...p} />}
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className="cp-btn"
+          disabled={!typ || !formOk}
+          onClick={() => void handleAddOrSave()}
+        >
+          {editingId ? 'Speichern' : 'Produkt hinzufügen'}
+        </button>
+        {editingId && (
+          <button type="button" className="cp-btn cp-btn-grau" onClick={() => resetForm()}>
+            Abbrechen
+          </button>
+        )}
+      </div>
+
+      <div style={{ borderTop: '1px solid var(--color-border, #e5e7eb)', marginTop: 10, paddingTop: 10 }}>
+        <h3 className="wa-dl-titel" style={{ margin: 0 }}>
+          Produkte
+        </h3>
+        {produkteLaden ? (
+          <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
+            Lädt Produkte …
+          </p>
+        ) : produkte.length === 0 ? (
+          <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
+            Noch keine Produkte.
+          </p>
+        ) : (
+          <div style={{ overflowX: 'auto', marginTop: 6 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
+                    Typ
+                  </th>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
+                    Stückzahl
+                  </th>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
+                    Material
+                  </th>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
+                    Format
+                  </th>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
+                    Aktionen
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {produkte.map(r => {
+                  const pd = (r.detail ?? {}) as Record<string, unknown>
+                  const pt = typeof pd.typ === 'string' ? pd.typ : ''
+                  const st = pd.stueckzahl ?? ''
+                  const mat = pd.material ?? '—'
+                  const fw = pd.format_breite
+                  const fh = pd.format_hoehe
+                  const fmt = fw && fh ? `${fw}×${fh} mm` : '—'
+                  const typLabel = (LFP_TEILTYP_ANZEIGE as Record<string, string>)[pt] ?? pt
+                  return (
+                    <tr key={r.id}>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
+                        {typLabel || '—'}
+                      </td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{String(st || '—')}</td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{String(mat)}</td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{fmt}</td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            className="cp-btn cp-btn-grau"
+                            onClick={() => handleEdit(r)}
+                          >
+                            Bearbeiten
+                          </button>
+                          <button
+                            type="button"
+                            className="cp-btn cp-btn-rot"
+                            onClick={() => void handleDelete(r.id)}
+                          >
+                            Löschen
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
