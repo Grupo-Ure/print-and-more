@@ -416,11 +416,15 @@ export function ContextPanel({
         .select(TEILAUFTRAG_SPALTEN)
         .single()
       if (error) throw error
-      await schreibeHistorie({
-        auftrag_id: auftrag.id,
-        teilauftrag_id: teil.id,
-        ereignisart: 'PRODUKTION_BEREIT_GESETZT',
-      })
+      try {
+        await schreibeHistorie({
+          auftrag_id: auftrag.id,
+          teilauftrag_id: teil.id,
+          ereignisart: 'PRODUKTION_BEREIT_GESETZT',
+        })
+      } catch {
+        console.error('Historie Produktion fehlgeschlagen')
+      }
 
       const row = data as TeilauftragRow
 
@@ -622,7 +626,10 @@ export function ContextPanel({
   const handleNotfallBestaetigt = async () => {
     if (busy || !teil) return
     const b = notfallBegr.trim()
-    if (!b) return
+    if (!b) {
+      fehler('Bitte eine Begründung eingeben')
+      return
+    }
     const neu = naechsterNotfallStatus(teil.status)
     if (neu === teil.status) {
       setDialogNotfall(false)
