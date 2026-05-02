@@ -50,6 +50,7 @@ export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
   const [produkte, setProdukte] = useState<ProduktRow[]>([])
   const [produkteLaden, setProdukteLaden] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [entsperrt, setEntsperrt] = useState(false)
 
   const [typ, setTyp] = useState<string | null>(teil.typ)
   const [detail, setDetail] = useState<LfpDetailJson>(lfpRoh(teil))
@@ -64,6 +65,10 @@ export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
 
   useEffect(() => {
     setEditingId(null)
+  }, [teil.id])
+
+  useEffect(() => {
+    setEntsperrt(false)
   }, [teil.id])
 
   useEffect(() => {
@@ -155,6 +160,9 @@ export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
   const p: BlK = { d: detail, fe, pruef, f: lfpFehler, patchL, commit, speichDetail }
 
   const formOk = useMemo(() => Object.keys(lfpFehler).length === 0, [lfpFehler])
+
+  const brauchtEntsperr =
+    (teilStatus === 'PREPRESS_BEREIT' || teilStatus === 'PRODUKTION_BEREIT') && !entsperrt
 
   const handleAddOrSave = useCallback(async () => {
     const t = typR.current
@@ -307,10 +315,26 @@ export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
         <button
           type="button"
           className="cp-btn"
-          disabled={!typ || !formOk}
-          onClick={() => void handleAddOrSave()}
+          disabled={brauchtEntsperr ? false : !typ || !formOk}
+          onClick={() => {
+            if (brauchtEntsperr) {
+              if (
+                window.confirm(
+                  'Teilauftrag ist bereits freigegeben.\nWirklich Produkte bearbeiten?',
+                )
+              ) {
+                setEntsperrt(true)
+              }
+              return
+            }
+            void handleAddOrSave()
+          }}
         >
-          {editingId ? 'Speichern' : 'Produkt hinzufügen'}
+          {brauchtEntsperr
+            ? 'Bearbeitung entsperren'
+            : editingId
+              ? 'Speichern'
+              : 'Produkt hinzufügen'}
         </button>
         {editingId && (
           <button type="button" className="cp-btn cp-btn-grau" onClick={() => resetForm()}>
@@ -318,6 +342,11 @@ export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
           </button>
         )}
       </div>
+      {entsperrt && (
+        <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
+          Bearbeitung entsperrt — Änderungen setzen Status zurück
+        </p>
+      )}
 
       <div style={{ borderTop: '1px solid var(--color-border, #e5e7eb)', marginTop: 10, paddingTop: 10 }}>
         <h3 className="wa-dl-titel" style={{ margin: 0 }}>

@@ -46,6 +46,7 @@ export function SonstigeDetail({ teil, teilStatus, onDetailPatch }: Props) {
   const [produkte, setProdukte] = useState<ProduktRow[]>([])
   const [produkteLaden, setProdukteLaden] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [entsperrt, setEntsperrt] = useState(false)
 
   const [detail, setDetail] = useState<SonstigeDetailJson>(sonstigeRoh(teil))
   const detailR = useRef(detail)
@@ -55,6 +56,10 @@ export function SonstigeDetail({ teil, teilStatus, onDetailPatch }: Props) {
 
   useEffect(() => {
     setEditingId(null)
+  }, [teil.id])
+
+  useEffect(() => {
+    setEntsperrt(false)
   }, [teil.id])
 
   useEffect(() => {
@@ -141,6 +146,9 @@ export function SonstigeDetail({ teil, teilStatus, onDetailPatch }: Props) {
   const p: BlK = { d: detail, fe, pruef, f: sonstigeFehler, patchL, commit, speichDetail }
 
   const formOk = useMemo(() => Object.keys(sonstigeFehler).length === 0, [sonstigeFehler])
+
+  const brauchtEntsperr =
+    (teilStatus === 'PREPRESS_BEREIT' || teilStatus === 'PRODUKTION_BEREIT') && !entsperrt
 
   const patchTyp = teil.typ?.trim() ? teil.typ : SONSTIGE_TYP
 
@@ -269,10 +277,26 @@ export function SonstigeDetail({ teil, teilStatus, onDetailPatch }: Props) {
         <button
           type="button"
           className="cp-btn"
-          disabled={!formOk}
-          onClick={() => void handleAddOrSave()}
+          disabled={brauchtEntsperr ? false : !formOk}
+          onClick={() => {
+            if (brauchtEntsperr) {
+              if (
+                window.confirm(
+                  'Teilauftrag ist bereits freigegeben.\nWirklich Produkte bearbeiten?',
+                )
+              ) {
+                setEntsperrt(true)
+              }
+              return
+            }
+            void handleAddOrSave()
+          }}
         >
-          {editingId ? 'Speichern' : 'Produkt hinzufügen'}
+          {brauchtEntsperr
+            ? 'Bearbeitung entsperren'
+            : editingId
+              ? 'Speichern'
+              : 'Produkt hinzufügen'}
         </button>
         {editingId && (
           <button type="button" className="cp-btn cp-btn-grau" onClick={() => resetForm()}>
@@ -280,6 +304,11 @@ export function SonstigeDetail({ teil, teilStatus, onDetailPatch }: Props) {
           </button>
         )}
       </div>
+      {entsperrt && (
+        <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
+          Bearbeitung entsperrt — Änderungen setzen Status zurück
+        </p>
+      )}
 
       <div style={{ borderTop: '1px solid var(--color-border, #e5e7eb)', marginTop: 10, paddingTop: 10 }}>
         <h3 className="wa-dl-titel" style={{ margin: 0 }}>
