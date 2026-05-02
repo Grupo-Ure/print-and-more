@@ -167,8 +167,13 @@ function fmtDateTime(iso: string): string {
 
 function joinName(x: unknown): string {
   if (!x) return ''
-  if (Array.isArray(x)) return String((x[0] as any)?.name ?? '')
-  return String((x as any).name ?? '')
+  if (Array.isArray(x)) {
+    const v = x[0]
+    return typeof v === 'object' && v && 'name' in v
+      ? String((v as Record<string, unknown>).name ?? '')
+      : ''
+  }
+  return typeof x === 'object' && x && 'name' in x ? String((x as Record<string, unknown>).name ?? '') : ''
 }
 
 function statusInfo(m: StempelModellRow): { cls: string; label: string; rank: number } {
@@ -817,7 +822,16 @@ export function BestandspflegeSeite() {
       {tab === 'BEWEGUNGEN' && (
         <div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
-            <select className="cp-select" value={movTyp} onChange={e => setMovTyp(e.target.value as any)} style={{ maxWidth: 220 }}>
+            <select
+              className="cp-select"
+              value={movTyp}
+              onChange={e => {
+                const v = (e.target as HTMLSelectElement).value
+                if (v === 'ALLE') setMovTyp('ALLE')
+                else if (v === 'ZUGANG' || v === 'ABGANG' || v === 'AUTOABGANG') setMovTyp(v)
+              }}
+              style={{ maxWidth: 220 }}
+            >
               <option value="ALLE">Alle</option>
               <option value="ZUGANG">Zugang</option>
               <option value="ABGANG">Abgang</option>

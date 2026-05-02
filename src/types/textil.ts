@@ -45,6 +45,8 @@ export type TextilPositionenRow = {
   marke: string | null
   modell: string | null
   groesse: string | null
+  /** Stammdaten-Verknüpfung (DB `textil_positionen.variante_id`). */
+  variante_id: string | null
 }
 
 export type TextilNestedMotive = {

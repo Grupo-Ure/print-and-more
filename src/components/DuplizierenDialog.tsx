@@ -73,7 +73,7 @@ export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbreche
   const minEins = gewaehlte.length >= 1
 
   const kundeLabel = (() => {
-    const k = (auftrag as any).kunden ?? null
+    const k = auftrag.kunden ?? null
     if (!k) return auftrag.id
     return kundenName(k)
   })()

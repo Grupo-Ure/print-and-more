@@ -16,12 +16,26 @@ import type {
   TextilKundenKleidungTyp,
   TextilMotiveRow,
   TextilMotivTyp,
+  TextilNestedPosition,
   TextilPlatz,
   TextilPositionenRow,
   TextilSchriftklasse,
   TextilZuordnungRow,
 } from '../../types/textil'
+import type { Database } from '../../types/supabase'
 import '../WorkArea.css'
+
+type TextilProduktMitMarkeEmbed = {
+  name: string | null
+  textil_marken?: { name: string | null } | { name: string | null }[] | null
+}
+
+type TextilVarianteQueryRow = Pick<
+  Database['public']['Tables']['textil_varianten']['Row'],
+  'id' | 'bestand' | 'farbe' | 'groesse' | 'ist_muster'
+> & {
+  textil_produkte?: TextilProduktMitMarkeEmbed | TextilProduktMitMarkeEmbed[] | null
+}
 
 type Props = {
   teil: TeilauftragRow
@@ -224,11 +238,9 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
     try {
       const ids = Array.from(
         new Set(
-          (p as any[])
-            .map(r => (r && typeof r === 'object' ? (r as any).variante_id : null))
-            .filter((x: any) => typeof x === 'string' && x.trim() !== '')
+          p.map(r => r.variante_id).filter((x): x is string => typeof x === 'string' && x.trim() !== '')
         )
-      ) as string[]
+      )
       if (ids.length === 0) {
         setVarianteInfoById(new Map())
       } else {
@@ -241,8 +253,8 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
           string,
           { bestand: number; farbe: string; groesse: string; ist_muster: boolean; produkt: string; marke: string }
         >()
-        for (const r of (vData ?? []) as any[]) {
-          const produkt = one(r.textil_produkte) as any
+        for (const r of (vData ?? []) as unknown as TextilVarianteQueryRow[]) {
+          const produkt = one(r.textil_produkte)
           const marke = produkt ? one(produkt.textil_marken) : null
           map.set(String(r.id), {
             bestand: Number(r.bestand) || 0,
@@ -1341,19 +1353,19 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
                     padding: '0.12rem 0.4rem',
                     border: '1px solid var(--border)',
                     borderRadius: 4,
-                    background: (p as any).variante_id ? '#dcfce7' : '#f1f5f9',
-                    color: (p as any).variante_id ? '#166534' : '#475569',
+                    background: p.variante_id ? '#dcfce7' : '#f1f5f9',
+                    color: p.variante_id ? '#166534' : '#475569',
                   }}
                 >
-                  {(p as any).variante_id ? 'Stammdaten' : 'Freitext'}
+                  {p.variante_id ? 'Stammdaten' : 'Freitext'}
                 </span>
               )}
               <span>
                 {p.herkunft === 'KUNDENWARE' ? (
                   `${kleidungLabel(p.typ)} · ${p.farbe} · Stückzahl: ${p.stueckzahl}`
-                ) : (p as any).variante_id ? (
+                ) : p.variante_id ? (
                   (() => {
-                    const vid = String((p as any).variante_id)
+                    const vid = String(p.variante_id)
                     const v = varianteInfoById.get(vid)
                     const marke = v?.marke || (p.marke ?? '')
                     const prod = v?.produkt || (p.modell ?? '')
@@ -1475,7 +1487,7 @@ export function TextilDetail({ teil, teilStatus, auftragDateien, auftragKunde, o
         <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
           {zuordnungen.map(z => {
             const mo = one(z.textil_motive) as { typ: TextilMotivTyp; inhalt: string | null; datei_id: string | null } | null
-            const po = one(z.textil_positionen) as TextilPositionenRow | null
+            const po = one(z.textil_positionen) as TextilNestedPosition | null
             const mLabel =
               mo?.typ === 'TEXT'
                 ? (mo.inhalt ?? 'Text')
