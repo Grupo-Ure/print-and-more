@@ -150,7 +150,7 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
     setDetail(d)
     detailR.current = d
     typR.current = teil.typ
-  }, [teil.id, teil.typ, teil.detail, editingId])
+  }, [teil, editingId])
 
   const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
     if (!teil.id) return []
@@ -191,7 +191,7 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
     setDetail(d)
     detailR.current = d
     typR.current = teil.typ
-  }, [teil.typ, teil.detail])
+  }, [teil])
 
   const stempelFehler = validateStempelDetail(typ, detail, teilStatus)
   const pruef = teilStatus !== 'ANGEBOT'
@@ -239,8 +239,7 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
     const td = teilJsonAlsFeldertabelle(teil.detail)
     setGewaehltesModellId(String(td['modell_id'] ?? '') || null)
     setGewaehltesModellName(String(td['modell_name'] ?? '') || null)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teil.id, teil.detail])
+  }, [teil])
 
   useEffect(() => {
     const t = typR.current
@@ -548,9 +547,7 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
     })
     resetForm()
   }, [
-    teil.id,
-    teil.typ,
-    teil.detail,
+    teil,
     teilStatus,
     editingId,
     produkte.length,
@@ -577,7 +574,7 @@ export function StempelDetail({ teil, teilStatus, onDetailPatch }: Props) {
       })
       if (editingId === id) resetForm()
     },
-    [toastFehler, reloadProdukte, editingId, resetForm, onDetailPatch, teil.typ, teil.detail]
+    [toastFehler, reloadProdukte, editingId, resetForm, onDetailPatch, teil]
   )
 
   const handleEdit = useCallback((row: ProduktRow) => {

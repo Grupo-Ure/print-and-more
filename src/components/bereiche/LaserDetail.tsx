@@ -76,7 +76,7 @@ export function LaserDetail({ teil, teilStatus, onDetailPatch }: Props) {
     setDetail(d)
     detailR.current = d
     typR.current = teil.typ
-  }, [teil.id, teil.typ, teil.detail, editingId])
+  }, [teil, editingId])
 
   const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
     if (!teil.id) return []
@@ -117,7 +117,7 @@ export function LaserDetail({ teil, teilStatus, onDetailPatch }: Props) {
     setDetail(d)
     detailR.current = d
     typR.current = teil.typ
-  }, [teil.typ, teil.detail])
+  }, [teil])
 
   const laserFehler = validateLaserDetail(typ, detail, teilStatus)
   const pruef = teilStatus !== 'ANGEBOT'
@@ -219,9 +219,7 @@ export function LaserDetail({ teil, teilStatus, onDetailPatch }: Props) {
     })
     resetForm()
   }, [
-    teil.id,
-    teil.typ,
-    teil.detail,
+    teil,
     teilStatus,
     editingId,
     produkte.length,
@@ -248,7 +246,7 @@ export function LaserDetail({ teil, teilStatus, onDetailPatch }: Props) {
       })
       if (editingId === id) resetForm()
     },
-    [toastFehler, reloadProdukte, editingId, resetForm, onDetailPatch, teil.typ, teil.detail]
+    [toastFehler, reloadProdukte, editingId, resetForm, onDetailPatch, teil]
   )
 
   const handleEdit = useCallback((row: ProduktRow) => {

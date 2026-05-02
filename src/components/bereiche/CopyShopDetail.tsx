@@ -117,7 +117,7 @@ export function CopyShopDetail({ teil, teilStatus, onDetailPatch }: Props) {
     setDetail(d)
     detailR.current = d
     typR.current = teil.typ
-  }, [teil.id, teil.typ, teil.detail, editingId])
+  }, [teil, editingId])
 
   const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
     if (!teil.id) return []
@@ -158,7 +158,7 @@ export function CopyShopDetail({ teil, teilStatus, onDetailPatch }: Props) {
     setDetail(d)
     detailR.current = d
     typR.current = teil.typ
-  }, [teil.typ, teil.detail])
+  }, [teil])
 
   const copyErr = validateCopyShopDetail(typ, detail, teilStatus)
   const pruef = teilStatus !== 'ANGEBOT'
@@ -249,9 +249,7 @@ export function CopyShopDetail({ teil, teilStatus, onDetailPatch }: Props) {
     })
     resetForm()
   }, [
-    teil.id,
-    teil.typ,
-    teil.detail,
+    teil,
     teilStatus,
     editingId,
     produkte.length,
@@ -278,7 +276,7 @@ export function CopyShopDetail({ teil, teilStatus, onDetailPatch }: Props) {
       })
       if (editingId === id) resetForm()
     },
-    [toastFehler, reloadProdukte, editingId, resetForm, onDetailPatch, teil.typ, teil.detail]
+    [toastFehler, reloadProdukte, editingId, resetForm, onDetailPatch, teil]
   )
 
   const handleEdit = useCallback((row: ProduktRow) => {
@@ -339,7 +337,6 @@ export function CopyShopDetail({ teil, teilStatus, onDetailPatch }: Props) {
         speichDetail({ ...d0, orientierung: 'QUERFORMAT' } as CopyShopDetailJson)
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [typ, teil.id, teil.detail, speichDetail])
 
   useEffect(() => {
@@ -358,7 +355,6 @@ export function CopyShopDetail({ teil, teilStatus, onDetailPatch }: Props) {
         speichDetail({ ...d0, format: f, format_breite: dim.b, format_hoehe: dim.h } as CopyShopDetailJson)
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- PLAKAT: fehlendes format / DIN-Maße
   }, [typ, teil.id, teil.detail, speichDetail])
 
   useEffect(() => {
@@ -393,7 +389,6 @@ export function CopyShopDetail({ teil, teilStatus, onDetailPatch }: Props) {
         speichDetail({ ...d0, brosch_bindung: 'DRAHTHEFTUNG' } as CopyShopDetailJson)
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [typ, teil.id, teil.detail, speichDetail])
 
   return (

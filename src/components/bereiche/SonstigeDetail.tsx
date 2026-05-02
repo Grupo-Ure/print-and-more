@@ -62,7 +62,7 @@ export function SonstigeDetail({ teil, teilStatus, onDetailPatch }: Props) {
     const d = sonstigeRoh(teil)
     setDetail(d)
     detailR.current = d
-  }, [teil.id, teil.detail, editingId])
+  }, [teil, editingId])
 
   const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
     if (!teil.id) return []
@@ -193,8 +193,7 @@ export function SonstigeDetail({ teil, teilStatus, onDetailPatch }: Props) {
     })
     resetForm()
   }, [
-    teil.id,
-    teil.detail,
+    teil,
     teilStatus,
     editingId,
     produkte.length,
@@ -222,7 +221,7 @@ export function SonstigeDetail({ teil, teilStatus, onDetailPatch }: Props) {
       })
       if (editingId === id) resetForm()
     },
-    [toastFehler, reloadProdukte, editingId, resetForm, onDetailPatch, teil.detail, patchTyp]
+    [toastFehler, reloadProdukte, editingId, resetForm, onDetailPatch, teil, patchTyp]
   )
 
   const handleEdit = useCallback((row: ProduktRow) => {

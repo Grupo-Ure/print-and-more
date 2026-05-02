@@ -188,7 +188,7 @@ export function TeilauftragDetail({
         }
       }
     },
-    [auftragLief, auftragPrio, teil.id, teil.auftrag_id, auftragStatus, onAktualisiert, kundePre, fehler]
+    [auftragLief, teil.id, teil.auftrag_id, auftragStatus, onAktualisiert, kundePre, fehler]
   )
 
   const onLfpPatch = useCallback(

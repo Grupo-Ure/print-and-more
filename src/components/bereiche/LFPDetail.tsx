@@ -73,7 +73,7 @@ export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
     setDetail(d)
     detailR.current = d
     typR.current = teil.typ
-  }, [teil.id, teil.typ, teil.detail, editingId])
+  }, [teil, editingId])
 
   const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
     if (!teil.id) return []
@@ -114,7 +114,7 @@ export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
     setDetail(d)
     detailR.current = d
     typR.current = teil.typ
-  }, [teil.typ, teil.detail])
+  }, [teil])
 
   const lfpFehler = validateLfpDetail(typ, detail, teilStatus)
   const pruef = teilStatus !== 'ANGEBOT'
@@ -205,9 +205,7 @@ export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
     })
     resetForm()
   }, [
-    teil.id,
-    teil.typ,
-    teil.detail,
+    teil,
     teilStatus,
     editingId,
     produkte.length,
@@ -234,7 +232,7 @@ export function LFPDetail({ teil, teilStatus, onDetailPatch }: Props) {
       })
       if (editingId === id) resetForm()
     },
-    [fehler, reloadProdukte, editingId, resetForm, onDetailPatch, teil.typ, teil.detail]
+    [fehler, reloadProdukte, editingId, resetForm, onDetailPatch, teil]
   )
 
   const handleEdit = useCallback((row: ProduktRow) => {
