@@ -16,7 +16,6 @@ import type {
   TextilKundenKleidungTyp,
   TextilMotiveRow,
   TextilMotivTyp,
-  TextilNestedPosition,
   TextilPlatz,
   TextilPositionenRow,
   TextilSchriftklasse,
@@ -93,12 +92,6 @@ function one<T>(x: T | T[] | null | undefined): T | null {
   return Array.isArray(x) ? (x[0] ?? null) : x
 }
 
-function schriftKlasseLabel(v: string | null | undefined): string {
-  if (!v) return '—'
-  const s = SCHRIFTKLASSE.find(x => x.v === v)
-  return s?.l ?? v
-}
-
 function kleidungLabel(v: string | null | undefined): string {
   if (!v) return '—'
   const s = KLEID_TYP.find(x => x.v === v)
@@ -120,6 +113,21 @@ function groesseKurzLabel(g: string): string {
   }
   return g
 }
+
+/** DB-Wert `groesse` → Formular Größenwahl + Freitext */
+function splitGroesseDb(g: string | null | undefined): { art: TextilGroesseEnum; frei: string } {
+  if (!g || g === 'KLEIN' || g === 'MITTEL' || g === 'GROSS') {
+    return { art: (g as TextilGroesseEnum) || 'MITTEL', frei: '' }
+  }
+  if (g === 'FREI') return { art: 'FREI', frei: '' }
+  if (g.startsWith('FREI:')) return { art: 'FREI', frei: g.slice(5) }
+  return { art: 'MITTEL', frei: '' }
+}
+
+const ZUO_EMBED_SELECT =
+  'id, teilauftrag_id, motiv_id, position_id, platz, groesse, druckart, textil_motive(typ, inhalt, datei_id), textil_positionen(herkunft, typ, farbe, marke, modell, groesse)'
+
+const TEMP_POS_NEU = 'neu'
 
 export function TextilDetail({
   teil,
@@ -172,7 +180,31 @@ export function TextilDetail({
 
   const [motivFormOffen, setMotivFormOffen] = useState(false)
   const [posFormOffen, setPosFormOffen] = useState(false)
-  const [zuoFormOffen, setZuoFormOffen] = useState(false)
+  const [, setZuoFormOffen] = useState(false)
+
+  const [motivOffen, setMotivOffen] = useState<Record<string, boolean>>({})
+
+  const toggleMotivOffen = (id: string) =>
+    setMotivOffen(prev => ({ ...prev, [id]: !prev[id] }))
+  const setMotivNeuOffen = (id: string) =>
+    setMotivOffen(prev => ({ ...prev, [id]: true }))
+
+  const [posMotivIds, setPosMotivIds] = useState<Record<string, string[]>>({})
+
+  /** Entwurf Zuordnung pro Motiv (aufklappbar); Schlüssel = motiv_id */
+  const [motivZuoDraft, setMotivZuoDraft] = useState<
+    Record<
+      string,
+      {
+        platz: TextilPlatz
+        grArt: TextilGroesseEnum
+        grFrei: string
+        druck: string
+        position_id: string
+        zuordnungId: string | null
+      }
+    >
+  >({})
 
   const syncTeil = useCallback(
     async (motiveL: TextilMotiveRow[], posL: TextilPositionenRow[], zuoL: TextilZuordnungRow[], afterProdMutation: boolean) => {
@@ -307,6 +339,9 @@ export function TextilDetail({
     setMotivFormOffen(false)
     setPosFormOffen(false)
     setZuoFormOffen(false)
+    setMotivOffen({})
+    setPosMotivIds({})
+    setMotivZuoDraft({})
   }, [teil.id])
 
   useEffect(() => {
@@ -510,11 +545,6 @@ export function TextilDetail({
     resetPForm()
     setPosFormOffen(false)
   }
-  const abbruchZuoForm = () => {
-    resetZForm()
-    setZuoFormOffen(false)
-  }
-
   const addMotiv = async (e: FormEvent) => {
     e.preventDefault()
     setFehler(null)
@@ -549,6 +579,7 @@ export function TextilDetail({
         setMotive(nextM)
         resetMForm()
         setMotivFormOffen(false)
+        setMotivNeuOffen(r.id)
         const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
         void syncTeil(nextM, positionen, zuordnungen, prod)
       }
@@ -582,6 +613,7 @@ export function TextilDetail({
         setMotive(nextM)
         resetMForm()
         setMotivFormOffen(false)
+        setMotivNeuOffen(r.id)
         const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
         void syncTeil(nextM, positionen, zuordnungen, prod)
       }
@@ -625,10 +657,53 @@ export function TextilDetail({
         const r = data as TextilPositionenRow
         const nextP = [...positionen, r]
         setPositionen(nextP)
+
+        let zuoAcc = zuordnungen
+        const neuSlots = posMotivIds[TEMP_POS_NEU] ?? []
+        const motivIdsNeu = neuSlots.map(id => String(id).trim()).filter(Boolean)
+        if (motivIdsNeu.length > 0) {
+          setSMut(true)
+          try {
+            for (const mid of motivIdsNeu) {
+              const { data: zData, error: zErr } = await supabase
+                .from('textil_zuordnungen')
+                .insert({
+                  teilauftrag_id: teil.id,
+                  motiv_id: mid,
+                  position_id: r.id,
+                  platz: zPlatz,
+                  groesse: 'KLEIN',
+                  druckart: null,
+                })
+                .select(ZUO_EMBED_SELECT)
+                .single()
+              if (zErr) {
+                if (isUniqueViolation(zErr)) {
+                  setFehler('Dieser Platz ist für diese Position bereits belegt.')
+                } else {
+                  setFehler(zErr.message)
+                }
+                setZuordnungen(zuoAcc)
+                resetPForm()
+                setPosFormOffen(false)
+                setPosMotivIds(prev => ({ ...prev, [TEMP_POS_NEU]: [] }))
+                const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
+                void syncTeil(motive, nextP, zuoAcc, prod)
+                return
+              }
+              if (zData) zuoAcc = [...zuoAcc, zData as unknown as TextilZuordnungRow]
+            }
+            setZuordnungen(zuoAcc)
+          } finally {
+            setSMut(false)
+          }
+        }
+
+        setPosMotivIds(prev => ({ ...prev, [TEMP_POS_NEU]: [] }))
         resetPForm()
         setPosFormOffen(false)
         const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
-        void syncTeil(motive, nextP, zuordnungen, prod)
+        void syncTeil(motive, nextP, zuoAcc, prod)
       }
     } else {
       if (eigenwareModus === 'STAMMDATEN') {
@@ -697,10 +772,53 @@ export function TextilDetail({
             })
           }
         }
+
+        let zuoAcc = zuordnungen
+        const neuSlotsEw = posMotivIds[TEMP_POS_NEU] ?? []
+        const motivIdsNeuEw = neuSlotsEw.map(id => String(id).trim()).filter(Boolean)
+        if (motivIdsNeuEw.length > 0) {
+          setSMut(true)
+          try {
+            for (const mid of motivIdsNeuEw) {
+              const { data: zData, error: zErr } = await supabase
+                .from('textil_zuordnungen')
+                .insert({
+                  teilauftrag_id: teil.id,
+                  motiv_id: mid,
+                  position_id: r.id,
+                  platz: zPlatz,
+                  groesse: 'KLEIN',
+                  druckart: null,
+                })
+                .select(ZUO_EMBED_SELECT)
+                .single()
+              if (zErr) {
+                if (isUniqueViolation(zErr)) {
+                  setFehler('Dieser Platz ist für diese Position bereits belegt.')
+                } else {
+                  setFehler(zErr.message)
+                }
+                setZuordnungen(zuoAcc)
+                resetPForm()
+                setPosFormOffen(false)
+                setPosMotivIds(prev => ({ ...prev, [TEMP_POS_NEU]: [] }))
+                const prodEw = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
+                void syncTeil(motive, nextP, zuoAcc, prodEw)
+                return
+              }
+              if (zData) zuoAcc = [...zuoAcc, zData as unknown as TextilZuordnungRow]
+            }
+            setZuordnungen(zuoAcc)
+          } finally {
+            setSMut(false)
+          }
+        }
+
+        setPosMotivIds(prev => ({ ...prev, [TEMP_POS_NEU]: [] }))
         resetPForm()
         setPosFormOffen(false)
         const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
-        void syncTeil(motive, nextP, zuordnungen, prod)
+        void syncTeil(motive, nextP, zuoAcc, prod)
       }
     }
   }
@@ -839,7 +957,107 @@ export function TextilDetail({
     return `${(p.marke ?? '').trim()} ${(p.modell ?? '').trim()} ${(p.farbe ?? '').trim()} ${(p.groesse ?? '').trim()}`.trim()
   }
 
+  useEffect(() => {
+    if (!posFormOffen) return
+    setPosMotivIds(prev => {
+      const cur = prev[TEMP_POS_NEU]
+      if (cur && cur.length > 0) return prev
+      return { ...prev, [TEMP_POS_NEU]: [''] }
+    })
+  }, [posFormOffen])
+
+  useEffect(() => {
+    for (const m of motive) {
+      if (!motivOffen[m.id]) continue
+      setMotivZuoDraft(prev => {
+        if (prev[m.id]) return prev
+        const z = zuordnungen.find(x => x.motiv_id === m.id)
+        const { art, frei } = splitGroesseDb(z?.groesse)
+        return {
+          ...prev,
+          [m.id]: {
+            platz: z?.platz ?? 'BRUST_LINKS',
+            grArt: art,
+            grFrei: frei,
+            druck: z?.druckart ?? '',
+            position_id: z?.position_id ?? '',
+            zuordnungId: z?.id ?? null,
+          },
+        }
+      })
+    }
+  }, [motivOffen, motive, zuordnungen])
+
+  const speichereZuordnungAusMotivPanel = async (motivId: string) => {
+    const d = motivZuoDraft[motivId]
+    if (!d?.position_id) {
+      setFehler('Bitte eine Position wählen.')
+      return
+    }
+    let gro: string
+    if (d.grArt === 'FREI') {
+      if (!d.grFrei.trim()) {
+        setFehler('Bei Größe „Frei (mm)“ bitte Abmessung eintragen.')
+        return
+      }
+      gro = buildFreiGroesseString(d.grFrei)
+    } else {
+      gro = d.grArt
+    }
+    setFehler(null)
+    setSMut(true)
+    try {
+      if (d.zuordnungId) {
+        const { error: delErr } = await supabase.from('textil_zuordnungen').delete().eq('id', d.zuordnungId)
+        if (delErr) {
+          setFehler(delErr.message)
+          return
+        }
+      }
+      const { data, error } = await supabase
+        .from('textil_zuordnungen')
+        .insert({
+          teilauftrag_id: teil.id,
+          motiv_id: motivId,
+          position_id: d.position_id,
+          platz: d.platz,
+          groesse: gro,
+          druckart: d.druck.trim() || null,
+        })
+        .select(ZUO_EMBED_SELECT)
+        .single()
+      if (error) {
+        if (isUniqueViolation(error)) {
+          setFehler('Dieser Platz ist für diese Position bereits belegt.')
+          return
+        }
+        setFehler(error.message)
+        return
+      }
+      if (data) {
+        const row = data as unknown as TextilZuordnungRow
+        const ohneAlt = d.zuordnungId ? zuordnungen.filter(z => z.id !== d.zuordnungId) : zuordnungen
+        const nextZ = [...ohneAlt, row]
+        setZuordnungen(nextZ)
+        setMotivZuoDraft(prev => ({
+          ...prev,
+          [motivId]: {
+            ...prev[motivId],
+            zuordnungId: row.id,
+          },
+        }))
+        const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
+        void syncTeil(motive, positionen, nextZ, prod)
+      }
+    } finally {
+      setSMut(false)
+    }
+  }
+
   const pruef = teilStatus !== 'ANGEBOT'
+
+  void addZuordnung
+  void delZ
 
   return (
     <div className="ber-lfp" style={{ maxWidth: '100%' }}>
@@ -855,6 +1073,249 @@ export function TextilDetail({
         <h3 className="ber-h3" style={{ marginTop: 0 }}>
           1. Motive
         </h3>
+        {motive.length === 0 && (
+          <div
+            style={{
+              border: '1px dashed var(--border)',
+              borderRadius: 6,
+              padding: '0.75rem',
+              marginBottom: '0.5rem',
+              fontSize: '0.85rem',
+              color: 'var(--text)',
+              opacity: 0.9,
+            }}
+          >
+            Noch kein Motiv angelegt.
+          </div>
+        )}
+        {motive.map((m, idx) => {
+          const zFirst = zuordnungen.find(z => z.motiv_id === m.id)
+          const offen = Boolean(motivOffen[m.id])
+          const draft = motivZuoDraft[m.id]
+          return (
+            <div
+              key={m.id}
+              style={{
+                marginBottom: '0.5rem',
+                border: '1px solid var(--border)',
+                borderRadius: 6,
+                padding: '0.5rem 0.65rem',
+              }}
+            >
+              {!offen ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontSize: '0.88rem',
+                  }}
+                >
+                  <strong>Motiv {idx + 1}</strong>
+                  <span style={{ opacity: 0.75 }}>|</span>
+                  <span>{m.typ}</span>
+                  <span style={{ opacity: 0.75 }}>|</span>
+                  <span>{platzLabel(zFirst?.platz ?? '—')}</span>
+                  <span style={{ opacity: 0.75 }}>|</span>
+                  <span>{groesseKurzLabel(zFirst?.groesse ?? '—')}</span>
+                  <button type="button" className="wa-ghost-btn" onClick={() => toggleMotivOffen(m.id)} disabled={sMut}>
+                    Bearbeiten
+                  </button>
+                  <button type="button" className="wa-ghost-btn" onClick={() => void delMotiv(m.id)} disabled={sMut}>
+                    Entfernen
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="ber-hinweis" style={{ fontStyle: 'normal', fontSize: '0.78rem', marginBottom: '0.5rem' }}>
+                    Zum Ändern: Motiv entfernen und neu anlegen.
+                  </p>
+                  <div className="ber-zeile">
+                    <span className="ber-lbl">Typ</span>
+                    <div className="ber-nmb">
+                      <label>
+                        <input type="radio" name={`mtyp-ro-${m.id}`} checked={m.typ === 'TEXT'} disabled /> Text
+                      </label>
+                      <label>
+                        <input type="radio" name={`mtyp-ro-${m.id}`} checked={m.typ === 'DATEI'} disabled /> Datei
+                      </label>
+                    </div>
+                  </div>
+                  {m.typ === 'TEXT' && (
+                    <>
+                      <div className="ber-zeile">
+                        <label className="ber-lbl" htmlFor={`inh-ro-${m.id}`}>
+                          Inhalt
+                        </label>
+                        <input id={`inh-ro-${m.id}`} className="ber-inp" value={m.inhalt ?? ''} disabled readOnly />
+                      </div>
+                      <div className="ber-zeile">
+                        <label className="ber-lbl" htmlFor={`fa-ro-${m.id}`}>
+                          Farbe
+                        </label>
+                        <input id={`fa-ro-${m.id}`} className="ber-inp" value={m.farbe ?? ''} disabled readOnly />
+                      </div>
+                      <div className="ber-zeile">
+                        <span className="ber-lbl">Schriftklasse</span>
+                        <select className="ber-inp" value={(m.schriftklasse as TextilSchriftklasse) || 'SERIFENLOS'} disabled>
+                          {SCHRIFTKLASSE.map(s => (
+                            <option key={s.v} value={s.v}>
+                              {s.l}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="ber-zeile">
+                        <label className="ber-lbl" htmlFor={`sa-ro-${m.id}`}>
+                          Schriftart
+                        </label>
+                        <input id={`sa-ro-${m.id}`} className="ber-inp" value={m.schriftart ?? ''} disabled readOnly />
+                      </div>
+                    </>
+                  )}
+                  {m.typ === 'DATEI' && (
+                    <div className="ber-zeile">
+                      <span className="ber-lbl">Datei</span>
+                      <input
+                        className="ber-inp"
+                        value={dateiNameById.get(m.datei_id ?? '') ?? m.datei_id ?? ''}
+                        disabled
+                        readOnly
+                      />
+                    </div>
+                  )}
+                  {draft && (
+                    <>
+                      <div className="ber-zeile">
+                        <span className="ber-lbl">Position</span>
+                        <select
+                          className="ber-inp"
+                          value={draft.position_id}
+                          onChange={e =>
+                            setMotivZuoDraft(prev => ({
+                              ...prev,
+                              [m.id]: {
+                                ...(prev[m.id] ?? draft),
+                                position_id: e.target.value,
+                              },
+                            }))
+                          }
+                        >
+                          <option value="">—</option>
+                          {positionen.map(p => (
+                            <option key={p.id} value={p.id}>
+                              {HERKUNFT_ANZEIGE[p.herkunft]} · {posKurz(p)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="ber-zeile">
+                        <span className="ber-lbl">Platz</span>
+                        <select
+                          className="ber-inp"
+                          value={draft.platz}
+                          onChange={e =>
+                            setMotivZuoDraft(prev => ({
+                              ...prev,
+                              [m.id]: {
+                                ...(prev[m.id] ?? draft),
+                                platz: e.target.value as TextilPlatz,
+                              },
+                            }))
+                          }
+                        >
+                          {PLATZ_OPT.map(p => (
+                            <option key={p.v} value={p.v}>
+                              {p.l}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="ber-zeile">
+                        <span className="ber-lbl">Größe</span>
+                        <div>
+                          <select
+                            className="ber-inp"
+                            value={draft.grArt}
+                            onChange={e =>
+                              setMotivZuoDraft(prev => ({
+                                ...prev,
+                                [m.id]: {
+                                  ...(prev[m.id] ?? draft),
+                                  grArt: e.target.value as TextilGroesseEnum,
+                                },
+                              }))
+                            }
+                          >
+                            {GROESSE_WAHL.map(g => (
+                              <option key={g} value={g}>
+                                {g === 'FREI' ? 'Frei (mm)' : GROESSE_ANZEIGE[g as 'KLEIN' | 'MITTEL' | 'GROSS']}
+                              </option>
+                            ))}
+                          </select>
+                          {draft.grArt === 'FREI' && (
+                            <input
+                              className="ber-inp"
+                              style={{ marginTop: 6, maxWidth: '14rem' }}
+                              placeholder="z. B. 150x200"
+                              value={draft.grFrei}
+                              onChange={e =>
+                                setMotivZuoDraft(prev => ({
+                                  ...prev,
+                                  [m.id]: {
+                                    ...(prev[m.id] ?? draft),
+                                    grFrei: e.target.value,
+                                  },
+                                }))
+                              }
+                            />
+                          )}
+                        </div>
+                      </div>
+                      <div className="ber-zeile">
+                        <label className="ber-lbl" htmlFor={`dr-${m.id}`}>
+                          Druckart
+                        </label>
+                        <input
+                          id={`dr-${m.id}`}
+                          className="ber-inp"
+                          placeholder="Wird durch PrePress festgelegt"
+                          value={draft.druck}
+                          onChange={e =>
+                            setMotivZuoDraft(prev => ({
+                              ...prev,
+                              [m.id]: {
+                                ...(prev[m.id] ?? draft),
+                                druck: e.target.value,
+                              },
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="ber-zeile">
+                        <span className="ber-lbl" />
+                        <div className="ber-nmb" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
+                          <button
+                            type="button"
+                            className="wa-bereich-btn"
+                            disabled={sMut || laden}
+                            onClick={() => void speichereZuordnungAusMotivPanel(m.id)}
+                          >
+                            Zuordnung speichern
+                          </button>
+                          <button type="button" className="wa-ghost-btn" onClick={() => toggleMotivOffen(m.id)} disabled={sMut}>
+                            Schließen
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )
+        })}
         {!motivFormOffen && (
           <p style={{ margin: '0 0 0.5rem' }}>
             <button
@@ -961,49 +1422,11 @@ export function TextilDetail({
             </form>
           </>
         )}
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-          {motive.map(m => (
-            <li
-              key={m.id}
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                alignItems: 'center',
-                gap: 8,
-                padding: '0.45rem 0',
-                borderBottom: '1px solid var(--border)',
-                fontSize: '0.88rem',
-              }}
-            >
-              <span
-                style={{
-                  fontSize: '0.68rem',
-                  fontWeight: 600,
-                  padding: '0.12rem 0.4rem',
-                  border: '1px solid var(--border)',
-                  borderRadius: 4,
-                }}
-              >
-                {m.typ}
-              </span>
-              {m.typ === 'TEXT' ? (
-                <span>
-                  {m.inhalt} · {m.farbe} · {schriftKlasseLabel(m.schriftklasse)}
-                </span>
-              ) : (
-                <span>{dateiNameById.get(m.datei_id ?? '') ?? m.datei_id}</span>
-              )}
-              <button type="button" className="wa-ghost-btn" onClick={() => void delMotiv(m.id)} disabled={sMut}>
-                Entfernen
-              </button>
-            </li>
-          ))}
-        </ul>
       </div>
 
       <div className="ber-lfp" style={{ borderTop: '1px solid var(--border)' }}>
         <h3 className="ber-h3" style={{ marginTop: '0.35rem' }}>
-          2. Positionen (Textilien)
+          2. Textilien
         </h3>
         {!posFormOffen && (
           <p style={{ margin: '0 0 0.5rem' }}>
@@ -1309,6 +1732,48 @@ export function TextilDetail({
                   />
                 </div>
               )}
+              {(posMotivIds[TEMP_POS_NEU] ?? ['']).map((slotVal, slotIx) => (
+                <div key={`mot-slot-${slotIx}`} className="ber-zeile">
+                  <span className="ber-lbl">{slotIx === 0 ? 'Motiv zuordnen' : ''}</span>
+                  <div>
+                    <select
+                      className="ber-inp"
+                      value={slotVal}
+                      onChange={e => {
+                        const v = e.target.value
+                        setPosMotivIds(prev => {
+                          const row = [...(prev[TEMP_POS_NEU] ?? [''])]
+                          row[slotIx] = v
+                          return { ...prev, [TEMP_POS_NEU]: row }
+                        })
+                      }}
+                    >
+                      <option value="">—</option>
+                      {motive.map(mm => (
+                        <option key={mm.id} value={mm.id}>
+                          {mm.typ === 'TEXT' ? mm.inhalt : `Datei: ${dateiNameById.get(mm.datei_id ?? '') ?? mm.datei_id}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              ))}
+              <div className="ber-zeile">
+                <span className="ber-lbl" />
+                <button
+                  type="button"
+                  className="wa-ghost-btn"
+                  onClick={() =>
+                    setPosMotivIds(prev => ({
+                      ...prev,
+                      [TEMP_POS_NEU]: [...(prev[TEMP_POS_NEU] ?? ['']), ''],
+                    }))
+                  }
+                  disabled={sMut || laden}
+                >
+                  + weiteres Motiv
+                </button>
+              </div>
               <div className="ber-zeile">
                 <span className="ber-lbl" />
                 <div className="ber-nmb" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -1386,151 +1851,39 @@ export function TextilDetail({
                   `${p.marke} ${p.modell} ${p.farbe} / ${p.groesse} · Stückzahl: ${p.stueckzahl}`
                 )}
               </span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                {zuordnungen
+                  .filter(z => z.position_id === p.id)
+                  .map(z => {
+                    const mo = motive.find(mm => mm.id === z.motiv_id)
+                    const lab =
+                      mo?.typ === 'TEXT'
+                        ? (mo.inhalt ?? 'Text')
+                        : mo
+                          ? `Datei: ${dateiNameById.get(mo.datei_id ?? '') ?? mo.datei_id}`
+                          : z.motiv_id
+                    return (
+                      <span
+                        key={z.id}
+                        style={{
+                          fontSize: '0.65rem',
+                          fontWeight: 600,
+                          padding: '0.1rem 0.35rem',
+                          border: '1px solid var(--border)',
+                          borderRadius: 4,
+                          background: 'var(--accent-bg, rgba(170, 59, 255, 0.08))',
+                        }}
+                      >
+                        {lab}
+                      </span>
+                    )
+                  })}
+              </div>
               <button type="button" className="wa-ghost-btn" onClick={() => void delPos(p.id)} disabled={sMut}>
                 Entfernen
               </button>
             </li>
           ))}
-        </ul>
-      </div>
-
-      <div className="ber-lfp" style={{ borderTop: '1px solid var(--border)' }}>
-        <h3 className="ber-h3" style={{ marginTop: '0.35rem' }}>
-          3. Zuordnungen
-        </h3>
-        {!zuoFormOffen && (
-          <p style={{ margin: '0 0 0.5rem' }}>
-            <button
-              type="button"
-              className="wa-bereich-btn"
-              onClick={() => setZuoFormOffen(true)}
-              disabled={sMut || laden}
-            >
-              + Zuordnung hinzufügen
-            </button>
-          </p>
-        )}
-        {zuoFormOffen && (
-          <form onSubmit={addZuordnung}>
-            <div className="ber-zeile">
-              <span className="ber-lbl">Motiv</span>
-              <select className="ber-inp" value={zMot} onChange={e => setZMot(e.target.value)}>
-                <option value="">—</option>
-                {motive.map(m => (
-                  <option key={m.id} value={m.id}>
-                    {m.typ === 'TEXT' ? m.inhalt : `Datei: ${dateiNameById.get(m.datei_id ?? '') ?? m.datei_id}`}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="ber-zeile">
-              <span className="ber-lbl">Position</span>
-              <select className="ber-inp" value={zPos} onChange={e => setZPos(e.target.value)}>
-                <option value="">—</option>
-                {positionen.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {HERKUNFT_ANZEIGE[p.herkunft]} · {posKurz(p)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="ber-zeile">
-              <span className="ber-lbl">Platz</span>
-              <select className="ber-inp" value={zPlatz} onChange={e => setZPlatz(e.target.value as TextilPlatz)}>
-                {PLATZ_OPT.map(p => (
-                  <option key={p.v} value={p.v}>
-                    {p.l}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="ber-zeile">
-              <span className="ber-lbl">Größe</span>
-              <div>
-                <select className="ber-inp" value={zGrArt} onChange={e => setZGrArt(e.target.value as TextilGroesseEnum)}>
-                  {GROESSE_WAHL.map(g => (
-                    <option key={g} value={g}>
-                      {g === 'FREI' ? 'Frei (mm)' : GROESSE_ANZEIGE[g as 'KLEIN' | 'MITTEL' | 'GROSS']}
-                    </option>
-                  ))}
-                </select>
-                {zGrArt === 'FREI' && (
-                  <input
-                    className="ber-inp"
-                    style={{ marginTop: 6, maxWidth: '14rem' }}
-                    placeholder="z. B. 150x200"
-                    value={zGrFrei}
-                    onChange={e => setZGrFrei(e.target.value)}
-                  />
-                )}
-              </div>
-            </div>
-            <div className="ber-zeile">
-              <label className="ber-lbl" htmlFor="tx-dru">
-                Druckart
-              </label>
-              <div>
-                <input
-                  id="tx-dru"
-                  className="ber-inp"
-                  placeholder="Wird durch PrePress festgelegt"
-                  value={zDruck}
-                  onChange={e => setZDruck(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="ber-zeile">
-              <span className="ber-lbl" />
-              <div className="ber-nmb" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
-                <button type="submit" className="wa-bereich-btn" disabled={sMut || laden}>
-                  + Hinzufügen
-                </button>
-                <button type="button" className="wa-ghost-btn" onClick={abbruchZuoForm} disabled={sMut || laden}>
-                  Abbrechen
-                </button>
-              </div>
-            </div>
-          </form>
-        )}
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-          {zuordnungen.map(z => {
-            const mo = one(z.textil_motive) as { typ: TextilMotivTyp; inhalt: string | null; datei_id: string | null } | null
-            const po = one(z.textil_positionen) as TextilNestedPosition | null
-            const mLabel =
-              mo?.typ === 'TEXT'
-                ? (mo.inhalt ?? 'Text')
-                : `Datei: ${dateiNameById.get(mo?.datei_id ?? '') ?? mo?.datei_id ?? '—'}`
-            const pLabel = po
-              ? po.herkunft === 'KUNDENWARE'
-                ? `${po.herkunft} · ${kleidungLabel(po.typ)} · ${po.farbe ?? ''}`
-                : `${po.herkunft} · ${po.marke} · ${po.modell} · ${po.farbe} · ${po.groesse ?? ''}`
-              : z.position_id
-            return (
-              <li
-                key={z.id}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  gap: 4,
-                  padding: '0.5rem 0',
-                  borderBottom: '1px solid var(--border)',
-                  fontSize: '0.88rem',
-                }}
-              >
-                <div>
-                  {mLabel} <span style={{ opacity: 0.6 }}>→</span> {platzLabel(z.platz)} <span style={{ opacity: 0.6 }}>→</span> {pLabel}
-                </div>
-                <div style={{ fontSize: '0.82rem', color: 'var(--text)' }}>
-                  {groesseKurzLabel(z.groesse)}
-                  {z.druckart ? ` · ${z.druckart}` : ''}
-                </div>
-                <button type="button" className="wa-ghost-btn" onClick={() => void delZ(z.id)} disabled={sMut}>
-                  Entfernen
-                </button>
-              </li>
-            )
-          })}
         </ul>
       </div>
     </div>
