@@ -147,6 +147,13 @@ export function TeilauftragDetail({
 
   const kundePre = kundeErfuelltPrepressKontakt(auftragKunde)
 
+  const detailObj =
+    lokal.detail && typeof lokal.detail === 'object'
+      ? (lokal.detail as Record<string, unknown>)
+      : ({} as Record<string, unknown>)
+  const dateiIdAusDetail =
+    typeof detailObj.datei_id === 'string' ? String(detailObj.datei_id) : ''
+
   const speichere = useCallback(
     async (patch: Partial<TeilauftragRow>) => {
       const snap = snapR.current
@@ -189,6 +196,18 @@ export function TeilauftragDetail({
       }
     },
     [auftragLief, teil.id, teil.auftrag_id, auftragStatus, onAktualisiert, kundePre, fehler]
+  )
+
+  const speichereDetailDateiId = useCallback(
+    async (nextId: string | null) => {
+      const cur = lokalR.current.detail
+      const base =
+        cur && typeof cur === 'object' ? (cur as Record<string, unknown>) : ({} as Record<string, unknown>)
+      const next = patchDetailDateiId(base, nextId)
+      setLokal(s => ({ ...s, detail: next as never }))
+      await speichere({ detail: next as never })
+    },
+    [speichere]
   )
 
   const onLfpPatch = useCallback(
@@ -386,15 +405,19 @@ export function TeilauftragDetail({
     }
   }, [auftragPrio, lokal.prioritaet, onAktualisiert, teil.id, fehler])
 
+  const autoDateiRef = useRef('')
   useEffect(() => {
-    const d = lokal.detail as Record<string, unknown> | null
-    const aktuelleId = (d?.datei_id as string | null) ?? null
-    if (aktuelleId) return // bereits gesetzt — nicht überschreiben
-    if (auftragDateien.length === 0) return // keine Dateien vorhanden
-    const ersteId = auftragDateien[0].id
-    const neuesDetail = detailMitErhaltDateiId(d, ersteId)
-    void speichere({ detail: neuesDetail as never })
-  }, [auftragDateien, lokal.detail, speichere])
+    // Pro Teilauftrag genau einmal vorselektieren.
+    if (autoDateiRef.current === teil.id) return
+    if (dateiIdAusDetail) {
+      autoDateiRef.current = teil.id
+      return
+    }
+    const first = auftragDateien[0]?.id
+    if (!first) return
+    autoDateiRef.current = teil.id
+    void speichereDetailDateiId(first)
+  }, [teil.id, auftragDateien, dateiIdAusDetail, speichereDetailDateiId])
 
   const tBadge = teilStatusBadgeAuf(lokal.status)
 
@@ -420,6 +443,27 @@ export function TeilauftragDetail({
       <h2 className="sec-h2" style={{ marginTop: 8 }}>
         Allgemein
       </h2>
+      {auftragDateien.length > 0 && (
+        <div className="ber-zeile-stack" style={{ marginTop: 8 }}>
+          <span className="ber-lbl">Auftragsdatei</span>
+          <select
+            className="ber-inp"
+            value={dateiIdAusDetail || ''}
+            onChange={e => {
+              const v = e.target.value
+              void speichereDetailDateiId(v ? v : null)
+            }}
+            aria-label="Auftragsdatei"
+          >
+            <option value="">— Datei wählen —</option>
+            {auftragDateien.map(d => (
+              <option key={d.id} value={d.id}>
+                {d.anzeigename}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="ber-grid-2">
         <div className="ber-zeile-stack">
           <span className="ber-lbl">Lieferdatum</span>
@@ -521,31 +565,6 @@ export function TeilauftragDetail({
           </div>
         </div>
       </div>
-      {auftragDateien.length > 0 && (
-        <div className="ber-zeile-stack" style={{ marginTop: 8 }}>
-          <span className="ber-lbl">Auftragsdatei</span>
-          <select
-            className="ber-inp"
-            value={
-              ((lokal.detail as Record<string, unknown> | null)?.datei_id as string) ?? ''
-            }
-            onChange={e => {
-              const val = e.target.value || null
-              const d = lokal.detail as Record<string, unknown> | null
-              const neuesDetail = patchDetailDateiId(d, val)
-              setLokal(s => ({ ...s, detail: neuesDetail as never }))
-              void speichere({ detail: neuesDetail as never })
-            }}
-          >
-            <option value="">— keine —</option>
-            {auftragDateien.map(datei => (
-              <option key={datei.id} value={datei.id}>
-                {datei.anzeigename}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
       <div className="ber-zeile-stack" style={{ marginTop: 0, maxWidth: '22rem' }}>
         <span className="ber-lbl">Priorität</span>
         <div>
