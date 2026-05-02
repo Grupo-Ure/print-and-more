@@ -219,7 +219,7 @@ export function BestandspflegeSeite() {
       .select('id, email')
       .then(({ data, error }) => {
         if (error) {
-          fehler('Buchung fehlgeschlagen')
+          fehler('Mitarbeiterdaten konnten nicht geladen werden')
           return
         }
         const m = new Map<string, string>()
