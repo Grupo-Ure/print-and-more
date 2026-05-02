@@ -950,13 +950,6 @@ export function TextilDetail({
     void syncTeil(motive, positionen, next, prod)
   }
 
-  const posKurz = (p: TextilPositionenRow) => {
-    if (p.herkunft === 'KUNDENWARE') {
-      return `${kleidungLabel(p.typ)} ${p.farbe?.trim() ?? ''}`.trim()
-    }
-    return `${(p.marke ?? '').trim()} ${(p.modell ?? '').trim()} ${(p.farbe ?? '').trim()} ${(p.groesse ?? '').trim()}`.trim()
-  }
-
   useEffect(() => {
     if (!posFormOffen) return
     setPosMotivIds(prev => {
@@ -991,7 +984,7 @@ export function TextilDetail({
   const speichereZuordnungAusMotivPanel = async (motivId: string) => {
     const d = motivZuoDraft[motivId]
     if (!d?.position_id) {
-      setFehler('Bitte eine Position wählen.')
+      setFehler('Noch keine Zuordnung zu einer Textil-Position: bitte unter „2. Textilien“ zuordnen, dann hier Platz, Größe und Druckart bearbeiten.')
       return
     }
     let gro: string
@@ -1057,7 +1050,6 @@ export function TextilDetail({
   const pruef = teilStatus !== 'ANGEBOT'
 
   void addZuordnung
-  void delZ
 
   return (
     <div className="ber-lfp" style={{ maxWidth: '100%' }}>
@@ -1187,29 +1179,6 @@ export function TextilDetail({
                   )}
                   {draft && (
                     <>
-                      <div className="ber-zeile">
-                        <span className="ber-lbl">Position</span>
-                        <select
-                          className="ber-inp"
-                          value={draft.position_id}
-                          onChange={e =>
-                            setMotivZuoDraft(prev => ({
-                              ...prev,
-                              [m.id]: {
-                                ...(prev[m.id] ?? draft),
-                                position_id: e.target.value,
-                              },
-                            }))
-                          }
-                        >
-                          <option value="">—</option>
-                          {positionen.map(p => (
-                            <option key={p.id} value={p.id}>
-                              {HERKUNFT_ANZEIGE[p.herkunft]} · {posKurz(p)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
                       <div className="ber-zeile">
                         <span className="ber-lbl">Platz</span>
                         <select
@@ -1748,10 +1717,12 @@ export function TextilDetail({
                         })
                       }}
                     >
-                      <option value="">—</option>
-                      {motive.map(mm => (
-                        <option key={mm.id} value={mm.id}>
-                          {mm.typ === 'TEXT' ? mm.inhalt : `Datei: ${dateiNameById.get(mm.datei_id ?? '') ?? mm.datei_id}`}
+                      <option value="">— Motiv wählen —</option>
+                      {motive.map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.typ === 'TEXT'
+                            ? (m.inhalt ?? 'Text-Motiv')
+                            : `Datei-Motiv ${motive.indexOf(m) + 1}`}
                         </option>
                       ))}
                     </select>
@@ -1855,17 +1826,20 @@ export function TextilDetail({
                 {zuordnungen
                   .filter(z => z.position_id === p.id)
                   .map(z => {
-                    const mo = motive.find(mm => mm.id === z.motiv_id)
+                    const mo = motive.find(m => m.id === z.motiv_id)
                     const lab =
                       mo?.typ === 'TEXT'
-                        ? (mo.inhalt ?? 'Text')
+                        ? (mo.inhalt ?? 'Text-Motiv')
                         : mo
-                          ? `Datei: ${dateiNameById.get(mo.datei_id ?? '') ?? mo.datei_id}`
+                          ? `Datei-Motiv ${motive.indexOf(mo) + 1}`
                           : z.motiv_id
                     return (
                       <span
                         key={z.id}
                         style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
                           fontSize: '0.65rem',
                           fontWeight: 600,
                           padding: '0.1rem 0.35rem',
@@ -1874,7 +1848,25 @@ export function TextilDetail({
                           background: 'var(--accent-bg, rgba(170, 59, 255, 0.08))',
                         }}
                       >
-                        {lab}
+                        <span>{lab}</span>
+                        <button
+                          type="button"
+                          title="Zuordnung entfernen"
+                          onClick={() => void delZ(z.id)}
+                          disabled={sMut}
+                          style={{
+                            font: 'inherit',
+                            fontSize: '0.75rem',
+                            lineHeight: 1,
+                            padding: '0 0.15rem',
+                            border: 'none',
+                            background: 'transparent',
+                            cursor: sMut ? 'not-allowed' : 'pointer',
+                            color: 'var(--text)',
+                          }}
+                        >
+                          ×
+                        </button>
                       </span>
                     )
                   })}
