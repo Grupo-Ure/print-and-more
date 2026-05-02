@@ -148,6 +148,10 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
   const setSearchInput = (v: string) => setFilter(f => ({ ...f, searchInput: v }))
 
   const [quelle, setQuelle] = useState<OrderListAuftragRow[]>([])
+  const quelleRef = useRef(quelle)
+  useEffect(() => {
+    quelleRef.current = quelle
+  }, [quelle])
   const [initLaden, setInitLaden] = useState(true)
   const [aktualisiere, setAktualisiere] = useState(false)
   const mindestensEinmalGeladen = useRef(false)
@@ -262,6 +266,62 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
       q.map(r => (r.id === orderInPlace.id ? { ...r, status: orderInPlace.status } : r))
     )
   }, [orderInPlace])
+
+  const refreshAuftragEintrag = useCallback(async (auftragId: string) => {
+    const { data, error } = await supabase
+      .from('auftraege')
+      .select(
+        'id, auftragsnummer, status, erstellt_am, termin, prioritaet, notfall_aktiv, kunde_id, kunden(name), teilauftraege(bereich, status)',
+      )
+      .eq('id', auftragId)
+      .single()
+    if (error) {
+      console.warn('refreshAuftragEintrag fehlgeschlagen:', auftragId)
+      return
+    }
+    if (!data) return
+    const row = data as OrderListAuftragRow
+    setQuelle(list => list.map(x => (x.id === auftragId ? row : x)))
+  }, [])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('orderlist-kunden-refresh')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'kunden' },
+        payload => {
+          const kundeId = (payload.new as { id?: string } | null)?.id
+          if (!kundeId) return
+          const ids = quelleRef.current.filter(a => a.kunde_id === kundeId).map(a => a.id)
+          for (const id of ids) void refreshAuftragEintrag(id)
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'kunden' },
+        payload => {
+          const kundeId = (payload.new as { id?: string } | null)?.id
+          if (!kundeId) return
+          const ids = quelleRef.current.filter(a => a.kunde_id === kundeId).map(a => a.id)
+          for (const id of ids) void refreshAuftragEintrag(id)
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'kunden' },
+        payload => {
+          const kundeId = (payload.old as { id?: string } | null)?.id
+          if (!kundeId) return
+          const ids = quelleRef.current.filter(a => a.kunde_id === kundeId).map(a => a.id)
+          for (const id of ids) void refreshAuftragEintrag(id)
+        },
+      )
+      .subscribe()
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [refreshAuftragEintrag])
 
   const auftraege = useMemo(() => {
     if (bereich === 'Alle') return quelle
