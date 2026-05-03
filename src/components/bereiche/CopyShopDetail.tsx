@@ -248,9 +248,7 @@ export function CopyShopDetail({
     typR.current = teil.typ
   }, [teil])
 
-  const hatDateiFuerValidierung =
-    editingId === null ? undefined : (produktDateien[editingId]?.length ?? 0) > 0
-  const copyErr = validateCopyShopDetail(typ, detail, teilStatus, hatDateiFuerValidierung)
+  const copyErr = validateCopyShopDetail(typ, detail, teilStatus)
   const pruef = teilStatus !== 'ANGEBOT'
   const fe = (k: string) => (pruef && copyErr[k] ? ' ber-inp--err' : '')
 
@@ -298,9 +296,7 @@ export function CopyShopDetail({
     const t = typR.current
     const d = detailOhneDateiId({ ...detailR.current })
     if (!t) return
-    const hatDatei =
-      editingId === null ? undefined : (produktDateien[editingId]?.length ?? 0) > 0
-    const errors = validateCopyShopDetail(t, d, teilStatus, hatDatei)
+    const errors = validateCopyShopDetail(t, d, teilStatus)
     if (Object.keys(errors).length > 0) return
 
     if (editingId) {
@@ -349,7 +345,6 @@ export function CopyShopDetail({
     teilStatus,
     editingId,
     produkte.length,
-    produktDateien,
     toastFehler,
     reloadProdukte,
     resetForm,
@@ -548,15 +543,6 @@ export function CopyShopDetail({
       {typ === 'VISITENKARTE' && <Visitenkarte {...p} />}
       {typ === 'BINDUNG' && <BindungF {...p} />}
       {typ === 'AUSDRUCK' && <AusdruckF {...p} />}
-
-      {pruef && copyErr.datei && (
-        <div
-          role="alert"
-          style={{ color: 'var(--color-danger, #b91c1c)', fontSize: 13, marginTop: 6 }}
-        >
-          {copyErr.datei}
-        </div>
-      )}
 
       <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
         <button
