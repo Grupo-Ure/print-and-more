@@ -166,10 +166,11 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
   const { fehler } = useToast()
 
   const ladeAuftraege = useCallback(
-    async (opts?: { abgebrochen?: { v: boolean } }) => {
+    async (opts?: { lebtNoch?: () => boolean }) => {
       const meineRequestId = ++ladeAuftraegeRequestIdRef.current
       const isStale = () =>
-        (opts?.abgebrochen?.v ?? false) || meineRequestId !== ladeAuftraegeRequestIdRef.current
+        (opts?.lebtNoch !== undefined && !opts.lebtNoch()) ||
+        meineRequestId !== ladeAuftraegeRequestIdRef.current
 
       if (mindestensEinmalGeladen.current) setAktualisiere(true)
       const qtrim = searchDebounced.trim()
@@ -257,12 +258,10 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
   )
 
   useEffect(() => {
-    const ab = { v: false }
-    const abort = new AbortController()
-    void ladeAuftraege({ abgebrochen: ab })
+    let alive = true
+    void ladeAuftraege({ lebtNoch: () => alive })
     return () => {
-      ab.v = true
-      abort.abort()
+      alive = false
     }
   }, [ladeAuftraege])
 
@@ -273,23 +272,6 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
     )
   }, [orderInPlace])
 
-  const refreshAuftragEintrag = useCallback(async (auftragId: string) => {
-    const { data, error } = await supabase
-      .from('auftraege')
-      .select(
-        'id, auftragsnummer, status, erstellt_am, termin, prioritaet, notfall_aktiv, kunde_id, kunden(name), teilauftraege(bereich, status)',
-      )
-      .eq('id', auftragId)
-      .single()
-    if (error) {
-      console.warn('refreshAuftragEintrag fehlgeschlagen:', auftragId)
-      return
-    }
-    if (!data) return
-    const row = data as OrderListAuftragRow
-    setQuelle(list => list.map(x => (x.id === auftragId ? row : x)))
-  }, [])
-
   useEffect(() => {
     const channel = supabase
       .channel('orderlist-kunden-refresh')
@@ -299,8 +281,9 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
         payload => {
           const kundeId = (payload.new as { id?: string } | null)?.id
           if (!kundeId) return
-          const ids = quelleRef.current.filter(a => a.kunde_id === kundeId).map(a => a.id)
-          for (const id of ids) void refreshAuftragEintrag(id)
+          const betroffen = quelleRef.current.some(a => a.kunde_id === kundeId)
+          if (!betroffen) return
+          void ladeAuftraege()
         },
       )
       .on(
@@ -309,8 +292,9 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
         payload => {
           const kundeId = (payload.new as { id?: string } | null)?.id
           if (!kundeId) return
-          const ids = quelleRef.current.filter(a => a.kunde_id === kundeId).map(a => a.id)
-          for (const id of ids) void refreshAuftragEintrag(id)
+          const betroffen = quelleRef.current.some(a => a.kunde_id === kundeId)
+          if (!betroffen) return
+          void ladeAuftraege()
         },
       )
       .on(
@@ -319,15 +303,16 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
         payload => {
           const kundeId = (payload.old as { id?: string } | null)?.id
           if (!kundeId) return
-          const ids = quelleRef.current.filter(a => a.kunde_id === kundeId).map(a => a.id)
-          for (const id of ids) void refreshAuftragEintrag(id)
+          const betroffen = quelleRef.current.some(a => a.kunde_id === kundeId)
+          if (!betroffen) return
+          void ladeAuftraege()
         },
       )
       .subscribe()
     return () => {
       void supabase.removeChannel(channel)
     }
-  }, [refreshAuftragEintrag])
+  }, [ladeAuftraege])
 
   const auftraege = useMemo(() => {
     if (bereich === 'Alle') return quelle

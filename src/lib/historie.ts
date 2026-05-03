@@ -1,20 +1,9 @@
 import { supabase } from '../supabase'
+import type { Database, Json } from '../types/supabase'
 
-export type HistorieEreignis =
-  | 'AUFTRAG_ERSTELLT'
-  | 'IN_BEARBEITUNG_GENOMMEN'
-  | 'ERP_EXPORTIERT'
-  | 'PREPRESS_BEREIT_AUTO'
-  | 'PREPRESS_BEREIT_MANUELL'
-  | 'PRODUKTION_BEREIT_GESETZT'
-  | 'FERTIG_GEMELDET'
-  | 'NOTFALL_AUSGELOEST'
-  | 'RUECKSPRUNG'
-  | 'KUNDENFREIGABE_AKTIVIERT'
-  | 'KUNDENFREIGABE_ERTEILT'
-  | 'KUNDENFREIGABE_UEBERGANGEN'
-  | 'KUNDENFREIGABE_VERFALLEN'
-  | 'STORNIERT'
+export type HistorieEreignis = Database['public']['Enums']['historie_ereignis']
+
+type HistorieInsert = Database['public']['Tables']['historie']['Insert']
 
 export async function schreibeHistorie(params: {
   auftrag_id: string
@@ -26,9 +15,16 @@ export async function schreibeHistorie(params: {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  const { error } = await supabase.from('historie').insert({
-    ...params,
+
+  const row: HistorieInsert = {
+    auftrag_id: params.auftrag_id,
+    teilauftrag_id: params.teilauftrag_id ?? null,
+    ereignisart: params.ereignisart,
+    begruendung: params.begruendung ?? null,
+    meta: params.meta !== undefined ? (params.meta as Json) : null,
     person_id: user?.id ?? null,
-  } as never)
+  }
+
+  const { error } = await supabase.from('historie').insert(row)
   if (error) throw error
 }

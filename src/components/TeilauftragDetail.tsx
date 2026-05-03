@@ -258,29 +258,34 @@ export function TeilauftragDetail({
     if (snapR.current.termin != null) return
     if (!auftragIso) return
     let alive = true
-    void (async () => {
-      try {
-        const { data, error } = await supabase
-          .from('teilauftraege')
-          .update({ termin: auftragIso } as never)
-          .eq('id', teil.id)
-          .select(TEILAUFTRAG_SPALTEN)
-          .single()
-        if (!alive) return
-        if (error) throw error
-        if (data) {
-          const row = data as TeilauftragRow
-          snapR.current = row
-          lokalR.current = row
-          setLokal(row)
-          onAktualisiert(row)
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const { data, error } = await supabase
+            .from('teilauftraege')
+            .update({ termin: auftragIso } as never)
+            .eq('id', teil.id)
+            .select(TEILAUFTRAG_SPALTEN)
+            .single()
+          if (!alive) return
+          if (error) throw error
+          if (data) {
+            const row = data as TeilauftragRow
+            if (!alive) return
+            snapR.current = row
+            lokalR.current = row
+            setLokal(row)
+            onAktualisiert(row)
+          }
+        } catch {
+          if (!alive) return
+          fehler('Speichern fehlgeschlagen')
         }
-      } catch {
-        fehler('Speichern fehlgeschlagen')
-      }
-    })()
+      })()
+    }, 300)
     return () => {
       alive = false
+      window.clearTimeout(timer)
     }
   }, [auftragIso, onAktualisiert, teil.id, fehler])
 
@@ -288,29 +293,34 @@ export function TeilauftragDetail({
     if (!teil.id) return
     if (lokal.lieferung != null) return
     let alive = true
-    void (async () => {
-      try {
-        const { data, error } = await supabase
-          .from('teilauftraege')
-          .update({ lieferung: auftragLief } as never)
-          .eq('id', teil.id)
-          .select(TEILAUFTRAG_SPALTEN)
-          .single()
-        if (!alive) return
-        if (error) throw error
-        if (data) {
-          const row = data as TeilauftragRow
-          snapR.current = row
-          lokalR.current = row
-          setLokal(row)
-          onAktualisiert(row)
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const { data, error } = await supabase
+            .from('teilauftraege')
+            .update({ lieferung: auftragLief } as never)
+            .eq('id', teil.id)
+            .select(TEILAUFTRAG_SPALTEN)
+            .single()
+          if (!alive) return
+          if (error) throw error
+          if (data) {
+            const row = data as TeilauftragRow
+            if (!alive) return
+            snapR.current = row
+            lokalR.current = row
+            setLokal(row)
+            onAktualisiert(row)
+          }
+        } catch {
+          if (!alive) return
+          fehler('Speichern fehlgeschlagen')
         }
-      } catch {
-        fehler('Speichern fehlgeschlagen')
-      }
-    })()
+      })()
+    }, 300)
     return () => {
       alive = false
+      window.clearTimeout(timer)
     }
   }, [auftragLief, lokal.lieferung, onAktualisiert, teil.id, fehler])
 
@@ -319,29 +329,34 @@ export function TeilauftragDetail({
     if (lokal.prioritaet !== 'NORMAL') return
     if (!auftragPrio || auftragPrio === 'NORMAL') return
     let alive = true
-    void (async () => {
-      try {
-        const { data, error } = await supabase
-          .from('teilauftraege')
-          .update({ prioritaet: auftragPrio })
-          .eq('id', teil.id)
-          .select(TEILAUFTRAG_SPALTEN)
-          .single()
-        if (!alive) return
-        if (error) throw error
-        if (data) {
-          const row = data as TeilauftragRow
-          snapR.current = row
-          lokalR.current = row
-          setLokal(row)
-          onAktualisiert(row)
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const { data, error } = await supabase
+            .from('teilauftraege')
+            .update({ prioritaet: auftragPrio })
+            .eq('id', teil.id)
+            .select(TEILAUFTRAG_SPALTEN)
+            .single()
+          if (!alive) return
+          if (error) throw error
+          if (data) {
+            const row = data as TeilauftragRow
+            if (!alive) return
+            snapR.current = row
+            lokalR.current = row
+            setLokal(row)
+            onAktualisiert(row)
+          }
+        } catch {
+          if (!alive) return
+          fehler('Speichern fehlgeschlagen')
         }
-      } catch {
-        fehler('Speichern fehlgeschlagen')
-      }
-    })()
+      })()
+    }, 300)
     return () => {
       alive = false
+      window.clearTimeout(timer)
     }
   }, [auftragPrio, lokal.prioritaet, onAktualisiert, teil.id, fehler])
 

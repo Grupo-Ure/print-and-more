@@ -224,18 +224,25 @@ export function ContextPanel({
       setTeilBereichListe([])
       return
     }
+    let alive = true
     supabase
       .from('teilauftraege')
       .select('id, bereich')
       .eq('auftrag_id', auftrag.id)
       .then(({ data, error }) => {
+        if (!alive) return
         if (error) {
           fehler('Daten konnten nicht geladen werden')
+          if (!alive) return
           setTeilBereichListe([])
           return
         }
+        if (!alive) return
         setTeilBereichListe((data ?? []) as { id: string; bereich: string }[])
       })
+    return () => {
+      alive = false
+    }
   }, [auftrag, kontextAktualisiert, fehler])
 
   if (!auftrag) {

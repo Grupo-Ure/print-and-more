@@ -275,7 +275,7 @@ export function BestandspflegeSeite() {
       })
       setModelle(list)
     } catch (e) {
-      fehler('Buchung fehlgeschlagen')
+      fehler('Daten konnten nicht geladen werden')
       setModelle([])
       setModelleFehler(e instanceof Error ? e.message : String(e))
     } finally {
@@ -419,7 +419,7 @@ export function BestandspflegeSeite() {
       .update({ mindestbestand: n } as never)
       .eq('id', modell.id)
     if (error) {
-      fehler('Buchung fehlgeschlagen')
+      fehler('Bestand konnte nicht aktualisiert werden')
       return
     }
     setModelle(list => list.map(m => (m.id === modell.id ? { ...m, mindestbestand: n } : m)))
@@ -446,7 +446,7 @@ export function BestandspflegeSeite() {
       if (error) throw error
       setBewegungen((data ?? []) as LagerBewegungRow[])
     } catch (e) {
-      fehler('Buchung fehlgeschlagen')
+      fehler('Daten konnten nicht geladen werden')
       setBewegungen([])
       setBewegungenFehler(e instanceof Error ? e.message : String(e))
     } finally {
@@ -531,7 +531,7 @@ export function BestandspflegeSeite() {
       zeilen.sort((a, b) => b.bestellmenge - a.bestellmenge)
       setBestelllisteZeilen(zeilen)
     } catch (e) {
-      fehler('Buchung fehlgeschlagen')
+      fehler('Daten konnten nicht geladen werden')
       setBestelllisteZeilen([])
       setBestelllisteFehler(fehlerAlsString(e))
     } finally {
