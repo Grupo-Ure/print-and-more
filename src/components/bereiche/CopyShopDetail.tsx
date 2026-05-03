@@ -34,9 +34,17 @@ type ProduktRow = {
   erstellt_am: string | null
 }
 
+/** `datei_id` gehört nicht ins Produkt-JSON — Zuordnung nur über `produkt_dateien`. */
+function detailOhneDateiId(d: CopyShopDetailJson): CopyShopDetailJson {
+  const o = { ...d } as Record<string, unknown>
+  delete o.datei_id
+  return o as CopyShopDetailJson
+}
+
 function copyRoh(teil: TeilauftragRow): CopyShopDetailJson {
   const d = teil.detail
-  return d && typeof d === 'object' && !Array.isArray(d) ? { ...d } : {}
+  const base = d && typeof d === 'object' && !Array.isArray(d) ? { ...d } : {}
+  return detailOhneDateiId(base)
 }
 
 /** PLAKAT: DIN-Hochformat, Breite × Höhe (mm) */
@@ -189,7 +197,7 @@ export function CopyShopDetail({
       id: r.id,
       teilauftrag_id: r.teilauftrag_id,
       bereich: r.bereich,
-      detail: (r.detail ?? {}) as unknown as CopyShopDetailJson,
+      detail: detailOhneDateiId((r.detail ?? {}) as unknown as CopyShopDetailJson),
       sort_order: r.sort_order,
       erstellt_am: r.erstellt_am,
     }))
@@ -240,17 +248,20 @@ export function CopyShopDetail({
     typR.current = teil.typ
   }, [teil])
 
-  const copyErr = validateCopyShopDetail(typ, detail, teilStatus)
+  const hatDateiFuerValidierung =
+    editingId === null ? undefined : (produktDateien[editingId]?.length ?? 0) > 0
+  const copyErr = validateCopyShopDetail(typ, detail, teilStatus, hatDateiFuerValidierung)
   const pruef = teilStatus !== 'ANGEBOT'
   const fe = (k: string) => (pruef && copyErr[k] ? ' ber-inp--err' : '')
 
   const speich = useCallback(
     async (nextTyp: string | null, d: CopyShopDetailJson) => {
-      setDetail(d)
-      detailR.current = d
+      const clean = detailOhneDateiId(d)
+      setDetail(clean)
+      detailR.current = clean
       setTyp(nextTyp)
       if (editingId !== null) return
-      await onDetailPatch({ typ: nextTyp, detail: d })
+      await onDetailPatch({ typ: nextTyp, detail: clean })
     },
     [onDetailPatch, editingId]
   )
@@ -285,9 +296,11 @@ export function CopyShopDetail({
 
   const handleAddOrSave = useCallback(async () => {
     const t = typR.current
-    const d = { ...detailR.current }
+    const d = detailOhneDateiId({ ...detailR.current })
     if (!t) return
-    const errors = validateCopyShopDetail(t, d, teilStatus)
+    const hatDatei =
+      editingId === null ? undefined : (produktDateien[editingId]?.length ?? 0) > 0
+    const errors = validateCopyShopDetail(t, d, teilStatus, hatDatei)
     if (Object.keys(errors).length > 0) return
 
     if (editingId) {
@@ -336,6 +349,7 @@ export function CopyShopDetail({
     teilStatus,
     editingId,
     produkte.length,
+    produktDateien,
     toastFehler,
     reloadProdukte,
     resetForm,
@@ -368,7 +382,7 @@ export function CopyShopDetail({
     const dr = raw as Record<string, unknown>
     const tt = typeof dr.typ === 'string' ? dr.typ : null
     setTyp(tt)
-    const dd = { ...(raw as CopyShopDetailJson) }
+    const dd = detailOhneDateiId({ ...(raw as CopyShopDetailJson) })
     setDetail(dd)
     detailR.current = dd
     typR.current = tt
@@ -534,6 +548,15 @@ export function CopyShopDetail({
       {typ === 'VISITENKARTE' && <Visitenkarte {...p} />}
       {typ === 'BINDUNG' && <BindungF {...p} />}
       {typ === 'AUSDRUCK' && <AusdruckF {...p} />}
+
+      {pruef && copyErr.datei && (
+        <div
+          role="alert"
+          style={{ color: 'var(--color-danger, #b91c1c)', fontSize: 13, marginTop: 6 }}
+        >
+          {copyErr.datei}
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
         <button

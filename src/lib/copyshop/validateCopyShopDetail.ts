@@ -163,13 +163,17 @@ function farbePassendZuBindung(ba: string | null, col: string | null): boolean {
 export function validateCopyShopDetail(
   typ: string | null,
   d: CopyShopDetailJson,
-  teilStatus: AuftragStatus
+  teilStatus: AuftragStatus,
+  hatDatei?: boolean,
 ): Record<string, string> {
   const o: Err = {}
   if (teilStatus === 'ANGEBOT') return o
   if (!typ || !COPY_SHOP_TYPS.includes(typ as CopyShopTeiltyp)) {
     f(o, 'typ', 'Typ wählen')
     return o
+  }
+  if (hatDatei === false) {
+    f(o, 'datei', 'Mindestens eine Datei erforderlich')
   }
   if (!stueckzahlGueltig(d.stueckzahl)) f(o, 'stueckzahl', 'Ganze Zahl ≥ 1')
   const t = typ as CopyShopTeiltyp
