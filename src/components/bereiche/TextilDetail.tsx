@@ -234,7 +234,7 @@ export function TextilDetail({
   const syncRef = useRef(syncTeil)
   useEffect(() => {
     syncRef.current = syncTeil
-  })
+  }, [syncTeil])
 
   const lastLoadTeilId = useRef<string | null>(null)
 

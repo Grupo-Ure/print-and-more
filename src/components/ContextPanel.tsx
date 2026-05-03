@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
-import { schreibeHistorie } from '../lib/historie'
+import { schreibeHistorie, type HistorieEreignis } from '../lib/historie'
 import { parseStatusFromRpc } from '../lib/auftragsStatus'
 import { generiereUndLadePdf } from '../lib/pdf/auftragsPdf'
 import {
@@ -228,21 +228,23 @@ export function ContextPanel({
       return
     }
     let alive = true
-    void Promise.resolve(
-      supabase.from('teilauftraege').select('id, bereich').eq('auftrag_id', auftrag.id),
-    )
-      .then(({ data, error }) => {
+    void (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('teilauftraege')
+          .select('id, bereich')
+          .eq('auftrag_id', auftrag.id)
         if (!alive) return
         if (error) {
           fehler('Daten konnten nicht geladen werden')
-          if (!alive) return
           setTeilBereichListe([])
           return
         }
-        if (!alive) return
         setTeilBereichListe((data ?? []) as { id: string; bereich: string }[])
-      })
-      .catch((err: unknown) => console.error(err))
+      } catch (err: unknown) {
+        if (alive) console.error(err)
+      }
+    })()
     return () => {
       alive = false
     }
@@ -731,10 +733,14 @@ export function ContextPanel({
         .select(TEILAUFTRAG_SPALTEN)
         .single()
       if (error) throw error
+      // DB-Enum hat kein KUNDENFREIGABE_DEAKTIVIERT; bei Abschaltung der Anforderung VERFALLEN als nächstliegender Wert.
+      const ereignisart: HistorieEreignis = aktiv
+        ? 'KUNDENFREIGABE_AKTIVIERT'
+        : 'KUNDENFREIGABE_VERFALLEN'
       await schreibeHistorie({
         auftrag_id: auftrag.id,
         teilauftrag_id: teil.id,
-        ereignisart: 'KUNDENFREIGABE_AKTIVIERT',
+        ereignisart,
         meta: { aktiv } as unknown as Record<string, unknown>,
       })
       onTeilauftragAktualisiert(data as TeilauftragRow)

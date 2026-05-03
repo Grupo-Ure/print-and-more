@@ -7,7 +7,10 @@ export function Login() {
   const [fehler, setFehler] = useState('')
 
   async function einloggen() {
-    const { error } = await supabase.auth.signInWithPassword({ email, password: passwort })
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: passwort,
+    })
     if (error) setFehler(error.message)
   }
 

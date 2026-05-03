@@ -39,7 +39,8 @@ export function validateGlobalTeilfelder(
   if (t.prioritaet !== 'NORMAL' && t.prioritaet !== 'HOCH') {
     o.prioritaet = 'Pflichtfeld'
   }
-  const vid = t.verantwortlicher_id?.trim() ?? ''
+  const vIdRaw = t.verantwortlicher_id
+  const vid = typeof vIdRaw === 'string' ? vIdRaw.trim() : ''
   if (vid && !UUID_LOOSE.test(vid)) o.verantwortlicher_id = 'Gültige UUID'
   if (t.satzzeit_minuten != null) {
     const n = Number(t.satzzeit_minuten)

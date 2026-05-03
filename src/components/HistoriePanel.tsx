@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { teilauftragBereichLabel } from '../types/database'
 import { useToast } from './Toast'
@@ -82,26 +82,29 @@ export function HistoriePanel({ aktiverAuftragId, kontextAktualisiert, teilauftr
     }
   }, [toastFehler])
 
-  const ladeHistorie = useCallback(async () => {
-    setLaden(true)
-    const { data, error } = await supabase
-      .from('historie')
-      .select('id, ereignisart, begruendung, meta, erstellt_am, teilauftrag_id, person_id')
-      .eq('auftrag_id', aktiverAuftragId)
-      .order('erstellt_am', { ascending: false })
-      .limit(50)
-    if (error) {
-      toastFehler('Verlauf konnte nicht geladen werden')
-      setEintraege([])
-    } else {
-      setEintraege((data ?? []) as HistorieZeile[])
-    }
-    setLaden(false)
-  }, [aktiverAuftragId, toastFehler])
-
   useEffect(() => {
-    void ladeHistorie()
-  }, [ladeHistorie, kontextAktualisiert])
+    let alive = true
+    void (async () => {
+      setLaden(true)
+      const { data, error } = await supabase
+        .from('historie')
+        .select('id, ereignisart, begruendung, meta, erstellt_am, teilauftrag_id, person_id')
+        .eq('auftrag_id', aktiverAuftragId)
+        .order('erstellt_am', { ascending: false })
+        .limit(50)
+      if (!alive) return
+      if (error) {
+        toastFehler('Verlauf konnte nicht geladen werden')
+        setEintraege([])
+      } else {
+        setEintraege((data ?? []) as HistorieZeile[])
+      }
+      if (alive) setLaden(false)
+    })()
+    return () => {
+      alive = false
+    }
+  }, [aktiverAuftragId, kontextAktualisiert, toastFehler])
 
   const teilBereich = (teilId: string | null): string | null => {
     if (!teilId) return null
