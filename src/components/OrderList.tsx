@@ -656,7 +656,7 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
           onAbbrechen={() => setDuplOffen(false)}
           onErfolg={neu => {
             setDuplOffen(false)
-            ladeAuftraege()
+            void ladeAuftraege().catch(() => fehler('Aufträge konnten nicht aktualisiert werden'))
             onAuftragWaehlen(neu.id)
           }}
         />

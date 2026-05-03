@@ -56,12 +56,10 @@ function HauptApp() {
   }, [])
 
   useEffect(() => {
-    if (aktiverAuftragId == null) {
-      setAktiverAuftrag(null)
-      setAktiverTeilauftrag(null)
-      setAuftragKunde(null)
-      setAuftragDateien([])
-    }
+    setAktiverAuftrag(null)
+    setAktiverTeilauftrag(null)
+    setAuftragKunde(null)
+    setAuftragDateien([])
   }, [aktiverAuftragId])
 
   const onAuftragVomArbeitsbereich = useCallback((a: Auftrag | null) => {

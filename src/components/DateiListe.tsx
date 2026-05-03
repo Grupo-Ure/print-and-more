@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useState, type FormEvent } from 'react'
 import { supabase } from '../supabase'
 import { useToast } from './Toast'
 
@@ -31,38 +31,6 @@ type Props = {
   dateien: Datei[]
   dateienLaden: boolean
   onDateiGeaendert: (neueDatei?: Datei) => void | Promise<void>
-}
-
-function useDateienState(auftragId: string) {
-  const [dateien, setDateien] = useState<Datei[]>([])
-  const [laden, setLaden] = useState(true)
-  const { fehler } = useToast()
-  const reload = useCallback(async () => {
-    setLaden(true)
-    const { data, error } = await supabase
-      .from('dateien')
-      .select('id, anzeigename, pfad, rolle, erstellt_am')
-      .eq('auftrag_id', auftragId)
-      .order('erstellt_am', { ascending: true })
-    if (error) {
-      setDateien([])
-      fehler('Dateien konnten nicht geladen werden')
-    } else {
-      setDateien((data ?? []) as Datei[])
-    }
-    setLaden(false)
-  }, [auftragId, fehler])
-
-  useEffect(() => {
-    void reload()
-  }, [reload])
-
-  return { dateien, setDateien, laden, reload }
-}
-
-export function useDateienFuerAuftrag(auftragId: string) {
-  const { dateien, laden, reload } = useDateienState(auftragId)
-  return { dateien, laden, reload }
 }
 
 export function DateiListe({ aktiverAuftragId, dateien, dateienLaden, onDateiGeaendert }: Props) {

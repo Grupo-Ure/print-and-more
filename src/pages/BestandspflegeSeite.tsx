@@ -303,7 +303,7 @@ export function BestandspflegeSeite() {
       list = list.filter(m => {
         const b = m.bestand ?? 0
         const min = m.mindestbestand ?? 0
-        return b <= 0 || b <= min || b < min
+        return b <= min
       })
     }
     const qUe = uebersichtSuche.trim().toLowerCase()

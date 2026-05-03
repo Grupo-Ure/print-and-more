@@ -87,8 +87,6 @@ export function useToast() {
   return { fehler: c.fehler, erfolg: c.erfolg, info: c.info }
 }
 
-export const ToastContext = ToastApiKontext
-
 export function ToastContainer() {
   const c = useContext(ToastListKontext)
   if (!c) return null

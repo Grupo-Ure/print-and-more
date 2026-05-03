@@ -160,14 +160,10 @@ export function nextTeilStatus(
   const textil = merged.bereich === 'TEXTIL'
   if (textil) {
     if (!vollstaendig) return 'UNVOLLSTAENDIG'
-    if (vollstaendig && kundePrepressOk) return capPrepress('PREPRESS_BEREIT')
-    if (before === 'PREPRESS_BEREIT' && (!vollstaendig || !kundePrepressOk)) {
-      return 'UNVOLLSTAENDIG'
-    }
-    if (!vollstaendig) return 'UNVOLLSTAENDIG'
-    if (!kundePrepressOk) return 'UNVOLLSTAENDIG'
+    if (kundePrepressOk) return capPrepress('PREPRESS_BEREIT')
     return 'UNVOLLSTAENDIG'
   }
+  // Unbekannter Bereich → immer UNVOLLSTAENDIG
   if (!lfp && !copyShop && !stempel && !sonstige && !laser) {
     if (!vollstaendig) return 'UNVOLLSTAENDIG'
     return 'UNVOLLSTAENDIG'

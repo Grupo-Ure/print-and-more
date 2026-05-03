@@ -855,9 +855,10 @@ export function TextilBestandSeite() {
       }
 
       const inserts: Database['public']['Tables']['textil_varianten']['Insert'][] = []
+      let sortCounter = 0
       for (const f of farben) {
         const groessen = groessenFuerPreset(f.lauf, f.eigeneGroessen)
-        groessen.forEach((g, idx) => {
+        groessen.forEach(g => {
           const k = `${f.name}|||${g}`
           if (existSet.has(k)) return
           inserts.push({
@@ -868,7 +869,7 @@ export function TextilBestandSeite() {
             ist_muster: matrixAlleMuster,
             mindestbestand: min,
             bestand: 0,
-            sort_order: idx,
+            sort_order: sortCounter++,
             aktiv: true,
           })
         })

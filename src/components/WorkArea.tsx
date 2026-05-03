@@ -371,8 +371,8 @@ export function WorkArea({
 
       try {
         const a = await synchronisiereAuftragsstatus(auftrag.id)
-        setAuftrag(prev => (prev ? ({ ...prev, status: a.status } as AuftragDetailRow) : prev))
-        onAuftragAktualisiert({ ...(auftrag as unknown as Auftrag), status: a.status })
+        setAuftrag(prev => (prev ? { ...prev, status: a.status } : prev))
+        onAuftragAktualisiert({ ...auftrag, status: a.status })
       } catch {
         toastFehler('Auftragsstatus konnte nicht aktualisiert werden')
         const { data: refreshed } = await supabase
@@ -382,7 +382,7 @@ export function WorkArea({
           .single()
         if (refreshed) {
           setAuftrag(refreshed as AuftragDetailRow)
-          onAuftragAktualisiert(refreshed as unknown as Auftrag)
+          onAuftragAktualisiert(refreshed as Auftrag)
         }
       }
     }
@@ -513,8 +513,8 @@ export function WorkArea({
             value={kopfLieferung}
             onChange={e => {
               const v = e.target.value
-              setKopfLieferung(v === '' ? '' : (v as LieferungWahl))
-              const liefer = (v as LieferungWahl) || null
+              const liefer: LieferungWahl | null = v === 'ABHOLUNG' || v === 'VERSAND' ? v : null
+              setKopfLieferung(liefer ?? '')
               if (liefer !== kopfSnap.current.lieferung) {
                 void speichereAuftragKopf({ lieferung: liefer })
               }
