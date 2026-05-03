@@ -61,6 +61,8 @@ export function LaserDetail({
 
   const [produkte, setProdukte] = useState<ProduktRow[]>([])
   const [produktDateien, setProduktDateien] = useState<Record<string, ProduktDateiZuordnung[]>>({})
+  const produktDateienRef = useRef(produktDateien)
+  produktDateienRef.current = produktDateien
   const [produkteLaden, setProdukteLaden] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [entsperrt, setEntsperrt] = useState(false)
@@ -165,7 +167,7 @@ export function LaserDetail({
   const dateiZuProduktZuordnen = useCallback(
     async (produktId: string, dateiId: string, produktRowsForReload?: ProduktRow[]) => {
       const reloadRows = produktRowsForReload ?? produkte
-      if (produktDateien[produktId]?.some(z => z.dateiId === dateiId)) return
+      if (produktDateienRef.current[produktId]?.some(z => z.dateiId === dateiId)) return
       const ins: Database['public']['Tables']['produkt_dateien']['Insert'] = {
         produkt_id: produktId,
         datei_id: dateiId,
@@ -177,7 +179,7 @@ export function LaserDetail({
       }
       await ladeDateienFuerProdukte(reloadRows)
     },
-    [produktDateien, toastFehler, produkte, ladeDateienFuerProdukte],
+    [toastFehler, produkte, ladeDateienFuerProdukte],
   )
 
   const dateiVonProduktEntfernen = useCallback(
@@ -275,11 +277,10 @@ export function LaserDetail({
       for (const z of [...(produktDateien[editingId] ?? [])]) {
         await dateiVonProduktEntfernen(z.zuordnungId)
       }
-      let list = await reloadProdukte()
       for (const fid of formDateiIds) {
-        await dateiZuProduktZuordnen(editingId, fid, list)
+        await dateiZuProduktZuordnen(editingId, fid)
       }
-      list = await reloadProdukte()
+      const list = await reloadProdukte()
       await onDetailPatch({
         typ: teil.typ,
         detail: {
@@ -421,25 +422,8 @@ export function LaserDetail({
       />
 
       {auftragDateien.length > 0 && (
-        <div
-          style={{
-            marginTop: 10,
-            paddingTop: 10,
-            borderTop: '1px solid var(--color-border, #e5e7eb)',
-          }}
-        >
-          <div className="ber-lbl" style={{ marginBottom: 6, display: 'block' }}>
-            Dateien
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 6,
-              alignItems: 'center',
-              fontSize: 12,
-            }}
-          >
+        <BerZeile l="Dateien">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
             {formDateiIds.map(fid => (
               <span
                 key={fid}
@@ -490,7 +474,7 @@ export function LaserDetail({
                 ))}
             </select>
           </div>
-        </div>
+        </BerZeile>
       )}
 
       <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
