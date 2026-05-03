@@ -114,6 +114,16 @@ function groesseKurzLabel(g: string): string {
   return g
 }
 
+/** DB-Wert `groesse` am Motiv → Formular Größenwahl + Freitext */
+function splitGroesseDb(g: string | null | undefined): { art: TextilGroesseEnum; frei: string } {
+  if (!g || g === 'KLEIN' || g === 'MITTEL' || g === 'GROSS') {
+    return { art: (g as TextilGroesseEnum) || 'MITTEL', frei: '' }
+  }
+  if (g === 'FREI') return { art: 'FREI', frei: '' }
+  if (g.startsWith('FREI:')) return { art: 'FREI', frei: g.slice(5) }
+  return { art: 'MITTEL', frei: '' }
+}
+
 /** INSERT `textil_zuordnungen`: Trigger `PLATZ_KONFLIKT` vs. Unique-Constraint */
 function fehlerNachZuordnungInsert(err: { message?: string; code?: string }): string {
   if ((err.message ?? '').includes('PLATZ_KONFLIKT')) {
@@ -176,17 +186,12 @@ export function TextilDetail({
   // Eigenware-Modus (in Teilauftrag-Detail gespeichert)
   const [eigenwareModus, setEigenwareModus] = useState<EigenwareModus>('STAMMDATEN')
 
-  const [motivFormOffen, setMotivFormOffen] = useState(false)
-  const [posFormOffen, setPosFormOffen] = useState(false)
-
-  const [motivOffen, setMotivOffen] = useState<Record<string, boolean>>({})
-
-  const toggleMotivOffen = (id: string) =>
-    setMotivOffen(prev => ({ ...prev, [id]: !prev[id] }))
-  const setMotivNeuOffen = (id: string) =>
-    setMotivOffen(prev => ({ ...prev, [id]: true }))
+  const [motivEditId, setMotivEditId] = useState<string | null>(null)
+  const [posEditId, setPosEditId] = useState<string | null>(null)
 
   const [posMotivIds, setPosMotivIds] = useState<Record<string, string[]>>({})
+
+  const posSlotKey = posEditId ?? TEMP_POS_NEU
 
   const syncTeil = useCallback(
     async (motiveL: TextilMotiveRow[], posL: TextilPositionenRow[], zuoL: TextilZuordnungRow[], afterProdMutation: boolean) => {
@@ -313,9 +318,8 @@ export function TextilDetail({
   }, [ladeAlles, teil.id])
 
   useEffect(() => {
-    setMotivFormOffen(false)
-    setPosFormOffen(false)
-    setMotivOffen({})
+    setMotivEditId(null)
+    setPosEditId(null)
     setPosMotivIds({})
   }, [teil.id])
 
@@ -508,17 +512,133 @@ export function TextilDetail({
     setSdVarianteId('')
   }
   const abbruchMotivForm = () => {
+    setMotivEditId(null)
     resetMForm()
-    setMotivFormOffen(false)
   }
   const abbruchPosForm = () => {
+    const pid = posEditId
+    setPosEditId(null)
+    if (pid) {
+      setPosMotivIds(prev => {
+        const n = { ...prev }
+        delete n[pid]
+        return n
+      })
+    }
     resetPForm()
-    setPosFormOffen(false)
+  }
+
+  const motivBearbeiten = (m: TextilMotiveRow) => {
+    setFehler(null)
+    setMotivEditId(m.id)
+    setMTyp(m.typ)
+    setMInhalt(m.inhalt ?? '')
+    setMFarbe(m.farbe ?? '')
+    setMSchriftkl((m.schriftklasse as TextilSchriftklasse) || 'SERIFENLOS')
+    setMSchriftart(m.schriftart ?? '')
+    setMDatei(m.datei_id ?? '')
+    const pl = String(m.platz ?? 'BRUST_LINKS')
+    setMPlatz((PLATZ_OPT.some(o => o.v === pl) ? pl : 'BRUST_LINKS') as TextilPlatz)
+    const { art, frei } = splitGroesseDb(m.groesse)
+    setMGrArt(art)
+    setMGrFrei(frei)
+    setMDruckart(m.druckart ?? '')
+  }
+
+  const bearbeitePosition = async (p: TextilPositionenRow) => {
+    setFehler(null)
+    setPosEditId(p.id)
+    setPHerk(p.herkunft)
+    setPSt(p.stueckzahl)
+    setPMarke(p.marke ?? '')
+    setPModell(p.modell ?? '')
+    setPFarbe(p.farbe ?? '')
+    setPGroesse(p.groesse ?? '')
+    if (p.herkunft === 'KUNDENWARE') {
+      setPKTyp((p.typ as TextilKundenKleidungTyp) || 'T_SHIRT')
+    } else {
+      if (p.variante_id) {
+        setEigenwareModus('STAMMDATEN')
+        const { data: vr, error: ve } = await supabase
+          .from('textil_varianten')
+          .select('id, produkt_id, farbe, groesse')
+          .eq('id', p.variante_id)
+          .maybeSingle()
+        if (ve || !vr) {
+          setEigenwareModus('FREITEXT')
+          setSdMarkeId('')
+          setSdProduktId('')
+          setSdFarbe('')
+          setSdVarianteId('')
+        } else {
+          const { data: pr } = await supabase
+            .from('textil_produkte')
+            .select('id, marke_id')
+            .eq('id', vr.produkt_id)
+            .maybeSingle()
+          if (pr?.marke_id) {
+            setSdMarkeId(String(pr.marke_id))
+            setSdProduktId(String(pr.id))
+            setSdFarbe(String(vr.farbe ?? ''))
+            setSdVarianteId(String(vr.id))
+          } else {
+            setEigenwareModus('FREITEXT')
+            setSdMarkeId('')
+            setSdProduktId('')
+            setSdFarbe('')
+            setSdVarianteId('')
+          }
+        }
+      } else {
+        setEigenwareModus('FREITEXT')
+        setSdMarkeId('')
+        setSdProduktId('')
+        setSdFarbe('')
+        setSdVarianteId('')
+      }
+    }
+    const mids = zuordnungen.filter(z => z.position_id === p.id).map(z => z.motiv_id)
+    setPosMotivIds(prev => ({ ...prev, [p.id]: mids.length > 0 ? mids : [''] }))
+  }
+
+  async function syncZuordnungenFuerPosition(
+    posId: string,
+    desiredMotivIds: string[],
+    zStart: TextilZuordnungRow[]
+  ): Promise<{ ok: true; zuoNext: TextilZuordnungRow[] } | { ok: false; message: string }> {
+    const wanted = [...new Set(desiredMotivIds.map(id => String(id).trim()).filter(Boolean))]
+    let zcur = zStart
+    const had = zcur.filter(z => z.position_id === posId)
+    const wantSet = new Set(wanted)
+    for (const z of had) {
+      if (!wantSet.has(z.motiv_id)) {
+        const { error } = await supabase.from('textil_zuordnungen').delete().eq('id', z.id)
+        if (error) return { ok: false, message: error.message }
+        zcur = zcur.filter(x => x.id !== z.id)
+      }
+    }
+    const hadMot = new Set(zcur.filter(x => x.position_id === posId).map(x => x.motiv_id))
+    for (const mid of wanted) {
+      if (hadMot.has(mid)) continue
+      const { data: zData, error: zErr } = await supabase
+        .from('textil_zuordnungen')
+        .insert({
+          teilauftrag_id: teil.id,
+          motiv_id: mid,
+          position_id: posId,
+        })
+        .select(ZUO_EMBED_SELECT)
+        .single()
+      if (zErr) return { ok: false, message: fehlerNachZuordnungInsert(zErr) }
+      if (zData) zcur = [...zcur, zData as unknown as TextilZuordnungRow]
+    }
+    return { ok: true, zuoNext: zcur }
   }
   const addMotiv = async (e: FormEvent) => {
     e.preventDefault()
     setFehler(null)
     const tId = teil.id
+    const editId = motivEditId
     let groesseDb: string
     if (mGrArt === 'FREI') {
       if (!mGrFrei.trim()) {
@@ -535,22 +655,40 @@ export function TextilDetail({
         return
       }
       setSMut(true)
-      const { data, error } = await supabase
-        .from('textil_motive')
-        .insert({
-          teilauftrag_id: tId,
-          typ: 'TEXT',
-          platz: mPlatz,
-          groesse: groesseDb,
-          druckart: mDruckart.trim() || null,
-          inhalt: mInhalt.trim(),
-          farbe: mFarbe.trim(),
-          schriftklasse: mSchriftkl,
-          schriftart: mSchriftart.trim() || null,
-          datei_id: null,
-        })
-        .select('*')
-        .single()
+      const q = editId
+        ? supabase
+            .from('textil_motive')
+            .update({
+              typ: 'TEXT',
+              platz: mPlatz,
+              groesse: groesseDb,
+              druckart: mDruckart.trim() || null,
+              inhalt: mInhalt.trim(),
+              farbe: mFarbe.trim(),
+              schriftklasse: mSchriftkl,
+              schriftart: mSchriftart.trim() || null,
+              datei_id: null,
+            })
+            .eq('id', editId)
+            .select('*')
+            .single()
+        : supabase
+            .from('textil_motive')
+            .insert({
+              teilauftrag_id: tId,
+              typ: 'TEXT',
+              platz: mPlatz,
+              groesse: groesseDb,
+              druckart: mDruckart.trim() || null,
+              inhalt: mInhalt.trim(),
+              farbe: mFarbe.trim(),
+              schriftklasse: mSchriftkl,
+              schriftart: mSchriftart.trim() || null,
+              datei_id: null,
+            })
+            .select('*')
+            .single()
+      const { data, error } = await q
       setSMut(false)
       if (error) {
         setFehler(error.message)
@@ -558,11 +696,10 @@ export function TextilDetail({
       }
       if (data) {
         const r = data as TextilMotiveRow
-        const nextM = [...motive, r]
+        const nextM = editId ? motive.map(x => (x.id === editId ? r : x)) : [...motive, r]
         setMotive(nextM)
+        setMotivEditId(null)
         resetMForm()
-        setMotivFormOffen(false)
-        setMotivNeuOffen(r.id)
         const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
         void syncTeil(nextM, positionen, zuordnungen, prod)
       }
@@ -572,22 +709,40 @@ export function TextilDetail({
         return
       }
       setSMut(true)
-      const { data, error } = await supabase
-        .from('textil_motive')
-        .insert({
-          teilauftrag_id: tId,
-          typ: 'DATEI',
-          platz: mPlatz,
-          groesse: groesseDb,
-          druckart: mDruckart.trim() || null,
-          inhalt: null,
-          farbe: null,
-          schriftklasse: null,
-          schriftart: null,
-          datei_id: mDatei,
-        })
-        .select('*')
-        .single()
+      const q2 = editId
+        ? supabase
+            .from('textil_motive')
+            .update({
+              typ: 'DATEI',
+              platz: mPlatz,
+              groesse: groesseDb,
+              druckart: mDruckart.trim() || null,
+              inhalt: null,
+              farbe: null,
+              schriftklasse: null,
+              schriftart: null,
+              datei_id: mDatei,
+            })
+            .eq('id', editId)
+            .select('*')
+            .single()
+        : supabase
+            .from('textil_motive')
+            .insert({
+              teilauftrag_id: tId,
+              typ: 'DATEI',
+              platz: mPlatz,
+              groesse: groesseDb,
+              druckart: mDruckart.trim() || null,
+              inhalt: null,
+              farbe: null,
+              schriftklasse: null,
+              schriftart: null,
+              datei_id: mDatei,
+            })
+            .select('*')
+            .single()
+      const { data, error } = await q2
       setSMut(false)
       if (error) {
         setFehler(error.message)
@@ -595,11 +750,10 @@ export function TextilDetail({
       }
       if (data) {
         const r = data as TextilMotiveRow
-        const nextM = [...motive, r]
+        const nextM = editId ? motive.map(x => (x.id === editId ? r : x)) : [...motive, r]
         setMotive(nextM)
+        setMotivEditId(null)
         resetMForm()
-        setMotivFormOffen(false)
-        setMotivNeuOffen(r.id)
         const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
         void syncTeil(nextM, positionen, zuordnungen, prod)
       }
@@ -614,6 +768,172 @@ export function TextilDetail({
       return
     }
     const tId = teil.id
+    const editId = posEditId
+    const slotKey = editId ?? TEMP_POS_NEU
+    const motivSlots = posMotivIds[slotKey] ?? ['']
+    const motivIdsDesired = motivSlots.map(id => String(id).trim()).filter(Boolean)
+
+    const nachPosSpeichern = (nextP: TextilPositionenRow[], zuoNext: TextilZuordnungRow[]) => {
+      resetPForm()
+      setPosEditId(null)
+      setPosMotivIds(prev => {
+        const n = { ...prev }
+        delete n[slotKey]
+        return n
+      })
+      const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
+      void syncTeil(motive, nextP, zuoNext, prod)
+    }
+
+    if (editId) {
+      if (pHerk === 'KUNDENWARE') {
+        if (!pFarbe.trim() || !pKTyp) {
+          setFehler('Typ und Farbe sind erforderlich.')
+          return
+        }
+        setSMut(true)
+        const { error: upErr } = await supabase
+          .from('textil_positionen')
+          .update({
+            herkunft: 'KUNDENWARE',
+            typ: pKTyp,
+            farbe: pFarbe.trim(),
+            stueckzahl: pSt,
+            marke: null,
+            modell: null,
+            groesse: null,
+            variante_id: null,
+          })
+          .eq('id', editId)
+        if (upErr) {
+          setSMut(false)
+          setFehler(upErr.message)
+          return
+        }
+        const syncRes = await syncZuordnungenFuerPosition(editId, motivIdsDesired, zuordnungen)
+        if (!syncRes.ok) {
+          setSMut(false)
+          setFehler(syncRes.message)
+          void ladeAlles()
+          return
+        }
+        const prevP = positionen.find(x => x.id === editId)
+        if (!prevP) {
+          setSMut(false)
+          setFehler('Position nicht gefunden.')
+          return
+        }
+        const updatedP: TextilPositionenRow = {
+          ...prevP,
+          herkunft: 'KUNDENWARE',
+          typ: pKTyp,
+          farbe: pFarbe.trim(),
+          stueckzahl: pSt,
+          marke: null,
+          modell: null,
+          groesse: null,
+          variante_id: null,
+        }
+        const nextP = positionen.map(p => (p.id === editId ? updatedP : p))
+        setPositionen(nextP)
+        setZuordnungen(syncRes.zuoNext)
+        setSMut(false)
+        nachPosSpeichern(nextP, syncRes.zuoNext)
+        return
+      }
+
+      if (eigenwareModus === 'STAMMDATEN') {
+        if (!sdMarkeId || !sdProduktId || !sdVarianteId) {
+          setFehler('Bitte Marke, Produkt und Variante aus Stammdaten wählen.')
+          return
+        }
+        const markeName = sdMarken.find(x => x.id === sdMarkeId)?.name ?? ''
+        const produktName = sdProdukte.find(x => x.id === sdProduktId)?.name ?? ''
+        const gro = sdGroessen.find(x => x.id === sdVarianteId)?.groesse ?? ''
+        if (!markeName || !produktName || !sdFarbe || !gro) {
+          setFehler('Stammdaten-Auswahl unvollständig.')
+          return
+        }
+        setPMarke(markeName)
+        setPModell(produktName)
+        setPFarbe(sdFarbe)
+        setPGroesse(gro)
+      } else {
+        if (!pMarke.trim() || !pModell.trim() || !pFarbe.trim() || !pGroesse.trim()) {
+          setFehler('Marke, Modell, Farbe und Größe sind erforderlich.')
+          return
+        }
+      }
+      setSMut(true)
+      const { error: upEw } = await supabase
+        .from('textil_positionen')
+        .update({
+          herkunft: 'EIGENWARE',
+          typ: null,
+          farbe: pFarbe.trim(),
+          stueckzahl: pSt,
+          marke: pMarke.trim(),
+          modell: pModell.trim(),
+          groesse: pGroesse.trim(),
+          variante_id: eigenwareModus === 'STAMMDATEN' ? (sdVarianteId || null) : null,
+        })
+        .eq('id', editId)
+      if (upEw) {
+        setSMut(false)
+        setFehler(upEw.message)
+        return
+      }
+      const syncResEw = await syncZuordnungenFuerPosition(editId, motivIdsDesired, zuordnungen)
+      if (!syncResEw.ok) {
+        setSMut(false)
+        setFehler(syncResEw.message)
+        void ladeAlles()
+        return
+      }
+      const prevEw = positionen.find(x => x.id === editId)
+      if (!prevEw) {
+        setSMut(false)
+        setFehler('Position nicht gefunden.')
+        return
+      }
+      const updatedEw: TextilPositionenRow = {
+        ...prevEw,
+        herkunft: 'EIGENWARE',
+        typ: null,
+        farbe: pFarbe.trim(),
+        stueckzahl: pSt,
+        marke: pMarke.trim(),
+        modell: pModell.trim(),
+        groesse: pGroesse.trim(),
+        variante_id: eigenwareModus === 'STAMMDATEN' ? (sdVarianteId || null) : null,
+      }
+      const nextPEw = positionen.map(p => (p.id === editId ? updatedEw : p))
+      setPositionen(nextPEw)
+      setZuordnungen(syncResEw.zuoNext)
+      if (eigenwareModus === 'STAMMDATEN' && sdVarianteId) {
+        const markeName = sdMarken.find(x => x.id === sdMarkeId)?.name ?? ''
+        const produktName = sdProdukte.find(x => x.id === sdProduktId)?.name ?? ''
+        const v = sdGroessen.find(x => x.id === sdVarianteId) ?? null
+        if (v && markeName && produktName) {
+          setVarianteInfoById(prev => {
+            const m = new Map(prev)
+            m.set(sdVarianteId, {
+              bestand: v.bestand,
+              farbe: sdFarbe,
+              groesse: v.groesse,
+              ist_muster: v.ist_muster,
+              produkt: produktName,
+              marke: markeName,
+            })
+            return m
+          })
+        }
+      }
+      setSMut(false)
+      nachPosSpeichern(nextPEw, syncResEw.zuoNext)
+      return
+    }
+
     if (pHerk === 'KUNDENWARE') {
       if (!pFarbe.trim() || !pKTyp) {
         setFehler('Typ und Farbe sind erforderlich.')
@@ -645,8 +965,7 @@ export function TextilDetail({
         setPositionen(nextP)
 
         let zuoAcc = zuordnungen
-        const neuSlots = posMotivIds[TEMP_POS_NEU] ?? []
-        const motivIdsNeu = neuSlots.map(id => String(id).trim()).filter(Boolean)
+        const motivIdsNeu = motivIdsDesired
         if (motivIdsNeu.length > 0) {
           setSMut(true)
           try {
@@ -667,7 +986,6 @@ export function TextilDetail({
                 setZuordnungen(zuordnungen)
                 setFehler(fehlerNachZuordnungInsert(zErr))
                 resetPForm()
-                setPosFormOffen(false)
                 setPosMotivIds(prev => ({ ...prev, [TEMP_POS_NEU]: [] }))
                 const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
                 void syncTeil(motive, positionen, zuordnungen, prod)
@@ -683,7 +1001,6 @@ export function TextilDetail({
 
         setPosMotivIds(prev => ({ ...prev, [TEMP_POS_NEU]: [] }))
         resetPForm()
-        setPosFormOffen(false)
         const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
         void syncTeil(motive, nextP, zuoAcc, prod)
       }
@@ -756,8 +1073,7 @@ export function TextilDetail({
         }
 
         let zuoAcc = zuordnungen
-        const neuSlotsEw = posMotivIds[TEMP_POS_NEU] ?? []
-        const motivIdsNeuEw = neuSlotsEw.map(id => String(id).trim()).filter(Boolean)
+        const motivIdsNeuEw = motivIdsDesired
         if (motivIdsNeuEw.length > 0) {
           setSMut(true)
           try {
@@ -778,7 +1094,6 @@ export function TextilDetail({
                 setZuordnungen(zuordnungen)
                 setFehler(fehlerNachZuordnungInsert(zErr))
                 resetPForm()
-                setPosFormOffen(false)
                 setPosMotivIds(prev => ({ ...prev, [TEMP_POS_NEU]: [] }))
                 const prodEw = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
                 void syncTeil(motive, positionen, zuordnungen, prodEw)
@@ -794,7 +1109,6 @@ export function TextilDetail({
 
         setPosMotivIds(prev => ({ ...prev, [TEMP_POS_NEU]: [] }))
         resetPForm()
-        setPosFormOffen(false)
         const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
         void syncTeil(motive, nextP, zuoAcc, prod)
       }
@@ -802,6 +1116,7 @@ export function TextilDetail({
   }
 
   const delMotiv = async (id: string) => {
+    if (motivEditId === id) abbruchMotivForm()
     setFehler(null)
     const { data: inUse, error: cErr } = await supabase
       .from('textil_zuordnungen')
@@ -832,6 +1147,7 @@ export function TextilDetail({
   }
 
   const delPos = async (id: string) => {
+    if (posEditId === id) abbruchPosForm()
     setFehler(null)
     const { data: inUse, error: cErr } = await supabase
       .from('textil_zuordnungen')
@@ -877,13 +1193,13 @@ export function TextilDetail({
   }
 
   useEffect(() => {
-    if (!posFormOffen) return
+    if (posEditId !== null) return
     setPosMotivIds(prev => {
       const cur = prev[TEMP_POS_NEU]
       if (cur && cur.length > 0) return prev
       return { ...prev, [TEMP_POS_NEU]: [''] }
     })
-  }, [posFormOffen])
+  }, [posEditId])
 
   const pruef = teilStatus !== 'ANGEBOT'
 
@@ -901,168 +1217,10 @@ export function TextilDetail({
         <h3 className="ber-h3" style={{ marginTop: 0 }}>
           1. Motive
         </h3>
-        {motive.length === 0 && (
-          <div
-            style={{
-              border: '1px dashed var(--border)',
-              borderRadius: 6,
-              padding: '0.75rem',
-              marginBottom: '0.5rem',
-              fontSize: '0.85rem',
-              color: 'var(--text)',
-              opacity: 0.9,
-            }}
-          >
-            Noch kein Motiv angelegt.
-          </div>
-        )}
-        {motive.map((m, idx) => {
-          const offen = Boolean(motivOffen[m.id])
-          return (
-            <div
-              key={m.id}
-              style={{
-                marginBottom: '0.5rem',
-                border: '1px solid var(--border)',
-                borderRadius: 6,
-                padding: '0.5rem 0.65rem',
-              }}
-            >
-              {!offen ? (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    alignItems: 'center',
-                    gap: 8,
-                    fontSize: '0.88rem',
-                  }}
-                >
-                  <strong>Motiv {idx + 1}</strong>
-                  <span style={{ opacity: 0.75 }}>|</span>
-                  <span>{m.typ}</span>
-                  <span style={{ opacity: 0.75 }}>|</span>
-                  <span>{platzLabel(String(m.platz ?? '')) || '—'}</span>
-                  <span style={{ opacity: 0.75 }}>|</span>
-                  <span>{groesseKurzLabel(m.groesse ?? '—')}</span>
-                  <span style={{ opacity: 0.75 }}>|</span>
-                  <span>{m.druckart?.trim() ? m.druckart : '—'}</span>
-                  <button type="button" className="wa-ghost-btn" onClick={() => toggleMotivOffen(m.id)} disabled={sMut}>
-                    Bearbeiten
-                  </button>
-                  <button type="button" className="wa-ghost-btn" onClick={() => void delMotiv(m.id)} disabled={sMut}>
-                    Entfernen
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <p className="ber-hinweis" style={{ fontStyle: 'normal', fontSize: '0.78rem', marginBottom: '0.5rem' }}>
-                    Zum Ändern: Motiv entfernen und neu anlegen.
-                  </p>
-                  <div className="ber-zeile">
-                    <span className="ber-lbl">Typ</span>
-                    <div className="ber-nmb">
-                      <label>
-                        <input type="radio" name={`mtyp-ro-${m.id}`} checked={m.typ === 'TEXT'} disabled /> Text
-                      </label>
-                      <label>
-                        <input type="radio" name={`mtyp-ro-${m.id}`} checked={m.typ === 'DATEI'} disabled /> Datei
-                      </label>
-                    </div>
-                  </div>
-                  {m.typ === 'TEXT' && (
-                    <>
-                      <div className="ber-zeile">
-                        <label className="ber-lbl" htmlFor={`inh-ro-${m.id}`}>
-                          Inhalt
-                        </label>
-                        <input id={`inh-ro-${m.id}`} className="ber-inp" value={m.inhalt ?? ''} disabled readOnly />
-                      </div>
-                      <div className="ber-zeile">
-                        <label className="ber-lbl" htmlFor={`fa-ro-${m.id}`}>
-                          Farbe
-                        </label>
-                        <input id={`fa-ro-${m.id}`} className="ber-inp" value={m.farbe ?? ''} disabled readOnly />
-                      </div>
-                      <div className="ber-zeile">
-                        <span className="ber-lbl">Schriftklasse</span>
-                        <select className="ber-inp" value={(m.schriftklasse as TextilSchriftklasse) || 'SERIFENLOS'} disabled>
-                          {SCHRIFTKLASSE.map(s => (
-                            <option key={s.v} value={s.v}>
-                              {s.l}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="ber-zeile">
-                        <label className="ber-lbl" htmlFor={`sa-ro-${m.id}`}>
-                          Schriftart
-                        </label>
-                        <input id={`sa-ro-${m.id}`} className="ber-inp" value={m.schriftart ?? ''} disabled readOnly />
-                      </div>
-                    </>
-                  )}
-                  {m.typ === 'DATEI' && (
-                    <div className="ber-zeile">
-                      <span className="ber-lbl">Datei</span>
-                      <input
-                        className="ber-inp"
-                        value={dateiNameById.get(m.datei_id ?? '') ?? m.datei_id ?? ''}
-                        disabled
-                        readOnly
-                      />
-                    </div>
-                  )}
-                  <div className="ber-zeile">
-                    <span className="ber-lbl">Platz</span>
-                    <input className="ber-inp" value={platzLabel(String(m.platz ?? ''))} readOnly disabled />
-                  </div>
-                  <div className="ber-zeile">
-                    <span className="ber-lbl">Größe</span>
-                    <input className="ber-inp" value={groesseKurzLabel(m.groesse ?? '')} readOnly disabled />
-                  </div>
-                  <div className="ber-zeile">
-                    <label className="ber-lbl" htmlFor={`dr-ro-${m.id}`}>
-                      Druckart
-                    </label>
-                    <input
-                      id={`dr-ro-${m.id}`}
-                      className="ber-inp"
-                      value={m.druckart ?? ''}
-                      placeholder="—"
-                      readOnly
-                      disabled
-                    />
-                  </div>
-                  <div className="ber-zeile">
-                    <span className="ber-lbl" />
-                    <button type="button" className="wa-ghost-btn" onClick={() => toggleMotivOffen(m.id)} disabled={sMut}>
-                      Schließen
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          )
-        })}
-        {!motivFormOffen && (
-          <p style={{ margin: '0 0 0.5rem' }}>
-            <button
-              type="button"
-              className="wa-bereich-btn"
-              onClick={() => setMotivFormOffen(true)}
-              disabled={sMut || laden}
-            >
-              + Motiv hinzufügen
-            </button>
-          </p>
-        )}
-        {motivFormOffen && (
-          <>
-            <p className="ber-hinweis" style={{ fontStyle: 'normal', fontSize: '0.8rem' }}>
-              Motivart wählen und mit + Hinzufügen speichern.
-            </p>
-            <form onSubmit={addMotiv}>
+        <p className="ber-hinweis" style={{ fontStyle: 'normal', fontSize: '0.8rem' }}>
+          {motivEditId ? 'Eintrag bearbeiten und speichern.' : 'Neues Motiv anlegen und mit + Hinzufügen speichern.'}
+        </p>
+        <form onSubmit={addMotiv}>
               <div className="ber-zeile">
                 <span className="ber-lbl">Typ</span>
                 <div className="ber-nmb">
@@ -1188,49 +1346,102 @@ export function TextilDetail({
                 <span className="ber-lbl" />
                 <div className="ber-nmb" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
                   <button type="submit" className="wa-bereich-btn" disabled={sMut || laden}>
-                    + Hinzufügen
+                    {motivEditId ? 'Speichern' : '+ Hinzufügen'}
                   </button>
-                  <button type="button" className="wa-ghost-btn" onClick={abbruchMotivForm} disabled={sMut || laden}>
-                    Abbrechen
-                  </button>
+                  {motivEditId && (
+                    <button type="button" className="wa-ghost-btn" onClick={abbruchMotivForm} disabled={sMut || laden}>
+                      Abbrechen
+                    </button>
+                  )}
                 </div>
               </div>
             </form>
-          </>
-        )}
+        <div style={{ borderTop: '1px solid var(--border)', marginTop: '0.65rem', paddingTop: '0.5rem' }}>
+          <p style={{ margin: '0 0 0.35rem', fontSize: '0.82rem', fontWeight: 600 }}>Bestehende Motive</p>
+          {motive.length === 0 && (
+            <div
+              style={{
+                border: '1px dashed var(--border)',
+                borderRadius: 6,
+                padding: '0.75rem',
+                marginBottom: '0.5rem',
+                fontSize: '0.85rem',
+                color: 'var(--text)',
+                opacity: 0.9,
+              }}
+            >
+              Noch kein Motiv angelegt.
+            </div>
+          )}
+          {motive.map((m, idx) => (
+            <div
+              key={m.id}
+              style={{
+                marginBottom: '0.5rem',
+                border: '1px solid var(--border)',
+                borderRadius: 6,
+                padding: '0.5rem 0.65rem',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: '0.88rem',
+                }}
+              >
+                <strong>Motiv {idx + 1}</strong>
+                <span style={{ opacity: 0.75 }}>|</span>
+                <span>{m.typ}</span>
+                <span style={{ opacity: 0.75 }}>|</span>
+                <span>{platzLabel(String(m.platz ?? '')) || '—'}</span>
+                <span style={{ opacity: 0.75 }}>|</span>
+                <span>{groesseKurzLabel(m.groesse ?? '—')}</span>
+                <span style={{ opacity: 0.75 }}>|</span>
+                <span>{m.druckart?.trim() ? m.druckart : '—'}</span>
+                <button type="button" className="wa-ghost-btn" onClick={() => motivBearbeiten(m)} disabled={sMut}>
+                  Bearbeiten
+                </button>
+                <button type="button" className="wa-ghost-btn" onClick={() => void delMotiv(m.id)} disabled={sMut}>
+                  Entfernen
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="ber-lfp" style={{ borderTop: '1px solid var(--border)' }}>
         <h3 className="ber-h3" style={{ marginTop: '0.35rem' }}>
           2. Textilien
         </h3>
-        {!posFormOffen && (
-          <p style={{ margin: '0 0 0.5rem' }}>
-            <button
-              type="button"
-              className="wa-bereich-btn"
-              onClick={() => setPosFormOffen(true)}
-              disabled={sMut || laden}
-            >
-              + Position hinzufügen
-            </button>
-          </p>
-        )}
-        {posFormOffen && (
-          <>
-            <p className="ber-hinweis" style={{ fontSize: '0.8rem' }}>
-              Eigenware: Jede Größe als eigene Position anlegen.
-            </p>
-            <form onSubmit={addPosition}>
+        <p className="ber-hinweis" style={{ fontSize: '0.8rem' }}>
+          {posEditId ? 'Position bearbeiten und speichern.' : 'Neue Position anlegen.'} Eigenware: Jede Größe als eigene Position.
+        </p>
+        <form onSubmit={addPosition}>
               <div className="ber-zeile">
                 <span className="ber-lbl">Herkunft</span>
                 <div className="ber-nmb">
                   <label>
-                    <input type="radio" name="pH" checked={pHerk === 'KUNDENWARE'} onChange={() => setPHerk('KUNDENWARE')} />
+                    <input
+                      type="radio"
+                      name="pH"
+                      checked={pHerk === 'KUNDENWARE'}
+                      onChange={() => setPHerk('KUNDENWARE')}
+                      disabled={posEditId !== null}
+                    />
                     {HERKUNFT_ANZEIGE.KUNDENWARE}
                   </label>
                   <label>
-                    <input type="radio" name="pH" checked={pHerk === 'EIGENWARE'} onChange={() => setPHerk('EIGENWARE')} />
+                    <input
+                      type="radio"
+                      name="pH"
+                      checked={pHerk === 'EIGENWARE'}
+                      onChange={() => setPHerk('EIGENWARE')}
+                      disabled={posEditId !== null}
+                    />
                     {HERKUNFT_ANZEIGE.EIGENWARE}
                   </label>
                 </div>
@@ -1508,8 +1719,8 @@ export function TextilDetail({
                   />
                 </div>
               )}
-              {(posMotivIds[TEMP_POS_NEU] ?? ['']).map((slotVal, slotIx) => (
-                <div key={`mot-slot-${slotIx}`} className="ber-zeile">
+              {(posMotivIds[posSlotKey] ?? ['']).map((slotVal, slotIx) => (
+                <div key={`mot-slot-${posSlotKey}-${slotIx}`} className="ber-zeile">
                   <span className="ber-lbl">{slotIx === 0 ? 'Motiv zuordnen' : ''}</span>
                   <div>
                     <select
@@ -1518,9 +1729,9 @@ export function TextilDetail({
                       onChange={e => {
                         const v = e.target.value
                         setPosMotivIds(prev => {
-                          const row = [...(prev[TEMP_POS_NEU] ?? [''])]
+                          const row = [...(prev[posSlotKey] ?? [''])]
                           row[slotIx] = v
-                          return { ...prev, [TEMP_POS_NEU]: row }
+                          return { ...prev, [posSlotKey]: row }
                         })
                       }}
                     >
@@ -1544,7 +1755,7 @@ export function TextilDetail({
                   onClick={() =>
                     setPosMotivIds(prev => ({
                       ...prev,
-                      [TEMP_POS_NEU]: [...(prev[TEMP_POS_NEU] ?? ['']), ''],
+                      [posSlotKey]: [...(prev[posSlotKey] ?? ['']), ''],
                     }))
                   }
                   disabled={sMut || laden}
@@ -1561,16 +1772,16 @@ export function TextilDetail({
                     disabled={sMut || laden || (pHerk === 'EIGENWARE' && eigenwareModus === 'STAMMDATEN' && !sdVarianteId)}
                     title={pHerk === 'EIGENWARE' && eigenwareModus === 'STAMMDATEN' && !sdVarianteId ? 'Bitte Größe wählen' : undefined}
                   >
-                    + Hinzufügen
+                    {posEditId ? 'Speichern' : '+ Hinzufügen'}
                   </button>
-                  <button type="button" className="wa-ghost-btn" onClick={abbruchPosForm} disabled={sMut || laden}>
-                    Abbrechen
-                  </button>
+                  {posEditId && (
+                    <button type="button" className="wa-ghost-btn" onClick={abbruchPosForm} disabled={sMut || laden}>
+                      Abbrechen
+                    </button>
+                  )}
                 </div>
               </div>
             </form>
-          </>
-        )}
         <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
           {positionen.map(p => (
             <li
@@ -1678,6 +1889,9 @@ export function TextilDetail({
                     )
                   })}
               </div>
+              <button type="button" className="wa-ghost-btn" onClick={() => void bearbeitePosition(p)} disabled={sMut}>
+                Bearbeiten
+              </button>
               <button type="button" className="wa-ghost-btn" onClick={() => void delPos(p.id)} disabled={sMut}>
                 Entfernen
               </button>
