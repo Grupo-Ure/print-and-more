@@ -239,9 +239,6 @@ export function validateCopyShopDetail(
     ]
     if (!mat || !visitMat.includes(mat)) f(o, 'material', 'Pflichtfeld')
     if (!['4_0', '4_4'].includes(reqStr(d.farbigkeit) ?? '')) f(o, 'farbigkeit', 'Pflichtfeld')
-    if (!['1_SEITIG', '2_SEITIG'].includes(reqStr((d as Record<string, string>).druckseite) ?? '')) {
-      f(o, 'druckseite', 'Pflichtfeld')
-    }
     const fmt = reqStr((d as Record<string, string>).format)
     if (!['STANDARD_85_55', 'STANDARD_90_50', 'FREI'].includes(fmt ?? '')) f(o, 'format', 'Pflichtfeld')
     if (fmt === 'FREI' && !masseErfuellt(d.format_breite, d.format_hoehe)) f(o, 'format_masse', MSG_MASSE)

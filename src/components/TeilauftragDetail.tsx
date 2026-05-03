@@ -32,22 +32,6 @@ import type { LaserDetailJson } from '../types/laser'
 import { generiereUndLadePdf } from '../lib/pdf/auftragsPdf'
 import './WorkArea.css'
 
-function detailMitErhaltDateiId(
-  detail: Record<string, unknown> | null,
-  dateiId: string | null
-): Record<string, unknown> {
-  return { ...(detail ?? {}), datei_id: dateiId }
-}
-
-function patchDetailDateiId(
-  detail: Record<string, unknown> | null,
-  dateiId: string | null
-): Record<string, unknown> {
-  const existing = detail ?? {}
-  if ((existing.datei_id ?? null) === dateiId) return existing
-  return { ...existing, datei_id: dateiId }
-}
-
 type Props = {
   teil: TeilauftragRow
   auftragStatus: AuftragStatus
@@ -147,13 +131,6 @@ export function TeilauftragDetail({
 
   const kundePre = kundeErfuelltPrepressKontakt(auftragKunde)
 
-  const detailObj =
-    lokal.detail && typeof lokal.detail === 'object'
-      ? (lokal.detail as Record<string, unknown>)
-      : ({} as Record<string, unknown>)
-  const dateiIdAusDetail =
-    typeof detailObj.datei_id === 'string' ? String(detailObj.datei_id) : ''
-
   const speichere = useCallback(
     async (patch: Partial<TeilauftragRow>) => {
       const snap = snapR.current
@@ -198,91 +175,54 @@ export function TeilauftragDetail({
     [auftragLief, teil.id, teil.auftrag_id, auftragStatus, onAktualisiert, kundePre, fehler]
   )
 
-  const speichereDetailDateiId = useCallback(
-    async (nextId: string | null) => {
-      const cur = lokalR.current.detail
-      const base =
-        cur && typeof cur === 'object' ? (cur as Record<string, unknown>) : ({} as Record<string, unknown>)
-      const next = patchDetailDateiId(base, nextId)
-      setLokal(s => ({ ...s, detail: next as never }))
-      await speichere({ detail: next as never })
+  const onLfpPatch = useCallback(
+    async (p: { typ?: string | null; detail: LfpDetailJson | null }) => {
+      await speichere({
+        typ: p.typ,
+        detail: (p.detail ?? {}) as LfpDetailJson,
+      } as Partial<TeilauftragRow>)
     },
     [speichere]
   )
 
-  const onLfpPatch = useCallback(
-    async (p: { typ?: string | null; detail: LfpDetailJson | null }) => {
-      const curDetail = lokal.detail as Record<string, unknown> | null
-      const neuesDetail = detailMitErhaltDateiId(
-        { ...(p.detail ?? {}) } as Record<string, unknown>,
-        (curDetail?.datei_id as string | null) ?? null
-      )
-      await speichere({
-        typ: p.typ,
-        detail: neuesDetail as LfpDetailJson,
-      } as Partial<TeilauftragRow>)
-    },
-    [speichere, lokal.detail]
-  )
-
   const onCopyShopPatch = useCallback(
     async (p: { typ?: string | null; detail: CopyShopDetailJson | null }) => {
-      const curDetail = lokal.detail as Record<string, unknown> | null
-      const neuesDetail = detailMitErhaltDateiId(
-        { ...(p.detail ?? {}) } as Record<string, unknown>,
-        (curDetail?.datei_id as string | null) ?? null
-      )
       await speichere({
         typ: p.typ,
-        detail: neuesDetail as CopyShopDetailJson,
+        detail: (p.detail ?? {}) as CopyShopDetailJson,
       } as Partial<TeilauftragRow>)
     },
-    [speichere, lokal.detail]
+    [speichere]
   )
 
   const onStempelPatch = useCallback(
     async (p: { typ?: string | null; detail: StempelDetailJson | null }) => {
-      const curDetail = lokal.detail as Record<string, unknown> | null
-      const neuesDetail = detailMitErhaltDateiId(
-        { ...(p.detail ?? {}) } as Record<string, unknown>,
-        (curDetail?.datei_id as string | null) ?? null
-      )
       await speichere({
         typ: p.typ,
-        detail: neuesDetail as StempelDetailJson,
+        detail: (p.detail ?? {}) as StempelDetailJson,
       } as Partial<TeilauftragRow>)
     },
-    [speichere, lokal.detail]
+    [speichere]
   )
 
   const onSonstigePatch = useCallback(
     async (p: { typ?: string | null; detail: SonstigeDetailJson | null }) => {
-      const curDetail = lokal.detail as Record<string, unknown> | null
-      const neuesDetail = detailMitErhaltDateiId(
-        { ...(p.detail ?? {}) } as Record<string, unknown>,
-        (curDetail?.datei_id as string | null) ?? null
-      )
       await speichere({
         typ: p.typ,
-        detail: neuesDetail as SonstigeDetailJson,
+        detail: (p.detail ?? {}) as SonstigeDetailJson,
       } as Partial<TeilauftragRow>)
     },
-    [speichere, lokal.detail]
+    [speichere]
   )
 
   const onLaserPatch = useCallback(
     async (p: { typ?: string | null; detail: LaserDetailJson | null }) => {
-      const curDetail = lokal.detail as Record<string, unknown> | null
-      const neuesDetail = detailMitErhaltDateiId(
-        { ...(p.detail ?? {}) } as Record<string, unknown>,
-        (curDetail?.datei_id as string | null) ?? null
-      )
       await speichere({
         typ: p.typ,
-        detail: neuesDetail as LaserDetailJson,
+        detail: (p.detail ?? {}) as LaserDetailJson,
       } as Partial<TeilauftragRow>)
     },
-    [speichere, lokal.detail]
+    [speichere]
   )
 
   const onTextilTeilAktualisiert = useCallback(
@@ -405,20 +345,6 @@ export function TeilauftragDetail({
     }
   }, [auftragPrio, lokal.prioritaet, onAktualisiert, teil.id, fehler])
 
-  const autoDateiRef = useRef('')
-  useEffect(() => {
-    // Pro Teilauftrag genau einmal vorselektieren.
-    if (autoDateiRef.current === teil.id) return
-    if (dateiIdAusDetail) {
-      autoDateiRef.current = teil.id
-      return
-    }
-    const first = auftragDateien[0]?.id
-    if (!first) return
-    autoDateiRef.current = teil.id
-    void speichereDetailDateiId(first)
-  }, [teil.id, auftragDateien, dateiIdAusDetail, speichereDetailDateiId])
-
   const tBadge = teilStatusBadgeAuf(lokal.status)
 
   return (
@@ -443,27 +369,6 @@ export function TeilauftragDetail({
       <h2 className="sec-h2" style={{ marginTop: 8 }}>
         Allgemein
       </h2>
-      {auftragDateien.length > 0 && (
-        <div className="ber-zeile-stack" style={{ marginTop: 8 }}>
-          <span className="ber-lbl">Auftragsdatei</span>
-          <select
-            className="ber-inp"
-            value={dateiIdAusDetail || ''}
-            onChange={e => {
-              const v = e.target.value
-              void speichereDetailDateiId(v ? v : null)
-            }}
-            aria-label="Auftragsdatei"
-          >
-            <option value="">— Datei wählen —</option>
-            {auftragDateien.map(d => (
-              <option key={d.id} value={d.id}>
-                {d.anzeigename}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
       <div className="ber-grid-2">
         <div className="ber-zeile-stack">
           <span className="ber-lbl">Lieferdatum</span>
