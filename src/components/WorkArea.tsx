@@ -375,6 +375,15 @@ export function WorkArea({
         onAuftragAktualisiert({ ...(auftrag as unknown as Auftrag), status: a.status })
       } catch {
         toastFehler('Auftragsstatus konnte nicht aktualisiert werden')
+        const { data: refreshed } = await supabase
+          .from('auftraege')
+          .select(AUFTRAG_SPALTEN)
+          .eq('id', auftrag.id)
+          .single()
+        if (refreshed) {
+          setAuftrag(refreshed as AuftragDetailRow)
+          onAuftragAktualisiert(refreshed as unknown as Auftrag)
+        }
       }
     }
     setOverlayOffen(false)

@@ -424,28 +424,9 @@ export function ContextPanel({
     if (teil.kundenfreigabe_erforderlich && !teil.kundenfreigabe_liegt_vor) return
     setBusy(true)
     try {
-      const { data, error } = await supabase
-        .from('teilauftraege')
-        .update({ status: 'PRODUKTION_BEREIT' as AuftragStatus })
-        .eq('id', teil.id)
-        .select(TEILAUFTRAG_SPALTEN)
-        .single()
-      if (error) throw error
-      try {
-        await schreibeHistorie({
-          auftrag_id: auftrag.id,
-          teilauftrag_id: teil.id,
-          ereignisart: 'PRODUKTION_BEREIT_GESETZT',
-        })
-      } catch {
-        console.error('Historie Produktion fehlgeschlagen')
-      }
-
-      const row = data as TeilauftragRow
-
-      // Stempel: Automatischer Lagerabgang bei Produktionsfreigabe (Stempel + ggf. Kissen).
-      if (row.bereich === 'STEMPEL') {
-        const det = teilJsonAlsFeldertabelle(row.detail)
+      // Stempel: Automatischer Lagerabgang (vor Status-Update).
+      if (teil.bereich === 'STEMPEL') {
+        const det = teilJsonAlsFeldertabelle(teil.detail)
         const rawM = det.stueckzahl
         const mengeParsed =
           typeof rawM === 'number'
@@ -463,10 +444,7 @@ export function ContextPanel({
             .select('bestand')
             .eq('id', modellId)
             .single()
-          if (eMod) {
-            fehler('Bestand konnte nicht geladen werden')
-            return
-          }
+          if (eMod) throw eMod
           if (!modell) return
           const alt = (modell as { bestand: number | null }).bestand ?? 0
           if (alt <= 0) return
@@ -475,10 +453,7 @@ export function ContextPanel({
             .from('stempel_modelle')
             .update({ bestand: neuerBestand } as never)
             .eq('id', modellId)
-          if (eUp) {
-            fehler('Bestand konnte nicht geladen werden')
-            return
-          }
+          if (eUp) throw eUp
           const {
             data: { user },
           } = await supabase.auth.getUser()
@@ -489,10 +464,10 @@ export function ContextPanel({
             notiz,
             person_id: user?.id ?? null,
           } as never)
-          if (eIns) fehler('Bestand konnte nicht geladen werden')
+          if (eIns) throw eIns
         }
 
-        if (row.typ === 'TRODAT_KISSEN' && det.kissen_modell_id) {
+        if (teil.typ === 'TRODAT_KISSEN' && det.kissen_modell_id) {
           await lagerAutoabgang(String(det.kissen_modell_id), menge, notizStempel)
         } else if (det.modell_id) {
           const stampId = String(det.modell_id)
@@ -506,7 +481,7 @@ export function ContextPanel({
               .eq('id', stampId)
               .single()
             if (eErs) {
-              fehler('Bestand konnte nicht geladen werden')
+              throw eErs
             } else if (stRow) {
               const ers = (stRow as { ersatzkissen_artikelnummer: string | null }).ersatzkissen_artikelnummer
               const artikel = ers && String(ers).trim()
@@ -519,7 +494,7 @@ export function ContextPanel({
                   .eq('farbe', String(fr))
                   .maybeSingle()
                 if (eKis) {
-                  fehler('Bestand konnte nicht geladen werden')
+                  throw eKis
                 } else if (kissen) {
                   const b = (kissen as { bestand: number | null; id: string }).bestand ?? 0
                   if (b > 0) {
@@ -533,8 +508,8 @@ export function ContextPanel({
         }
       }
 
-      // Textil: Automatischer Lagerabgang bei Produktionsfreigabe (nur Eigenware-Positionen mit variante_id).
-      if (row.bereich === 'TEXTIL') {
+      // Textil: Automatischer Lagerabgang (vor Status-Update).
+      if (teil.bereich === 'TEXTIL') {
         const notizTextil = 'Automatisch bei Produktionsfreigabe ' + (auftrag.auftragsnummer ?? '')
         const {
           data: { user },
@@ -544,7 +519,7 @@ export function ContextPanel({
         const { data: posData, error: ePos } = await supabase
           .from('textil_positionen')
           .select('id, variante_id, stueckzahl, herkunft')
-          .eq('teilauftrag_id', row.id)
+          .eq('teilauftrag_id', teil.id)
           .eq('herkunft', 'EIGENWARE')
           .not('variante_id', 'is', null)
         if (ePos) throw ePos
@@ -584,6 +559,25 @@ export function ContextPanel({
           if (eIns) throw eIns
         }
       }
+
+      const { data, error } = await supabase
+        .from('teilauftraege')
+        .update({ status: 'PRODUKTION_BEREIT' as AuftragStatus })
+        .eq('id', teil.id)
+        .select(TEILAUFTRAG_SPALTEN)
+        .single()
+      if (error) throw error
+
+      try {
+        await schreibeHistorie({
+          auftrag_id: auftrag.id,
+          teilauftrag_id: teil.id,
+          ereignisart: 'PRODUKTION_BEREIT_GESETZT',
+        })
+      } catch {
+        console.error('Historie Produktion fehlgeschlagen')
+      }
+
       onTeilauftragAktualisiert(data as TeilauftragRow)
       await teilNaechstNachTeilAktion()
     } catch {
