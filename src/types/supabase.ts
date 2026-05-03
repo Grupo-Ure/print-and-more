@@ -606,10 +606,13 @@ export type Database = {
       textil_motive: {
         Row: {
           datei_id: string | null
+          druckart: string | null
           erstellt_am: string
           farbe: string | null
+          groesse: string
           id: string
           inhalt: string | null
+          platz: string
           schriftart: string | null
           schriftklasse: string | null
           teilauftrag_id: string
@@ -617,10 +620,13 @@ export type Database = {
         }
         Insert: {
           datei_id?: string | null
+          druckart?: string | null
           erstellt_am?: string
           farbe?: string | null
+          groesse?: string
           id?: string
           inhalt?: string | null
+          platz?: string
           schriftart?: string | null
           schriftklasse?: string | null
           teilauftrag_id: string
@@ -628,10 +634,13 @@ export type Database = {
         }
         Update: {
           datei_id?: string | null
+          druckart?: string | null
           erstellt_am?: string
           farbe?: string | null
+          groesse?: string
           id?: string
           inhalt?: string | null
+          platz?: string
           schriftart?: string | null
           schriftklasse?: string | null
           teilauftrag_id?: string
@@ -766,32 +775,23 @@ export type Database = {
       }
       textil_zuordnungen: {
         Row: {
-          druckart: string | null
           erstellt_am: string
-          groesse: string
           id: string
           motiv_id: string
-          platz: string
           position_id: string
           teilauftrag_id: string
         }
         Insert: {
-          druckart?: string | null
           erstellt_am?: string
-          groesse: string
           id?: string
           motiv_id: string
-          platz: string
           position_id: string
           teilauftrag_id: string
         }
         Update: {
-          druckart?: string | null
           erstellt_am?: string
-          groesse?: string
           id?: string
           motiv_id?: string
-          platz?: string
           position_id?: string
           teilauftrag_id?: string
         }

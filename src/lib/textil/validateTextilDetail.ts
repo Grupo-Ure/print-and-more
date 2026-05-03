@@ -25,9 +25,8 @@ function groesseIstGesetzt(g: string | null | undefined): boolean {
   return false
 }
 
-function zuordnungDatensatzVoll(z: { motiv_id: string; position_id: string; platz: string; groesse: string }): boolean {
-  if (!z.motiv_id?.trim() || !z.position_id?.trim() || !z.platz?.trim()) return false
-  return groesseIstGesetzt(z.groesse)
+function zuordnungDatensatzVoll(z: { motiv_id: string; position_id: string }): boolean {
+  return Boolean(z.motiv_id?.trim() && z.position_id?.trim())
 }
 
 /**
@@ -37,7 +36,7 @@ function zuordnungDatensatzVoll(z: { motiv_id: string; position_id: string; plat
 export function textilDatensaetzeErlaubenPraepress(
   motive: TextilMotiveRow[],
   positionen: TextilPositionenRow[],
-  zuordnungen: Pick<TextilZuordnungRow, 'motiv_id' | 'position_id' | 'platz' | 'groesse'>[]
+  zuordnungen: Pick<TextilZuordnungRow, 'motiv_id' | 'position_id'>[]
 ): boolean {
   if (motive.length < 1 || positionen.length < 1) return false
   if (zuordnungen.length < 1) return false
@@ -45,6 +44,8 @@ export function textilDatensaetzeErlaubenPraepress(
     if (!zuordnungDatensatzVoll(z)) return false
   }
   for (const m of motive) {
+    if (!m.platz?.trim()) return false
+    if (!groesseIstGesetzt(m.groesse)) return false
     if (m.typ === 'TEXT') {
       if (!m.inhalt?.trim() || !m.farbe?.trim() || !m.schriftklasse?.trim()) return false
     } else {

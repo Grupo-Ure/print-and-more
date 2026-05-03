@@ -104,7 +104,7 @@ Bereiche = Enum `teilauftrag_bereich` / Konstante `TEILAUFTRAG_BEREICHE` in `src
 |---------|-----------------------------------------------|-------------|
 | **LFP** | `AUFKLEBER`, `SCHILD_UV`, `SCHILD_FOLIE`, `FOLIENPLOTT`, `BANNER`, `ROLLUP`, `FAHRZEUGBESCHRIFTUNG`, `SONSTIGE_LFP` | `teilauftrag_produkte` + `detail` je Produkt; globales `teilauftraege.detail` mit u. a. `hat_produkte` |
 | **COPYSHOP** | `PLAKAT_POSTER`, `KARTE_FLYER`, `FALZFLYER`, `BROSCHUERE`, `VISITENKARTE`, `BINDUNG`, `AUSDRUCK` | wie LFP (Produkttabelle) |
-| **STEMPEL** | Basis: `TRODAT_PRINTY`, `HOLZSTEMPEL`, `STATIVSTEMPEL`, `DATUMSSTEMPEL`, `SONSTIGE_STEMPEL`; zusätzlich u. a. `NACHFUELLFARBE`, `STEMPELKISSEN`, `STEMPELPLATTE`, `TRODAT_KISSEN` | Produkttabelle + JSONB; Modellauswahl über `stempel_modelle` wo vorgesehen |
+| **STEMPEL** | Basis: `TRODAT_PRINTY`, `HOLZSTEMPEL`, `STATIVSTEMPEL`, `DATUMSSTEMPEL`, `SONSTIGE_STEMPEL`; zusätzlich u. a. `NACHFUELLFARBE`, `STEMPELKISSEN`, `STEMPELPLATTE`, `TRODAT_KISSEN`. Hinweis: Der Typ `STEMPELKISSEN_PRODUKT` in der DB entspricht `STEMPELKISSEN` im Code — konsistent implementiert. | Produkttabelle + JSONB; Modellauswahl über `stempel_modelle` wo vorgesehen |
 | **LASERGRAVUR** | `SCHILD`, `POKALSCHILD`, `NAMENSSCHILD`, `GESCHENKARTIKEL`, `SONSTIGE_LASER` | Produkttabelle |
 | **SONSTIGE** | Freitext-/Sammelbereich (keine feste Typ-Liste in `types/`) | Produkttabelle |
 | **TEXTIL** | Keine parallele `teilauftrag_produkte`-Produktliste wie oben; Fachdaten in **`textil_motive`**, **`textil_positionen`**, **`textil_zuordnungen`** | Tabellen + JSONB `detail.textil` inkl. Marker `voll` |
@@ -183,4 +183,10 @@ Weitere zentrale Komponenten (außerhalb `bereiche/`): `App.tsx` (Layout, Sessio
 - **`erp_exportiert` / `erp_exporte`:** Feld und Tabelle existieren noch; die **ERP-Export-UI wurde entfernt** — Reste nur noch falls Historie/Altlasten.
 - **Aggregierter Auftragsstatus in der linken Liste** aktualisiert sich nicht zwingend live bei jeder mittigen Änderung; Refresh über Auftragswechsel, `orderListKey` oder vergleichbare Trigger.
 - **Generierte Typen:** `teilauftrag_produkte` / `produkt_dateien` haben im Typ keine ausgefüllten `Relationships` — echte FKs können in der DB dennoch existieren.
-- **`src/types/stempel.ts`** listet nur die Basistypen; **zusätzliche Stempel-Typen** (Nachfüllfarbe, Kissen, Platte, Trodat Kissen) sind in **`StempelDetail.tsx`** / **`teilGlobal`** relevant — ENUM in der DB sollte kompatibel sein.
+- **Electron-Migration:** Die App läuft aktuell im Browser
+     (Supabase Cloud). Zielplattform ist Electron (Windows + Mac).
+     Migration steht aus — Aufgabe des UI-Entwicklers.
+     Beim Wechsel zu Electron: PDF-Speicherpfad auf
+     konfigurierbares Netzlaufwerk umstellen.
+     Explorer/Finder-Integration für Datei-Pfad-Auswahl
+     ebenfalls Electron-seitig zu implementieren.

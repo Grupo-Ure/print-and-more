@@ -114,18 +114,8 @@ function groesseKurzLabel(g: string): string {
   return g
 }
 
-/** DB-Wert `groesse` → Formular Größenwahl + Freitext */
-function splitGroesseDb(g: string | null | undefined): { art: TextilGroesseEnum; frei: string } {
-  if (!g || g === 'KLEIN' || g === 'MITTEL' || g === 'GROSS') {
-    return { art: (g as TextilGroesseEnum) || 'MITTEL', frei: '' }
-  }
-  if (g === 'FREI') return { art: 'FREI', frei: '' }
-  if (g.startsWith('FREI:')) return { art: 'FREI', frei: g.slice(5) }
-  return { art: 'MITTEL', frei: '' }
-}
-
 const ZUO_EMBED_SELECT =
-  'id, teilauftrag_id, motiv_id, position_id, platz, groesse, druckart, textil_motive(typ, inhalt, datei_id), textil_positionen(herkunft, typ, farbe, marke, modell, groesse)'
+  'id, teilauftrag_id, motiv_id, position_id, textil_motive(typ, inhalt, datei_id, platz, groesse, druckart), textil_positionen(herkunft, typ, farbe, marke, modell, groesse)'
 
 const TEMP_POS_NEU = 'neu'
 
@@ -159,6 +149,10 @@ export function TextilDetail({
   const [mSchriftkl, setMSchriftkl] = useState<TextilSchriftklasse>('SERIFENLOS')
   const [mSchriftart, setMSchriftart] = useState('')
   const [mDatei, setMDatei] = useState('')
+  const [mPlatz, setMPlatz] = useState<TextilPlatz>('BRUST_LINKS')
+  const [mGrArt, setMGrArt] = useState<TextilGroesseEnum>('MITTEL')
+  const [mGrFrei, setMGrFrei] = useState('')
+  const [mDruckart, setMDruckart] = useState('')
 
   const [pHerk, setPHerk] = useState<TextilHerkunft>('KUNDENWARE')
   const [pKTyp, setPKTyp] = useState<TextilKundenKleidungTyp>('T_SHIRT')
@@ -171,16 +165,8 @@ export function TextilDetail({
   // Eigenware-Modus (in Teilauftrag-Detail gespeichert)
   const [eigenwareModus, setEigenwareModus] = useState<EigenwareModus>('STAMMDATEN')
 
-  const [zMot, setZMot] = useState('')
-  const [zPos, setZPos] = useState('')
-  const [zPlatz, setZPlatz] = useState<TextilPlatz>('BRUST_LINKS')
-  const [zGrArt, setZGrArt] = useState<TextilGroesseEnum>('MITTEL')
-  const [zGrFrei, setZGrFrei] = useState('')
-  const [zDruck, setZDruck] = useState('')
-
   const [motivFormOffen, setMotivFormOffen] = useState(false)
   const [posFormOffen, setPosFormOffen] = useState(false)
-  const [, setZuoFormOffen] = useState(false)
 
   const [motivOffen, setMotivOffen] = useState<Record<string, boolean>>({})
 
@@ -190,21 +176,6 @@ export function TextilDetail({
     setMotivOffen(prev => ({ ...prev, [id]: true }))
 
   const [posMotivIds, setPosMotivIds] = useState<Record<string, string[]>>({})
-
-  /** Entwurf Zuordnung pro Motiv (aufklappbar); Schlüssel = motiv_id */
-  const [motivZuoDraft, setMotivZuoDraft] = useState<
-    Record<
-      string,
-      {
-        platz: TextilPlatz
-        grArt: TextilGroesseEnum
-        grFrei: string
-        druck: string
-        position_id: string
-        zuordnungId: string | null
-      }
-    >
-  >({})
 
   const syncTeil = useCallback(
     async (motiveL: TextilMotiveRow[], posL: TextilPositionenRow[], zuoL: TextilZuordnungRow[], afterProdMutation: boolean) => {
@@ -257,12 +228,7 @@ export function TextilDetail({
     const [mRes, pRes, zRes] = await Promise.all([
       supabase.from('textil_motive').select('*').eq('teilauftrag_id', tId),
       supabase.from('textil_positionen').select('*').eq('teilauftrag_id', tId),
-      supabase
-        .from('textil_zuordnungen')
-        .select(
-          'id, teilauftrag_id, motiv_id, position_id, platz, groesse, druckart, textil_motive(typ, inhalt, datei_id), textil_positionen(herkunft, typ, farbe, marke, modell, groesse)'
-        )
-        .eq('teilauftrag_id', tId),
+      supabase.from('textil_zuordnungen').select(ZUO_EMBED_SELECT).eq('teilauftrag_id', tId),
     ])
     if (mRes.error) setFehler(mRes.error.message)
     if (pRes.error) setFehler(pRes.error.message)
@@ -338,10 +304,8 @@ export function TextilDetail({
   useEffect(() => {
     setMotivFormOffen(false)
     setPosFormOffen(false)
-    setZuoFormOffen(false)
     setMotivOffen({})
     setPosMotivIds({})
-    setMotivZuoDraft({})
   }, [teil.id])
 
   useEffect(() => {
@@ -514,6 +478,10 @@ export function TextilDetail({
     setMSchriftart('')
     setMDatei('')
     setMTyp('TEXT')
+    setMPlatz('BRUST_LINKS')
+    setMGrArt('MITTEL')
+    setMGrFrei('')
+    setMDruckart('')
   }
   const resetPForm = () => {
     setPHerk('KUNDENWARE')
@@ -528,15 +496,6 @@ export function TextilDetail({
     setSdFarbe('')
     setSdVarianteId('')
   }
-  const resetZForm = () => {
-    setZMot('')
-    setZPos('')
-    setZPlatz('BRUST_LINKS')
-    setZGrArt('MITTEL')
-    setZGrFrei('')
-    setZDruck('')
-  }
-
   const abbruchMotivForm = () => {
     resetMForm()
     setMotivFormOffen(false)
@@ -549,6 +508,16 @@ export function TextilDetail({
     e.preventDefault()
     setFehler(null)
     const tId = teil.id
+    let groesseDb: string
+    if (mGrArt === 'FREI') {
+      if (!mGrFrei.trim()) {
+        setFehler('Bei Größe „Frei (mm)“ bitte Abmessung eintragen.')
+        return
+      }
+      groesseDb = buildFreiGroesseString(mGrFrei)
+    } else {
+      groesseDb = mGrArt
+    }
     if (mTyp === 'TEXT') {
       if (!mInhalt.trim() || !mFarbe.trim()) {
         setFehler('Inhalt und Farbe sind erforderlich (Text).')
@@ -560,6 +529,9 @@ export function TextilDetail({
         .insert({
           teilauftrag_id: tId,
           typ: 'TEXT',
+          platz: mPlatz,
+          groesse: groesseDb,
+          druckart: mDruckart.trim() || null,
           inhalt: mInhalt.trim(),
           farbe: mFarbe.trim(),
           schriftklasse: mSchriftkl,
@@ -594,6 +566,9 @@ export function TextilDetail({
         .insert({
           teilauftrag_id: tId,
           typ: 'DATEI',
+          platz: mPlatz,
+          groesse: groesseDb,
+          druckart: mDruckart.trim() || null,
           inhalt: null,
           farbe: null,
           schriftklasse: null,
@@ -671,15 +646,12 @@ export function TextilDetail({
                   teilauftrag_id: teil.id,
                   motiv_id: mid,
                   position_id: r.id,
-                  platz: zPlatz,
-                  groesse: 'KLEIN',
-                  druckart: null,
                 })
                 .select(ZUO_EMBED_SELECT)
                 .single()
               if (zErr) {
                 if (isUniqueViolation(zErr)) {
-                  setFehler('Dieser Platz ist für diese Position bereits belegt.')
+                  setFehler('Diese Motiv-Position-Zuordnung existiert bereits.')
                 } else {
                   setFehler(zErr.message)
                 }
@@ -786,15 +758,12 @@ export function TextilDetail({
                   teilauftrag_id: teil.id,
                   motiv_id: mid,
                   position_id: r.id,
-                  platz: zPlatz,
-                  groesse: 'KLEIN',
-                  druckart: null,
                 })
                 .select(ZUO_EMBED_SELECT)
                 .single()
               if (zErr) {
                 if (isUniqueViolation(zErr)) {
-                  setFehler('Dieser Platz ist für diese Position bereits belegt.')
+                  setFehler('Diese Motiv-Position-Zuordnung existiert bereits.')
                 } else {
                   setFehler(zErr.message)
                 }
@@ -820,58 +789,6 @@ export function TextilDetail({
         const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
         void syncTeil(motive, nextP, zuoAcc, prod)
       }
-    }
-  }
-
-  const addZuordnung = async (e: FormEvent) => {
-    e.preventDefault()
-    setFehler(null)
-    if (!zMot || !zPos) {
-      setFehler('Motiv und Position wählen.')
-      return
-    }
-    let gro: string
-    if (zGrArt === 'FREI') {
-      if (!zGrFrei.trim()) {
-        setFehler('Bei Größe „Frei (mm)“ bitte Abmessung eintragen.')
-        return
-      }
-      gro = buildFreiGroesseString(zGrFrei)
-    } else {
-      gro = zGrArt
-    }
-    setSMut(true)
-    const { data, error } = await supabase
-      .from('textil_zuordnungen')
-      .insert({
-        teilauftrag_id: teil.id,
-        motiv_id: zMot,
-        position_id: zPos,
-        platz: zPlatz,
-        groesse: gro,
-        druckart: zDruck.trim() || null,
-      })
-      .select(
-        'id, teilauftrag_id, motiv_id, position_id, platz, groesse, druckart, textil_motive(typ, inhalt, datei_id), textil_positionen(herkunft, typ, farbe, marke, modell, groesse)'
-      )
-      .single()
-    setSMut(false)
-    if (error) {
-      if (isUniqueViolation(error)) {
-        setFehler('Dieser Platz ist für diese Position bereits belegt.')
-        return
-      }
-      setFehler(error.message)
-      return
-    }
-    if (data) {
-      const r = data as unknown as TextilZuordnungRow
-      const nextZ = [...zuordnungen, r]
-      setZuordnungen(nextZ)
-      resetZForm()
-      setZuoFormOffen(false)
-      const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
-      void syncTeil(motive, positionen, nextZ, prod)
     }
   }
 
@@ -959,97 +876,7 @@ export function TextilDetail({
     })
   }, [posFormOffen])
 
-  useEffect(() => {
-    for (const m of motive) {
-      if (!motivOffen[m.id]) continue
-      setMotivZuoDraft(prev => {
-        if (prev[m.id]) return prev
-        const z = zuordnungen.find(x => x.motiv_id === m.id)
-        const { art, frei } = splitGroesseDb(z?.groesse)
-        return {
-          ...prev,
-          [m.id]: {
-            platz: z?.platz ?? 'BRUST_LINKS',
-            grArt: art,
-            grFrei: frei,
-            druck: z?.druckart ?? '',
-            position_id: z?.position_id ?? '',
-            zuordnungId: z?.id ?? null,
-          },
-        }
-      })
-    }
-  }, [motivOffen, motive, zuordnungen])
-
-  const speichereZuordnungAusMotivPanel = async (motivId: string) => {
-    const d = motivZuoDraft[motivId]
-    if (!d?.position_id) {
-      setFehler('Noch keine Zuordnung zu einer Textil-Position: bitte unter „2. Textilien“ zuordnen, dann hier Platz, Größe und Druckart bearbeiten.')
-      return
-    }
-    let gro: string
-    if (d.grArt === 'FREI') {
-      if (!d.grFrei.trim()) {
-        setFehler('Bei Größe „Frei (mm)“ bitte Abmessung eintragen.')
-        return
-      }
-      gro = buildFreiGroesseString(d.grFrei)
-    } else {
-      gro = d.grArt
-    }
-    setFehler(null)
-    setSMut(true)
-    try {
-      if (d.zuordnungId) {
-        const { error: delErr } = await supabase.from('textil_zuordnungen').delete().eq('id', d.zuordnungId)
-        if (delErr) {
-          setFehler(delErr.message)
-          return
-        }
-      }
-      const { data, error } = await supabase
-        .from('textil_zuordnungen')
-        .insert({
-          teilauftrag_id: teil.id,
-          motiv_id: motivId,
-          position_id: d.position_id,
-          platz: d.platz,
-          groesse: gro,
-          druckart: d.druck.trim() || null,
-        })
-        .select(ZUO_EMBED_SELECT)
-        .single()
-      if (error) {
-        if (isUniqueViolation(error)) {
-          setFehler('Dieser Platz ist für diese Position bereits belegt.')
-          return
-        }
-        setFehler(error.message)
-        return
-      }
-      if (data) {
-        const row = data as unknown as TextilZuordnungRow
-        const ohneAlt = d.zuordnungId ? zuordnungen.filter(z => z.id !== d.zuordnungId) : zuordnungen
-        const nextZ = [...ohneAlt, row]
-        setZuordnungen(nextZ)
-        setMotivZuoDraft(prev => ({
-          ...prev,
-          [motivId]: {
-            ...prev[motivId],
-            zuordnungId: row.id,
-          },
-        }))
-        const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
-        void syncTeil(motive, positionen, nextZ, prod)
-      }
-    } finally {
-      setSMut(false)
-    }
-  }
-
   const pruef = teilStatus !== 'ANGEBOT'
-
-  void addZuordnung
 
   return (
     <div className="ber-lfp" style={{ maxWidth: '100%' }}>
@@ -1081,9 +908,7 @@ export function TextilDetail({
           </div>
         )}
         {motive.map((m, idx) => {
-          const zFirst = zuordnungen.find(z => z.motiv_id === m.id)
           const offen = Boolean(motivOffen[m.id])
-          const draft = motivZuoDraft[m.id]
           return (
             <div
               key={m.id}
@@ -1108,9 +933,11 @@ export function TextilDetail({
                   <span style={{ opacity: 0.75 }}>|</span>
                   <span>{m.typ}</span>
                   <span style={{ opacity: 0.75 }}>|</span>
-                  <span>{platzLabel(zFirst?.platz ?? '—')}</span>
+                  <span>{platzLabel(String(m.platz ?? '')) || '—'}</span>
                   <span style={{ opacity: 0.75 }}>|</span>
-                  <span>{groesseKurzLabel(zFirst?.groesse ?? '—')}</span>
+                  <span>{groesseKurzLabel(m.groesse ?? '—')}</span>
+                  <span style={{ opacity: 0.75 }}>|</span>
+                  <span>{m.druckart?.trim() ? m.druckart : '—'}</span>
                   <button type="button" className="wa-ghost-btn" onClick={() => toggleMotivOffen(m.id)} disabled={sMut}>
                     Bearbeiten
                   </button>
@@ -1177,109 +1004,33 @@ export function TextilDetail({
                       />
                     </div>
                   )}
-                  {draft && (
-                    <>
-                      <div className="ber-zeile">
-                        <span className="ber-lbl">Platz</span>
-                        <select
-                          className="ber-inp"
-                          value={draft.platz}
-                          onChange={e =>
-                            setMotivZuoDraft(prev => ({
-                              ...prev,
-                              [m.id]: {
-                                ...(prev[m.id] ?? draft),
-                                platz: e.target.value as TextilPlatz,
-                              },
-                            }))
-                          }
-                        >
-                          {PLATZ_OPT.map(p => (
-                            <option key={p.v} value={p.v}>
-                              {p.l}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="ber-zeile">
-                        <span className="ber-lbl">Größe</span>
-                        <div>
-                          <select
-                            className="ber-inp"
-                            value={draft.grArt}
-                            onChange={e =>
-                              setMotivZuoDraft(prev => ({
-                                ...prev,
-                                [m.id]: {
-                                  ...(prev[m.id] ?? draft),
-                                  grArt: e.target.value as TextilGroesseEnum,
-                                },
-                              }))
-                            }
-                          >
-                            {GROESSE_WAHL.map(g => (
-                              <option key={g} value={g}>
-                                {g === 'FREI' ? 'Frei (mm)' : GROESSE_ANZEIGE[g as 'KLEIN' | 'MITTEL' | 'GROSS']}
-                              </option>
-                            ))}
-                          </select>
-                          {draft.grArt === 'FREI' && (
-                            <input
-                              className="ber-inp"
-                              style={{ marginTop: 6, maxWidth: '14rem' }}
-                              placeholder="z. B. 150x200"
-                              value={draft.grFrei}
-                              onChange={e =>
-                                setMotivZuoDraft(prev => ({
-                                  ...prev,
-                                  [m.id]: {
-                                    ...(prev[m.id] ?? draft),
-                                    grFrei: e.target.value,
-                                  },
-                                }))
-                              }
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="ber-zeile">
-                        <label className="ber-lbl" htmlFor={`dr-${m.id}`}>
-                          Druckart
-                        </label>
-                        <input
-                          id={`dr-${m.id}`}
-                          className="ber-inp"
-                          placeholder="Wird durch PrePress festgelegt"
-                          value={draft.druck}
-                          onChange={e =>
-                            setMotivZuoDraft(prev => ({
-                              ...prev,
-                              [m.id]: {
-                                ...(prev[m.id] ?? draft),
-                                druck: e.target.value,
-                              },
-                            }))
-                          }
-                        />
-                      </div>
-                      <div className="ber-zeile">
-                        <span className="ber-lbl" />
-                        <div className="ber-nmb" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
-                          <button
-                            type="button"
-                            className="wa-bereich-btn"
-                            disabled={sMut || laden}
-                            onClick={() => void speichereZuordnungAusMotivPanel(m.id)}
-                          >
-                            Zuordnung speichern
-                          </button>
-                          <button type="button" className="wa-ghost-btn" onClick={() => toggleMotivOffen(m.id)} disabled={sMut}>
-                            Schließen
-                          </button>
-                        </div>
-                      </div>
-                    </>
-                  )}
+                  <div className="ber-zeile">
+                    <span className="ber-lbl">Platz</span>
+                    <input className="ber-inp" value={platzLabel(String(m.platz ?? ''))} readOnly disabled />
+                  </div>
+                  <div className="ber-zeile">
+                    <span className="ber-lbl">Größe</span>
+                    <input className="ber-inp" value={groesseKurzLabel(m.groesse ?? '')} readOnly disabled />
+                  </div>
+                  <div className="ber-zeile">
+                    <label className="ber-lbl" htmlFor={`dr-ro-${m.id}`}>
+                      Druckart
+                    </label>
+                    <input
+                      id={`dr-ro-${m.id}`}
+                      className="ber-inp"
+                      value={m.druckart ?? ''}
+                      placeholder="—"
+                      readOnly
+                      disabled
+                    />
+                  </div>
+                  <div className="ber-zeile">
+                    <span className="ber-lbl" />
+                    <button type="button" className="wa-ghost-btn" onClick={() => toggleMotivOffen(m.id)} disabled={sMut}>
+                      Schließen
+                    </button>
+                  </div>
                 </>
               )}
             </div>
@@ -1377,6 +1128,53 @@ export function TextilDetail({
                   </div>
                 </div>
               )}
+              <div className="ber-zeile">
+                <span className="ber-lbl">Platz</span>
+                <select className="ber-inp" value={mPlatz} onChange={e => setMPlatz(e.target.value as TextilPlatz)}>
+                  {PLATZ_OPT.map(p => (
+                    <option key={p.v} value={p.v}>
+                      {p.l}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="ber-zeile">
+                <span className="ber-lbl">Größe</span>
+                <div>
+                  <select
+                    className="ber-inp"
+                    value={mGrArt}
+                    onChange={e => setMGrArt(e.target.value as TextilGroesseEnum)}
+                  >
+                    {GROESSE_WAHL.map(g => (
+                      <option key={g} value={g}>
+                        {g === 'FREI' ? 'Frei (mm)' : GROESSE_ANZEIGE[g as 'KLEIN' | 'MITTEL' | 'GROSS']}
+                      </option>
+                    ))}
+                  </select>
+                  {mGrArt === 'FREI' && (
+                    <input
+                      className="ber-inp"
+                      style={{ marginTop: 6, maxWidth: '14rem' }}
+                      placeholder="z. B. 150x200"
+                      value={mGrFrei}
+                      onChange={e => setMGrFrei(e.target.value)}
+                    />
+                  )}
+                </div>
+              </div>
+              <div className="ber-zeile">
+                <label className="ber-lbl" htmlFor="m-druckart">
+                  Druckart
+                </label>
+                <input
+                  id="m-druckart"
+                  className="ber-inp"
+                  placeholder="optional"
+                  value={mDruckart}
+                  onChange={e => setMDruckart(e.target.value)}
+                />
+              </div>
               <div className="ber-zeile">
                 <span className="ber-lbl" />
                 <div className="ber-nmb" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>

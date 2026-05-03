@@ -28,6 +28,9 @@ export type TextilMotiveRow = {
   id: string
   teilauftrag_id: string
   typ: TextilMotivTyp
+  platz: TextilPlatz
+  groesse: string
+  druckart: string | null
   inhalt: string | null
   farbe: string | null
   schriftklasse: string | null
@@ -51,6 +54,9 @@ export type TextilPositionenRow = {
 
 export type TextilNestedMotive = {
   typ: TextilMotivTyp
+  platz: string
+  groesse: string
+  druckart: string | null
   inhalt: string | null
   datei_id: string | null
 }
@@ -69,9 +75,6 @@ export type TextilZuordnungRow = {
   teilauftrag_id: string
   motiv_id: string
   position_id: string
-  platz: TextilPlatz
-  groesse: string
-  druckart: string | null
   /** PostgREST-Embed; kann Objekt oder Array sein. */
   textil_motive?: TextilNestedMotive | TextilNestedMotive[] | null
   textil_positionen?: TextilNestedPosition | TextilNestedPosition[] | null
