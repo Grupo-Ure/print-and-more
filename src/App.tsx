@@ -40,10 +40,13 @@ function HauptApp() {
   })
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
-      setLaden(false)
-    })
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        setSession(data.session)
+        setLaden(false)
+      })
+      .catch(() => setLaden(false))
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {

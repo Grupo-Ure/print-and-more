@@ -108,6 +108,11 @@ function produktionBestandModalTitel(
 
 type StempelKissenBestand = { stempelBestand: number | null; kissenBestand: number | null }
 
+/** Anzeige im Status: Zahl oder „—“ bei unbekannt (z. B. Ladefehler). */
+function bestandAlsAnzeige(n: number | null): string {
+  return n === null ? '—' : String(n)
+}
+
 /**
  * Lädt Stempel- und/oder Kissen-`bestand` je nach verknüpftem Modell, Farbe und Auftragstyp.
  */
@@ -155,7 +160,7 @@ async function ladeStempelBestand(detail: Record<string, unknown>): Promise<Stem
             .eq('farbe', String(fr))
             .maybeSingle()
           if (eKis) {
-            kis = 0
+            kis = null
           } else if (kissen) {
             kis = (kissen as { bestand: number | null }).bestand ?? 0
           } else {
@@ -865,6 +870,11 @@ export function ContextPanel({
                 <p className="cp-hinweis cp-hinweis--komp">{teil.notfall_begruendung}</p>
               )}
             </div>
+          )}
+          {teil?.bereich === 'STEMPEL' && hatStempelModellVerknuepft(stempelDetailAktuell) && (
+            <p className="cp-hinweis cp-hinweis--komp" style={{ marginTop: 6 }}>
+              Lager: Stempel {bestandAlsAnzeige(stempelBestand)} · Kissen {bestandAlsAnzeige(kissenBestand)}
+            </p>
           )}
         </div>
       </div>
