@@ -114,6 +114,17 @@ function groesseKurzLabel(g: string): string {
   return g
 }
 
+/** INSERT `textil_zuordnungen`: Trigger `PLATZ_KONFLIKT` vs. Unique-Constraint */
+function fehlerNachZuordnungInsert(err: { message?: string; code?: string }): string {
+  if ((err.message ?? '').includes('PLATZ_KONFLIKT')) {
+    return 'Dieser Platz ist für diese Textilposition bereits durch ein anderes Motiv belegt.'
+  }
+  if (isUniqueViolation(err)) {
+    return 'Diese Motiv-Position-Zuordnung existiert bereits.'
+  }
+  return err.message ?? ''
+}
+
 const ZUO_EMBED_SELECT =
   'id, teilauftrag_id, motiv_id, position_id, textil_motive(typ, inhalt, datei_id, platz, groesse, druckart), textil_positionen(herkunft, typ, farbe, marke, modell, groesse)'
 
@@ -650,17 +661,16 @@ export function TextilDetail({
                 .select(ZUO_EMBED_SELECT)
                 .single()
               if (zErr) {
-                if (isUniqueViolation(zErr)) {
-                  setFehler('Diese Motiv-Position-Zuordnung existiert bereits.')
-                } else {
-                  setFehler(zErr.message)
-                }
-                setZuordnungen(zuoAcc)
+                await supabase.from('textil_zuordnungen').delete().eq('position_id', r.id)
+                await supabase.from('textil_positionen').delete().eq('id', r.id)
+                setPositionen(positionen)
+                setZuordnungen(zuordnungen)
+                setFehler(fehlerNachZuordnungInsert(zErr))
                 resetPForm()
                 setPosFormOffen(false)
                 setPosMotivIds(prev => ({ ...prev, [TEMP_POS_NEU]: [] }))
                 const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
-                void syncTeil(motive, nextP, zuoAcc, prod)
+                void syncTeil(motive, positionen, zuordnungen, prod)
                 return
               }
               if (zData) zuoAcc = [...zuoAcc, zData as unknown as TextilZuordnungRow]
@@ -762,17 +772,16 @@ export function TextilDetail({
                 .select(ZUO_EMBED_SELECT)
                 .single()
               if (zErr) {
-                if (isUniqueViolation(zErr)) {
-                  setFehler('Diese Motiv-Position-Zuordnung existiert bereits.')
-                } else {
-                  setFehler(zErr.message)
-                }
-                setZuordnungen(zuoAcc)
+                await supabase.from('textil_zuordnungen').delete().eq('position_id', r.id)
+                await supabase.from('textil_positionen').delete().eq('id', r.id)
+                setPositionen(positionen)
+                setZuordnungen(zuordnungen)
+                setFehler(fehlerNachZuordnungInsert(zErr))
                 resetPForm()
                 setPosFormOffen(false)
                 setPosMotivIds(prev => ({ ...prev, [TEMP_POS_NEU]: [] }))
                 const prodEw = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
-                void syncTeil(motive, nextP, zuoAcc, prodEw)
+                void syncTeil(motive, positionen, zuordnungen, prodEw)
                 return
               }
               if (zData) zuoAcc = [...zuoAcc, zData as unknown as TextilZuordnungRow]
