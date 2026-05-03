@@ -244,7 +244,11 @@ export async function generiereUndLadePdf(teilauftragId: string, auftragId: stri
         .single(),
       supabase.from('teilauftraege').select('*').eq('id', teilauftragId).single(),
       produkteQuery,
-      supabase.from('textil_positionen').select('*').eq('teilauftrag_id', teilauftragId).order('id'),
+      supabase
+        .from('textil_positionen')
+        .select('*, textil_varianten(id, textil_produkte(name))')
+        .eq('teilauftrag_id', teilauftragId)
+        .order('id'),
     ])
 
     if (auftragRes.error) console.error(auftragRes.error)
@@ -385,8 +389,13 @@ export async function generiereUndLadePdf(teilauftragId: string, auftragId: stri
         head: [['Produkt', 'Farbe', 'Größe', 'Stückzahl', 'Herkunft', 'Notiz']],
         body: textilPositionen.map(p => {
           const pr = p as Record<string, unknown>
+          const varianteEmbed = pr.textil_varianten as {
+            textil_produkte: { name: string | null } | null
+          } | null
+          const produktName =
+            varianteEmbed?.textil_produkte?.name ?? String(pr.modell ?? pr.produkt_id ?? '—')
           return [
-            String(pr.produkt_name ?? pr.produkt_id ?? '—'),
+            produktName,
             String(p.farbe ?? '—'),
             String(p.groesse ?? '—'),
             String(p.stueckzahl ?? '—'),
