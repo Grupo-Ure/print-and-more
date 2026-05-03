@@ -879,6 +879,17 @@ export type Database = {
       }
     }
     Functions: {
+      dupliziere_auftrag: {
+        Args: {
+          p_auftrag_id: string
+          p_prioritaet: Database["public"]["Enums"]["prioritaet_typ"] | null
+          p_lieferung: Database["public"]["Enums"]["lieferung_typ"] | null
+          p_termin: string | null
+          p_teilauftrag_ids: string[]
+          p_user_id: string | null
+        }
+        Returns: string
+      }
       fn_berechne_auftragsstatus: {
         Args: { p_auftrag_id: string }
         Returns: Database["public"]["Enums"]["auftrag_status"]
