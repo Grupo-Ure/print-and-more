@@ -9,6 +9,15 @@ export type AuftragStatus =
   | 'FERTIG'
   | 'ABGERECHNET'
 
+export const AUFTRAG_STATUS_LIST: readonly AuftragStatus[] = [
+  'ANGEBOT',
+  'UNVOLLSTAENDIG',
+  'PREPRESS_BEREIT',
+  'PRODUKTION_BEREIT',
+  'FERTIG',
+  'ABGERECHNET',
+]
+
 /** Werte = Supabase-Enum `teilauftrag_bereich` (Großbuchstaben, kein Leerzeichen) */
 export const TEILAUFTRAG_BEREICHE = [
   'LFP',

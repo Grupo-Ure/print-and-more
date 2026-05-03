@@ -1,19 +1,9 @@
 import { supabase } from '../supabase'
 import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
-import type { Auftrag, AuftragStatus } from '../types/database'
-
-/** Muss mit dem Union-Typ `AuftragStatus` in `types/database` übereinstimmen. */
-const GUELTIGE_AUFTRAGS_STATUS = [
-  'ANGEBOT',
-  'UNVOLLSTAENDIG',
-  'PREPRESS_BEREIT',
-  'PRODUKTION_BEREIT',
-  'FERTIG',
-  'ABGERECHNET',
-] as const satisfies readonly AuftragStatus[]
+import { AUFTRAG_STATUS_LIST, type Auftrag, type AuftragStatus } from '../types/database'
 
 function parseStatusString(raw: string): AuftragStatus {
-  if (!(GUELTIGE_AUFTRAGS_STATUS as readonly string[]).includes(raw)) {
+  if (!(AUFTRAG_STATUS_LIST as readonly string[]).includes(raw)) {
     throw new Error(`fn_berechne_auftragsstatus: ungültiger Status "${raw}"`)
   }
   return raw as AuftragStatus
