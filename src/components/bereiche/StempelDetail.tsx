@@ -225,7 +225,7 @@ export function StempelDetail({
       id: r.id,
       teilauftrag_id: r.teilauftrag_id,
       bereich: r.bereich,
-      detail: (r.detail ?? {}) as unknown as StempelDetailJson,
+      detail: (r.detail ?? {}) as StempelDetailJson,
       sort_order: r.sort_order,
       erstellt_am: r.erstellt_am,
     }))

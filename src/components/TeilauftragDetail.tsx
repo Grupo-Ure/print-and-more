@@ -96,8 +96,8 @@ export function TeilauftragDetail({
       lokalR.current = teil
       return
     }
-    // Gleicher Teilaufrag: Detail-Vergleich per JSON vermeiden (reihenfolgeabhängig). Sync bei Statusänderung; ID-Wechsel oben.
-    if (teil.status !== lokalR.current.status) {
+    // Gleicher Teilaufrag: Sync bei Status- oder Detail-Änderung vom Server; ID-Wechsel oben.
+    if (teil.status !== lokalR.current.status || teil.detail !== lokalR.current.detail) {
       setLokal(prev => ({
         ...prev,
         status: teil.status,

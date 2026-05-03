@@ -151,7 +151,7 @@ export function LaserDetail({
       id: r.id,
       teilauftrag_id: r.teilauftrag_id,
       bereich: r.bereich,
-      detail: (r.detail ?? {}) as unknown as LaserDetailJson,
+      detail: (r.detail ?? {}) as LaserDetailJson,
       sort_order: r.sort_order,
       erstellt_am: r.erstellt_am,
     }))

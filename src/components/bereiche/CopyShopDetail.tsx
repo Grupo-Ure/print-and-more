@@ -197,7 +197,7 @@ export function CopyShopDetail({
       id: r.id,
       teilauftrag_id: r.teilauftrag_id,
       bereich: r.bereich,
-      detail: detailOhneDateiId((r.detail ?? {}) as unknown as CopyShopDetailJson),
+      detail: detailOhneDateiId((r.detail ?? {}) as CopyShopDetailJson),
       sort_order: r.sort_order,
       erstellt_am: r.erstellt_am,
     }))

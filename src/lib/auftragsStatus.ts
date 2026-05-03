@@ -43,5 +43,10 @@ export async function synchronisiereAuftragsstatus(auftragId: string): Promise<A
     .select(AUFTRAG_SPALTEN)
     .single()
   if (e2) throw e2
+  if (row == null) {
+    throw new Error(
+      'synchronisiereAuftragsstatus: Auftrag nach Status-Update nicht geladen (keine Datenzeile).',
+    )
+  }
   return row as Auftrag
 }

@@ -150,7 +150,7 @@ export function LFPDetail({
       id: r.id,
       teilauftrag_id: r.teilauftrag_id,
       bereich: r.bereich,
-      detail: (r.detail ?? {}) as unknown as LfpDetailJson,
+      detail: (r.detail ?? {}) as LfpDetailJson,
       sort_order: r.sort_order,
       erstellt_am: r.erstellt_am,
     }))

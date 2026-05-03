@@ -209,12 +209,14 @@ export function ContextPanel({
     }
     const det = teilJsonAlsFeldertabelle(aktiverTeilauftrag.detail)
     let alive = true
-    void ladeStempelBestand(det).then(r => {
-      if (alive) {
-        setStempelBestand(r.stempelBestand)
-        setKissenBestand(r.kissenBestand)
-      }
-    })
+    void ladeStempelBestand(det)
+      .then(r => {
+        if (alive) {
+          setStempelBestand(r.stempelBestand)
+          setKissenBestand(r.kissenBestand)
+        }
+      })
+      .catch((err: unknown) => console.error(err))
     return () => {
       alive = false
     }
@@ -226,10 +228,9 @@ export function ContextPanel({
       return
     }
     let alive = true
-    supabase
-      .from('teilauftraege')
-      .select('id, bereich')
-      .eq('auftrag_id', auftrag.id)
+    void Promise.resolve(
+      supabase.from('teilauftraege').select('id, bereich').eq('auftrag_id', auftrag.id),
+    )
       .then(({ data, error }) => {
         if (!alive) return
         if (error) {
@@ -241,6 +242,7 @@ export function ContextPanel({
         if (!alive) return
         setTeilBereichListe((data ?? []) as { id: string; bereich: string }[])
       })
+      .catch((err: unknown) => console.error(err))
     return () => {
       alive = false
     }

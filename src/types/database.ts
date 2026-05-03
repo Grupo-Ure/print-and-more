@@ -113,7 +113,7 @@ export type LieferungWahl = 'ABHOLUNG' | 'VERSAND'
 export type TeilauftragRow = {
   id: string
   auftrag_id: string
-  bereich: string
+  bereich: TeilauftragBereich
   typ: string | null
   status: AuftragStatus
   termin: string | null

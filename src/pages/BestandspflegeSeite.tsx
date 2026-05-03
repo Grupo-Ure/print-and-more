@@ -219,18 +219,20 @@ export function BestandspflegeSeite() {
   const [mitarbeiterEmailById, setMitarbeiterEmailById] = useState<Map<string, string>>(new Map())
   useEffect(() => {
     if (!session) return
-    supabase
-      .from('mitarbeiter')
-      .select('id, email')
-      .then(({ data, error }) => {
-        if (error) {
-          fehler('Mitarbeiterdaten konnten nicht geladen werden')
-          return
-        }
-        const m = new Map<string, string>()
-        for (const r of (data ?? []) as { id: string; email: string }[]) m.set(r.id, r.email)
-        setMitarbeiterEmailById(m)
-      })
+    let alive = true
+    void Promise.resolve(supabase.from('mitarbeiter').select('id, email')).then(({ data, error }) => {
+      if (!alive) return
+      if (error) {
+        fehler('Mitarbeiterdaten konnten nicht geladen werden')
+        return
+      }
+      const m = new Map<string, string>()
+      for (const r of (data ?? []) as { id: string; email: string }[]) m.set(r.id, r.email)
+      setMitarbeiterEmailById(m)
+    })
+    return () => {
+      alive = false
+    }
   }, [fehler, session])
 
   // ------------------------------------------------------------

@@ -110,6 +110,11 @@ export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbreche
       })
       if (error) throw error
 
+      if (typeof neuerAuftragId !== 'string' || neuerAuftragId.trim() === '') {
+        toastFehler('Auftrag konnte nicht dupliziert werden')
+        return
+      }
+
       const { data: neuA, error: eLoad } = await supabase
         .from('auftraege')
         .select(AUFTRAG_SPALTEN)

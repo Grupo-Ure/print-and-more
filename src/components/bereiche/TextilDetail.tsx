@@ -377,16 +377,14 @@ export function TextilDetail({
     if (pHerk !== 'EIGENWARE') return
     if (eigenwareModus !== 'STAMMDATEN') return
     setSdLaden(true)
-    supabase
-      .from('textil_marken')
-      .select('id, name')
-      .eq('aktiv', true)
-      .order('name')
+    void Promise.resolve(
+      supabase.from('textil_marken').select('id, name').eq('aktiv', true).order('name'),
+    )
       .then(({ data, error }) => {
-        setSdLaden(false)
         if (error) return
         setSdMarken((data ?? []) as { id: string; name: string }[])
       })
+      .finally(() => setSdLaden(false))
   }, [eigenwareModus, pHerk])
 
   useEffect(() => {
@@ -402,17 +400,19 @@ export function TextilDetail({
       return
     }
     setSdLaden(true)
-    supabase
-      .from('textil_produkte')
-      .select('id, name, artikelnummer')
-      .eq('marke_id', sdMarkeId)
-      .eq('aktiv', true)
-      .order('name')
+    void Promise.resolve(
+      supabase
+        .from('textil_produkte')
+        .select('id, name, artikelnummer')
+        .eq('marke_id', sdMarkeId)
+        .eq('aktiv', true)
+        .order('name'),
+    )
       .then(({ data, error }) => {
-        setSdLaden(false)
         if (error) return
         setSdProdukte((data ?? []) as { id: string; name: string; artikelnummer: string | null }[])
       })
+      .finally(() => setSdLaden(false))
   }, [eigenwareModus, pHerk, sdMarkeId])
 
   useEffect(() => {
@@ -426,17 +426,18 @@ export function TextilDetail({
       return
     }
     setSdLaden(true)
-    void supabase
-      .from('textil_varianten')
-      .select('farbe, farbe_hex')
-      .eq('produkt_id', sdProduktId)
-      .eq('aktiv', true)
-      .order('farbe')
+    void Promise.resolve(
+      supabase
+        .from('textil_varianten')
+        .select('farbe, farbe_hex')
+        .eq('produkt_id', sdProduktId)
+        .eq('aktiv', true)
+        .order('farbe'),
+    )
       .then(res => {
         const { data, error } = res
-        setSdLaden(false)
         if (error) return
-        const rows = (data ?? []) as unknown as { farbe: string | null; farbe_hex: string | null }[]
+        const rows = (data ?? []) as { farbe: string | null; farbe_hex: string | null }[]
         const seen = new Set<string>()
         const out: { farbe: string; farbe_hex: string | null }[] = []
         for (const r of rows) {
@@ -449,6 +450,7 @@ export function TextilDetail({
         }
         setSdFarben(out)
       })
+      .finally(() => setSdLaden(false))
   }, [eigenwareModus, pHerk, sdProduktId])
 
   useEffect(() => {
@@ -460,15 +462,16 @@ export function TextilDetail({
       return
     }
     setSdLaden(true)
-    supabase
-      .from('textil_varianten')
-      .select('id, groesse, bestand, ist_muster')
-      .eq('produkt_id', sdProduktId)
-      .eq('farbe', sdFarbe)
-      .eq('aktiv', true)
-      .order('sort_order')
+    void Promise.resolve(
+      supabase
+        .from('textil_varianten')
+        .select('id, groesse, bestand, ist_muster')
+        .eq('produkt_id', sdProduktId)
+        .eq('farbe', sdFarbe)
+        .eq('aktiv', true)
+        .order('sort_order'),
+    )
       .then(({ data, error }) => {
-        setSdLaden(false)
         if (error) return
         const rows = (data ?? []) as { id: string; groesse: string | null; bestand: number | null; ist_muster: boolean | null }[]
         setSdGroessen(
@@ -480,6 +483,7 @@ export function TextilDetail({
           }))
         )
       })
+      .finally(() => setSdLaden(false))
   }, [eigenwareModus, pHerk, sdFarbe, sdProduktId])
 
   const dateiNameById = new Map<string, string>()

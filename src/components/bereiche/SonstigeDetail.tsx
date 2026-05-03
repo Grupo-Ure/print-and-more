@@ -137,7 +137,7 @@ export function SonstigeDetail({
       id: r.id,
       teilauftrag_id: r.teilauftrag_id,
       bereich: r.bereich,
-      detail: (r.detail ?? {}) as unknown as SonstigeDetailJson,
+      detail: (r.detail ?? {}) as SonstigeDetailJson,
       sort_order: r.sort_order,
       erstellt_am: r.erstellt_am,
     }))

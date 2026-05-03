@@ -129,14 +129,14 @@ export function HistoriePanel({ aktiverAuftragId, kontextAktualisiert, teilauftr
           )}
           {!laden &&
             eintraege.map(e => {
-              const email = e.person_id ? mitarbeiterById.get(e.person_id) : ''
+              const anzeigeName = e.person_id ? mitarbeiterById.get(e.person_id) : ''
               const tb = teilBereich(e.teilauftrag_id)
               return (
                 <div key={e.id} className="cp-hist-eintrag">
                   <div className="cp-hist-zeile" title={ereignisLabel(e.ereignisart)}>
                     <span className="cp-hist-time">{formatHistZeit(e.erstellt_am)}</span>
                     <span className="cp-hist-evt">{ereignisLabel(e.ereignisart)}</span>
-                    <span className="cp-hist-who">{email || '—'}</span>
+                    <span className="cp-hist-who">{anzeigeName || '—'}</span>
                   </div>
                   {e.begruendung && <p className="cp-hist-sub">{e.begruendung}</p>}
                   {tb && <p className="cp-hist-tl">Teil: {teilauftragBereichLabel(tb)}</p>}
