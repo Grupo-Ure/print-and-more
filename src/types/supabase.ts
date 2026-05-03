@@ -32,7 +32,7 @@ export type Database = {
         }
         Insert: {
           archiviert?: boolean
-          auftragsnummer: string
+          auftragsnummer?: string
           erp_exportiert?: boolean
           erstellt_am?: string
           erstellt_von?: string | null

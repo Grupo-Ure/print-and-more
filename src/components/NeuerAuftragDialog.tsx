@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { schreibeHistorie } from '../lib/historie'
 import { supabase } from '../supabase'
 import type { LieferungWahl, AuftragStatus, Prioritaet } from '../types/database'
+import type { Database } from '../types/supabase'
 import type { Kunde } from '../lib/kunden'
 import { KundeDialog } from './KundeDialog'
 import { useToast } from './Toast'
@@ -112,15 +113,14 @@ export function NeuerAuftragDialog({ offen, onSchliessen, onErfolg }: Props) {
     if (!gewaehlterKunde) return
     setFehler(null)
     setAnlegenLaeuft(true)
-    const { data, error } = await supabase
-      .from('auftraege')
-      .insert({
-        kunde_id: gewaehlterKunde.id,
-        status: 'ANGEBOT',
-        termin: null,
-        lieferung: 'ABHOLUNG',
-        prioritaet: 'NORMAL',
-      } as never)
+    const auftragInsert: Database['public']['Tables']['auftraege']['Insert'] = {
+      kunde_id: gewaehlterKunde.id,
+      status: 'ANGEBOT',
+      termin: null,
+      lieferung: 'ABHOLUNG',
+      prioritaet: 'NORMAL',
+    }
+    const { data, error } = await supabase.from('auftraege').insert(auftragInsert)
       .select(
         'id, auftragsnummer, status, erstellt_am, kunde_id, termin, lieferung, prioritaet, notfall_aktiv, archiviert, erp_exportiert'
       )

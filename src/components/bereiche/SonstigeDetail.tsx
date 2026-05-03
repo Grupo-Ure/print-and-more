@@ -241,7 +241,7 @@ export function SonstigeDetail({
 
     if (editingId) {
       const patch: Database['public']['Tables']['teilauftrag_produkte']['Update'] = {
-        detail: detailMitTyp as unknown as Json,
+        detail: detailMitTyp as Json,
       }
       const { error } = await supabase.from('teilauftrag_produkte').update(patch).eq('id', editingId)
       if (error) {
@@ -269,7 +269,7 @@ export function SonstigeDetail({
     const ins: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
       teilauftrag_id: teil.id,
       bereich: 'SONSTIGE',
-      detail: detailMitTyp as unknown as Json,
+      detail: detailMitTyp as Json,
       sort_order: produkte.length,
     }
     const { data: insRow, error } = await supabase.from('teilauftrag_produkte').insert(ins).select('id').single()

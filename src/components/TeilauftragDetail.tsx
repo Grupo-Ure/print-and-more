@@ -9,6 +9,7 @@ import {
   validateGlobalTeilfelder,
 } from '../lib/teilGlobal'
 import {
+  TEILAUFTRAG_BEREICHE,
   teilauftragBereichLabel,
   type AuftragStatus,
   type KundeKontaktJoin,
@@ -16,6 +17,7 @@ import {
   type Prioritaet,
   type TeilauftragRow,
 } from '../types/database'
+import type { Database } from '../types/supabase'
 import { DateInput } from './DateInput'
 import { useToast } from './Toast'
 import { CopyShopDetail } from './bereiche/CopyShopDetail'
@@ -149,10 +151,17 @@ export function TeilauftragDetail({
       const nSt = nextTeilStatus(snap.status, snap, merged, voll, kundePre, auftragStatus)
       const statusVorher = snapR.current.status
       setSpeichLad(true)
-      const { data, error } = await supabase
-        .from('teilauftraege')
-        .update({ ...patch, status: nSt } as never)
-        .eq('id', teil.id)
+      const { bereich: bereichPatch, ...patchOhneBereich } = patch
+      const bereichGueltig =
+        bereichPatch != null && (TEILAUFTRAG_BEREICHE as readonly string[]).includes(bereichPatch)
+      const teilUpdate: Database['public']['Tables']['teilauftraege']['Update'] = {
+        ...patchOhneBereich,
+        status: nSt,
+        ...(bereichGueltig
+          ? { bereich: bereichPatch as Database['public']['Enums']['teilauftrag_bereich'] }
+          : {}),
+      }
+      const { data, error } = await supabase.from('teilauftraege').update(teilUpdate).eq('id', teil.id)
         .select(TEILAUFTRAG_SPALTEN)
         .single()
       setSpeichLad(false)
@@ -261,9 +270,10 @@ export function TeilauftragDetail({
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
+          const terminPatch: Database['public']['Tables']['teilauftraege']['Update'] = { termin: auftragIso }
           const { data, error } = await supabase
             .from('teilauftraege')
-            .update({ termin: auftragIso } as never)
+            .update(terminPatch)
             .eq('id', teil.id)
             .select(TEILAUFTRAG_SPALTEN)
             .single()
@@ -296,9 +306,12 @@ export function TeilauftragDetail({
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
+          const lieferungPatch: Database['public']['Tables']['teilauftraege']['Update'] = {
+            lieferung: auftragLief,
+          }
           const { data, error } = await supabase
             .from('teilauftraege')
-            .update({ lieferung: auftragLief } as never)
+            .update(lieferungPatch)
             .eq('id', teil.id)
             .select(TEILAUFTRAG_SPALTEN)
             .single()

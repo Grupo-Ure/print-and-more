@@ -21,7 +21,7 @@ import type {
   TextilSchriftklasse,
   TextilZuordnungRow,
 } from '../../types/textil'
-import type { Database } from '../../types/supabase'
+import type { Database, Json } from '../../types/supabase'
 import '../WorkArea.css'
 
 type TextilProduktMitMarkeEmbed = {
@@ -210,10 +210,11 @@ export function TextilDetail({
         nSt = nextTeilStatus(t.status, t, merged, voll, kOk, auftragStatus)
       }
       setSMut(true)
-      const { data, error } = await supabase
-        .from('teilauftraege')
-        .update({ status: nSt, detail: newDetail } as never)
-        .eq('id', t.id)
+      const teilSyncPatch: Database['public']['Tables']['teilauftraege']['Update'] = {
+        status: nSt,
+        detail: newDetail as Json,
+      }
+      const { data, error } = await supabase.from('teilauftraege').update(teilSyncPatch).eq('id', t.id)
         .select(TEILAUFTRAG_SPALTEN)
         .single()
       setSMut(false)
@@ -341,10 +342,10 @@ export function TextilDetail({
       const oldD = d && typeof d === 'object' && !Array.isArray(d) ? { ...(d as Record<string, unknown>) } : {}
       const newDetail = { ...oldD, eigenware_modus: modus }
       setSMut(true)
-      const { data, error } = await supabase
-        .from('teilauftraege')
-        .update({ detail: newDetail } as never)
-        .eq('id', t.id)
+      const eigenwarePatch: Database['public']['Tables']['teilauftraege']['Update'] = {
+        detail: newDetail as Json,
+      }
+      const { data, error } = await supabase.from('teilauftraege').update(eigenwarePatch).eq('id', t.id)
         .select(TEILAUFTRAG_SPALTEN)
         .single()
       setSMut(false)

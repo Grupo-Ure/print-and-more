@@ -595,7 +595,7 @@ export function StempelDetail({
 
     if (editingId) {
       const patch: Database['public']['Tables']['teilauftrag_produkte']['Update'] = {
-        detail: { ...d, typ: t } as unknown as Json,
+        detail: { ...d, typ: t } as Json,
       }
       const { error } = await supabase.from('teilauftrag_produkte').update(patch).eq('id', editingId)
       if (error) {
@@ -623,7 +623,7 @@ export function StempelDetail({
     const ins: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
       teilauftrag_id: teil.id,
       bereich: 'STEMPEL',
-      detail: { ...d, typ: t } as unknown as Json,
+      detail: { ...d, typ: t } as Json,
       sort_order: produkte.length,
     }
     const { data: insRow, error } = await supabase.from('teilauftrag_produkte').insert(ins).select('id').single()

@@ -12,6 +12,7 @@ import {
   type KundeKontaktRow,
   type TeilauftragRow,
 } from '../types/database'
+import type { Database } from '../types/supabase'
 import { DateiListe, type Datei } from './DateiListe'
 import { HistoriePanel } from './HistoriePanel'
 import { useToast } from './Toast'
@@ -337,15 +338,11 @@ export function ContextPanel({
       return
     setBusy(true)
     try {
-      const { error: e1 } = await supabase
-        .from('teilauftraege')
-        .update({ storniert: true } as never)
-        .eq('auftrag_id', auftrag.id)
+      const teilStornoPatch: Database['public']['Tables']['teilauftraege']['Update'] = { storniert: true }
+      const { error: e1 } = await supabase.from('teilauftraege').update(teilStornoPatch).eq('auftrag_id', auftrag.id)
       if (e1) throw e1
-      const { error: e2 } = await supabase
-        .from('auftraege')
-        .update({ archiviert: true } as never)
-        .eq('id', auftrag.id)
+      const auftragArchivPatch: Database['public']['Tables']['auftraege']['Update'] = { archiviert: true }
+      const { error: e2 } = await supabase.from('auftraege').update(auftragArchivPatch).eq('id', auftrag.id)
       if (e2) throw e2
       await schreibeHistorie({ auftrag_id: auftrag.id, ereignisart: 'STORNIERT' })
       onAuftragAktualisiert({ ...auftrag, archiviert: true })
@@ -456,21 +453,22 @@ export function ContextPanel({
           const alt = (modell as { bestand: number | null }).bestand ?? 0
           if (alt <= 0) return
           const neuerBestand = Math.max(0, alt - mengeLocal)
-          const { error: eUp } = await supabase
-            .from('stempel_modelle')
-            .update({ bestand: neuerBestand } as never)
-            .eq('id', modellId)
+          const stempelModellPatch: Database['public']['Tables']['stempel_modelle']['Update'] = {
+            bestand: neuerBestand,
+          }
+          const { error: eUp } = await supabase.from('stempel_modelle').update(stempelModellPatch).eq('id', modellId)
           if (eUp) throw eUp
           const {
             data: { user },
           } = await supabase.auth.getUser()
-          const { error: eIns } = await supabase.from('lager_bewegungen').insert({
+          const lagerBewegungInsert: Database['public']['Tables']['lager_bewegungen']['Insert'] = {
             modell_id: modellId,
             menge: mengeLocal,
             typ: 'AUTOABGANG',
             notiz,
             person_id: user?.id ?? null,
-          } as never)
+          }
+          const { error: eIns } = await supabase.from('lager_bewegungen').insert(lagerBewegungInsert)
           if (eIns) throw eIns
         }
 
@@ -556,13 +554,16 @@ export function ContextPanel({
           const { error: eUp } = await supabase.from('textil_varianten').update({ bestand: neuerBestand }).eq('id', vid)
           if (eUp) throw eUp
 
-          const { error: eIns } = await supabase.from('textil_lager_bewegungen').insert({
+          const textilLagerBewegungInsert: Database['public']['Tables']['textil_lager_bewegungen']['Insert'] = {
             variante_id: vid,
             menge: mengeLocal,
             typ: 'AUTOABGANG',
             notiz: notizTextil,
             person_id: userId,
-          } as never)
+          }
+          const { error: eIns } = await supabase
+            .from('textil_lager_bewegungen')
+            .insert(textilLagerBewegungInsert)
           if (eIns) throw eIns
         }
       }
@@ -654,13 +655,14 @@ export function ContextPanel({
     setBusy(true)
     setDialogNotfall(false)
     try {
+      const notfallPatch: Database['public']['Tables']['teilauftraege']['Update'] = {
+        status: neu,
+        notfall_aktiv: true,
+        notfall_begruendung: b,
+      }
       const { data, error } = await supabase
         .from('teilauftraege')
-        .update({
-          status: neu,
-          notfall_aktiv: true,
-          notfall_begruendung: b,
-        } as never)
+        .update(notfallPatch)
         .eq('id', teil.id)
         .select(TEILAUFTRAG_SPALTEN)
         .single()
@@ -684,13 +686,14 @@ export function ContextPanel({
     if (busy || !teil || !teil.notfall_aktiv) return
     setBusy(true)
     try {
+      const notfallZurueckPatch: Database['public']['Tables']['teilauftraege']['Update'] = {
+        status: 'UNVOLLSTAENDIG' as AuftragStatus,
+        notfall_aktiv: false,
+        notfall_begruendung: null,
+      }
       const { data, error } = await supabase
         .from('teilauftraege')
-        .update({
-          status: 'UNVOLLSTAENDIG' as AuftragStatus,
-          notfall_aktiv: false,
-          notfall_begruendung: null,
-        } as never)
+        .update(notfallZurueckPatch)
         .eq('id', teil.id)
         .select(TEILAUFTRAG_SPALTEN)
         .single()
@@ -714,16 +717,14 @@ export function ContextPanel({
     if (teil.status === 'ANGEBOT') return
     setBusy(true)
     try {
-      const patch = aktiv
+      const patch: Database['public']['Tables']['teilauftraege']['Update'] = aktiv
         ? { kundenfreigabe_erforderlich: true }
         : {
             kundenfreigabe_erforderlich: false,
             kundenfreigabe_liegt_vor: false,
             kundenfreigabe_datei_id: null,
           }
-      const { data, error } = await supabase
-        .from('teilauftraege')
-        .update(patch as never)
+      const { data, error } = await supabase.from('teilauftraege').update(patch)
         .eq('id', teil.id)
         .select(TEILAUFTRAG_SPALTEN)
         .single()
@@ -754,13 +755,11 @@ export function ContextPanel({
     setBusy(true)
     setDialogKfDatei(false)
     try {
-      const { data, error } = await supabase
-        .from('teilauftraege')
-        .update({
-          kundenfreigabe_liegt_vor: true,
-          kundenfreigabe_datei_id: kfDateiId,
-        } as never)
-        .eq('id', teil.id)
+      const kfDateiPatch: Database['public']['Tables']['teilauftraege']['Update'] = {
+        kundenfreigabe_liegt_vor: true,
+        kundenfreigabe_datei_id: kfDateiId,
+      }
+      const { data, error } = await supabase.from('teilauftraege').update(kfDateiPatch).eq('id', teil.id)
         .select(TEILAUFTRAG_SPALTEN)
         .single()
       if (error) throw error
@@ -785,10 +784,8 @@ export function ContextPanel({
     if (!window.confirm('Teilauftrag stornieren? Er wird ausgeblendet, aber nicht gelöscht.')) return
     setStornoLaeuft(true)
     try {
-      const { error } = await supabase
-        .from('teilauftraege')
-        .update({ storniert: true } as never)
-        .eq('id', teil.id)
+      const teilStornoPatch: Database['public']['Tables']['teilauftraege']['Update'] = { storniert: true }
+      const { error } = await supabase.from('teilauftraege').update(teilStornoPatch).eq('id', teil.id)
       if (error) throw error
       onTeilauftragEntfernt(teil.id)
       try {

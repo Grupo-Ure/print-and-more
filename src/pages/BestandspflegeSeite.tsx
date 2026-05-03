@@ -4,7 +4,7 @@ import { supabase } from '../supabase'
 import { Login } from '../components/Login'
 import { useToast } from '../components/Toast'
 import { teilJsonAlsFeldertabelle } from '../types/database'
-import type { Json } from '../types/supabase'
+import type { Database, Json } from '../types/supabase'
 
 type StempelTyp =
   | 'TRODAT_PRINTY'
@@ -384,18 +384,19 @@ export function BestandspflegeSeite() {
     }
     setBuchBusyId(modell.id)
     try {
-      const { error: e1 } = await supabase
-        .from('stempel_modelle')
-        .update({ bestand: nextBestand } as never)
-        .eq('id', modell.id)
+      const stempelBestandPatch: Database['public']['Tables']['stempel_modelle']['Update'] = {
+        bestand: nextBestand,
+      }
+      const { error: e1 } = await supabase.from('stempel_modelle').update(stempelBestandPatch).eq('id', modell.id)
       if (e1) throw e1
 
-      const { error: e2 } = await supabase.from('lager_bewegungen').insert({
+      const lagerBewegungInsert: Database['public']['Tables']['lager_bewegungen']['Insert'] = {
         modell_id: modell.id,
         menge,
         typ,
         person_id: session.user.id,
-      } as never)
+      }
+      const { error: e2 } = await supabase.from('lager_bewegungen').insert(lagerBewegungInsert)
       if (e2) throw e2
 
       setModelle(list => list.map(m => (m.id === modell.id ? { ...m, bestand: nextBestand } : m)))
@@ -414,10 +415,8 @@ export function BestandspflegeSeite() {
     const n = raw === '' ? 0 : parseInt(raw, 10)
     if (!Number.isInteger(n) || n < 0) return
     if (n === (modell.mindestbestand ?? 0)) return
-    const { error } = await supabase
-      .from('stempel_modelle')
-      .update({ mindestbestand: n } as never)
-      .eq('id', modell.id)
+    const mindestPatch: Database['public']['Tables']['stempel_modelle']['Update'] = { mindestbestand: n }
+    const { error } = await supabase.from('stempel_modelle').update(mindestPatch).eq('id', modell.id)
     if (error) {
       fehler('Bestand konnte nicht aktualisiert werden')
       return

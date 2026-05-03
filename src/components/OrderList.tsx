@@ -90,6 +90,13 @@ function statusTogglesToIn(toggles: Record<AuftragStatus, boolean>): AuftragStat
     .map(([s]) => s)
 }
 
+const AUFTRAG_STATUS_GUELTIG = new Set<string>(STATUS_ORDER)
+
+/** Nur Werte aus der festen Statusliste (für PostgREST `.in('status', …)` ohne Assertions). */
+function nurGueltigeAuftragStatus(werte: readonly AuftragStatus[]): AuftragStatus[] {
+  return werte.filter((s): s is AuftragStatus => AUFTRAG_STATUS_GUELTIG.has(s))
+}
+
 function isFilterAktiv(f: FilterState): boolean {
   const d = defaultFilterState()
   if (f.searchInput.trim() !== '' || f.searchDebounced.trim() !== '') return true
@@ -234,8 +241,10 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
       }
 
       if (kundenIds) query = query.in('kunde_id', kundenIds)
-      if (!statusAlle)
-        query = query.in('status', chosen as string[] as unknown as readonly AuftragStatus[])
+      if (!statusAlle) {
+        const statusFuerIn = nurGueltigeAuftragStatus(chosen)
+        query = query.in('status', statusFuerIn)
+      }
       if (terminVon) query = query.gte('termin', terminVon)
       if (terminBis) query = query.lte('termin', terminBis)
       if (annVon) query = query.gte('erstellt_am', `${annVon}T00:00:00`)
