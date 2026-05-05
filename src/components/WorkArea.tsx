@@ -18,7 +18,7 @@ import {
   type TeilauftragRow,
 } from '../types/database'
 import { useToast } from './Toast'
-import { AddTeilauftragOverlay } from './AddTeilauftragOverlay'
+import { AddSubOrderOverlay } from './AddSubOrderOverlay'
 import { DateInput } from './DateInput'
 import type { Datei } from './DateiListe'
 import { TeilauftragDetail } from './TeilauftragDetail'
@@ -602,7 +602,7 @@ export function WorkArea({
         )}
       </div>
 
-      <AddTeilauftragOverlay
+      <AddSubOrderOverlay
         offen={overlayOffen}
         speichert={speichert}
         onBereich={handleNeuerTeilauftrag}

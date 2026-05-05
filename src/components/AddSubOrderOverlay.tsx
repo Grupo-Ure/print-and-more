@@ -12,7 +12,7 @@ type Props = {
   onSchliessen: () => void
 }
 
-export function AddTeilauftragOverlay({ offen, speichert, onBereich, onSchliessen }: Props) {
+export function AddSubOrderOverlay({ offen, speichert, onBereich, onSchliessen }: Props) {
   if (!offen) return null
 
   return (
