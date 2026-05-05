@@ -48,7 +48,7 @@ function formatAusDetail(detail: import('../types/database').TeilauftragRow['det
   return ''
 }
 
-export function DuplizierenDialog({ auftrag, teilauftraege, onErfolg, onAbbrechen }: Props) {
+export function DuplicateDialog({ auftrag, teilauftraege, onErfolg, onAbbrechen }: Props) {
   const aktive = useMemo(() => teilauftraege.filter(t => !t.storniert), [teilauftraege])
   const hatMehrAlsEinen = aktive.length > 1
 

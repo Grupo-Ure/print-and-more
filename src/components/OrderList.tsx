@@ -13,7 +13,7 @@ import {
   type TeilauftragRow,
 } from '../types/database'
 import { DateInput } from './DateInput'
-import { DuplizierenDialog } from './DuplizierenDialog'
+import { DuplicateDialog } from './DuplicateDialog'
 import { useToast } from './Toast'
 import './OrderList.css'
 
@@ -650,7 +650,7 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
       {duplFehler && <div className="ol-aktual">{duplFehler}</div>}
 
       {duplOffen && duplAuftrag && (
-        <DuplizierenDialog
+        <DuplicateDialog
           auftrag={duplAuftrag}
           teilauftraege={duplTeil}
           onAbbrechen={() => setDuplOffen(false)}
