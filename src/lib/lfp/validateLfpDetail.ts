@@ -1,6 +1,20 @@
-import { LFP_TEILTYPEN, type LfpDetailJson, type LfpTeiltyp } from '../../types/lfp'
+/**
+ * Validation for LFP (Large Format Print) sub-order detail.
+ *
+ * Each LFP `typ` (sticker, UV sign, foil sign, vinyl plot, banner, rollup,
+ * vehicle wrap, misc) has its own required fields inside the `detail`
+ * JSONB column. {@link validateLfpDetail} returns a map of field-key →
+ * German error message (rendered inline next to the form field). An
+ * empty map means the detail is valid.
+ *
+ * Status-dependent rule: in `ANGEBOT` (quote stage) nothing is required
+ * regardless of typ.
+ */
+
+import { LFP_TYPES, type LfpDetail, type LfpType } from '../../types/lfp'
 import type { AuftragStatus } from '../../types/database'
 
+/** Trim and require non-empty. Returns the trimmed string or `null`. */
 function reqStr(v: unknown): string | null {
   if (v == null) return null
   if (typeof v !== 'string') return null
@@ -8,11 +22,13 @@ function reqStr(v: unknown): string | null {
   return t ? t : null
 }
 
+/** Boolean must be explicitly true or false (not absent). */
 function reqBool(v: unknown): 'ok' | 'missing' {
   if (v === true || v === false) return 'ok'
   return 'missing'
 }
 
+/** Parse a positive millimeter dimension; accepts comma or dot decimals. */
 function zahlMm(v: unknown): number | null {
   if (v === '' || v == null) return null
   const n = typeof v === 'number' ? v : parseFloat(String(v).replace(',', '.'))
@@ -20,6 +36,7 @@ function zahlMm(v: unknown): number | null {
   return n
 }
 
+/** Validate an ISO date string; returns the YYYY-MM-DD prefix or `null`. */
 function datumIso(v: unknown): string | null {
   if (v == null) return null
   if (typeof v !== 'string' || v.trim() === '') return null
@@ -28,17 +45,19 @@ function datumIso(v: unknown): string | null {
   return v.slice(0, 10)
 }
 
-/** Mindestens ein Maß (Breite oder Höhe) &gt; 0 */
+/** At least one dimension (width or height) > 0 mm. */
 function masseErfuellt(b: unknown, h: unknown): boolean {
   return zahlMm(b) != null || zahlMm(h) != null
 }
 
+/** Quantity must be a positive integer (≥ 1). */
 function stueckzahlGueltig(v: unknown): boolean {
   if (v == null || v === '') return false
   const n = typeof v === 'number' ? v : parseInt(String(v), 10)
   return Number.isInteger(n) && n >= 1
 }
 
+/** Positive integer millimeter value, or `null` if invalid/missing. */
 function posIntMm(v: unknown): number | null {
   if (v == null || v === '') return null
   const n = typeof v === 'number' ? v : parseInt(String(v), 10)
@@ -53,20 +72,28 @@ const f = (o: Err, k: string, m: string) => {
 
 const MSG_MASSE = 'Mindestens Breite oder Höhe angeben'
 
+/**
+ * Validate an LFP sub-order's typ + detail against its current status.
+ *
+ * Returns a map of field-key → German error message; empty map means
+ * valid. In `ANGEBOT` no fields are required. Otherwise the typ must be
+ * one of {@link LFP_TYPES}, `stueckzahl` must be a positive integer, and
+ * the typ-specific keys (material, dimensions, options, etc.) must be set.
+ */
 export function validateLfpDetail(
   typ: string | null,
-  d: LfpDetailJson,
+  d: LfpDetail,
   teilStatus: AuftragStatus
 ): Record<string, string> {
   const o: Err = {}
   if (teilStatus === 'ANGEBOT') return o
-  if (!typ || !LFP_TEILTYPEN.includes(typ as LfpTeiltyp)) {
+  if (!typ || !LFP_TYPES.includes(typ as LfpType)) {
     f(o, 'typ', 'Typ wählen')
     return o
   }
   if (!stueckzahlGueltig(d.stueckzahl)) f(o, 'stueckzahl', 'Ganze Zahl ≥ 1')
 
-  const t = typ as LfpTeiltyp
+  const t = typ as LfpType
   if (t === 'AUFKLEBER') {
     if (!['3551', 'ULTRATACK', 'MONSTERTACK', '3162'].includes(reqStr(d.material) ?? '')) f(o, 'material', 'Pflichtfeld')
     if (!['FREIFORM', 'RECHTECK'].includes(reqStr(d.konturschnitt) ?? '')) f(o, 'konturschnitt', 'Pflichtfeld')

@@ -1,8 +1,19 @@
 /**
- * LFP-Teilauftrag: Werte in `typ` (Spalte) bzw. `detail` (JSONB) gemäss Spez.
+ * Type definitions for the LFP (Large Format Print) department.
+ *
+ * LFP covers everything printed on a wide-format printer or vinyl plotter:
+ * stickers (Aufkleber), UV-printed rigid signs (Schild UV), foil-laminated
+ * signs (Schild Folie), vinyl plotting (Folienplott), banners, rollups,
+ * vehicle wraps (Fahrzeugbeschriftung), and miscellaneous large-format
+ * jobs (Sonstige LFP).
+ *
+ * The shape of an LFP sub-order's `detail` JSONB column varies by `typ`.
+ * See {@link validateLfpDetail} in `src/lib/lfp/` for the per-typ field
+ * requirements.
  */
 
-export type LfpTeiltyp =
+/** Discriminator for the kind of LFP work, stored in `teilauftraege.typ`. */
+export type LfpType =
   | 'AUFKLEBER'
   | 'SCHILD_UV'
   | 'SCHILD_FOLIE'
@@ -12,7 +23,8 @@ export type LfpTeiltyp =
   | 'FAHRZEUGBESCHRIFTUNG'
   | 'SONSTIGE_LFP'
 
-export const LFP_TEILTYPEN: LfpTeiltyp[] = [
+/** All LFP typen in the order they appear in dropdowns. */
+export const LFP_TYPES: LfpType[] = [
   'AUFKLEBER',
   'SCHILD_UV',
   'SCHILD_FOLIE',
@@ -23,7 +35,8 @@ export const LFP_TEILTYPEN: LfpTeiltyp[] = [
   'SONSTIGE_LFP',
 ]
 
-export const LFP_TEILTYP_ANZEIGE: Record<LfpTeiltyp, string> = {
+/** German display labels for {@link LfpType}, rendered in tabs and dropdowns. */
+export const LFP_TYPE_LABELS: Record<LfpType, string> = {
   AUFKLEBER: 'Aufkleber',
   SCHILD_UV: 'Schild UV',
   SCHILD_FOLIE: 'Schild Folie',
@@ -34,5 +47,11 @@ export const LFP_TEILTYP_ANZEIGE: Record<LfpTeiltyp, string> = {
   SONSTIGE_LFP: 'Sonstige LFP',
 }
 
-/** Inhalt der JSONB-Spalte `detail` für LFP; nur für aktuellen `typ` relevante Keys setzen. */
-export type LfpDetailJson = Record<string, unknown>
+/**
+ * Shape of the JSONB `detail` column for an LFP sub-order.
+ *
+ * The set of keys present depends on the sub-order's `typ` — only set
+ * keys relevant to the current typ. See `validateLfpDetail` for the
+ * per-typ field set and validation rules.
+ */
+export type LfpDetail = Record<string, unknown>

@@ -27,7 +27,7 @@ import { OtherDetail, type OtherDetailJson } from './bereiche/OtherDetail'
 import { LaserDetail } from './bereiche/LaserDetail'
 import { TextilDetail } from './bereiche/TextilDetail'
 import type { Datei } from './FileList'
-import type { LfpDetailJson } from '../types/lfp'
+import type { LfpDetail } from '../types/lfp'
 import type { CopyShopDetailJson } from '../types/copyshop'
 import type { StempelDetailJson } from '../types/stempel'
 import type { LaserDetailJson } from '../types/laser'
@@ -182,10 +182,10 @@ export function SubOrderDetail({
   )
 
   const onLfpPatch = useCallback(
-    async (p: { typ?: string | null; detail: LfpDetailJson | null }) => {
+    async (p: { typ?: string | null; detail: LfpDetail | null }) => {
       await speichere({
         typ: p.typ,
-        detail: (p.detail ?? {}) as LfpDetailJson,
+        detail: (p.detail ?? {}) as LfpDetail,
       } as Partial<TeilauftragRow>)
     },
     [speichere]

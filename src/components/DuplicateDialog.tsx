@@ -4,7 +4,7 @@ import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
 import { kundenName } from '../lib/kunde'
 import { teilJsonAlsFeldertabelle, type Auftrag, type TeilauftragRow } from '../types/database'
 import { TEILAUFTRAG_BEREICH_ANZEIGE, teilauftragBereichLabel } from '../types/database'
-import { LFP_TEILTYP_ANZEIGE } from '../types/lfp'
+import { LFP_TYPE_LABELS } from '../types/lfp'
 import { COPY_SHOP_TYPS_ANZEIGE } from '../types/copyshop'
 import { STEMPEL_TYP_ANZEIGE } from '../types/stempel'
 import { LASER_TYP_ANZEIGE } from '../types/laser'
@@ -22,7 +22,7 @@ type Schritt = 1 | 2
 
 function typLesbar(bereich: string, typ: string | null): string {
   if (!typ) return '—'
-  if (bereich === 'LFP' && typ in LFP_TEILTYP_ANZEIGE) return LFP_TEILTYP_ANZEIGE[typ as keyof typeof LFP_TEILTYP_ANZEIGE]
+  if (bereich === 'LFP' && typ in LFP_TYPE_LABELS) return LFP_TYPE_LABELS[typ as keyof typeof LFP_TYPE_LABELS]
   if (bereich === 'COPYSHOP' && typ in COPY_SHOP_TYPS_ANZEIGE)
     return COPY_SHOP_TYPS_ANZEIGE[typ as keyof typeof COPY_SHOP_TYPS_ANZEIGE]
   if (bereich === 'STEMPEL' && typ in STEMPEL_TYP_ANZEIGE)

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { supabase } from '../../supabase'
-import { LFP_TEILTYP_ANZEIGE, LFP_TEILTYPEN, type LfpDetailJson } from '../../types/lfp'
+import { LFP_TYPE_LABELS, LFP_TYPES, type LfpDetail } from '../../types/lfp'
 import { validateLfpDetail } from '../../lib/lfp/validateLfpDetail'
 import type { AuftragStatus, TeilauftragRow } from '../../types/database'
 import type { Database, Json } from '../../types/supabase'
@@ -18,7 +18,7 @@ type ProduktRow = {
   id: string
   teilauftrag_id: string
   bereich: string
-  detail: LfpDetailJson
+  detail: LfpDetail
   sort_order: number | null
   erstellt_am: string | null
 }
@@ -26,25 +26,25 @@ type ProduktRow = {
 type Props = {
   teil: TeilauftragRow
   teilStatus: AuftragStatus
-  onDetailPatch: (patch: { typ?: string | null; detail: LfpDetailJson | null }) => Promise<void>
+  onDetailPatch: (patch: { typ?: string | null; detail: LfpDetail | null }) => Promise<void>
   /** Auftragsdateien für Zuordnung zu Produktzeilen */
   auftragDateien?: Datei[]
 }
 
-function lfpRoh(teil: TeilauftragRow): LfpDetailJson {
+function lfpRoh(teil: TeilauftragRow): LfpDetail {
   const d = teil.detail
   return d && typeof d === 'object' && !Array.isArray(d) ? { ...d } : {}
 }
 
 type BlK = {
-  d: LfpDetailJson
+  d: LfpDetail
   fe: (k: string) => string
   pruef: boolean
   f: Record<string, string>
-  patchL: (p: LfpDetailJson) => void
+  patchL: (p: LfpDetail) => void
   commit: () => void
   /** Komplettes detail in State schreiben und sofort persistieren (z. B. Bauzaunbanner-Defaults) */
-  speichDetail: (d: LfpDetailJson) => void
+  speichDetail: (d: LfpDetail) => void
 }
 
 /** produkt_id → Zuordnungen (datei_id + produkt_dateien-Zeile für Entfernen) */
@@ -68,7 +68,7 @@ export function LFPDetail({
   const [formDateiIds, setFormDateiIds] = useState<string[]>([])
 
   const [typ, setTyp] = useState<string | null>(teil.typ)
-  const [detail, setDetail] = useState<LfpDetailJson>(lfpRoh(teil))
+  const [detail, setDetail] = useState<LfpDetail>(lfpRoh(teil))
   const detailR = useRef(detail)
   const typR = useRef(typ)
   useEffect(() => {
@@ -150,7 +150,7 @@ export function LFPDetail({
       id: r.id,
       teilauftrag_id: r.teilauftrag_id,
       bereich: r.bereich,
-      detail: (r.detail ?? {}) as LfpDetailJson,
+      detail: (r.detail ?? {}) as LfpDetail,
       sort_order: r.sort_order,
       erstellt_am: r.erstellt_am,
     }))
@@ -208,7 +208,7 @@ export function LFPDetail({
   const fe = (k: string) => (pruef && lfpFehler[k] ? ' ber-inp--err' : '')
 
   const speich = useCallback(
-    async (nextTyp: string | null, d: LfpDetailJson) => {
+    async (nextTyp: string | null, d: LfpDetail) => {
       setDetail(d)
       detailR.current = d
       setTyp(nextTyp)
@@ -218,7 +218,7 @@ export function LFPDetail({
     [onDetailPatch, editingId]
   )
 
-  const patchL = useCallback((p: LfpDetailJson) => {
+  const patchL = useCallback((p: LfpDetail) => {
     setDetail(d0 => {
       const n = { ...d0, ...p }
       detailR.current = n
@@ -231,7 +231,7 @@ export function LFPDetail({
   }, [speich])
 
   const speichDetail = useCallback(
-    (d: LfpDetailJson) => {
+    (d: LfpDetail) => {
       setDetail(d)
       detailR.current = d
       void speich(typR.current, d)
@@ -274,7 +274,7 @@ export function LFPDetail({
         detail: {
           ...lfpRoh(teil),
           hat_produkte: list.length > 0,
-        } as LfpDetailJson,
+        } as LfpDetail,
       })
       resetForm()
       return
@@ -306,7 +306,7 @@ export function LFPDetail({
       detail: {
         ...lfpRoh(teil),
         hat_produkte: list.length > 0,
-      } as LfpDetailJson,
+      } as LfpDetail,
     })
     resetForm()
   }, [
@@ -337,7 +337,7 @@ export function LFPDetail({
         detail: {
           ...lfpRoh(teil),
           hat_produkte: list.length > 0,
-        } as LfpDetailJson,
+        } as LfpDetail,
       })
       if (editingId === id) resetForm()
     },
@@ -351,7 +351,7 @@ export function LFPDetail({
     const d = raw as Record<string, unknown>
     const tt = typeof d.typ === 'string' ? d.typ : null
     setTyp(tt)
-    const dd = { ...(raw as LfpDetailJson) }
+    const dd = { ...(raw as LfpDetail) }
     setDetail(dd)
     detailR.current = dd
     typR.current = tt
@@ -393,9 +393,9 @@ export function LFPDetail({
               }}
             >
               <option value="">—</option>
-              {LFP_TEILTYPEN.map(x => (
+              {LFP_TYPES.map(x => (
                 <option key={x} value={x}>
-                  {LFP_TEILTYP_ANZEIGE[x]}
+                  {LFP_TYPE_LABELS[x]}
                 </option>
               ))}
             </select>
@@ -549,7 +549,7 @@ export function LFPDetail({
                   const fw = pd.format_breite
                   const fh = pd.format_hoehe
                   const fmt = fw && fh ? `${fw}×${fh} mm` : '—'
-                  const typLabel = (LFP_TEILTYP_ANZEIGE as Record<string, string>)[pt] ?? pt
+                  const typLabel = (LFP_TYPE_LABELS as Record<string, string>)[pt] ?? pt
                   const zuo = produktDateien[r.id] ?? []
                   return (
                     <tr key={r.id}>
@@ -648,7 +648,7 @@ function NmbStueckzahl(a: BlK & { stack?: boolean }) {
           const raw = e.target.value
           patchL({
             stueckzahl: raw === '' ? null : parseInt(raw, 10),
-          } as LfpDetailJson)
+          } as LfpDetail)
         }}
         onBlur={commit}
       />
@@ -667,7 +667,7 @@ function SelB(
         value={String((d as Record<string, string>)[k] ?? '')}
         onChange={e => {
           const val = e.target.value
-          speichDetail({ ...d, [k]: val } as LfpDetailJson)
+          speichDetail({ ...d, [k]: val } as LfpDetail)
         }}
       >
         <option value="">—</option>
@@ -693,7 +693,7 @@ function boolSel(a: BlK & { k: string; l?: string }) {
         onChange={e => {
           const t = e.target.value
           const b: true | false | undefined = t === 'true' ? true : t === 'false' ? false : undefined
-          speichDetail({ ...d, [k]: b } as LfpDetailJson)
+          speichDetail({ ...d, [k]: b } as LfpDetail)
         }}
       >
         <option value="">—</option>
@@ -751,7 +751,7 @@ function NmbInt(
           onChange={e => {
             const raw = e.target.value
             const n = raw === '' ? null : parseInt(raw, 10)
-            patchL({ [k]: Number.isNaN(n as number) ? null : n } as LfpDetailJson)
+            patchL({ [k]: Number.isNaN(n as number) ? null : n } as LfpDetail)
           }}
           onBlur={commit}
         />
@@ -785,7 +785,7 @@ function MasseHoeheBreite(p: BlK) {
                 const raw = e.target.value
                 patchL({
                   format_breite: raw === '' ? null : parseFloat(raw),
-                } as LfpDetailJson)
+                } as LfpDetail)
               }}
               onBlur={commit}
             />
@@ -804,7 +804,7 @@ function MasseHoeheBreite(p: BlK) {
                 const raw = e.target.value
                 patchL({
                   format_hoehe: raw === '' ? null : parseFloat(raw),
-                } as LfpDetailJson)
+                } as LfpDetail)
               }}
               onBlur={commit}
             />
@@ -847,7 +847,7 @@ function Aufkleber(p: BlK) {
             value={String((d as Record<string, string>).material ?? '')}
             onChange={e => {
               const v = e.target.value
-              const next: LfpDetailJson = { ...d, material: v }
+              const next: LfpDetail = { ...d, material: v }
               if (v !== '3551') next.material_3551_variante = null
               speichDetail(next)
             }}
@@ -881,7 +881,7 @@ function Aufkleber(p: BlK) {
                 speichDetail({
                   ...d,
                   material_3551_variante: e.target.value || null,
-                } as LfpDetailJson)
+                } as LfpDetail)
               }
             >
               {LFP_3551_VARIANTEN.map(x => (
@@ -1127,7 +1127,7 @@ function RollupF(p: BlK) {
           value={br === 85 || br === 100 ? String(br) : ''}
           onChange={e => {
             const n = e.target.value === '' ? null : parseInt(e.target.value, 10)
-            p.speichDetail({ ...p.d, breite: n } as LfpDetailJson)
+            p.speichDetail({ ...p.d, breite: n } as LfpDetail)
           }}
         >
           <option value="">—</option>
@@ -1161,9 +1161,9 @@ function FzB(p: BlK) {
                 montage: 'OHNE',
                 montagetermin: null,
                 altbeklebung: null,
-              } as LfpDetailJson)
+              } as LfpDetail)
             } else {
-              speichDetail({ ...d, montage: v } as LfpDetailJson)
+              speichDetail({ ...d, montage: v } as LfpDetail)
             }
           }}
         >
