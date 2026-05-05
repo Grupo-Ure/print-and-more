@@ -1,4 +1,18 @@
-import { COPY_SHOP_TYPS, type CopyShopDetailJson, type CopyShopTeiltyp } from '../../types/copyshop'
+/**
+ * Validation for CopyShop sub-order detail.
+ *
+ * Each CopyShop `typ` (poster, card/flyer, folded flyer, brochure,
+ * business card, binding, ad-hoc print) has its own required fields
+ * inside the `detail` JSONB column. {@link validateCopyShopDetail}
+ * returns a map of field-key → German error message (rendered inline
+ * next to the form field). An empty map means the detail is valid.
+ *
+ * The validator handles two production paths (Copy-Center vs offset)
+ * with different material and format rules. In `ANGEBOT` (quote stage)
+ * nothing is required regardless of typ.
+ */
+
+import { COPY_SHOP_TYPES, type CopyShopDetailJson, type CopyShopType } from '../../types/copyshop'
 import type { AuftragStatus } from '../../types/database'
 
 function reqStr(v: unknown): string | null {
@@ -160,6 +174,15 @@ function farbePassendZuBindung(ba: string | null, col: string | null): boolean {
   return sets[ba]?.includes(col) ?? false
 }
 
+/**
+ * Validate a CopyShop sub-order's typ + detail against its current status.
+ *
+ * Returns a map of field-key → German error message; empty map means
+ * valid. In `ANGEBOT` no fields are required. Otherwise the typ must be
+ * one of {@link COPY_SHOP_TYPES}, `stueckzahl` must be a positive integer,
+ * and the typ-specific keys (production path, format, material, paper
+ * weight, finishing options, etc.) must be set.
+ */
 export function validateCopyShopDetail(
   typ: string | null,
   d: CopyShopDetailJson,
@@ -167,12 +190,12 @@ export function validateCopyShopDetail(
 ): Record<string, string> {
   const o: Err = {}
   if (teilStatus === 'ANGEBOT') return o
-  if (!typ || !COPY_SHOP_TYPS.includes(typ as CopyShopTeiltyp)) {
+  if (!typ || !COPY_SHOP_TYPES.includes(typ as CopyShopType)) {
     f(o, 'typ', 'Typ wählen')
     return o
   }
   if (!stueckzahlGueltig(d.stueckzahl)) f(o, 'stueckzahl', 'Ganze Zahl ≥ 1')
-  const t = typ as CopyShopTeiltyp
+  const t = typ as CopyShopType
   const pw = d.produktionsweg
   if (t === 'KARTE_FLYER' || t === 'FALZFLYER' || t === 'BROSCHUERE') {
     if (!['CC', 'OFFSET', 'OFFEN'].includes(reqStr(pw) ?? '')) f(o, 'produktionsweg', 'Pflichtfeld')

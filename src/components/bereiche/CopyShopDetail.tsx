@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../supabase'
-import { COPY_SHOP_TYPS, COPY_SHOP_TYPS_ANZEIGE, type CopyShopDetailJson } from '../../types/copyshop'
+import { COPY_SHOP_TYPES, COPY_SHOP_TYPE_LABELS, type CopyShopDetailJson } from '../../types/copyshop'
 import { BROS_DIN, FALZ_DIN, KARTE_DIN, KARTE_FORMAT_ORDER, FALZ_FORMAT_ORDER, BROSCH_FORMAT_ORDER } from '../../lib/copyshop/dinKfbFormate'
 import { validateCopyShopDetail } from '../../lib/copyshop/validateCopyShopDetail'
 import type { AuftragStatus, TeilauftragRow } from '../../types/database'
@@ -539,9 +539,9 @@ export function CopyShopDetail({
             }}
           >
             <option value="">—</option>
-            {COPY_SHOP_TYPS.map(x => (
+            {COPY_SHOP_TYPES.map(x => (
               <option key={x} value={x}>
-                {COPY_SHOP_TYPS_ANZEIGE[x]}
+                {COPY_SHOP_TYPE_LABELS[x]}
               </option>
             ))}
           </select>
@@ -705,7 +705,7 @@ export function CopyShopDetail({
                   const fh = pd.format_hoehe
                   const fmt = fw && fh ? `${fw}×${fh} mm` : '—'
                   const typLabel =
-                    (COPY_SHOP_TYPS_ANZEIGE as Record<string, string>)[pt] ?? pt
+                    (COPY_SHOP_TYPE_LABELS as Record<string, string>)[pt] ?? pt
                   const zuo = produktDateien[r.id] ?? []
                   return (
                     <tr key={r.id}>
