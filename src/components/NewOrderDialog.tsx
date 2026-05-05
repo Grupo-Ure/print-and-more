@@ -9,7 +9,7 @@ import { useToast } from './Toast'
 import './ContextPanel.css'
 import './WorkArea.css'
 
-export type NeuerAuftragInsertRow = {
+export type NewOrderInsertRow = {
   id: string
   auftragsnummer: string
   status: AuftragStatus
@@ -26,10 +26,10 @@ export type NeuerAuftragInsertRow = {
 type Props = {
   offen: boolean
   onSchliessen: () => void
-  onErfolg: (a: NeuerAuftragInsertRow) => void
+  onErfolg: (a: NewOrderInsertRow) => void
 }
 
-export function NeuerAuftragDialog({ offen, onSchliessen, onErfolg }: Props) {
+export function NewOrderDialog({ offen, onSchliessen, onErfolg }: Props) {
   const { fehler: toastFehler } = useToast()
   const [gewaehlterKunde, setGewaehlterKunde] = useState<Kunde | null>(null)
   const [suchBegr, setSuchBegr] = useState('')
@@ -131,10 +131,10 @@ export function NeuerAuftragDialog({ offen, onSchliessen, onErfolg }: Props) {
       return
     }
     if (data) {
-      onErfolg(data as NeuerAuftragInsertRow)
+      onErfolg(data as NewOrderInsertRow)
       try {
         await schreibeHistorie({
-          auftrag_id: (data as NeuerAuftragInsertRow).id,
+          auftrag_id: (data as NewOrderInsertRow).id,
           ereignisart: 'AUFTRAG_ERSTELLT',
         })
       } catch {

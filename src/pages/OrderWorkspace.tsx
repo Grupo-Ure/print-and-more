@@ -5,7 +5,7 @@ import { Login } from '../components/Login'
 import { OrderList } from '../components/OrderList'
 import { WorkArea } from '../components/WorkArea'
 import { ContextPanel } from '../components/ContextPanel'
-import { NeuerAuftragDialog, type NeuerAuftragInsertRow } from '../components/NeuerAuftragDialog'
+import { NewOrderDialog, type NewOrderInsertRow } from '../components/NewOrderDialog'
 import { KundeDialog } from '../components/KundeDialog'
 import { kontaktJoinZuKunde } from '../lib/kunden'
 import type { Kunde } from '../lib/kunden'
@@ -118,7 +118,7 @@ export function OrderWorkspace() {
     setContextRefreshTick(x => x + 1)
   }, [])
 
-  const handleNewOrderSuccess = useCallback((a: NeuerAuftragInsertRow) => {
+  const handleNewOrderSuccess = useCallback((a: NewOrderInsertRow) => {
     setNewOrderOpen(false)
     setActiveOrderId(a.id)
     setOrderListKey(k => k + 1)
@@ -191,7 +191,7 @@ export function OrderWorkspace() {
         />
       </div>
 
-      <NeuerAuftragDialog
+      <NewOrderDialog
         offen={newOrderOpen}
         onSchliessen={() => setNewOrderOpen(false)}
         onErfolg={handleNewOrderSuccess}
