@@ -69,7 +69,7 @@ function teilStatusBadgeAuf(s: AuftragStatus): { cls: string; label: string } {
   return m[s] ?? { cls: 'badge-grau', label: s }
 }
 
-export function TeilauftragDetail({
+export function SubOrderDetail({
   teil,
   auftragStatus,
   auftragTermin,

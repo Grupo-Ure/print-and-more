@@ -21,7 +21,7 @@ import { useToast } from './Toast'
 import { AddSubOrderOverlay } from './AddSubOrderOverlay'
 import { DateInput } from './DateInput'
 import type { Datei } from './DateiListe'
-import { TeilauftragDetail } from './TeilauftragDetail'
+import { SubOrderDetail } from './SubOrderDetail'
 import './WorkArea.css'
 
 function ersteKontaktZeile(k: KundeKontaktJoin | null): KundeKontaktRow | null {
@@ -587,7 +587,7 @@ export function WorkArea({
 
       <div className="work-area__formular" role="tabpanel">
         {aktiverTeil ? (
-          <TeilauftragDetail
+          <SubOrderDetail
             teil={aktiverTeil}
             auftragStatus={auftrag.status}
             auftragTermin={auftrag.termin}
