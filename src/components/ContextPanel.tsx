@@ -13,7 +13,7 @@ import {
   type TeilauftragRow,
 } from '../types/database'
 import type { Database } from '../types/supabase'
-import { DateiListe, type Datei } from './DateiListe'
+import { FileList, type Datei } from './FileList'
 import { HistoryPanel } from './HistoryPanel'
 import { useToast } from './Toast'
 import { istTeilAuftragVollstaendig } from '../lib/teilGlobal'
@@ -1080,7 +1080,7 @@ export function ContextPanel({
           </>
         )}
         {auftrag && (
-          <DateiListe
+          <FileList
             aktiverAuftragId={auftrag.id}
             dateien={auftragDateien}
             dateienLaden={false}

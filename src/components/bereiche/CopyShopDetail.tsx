@@ -5,7 +5,7 @@ import { BROS_DIN, FALZ_DIN, KARTE_DIN, KARTE_FORMAT_ORDER, FALZ_FORMAT_ORDER, B
 import { validateCopyShopDetail } from '../../lib/copyshop/validateCopyShopDetail'
 import type { AuftragStatus, TeilauftragRow } from '../../types/database'
 import type { Database, Json } from '../../types/supabase'
-import type { Datei } from '../DateiListe'
+import type { Datei } from '../FileList'
 import { useToast } from '../Toast'
 import { MaterialCC } from './copyshop/MaterialCC'
 import { MaterialOffset } from './copyshop/MaterialOffset'

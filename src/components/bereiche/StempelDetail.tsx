@@ -10,7 +10,7 @@ import { validateStempelDetail } from '../../lib/stempel/validateStempelDetail'
 import { teilJsonAlsFeldertabelle, type AuftragStatus, type TeilauftragRow } from '../../types/database'
 import type { Database, Json } from '../../types/supabase'
 import { supabase } from '../../supabase'
-import type { Datei } from '../DateiListe'
+import type { Datei } from '../FileList'
 import { useToast } from '../Toast'
 import '../WorkArea.css'
 

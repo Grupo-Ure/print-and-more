@@ -9,7 +9,7 @@ import {
   LFP_AUFKLEBER_MATERIALIEN,
   LFP_FOLIENPLOTT_MATERIALIEN,
 } from '../../config/materialien'
-import type { Datei } from '../DateiListe'
+import type { Datei } from '../FileList'
 import { DateInput } from '../DateInput'
 import { useToast } from '../Toast'
 import '../WorkArea.css'

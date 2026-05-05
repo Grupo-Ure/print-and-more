@@ -33,7 +33,7 @@ type Props = {
   onDateiGeaendert: (neueDatei?: Datei) => void | Promise<void>
 }
 
-export function DateiListe({ aktiverAuftragId, dateien, dateienLaden, onDateiGeaendert }: Props) {
+export function FileList({ aktiverAuftragId, dateien, dateienLaden, onDateiGeaendert }: Props) {
   const laden = dateienLaden
   const { erfolg } = useToast()
   const [anzeigename, setAnzeigename] = useState('')

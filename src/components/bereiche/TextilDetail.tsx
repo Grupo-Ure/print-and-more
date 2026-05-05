@@ -9,7 +9,7 @@ import {
   textilDatensaetzeErlaubenPraepress,
 } from '../../lib/textil/validateTextilDetail'
 import type { AuftragStatus, KundeKontaktJoin, TeilauftragRow } from '../../types/database'
-import type { Datei } from '../DateiListe'
+import type { Datei } from '../FileList'
 import type {
   TextilGroesseEnum,
   TextilHerkunft,

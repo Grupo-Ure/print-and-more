@@ -12,7 +12,7 @@ import {
 import { validateLaserDetail } from '../../lib/laser/validateLaserDetail'
 import type { AuftragStatus, TeilauftragRow } from '../../types/database'
 import type { Database, Json } from '../../types/supabase'
-import type { Datei } from '../DateiListe'
+import type { Datei } from '../FileList'
 import { useToast } from '../Toast'
 import '../WorkArea.css'
 

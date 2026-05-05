@@ -20,7 +20,7 @@ import {
 import { useToast } from './Toast'
 import { AddSubOrderOverlay } from './AddSubOrderOverlay'
 import { DateInput } from './DateInput'
-import type { Datei } from './DateiListe'
+import type { Datei } from './FileList'
 import { SubOrderDetail } from './SubOrderDetail'
 import './WorkArea.css'
 

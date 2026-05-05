@@ -10,7 +10,7 @@ import { CustomerDialog } from '../components/CustomerDialog'
 import { kontaktJoinZuKunde } from '../lib/kunden'
 import type { Kunde } from '../lib/kunden'
 import type { Auftrag, AuftragStatus, KundeKontaktJoin, TeilauftragRow } from '../types/database'
-import type { Datei } from '../components/DateiListe'
+import type { Datei } from '../components/FileList'
 
 const ORDER_LIST_IN_PLACE_INITIAL: { tick: number; id: string; status: AuftragStatus } = {
   tick: 0,
