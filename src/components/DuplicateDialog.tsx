@@ -7,7 +7,7 @@ import { TEILAUFTRAG_BEREICH_ANZEIGE, teilauftragBereichLabel } from '../types/d
 import { LFP_TYPE_LABELS } from '../types/lfp'
 import { COPY_SHOP_TYPS_ANZEIGE } from '../types/copyshop'
 import { STEMPEL_TYP_ANZEIGE } from '../types/stempel'
-import { LASER_TYP_ANZEIGE } from '../types/laser'
+import { LASER_TYPE_LABELS } from '../types/laser'
 import { DateInput } from './DateInput'
 import { useToast } from './Toast'
 
@@ -27,8 +27,8 @@ function typLesbar(bereich: string, typ: string | null): string {
     return COPY_SHOP_TYPS_ANZEIGE[typ as keyof typeof COPY_SHOP_TYPS_ANZEIGE]
   if (bereich === 'STEMPEL' && typ in STEMPEL_TYP_ANZEIGE)
     return STEMPEL_TYP_ANZEIGE[typ as keyof typeof STEMPEL_TYP_ANZEIGE]
-  if (bereich === 'LASERGRAVUR' && typ in LASER_TYP_ANZEIGE)
-    return LASER_TYP_ANZEIGE[typ as keyof typeof LASER_TYP_ANZEIGE]
+  if (bereich === 'LASERGRAVUR' && typ in LASER_TYPE_LABELS)
+    return LASER_TYPE_LABELS[typ as keyof typeof LASER_TYPE_LABELS]
   return typ
 }
 

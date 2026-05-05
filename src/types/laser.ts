@@ -1,8 +1,21 @@
 /**
- * Lasergravur-Teilaufträge: `typ` in `teilauftraege.typ`, Struktur in `detail` (JSONB).
+ * Type definitions for the Laser engraving (Lasergravur) department.
+ *
+ * Laser sub-orders cover engraved signs (Schild), trophy plates
+ * (Pokalschild), nametags (Namensschild), engraved gift articles
+ * (Geschenkartikel), and miscellaneous laser jobs (Sonstige Laser).
+ *
+ * For sign-typen, the material comes from a fixed list of ABS color
+ * combinations. Gift articles and miscellaneous typen use free-text
+ * material plus an origin flag (customer-supplied vs in-house material).
+ *
+ * The shape of a laser sub-order's `detail` JSONB column varies by typ.
+ * See `validateLaserDetail` in `src/lib/laser/` for the per-typ field
+ * requirements.
  */
 
-export const LASER_TYPEN = [
+/** All laser typen, in dropdown order. */
+export const LASER_TYPES = [
   'SCHILD',
   'POKALSCHILD',
   'NAMENSSCHILD',
@@ -10,9 +23,11 @@ export const LASER_TYPEN = [
   'SONSTIGE_LASER',
 ] as const
 
-export type LaserTeiltyp = (typeof LASER_TYPEN)[number]
+/** Discriminator for the kind of laser work, stored in `teilauftraege.typ`. */
+export type LaserType = (typeof LASER_TYPES)[number]
 
-export const LASER_TYP_ANZEIGE: Record<LaserTeiltyp, string> = {
+/** German display labels for {@link LaserType}, rendered in dropdowns and tabs. */
+export const LASER_TYPE_LABELS: Record<LaserType, string> = {
   SCHILD: 'Schild',
   POKALSCHILD: 'Pokalschild',
   NAMENSSCHILD: 'Namenschild',
@@ -20,8 +35,8 @@ export const LASER_TYP_ANZEIGE: Record<LaserTeiltyp, string> = {
   SONSTIGE_LASER: 'Sonstige Laser',
 }
 
-/** Material (SCHILD / POKALSCHILD / NAMENSSCHILD) */
-export const LASER_MAT_SCHILD = [
+/** Material options for sign typen (SCHILD / POKALSCHILD / NAMENSSCHILD). */
+export const LASER_SIGN_MATERIALS = [
   'ABS_SW',
   'ABS_WS',
   'ABS_GS',
@@ -29,9 +44,10 @@ export const LASER_MAT_SCHILD = [
   'SONSTIGE',
 ] as const
 
-export type LaserMaterialSchild = (typeof LASER_MAT_SCHILD)[number]
+export type LaserSignMaterial = (typeof LASER_SIGN_MATERIALS)[number]
 
-export const LASER_MAT_SCHILD_ANZEIGE: Record<LaserMaterialSchild, string> = {
+/** German display labels for {@link LaserSignMaterial}. */
+export const LASER_SIGN_MATERIAL_LABELS: Record<LaserSignMaterial, string> = {
   ABS_SW: 'ABS schwarz/weiß',
   ABS_WS: 'ABS weiß/schwarz',
   ABS_GS: 'ABS gold/schwarz',
@@ -39,12 +55,23 @@ export const LASER_MAT_SCHILD_ANZEIGE: Record<LaserMaterialSchild, string> = {
   SONSTIGE: 'Sonstiges',
 }
 
-export const LASER_HERKUNFT = ['KUNDENMATERIAL', 'EIGENMATERIAL'] as const
-export type LaserHerkunft = (typeof LASER_HERKUNFT)[number]
+/**
+ * Origin of the workpiece for laser sub-orders that aren't on a stock
+ * sign material: customer-supplied or pulled from in-house stock.
+ */
+export const LASER_ORIGINS = ['KUNDENMATERIAL', 'EIGENMATERIAL'] as const
+export type LaserOrigin = (typeof LASER_ORIGINS)[number]
 
-export const LASER_HERKUNFT_ANZEIGE: Record<LaserHerkunft, string> = {
+/** German display labels for {@link LaserOrigin}. */
+export const LASER_ORIGIN_LABELS: Record<LaserOrigin, string> = {
   KUNDENMATERIAL: 'Kundenmaterial',
   EIGENMATERIAL: 'Eigenmaterial',
 }
 
+/**
+ * Shape of the JSONB `detail` column for a laser sub-order.
+ *
+ * Keys vary per `typ` — only set keys relevant to the current typ. See
+ * `validateLaserDetail` for the per-typ field set.
+ */
 export type LaserDetailJson = Record<string, unknown>

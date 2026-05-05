@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../supabase'
 import {
-  LASER_HERKUNFT,
-  LASER_HERKUNFT_ANZEIGE,
-  LASER_MAT_SCHILD,
-  LASER_MAT_SCHILD_ANZEIGE,
-  LASER_TYPEN,
-  LASER_TYP_ANZEIGE,
+  LASER_ORIGINS,
+  LASER_ORIGIN_LABELS,
+  LASER_SIGN_MATERIALS,
+  LASER_SIGN_MATERIAL_LABELS,
+  LASER_TYPES,
+  LASER_TYPE_LABELS,
   type LaserDetailJson,
 } from '../../types/laser'
 import { validateLaserDetail } from '../../lib/laser/validateLaserDetail'
@@ -398,9 +398,9 @@ export function LaserDetail({
             }}
           >
             <option value="">—</option>
-            {LASER_TYPEN.map(x => (
+            {LASER_TYPES.map(x => (
               <option key={x} value={x}>
-                {LASER_TYP_ANZEIGE[x]}
+                {LASER_TYPE_LABELS[x]}
               </option>
             ))}
           </select>
@@ -556,7 +556,7 @@ export function LaserDetail({
                   const matRaw = pd.material_schild ?? pd.material
                   const mat = matRaw != null ? String(matRaw) : '—'
                   const beschr = pd.beschreibung != null ? String(pd.beschreibung).slice(0, 48) : '—'
-                  const typLabel = (LASER_TYP_ANZEIGE as Record<string, string>)[pt] ?? pt
+                  const typLabel = (LASER_TYPE_LABELS as Record<string, string>)[pt] ?? pt
                   const zuo = produktDateien[r.id] ?? []
                   return (
                     <tr key={r.id}>
@@ -775,9 +775,9 @@ function SchildGruppe({ p, schildTyp }: { p: BlK; schildTyp: string }) {
               }}
             >
               <option value="">—</option>
-              {LASER_MAT_SCHILD.map(fv => (
+              {LASER_SIGN_MATERIALS.map(fv => (
                 <option key={fv} value={fv}>
-                  {LASER_MAT_SCHILD_ANZEIGE[fv]}
+                  {LASER_SIGN_MATERIAL_LABELS[fv]}
                 </option>
               ))}
             </select>
@@ -821,9 +821,9 @@ function GeschenkGruppe({ p }: { p: BlK }) {
             }
           >
             <option value="">—</option>
-            {LASER_HERKUNFT.map(hk => (
+            {LASER_ORIGINS.map(hk => (
               <option key={hk} value={hk}>
-                {LASER_HERKUNFT_ANZEIGE[hk]}
+                {LASER_ORIGIN_LABELS[hk]}
               </option>
             ))}
           </select>
@@ -852,9 +852,9 @@ function SonstigeLaserGruppe({ p }: { p: BlK }) {
             }
           >
             <option value="">—</option>
-            {LASER_HERKUNFT.map(hk => (
+            {LASER_ORIGINS.map(hk => (
               <option key={hk} value={hk}>
-                {LASER_HERKUNFT_ANZEIGE[hk]}
+                {LASER_ORIGIN_LABELS[hk]}
               </option>
             ))}
           </select>
