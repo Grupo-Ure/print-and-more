@@ -1,10 +1,35 @@
+/**
+ * Validation for Stamp (Stempel) sub-order detail.
+ *
+ * The Stamp validator accepts both the core stamp typen ({@link STAMP_TYPES})
+ * and a set of "extra" typen for consumables: refill ink
+ * (`NACHFUELLFARBE`), stamp pads (`STEMPELKISSEN`), Trodat replacement
+ * pads (`TRODAT_KISSEN`), and replacement plates (`STEMPELPLATTE`).
+ * Each typ has its own required fields:
+ *
+ * - `TRODAT_PRINTY`, `HOLZSTEMPEL`: dimensions optional; require
+ *   `modell_id` from the catalog of stamp models.
+ * - `STATIVSTEMPEL`, `DATUMSSTEMPEL`, `SONSTIGE_STEMPEL`: at least one
+ *   dimension; ink color; description.
+ * - `NACHFUELLFARBE`: ink color + ink type (NORMAL / HAUTVERTRAEGLICH /
+ *   TEXTIL).
+ * - `STEMPELKISSEN`: pad size (KLEIN / MITTEL / GROSS) + ink color.
+ * - `TRODAT_KISSEN`: article number, ink color, and selected variant.
+ * - `STEMPELPLATTE`: dimensions only (no color, no description).
+ *
+ * In `ANGEBOT` (quote stage) nothing is required regardless of typ.
+ *
+ * Returns a map of field-key → German error message; an empty map means
+ * the detail is valid.
+ */
+
 import {
-  STEMPEL_FARBE,
-  type StempelDetailJson,
-  type StempelFarbe,
-  type StempelTeiltyp,
-  STEMPEL_TYPEN,
-} from '../../types/stempel'
+  STAMP_COLORS,
+  type StampDetailJson,
+  type StampColor,
+  type StampType,
+  STAMP_TYPES,
+} from '../../types/stamp'
 import type { AuftragStatus } from '../../types/database'
 
 function reqStr(v: unknown): string | null {
@@ -26,7 +51,7 @@ function stueckzahlGueltig(v: unknown): boolean {
   return Number.isInteger(n) && n >= 1
 }
 
-function anzahlGueltig(d: StempelDetailJson): boolean {
+function anzahlGueltig(d: StampDetailJson): boolean {
   // Für neue Artikeltypen wird teils "anzahl" erwartet; legacy bleibt "stueckzahl".
   return stueckzahlGueltig(d.anzahl) || stueckzahlGueltig(d.stueckzahl)
 }
@@ -45,21 +70,21 @@ const f = (o: Err, k: string, m: string) => {
 
 const EXTRA_TYPEN = ['NACHFUELLFARBE', 'STEMPELKISSEN', 'STEMPELPLATTE', 'TRODAT_KISSEN'] as const
 type ExtraTyp = (typeof EXTRA_TYPEN)[number]
-type AnyTyp = StempelTeiltyp | ExtraTyp
+type AnyTyp = StampType | ExtraTyp
 
 const NACHFUELLFARBE_FARBEN = ['SCHWARZ', 'ROT', 'BLAU', 'GRUEN'] as const
 const NACHFUELLFARBE_TINTE_TYP = ['NORMAL', 'HAUTVERTRAEGLICH', 'TEXTIL'] as const
 const STEMPELKISSEN_GROESSE = ['KLEIN', 'MITTEL', 'GROSS'] as const
 
-export function validateStempelDetail(
+export function validateStampDetail(
   typ: string | null,
-  d: StempelDetailJson,
+  d: StampDetailJson,
   teilStatus: AuftragStatus
 ): Record<string, string> {
   const o: Err = {}
   if (teilStatus === 'ANGEBOT') return o
   const isKnownTyp =
-    !!typ && ((STEMPEL_TYPEN as readonly string[]).includes(typ) || (EXTRA_TYPEN as readonly string[]).includes(typ))
+    !!typ && ((STAMP_TYPES as readonly string[]).includes(typ) || (EXTRA_TYPEN as readonly string[]).includes(typ))
   if (!typ || !isKnownTyp) {
     f(o, 'typ', 'Typ wählen')
     return o
@@ -115,8 +140,8 @@ export function validateStempelDetail(
     // Keine Farbe, keine Beschreibung.
   } else {
     // Standard-Stempel: Farbe + Beschreibung
-    const fr = reqStr(d.farbe) as StempelFarbe | null
-    if (!fr || !STEMPEL_FARBE.includes(fr as StempelFarbe)) f(o, 'farbe', 'Pflichtfeld')
+    const fr = reqStr(d.farbe) as StampColor | null
+    if (!fr || !STAMP_COLORS.includes(fr as StampColor)) f(o, 'farbe', 'Pflichtfeld')
     if (fr === 'SONSTIGE' && !reqStr(d.farbe_sonstige)) f(o, 'farbe_sonstige', 'Pflichtfeld')
     if (!reqStr(d.beschreibung)) f(o, 'beschreibung', 'Pflichtfeld')
   }

@@ -22,14 +22,14 @@ import { DateInput } from './DateInput'
 import { useToast } from './Toast'
 import { CopyShopDetail } from './bereiche/CopyShopDetail'
 import { LFPDetail } from './bereiche/LFPDetail'
-import { StempelDetail } from './bereiche/StempelDetail'
+import { StampDetail } from './bereiche/StampDetail'
 import { OtherDetail, type OtherDetailJson } from './bereiche/OtherDetail'
 import { LaserDetail } from './bereiche/LaserDetail'
 import { TextilDetail } from './bereiche/TextilDetail'
 import type { Datei } from './FileList'
 import type { LfpDetail } from '../types/lfp'
 import type { CopyShopDetailJson } from '../types/copyshop'
-import type { StempelDetailJson } from '../types/stempel'
+import type { StampDetailJson } from '../types/stamp'
 import type { LaserDetailJson } from '../types/laser'
 import { generiereUndLadePdf } from '../lib/pdf/auftragsPdf'
 import './WorkArea.css'
@@ -202,10 +202,10 @@ export function SubOrderDetail({
   )
 
   const onStempelPatch = useCallback(
-    async (p: { typ?: string | null; detail: StempelDetailJson | null }) => {
+    async (p: { typ?: string | null; detail: StampDetailJson | null }) => {
       await speichere({
         typ: p.typ,
-        detail: (p.detail ?? {}) as StempelDetailJson,
+        detail: (p.detail ?? {}) as StampDetailJson,
       } as Partial<TeilauftragRow>)
     },
     [speichere]
@@ -578,7 +578,7 @@ export function SubOrderDetail({
       )}
 
       {lokal.bereich === 'STEMPEL' && (
-        <StempelDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onStempelPatch} auftragDateien={auftragDateien} />
+        <StampDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onStempelPatch} auftragDateien={auftragDateien} />
       )}
 
       {lokal.bereich === 'SONSTIGE' && (

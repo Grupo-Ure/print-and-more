@@ -1,0 +1,63 @@
+/**
+ * Type definitions for the Stamp (Stempel) department.
+ *
+ * The Stamp department covers the in-house stamp production: rubber
+ * stamps in plastic Trodat-Printy housings, traditional wooden stamps
+ * (Holzstempel), tripod stamps (Stativstempel), date stamps
+ * (Datumsstempel), and miscellaneous stamps. Beyond the stamp itself,
+ * the same department also fulfills the consumable line of related
+ * articles — refill ink (Nachfuellfarbe), stamp pads (Stempelkissen),
+ * and replacement plates (Stempelplatte) — which the validator handles
+ * via additional `typ` values declared inside `validateStampDetail`.
+ *
+ * The shape of a Stamp sub-order's `detail` JSONB column varies by typ.
+ * See `validateStampDetail` in `src/lib/stempel/` for the per-typ field
+ * requirements; for `TRODAT_PRINTY` and `HOLZSTEMPEL` the `detail` also
+ * carries a `modell_id` selected from the Stamp catalog
+ * (`stempel_modelle` table).
+ */
+
+/** Core stamp typen, in dropdown order. The validator additionally
+ * accepts a few "extra" typen for consumables — see the validator. */
+export const STAMP_TYPES = [
+  'TRODAT_PRINTY',
+  'HOLZSTEMPEL',
+  'STATIVSTEMPEL',
+  'DATUMSSTEMPEL',
+  'SONSTIGE_STEMPEL',
+] as const
+
+/** Discriminator for the kind of stamp work, stored in `teilauftraege.typ`. */
+export type StampType = (typeof STAMP_TYPES)[number]
+
+/** German display labels for {@link StampType}, rendered in dropdowns and tabs. */
+export const STAMP_TYPE_LABELS: Record<StampType, string> = {
+  TRODAT_PRINTY: 'Trodat Printy',
+  HOLZSTEMPEL: 'Holzstempel',
+  STATIVSTEMPEL: 'Stativstempel',
+  DATUMSSTEMPEL: 'Datumsstempel',
+  SONSTIGE_STEMPEL: 'Sonstige Stempel',
+}
+
+/** Standard ink colors for stamps. `SONSTIGE` requires a free-text spec. */
+export const STAMP_COLORS = ['SCHWARZ', 'ROT', 'BLAU', 'GRUEN', 'SONSTIGE'] as const
+
+export type StampColor = (typeof STAMP_COLORS)[number]
+
+/** German display labels for {@link StampColor}. */
+export const STAMP_COLOR_LABELS: Record<StampColor, string> = {
+  SCHWARZ: 'Schwarz',
+  ROT: 'Rot',
+  BLAU: 'Blau',
+  GRUEN: 'Grün',
+  SONSTIGE: 'Sonstige',
+}
+
+/**
+ * Shape of the JSONB `detail` column for a Stamp sub-order.
+ *
+ * Keys vary per `typ` — only set keys relevant to the current typ. Kept
+ * with the `Json` suffix to disambiguate from the `StampDetail` React
+ * component when both are imported into the same consumer file.
+ */
+export type StampDetailJson = Record<string, unknown>

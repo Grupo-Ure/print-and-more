@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  STEMPEL_FARBE,
-  STEMPEL_FARBE_ANZEIGE,
-  STEMPEL_TYPEN,
-  STEMPEL_TYP_ANZEIGE,
-  type StempelDetailJson,
-} from '../../types/stempel'
-import { validateStempelDetail } from '../../lib/stempel/validateStempelDetail'
+  STAMP_COLORS,
+  STAMP_COLOR_LABELS,
+  STAMP_TYPES,
+  STAMP_TYPE_LABELS,
+  type StampDetailJson,
+} from '../../types/stamp'
+import { validateStampDetail } from '../../lib/stempel/validateStampDetail'
 import { teilJsonAlsFeldertabelle, type AuftragStatus, type TeilauftragRow } from '../../types/database'
 import type { Database, Json } from '../../types/supabase'
 import { supabase } from '../../supabase'
@@ -17,7 +17,7 @@ import '../WorkArea.css'
 type Props = {
   teil: TeilauftragRow
   teilStatus: AuftragStatus
-  onDetailPatch: (patch: { typ?: string | null; detail: StempelDetailJson | null }) => Promise<void>
+  onDetailPatch: (patch: { typ?: string | null; detail: StampDetailJson | null }) => Promise<void>
   auftragDateien?: Datei[]
 }
 
@@ -25,23 +25,23 @@ type ProduktRow = {
   id: string
   teilauftrag_id: string
   bereich: string
-  detail: StempelDetailJson
+  detail: StampDetailJson
   sort_order: number | null
   erstellt_am: string | null
 }
 
-function stempelRoh(teil: TeilauftragRow): StempelDetailJson {
+function stempelRoh(teil: TeilauftragRow): StampDetailJson {
   return { ...teilJsonAlsFeldertabelle(teil.detail) }
 }
 
 type BlK = {
-  d: StempelDetailJson
+  d: StampDetailJson
   fe: (k: string) => string
   pruef: boolean
   f: Record<string, string>
-  patchL: (p: StempelDetailJson) => void
+  patchL: (p: StampDetailJson) => void
   commit: () => void
-  speichDetail: (d: StempelDetailJson) => void
+  speichDetail: (d: StampDetailJson) => void
 }
 
 const EXTRA_TYPEN = ['NACHFUELLFARBE', 'STEMPELKISSEN', 'STEMPELPLATTE', 'TRODAT_KISSEN'] as const
@@ -119,13 +119,13 @@ function toPosIntOrNull(v: unknown): number | null {
 
 function typLabel(t: string): string {
   if ((EXTRA_TYPEN as readonly string[]).includes(t)) return EXTRA_TYP_ANZEIGE[t as (typeof EXTRA_TYPEN)[number]]
-  if ((STEMPEL_TYPEN as readonly string[]).includes(t)) return STEMPEL_TYP_ANZEIGE[t as (typeof STEMPEL_TYPEN)[number]]
+  if ((STAMP_TYPES as readonly string[]).includes(t)) return STAMP_TYPE_LABELS[t as (typeof STAMP_TYPES)[number]]
   return t
 }
 
 type ProduktDateiZuordnung = { zuordnungId: string; dateiId: string }
 
-export function StempelDetail({
+export function StampDetail({
   teil,
   teilStatus,
   onDetailPatch,
@@ -143,7 +143,7 @@ export function StempelDetail({
   const [formDateiIds, setFormDateiIds] = useState<string[]>([])
 
   const [typ, setTyp] = useState<string | null>(teil.typ)
-  const [detail, setDetail] = useState<StempelDetailJson>(stempelRoh(teil))
+  const [detail, setDetail] = useState<StampDetailJson>(stempelRoh(teil))
   const detailR = useRef(detail)
   const typR = useRef(typ)
   useEffect(() => {
@@ -225,7 +225,7 @@ export function StempelDetail({
       id: r.id,
       teilauftrag_id: r.teilauftrag_id,
       bereich: r.bereich,
-      detail: (r.detail ?? {}) as StempelDetailJson,
+      detail: (r.detail ?? {}) as StampDetailJson,
       sort_order: r.sort_order,
       erstellt_am: r.erstellt_am,
     }))
@@ -278,7 +278,7 @@ export function StempelDetail({
     typR.current = teil.typ
   }, [teil])
 
-  const stempelFehler = validateStempelDetail(typ, detail, teilStatus)
+  const stempelFehler = validateStampDetail(typ, detail, teilStatus)
   const pruef = teilStatus !== 'ANGEBOT'
   const fe = (k: string) => (pruef && stempelFehler[k] ? ' ber-inp--err' : '')
 
@@ -448,7 +448,7 @@ export function StempelDetail({
           const r = byFarbe.get(farbe)
           return {
             farbe,
-            label: STEMPEL_FARBE_ANZEIGE[farbe],
+            label: STAMP_COLOR_LABELS[farbe],
             bestand: r ? Number(r.bestand) || 0 : 0,
           }
         })
@@ -548,7 +548,7 @@ export function StempelDetail({
   }, [typ, detail, teil.id])
 
   const speich = useCallback(
-    async (nextTyp: string | null, d: StempelDetailJson) => {
+    async (nextTyp: string | null, d: StampDetailJson) => {
       setDetail(d)
       detailR.current = d
       setTyp(nextTyp)
@@ -558,7 +558,7 @@ export function StempelDetail({
     [onDetailPatch, editingId]
   )
 
-  const patchL = useCallback((p: StempelDetailJson) => {
+  const patchL = useCallback((p: StampDetailJson) => {
     setDetail(d0 => {
       const n = { ...d0, ...p }
       detailR.current = n
@@ -571,7 +571,7 @@ export function StempelDetail({
   }, [speich])
 
   const speichDetail = useCallback(
-    (d: StempelDetailJson) => {
+    (d: StampDetailJson) => {
       setDetail(d)
       detailR.current = d
       void speich(typR.current, d)
@@ -590,7 +590,7 @@ export function StempelDetail({
     const t = typR.current
     const d = { ...detailR.current }
     if (!t) return
-    const errors = validateStempelDetail(t, d, teilStatus)
+    const errors = validateStampDetail(t, d, teilStatus)
     if (Object.keys(errors).length > 0) return
 
     if (editingId) {
@@ -614,7 +614,7 @@ export function StempelDetail({
         detail: {
           ...stempelRoh(teil),
           hat_produkte: list.length > 0,
-        } as StempelDetailJson,
+        } as StampDetailJson,
       })
       resetForm()
       return
@@ -646,7 +646,7 @@ export function StempelDetail({
       detail: {
         ...stempelRoh(teil),
         hat_produkte: list.length > 0,
-      } as StempelDetailJson,
+      } as StampDetailJson,
     })
     resetForm()
   }, [
@@ -677,7 +677,7 @@ export function StempelDetail({
         detail: {
           ...stempelRoh(teil),
           hat_produkte: list.length > 0,
-        } as StempelDetailJson,
+        } as StampDetailJson,
       })
       if (editingId === id) resetForm()
     },
@@ -691,13 +691,13 @@ export function StempelDetail({
     const dr = raw as Record<string, unknown>
     const tt = typeof dr.typ === 'string' ? dr.typ : null
     setTyp(tt)
-    const dd = { ...(raw as StempelDetailJson) }
+    const dd = { ...(raw as StampDetailJson) }
     setDetail(dd)
     detailR.current = dd
     typR.current = tt
   }, [produktDateien])
 
-  const typOptionen = [...STEMPEL_TYPEN, ...EXTRA_TYPEN] as readonly string[]
+  const typOptionen = [...STAMP_TYPES, ...EXTRA_TYPEN] as readonly string[]
 
   const dRec = detail
   const trodatKissenArt = String(dRec['kissen_artikelnummer'] ?? '').trim()
@@ -705,8 +705,8 @@ export function StempelDetail({
   const trodatBadgeBestand =
     (trodatKissenModellId && kissenFarbOptionen.find(f => f.id === trodatKissenModellId)?.bestand) ?? null
   const trodatFarbeLabel =
-    dRec['farbe'] && typeof dRec['farbe'] === 'string' && dRec['farbe'] in STEMPEL_FARBE_ANZEIGE
-      ? STEMPEL_FARBE_ANZEIGE[dRec['farbe'] as keyof typeof STEMPEL_FARBE_ANZEIGE]
+    dRec['farbe'] && typeof dRec['farbe'] === 'string' && dRec['farbe'] in STAMP_COLOR_LABELS
+      ? STAMP_COLOR_LABELS[dRec['farbe'] as keyof typeof STAMP_COLOR_LABELS]
       : String(dRec['farbe'] ?? '—')
 
   return (
@@ -790,7 +790,7 @@ export function StempelDetail({
                               kissen_name: zeile.name,
                               farbe: null,
                               kissen_modell_id: null,
-                            } as StempelDetailJson)
+                            } as StampDetailJson)
                           })
                         }}
                         style={{ textAlign: 'left', padding: '6px 8px' }}
@@ -825,7 +825,7 @@ export function StempelDetail({
                             ...detailR.current,
                             farbe: fv.farbe,
                             kissen_modell_id: fv.id,
-                          } as StempelDetailJson)
+                          } as StampDetailJson)
                         }}
                         style={{
                           textAlign: 'left',
@@ -835,7 +835,7 @@ export function StempelDetail({
                           fontWeight: b0 || waehl ? 600 : undefined,
                         }}
                       >
-                        {STEMPEL_FARBE_ANZEIGE[fv.farbe]} (Bestand: {fv.bestand})
+                        {STAMP_COLOR_LABELS[fv.farbe]} (Bestand: {fv.bestand})
                       </button>
                     )
                   })}
@@ -873,7 +873,7 @@ export function StempelDetail({
                       kissen_name: null,
                       kissen_modell_id: null,
                       farbe: null,
-                    } as StempelDetailJson)
+                    } as StampDetailJson)
                   }}
                   onKeyDown={e => {
                     if (e.key === 'Enter' || e.key === ' ') {
@@ -885,7 +885,7 @@ export function StempelDetail({
                         kissen_name: null,
                         kissen_modell_id: null,
                         farbe: null,
-                      } as StempelDetailJson)
+                      } as StampDetailJson)
                     }
                   }}
                   style={{ cursor: 'pointer', padding: '0 6px', userSelect: 'none', fontWeight: 700 }}
@@ -909,7 +909,7 @@ export function StempelDetail({
             className={'ber-inp' + fe('groesse')}
             value={String(detail['groesse'] ?? '')}
             onChange={e =>
-              speichDetail({ ...detail, groesse: e.target.value || null } as StempelDetailJson)
+              speichDetail({ ...detail, groesse: e.target.value || null } as StampDetailJson)
             }
           >
             <option value="">—</option>
@@ -939,16 +939,16 @@ export function StempelDetail({
                 value={String(detail['farbe'] ?? '')}
                 onChange={e => {
                   const v = e.target.value
-                  const next: StempelDetailJson = { ...detail, farbe: v || null }
+                  const next: StampDetailJson = { ...detail, farbe: v || null }
                   if (v !== 'SONSTIGE') next.farbe_sonstige = null
                   speichDetail(next)
                 }}
               >
                 <option value="">—</option>
-                {(typ === 'NACHFUELLFARBE' || typ === 'STEMPELKISSEN' ? NACHFUELLFARBE_FARBEN : STEMPEL_FARBE).map(
+                {(typ === 'NACHFUELLFARBE' || typ === 'STEMPELKISSEN' ? NACHFUELLFARBE_FARBEN : STAMP_COLORS).map(
                   fv => (
                     <option key={fv} value={fv}>
-                      {STEMPEL_FARBE_ANZEIGE[fv as (typeof STEMPEL_FARBE)[number]]}
+                      {STAMP_COLOR_LABELS[fv as (typeof STAMP_COLORS)[number]]}
                     </option>
                   )
                 )}
@@ -960,7 +960,7 @@ export function StempelDetail({
                     className={'ber-inp' + fe('farbe_sonstige')}
                     placeholder="Farbe (Freitext)"
                     value={String(detail['farbe_sonstige'] ?? '')}
-                    onChange={e => patchL({ farbe_sonstige: e.target.value || null } as StempelDetailJson)}
+                    onChange={e => patchL({ farbe_sonstige: e.target.value || null } as StampDetailJson)}
                     onBlur={commit}
                   />
                 </div>
@@ -976,7 +976,7 @@ export function StempelDetail({
             className={'ber-inp' + fe('tinte_typ')}
             value={String(detail['tinte_typ'] ?? '')}
             onChange={e =>
-              speichDetail({ ...detail, tinte_typ: e.target.value || null } as StempelDetailJson)
+              speichDetail({ ...detail, tinte_typ: e.target.value || null } as StampDetailJson)
             }
           >
             <option value="">—</option>
@@ -1007,7 +1007,7 @@ export function StempelDetail({
                   value={bVal ?? ''}
                   onChange={e => {
                     const raw = e.target.value
-                    patchL({ format_breite: raw === '' ? null : parseInt(raw, 10) } as StempelDetailJson)
+                    patchL({ format_breite: raw === '' ? null : parseInt(raw, 10) } as StampDetailJson)
                   }}
                   onBlur={commit}
                   min={1}
@@ -1021,7 +1021,7 @@ export function StempelDetail({
                   value={hVal ?? ''}
                   onChange={e => {
                     const raw = e.target.value
-                    patchL({ format_hoehe: raw === '' ? null : parseInt(raw, 10) } as StempelDetailJson)
+                    patchL({ format_hoehe: raw === '' ? null : parseInt(raw, 10) } as StampDetailJson)
                   }}
                   onBlur={commit}
                   min={1}
@@ -1162,7 +1162,7 @@ export function StempelDetail({
                 className={'ber-inp' + fe('beschreibung')}
                 rows={6}
                 value={String(detail['beschreibung'] ?? '')}
-                onChange={e => patchL({ beschreibung: e.target.value || null } as StempelDetailJson)}
+                onChange={e => patchL({ beschreibung: e.target.value || null } as StampDetailJson)}
                 onBlur={commit}
               />
               <p className="ber-hinweis" style={{ marginTop: 6, marginBottom: 0 }}>
@@ -1180,7 +1180,7 @@ export function StempelDetail({
             rows={2}
             placeholder="Besonderheiten, Hinweise..."
             value={String(detail['hinweis'] ?? '')}
-            onChange={e => patchL({ hinweis: e.target.value || null } as StempelDetailJson)}
+            onChange={e => patchL({ hinweis: e.target.value || null } as StampDetailJson)}
             onBlur={commit}
           />
         </BerZeile>
@@ -1398,7 +1398,7 @@ function NmbStueckzahl(a: BlK & { label: string }) {
         value={numForInput}
         onChange={e => {
           const raw = e.target.value
-          patchL({ stueckzahl: raw === '' ? null : parseInt(raw, 10) } as StempelDetailJson)
+          patchL({ stueckzahl: raw === '' ? null : parseInt(raw, 10) } as StampDetailJson)
         }}
         onBlur={commit}
         min={1}

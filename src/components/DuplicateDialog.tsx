@@ -6,7 +6,7 @@ import { teilJsonAlsFeldertabelle, type Auftrag, type TeilauftragRow } from '../
 import { TEILAUFTRAG_BEREICH_ANZEIGE, teilauftragBereichLabel } from '../types/database'
 import { LFP_TYPE_LABELS } from '../types/lfp'
 import { COPY_SHOP_TYPE_LABELS } from '../types/copyshop'
-import { STEMPEL_TYP_ANZEIGE } from '../types/stempel'
+import { STAMP_TYPE_LABELS } from '../types/stamp'
 import { LASER_TYPE_LABELS } from '../types/laser'
 import { DateInput } from './DateInput'
 import { useToast } from './Toast'
@@ -25,8 +25,8 @@ function typLesbar(bereich: string, typ: string | null): string {
   if (bereich === 'LFP' && typ in LFP_TYPE_LABELS) return LFP_TYPE_LABELS[typ as keyof typeof LFP_TYPE_LABELS]
   if (bereich === 'COPYSHOP' && typ in COPY_SHOP_TYPE_LABELS)
     return COPY_SHOP_TYPE_LABELS[typ as keyof typeof COPY_SHOP_TYPE_LABELS]
-  if (bereich === 'STEMPEL' && typ in STEMPEL_TYP_ANZEIGE)
-    return STEMPEL_TYP_ANZEIGE[typ as keyof typeof STEMPEL_TYP_ANZEIGE]
+  if (bereich === 'STEMPEL' && typ in STAMP_TYPE_LABELS)
+    return STAMP_TYPE_LABELS[typ as keyof typeof STAMP_TYPE_LABELS]
   if (bereich === 'LASERGRAVUR' && typ in LASER_TYPE_LABELS)
     return LASER_TYPE_LABELS[typ as keyof typeof LASER_TYPE_LABELS]
   return typ
