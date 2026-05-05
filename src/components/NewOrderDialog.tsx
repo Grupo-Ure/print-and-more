@@ -4,7 +4,7 @@ import { supabase } from '../supabase'
 import type { LieferungWahl, AuftragStatus, Prioritaet } from '../types/database'
 import type { Database } from '../types/supabase'
 import type { Kunde } from '../lib/kunden'
-import { KundeDialog } from './KundeDialog'
+import { CustomerDialog } from './CustomerDialog'
 import { useToast } from './Toast'
 import './ContextPanel.css'
 import './WorkArea.css'
@@ -266,10 +266,10 @@ export function NewOrderDialog({ offen, onSchliessen, onErfolg }: Props) {
       </div>
 
       {kundeSubDialog === 'neu' && (
-        <KundeDialog kunde={null} onGespeichert={handleKundeGespeichert} onAbbrechen={() => setKundeSubDialog(null)} />
+        <CustomerDialog kunde={null} onGespeichert={handleKundeGespeichert} onAbbrechen={() => setKundeSubDialog(null)} />
       )}
       {kundeSubDialog === 'bearbeiten' && kundeFuerFormular && (
-        <KundeDialog
+        <CustomerDialog
           kunde={kundeFuerFormular}
           onGespeichert={handleKundeGespeichert}
           onAbbrechen={() => {

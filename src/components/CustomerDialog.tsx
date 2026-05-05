@@ -22,7 +22,7 @@ function validiere(name: string): string | null {
 const KUNDEN_SPALTEN =
   'id, name, email, telefon, notiz, strasse, hausnummer, plz, ort' as const
 
-export function KundeDialog({ kunde, onGespeichert, onAbbrechen }: Props) {
+export function CustomerDialog({ kunde, onGespeichert, onAbbrechen }: Props) {
   const istBearbeiten = kunde != null
   const [name, setName] = useState(kunde?.name ?? '')
   const [email, setEmail] = useState(kunde?.email ?? '')

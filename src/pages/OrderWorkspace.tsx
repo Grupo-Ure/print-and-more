@@ -6,7 +6,7 @@ import { OrderList } from '../components/OrderList'
 import { WorkArea } from '../components/WorkArea'
 import { ContextPanel } from '../components/ContextPanel'
 import { NewOrderDialog, type NewOrderInsertRow } from '../components/NewOrderDialog'
-import { KundeDialog } from '../components/KundeDialog'
+import { CustomerDialog } from '../components/CustomerDialog'
 import { kontaktJoinZuKunde } from '../lib/kunden'
 import type { Kunde } from '../lib/kunden'
 import type { Auftrag, AuftragStatus, KundeKontaktJoin, TeilauftragRow } from '../types/database'
@@ -197,7 +197,7 @@ export function OrderWorkspace() {
         onErfolg={handleNewOrderSuccess}
       />
       {customerDialog.open && (
-        <KundeDialog
+        <CustomerDialog
           kunde={customerDialog.customer}
           onGespeichert={handleCustomerSaved}
           onAbbrechen={() => setCustomerDialog({ open: false, customer: null })}
