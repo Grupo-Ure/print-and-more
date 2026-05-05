@@ -127,7 +127,7 @@ function statusTextil(
 
 type BestellZeile = VarianteRow & { offene_menge: number; bestellmenge: number }
 
-export function TextilBestandSeite() {
+export function TextileStockPage() {
   const { fehler, erfolg } = useToast()
   const [session, setSession] = useState<Session | null>(null)
   const [laden, setLaden] = useState(true)
