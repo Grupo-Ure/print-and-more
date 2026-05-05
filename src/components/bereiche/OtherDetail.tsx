@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../supabase'
-import { validateSonstigeDetail } from '../../lib/sonstige/validateSonstigeDetail'
+import { validateOtherDetail } from '../../lib/sonstige/validateOtherDetail'
 import type { AuftragStatus, TeilauftragRow } from '../../types/database'
 import type { Database, Json } from '../../types/supabase'
 import type { Datei } from '../FileList'
 import { useToast } from '../Toast'
 import '../WorkArea.css'
 
-export type SonstigeDetailJson = Record<string, unknown>
+export type OtherDetailJson = Record<string, unknown>
 
 type Props = {
   teil: TeilauftragRow
   teilStatus: AuftragStatus
-  onDetailPatch: (patch: { typ?: string | null; detail: SonstigeDetailJson | null }) => Promise<void>
+  onDetailPatch: (patch: { typ?: string | null; detail: OtherDetailJson | null }) => Promise<void>
   auftragDateien?: Datei[]
 }
 
@@ -20,31 +20,31 @@ type ProduktRow = {
   id: string
   teilauftrag_id: string
   bereich: string
-  detail: SonstigeDetailJson
+  detail: OtherDetailJson
   sort_order: number | null
   erstellt_am: string | null
 }
 
 const SONSTIGE_TYP = 'SONSTIGE' as const
 
-function sonstigeRoh(teil: TeilauftragRow): SonstigeDetailJson {
+function sonstigeRoh(teil: TeilauftragRow): OtherDetailJson {
   const d = teil.detail
   return d && typeof d === 'object' && !Array.isArray(d) ? { ...d } : {}
 }
 
 type BlK = {
-  d: SonstigeDetailJson
+  d: OtherDetailJson
   fe: (k: string) => string
   pruef: boolean
   f: Record<string, string>
-  patchL: (p: SonstigeDetailJson) => void
+  patchL: (p: OtherDetailJson) => void
   commit: () => void
-  speichDetail: (d: SonstigeDetailJson) => void
+  speichDetail: (d: OtherDetailJson) => void
 }
 
 type ProduktDateiZuordnung = { zuordnungId: string; dateiId: string }
 
-export function SonstigeDetail({
+export function OtherDetail({
   teil,
   teilStatus,
   onDetailPatch,
@@ -61,7 +61,7 @@ export function SonstigeDetail({
   const [entsperrt, setEntsperrt] = useState(false)
   const [formDateiIds, setFormDateiIds] = useState<string[]>([])
 
-  const [detail, setDetail] = useState<SonstigeDetailJson>(sonstigeRoh(teil))
+  const [detail, setDetail] = useState<OtherDetailJson>(sonstigeRoh(teil))
   const detailR = useRef(detail)
   useEffect(() => {
     detailR.current = detail
@@ -137,7 +137,7 @@ export function SonstigeDetail({
       id: r.id,
       teilauftrag_id: r.teilauftrag_id,
       bereich: r.bereich,
-      detail: (r.detail ?? {}) as SonstigeDetailJson,
+      detail: (r.detail ?? {}) as OtherDetailJson,
       sort_order: r.sort_order,
       erstellt_am: r.erstellt_am,
     }))
@@ -188,12 +188,12 @@ export function SonstigeDetail({
     detailR.current = d
   }, [teil])
 
-  const sonstigeFehler = validateSonstigeDetail(detail, teilStatus)
+  const sonstigeFehler = validateOtherDetail(detail, teilStatus)
   const pruef = teilStatus !== 'ANGEBOT'
   const fe = (k: string) => (pruef && sonstigeFehler[k] ? ' ber-inp--err' : '')
 
   const speich = useCallback(
-    async (d: SonstigeDetailJson) => {
+    async (d: OtherDetailJson) => {
       setDetail(d)
       detailR.current = d
       if (editingId !== null) return
@@ -202,7 +202,7 @@ export function SonstigeDetail({
     [onDetailPatch, teil.typ, editingId]
   )
 
-  const patchL = useCallback((p: SonstigeDetailJson) => {
+  const patchL = useCallback((p: OtherDetailJson) => {
     setDetail(d0 => {
       const n = { ...d0, ...p }
       detailR.current = n
@@ -215,7 +215,7 @@ export function SonstigeDetail({
   }, [speich])
 
   const speichDetail = useCallback(
-    (d: SonstigeDetailJson) => {
+    (d: OtherDetailJson) => {
       setDetail(d)
       detailR.current = d
       void speich(d)
@@ -234,7 +234,7 @@ export function SonstigeDetail({
 
   const handleAddOrSave = useCallback(async () => {
     const d = { ...detailR.current }
-    const errors = validateSonstigeDetail(d, teilStatus)
+    const errors = validateOtherDetail(d, teilStatus)
     if (Object.keys(errors).length > 0) return
 
     const detailMitTyp = { ...d, typ: SONSTIGE_TYP }
@@ -335,7 +335,7 @@ export function SonstigeDetail({
     setEditingId(row.id)
     setFormDateiIds(produktDateien[row.id]?.map(z => z.dateiId) ?? [])
     const raw = row.detail ?? {}
-    const dd = { ...(raw as SonstigeDetailJson) }
+    const dd = { ...(raw as OtherDetailJson) }
     setDetail(dd)
     detailR.current = dd
   }, [produktDateien])
@@ -361,7 +361,7 @@ export function SonstigeDetail({
               className={'ber-inp' + fe('beschreibung')}
               rows={8}
               value={String(detail['beschreibung'] ?? '')}
-              onChange={e => patchL({ beschreibung: e.target.value || null } as SonstigeDetailJson)}
+              onChange={e => patchL({ beschreibung: e.target.value || null } as OtherDetailJson)}
               onBlur={commit}
             />
             <p className="ber-hinweis" style={{ marginTop: 6, marginBottom: 0 }}>
@@ -585,7 +585,7 @@ function NmbStueckzahlOptional(a: BlK) {
             value={numForInput}
             onChange={e => {
               const v = e.target.value
-              patchL({ stueckzahl: v === '' ? null : parseInt(v, 10) } as SonstigeDetailJson)
+              patchL({ stueckzahl: v === '' ? null : parseInt(v, 10) } as OtherDetailJson)
             }}
             onBlur={commit}
             min={1}

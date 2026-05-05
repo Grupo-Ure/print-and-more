@@ -23,7 +23,7 @@ import { useToast } from './Toast'
 import { CopyShopDetail } from './bereiche/CopyShopDetail'
 import { LFPDetail } from './bereiche/LFPDetail'
 import { StempelDetail } from './bereiche/StempelDetail'
-import { SonstigeDetail, type SonstigeDetailJson } from './bereiche/SonstigeDetail'
+import { OtherDetail, type OtherDetailJson } from './bereiche/OtherDetail'
 import { LaserDetail } from './bereiche/LaserDetail'
 import { TextilDetail } from './bereiche/TextilDetail'
 import type { Datei } from './FileList'
@@ -212,10 +212,10 @@ export function SubOrderDetail({
   )
 
   const onSonstigePatch = useCallback(
-    async (p: { typ?: string | null; detail: SonstigeDetailJson | null }) => {
+    async (p: { typ?: string | null; detail: OtherDetailJson | null }) => {
       await speichere({
         typ: p.typ,
-        detail: (p.detail ?? {}) as SonstigeDetailJson,
+        detail: (p.detail ?? {}) as OtherDetailJson,
       } as Partial<TeilauftragRow>)
     },
     [speichere]
@@ -582,7 +582,7 @@ export function SubOrderDetail({
       )}
 
       {lokal.bereich === 'SONSTIGE' && (
-        <SonstigeDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onSonstigePatch} auftragDateien={auftragDateien} />
+        <OtherDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onSonstigePatch} auftragDateien={auftragDateien} />
       )}
 
       {lokal.bereich === 'LASERGRAVUR' && (
