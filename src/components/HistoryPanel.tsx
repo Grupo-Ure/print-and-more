@@ -53,7 +53,7 @@ function formatHistZeit(iso: string): string {
   })
 }
 
-export function HistoriePanel({ aktiverAuftragId, kontextAktualisiert, teilauftraege }: Props) {
+export function HistoryPanel({ aktiverAuftragId, kontextAktualisiert, teilauftraege }: Props) {
   const { fehler: toastFehler } = useToast()
   const [geoefnet, setGeoefnet] = useState(false)
   const [eintraege, setEintraege] = useState<HistorieZeile[]>([])

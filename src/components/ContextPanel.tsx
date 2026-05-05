@@ -14,7 +14,7 @@ import {
 } from '../types/database'
 import type { Database } from '../types/supabase'
 import { DateiListe, type Datei } from './DateiListe'
-import { HistoriePanel } from './HistoriePanel'
+import { HistoryPanel } from './HistoryPanel'
 import { useToast } from './Toast'
 import { istTeilAuftragVollstaendig } from '../lib/teilGlobal'
 import './ContextPanel.css'
@@ -1121,7 +1121,7 @@ export function ContextPanel({
         </div>
       </div>
 
-      <HistoriePanel
+      <HistoryPanel
         aktiverAuftragId={auftrag.id}
         kontextAktualisiert={kontextAktualisiert}
         teilauftraege={teilBereichListe}
