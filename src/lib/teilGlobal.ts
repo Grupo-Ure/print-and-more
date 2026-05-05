@@ -1,5 +1,5 @@
 import { teilJsonAlsFeldertabelle, type AuftragStatus, type TeilauftragRow } from '../types/database'
-import { textilDetailJsonMarkiertVoll } from './textil/validateTextilDetail'
+import { textileDetailMarkedComplete } from './textil/validateTextileDetail'
 
 export type LieferungEnum = 'ABHOLUNG' | 'VERSAND'
 
@@ -117,7 +117,7 @@ export function istTeilAuftragVollstaendig(t: TeilauftragRow, teilStatus: Auftra
   }
   if (t.bereich === 'TEXTIL') {
     if (Object.keys(validateGlobalTeilfelder(t, teilStatus)).length > 0) return false
-    return textilDetailJsonMarkiertVoll(t.detail)
+    return textileDetailMarkedComplete(t.detail)
   }
   return true
 }

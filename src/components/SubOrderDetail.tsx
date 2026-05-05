@@ -25,7 +25,7 @@ import { LFPDetail } from './bereiche/LFPDetail'
 import { StampDetail } from './bereiche/StampDetail'
 import { OtherDetail, type OtherDetailJson } from './bereiche/OtherDetail'
 import { LaserDetail } from './bereiche/LaserDetail'
-import { TextilDetail } from './bereiche/TextilDetail'
+import { TextileDetail } from './bereiche/TextileDetail'
 import type { Datei } from './FileList'
 import type { LfpDetail } from '../types/lfp'
 import type { CopyShopDetailJson } from '../types/copyshop'
@@ -590,7 +590,7 @@ export function SubOrderDetail({
       )}
 
       {lokal.bereich === 'TEXTIL' && (
-        <TextilDetail
+        <TextileDetail
           teil={lokal}
           teilStatus={lokal.status}
           auftragStatus={auftragStatus}

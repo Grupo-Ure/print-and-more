@@ -4,36 +4,36 @@ import { TEILAUFTRAG_SPALTEN } from '../../const/teilauftragSelect'
 import { kundeErfuelltPrepressKontakt } from '../../lib/kunde'
 import { istTeilAuftragVollstaendig, nextTeilStatus } from '../../lib/teilGlobal'
 import {
-  buildFreiGroesseString,
+  buildFreeSizeString,
   isUniqueViolation,
-  textilDatensaetzeErlaubenPraepress,
-} from '../../lib/textil/validateTextilDetail'
+  textileRecordsAllowPrepress,
+} from '../../lib/textil/validateTextileDetail'
 import type { AuftragStatus, KundeKontaktJoin, TeilauftragRow } from '../../types/database'
 import type { Datei } from '../FileList'
 import type {
-  TextilGroesseEnum,
-  TextilHerkunft,
-  TextilKundenKleidungTyp,
-  TextilMotiveRow,
-  TextilMotivTyp,
-  TextilPlatz,
-  TextilPositionenRow,
-  TextilSchriftklasse,
-  TextilZuordnungRow,
-} from '../../types/textil'
+  TextileSize,
+  TextileOrigin,
+  TextileCustomerGarmentType,
+  TextileMotifRow,
+  TextileMotifType,
+  TextilePlacement,
+  TextilePositionRow,
+  TextileFontClass,
+  TextileAssignmentRow,
+} from '../../types/textile'
 import type { Database, Json } from '../../types/supabase'
 import '../WorkArea.css'
 
-type TextilProduktMitMarkeEmbed = {
+type TextileProduktMitMarkeEmbed = {
   name: string | null
   textil_marken?: { name: string | null } | { name: string | null }[] | null
 }
 
-type TextilVarianteQueryRow = Pick<
+type TextileVarianteQueryRow = Pick<
   Database['public']['Tables']['textil_varianten']['Row'],
   'id' | 'bestand' | 'farbe' | 'groesse' | 'ist_muster'
 > & {
-  textil_produkte?: TextilProduktMitMarkeEmbed | TextilProduktMitMarkeEmbed[] | null
+  textil_produkte?: TextileProduktMitMarkeEmbed | TextileProduktMitMarkeEmbed[] | null
 }
 
 type Props = {
@@ -45,19 +45,19 @@ type Props = {
   onAktualisiert: (t: TeilauftragRow) => void
 }
 
-const SCHRIFTKLASSE: { v: TextilSchriftklasse; l: string }[] = [
+const SCHRIFTKLASSE: { v: TextileFontClass; l: string }[] = [
   { v: 'SERIFENLOS', l: 'Serifenlos' },
   { v: 'SERIFEN', l: 'Serifen' },
   { v: 'ELEGANT', l: 'Elegant' },
   { v: 'VERSPIELT', l: 'Verspielt' },
 ]
 
-const HERKUNFT_ANZEIGE: Record<TextilHerkunft, string> = {
+const HERKUNFT_ANZEIGE: Record<TextileOrigin, string> = {
   KUNDENWARE: 'Kundenware',
   EIGENWARE: 'Eigenware',
 }
 
-const KLEID_TYP: { v: TextilKundenKleidungTyp; l: string }[] = [
+const KLEID_TYP: { v: TextileCustomerGarmentType; l: string }[] = [
   { v: 'T_SHIRT', l: 'T-Shirt' },
   { v: 'POLO', l: 'Polo' },
   { v: 'SWEATSHIRT', l: 'Sweatshirt' },
@@ -67,7 +67,7 @@ const KLEID_TYP: { v: TextilKundenKleidungTyp; l: string }[] = [
   { v: 'SONSTIGES', l: 'Sonstiges' },
 ]
 
-const PLATZ_OPT: { v: TextilPlatz; l: string }[] = [
+const PLATZ_OPT: { v: TextilePlacement; l: string }[] = [
   { v: 'BRUST_LINKS', l: 'Brust links' },
   { v: 'BRUST_MITTE', l: 'Brust mitte' },
   { v: 'BRUST_RECHTS', l: 'Brust rechts' },
@@ -77,13 +77,13 @@ const PLATZ_OPT: { v: TextilPlatz; l: string }[] = [
   { v: 'SONSTIGE', l: 'Sonstige' },
 ]
 
-const GROESSE_ANZEIGE: Record<Exclude<TextilGroesseEnum, 'FREI'>, string> = {
+const GROESSE_ANZEIGE: Record<Exclude<TextileSize, 'FREI'>, string> = {
   KLEIN: 'Klein',
   MITTEL: 'Mittel',
   GROSS: 'Groß',
 }
 
-const GROESSE_WAHL: TextilGroesseEnum[] = ['KLEIN', 'MITTEL', 'GROSS', 'FREI']
+const GROESSE_WAHL: TextileSize[] = ['KLEIN', 'MITTEL', 'GROSS', 'FREI']
 
 type EigenwareModus = 'STAMMDATEN' | 'FREITEXT'
 
@@ -115,9 +115,9 @@ function groesseKurzLabel(g: string): string {
 }
 
 /** DB-Wert `groesse` am Motiv → Formular Größenwahl + Freitext */
-function splitGroesseDb(g: string | null | undefined): { art: TextilGroesseEnum; frei: string } {
+function splitGroesseDb(g: string | null | undefined): { art: TextileSize; frei: string } {
   if (!g || g === 'KLEIN' || g === 'MITTEL' || g === 'GROSS') {
-    return { art: (g as TextilGroesseEnum) || 'MITTEL', frei: '' }
+    return { art: (g as TextileSize) || 'MITTEL', frei: '' }
   }
   if (g === 'FREI') return { art: 'FREI', frei: '' }
   if (g.startsWith('FREI:')) return { art: 'FREI', frei: g.slice(5) }
@@ -140,7 +140,7 @@ const ZUO_EMBED_SELECT =
 
 const TEMP_POS_NEU = 'neu'
 
-export function TextilDetail({
+export function TextileDetail({
   teil,
   teilStatus,
   auftragStatus,
@@ -153,9 +153,9 @@ export function TextilDetail({
     teilR.current = teil
   }, [teil])
 
-  const [motive, setMotive] = useState<TextilMotiveRow[]>([])
-  const [positionen, setPositionen] = useState<TextilPositionenRow[]>([])
-  const [zuordnungen, setZuordnungen] = useState<TextilZuordnungRow[]>([])
+  const [motive, setMotive] = useState<TextileMotifRow[]>([])
+  const [positionen, setPositionen] = useState<TextilePositionRow[]>([])
+  const [zuordnungen, setZuordnungen] = useState<TextileAssignmentRow[]>([])
   const [varianteInfoById, setVarianteInfoById] = useState<
     Map<string, { bestand: number; farbe: string; groesse: string; ist_muster: boolean; produkt: string; marke: string }>
   >(new Map())
@@ -164,19 +164,19 @@ export function TextilDetail({
   const [fehler, setFehler] = useState<string | null>(null)
   const [sMut, setSMut] = useState(false)
 
-  const [mTyp, setMTyp] = useState<TextilMotivTyp>('TEXT')
+  const [mTyp, setMTyp] = useState<TextileMotifType>('TEXT')
   const [mInhalt, setMInhalt] = useState('')
   const [mFarbe, setMFarbe] = useState('')
-  const [mSchriftkl, setMSchriftkl] = useState<TextilSchriftklasse>('SERIFENLOS')
+  const [mSchriftkl, setMSchriftkl] = useState<TextileFontClass>('SERIFENLOS')
   const [mSchriftart, setMSchriftart] = useState('')
   const [mDatei, setMDatei] = useState('')
-  const [mPlatz, setMPlatz] = useState<TextilPlatz>('BRUST_LINKS')
-  const [mGrArt, setMGrArt] = useState<TextilGroesseEnum>('MITTEL')
+  const [mPlatz, setMPlatz] = useState<TextilePlacement>('BRUST_LINKS')
+  const [mGrArt, setMGrArt] = useState<TextileSize>('MITTEL')
   const [mGrFrei, setMGrFrei] = useState('')
   const [mDruckart, setMDruckart] = useState('')
 
-  const [pHerk, setPHerk] = useState<TextilHerkunft>('KUNDENWARE')
-  const [pKTyp, setPKTyp] = useState<TextilKundenKleidungTyp>('T_SHIRT')
+  const [pHerk, setPHerk] = useState<TextileOrigin>('KUNDENWARE')
+  const [pKTyp, setPKTyp] = useState<TextileCustomerGarmentType>('T_SHIRT')
   const [pFarbe, setPFarbe] = useState('')
   const [pSt, setPSt] = useState(1)
   const [pMarke, setPMarke] = useState('')
@@ -194,9 +194,9 @@ export function TextilDetail({
   const posSlotKey = posEditId ?? TEMP_POS_NEU
 
   const syncTeil = useCallback(
-    async (motiveL: TextilMotiveRow[], posL: TextilPositionenRow[], zuoL: TextilZuordnungRow[], afterProdMutation: boolean) => {
+    async (motiveL: TextileMotifRow[], posL: TextilePositionRow[], zuoL: TextileAssignmentRow[], afterProdMutation: boolean) => {
       const t = teilR.current
-      const vollData = textilDatensaetzeErlaubenPraepress(motiveL, posL, zuoL)
+      const vollData = textileRecordsAllowPrepress(motiveL, posL, zuoL)
       const oldD =
         t.detail && typeof t.detail === 'object' && !Array.isArray(t.detail) ? { ...(t.detail as object) } : {}
       const newDetail = { ...oldD, textil: { voll: vollData } }
@@ -250,9 +250,9 @@ export function TextilDetail({
     if (mRes.error) setFehler(mRes.error.message)
     if (pRes.error) setFehler(pRes.error.message)
     if (zRes.error) setFehler(zRes.error.message)
-    const m = (mRes.data ?? []) as TextilMotiveRow[]
-    const p = (pRes.data ?? []) as TextilPositionenRow[]
-    const z0 = (zRes.data ?? []) as unknown as TextilZuordnungRow[]
+    const m = (mRes.data ?? []) as TextileMotifRow[]
+    const p = (pRes.data ?? []) as TextilePositionRow[]
+    const z0 = (zRes.data ?? []) as unknown as TextileAssignmentRow[]
     setMotive(m)
     setPositionen(p)
     setZuordnungen(z0)
@@ -276,7 +276,7 @@ export function TextilDetail({
           string,
           { bestand: number; farbe: string; groesse: string; ist_muster: boolean; produkt: string; marke: string }
         >()
-        for (const r of (vData ?? []) as unknown as TextilVarianteQueryRow[]) {
+        for (const r of (vData ?? []) as unknown as TextileVarianteQueryRow[]) {
           const produkt = one(r.textil_produkte)
           const marke = produkt ? one(produkt.textil_marken) : null
           map.set(String(r.id), {
@@ -298,7 +298,7 @@ export function TextilDetail({
     setLaden(false)
     // Guard: Beim reinen Laden nur dann DB-Sync auslösen, wenn sich der "voll"-Wert tatsächlich ändert.
     // Sonst kann das (je nach Parent-Update-Strategie) unnötige Updates/Reloads auslösen.
-    const vollData = textilDatensaetzeErlaubenPraepress(m, p, z0)
+    const vollData = textileRecordsAllowPrepress(m, p, z0)
     const det = teilR.current.detail
     const detObj = det && typeof det === 'object' && !Array.isArray(det) ? (det as Record<string, unknown>) : null
     const textilObj =
@@ -533,24 +533,24 @@ export function TextilDetail({
     resetPForm()
   }
 
-  const motivBearbeiten = (m: TextilMotiveRow) => {
+  const motivBearbeiten = (m: TextileMotifRow) => {
     setFehler(null)
     setMotivEditId(m.id)
     setMTyp(m.typ)
     setMInhalt(m.inhalt ?? '')
     setMFarbe(m.farbe ?? '')
-    setMSchriftkl((m.schriftklasse as TextilSchriftklasse) || 'SERIFENLOS')
+    setMSchriftkl((m.schriftklasse as TextileFontClass) || 'SERIFENLOS')
     setMSchriftart(m.schriftart ?? '')
     setMDatei(m.datei_id ?? '')
     const pl = String(m.platz ?? 'BRUST_LINKS')
-    setMPlatz((PLATZ_OPT.some(o => o.v === pl) ? pl : 'BRUST_LINKS') as TextilPlatz)
+    setMPlatz((PLATZ_OPT.some(o => o.v === pl) ? pl : 'BRUST_LINKS') as TextilePlacement)
     const { art, frei } = splitGroesseDb(m.groesse)
     setMGrArt(art)
     setMGrFrei(frei)
     setMDruckart(m.druckart ?? '')
   }
 
-  const bearbeitePosition = async (p: TextilPositionenRow) => {
+  const bearbeitePosition = async (p: TextilePositionRow) => {
     setFehler(null)
     setPosEditId(p.id)
     setPHerk(p.herkunft)
@@ -560,7 +560,7 @@ export function TextilDetail({
     setPFarbe(p.farbe ?? '')
     setPGroesse(p.groesse ?? '')
     if (p.herkunft === 'KUNDENWARE') {
-      setPKTyp((p.typ as TextilKundenKleidungTyp) || 'T_SHIRT')
+      setPKTyp((p.typ as TextileCustomerGarmentType) || 'T_SHIRT')
     } else {
       if (p.variante_id) {
         setEigenwareModus('STAMMDATEN')
@@ -609,8 +609,8 @@ export function TextilDetail({
   async function syncZuordnungenFuerPosition(
     posId: string,
     desiredMotivIds: string[],
-    zStart: TextilZuordnungRow[]
-  ): Promise<{ ok: true; zuoNext: TextilZuordnungRow[] } | { ok: false; message: string }> {
+    zStart: TextileAssignmentRow[]
+  ): Promise<{ ok: true; zuoNext: TextileAssignmentRow[] } | { ok: false; message: string }> {
     const wanted = [...new Set(desiredMotivIds.map(id => String(id).trim()).filter(Boolean))]
     let zcur = zStart
     const had = zcur.filter(z => z.position_id === posId)
@@ -635,7 +635,7 @@ export function TextilDetail({
         .select(ZUO_EMBED_SELECT)
         .single()
       if (zErr) return { ok: false, message: fehlerNachZuordnungInsert(zErr) }
-      if (zData) zcur = [...zcur, zData as unknown as TextilZuordnungRow]
+      if (zData) zcur = [...zcur, zData as unknown as TextileAssignmentRow]
     }
     return { ok: true, zuoNext: zcur }
   }
@@ -650,7 +650,7 @@ export function TextilDetail({
         setFehler('Bei Größe „Frei (mm)“ bitte Abmessung eintragen.')
         return
       }
-      groesseDb = buildFreiGroesseString(mGrFrei)
+      groesseDb = buildFreeSizeString(mGrFrei)
     } else {
       groesseDb = mGrArt
     }
@@ -700,7 +700,7 @@ export function TextilDetail({
         return
       }
       if (data) {
-        const r = data as TextilMotiveRow
+        const r = data as TextileMotifRow
         const nextM = editId ? motive.map(x => (x.id === editId ? r : x)) : [...motive, r]
         setMotive(nextM)
         setMotivEditId(null)
@@ -754,7 +754,7 @@ export function TextilDetail({
         return
       }
       if (data) {
-        const r = data as TextilMotiveRow
+        const r = data as TextileMotifRow
         const nextM = editId ? motive.map(x => (x.id === editId ? r : x)) : [...motive, r]
         setMotive(nextM)
         setMotivEditId(null)
@@ -778,7 +778,7 @@ export function TextilDetail({
     const motivSlots = posMotivIds[slotKey] ?? ['']
     const motivIdsDesired = motivSlots.map(id => String(id).trim()).filter(Boolean)
 
-    const nachPosSpeichern = (nextP: TextilPositionenRow[], zuoNext: TextilZuordnungRow[]) => {
+    const nachPosSpeichern = (nextP: TextilePositionRow[], zuoNext: TextileAssignmentRow[]) => {
       resetPForm()
       setPosEditId(null)
       setPosMotivIds(prev => {
@@ -828,7 +828,7 @@ export function TextilDetail({
           setFehler('Position nicht gefunden.')
           return
         }
-        const updatedP: TextilPositionenRow = {
+        const updatedP: TextilePositionRow = {
           ...prevP,
           herkunft: 'KUNDENWARE',
           typ: pKTyp,
@@ -901,7 +901,7 @@ export function TextilDetail({
         setFehler('Position nicht gefunden.')
         return
       }
-      const updatedEw: TextilPositionenRow = {
+      const updatedEw: TextilePositionRow = {
         ...prevEw,
         herkunft: 'EIGENWARE',
         typ: null,
@@ -965,7 +965,7 @@ export function TextilDetail({
         return
       }
       if (data) {
-        const r = data as TextilPositionenRow
+        const r = data as TextilePositionRow
         const nextP = [...positionen, r]
         setPositionen(nextP)
 
@@ -996,7 +996,7 @@ export function TextilDetail({
                 void syncTeil(motive, positionen, zuordnungen, prod)
                 return
               }
-              if (zData) zuoAcc = [...zuoAcc, zData as unknown as TextilZuordnungRow]
+              if (zData) zuoAcc = [...zuoAcc, zData as unknown as TextileAssignmentRow]
             }
             setZuordnungen(zuoAcc)
           } finally {
@@ -1054,7 +1054,7 @@ export function TextilDetail({
         return
       }
       if (data) {
-        const r = data as TextilPositionenRow
+        const r = data as TextilePositionRow
         const nextP = [...positionen, r]
         setPositionen(nextP)
         if (eigenwareModus === 'STAMMDATEN' && sdVarianteId) {
@@ -1104,7 +1104,7 @@ export function TextilDetail({
                 void syncTeil(motive, positionen, zuordnungen, prodEw)
                 return
               }
-              if (zData) zuoAcc = [...zuoAcc, zData as unknown as TextilZuordnungRow]
+              if (zData) zuoAcc = [...zuoAcc, zData as unknown as TextileAssignmentRow]
             }
             setZuordnungen(zuoAcc)
           } finally {
@@ -1256,7 +1256,7 @@ export function TextilDetail({
                     <select
                       className="ber-inp"
                       value={mSchriftkl}
-                      onChange={e => setMSchriftkl(e.target.value as TextilSchriftklasse)}
+                      onChange={e => setMSchriftkl(e.target.value as TextileFontClass)}
                     >
                       {SCHRIFTKLASSE.map(s => (
                         <option key={s.v} value={s.v}>
@@ -1302,7 +1302,7 @@ export function TextilDetail({
               )}
               <div className="ber-zeile">
                 <span className="ber-lbl">Platz</span>
-                <select className="ber-inp" value={mPlatz} onChange={e => setMPlatz(e.target.value as TextilPlatz)}>
+                <select className="ber-inp" value={mPlatz} onChange={e => setMPlatz(e.target.value as TextilePlacement)}>
                   {PLATZ_OPT.map(p => (
                     <option key={p.v} value={p.v}>
                       {p.l}
@@ -1316,7 +1316,7 @@ export function TextilDetail({
                   <select
                     className="ber-inp"
                     value={mGrArt}
-                    onChange={e => setMGrArt(e.target.value as TextilGroesseEnum)}
+                    onChange={e => setMGrArt(e.target.value as TextileSize)}
                   >
                     {GROESSE_WAHL.map(g => (
                       <option key={g} value={g}>
@@ -1455,7 +1455,7 @@ export function TextilDetail({
                 <>
                   <div className="ber-zeile">
                     <span className="ber-lbl">Typ</span>
-                    <select className="ber-inp" value={pKTyp} onChange={e => setPKTyp(e.target.value as TextilKundenKleidungTyp)}>
+                    <select className="ber-inp" value={pKTyp} onChange={e => setPKTyp(e.target.value as TextileCustomerGarmentType)}>
                       {KLEID_TYP.map(x => (
                         <option key={x.v} value={x.v}>
                           {x.l}
