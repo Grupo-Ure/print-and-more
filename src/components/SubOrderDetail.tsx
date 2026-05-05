@@ -4,10 +4,10 @@ import { bereichKuerzel } from '../const/bereichKuerzel'
 import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
 import { kundeErfuelltPrepressKontakt } from '../lib/kunde'
 import {
-  istTeilAuftragVollstaendig,
-  nextTeilStatus,
-  validateGlobalTeilfelder,
-} from '../lib/teilGlobal'
+  isSubOrderComplete,
+  nextSubOrderStatus,
+  validateSubOrderCommonFields,
+} from '../lib/subOrderShared'
 import {
   TEILAUFTRAG_BEREICHE,
   teilauftragBereichLabel,
@@ -118,7 +118,7 @@ export function SubOrderDetail({
   const separatePrioritaet = lokal.prioritaet !== auftragPrio
   const effLieferung = (separateLieferung ? lokal.lieferung! : auftragLief) as LieferungWahl
   const effPrioritaet = separatePrioritaet ? lokal.prioritaet : auftragPrio
-  const gErr = validateGlobalTeilfelder(
+  const gErr = validateSubOrderCommonFields(
     {
       ...lokal,
       lieferung: effLieferung,
@@ -144,8 +144,8 @@ export function SubOrderDetail({
         ...merged,
         lieferung: (merged.lieferung ?? auftragLief) as LieferungWahl,
       }
-      const voll = istTeilAuftragVollstaendig(mergedNorm, snap.status)
-      const nSt = nextTeilStatus(snap.status, snap, merged, voll, kundePre, auftragStatus)
+      const voll = isSubOrderComplete(mergedNorm, snap.status)
+      const nSt = nextSubOrderStatus(snap.status, snap, merged, voll, kundePre, auftragStatus)
       const statusVorher = snapR.current.status
       setSpeichLad(true)
       const { bereich: bereichPatch, ...patchOhneBereich } = patch

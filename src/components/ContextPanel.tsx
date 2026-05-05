@@ -16,7 +16,7 @@ import type { Database } from '../types/supabase'
 import { FileList, type Datei } from './FileList'
 import { HistoryPanel } from './HistoryPanel'
 import { useToast } from './Toast'
-import { istTeilAuftragVollstaendig } from '../lib/teilGlobal'
+import { isSubOrderComplete } from '../lib/subOrderShared'
 import './ContextPanel.css'
 
 type Props = {
@@ -397,7 +397,7 @@ export function ContextPanel({
       fehler('Auftrag muss zuerst in Bearbeitung genommen werden')
       return
     }
-    const voll = istTeilAuftragVollstaendig(teil, teil.status)
+    const voll = isSubOrderComplete(teil, teil.status)
     if (!voll) {
       fehler('Teilauftrag ist noch nicht vollständig ausgefüllt')
       return

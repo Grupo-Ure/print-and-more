@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { supabase } from '../../supabase'
 import { TEILAUFTRAG_SPALTEN } from '../../const/teilauftragSelect'
 import { kundeErfuelltPrepressKontakt } from '../../lib/kunde'
-import { istTeilAuftragVollstaendig, nextTeilStatus } from '../../lib/teilGlobal'
+import { isSubOrderComplete, nextSubOrderStatus } from '../../lib/subOrderShared'
 import {
   buildFreeSizeString,
   isUniqueViolation,
@@ -202,12 +202,12 @@ export function TextileDetail({
       const newDetail = { ...oldD, textil: { voll: vollData } }
       const merged: TeilauftragRow = { ...t, detail: newDetail } as TeilauftragRow
       const kOk = kundeErfuelltPrepressKontakt(auftragKunde)
-      const voll = istTeilAuftragVollstaendig(merged, t.status)
+      const voll = isSubOrderComplete(merged, t.status)
       let nSt: AuftragStatus
       if (afterProdMutation && (t.status === 'PRODUKTION_BEREIT' || t.status === 'FERTIG')) {
         nSt = 'UNVOLLSTAENDIG'
       } else {
-        nSt = nextTeilStatus(t.status, t, merged, voll, kOk, auftragStatus)
+        nSt = nextSubOrderStatus(t.status, t, merged, voll, kOk, auftragStatus)
       }
       setSMut(true)
       const teilSyncPatch: Database['public']['Tables']['teilauftraege']['Update'] = {
