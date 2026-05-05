@@ -185,7 +185,7 @@ function statusInfo(m: StempelModellRow): { cls: string; label: string; rank: nu
   return { cls: 'badge-gruen', label: 'OK', rank: 2 }
 }
 
-export function BestandspflegeSeite() {
+export function StampStockPage() {
   const { fehler } = useToast()
   const [session, setSession] = useState<Session | null>(null)
   const [laden, setLaden] = useState(true)
