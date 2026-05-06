@@ -1081,10 +1081,10 @@ export function ContextPanel({
         )}
         {auftrag && (
           <FileList
-            aktiverAuftragId={auftrag.id}
-            dateien={auftragDateien}
-            dateienLaden={false}
-            onDateiGeaendert={onDateiGeaendert}
+            activeOrderId={auftrag.id}
+            files={auftragDateien}
+            filesLoading={false}
+            onFileChanged={onDateiGeaendert}
           />
         )}
       </div>
@@ -1122,9 +1122,9 @@ export function ContextPanel({
       </div>
 
       <HistoryPanel
-        aktiverAuftragId={auftrag.id}
-        kontextAktualisiert={kontextAktualisiert}
-        teilauftraege={teilBereichListe}
+        activeOrderId={auftrag.id}
+        contextRefreshTick={kontextAktualisiert}
+        subOrders={teilBereichListe}
       />
 
       {dialogNotfall && teil && (

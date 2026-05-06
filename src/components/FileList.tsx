@@ -27,14 +27,14 @@ const ROLLE_KURZ: Record<DateiRolle, string> = {
 }
 
 type Props = {
-  aktiverAuftragId: string
-  dateien: Datei[]
-  dateienLaden: boolean
-  onDateiGeaendert: (neueDatei?: Datei) => void | Promise<void>
+  activeOrderId: string
+  files: Datei[]
+  filesLoading: boolean
+  onFileChanged: (neueDatei?: Datei) => void | Promise<void>
 }
 
-export function FileList({ aktiverAuftragId, dateien, dateienLaden, onDateiGeaendert }: Props) {
-  const laden = dateienLaden
+export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: Props) {
+  const laden = filesLoading
   const { erfolg } = useToast()
   const [anzeigename, setAnzeigename] = useState('')
   const [pfad, setPfad] = useState('')
@@ -78,7 +78,7 @@ export function FileList({ aktiverAuftragId, dateien, dateienLaden, onDateiGeaen
     const { data, error } = await supabase
       .from('dateien')
       .insert({
-        auftrag_id: aktiverAuftragId,
+        auftrag_id: activeOrderId,
         anzeigename: n,
         pfad: p,
         rolle,
@@ -95,7 +95,7 @@ export function FileList({ aktiverAuftragId, dateien, dateienLaden, onDateiGeaen
       setPfad('')
       setRolle('PRODUKTIONSDATEI')
       setFormOffen(false)
-      void onDateiGeaendert(data as Datei)
+      void onFileChanged(data as Datei)
     }
   }
 
@@ -108,7 +108,7 @@ export function FileList({ aktiverAuftragId, dateien, dateienLaden, onDateiGeaen
       setFehler(error.message)
       return
     }
-    void onDateiGeaendert()
+    void onFileChanged()
   }
 
   return (

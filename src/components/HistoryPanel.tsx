@@ -5,9 +5,9 @@ import { useToast } from './Toast'
 import './ContextPanel.css'
 
 type Props = {
-  aktiverAuftragId: string
-  kontextAktualisiert: number
-  teilauftraege: { id: string; bereich: string }[]
+  activeOrderId: string
+  contextRefreshTick: number
+  subOrders: { id: string; bereich: string }[]
 }
 
 type HistorieZeile = {
@@ -53,7 +53,7 @@ function formatHistZeit(iso: string): string {
   })
 }
 
-export function HistoryPanel({ aktiverAuftragId, kontextAktualisiert, teilauftraege }: Props) {
+export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: Props) {
   const { fehler: toastFehler } = useToast()
   const [geoefnet, setGeoefnet] = useState(false)
   const [eintraege, setEintraege] = useState<HistorieZeile[]>([])
@@ -89,7 +89,7 @@ export function HistoryPanel({ aktiverAuftragId, kontextAktualisiert, teilauftra
       const { data, error } = await supabase
         .from('historie')
         .select('id, ereignisart, begruendung, meta, erstellt_am, teilauftrag_id, person_id')
-        .eq('auftrag_id', aktiverAuftragId)
+        .eq('auftrag_id', activeOrderId)
         .order('erstellt_am', { ascending: false })
         .limit(50)
       if (!alive) return
@@ -104,11 +104,11 @@ export function HistoryPanel({ aktiverAuftragId, kontextAktualisiert, teilauftra
     return () => {
       alive = false
     }
-  }, [aktiverAuftragId, kontextAktualisiert, toastFehler])
+  }, [activeOrderId, contextRefreshTick, toastFehler])
 
   const teilBereich = (teilId: string | null): string | null => {
     if (!teilId) return null
-    return teilauftraege.find(t => t.id === teilId)?.bereich ?? null
+    return subOrders.find(t => t.id === teilId)?.bereich ?? null
   }
 
   return (
