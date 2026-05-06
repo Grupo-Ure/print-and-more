@@ -57,25 +57,25 @@ function teilStatusDotClass(s: AuftragStatus): string {
 }
 
 type Props = {
-  aktiverAuftragId: string | null
-  kontextAktualisiert: number
-  onAktiverTeilauftragGeaendert: (t: TeilauftragRow | null) => void
-  onAuftragKundeGeladen: (k: KundeKontaktJoin | null) => void
-  onAuftragVomArbeitsbereich: (a: Auftrag | null) => void
-  onAuftragDateienGeaendert: (d: Datei[]) => void
-  onAuftragAktualisiert: (a: Auftrag) => void
-  onKundeBearbeiten: () => void
+  activeOrderId: string | null
+  contextRefreshTick: number
+  onActiveSubOrderChanged: (t: TeilauftragRow | null) => void
+  onOrderCustomerLoaded: (k: KundeKontaktJoin | null) => void
+  onOrderFromWorkArea: (a: Auftrag | null) => void
+  onOrderFilesChanged: (d: Datei[]) => void
+  onOrderUpdated: (a: Auftrag) => void
+  onEditCustomer: () => void
 }
 
 export function WorkArea({
-  aktiverAuftragId,
-  kontextAktualisiert,
-  onAktiverTeilauftragGeaendert,
-  onAuftragKundeGeladen,
-  onAuftragVomArbeitsbereich,
-  onAuftragDateienGeaendert,
-  onAuftragAktualisiert,
-  onKundeBearbeiten,
+  activeOrderId,
+  contextRefreshTick,
+  onActiveSubOrderChanged,
+  onOrderCustomerLoaded,
+  onOrderFromWorkArea,
+  onOrderFilesChanged,
+  onOrderUpdated,
+  onEditCustomer,
 }: Props) {
   const [auftrag, setAuftrag] = useState<AuftragDetailRow | null>(null)
   const [teilauftraege, setTeilauftraege] = useState<TeilauftragRow[]>([])
@@ -98,11 +98,11 @@ export function WorkArea({
   const ladeAuftragRequestIdRef = useRef(0)
 
   const reloadDateien = useCallback(async () => {
-    if (!aktiverAuftragId) return
+    if (!activeOrderId) return
     const { data, error } = await supabase
       .from('dateien')
       .select('id, anzeigename, pfad, rolle, erstellt_am')
-      .eq('auftrag_id', aktiverAuftragId)
+      .eq('auftrag_id', activeOrderId)
       .order('erstellt_am', { ascending: true })
     if (error) {
       setDateien([])
@@ -110,18 +110,18 @@ export function WorkArea({
     } else {
       setDateien((data ?? []) as Datei[])
     }
-  }, [aktiverAuftragId, toastFehler])
+  }, [activeOrderId, toastFehler])
 
   useEffect(() => {
-    if (!aktiverAuftragId) {
+    if (!activeOrderId) {
       setDateien([])
       return
     }
     void reloadDateien()
-  }, [aktiverAuftragId, kontextAktualisiert, reloadDateien])
+  }, [activeOrderId, contextRefreshTick, reloadDateien])
 
   useEffect(() => {
-    if (!aktiverAuftragId) {
+    if (!activeOrderId) {
       setAuftrag(null)
       setTeilauftraege([])
       setAktiverTeilauftragId(null)
@@ -132,7 +132,7 @@ export function WorkArea({
 
     const meineRequestId = ++ladeAuftragRequestIdRef.current
     const isStale = () => meineRequestId !== ladeAuftragRequestIdRef.current
-    const auftragId = aktiverAuftragId
+    const auftragId = activeOrderId
 
     const laden = async () => {
       setFehler(null)
@@ -196,7 +196,7 @@ export function WorkArea({
 
     void laden()
     return () => {}
-  }, [aktiverAuftragId, kontextAktualisiert, toastFehler])
+  }, [activeOrderId, contextRefreshTick, toastFehler])
 
   useEffect(() => {
     if (!auftrag) return
@@ -220,11 +220,11 @@ export function WorkArea({
 
   const speichereAuftragKopf = useCallback(
     async (patch: Partial<Pick<AuftragDetailRow, 'termin' | 'lieferung' | 'prioritaet'>>) => {
-      if (!aktiverAuftragId) return
+      if (!activeOrderId) return
       const { data, error } = await supabase
         .from('auftraege')
         .update(patch)
-        .eq('id', aktiverAuftragId)
+        .eq('id', activeOrderId)
         .select(AUFTRAG_SPALTEN)
         .single()
       if (error) {
@@ -234,8 +234,8 @@ export function WorkArea({
       if (data) {
         const row = data as AuftragDetailRow
         setAuftrag(row)
-        onAuftragVomArbeitsbereich(row)
-        onAuftragKundeGeladen(row.kunden)
+        onOrderFromWorkArea(row)
+        onOrderCustomerLoaded(row.kunden)
         kopfSnap.current = {
           termin: row.termin,
           lieferung: row.lieferung,
@@ -243,7 +243,7 @@ export function WorkArea({
         }
       }
     },
-    [aktiverAuftragId, onAuftragVomArbeitsbereich, onAuftragKundeGeladen, toastFehler]
+    [activeOrderId, onOrderFromWorkArea, onOrderCustomerLoaded, toastFehler]
   )
 
   const sichtbareTeile = useMemo(
@@ -284,38 +284,38 @@ export function WorkArea({
   const handhabeTeilAktualisiert = useCallback(
     (t: TeilauftragRow) => {
       setTeilauftraege(list => list.map(x => (x.id === t.id ? t : x)))
-      onAktiverTeilauftragGeaendert(t)
+      onActiveSubOrderChanged(t)
     },
-    [onAktiverTeilauftragGeaendert]
+    [onActiveSubOrderChanged]
   )
 
   useEffect(() => {
-    if (aktiverAuftragId == null) {
-      onAuftragVomArbeitsbereich(null)
-      onAuftragKundeGeladen(null)
-      onAktiverTeilauftragGeaendert(null)
-      onAuftragDateienGeaendert([])
+    if (activeOrderId == null) {
+      onOrderFromWorkArea(null)
+      onOrderCustomerLoaded(null)
+      onActiveSubOrderChanged(null)
+      onOrderFilesChanged([])
       return
     }
-    if (laden || !auftrag || auftrag.id !== aktiverAuftragId) return
-    onAuftragVomArbeitsbereich(auftrag)
-    onAuftragKundeGeladen(auftrag.kunden)
-    onAktiverTeilauftragGeaendert(aktiverTeilFuerKontext)
-    onAuftragDateienGeaendert(dateien)
+    if (laden || !auftrag || auftrag.id !== activeOrderId) return
+    onOrderFromWorkArea(auftrag)
+    onOrderCustomerLoaded(auftrag.kunden)
+    onActiveSubOrderChanged(aktiverTeilFuerKontext)
+    onOrderFilesChanged(dateien)
   }, [
-    aktiverAuftragId,
+    activeOrderId,
     laden,
     auftrag,
     dateien,
     aktiverTeilFuerKontext,
-    onAuftragVomArbeitsbereich,
-    onAuftragKundeGeladen,
-    onAktiverTeilauftragGeaendert,
-    onAuftragDateienGeaendert,
+    onOrderFromWorkArea,
+    onOrderCustomerLoaded,
+    onActiveSubOrderChanged,
+    onOrderFilesChanged,
   ])
 
   const handleNeuerTeilauftrag = async (bereich: Bereich) => {
-    if (!aktiverAuftragId || !auftrag) return
+    if (!activeOrderId || !auftrag) return
     setSpeichert(true)
     setFehler(null)
     const {
@@ -337,7 +337,7 @@ export function WorkArea({
     const { data, error } = await supabase
       .from('teilauftraege')
       .insert({
-        auftrag_id: aktiverAuftragId,
+        auftrag_id: activeOrderId,
         bereich,
         status: 'UNVOLLSTAENDIG',
         prioritaet: priorVal,
@@ -372,7 +372,7 @@ export function WorkArea({
       try {
         const a = await synchronizeOrderStatus(auftrag.id)
         setAuftrag(prev => (prev ? { ...prev, status: a.status } : prev))
-        onAuftragAktualisiert({ ...auftrag, status: a.status })
+        onOrderUpdated({ ...auftrag, status: a.status })
       } catch {
         toastFehler('Auftragsstatus konnte nicht aktualisiert werden')
         const { data: refreshed } = await supabase
@@ -382,14 +382,14 @@ export function WorkArea({
           .single()
         if (refreshed) {
           setAuftrag(refreshed as AuftragDetailRow)
-          onAuftragAktualisiert(refreshed as Auftrag)
+          onOrderUpdated(refreshed as Auftrag)
         }
       }
     }
     setOverlayOffen(false)
   }
 
-  if (!aktiverAuftragId) {
+  if (!activeOrderId) {
     return (
       <div className="work-area work-area--empty">
         <p className="wa-hint">Wählen Sie links einen Auftrag aus, um Details und Teilaufträge zu bearbeiten.</p>
@@ -461,7 +461,7 @@ export function WorkArea({
               type="button"
               className="wa-gear"
               style={{ marginLeft: 0 }}
-              onClick={onKundeBearbeiten}
+              onClick={onEditCustomer}
               title="Kunde bearbeiten"
               aria-label="Kunde bearbeiten"
             >

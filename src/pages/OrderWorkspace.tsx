@@ -158,14 +158,14 @@ export function OrderWorkspace() {
       </div>
       <div className="app-col">
         <WorkArea
-          aktiverAuftragId={activeOrderId}
-          kontextAktualisiert={contextRefreshTick}
-          onAktiverTeilauftragGeaendert={handleActiveSubOrderChanged}
-          onAuftragKundeGeladen={handleOrderCustomerLoaded}
-          onAuftragVomArbeitsbereich={handleOrderFromWorkArea}
-          onAuftragDateienGeaendert={handleOrderFilesChanged}
-          onAuftragAktualisiert={handleOrderUpdated}
-          onKundeBearbeiten={openEditCustomer}
+          activeOrderId={activeOrderId}
+          contextRefreshTick={contextRefreshTick}
+          onActiveSubOrderChanged={handleActiveSubOrderChanged}
+          onOrderCustomerLoaded={handleOrderCustomerLoaded}
+          onOrderFromWorkArea={handleOrderFromWorkArea}
+          onOrderFilesChanged={handleOrderFilesChanged}
+          onOrderUpdated={handleOrderUpdated}
+          onEditCustomer={openEditCustomer}
         />
       </div>
       <div
@@ -177,17 +177,17 @@ export function OrderWorkspace() {
         }}
       >
         <ContextPanel
-          auftrag={activeOrder}
-          aktiverTeilauftrag={activeSubOrder}
-          auftragKunde={orderCustomer}
-          auftragDateien={orderFiles}
-          onAuftragAktualisiert={handleOrderUpdated}
-          onAuftragGeloescht={handleOrderDeleted}
-          onTeilauftragAktualisiert={handleSubOrderUpdated}
-          onTeilauftragEntfernt={handleSubOrderRemoved}
-          onKundeBearbeiten={openEditCustomer}
-          kontextAktualisiert={contextRefreshTick}
-          onDateiGeaendert={handleFileChanged}
+          order={activeOrder}
+          activeSubOrder={activeSubOrder}
+          orderCustomer={orderCustomer}
+          orderFiles={orderFiles}
+          onOrderUpdated={handleOrderUpdated}
+          onOrderDeleted={handleOrderDeleted}
+          onSubOrderUpdated={handleSubOrderUpdated}
+          onSubOrderRemoved={handleSubOrderRemoved}
+          onEditCustomer={openEditCustomer}
+          contextRefreshTick={contextRefreshTick}
+          onFileChanged={handleFileChanged}
         />
       </div>
 

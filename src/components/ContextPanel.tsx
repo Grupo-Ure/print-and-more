@@ -20,17 +20,17 @@ import { isSubOrderComplete } from '../lib/subOrderShared'
 import './ContextPanel.css'
 
 type Props = {
-  auftrag: Auftrag | null
-  aktiverTeilauftrag: TeilauftragRow | null
-  auftragKunde: KundeKontaktJoin | null
-  auftragDateien: Datei[]
-  onAuftragAktualisiert: (a: Auftrag) => void
-  onAuftragGeloescht: (auftragId: string) => void
-  onTeilauftragAktualisiert: (t: TeilauftragRow) => void
-  onTeilauftragEntfernt: (id: string) => void
-  onKundeBearbeiten: () => void
-  kontextAktualisiert: number
-  onDateiGeaendert?: (neueDatei?: Datei) => void | Promise<void>
+  order: Auftrag | null
+  activeSubOrder: TeilauftragRow | null
+  orderCustomer: KundeKontaktJoin | null
+  orderFiles: Datei[]
+  onOrderUpdated: (a: Auftrag) => void
+  onOrderDeleted: (auftragId: string) => void
+  onSubOrderUpdated: (t: TeilauftragRow) => void
+  onSubOrderRemoved: (id: string) => void
+  onEditCustomer: () => void
+  contextRefreshTick: number
+  onFileChanged?: (neueDatei?: Datei) => void | Promise<void>
 }
 
 function statusBadgeGlobal(s: AuftragStatus): string {
@@ -176,17 +176,17 @@ async function ladeStempelBestand(detail: Record<string, unknown>): Promise<Stem
 }
 
 export function ContextPanel({
-  auftrag,
-  aktiverTeilauftrag,
-  auftragKunde,
-  auftragDateien,
-  onAuftragAktualisiert,
-  onAuftragGeloescht,
-  onTeilauftragAktualisiert,
-  onTeilauftragEntfernt,
-  onKundeBearbeiten,
-  kontextAktualisiert,
-  onDateiGeaendert = async () => {},
+  order,
+  activeSubOrder,
+  orderCustomer,
+  orderFiles,
+  onOrderUpdated,
+  onOrderDeleted,
+  onSubOrderUpdated,
+  onSubOrderRemoved,
+  onEditCustomer,
+  contextRefreshTick,
+  onFileChanged = async () => {},
 }: Props) {
   const [busy, setBusy] = useState(false)
   const [teilBereichListe, setTeilBereichListe] = useState<{ id: string; bereich: string }[]>([])
@@ -202,12 +202,12 @@ export function ContextPanel({
   const { fehler, erfolg } = useToast()
 
   useEffect(() => {
-    if (!aktiverTeilauftrag || aktiverTeilauftrag.bereich !== 'STEMPEL') {
+    if (!activeSubOrder || activeSubOrder.bereich !== 'STEMPEL') {
       setStempelBestand(null)
       setKissenBestand(null)
       return
     }
-    const det = teilJsonAlsFeldertabelle(aktiverTeilauftrag.detail)
+    const det = teilJsonAlsFeldertabelle(activeSubOrder.detail)
     let alive = true
     void ladeStempelBestand(det)
       .then(r => {
@@ -220,10 +220,10 @@ export function ContextPanel({
     return () => {
       alive = false
     }
-  }, [aktiverTeilauftrag, kontextAktualisiert])
+  }, [activeSubOrder, contextRefreshTick])
 
   useEffect(() => {
-    if (!auftrag) {
+    if (!order) {
       setTeilBereichListe([])
       return
     }
@@ -233,7 +233,7 @@ export function ContextPanel({
         const { data, error } = await supabase
           .from('teilauftraege')
           .select('id, bereich')
-          .eq('auftrag_id', auftrag.id)
+          .eq('auftrag_id', order.id)
         if (!alive) return
         if (error) {
           fehler('Daten konnten nicht geladen werden')
@@ -248,9 +248,9 @@ export function ContextPanel({
     return () => {
       alive = false
     }
-  }, [auftrag, kontextAktualisiert, fehler])
+  }, [order, contextRefreshTick, fehler])
 
-  if (!auftrag) {
+  if (!order) {
     return (
       <div className="cp" style={{ padding: 0 }}>
         <p className="cp-hinweis">Wählen Sie links einen Auftrag.</p>
@@ -258,35 +258,35 @@ export function ContextPanel({
     )
   }
 
-  const teil = aktiverTeilauftrag
+  const teil = activeSubOrder
   const teilBlock = teil && !teil.storniert
-  const darfAuftragLoeschen = auftrag.status === 'ANGEBOT' || auftrag.status === 'UNVOLLSTAENDIG'
-  const darfAuftragStornieren = auftrag.status !== 'ANGEBOT' && auftrag.status !== 'UNVOLLSTAENDIG'
+  const darfAuftragLoeschen = order.status === 'ANGEBOT' || order.status === 'UNVOLLSTAENDIG'
+  const darfAuftragStornieren = order.status !== 'ANGEBOT' && order.status !== 'UNVOLLSTAENDIG'
 
   const handleInBearbeitung = async () => {
-    if (busy || auftrag.status !== 'ANGEBOT') return
+    if (busy || order.status !== 'ANGEBOT') return
     setBusy(true)
     try {
       const { error: u1 } = await supabase
         .from('auftraege')
         .update({ status: 'UNVOLLSTAENDIG' as AuftragStatus })
-        .eq('id', auftrag.id)
+        .eq('id', order.id)
       if (u1) throw u1
       await writeHistory({
-        auftrag_id: auftrag.id,
+        auftrag_id: order.id,
         ereignisart: 'IN_BEARBEITUNG_GENOMMEN',
       })
       const { data: raw, error: eRpc } = await supabase.rpc('fn_berechne_auftragsstatus', {
-        p_auftrag_id: auftrag.id,
+        p_auftrag_id: order.id,
       })
       if (eRpc) throw eRpc
       const neuerStatus = parseStatusFromRpc(raw)
       const { error: u2 } = await supabase
         .from('auftraege')
         .update({ status: neuerStatus })
-        .eq('id', auftrag.id)
+        .eq('id', order.id)
       if (u2) throw u2
-      onAuftragAktualisiert({ ...auftrag, status: neuerStatus })
+      onOrderUpdated({ ...order, status: neuerStatus })
     } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
@@ -299,9 +299,9 @@ export function ContextPanel({
     if (!window.confirm('Auftrag archivieren?\nEr wird aus der normalen Liste ausgeblendet.')) return
     setBusy(true)
     try {
-      const { error } = await supabase.from('auftraege').update({ archiviert: true }).eq('id', auftrag.id)
+      const { error } = await supabase.from('auftraege').update({ archiviert: true }).eq('id', order.id)
       if (error) throw error
-      onAuftragAktualisiert({ ...auftrag, archiviert: true })
+      onOrderUpdated({ ...order, archiviert: true })
     } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
@@ -317,14 +317,14 @@ export function ContextPanel({
       const { error } = await supabase
         .from('auftraege')
         .update({ status: 'ABGERECHNET' as AuftragStatus, archiviert: true })
-        .eq('id', auftrag.id)
+        .eq('id', order.id)
       if (error) throw error
       await writeHistory({
-        auftrag_id: auftrag.id,
+        auftrag_id: order.id,
         ereignisart: 'FERTIG_GEMELDET',
         meta: { abgerechnet_auftrag: true },
       })
-      onAuftragAktualisiert({ ...auftrag, status: 'ABGERECHNET', archiviert: true })
+      onOrderUpdated({ ...order, status: 'ABGERECHNET', archiviert: true })
     } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
@@ -343,13 +343,13 @@ export function ContextPanel({
     setBusy(true)
     try {
       const teilStornoPatch: Database['public']['Tables']['teilauftraege']['Update'] = { storniert: true }
-      const { error: e1 } = await supabase.from('teilauftraege').update(teilStornoPatch).eq('auftrag_id', auftrag.id)
+      const { error: e1 } = await supabase.from('teilauftraege').update(teilStornoPatch).eq('auftrag_id', order.id)
       if (e1) throw e1
       const auftragArchivPatch: Database['public']['Tables']['auftraege']['Update'] = { archiviert: true }
-      const { error: e2 } = await supabase.from('auftraege').update(auftragArchivPatch).eq('id', auftrag.id)
+      const { error: e2 } = await supabase.from('auftraege').update(auftragArchivPatch).eq('id', order.id)
       if (e2) throw e2
-      await writeHistory({ auftrag_id: auftrag.id, ereignisart: 'STORNIERT' })
-      onAuftragAktualisiert({ ...auftrag, archiviert: true })
+      await writeHistory({ auftrag_id: order.id, ereignisart: 'STORNIERT' })
+      onOrderUpdated({ ...order, archiviert: true })
     } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
@@ -367,9 +367,9 @@ export function ContextPanel({
       return
     setBusy(true)
     try {
-      const { error } = await supabase.from('auftraege').delete().eq('id', auftrag.id)
+      const { error } = await supabase.from('auftraege').delete().eq('id', order.id)
       if (error) throw error
-      onAuftragGeloescht(auftrag.id)
+      onOrderDeleted(order.id)
     } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
@@ -379,21 +379,21 @@ export function ContextPanel({
 
   const teilNaechstNachTeilAktion = async () => {
     const { data: raw, error: e1 } = await supabase.rpc('fn_berechne_auftragsstatus', {
-      p_auftrag_id: auftrag.id,
+      p_auftrag_id: order.id,
     })
     if (e1) throw e1
     const neuerStatus = parseStatusFromRpc(raw)
     const { error: e2 } = await supabase
       .from('auftraege')
       .update({ status: neuerStatus })
-      .eq('id', auftrag.id)
+      .eq('id', order.id)
     if (e2) throw e2
-    onAuftragAktualisiert({ ...auftrag, status: neuerStatus })
+    onOrderUpdated({ ...order, status: neuerStatus })
   }
 
   const handlePrepressFrei = async () => {
     if (busy || !teil || teil.status !== 'UNVOLLSTAENDIG') return
-    if (auftrag.status === 'ANGEBOT') {
+    if (order.status === 'ANGEBOT') {
       fehler('Auftrag muss zuerst in Bearbeitung genommen werden')
       return
     }
@@ -412,12 +412,12 @@ export function ContextPanel({
         .single()
       if (error) throw error
       await writeHistory({
-        auftrag_id: auftrag.id,
+        auftrag_id: order.id,
         teilauftrag_id: teil.id,
         ereignisart: 'PREPRESS_BEREIT_MANUELL',
       })
-      onTeilauftragAktualisiert(data as TeilauftragRow)
-      const pdfOk = await generateAndDownloadPdf(teil.id, auftrag.id)
+      onSubOrderUpdated(data as TeilauftragRow)
+      const pdfOk = await generateAndDownloadPdf(teil.id, order.id)
       if (!pdfOk) fehler('PDF konnte nicht erstellt werden')
       await teilNaechstNachTeilAktion()
     } catch {
@@ -444,7 +444,7 @@ export function ContextPanel({
               : 1
         const menge = Number.isFinite(mengeParsed) && mengeParsed >= 1 ? Math.floor(mengeParsed) : 1
 
-        const notizStempel = 'Automatisch bei Produktionsfreigabe ' + (auftrag.auftragsnummer ?? '')
+        const notizStempel = 'Automatisch bei Produktionsfreigabe ' + (order.auftragsnummer ?? '')
 
         const lagerAutoabgang = async (modellId: string, mengeLocal: number, notiz: string) => {
           const { data: modell, error: eMod } = await supabase
@@ -519,7 +519,7 @@ export function ContextPanel({
 
       // Textil: Automatischer Lagerabgang (vor Status-Update).
       if (teil.bereich === 'TEXTIL') {
-        const notizTextil = 'Automatisch bei Produktionsfreigabe ' + (auftrag.auftragsnummer ?? '')
+        const notizTextil = 'Automatisch bei Produktionsfreigabe ' + (order.auftragsnummer ?? '')
         const {
           data: { user },
         } = await supabase.auth.getUser()
@@ -582,7 +582,7 @@ export function ContextPanel({
 
       try {
         await writeHistory({
-          auftrag_id: auftrag.id,
+          auftrag_id: order.id,
           teilauftrag_id: teil.id,
           ereignisart: 'PRODUKTION_BEREIT_GESETZT',
         })
@@ -590,7 +590,7 @@ export function ContextPanel({
         console.error('Historie Produktion fehlgeschlagen')
       }
 
-      onTeilauftragAktualisiert(data as TeilauftragRow)
+      onSubOrderUpdated(data as TeilauftragRow)
       await teilNaechstNachTeilAktion()
     } catch {
       fehler('Status konnte nicht geändert werden')
@@ -624,11 +624,11 @@ export function ContextPanel({
         .single()
       if (error) throw error
       await writeHistory({
-        auftrag_id: auftrag.id,
+        auftrag_id: order.id,
         teilauftrag_id: teil.id,
         ereignisart: 'FERTIG_GEMELDET',
       })
-      onTeilauftragAktualisiert(data as TeilauftragRow)
+      onSubOrderUpdated(data as TeilauftragRow)
       await teilNaechstNachTeilAktion()
     } catch {
       fehler('Status konnte nicht geändert werden')
@@ -672,12 +672,12 @@ export function ContextPanel({
         .single()
       if (error) throw error
       await writeHistory({
-        auftrag_id: auftrag.id,
+        auftrag_id: order.id,
         teilauftrag_id: teil.id,
         ereignisart: 'NOTFALL_AUSGELOEST',
         begruendung: b,
       })
-      onTeilauftragAktualisiert(data as TeilauftragRow)
+      onSubOrderUpdated(data as TeilauftragRow)
       await teilNaechstNachTeilAktion()
     } catch {
       fehler('Status konnte nicht geändert werden')
@@ -703,11 +703,11 @@ export function ContextPanel({
         .single()
       if (error) throw error
       await writeHistory({
-        auftrag_id: auftrag.id,
+        auftrag_id: order.id,
         teilauftrag_id: teil.id,
         ereignisart: 'RUECKSPRUNG',
       })
-      onTeilauftragAktualisiert(data as TeilauftragRow)
+      onSubOrderUpdated(data as TeilauftragRow)
       await teilNaechstNachTeilAktion()
     } catch {
       fehler('Status konnte nicht geändert werden')
@@ -738,12 +738,12 @@ export function ContextPanel({
         ? 'KUNDENFREIGABE_AKTIVIERT'
         : 'KUNDENFREIGABE_VERFALLEN'
       await writeHistory({
-        auftrag_id: auftrag.id,
+        auftrag_id: order.id,
         teilauftrag_id: teil.id,
         ereignisart,
         meta: { aktiv } as unknown as Record<string, unknown>,
       })
-      onTeilauftragAktualisiert(data as TeilauftragRow)
+      onSubOrderUpdated(data as TeilauftragRow)
       await teilNaechstNachTeilAktion()
     } catch {
       fehler('Status konnte nicht geändert werden')
@@ -754,7 +754,7 @@ export function ContextPanel({
 
   const handleKfDateiOeffnen = () => {
     if (busy || !teil) return
-    setKfDateiId(auftragDateien[0]?.id ?? '')
+    setKfDateiId(orderFiles[0]?.id ?? '')
     setDialogKfDatei(true)
   }
 
@@ -772,12 +772,12 @@ export function ContextPanel({
         .single()
       if (error) throw error
       await writeHistory({
-        auftrag_id: auftrag.id,
+        auftrag_id: order.id,
         teilauftrag_id: teil.id,
         ereignisart: 'KUNDENFREIGABE_ERTEILT',
         meta: { datei_id: kfDateiId } as unknown as Record<string, unknown>,
       })
-      onTeilauftragAktualisiert(data as TeilauftragRow)
+      onSubOrderUpdated(data as TeilauftragRow)
       await teilNaechstNachTeilAktion()
       erfolg('Freigabe erteilt')
     } catch {
@@ -795,7 +795,7 @@ export function ContextPanel({
       const teilStornoPatch: Database['public']['Tables']['teilauftraege']['Update'] = { storniert: true }
       const { error } = await supabase.from('teilauftraege').update(teilStornoPatch).eq('id', teil.id)
       if (error) throw error
-      onTeilauftragEntfernt(teil.id)
+      onSubOrderRemoved(teil.id)
       try {
         await teilNaechstNachTeilAktion()
       } catch {
@@ -815,7 +815,7 @@ export function ContextPanel({
     try {
       const { error } = await supabase.from('teilauftraege').delete().eq('id', teil.id)
       if (error) throw error
-      onTeilauftragEntfernt(teil.id)
+      onSubOrderRemoved(teil.id)
       try {
         await teilNaechstNachTeilAktion()
       } catch {
@@ -843,7 +843,7 @@ export function ContextPanel({
     !!teil &&
     teil.kundenfreigabe_erforderlich &&
     !teil.kundenfreigabe_liegt_vor &&
-    auftragDateien.length > 0
+    orderFiles.length > 0
 
   const hinweise: string[] = []
   if (teil && teil.kundenfreigabe_erforderlich && !teil.kundenfreigabe_liegt_vor) {
@@ -855,7 +855,7 @@ export function ContextPanel({
   if (teil && teil.status === 'PREPRESS_BEREIT' && !teil.kundenfreigabe_erforderlich) {
     hinweise.push('Bereit zur Produktionsfreigabe')
   }
-  if (auftrag.status === 'FERTIG') {
+  if (order.status === 'FERTIG') {
     hinweise.push('Auftrag abgeschlossen')
   }
 
@@ -885,7 +885,7 @@ export function ContextPanel({
         </div>
       </div>
       {(() => {
-        const row = einKundeKontakt(auftragKunde)
+        const row = einKundeKontakt(orderCustomer)
         if (!row) return null
         const s = row.strasse?.trim()
         const h = row.hausnummer?.trim()
@@ -909,7 +909,7 @@ export function ContextPanel({
       <div className="cp-sektion">
         <h2>Aktionen</h2>
         <div className="cp-gruppe">
-          {auftrag.status === 'ANGEBOT' && (
+          {order.status === 'ANGEBOT' && (
             <button
               type="button"
               className="cp-btn"
@@ -919,17 +919,17 @@ export function ContextPanel({
               In Bearbeitung nehmen
             </button>
           )}
-          {auftrag.status === 'ANGEBOT' && (
-            <button type="button" className="cp-btn" disabled={busy} onClick={onKundeBearbeiten}>
+          {order.status === 'ANGEBOT' && (
+            <button type="button" className="cp-btn" disabled={busy} onClick={onEditCustomer}>
               Kunde bearbeiten
             </button>
           )}
-          {auftrag.status === 'FERTIG' && (
+          {order.status === 'FERTIG' && (
             <button type="button" className="cp-btn" disabled={busy} onClick={() => void handleAbrechnen()}>
               Abrechnen
             </button>
           )}
-          {auftrag.status !== 'ABGERECHNET' && (
+          {order.status !== 'ABGERECHNET' && (
             <button type="button" className="cp-btn" disabled={busy} onClick={() => void handleArchiv()}>
               Archivieren
             </button>
@@ -960,7 +960,7 @@ export function ContextPanel({
           <>
             <div className="cp-gruppe-trenn" />
             <div className="cp-gruppe">
-              {teil.status === 'UNVOLLSTAENDIG' && auftrag.status !== 'ANGEBOT' && (
+              {teil.status === 'UNVOLLSTAENDIG' && order.status !== 'ANGEBOT' && (
                 <button
                   type="button"
                   className="cp-btn"
@@ -1007,7 +1007,7 @@ export function ContextPanel({
                   disabled={busy}
                   onClick={() =>
                     void (async () => {
-                      const ok = await generateAndDownloadPdf(teil.id, auftrag.id)
+                      const ok = await generateAndDownloadPdf(teil.id, order.id)
                       if (!ok) fehler('PDF konnte nicht erstellt werden')
                     })()
                   }
@@ -1079,12 +1079,12 @@ export function ContextPanel({
             </div>
           </>
         )}
-        {auftrag && (
+        {order && (
           <FileList
-            activeOrderId={auftrag.id}
-            files={auftragDateien}
+            activeOrderId={order.id}
+            files={orderFiles}
             filesLoading={false}
-            onFileChanged={onDateiGeaendert}
+            onFileChanged={onFileChanged}
           />
         )}
       </div>
@@ -1122,8 +1122,8 @@ export function ContextPanel({
       </div>
 
       <HistoryPanel
-        activeOrderId={auftrag.id}
-        contextRefreshTick={kontextAktualisiert}
+        activeOrderId={order.id}
+        contextRefreshTick={contextRefreshTick}
         subOrders={teilBereichListe}
       />
 
@@ -1206,7 +1206,7 @@ export function ContextPanel({
               value={kfDateiId}
               onChange={e => setKfDateiId(e.target.value)}
             >
-              {auftragDateien.map(d => (
+              {orderFiles.map(d => (
                 <option key={d.id} value={d.id}>
                   {d.anzeigename}
                 </option>
