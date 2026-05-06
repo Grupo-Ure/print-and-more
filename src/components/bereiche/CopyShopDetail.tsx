@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../supabase'
 import { COPY_SHOP_TYPES, COPY_SHOP_TYPE_LABELS, type CopyShopDetailJson } from '../../types/copyshop'
-import { BROS_DIN, FALZ_DIN, KARTE_DIN, KARTE_FORMAT_ORDER, FALZ_FORMAT_ORDER, BROSCH_FORMAT_ORDER } from '../../lib/copyshop/dinKfbFormate'
+import { BROCHURE_DIN, FOLD_DIN, CARD_DIN, CARD_FORMAT_ORDER, FOLD_FORMAT_ORDER, BROCHURE_FORMAT_ORDER } from '../../lib/copyshop/dinCfbFormats'
 import { validateCopyShopDetail } from '../../lib/copyshop/validateCopyShopDetail'
 import type { AuftragStatus, TeilauftragRow } from '../../types/database'
 import type { Database, Json } from '../../types/supabase'
@@ -475,8 +475,8 @@ export function CopyShopDetail({
     if (typ === 'KARTE_FLYER') {
       const d0 = detailR.current
       const fmt = String((d0 as Record<string, string>).format ?? '').trim()
-      if (fmt && fmt !== 'FREI' && fmt in KARTE_DIN) {
-        const dim = KARTE_DIN[fmt as keyof typeof KARTE_DIN]
+      if (fmt && fmt !== 'FREI' && fmt in CARD_DIN) {
+        const dim = CARD_DIN[fmt as keyof typeof CARD_DIN]
         if (d0.format_breite !== dim.b || d0.format_hoehe !== dim.h) {
           speichDetail({ ...d0, format: fmt, format_breite: dim.b, format_hoehe: dim.h } as CopyShopDetailJson)
         }
@@ -484,8 +484,8 @@ export function CopyShopDetail({
     } else if (typ === 'FALZFLYER') {
       const d0 = detailR.current
       const fmt = String((d0 as Record<string, string>).format ?? '').trim()
-      if (fmt && fmt !== 'FREI' && fmt in FALZ_DIN) {
-        const dim = FALZ_DIN[fmt as keyof typeof FALZ_DIN]
+      if (fmt && fmt !== 'FREI' && fmt in FOLD_DIN) {
+        const dim = FOLD_DIN[fmt as keyof typeof FOLD_DIN]
         if (d0.format_breite !== dim.b || d0.format_hoehe !== dim.h) {
           speichDetail({ ...d0, format: fmt, format_breite: dim.b, format_hoehe: dim.h } as CopyShopDetailJson)
         }
@@ -493,8 +493,8 @@ export function CopyShopDetail({
     } else if (typ === 'BROSCHUERE') {
       const d0 = detailR.current
       const fmt = String((d0 as Record<string, string>).format ?? '').trim()
-      if (fmt && fmt !== 'FREI' && fmt in BROS_DIN) {
-        const dim = BROS_DIN[fmt as keyof typeof BROS_DIN]
+      if (fmt && fmt !== 'FREI' && fmt in BROCHURE_DIN) {
+        const dim = BROCHURE_DIN[fmt as keyof typeof BROCHURE_DIN]
         if (d0.format_breite !== dim.b || d0.format_hoehe !== dim.h) {
           speichDetail({ ...d0, format: fmt, format_breite: dim.b, format_hoehe: dim.h } as CopyShopDetailJson)
         }
@@ -1245,7 +1245,7 @@ function KarteFlyer(p: BlK) {
           { v: '4_4', t: '4/4' },
         ]}
       />
-      <KfbFormatFeld din={KARTE_DIN} order={KARTE_FORMAT_ORDER} blk={p} />
+      <KfbFormatFeld din={CARD_DIN} order={KARTE_FORMAT_ORDER} blk={p} />
       {String(r.format) === 'FREI' && <MasseHoeheBreite {...p} />}
       {boolSel({ ...p, k: 'randabfallend', l: 'Randabfallend' })}
       <KfbPwgKarteFalz blk={p} />
@@ -1294,7 +1294,7 @@ function Falzflyer(p: BlK) {
           { v: 'ZICKZACK', t: 'Zick-Zack-Falz' },
         ]}
       />
-      <KfbFormatFeld din={FALZ_DIN as Record<string, { b: number; h: number }>} order={FALZ_FORMAT_ORDER} blk={p} />
+      <KfbFormatFeld din={FOLD_DIN as Record<string, { b: number; h: number }>} order={FALZ_FORMAT_ORDER} blk={p} />
       {String(r.format) === 'FREI' && <MasseHoeheBreite {...p} />}
       <NmbFalzSeite {...p} />
       {boolSel({ ...p, k: 'randabfallend', l: 'Randabfallend' })}
@@ -1326,7 +1326,7 @@ function Broschuere(p: BlK) {
   const oStr = r.orientierung ?? ''
   return (
     <>
-      <KfbFormatFeld din={BROS_DIN} order={BROSCH_FORMAT_ORDER} blk={p} />
+      <KfbFormatFeld din={BROCHURE_DIN} order={BROCHURE_FORMAT_ORDER} blk={p} />
       <BerZeile
         l="Ausrichtung"
         e={pruef && (f.orientierung || f.brosch_quer_cc) ? f.orientierung || f.brosch_quer_cc : undefined}
