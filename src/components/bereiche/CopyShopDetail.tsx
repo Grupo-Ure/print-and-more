@@ -19,10 +19,10 @@ import {
 import '../WorkArea.css'
 
 type Props = {
-  teil: TeilauftragRow
-  teilStatus: AuftragStatus
+  subOrder: TeilauftragRow
+  subOrderStatus: AuftragStatus
   onDetailPatch: (patch: { typ?: string | null; detail: CopyShopDetailJson | null }) => Promise<void>
-  auftragDateien?: Datei[]
+  orderFiles?: Datei[]
 }
 
 type ProduktRow = {
@@ -41,8 +41,8 @@ function detailOhneDateiId(d: CopyShopDetailJson): CopyShopDetailJson {
   return o as CopyShopDetailJson
 }
 
-function copyRoh(teil: TeilauftragRow): CopyShopDetailJson {
-  const d = teil.detail
+function copyRoh(subOrder: TeilauftragRow): CopyShopDetailJson {
+  const d = subOrder.detail
   const base = d && typeof d === 'object' && !Array.isArray(d) ? { ...d } : {}
   return detailOhneDateiId(base)
 }
@@ -101,10 +101,10 @@ type BlK = {
 type ProduktDateiZuordnung = { zuordnungId: string; dateiId: string }
 
 export function CopyShopDetail({
-  teil,
-  teilStatus,
+  subOrder,
+  subOrderStatus,
   onDetailPatch,
-  auftragDateien = [],
+  orderFiles = [],
 }: Props) {
   const { fehler: toastFehler } = useToast()
 
@@ -117,7 +117,7 @@ export function CopyShopDetail({
   const [entsperrt, setEntsperrt] = useState(false)
   const [formDateiIds, setFormDateiIds] = useState<string[]>([])
 
-  const [typ, setTyp] = useState<string | null>(teil.typ)
+  const [typ, setTyp] = useState<string | null>(subOrder.typ)
   const [detail, setDetail] = useState<CopyShopDetailJson>(copyRoh(teil))
   const detailR = useRef(detail)
   const typR = useRef(typ)
@@ -132,16 +132,16 @@ export function CopyShopDetail({
     setEditingId(null)
     setFormDateiIds([])
     setEntsperrt(false)
-  }, [teil.id])
+  }, [subOrder.id])
 
   useEffect(() => {
     if (editingId !== null) return
-    setTyp(teil.typ)
+    setTyp(subOrder.typ)
     const d = copyRoh(teil)
     setDetail(d)
     detailR.current = d
-    typR.current = teil.typ
-  }, [teil, editingId])
+    typR.current = subOrder.typ
+  }, [subOrder, editingId])
 
   const ladeDateienFuerProdukte = useCallback(
     async (produktRows: ProduktRow[]) => {
@@ -174,7 +174,7 @@ export function CopyShopDetail({
   )
 
   const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
-    if (!teil.id) {
+    if (!subOrder.id) {
       await ladeDateienFuerProdukte([])
       return []
     }
@@ -182,7 +182,7 @@ export function CopyShopDetail({
     const { data, error } = await supabase
       .from('teilauftrag_produkte')
       .select('*')
-      .eq('teilauftrag_id', teil.id)
+      .eq('teilauftrag_id', subOrder.id)
       .eq('bereich', 'COPYSHOP')
       .order('sort_order')
     setProdukteLaden(false)
@@ -204,7 +204,7 @@ export function CopyShopDetail({
     setProdukte(mapped)
     await ladeDateienFuerProdukte(mapped)
     return mapped
-  }, [teil.id, toastFehler, ladeDateienFuerProdukte])
+  }, [subOrder.id, toastFehler, ladeDateienFuerProdukte])
 
   useEffect(() => {
     void reloadProdukte()
@@ -243,15 +243,15 @@ export function CopyShopDetail({
   const resetForm = useCallback(() => {
     setEditingId(null)
     setFormDateiIds([])
-    setTyp(teil.typ)
+    setTyp(subOrder.typ)
     const d = copyRoh(teil)
     setDetail(d)
     detailR.current = d
-    typR.current = teil.typ
+    typR.current = subOrder.typ
   }, [teil])
 
-  const copyErr = validateCopyShopDetail(typ, detail, teilStatus)
-  const pruef = teilStatus !== 'ANGEBOT'
+  const copyErr = validateCopyShopDetail(typ, detail, subOrderStatus)
+  const pruef = subOrderStatus !== 'ANGEBOT'
   const fe = (k: string) => (pruef && copyErr[k] ? ' ber-inp--err' : '')
 
   const speich = useCallback(
@@ -292,13 +292,13 @@ export function CopyShopDetail({
   const formOk = useMemo(() => Object.keys(copyErr).length === 0, [copyErr])
 
   const brauchtEntsperr =
-    (teilStatus === 'PREPRESS_BEREIT' || teilStatus === 'PRODUKTION_BEREIT') && !entsperrt
+    (subOrderStatus === 'PREPRESS_BEREIT' || subOrderStatus === 'PRODUKTION_BEREIT') && !entsperrt
 
   const handleAddOrSave = useCallback(async () => {
     const t = typR.current
     const d = detailOhneDateiId({ ...detailR.current })
     if (!t) return
-    const errors = validateCopyShopDetail(t, d, teilStatus)
+    const errors = validateCopyShopDetail(t, d, subOrderStatus)
     if (Object.keys(errors).length > 0) return
 
     if (editingId) {
@@ -318,7 +318,7 @@ export function CopyShopDetail({
       }
       const list = await reloadProdukte()
       await onDetailPatch({
-        typ: teil.typ,
+        typ: subOrder.typ,
         detail: {
           ...copyRoh(teil),
           hat_produkte: list.length > 0,
@@ -329,7 +329,7 @@ export function CopyShopDetail({
     }
 
     const ins: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
-      teilauftrag_id: teil.id,
+      teilauftrag_id: subOrder.id,
       bereich: 'COPYSHOP',
       detail: { ...d, typ: t } as Json,
       sort_order: produkte.length,
@@ -350,7 +350,7 @@ export function CopyShopDetail({
     }
     list = await reloadProdukte()
     await onDetailPatch({
-      typ: teil.typ,
+      typ: subOrder.typ,
       detail: {
         ...copyRoh(teil),
         hat_produkte: list.length > 0,
@@ -358,8 +358,8 @@ export function CopyShopDetail({
     })
     resetForm()
   }, [
-    teil,
-    teilStatus,
+    subOrder,
+    subOrderStatus,
     editingId,
     produkte.length,
     produktDateien,
@@ -381,7 +381,7 @@ export function CopyShopDetail({
       }
       const list = await reloadProdukte()
       await onDetailPatch({
-        typ: teil.typ,
+        typ: subOrder.typ,
         detail: {
           ...copyRoh(teil),
           hat_produkte: list.length > 0,
@@ -451,7 +451,7 @@ export function CopyShopDetail({
         speichDetail({ ...d0, orientierung: 'QUERFORMAT' } as CopyShopDetailJson)
       }
     }
-  }, [typ, teil.id, teil.detail, speichDetail])
+  }, [typ, subOrder.id, subOrder.detail, speichDetail])
 
   useEffect(() => {
     if (typ !== 'PLAKAT_POSTER') return
@@ -469,7 +469,7 @@ export function CopyShopDetail({
         speichDetail({ ...d0, format: f, format_breite: dim.b, format_hoehe: dim.h } as CopyShopDetailJson)
       }
     }
-  }, [typ, teil.id, teil.detail, speichDetail])
+  }, [typ, subOrder.id, subOrder.detail, speichDetail])
 
   useEffect(() => {
     if (typ === 'KARTE_FLYER') {
@@ -503,7 +503,7 @@ export function CopyShopDetail({
         speichDetail({ ...d0, brosch_bindung: 'DRAHTHEFTUNG' } as CopyShopDetailJson)
       }
     }
-  }, [typ, teil.id, teil.detail, speichDetail])
+  }, [typ, subOrder.id, subOrder.detail, speichDetail])
 
   return (
     <div className="ber-lfp">
@@ -566,7 +566,7 @@ export function CopyShopDetail({
       {typ === 'BINDUNG' && <BindungF {...p} />}
       {typ === 'AUSDRUCK' && <AusdruckF {...p} />}
 
-      {auftragDateien.length > 0 && (
+      {orderFiles.length > 0 && (
         <BerZeile l="Dateien">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
             {formDateiIds.map(fid => (
@@ -584,7 +584,7 @@ export function CopyShopDetail({
                 }}
               >
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {auftragDateien.find(df => df.id === fid)?.anzeigename ?? fid}
+                  {orderFiles.find(df => df.id === fid)?.anzeigename ?? fid}
                 </span>
                 <button
                   type="button"
@@ -610,7 +610,7 @@ export function CopyShopDetail({
               }}
             >
               <option value="">Datei hinzufügen…</option>
-              {auftragDateien
+              {orderFiles
                 .filter(df => !formDateiIds.includes(df.id))
                 .map(df => (
                   <option key={df.id} value={df.id}>
@@ -738,7 +738,7 @@ export function CopyShopDetail({
                             : zuo
                                 .map(
                                   z =>
-                                    auftragDateien.find(df => df.id === z.dateiId)?.anzeigename ?? z.dateiId,
+                                    orderFiles.find(df => df.id === z.dateiId)?.anzeigename ?? z.dateiId,
                                 )
                                 .join(', ')}
                         </div>

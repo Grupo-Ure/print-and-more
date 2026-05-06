@@ -37,12 +37,12 @@ type TextileVarianteQueryRow = Pick<
 }
 
 type Props = {
-  teil: TeilauftragRow
-  teilStatus: AuftragStatus
-  auftragStatus?: AuftragStatus
-  auftragDateien: Datei[]
-  auftragKunde: KundeKontaktJoin
-  onAktualisiert: (t: TeilauftragRow) => void
+  subOrder: TeilauftragRow
+  subOrderStatus: AuftragStatus
+  orderStatus?: AuftragStatus
+  orderFiles: Datei[]
+  orderCustomer: KundeKontaktJoin
+  onUpdated: (t: TeilauftragRow) => void
 }
 
 const SCHRIFTKLASSE: { v: TextileFontClass; l: string }[] = [
@@ -141,17 +141,17 @@ const ZUO_EMBED_SELECT =
 const TEMP_POS_NEU = 'neu'
 
 export function TextileDetail({
-  teil,
-  teilStatus,
-  auftragStatus,
-  auftragDateien,
-  auftragKunde,
-  onAktualisiert,
+  subOrder,
+  subOrderStatus,
+  orderStatus,
+  orderFiles,
+  orderCustomer,
+  onUpdated,
 }: Props) {
-  const teilR = useRef(teil)
+  const subOrderR = useRef(subOrder)
   useEffect(() => {
-    teilR.current = teil
-  }, [teil])
+    subOrderR.current = subOrder
+  }, [subOrder])
 
   const [motive, setMotive] = useState<TextileMotifRow[]>([])
   const [positionen, setPositionen] = useState<TextilePositionRow[]>([])
@@ -195,19 +195,19 @@ export function TextileDetail({
 
   const syncTeil = useCallback(
     async (motiveL: TextileMotifRow[], posL: TextilePositionRow[], zuoL: TextileAssignmentRow[], afterProdMutation: boolean) => {
-      const t = teilR.current
+      const t = subOrderR.current
       const vollData = textileRecordsAllowPrepress(motiveL, posL, zuoL)
       const oldD =
         t.detail && typeof t.detail === 'object' && !Array.isArray(t.detail) ? { ...(t.detail as object) } : {}
       const newDetail = { ...oldD, textil: { voll: vollData } }
       const merged: TeilauftragRow = { ...t, detail: newDetail } as TeilauftragRow
-      const kOk = customerMeetsPrepressContact(auftragKunde)
+      const kOk = customerMeetsPrepressContact(orderCustomer)
       const voll = isSubOrderComplete(merged, t.status)
       let nSt: AuftragStatus
       if (afterProdMutation && (t.status === 'PRODUKTION_BEREIT' || t.status === 'FERTIG')) {
         nSt = 'UNVOLLSTAENDIG'
       } else {
-        nSt = nextSubOrderStatus(t.status, t, merged, voll, kOk, auftragStatus)
+        nSt = nextSubOrderStatus(t.status, t, merged, voll, kOk, orderStatus)
       }
       setSMut(true)
       const teilSyncPatch: Database['public']['Tables']['teilauftraege']['Update'] = {
@@ -224,11 +224,11 @@ export function TextileDetail({
       }
       if (data) {
         const row = data as TeilauftragRow
-        teilR.current = row
-        onAktualisiert(row)
+        subOrderR.current = row
+        onUpdated(row)
       }
     },
-    [auftragKunde, auftragStatus, onAktualisiert]
+    [orderCustomer, orderStatus, onUpdated]
   )
 
   const syncRef = useRef(syncTeil)
@@ -241,7 +241,7 @@ export function TextileDetail({
   const ladeAlles = useCallback(async () => {
     setLaden(true)
     setFehler(null)
-    const tId = teilR.current.id
+    const tId = subOrderR.current.id
     const [mRes, pRes, zRes] = await Promise.all([
       supabase.from('textil_motive').select('*').eq('teilauftrag_id', tId),
       supabase.from('textil_positionen').select('*').eq('teilauftrag_id', tId),
@@ -299,7 +299,7 @@ export function TextileDetail({
     // Guard: Beim reinen Laden nur dann DB-Sync auslösen, wenn sich der "voll"-Wert tatsächlich ändert.
     // Sonst kann das (je nach Parent-Update-Strategie) unnötige Updates/Reloads auslösen.
     const vollData = textileRecordsAllowPrepress(m, p, z0)
-    const det = teilR.current.detail
+    const det = subOrderR.current.detail
     const detObj = det && typeof det === 'object' && !Array.isArray(det) ? (det as Record<string, unknown>) : null
     const textilObj =
       detObj && detObj.textil && typeof detObj.textil === 'object' && !Array.isArray(detObj.textil)
@@ -313,19 +313,19 @@ export function TextileDetail({
 
   useEffect(() => {
     // Guard gegen Endlosschleifen: nur 1× pro Teilauftrag-ID laden.
-    if (lastLoadTeilId.current === teil.id) return
-    lastLoadTeilId.current = teil.id
+    if (lastLoadTeilId.current === subOrder.id) return
+    lastLoadTeilId.current = subOrder.id
     void ladeAlles()
-  }, [ladeAlles, teil.id])
+  }, [ladeAlles, subOrder.id])
 
   useEffect(() => {
     setMotivEditId(null)
     setPosEditId(null)
     setPosMotivIds({})
-  }, [teil.id])
+  }, [subOrder.id])
 
   useEffect(() => {
-    const d = teil.detail
+    const d = subOrder.detail
     const obj = d && typeof d === 'object' && !Array.isArray(d) ? (d as Record<string, unknown>) : {}
     const raw = obj.eigenware_modus
     if (raw === 'FREITEXT' || raw === 'STAMMDATEN') {
@@ -333,11 +333,11 @@ export function TextileDetail({
     } else {
       setEigenwareModus('STAMMDATEN')
     }
-  }, [teil.id, teil.detail])
+  }, [subOrder.id, subOrder.detail])
 
   const speichereEigenwareModus = useCallback(
     async (modus: EigenwareModus) => {
-      const t = teilR.current
+      const t = subOrderR.current
       const d = t.detail
       const oldD = d && typeof d === 'object' && !Array.isArray(d) ? { ...(d as Record<string, unknown>) } : {}
       const newDetail = { ...oldD, eigenware_modus: modus }
@@ -355,11 +355,11 @@ export function TextileDetail({
       }
       if (data) {
         const row = data as TeilauftragRow
-        teilR.current = row
-        onAktualisiert(row)
+        subOrderR.current = row
+        onUpdated(row)
       }
     },
-    [onAktualisiert]
+    [onUpdated]
   )
 
   // Stammdaten-Auswahl (nur Eigenware + STAMMDATEN)
@@ -487,7 +487,7 @@ export function TextileDetail({
   }, [eigenwareModus, pHerk, sdFarbe, sdProduktId])
 
   const dateiNameById = new Map<string, string>()
-  for (const d of auftragDateien) {
+  for (const d of orderFiles) {
     dateiNameById.set(d.id, d.anzeigename)
   }
 
@@ -628,7 +628,7 @@ export function TextileDetail({
       const { data: zData, error: zErr } = await supabase
         .from('textil_zuordnungen')
         .insert({
-          teilauftrag_id: teil.id,
+          teilauftrag_id: subOrder.id,
           motiv_id: mid,
           position_id: posId,
         })
@@ -642,7 +642,7 @@ export function TextileDetail({
   const addMotiv = async (e: FormEvent) => {
     e.preventDefault()
     setFehler(null)
-    const tId = teil.id
+    const tId = subOrder.id
     const editId = motivEditId
     let groesseDb: string
     if (mGrArt === 'FREI') {
@@ -705,7 +705,7 @@ export function TextileDetail({
         setMotive(nextM)
         setMotivEditId(null)
         resetMForm()
-        const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
+        const prod = subOrderR.current.status === 'PRODUKTION_BEREIT' || subOrderR.current.status === 'FERTIG'
         void syncTeil(nextM, positionen, zuordnungen, prod)
       }
     } else {
@@ -759,7 +759,7 @@ export function TextileDetail({
         setMotive(nextM)
         setMotivEditId(null)
         resetMForm()
-        const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
+        const prod = subOrderR.current.status === 'PRODUKTION_BEREIT' || subOrderR.current.status === 'FERTIG'
         void syncTeil(nextM, positionen, zuordnungen, prod)
       }
     }
@@ -772,7 +772,7 @@ export function TextileDetail({
       setFehler('Stückzahl: ganze Zahl ≥ 1.')
       return
     }
-    const tId = teil.id
+    const tId = subOrder.id
     const editId = posEditId
     const slotKey = editId ?? TEMP_POS_NEU
     const motivSlots = posMotivIds[slotKey] ?? ['']
@@ -786,7 +786,7 @@ export function TextileDetail({
         delete n[slotKey]
         return n
       })
-      const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
+      const prod = subOrderR.current.status === 'PRODUKTION_BEREIT' || subOrderR.current.status === 'FERTIG'
       void syncTeil(motive, nextP, zuoNext, prod)
     }
 
@@ -978,7 +978,7 @@ export function TextileDetail({
               const { data: zData, error: zErr } = await supabase
                 .from('textil_zuordnungen')
                 .insert({
-                  teilauftrag_id: teil.id,
+                  teilauftrag_id: subOrder.id,
                   motiv_id: mid,
                   position_id: r.id,
                 })
@@ -992,7 +992,7 @@ export function TextileDetail({
                 setFehler(fehlerNachZuordnungInsert(zErr))
                 resetPForm()
                 setPosMotivIds(prev => ({ ...prev, [TEMP_POS_NEU]: [] }))
-                const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
+                const prod = subOrderR.current.status === 'PRODUKTION_BEREIT' || subOrderR.current.status === 'FERTIG'
                 void syncTeil(motive, positionen, zuordnungen, prod)
                 return
               }
@@ -1006,7 +1006,7 @@ export function TextileDetail({
 
         setPosMotivIds(prev => ({ ...prev, [TEMP_POS_NEU]: [] }))
         resetPForm()
-        const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
+        const prod = subOrderR.current.status === 'PRODUKTION_BEREIT' || subOrderR.current.status === 'FERTIG'
         void syncTeil(motive, nextP, zuoAcc, prod)
       }
     } else {
@@ -1086,7 +1086,7 @@ export function TextileDetail({
               const { data: zData, error: zErr } = await supabase
                 .from('textil_zuordnungen')
                 .insert({
-                  teilauftrag_id: teil.id,
+                  teilauftrag_id: subOrder.id,
                   motiv_id: mid,
                   position_id: r.id,
                 })
@@ -1100,7 +1100,7 @@ export function TextileDetail({
                 setFehler(fehlerNachZuordnungInsert(zErr))
                 resetPForm()
                 setPosMotivIds(prev => ({ ...prev, [TEMP_POS_NEU]: [] }))
-                const prodEw = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
+                const prodEw = subOrderR.current.status === 'PRODUKTION_BEREIT' || subOrderR.current.status === 'FERTIG'
                 void syncTeil(motive, positionen, zuordnungen, prodEw)
                 return
               }
@@ -1114,7 +1114,7 @@ export function TextileDetail({
 
         setPosMotivIds(prev => ({ ...prev, [TEMP_POS_NEU]: [] }))
         resetPForm()
-        const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
+        const prod = subOrderR.current.status === 'PRODUKTION_BEREIT' || subOrderR.current.status === 'FERTIG'
         void syncTeil(motive, nextP, zuoAcc, prod)
       }
     }
@@ -1147,7 +1147,7 @@ export function TextileDetail({
     setMotive(next)
     const zuo2 = zuordnungen.filter(z => z.motiv_id !== id)
     setZuordnungen(zuo2)
-    const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
+    const prod = subOrderR.current.status === 'PRODUKTION_BEREIT' || subOrderR.current.status === 'FERTIG'
     void syncTeil(next, positionen, zuo2, prod)
   }
 
@@ -1178,7 +1178,7 @@ export function TextileDetail({
     setPositionen(next)
     const zuo2 = zuordnungen.filter(z => z.position_id !== id)
     setZuordnungen(zuo2)
-    const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
+    const prod = subOrderR.current.status === 'PRODUKTION_BEREIT' || subOrderR.current.status === 'FERTIG'
     void syncTeil(motive, next, zuo2, prod)
   }
 
@@ -1193,7 +1193,7 @@ export function TextileDetail({
     }
     const next = zuordnungen.filter(z => z.id !== id)
     setZuordnungen(next)
-    const prod = teilR.current.status === 'PRODUKTION_BEREIT' || teilR.current.status === 'FERTIG'
+    const prod = subOrderR.current.status === 'PRODUKTION_BEREIT' || subOrderR.current.status === 'FERTIG'
     void syncTeil(motive, positionen, next, prod)
   }
 
@@ -1206,12 +1206,12 @@ export function TextileDetail({
     })
   }, [posEditId])
 
-  const pruef = teilStatus !== 'ANGEBOT'
+  const pruef = subOrderStatus !== 'ANGEBOT'
 
   return (
     <div className="ber-lfp" style={{ maxWidth: '100%' }}>
       <h3 className="ber-h3">Textil-Details</h3>
-      {pruef && customerMeetsPrepressContact(auftragKunde) === false && (
+      {pruef && customerMeetsPrepressContact(orderCustomer) === false && (
         <p className="ber-hinweis">Für Auto-PREPRESS: Kunde braucht Name und E-Mail oder Telefon.</p>
       )}
       {fehler && <p className="ber-err">{fehler}</p>}
@@ -1283,14 +1283,14 @@ export function TextileDetail({
                 <div className="ber-zeile">
                   <span className="ber-lbl">Datei</span>
                   <div>
-                    {auftragDateien.length === 0 ? (
+                    {orderFiles.length === 0 ? (
                       <p className="ber-hinweis" style={{ fontStyle: 'normal' }}>
                         Zuerst Dateien am Auftrag hinterlegen (Abschnitt &apos;Dateien dieses Auftrags&apos;).
                       </p>
                     ) : (
                       <select className="ber-inp" value={mDatei} onChange={e => setMDatei(e.target.value)} required>
                         <option value="">—</option>
-                        {auftragDateien.map(d => (
+                        {orderFiles.map(d => (
                           <option key={d.id} value={d.id}>
                             {d.anzeigename}
                           </option>

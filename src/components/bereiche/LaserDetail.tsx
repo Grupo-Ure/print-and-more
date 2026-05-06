@@ -17,10 +17,10 @@ import { useToast } from '../Toast'
 import '../WorkArea.css'
 
 type Props = {
-  teil: TeilauftragRow
-  teilStatus: AuftragStatus
+  subOrder: TeilauftragRow
+  subOrderStatus: AuftragStatus
   onDetailPatch: (patch: { typ?: string | null; detail: LaserDetailJson | null }) => Promise<void>
-  auftragDateien?: Datei[]
+  orderFiles?: Datei[]
 }
 
 type ProduktRow = {
@@ -32,8 +32,8 @@ type ProduktRow = {
   erstellt_am: string | null
 }
 
-function laserRoh(teil: TeilauftragRow): LaserDetailJson {
-  const d = teil.detail
+function laserRoh(subOrder: TeilauftragRow): LaserDetailJson {
+  const d = subOrder.detail
   return d && typeof d === 'object' && !Array.isArray(d) ? { ...d } : {}
 }
 
@@ -52,10 +52,10 @@ const SCHILD_T = new Set(['SCHILD', 'POKALSCHILD', 'NAMENSSCHILD'])
 type ProduktDateiZuordnung = { zuordnungId: string; dateiId: string }
 
 export function LaserDetail({
-  teil,
-  teilStatus,
+  subOrder,
+  subOrderStatus,
   onDetailPatch,
-  auftragDateien = [],
+  orderFiles = [],
 }: Props) {
   const { fehler: toastFehler } = useToast()
 
@@ -68,7 +68,7 @@ export function LaserDetail({
   const [entsperrt, setEntsperrt] = useState(false)
   const [formDateiIds, setFormDateiIds] = useState<string[]>([])
 
-  const [typ, setTyp] = useState<string | null>(teil.typ)
+  const [typ, setTyp] = useState<string | null>(subOrder.typ)
   const [detail, setDetail] = useState<LaserDetailJson>(laserRoh(teil))
   const detailR = useRef(detail)
   const typR = useRef(typ)
@@ -82,20 +82,20 @@ export function LaserDetail({
   useEffect(() => {
     setEditingId(null)
     setFormDateiIds([])
-  }, [teil.id])
+  }, [subOrder.id])
 
   useEffect(() => {
     setEntsperrt(false)
-  }, [teil.id])
+  }, [subOrder.id])
 
   useEffect(() => {
     if (editingId !== null) return
-    setTyp(teil.typ)
+    setTyp(subOrder.typ)
     const d = laserRoh(teil)
     setDetail(d)
     detailR.current = d
-    typR.current = teil.typ
-  }, [teil, editingId])
+    typR.current = subOrder.typ
+  }, [subOrder, editingId])
 
   const ladeDateienFuerProdukte = useCallback(
     async (produktRows: ProduktRow[]) => {
@@ -128,7 +128,7 @@ export function LaserDetail({
   )
 
   const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
-    if (!teil.id) {
+    if (!subOrder.id) {
       await ladeDateienFuerProdukte([])
       return []
     }
@@ -136,7 +136,7 @@ export function LaserDetail({
     const { data, error } = await supabase
       .from('teilauftrag_produkte')
       .select('*')
-      .eq('teilauftrag_id', teil.id)
+      .eq('teilauftrag_id', subOrder.id)
       .eq('bereich', 'LASERGRAVUR')
       .order('sort_order')
     setProdukteLaden(false)
@@ -158,7 +158,7 @@ export function LaserDetail({
     setProdukte(mapped)
     await ladeDateienFuerProdukte(mapped)
     return mapped
-  }, [teil.id, toastFehler, ladeDateienFuerProdukte])
+  }, [subOrder.id, toastFehler, ladeDateienFuerProdukte])
 
   useEffect(() => {
     void reloadProdukte()
@@ -197,15 +197,15 @@ export function LaserDetail({
   const resetForm = useCallback(() => {
     setEditingId(null)
     setFormDateiIds([])
-    setTyp(teil.typ)
+    setTyp(subOrder.typ)
     const d = laserRoh(teil)
     setDetail(d)
     detailR.current = d
-    typR.current = teil.typ
+    typR.current = subOrder.typ
   }, [teil])
 
-  const laserFehler = validateLaserDetail(typ, detail, teilStatus)
-  const pruef = teilStatus !== 'ANGEBOT'
+  const laserFehler = validateLaserDetail(typ, detail, subOrderStatus)
+  const pruef = subOrderStatus !== 'ANGEBOT'
   const fe = (k: string) => (pruef && laserFehler[k] ? ' ber-inp--err' : '')
 
   const speich = useCallback(
@@ -250,13 +250,13 @@ export function LaserDetail({
   const formOk = useMemo(() => Object.keys(laserFehler).length === 0, [laserFehler])
 
   const brauchtEntsperr =
-    (teilStatus === 'PREPRESS_BEREIT' || teilStatus === 'PRODUKTION_BEREIT') && !entsperrt
+    (subOrderStatus === 'PREPRESS_BEREIT' || subOrderStatus === 'PRODUKTION_BEREIT') && !entsperrt
 
   const handleAddOrSave = useCallback(async () => {
     const t = typR.current
     const d0 = { ...detailR.current }
     if (!t) return
-    const errors = validateLaserDetail(t, d0, teilStatus)
+    const errors = validateLaserDetail(t, d0, subOrderStatus)
     if (Object.keys(errors).length > 0) return
 
     let d = d0
@@ -282,7 +282,7 @@ export function LaserDetail({
       }
       const list = await reloadProdukte()
       await onDetailPatch({
-        typ: teil.typ,
+        typ: subOrder.typ,
         detail: {
           ...laserRoh(teil),
           hat_produkte: list.length > 0,
@@ -293,7 +293,7 @@ export function LaserDetail({
     }
 
     const ins: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
-      teilauftrag_id: teil.id,
+      teilauftrag_id: subOrder.id,
       bereich: 'LASERGRAVUR',
       detail: { ...d, typ: t } as Json,
       sort_order: produkte.length,
@@ -314,7 +314,7 @@ export function LaserDetail({
     }
     list = await reloadProdukte()
     await onDetailPatch({
-      typ: teil.typ,
+      typ: subOrder.typ,
       detail: {
         ...laserRoh(teil),
         hat_produkte: list.length > 0,
@@ -322,8 +322,8 @@ export function LaserDetail({
     })
     resetForm()
   }, [
-    teil,
-    teilStatus,
+    subOrder,
+    subOrderStatus,
     editingId,
     produkte.length,
     produktDateien,
@@ -345,7 +345,7 @@ export function LaserDetail({
       }
       const list = await reloadProdukte()
       await onDetailPatch({
-        typ: teil.typ,
+        typ: subOrder.typ,
         detail: {
           ...laserRoh(teil),
           hat_produkte: list.length > 0,
@@ -421,7 +421,7 @@ export function LaserDetail({
         optional
       />
 
-      {auftragDateien.length > 0 && (
+      {orderFiles.length > 0 && (
         <BerZeile l="Dateien">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
             {formDateiIds.map(fid => (
@@ -439,7 +439,7 @@ export function LaserDetail({
                 }}
               >
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {auftragDateien.find(df => df.id === fid)?.anzeigename ?? fid}
+                  {orderFiles.find(df => df.id === fid)?.anzeigename ?? fid}
                 </span>
                 <button
                   type="button"
@@ -465,7 +465,7 @@ export function LaserDetail({
               }}
             >
               <option value="">Datei hinzufügen…</option>
-              {auftragDateien
+              {orderFiles
                 .filter(df => !formDateiIds.includes(df.id))
                 .map(df => (
                   <option key={df.id} value={df.id}>
@@ -589,7 +589,7 @@ export function LaserDetail({
                             : zuo
                                 .map(
                                   z =>
-                                    auftragDateien.find(df => df.id === z.dateiId)?.anzeigename ?? z.dateiId,
+                                    orderFiles.find(df => df.id === z.dateiId)?.anzeigename ?? z.dateiId,
                                 )
                                 .join(', ')}
                         </div>

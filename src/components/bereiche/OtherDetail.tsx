@@ -10,10 +10,10 @@ import '../WorkArea.css'
 export type OtherDetailJson = Record<string, unknown>
 
 type Props = {
-  teil: TeilauftragRow
-  teilStatus: AuftragStatus
+  subOrder: TeilauftragRow
+  subOrderStatus: AuftragStatus
   onDetailPatch: (patch: { typ?: string | null; detail: OtherDetailJson | null }) => Promise<void>
-  auftragDateien?: Datei[]
+  orderFiles?: Datei[]
 }
 
 type ProduktRow = {
@@ -27,8 +27,8 @@ type ProduktRow = {
 
 const SONSTIGE_TYP = 'SONSTIGE' as const
 
-function sonstigeRoh(teil: TeilauftragRow): OtherDetailJson {
-  const d = teil.detail
+function sonstigeRoh(subOrder: TeilauftragRow): OtherDetailJson {
+  const d = subOrder.detail
   return d && typeof d === 'object' && !Array.isArray(d) ? { ...d } : {}
 }
 
@@ -45,10 +45,10 @@ type BlK = {
 type ProduktDateiZuordnung = { zuordnungId: string; dateiId: string }
 
 export function OtherDetail({
-  teil,
-  teilStatus,
+  subOrder,
+  subOrderStatus,
   onDetailPatch,
-  auftragDateien = [],
+  orderFiles = [],
 }: Props) {
   const { fehler: toastFehler } = useToast()
 
@@ -70,18 +70,18 @@ export function OtherDetail({
   useEffect(() => {
     setEditingId(null)
     setFormDateiIds([])
-  }, [teil.id])
+  }, [subOrder.id])
 
   useEffect(() => {
     setEntsperrt(false)
-  }, [teil.id])
+  }, [subOrder.id])
 
   useEffect(() => {
     if (editingId !== null) return
     const d = sonstigeRoh(teil)
     setDetail(d)
     detailR.current = d
-  }, [teil, editingId])
+  }, [subOrder, editingId])
 
   const ladeDateienFuerProdukte = useCallback(
     async (produktRows: ProduktRow[]) => {
@@ -114,7 +114,7 @@ export function OtherDetail({
   )
 
   const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
-    if (!teil.id) {
+    if (!subOrder.id) {
       await ladeDateienFuerProdukte([])
       return []
     }
@@ -122,7 +122,7 @@ export function OtherDetail({
     const { data, error } = await supabase
       .from('teilauftrag_produkte')
       .select('*')
-      .eq('teilauftrag_id', teil.id)
+      .eq('teilauftrag_id', subOrder.id)
       .eq('bereich', 'SONSTIGE')
       .order('sort_order')
     setProdukteLaden(false)
@@ -144,7 +144,7 @@ export function OtherDetail({
     setProdukte(mapped)
     await ladeDateienFuerProdukte(mapped)
     return mapped
-  }, [teil.id, toastFehler, ladeDateienFuerProdukte])
+  }, [subOrder.id, toastFehler, ladeDateienFuerProdukte])
 
   useEffect(() => {
     void reloadProdukte()
@@ -188,8 +188,8 @@ export function OtherDetail({
     detailR.current = d
   }, [teil])
 
-  const sonstigeFehler = validateOtherDetail(detail, teilStatus)
-  const pruef = teilStatus !== 'ANGEBOT'
+  const sonstigeFehler = validateOtherDetail(detail, subOrderStatus)
+  const pruef = subOrderStatus !== 'ANGEBOT'
   const fe = (k: string) => (pruef && sonstigeFehler[k] ? ' ber-inp--err' : '')
 
   const speich = useCallback(
@@ -197,9 +197,9 @@ export function OtherDetail({
       setDetail(d)
       detailR.current = d
       if (editingId !== null) return
-      await onDetailPatch({ typ: teil.typ?.trim() ? teil.typ : SONSTIGE_TYP, detail: d })
+      await onDetailPatch({ typ: subOrder.typ?.trim() ? subOrder.typ : SONSTIGE_TYP, detail: d })
     },
-    [onDetailPatch, teil.typ, editingId]
+    [onDetailPatch, subOrder.typ, editingId]
   )
 
   const patchL = useCallback((p: OtherDetailJson) => {
@@ -228,13 +228,13 @@ export function OtherDetail({
   const formOk = useMemo(() => Object.keys(sonstigeFehler).length === 0, [sonstigeFehler])
 
   const brauchtEntsperr =
-    (teilStatus === 'PREPRESS_BEREIT' || teilStatus === 'PRODUKTION_BEREIT') && !entsperrt
+    (subOrderStatus === 'PREPRESS_BEREIT' || subOrderStatus === 'PRODUKTION_BEREIT') && !entsperrt
 
-  const patchTyp = teil.typ?.trim() ? teil.typ : SONSTIGE_TYP
+  const patchTyp = subOrder.typ?.trim() ? subOrder.typ : SONSTIGE_TYP
 
   const handleAddOrSave = useCallback(async () => {
     const d = { ...detailR.current }
-    const errors = validateOtherDetail(d, teilStatus)
+    const errors = validateOtherDetail(d, subOrderStatus)
     if (Object.keys(errors).length > 0) return
 
     const detailMitTyp = { ...d, typ: SONSTIGE_TYP }
@@ -267,7 +267,7 @@ export function OtherDetail({
     }
 
     const ins: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
-      teilauftrag_id: teil.id,
+      teilauftrag_id: subOrder.id,
       bereich: 'SONSTIGE',
       detail: detailMitTyp as Json,
       sort_order: produkte.length,
@@ -296,8 +296,8 @@ export function OtherDetail({
     })
     resetForm()
   }, [
-    teil,
-    teilStatus,
+    subOrder,
+    subOrderStatus,
     editingId,
     produkte.length,
     produktDateien,
@@ -328,7 +328,7 @@ export function OtherDetail({
       })
       if (editingId === id) resetForm()
     },
-    [toastFehler, reloadProdukte, editingId, resetForm, onDetailPatch, teil, patchTyp]
+    [toastFehler, reloadProdukte, editingId, resetForm, onDetailPatch, subOrder, patchTyp]
   )
 
   const handleEdit = useCallback((row: ProduktRow) => {
@@ -373,7 +373,7 @@ export function OtherDetail({
 
       <NmbStueckzahlOptional {...p} />
 
-      {auftragDateien.length > 0 && (
+      {orderFiles.length > 0 && (
         <BerZeile l="Dateien">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
             {formDateiIds.map(fid => (
@@ -391,7 +391,7 @@ export function OtherDetail({
                 }}
               >
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {auftragDateien.find(df => df.id === fid)?.anzeigename ?? fid}
+                  {orderFiles.find(df => df.id === fid)?.anzeigename ?? fid}
                 </span>
                 <button
                   type="button"
@@ -417,7 +417,7 @@ export function OtherDetail({
               }}
             >
               <option value="">Datei hinzufügen…</option>
-              {auftragDateien
+              {orderFiles
                 .filter(df => !formDateiIds.includes(df.id))
                 .map(df => (
                   <option key={df.id} value={df.id}>
@@ -534,7 +534,7 @@ export function OtherDetail({
                             : zuo
                                 .map(
                                   z =>
-                                    auftragDateien.find(df => df.id === z.dateiId)?.anzeigename ?? z.dateiId,
+                                    orderFiles.find(df => df.id === z.dateiId)?.anzeigename ?? z.dateiId,
                                 )
                                 .join(', ')}
                         </div>

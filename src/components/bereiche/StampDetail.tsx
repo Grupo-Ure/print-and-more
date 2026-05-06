@@ -15,10 +15,10 @@ import { useToast } from '../Toast'
 import '../WorkArea.css'
 
 type Props = {
-  teil: TeilauftragRow
-  teilStatus: AuftragStatus
+  subOrder: TeilauftragRow
+  subOrderStatus: AuftragStatus
   onDetailPatch: (patch: { typ?: string | null; detail: StampDetailJson | null }) => Promise<void>
-  auftragDateien?: Datei[]
+  orderFiles?: Datei[]
 }
 
 type ProduktRow = {
@@ -30,8 +30,8 @@ type ProduktRow = {
   erstellt_am: string | null
 }
 
-function stempelRoh(teil: TeilauftragRow): StampDetailJson {
-  return { ...teilJsonAlsFeldertabelle(teil.detail) }
+function stempelRoh(subOrder: TeilauftragRow): StampDetailJson {
+  return { ...teilJsonAlsFeldertabelle(subOrder.detail) }
 }
 
 type BlK = {
@@ -126,10 +126,10 @@ function typLabel(t: string): string {
 type ProduktDateiZuordnung = { zuordnungId: string; dateiId: string }
 
 export function StampDetail({
-  teil,
-  teilStatus,
+  subOrder,
+  subOrderStatus,
   onDetailPatch,
-  auftragDateien = [],
+  orderFiles = [],
 }: Props) {
   const { fehler: toastFehler } = useToast()
 
@@ -142,7 +142,7 @@ export function StampDetail({
   const [entsperrt, setEntsperrt] = useState(false)
   const [formDateiIds, setFormDateiIds] = useState<string[]>([])
 
-  const [typ, setTyp] = useState<string | null>(teil.typ)
+  const [typ, setTyp] = useState<string | null>(subOrder.typ)
   const [detail, setDetail] = useState<StampDetailJson>(stempelRoh(teil))
   const detailR = useRef(detail)
   const typR = useRef(typ)
@@ -156,20 +156,20 @@ export function StampDetail({
   useEffect(() => {
     setEditingId(null)
     setFormDateiIds([])
-  }, [teil.id])
+  }, [subOrder.id])
 
   useEffect(() => {
     setEntsperrt(false)
-  }, [teil.id])
+  }, [subOrder.id])
 
   useEffect(() => {
     if (editingId !== null) return
-    setTyp(teil.typ)
+    setTyp(subOrder.typ)
     const d = stempelRoh(teil)
     setDetail(d)
     detailR.current = d
-    typR.current = teil.typ
-  }, [teil, editingId])
+    typR.current = subOrder.typ
+  }, [subOrder, editingId])
 
   const ladeDateienFuerProdukte = useCallback(
     async (produktRows: ProduktRow[]) => {
@@ -202,7 +202,7 @@ export function StampDetail({
   )
 
   const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
-    if (!teil.id) {
+    if (!subOrder.id) {
       await ladeDateienFuerProdukte([])
       return []
     }
@@ -210,7 +210,7 @@ export function StampDetail({
     const { data, error } = await supabase
       .from('teilauftrag_produkte')
       .select('*')
-      .eq('teilauftrag_id', teil.id)
+      .eq('teilauftrag_id', subOrder.id)
       .eq('bereich', 'STEMPEL')
       .order('sort_order')
     setProdukteLaden(false)
@@ -232,7 +232,7 @@ export function StampDetail({
     setProdukte(mapped)
     await ladeDateienFuerProdukte(mapped)
     return mapped
-  }, [teil.id, toastFehler, ladeDateienFuerProdukte])
+  }, [subOrder.id, toastFehler, ladeDateienFuerProdukte])
 
   useEffect(() => {
     void reloadProdukte()
@@ -271,15 +271,15 @@ export function StampDetail({
   const resetForm = useCallback(() => {
     setEditingId(null)
     setFormDateiIds([])
-    setTyp(teil.typ)
+    setTyp(subOrder.typ)
     const d = stempelRoh(teil)
     setDetail(d)
     detailR.current = d
-    typR.current = teil.typ
+    typR.current = subOrder.typ
   }, [teil])
 
-  const stempelFehler = validateStampDetail(typ, detail, teilStatus)
-  const pruef = teilStatus !== 'ANGEBOT'
+  const stempelFehler = validateStampDetail(typ, detail, subOrderStatus)
+  const pruef = subOrderStatus !== 'ANGEBOT'
   const fe = (k: string) => (pruef && stempelFehler[k] ? ' ber-inp--err' : '')
 
   const bVal = toPosIntOrNull(detail.format_breite)
@@ -303,11 +303,11 @@ export function StampDetail({
   const modellName = String(detail['modell_name'] ?? '')
 
   const [gewaehltesModellId, setGewaehltesModellId] = useState<string | null>(() => {
-    const td = teilJsonAlsFeldertabelle(teil.detail)
+    const td = teilJsonAlsFeldertabelle(subOrder.detail)
     return String(td['modell_id'] ?? '') || null
   })
   const [gewaehltesModellName, setGewaehltesModellName] = useState<string | null>(() => {
-    const td = teilJsonAlsFeldertabelle(teil.detail)
+    const td = teilJsonAlsFeldertabelle(subOrder.detail)
     return String(td['modell_name'] ?? '') || null
   })
 
@@ -321,7 +321,7 @@ export function StampDetail({
   const [kissenFarbOptionen, setKissenFarbOptionen] = useState<KissenFarbButton[]>([])
 
   useEffect(() => {
-    const td = teilJsonAlsFeldertabelle(teil.detail)
+    const td = teilJsonAlsFeldertabelle(subOrder.detail)
     setGewaehltesModellId(String(td['modell_id'] ?? '') || null)
     setGewaehltesModellName(String(td['modell_name'] ?? '') || null)
   }, [teil])
@@ -545,7 +545,7 @@ export function StampDetail({
     return () => {
       a = false
     }
-  }, [typ, detail, teil.id])
+  }, [typ, detail, subOrder.id])
 
   const speich = useCallback(
     async (nextTyp: string | null, d: StampDetailJson) => {
@@ -584,13 +584,13 @@ export function StampDetail({
   const formOk = useMemo(() => Object.keys(stempelFehler).length === 0, [stempelFehler])
 
   const brauchtEntsperr =
-    (teilStatus === 'PREPRESS_BEREIT' || teilStatus === 'PRODUKTION_BEREIT') && !entsperrt
+    (subOrderStatus === 'PREPRESS_BEREIT' || subOrderStatus === 'PRODUKTION_BEREIT') && !entsperrt
 
   const handleAddOrSave = useCallback(async () => {
     const t = typR.current
     const d = { ...detailR.current }
     if (!t) return
-    const errors = validateStampDetail(t, d, teilStatus)
+    const errors = validateStampDetail(t, d, subOrderStatus)
     if (Object.keys(errors).length > 0) return
 
     if (editingId) {
@@ -610,7 +610,7 @@ export function StampDetail({
       }
       const list = await reloadProdukte()
       await onDetailPatch({
-        typ: teil.typ,
+        typ: subOrder.typ,
         detail: {
           ...stempelRoh(teil),
           hat_produkte: list.length > 0,
@@ -621,7 +621,7 @@ export function StampDetail({
     }
 
     const ins: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
-      teilauftrag_id: teil.id,
+      teilauftrag_id: subOrder.id,
       bereich: 'STEMPEL',
       detail: { ...d, typ: t } as Json,
       sort_order: produkte.length,
@@ -642,7 +642,7 @@ export function StampDetail({
     }
     list = await reloadProdukte()
     await onDetailPatch({
-      typ: teil.typ,
+      typ: subOrder.typ,
       detail: {
         ...stempelRoh(teil),
         hat_produkte: list.length > 0,
@@ -650,8 +650,8 @@ export function StampDetail({
     })
     resetForm()
   }, [
-    teil,
-    teilStatus,
+    subOrder,
+    subOrderStatus,
     editingId,
     produkte.length,
     produktDateien,
@@ -673,7 +673,7 @@ export function StampDetail({
       }
       const list = await reloadProdukte()
       await onDetailPatch({
-        typ: teil.typ,
+        typ: subOrder.typ,
         detail: {
           ...stempelRoh(teil),
           hat_produkte: list.length > 0,
@@ -1186,7 +1186,7 @@ export function StampDetail({
         </BerZeile>
       )}
 
-      {auftragDateien.length > 0 && (
+      {orderFiles.length > 0 && (
         <BerZeile l="Dateien">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
             {formDateiIds.map(fid => (
@@ -1204,7 +1204,7 @@ export function StampDetail({
                 }}
               >
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {auftragDateien.find(df => df.id === fid)?.anzeigename ?? fid}
+                  {orderFiles.find(df => df.id === fid)?.anzeigename ?? fid}
                 </span>
                 <button
                   type="button"
@@ -1230,7 +1230,7 @@ export function StampDetail({
               }}
             >
               <option value="">Datei hinzufügen…</option>
-              {auftragDateien
+              {orderFiles
                 .filter(df => !formDateiIds.includes(df.id))
                 .map(df => (
                   <option key={df.id} value={df.id}>
@@ -1351,7 +1351,7 @@ export function StampDetail({
                             : zuo
                                 .map(
                                   z =>
-                                    auftragDateien.find(df => df.id === z.dateiId)?.anzeigename ?? z.dateiId,
+                                    orderFiles.find(df => df.id === z.dateiId)?.anzeigename ?? z.dateiId,
                                 )
                                 .join(', ')}
                         </div>

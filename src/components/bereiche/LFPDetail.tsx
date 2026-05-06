@@ -24,15 +24,15 @@ type ProduktRow = {
 }
 
 type Props = {
-  teil: TeilauftragRow
-  teilStatus: AuftragStatus
+  subOrder: TeilauftragRow
+  subOrderStatus: AuftragStatus
   onDetailPatch: (patch: { typ?: string | null; detail: LfpDetail | null }) => Promise<void>
   /** Auftragsdateien für Zuordnung zu Produktzeilen */
-  auftragDateien?: Datei[]
+  orderFiles?: Datei[]
 }
 
-function lfpRoh(teil: TeilauftragRow): LfpDetail {
-  const d = teil.detail
+function lfpRoh(subOrder: TeilauftragRow): LfpDetail {
+  const d = subOrder.detail
   return d && typeof d === 'object' && !Array.isArray(d) ? { ...d } : {}
 }
 
@@ -51,10 +51,10 @@ type BlK = {
 type ProduktDateiZuordnung = { zuordnungId: string; dateiId: string }
 
 export function LFPDetail({
-  teil,
-  teilStatus,
+  subOrder,
+  subOrderStatus,
   onDetailPatch,
-  auftragDateien = [],
+  orderFiles = [],
 }: Props) {
   const { fehler } = useToast()
 
@@ -67,7 +67,7 @@ export function LFPDetail({
   const [entsperrt, setEntsperrt] = useState(false)
   const [formDateiIds, setFormDateiIds] = useState<string[]>([])
 
-  const [typ, setTyp] = useState<string | null>(teil.typ)
+  const [typ, setTyp] = useState<string | null>(subOrder.typ)
   const [detail, setDetail] = useState<LfpDetail>(lfpRoh(teil))
   const detailR = useRef(detail)
   const typR = useRef(typ)
@@ -81,20 +81,20 @@ export function LFPDetail({
   useEffect(() => {
     setEditingId(null)
     setFormDateiIds([])
-  }, [teil.id])
+  }, [subOrder.id])
 
   useEffect(() => {
     setEntsperrt(false)
-  }, [teil.id])
+  }, [subOrder.id])
 
   useEffect(() => {
     if (editingId !== null) return
-    setTyp(teil.typ)
+    setTyp(subOrder.typ)
     const d = lfpRoh(teil)
     setDetail(d)
     detailR.current = d
-    typR.current = teil.typ
-  }, [teil, editingId])
+    typR.current = subOrder.typ
+  }, [subOrder, editingId])
 
   const ladeDateienFuerProdukte = useCallback(
     async (produktRows: ProduktRow[]) => {
@@ -127,7 +127,7 @@ export function LFPDetail({
   )
 
   const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
-    if (!teil.id) {
+    if (!subOrder.id) {
       await ladeDateienFuerProdukte([])
       return []
     }
@@ -135,7 +135,7 @@ export function LFPDetail({
     const { data, error } = await supabase
       .from('teilauftrag_produkte')
       .select('*')
-      .eq('teilauftrag_id', teil.id)
+      .eq('teilauftrag_id', subOrder.id)
       .eq('bereich', 'LFP')
       .order('sort_order')
     setProdukteLaden(false)
@@ -157,7 +157,7 @@ export function LFPDetail({
     setProdukte(mapped)
     await ladeDateienFuerProdukte(mapped)
     return mapped
-  }, [teil.id, fehler, ladeDateienFuerProdukte])
+  }, [subOrder.id, fehler, ladeDateienFuerProdukte])
 
   useEffect(() => {
     void reloadProdukte()
@@ -196,15 +196,15 @@ export function LFPDetail({
   const resetForm = useCallback(() => {
     setEditingId(null)
     setFormDateiIds([])
-    setTyp(teil.typ)
+    setTyp(subOrder.typ)
     const d = lfpRoh(teil)
     setDetail(d)
     detailR.current = d
-    typR.current = teil.typ
+    typR.current = subOrder.typ
   }, [teil])
 
-  const lfpFehler = validateLfpDetail(typ, detail, teilStatus)
-  const pruef = teilStatus !== 'ANGEBOT'
+  const lfpFehler = validateLfpDetail(typ, detail, subOrderStatus)
+  const pruef = subOrderStatus !== 'ANGEBOT'
   const fe = (k: string) => (pruef && lfpFehler[k] ? ' ber-inp--err' : '')
 
   const speich = useCallback(
@@ -244,13 +244,13 @@ export function LFPDetail({
   const formOk = useMemo(() => Object.keys(lfpFehler).length === 0, [lfpFehler])
 
   const brauchtEntsperr =
-    (teilStatus === 'PREPRESS_BEREIT' || teilStatus === 'PRODUKTION_BEREIT') && !entsperrt
+    (subOrderStatus === 'PREPRESS_BEREIT' || subOrderStatus === 'PRODUKTION_BEREIT') && !entsperrt
 
   const handleAddOrSave = useCallback(async () => {
     const t = typR.current
     const d = { ...detailR.current }
     if (!t) return
-    const errors = validateLfpDetail(t, d, teilStatus)
+    const errors = validateLfpDetail(t, d, subOrderStatus)
     if (Object.keys(errors).length > 0) return
 
     if (editingId) {
@@ -270,7 +270,7 @@ export function LFPDetail({
       }
       const list = await reloadProdukte()
       await onDetailPatch({
-        typ: teil.typ,
+        typ: subOrder.typ,
         detail: {
           ...lfpRoh(teil),
           hat_produkte: list.length > 0,
@@ -281,7 +281,7 @@ export function LFPDetail({
     }
 
     const ins: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
-      teilauftrag_id: teil.id,
+      teilauftrag_id: subOrder.id,
       bereich: 'LFP',
       detail: { ...d, typ: t } as Json,
       sort_order: produkte.length,
@@ -302,7 +302,7 @@ export function LFPDetail({
     }
     list = await reloadProdukte()
     await onDetailPatch({
-      typ: teil.typ,
+      typ: subOrder.typ,
       detail: {
         ...lfpRoh(teil),
         hat_produkte: list.length > 0,
@@ -310,8 +310,8 @@ export function LFPDetail({
     })
     resetForm()
   }, [
-    teil,
-    teilStatus,
+    subOrder,
+    subOrderStatus,
     editingId,
     produkte.length,
     produktDateien,
@@ -333,7 +333,7 @@ export function LFPDetail({
       }
       const list = await reloadProdukte()
       await onDetailPatch({
-        typ: teil.typ,
+        typ: subOrder.typ,
         detail: {
           ...lfpRoh(teil),
           hat_produkte: list.length > 0,
@@ -413,7 +413,7 @@ export function LFPDetail({
       {typ === 'FAHRZEUGBESCHRIFTUNG' && <FzB {...p} />}
       {typ === 'SONSTIGE_LFP' && <Sons {...p} />}
 
-      {auftragDateien.length > 0 && (
+      {orderFiles.length > 0 && (
         <BerZeile l="Dateien">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
             {formDateiIds.map(fid => (
@@ -431,7 +431,7 @@ export function LFPDetail({
                 }}
               >
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {auftragDateien.find(df => df.id === fid)?.anzeigename ?? fid}
+                  {orderFiles.find(df => df.id === fid)?.anzeigename ?? fid}
                 </span>
                 <button
                   type="button"
@@ -457,7 +457,7 @@ export function LFPDetail({
               }}
             >
               <option value="">Datei hinzufügen…</option>
-              {auftragDateien
+              {orderFiles
                 .filter(df => !formDateiIds.includes(df.id))
                 .map(df => (
                   <option key={df.id} value={df.id}>
@@ -590,7 +590,7 @@ export function LFPDetail({
                             : zuo
                                 .map(
                                   z =>
-                                    auftragDateien.find(df => df.id === z.dateiId)?.anzeigename ?? z.dateiId,
+                                    orderFiles.find(df => df.id === z.dateiId)?.anzeigename ?? z.dateiId,
                                 )
                                 .join(', ')}
                         </div>

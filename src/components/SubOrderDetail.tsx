@@ -570,33 +570,33 @@ export function SubOrderDetail({
       </div>
 
       {lokal.bereich === 'LFP' && (
-        <LFPDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onLfpPatch} auftragDateien={auftragDateien} />
+        <LFPDetail subOrder={lokal} subOrderStatus={lokal.status} onDetailPatch={onLfpPatch} orderFiles={auftragDateien} />
       )}
 
       {lokal.bereich === 'COPYSHOP' && (
-        <CopyShopDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onCopyShopPatch} auftragDateien={auftragDateien} />
+        <CopyShopDetail subOrder={lokal} subOrderStatus={lokal.status} onDetailPatch={onCopyShopPatch} orderFiles={auftragDateien} />
       )}
 
       {lokal.bereich === 'STEMPEL' && (
-        <StampDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onStempelPatch} auftragDateien={auftragDateien} />
+        <StampDetail subOrder={lokal} subOrderStatus={lokal.status} onDetailPatch={onStempelPatch} orderFiles={auftragDateien} />
       )}
 
       {lokal.bereich === 'SONSTIGE' && (
-        <OtherDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onSonstigePatch} auftragDateien={auftragDateien} />
+        <OtherDetail subOrder={lokal} subOrderStatus={lokal.status} onDetailPatch={onSonstigePatch} orderFiles={auftragDateien} />
       )}
 
       {lokal.bereich === 'LASERGRAVUR' && (
-        <LaserDetail teil={lokal} teilStatus={lokal.status} onDetailPatch={onLaserPatch} auftragDateien={auftragDateien} />
+        <LaserDetail subOrder={lokal} subOrderStatus={lokal.status} onDetailPatch={onLaserPatch} orderFiles={auftragDateien} />
       )}
 
       {lokal.bereich === 'TEXTIL' && (
         <TextileDetail
-          teil={lokal}
-          teilStatus={lokal.status}
-          auftragStatus={auftragStatus}
-          auftragDateien={auftragDateien}
-          auftragKunde={auftragKunde}
-          onAktualisiert={onTextilTeilAktualisiert}
+          subOrder={lokal}
+          subOrderStatus={lokal.status}
+          orderStatus={auftragStatus}
+          orderFiles={auftragDateien}
+          orderCustomer={auftragKunde}
+          onUpdated={onTextilTeilAktualisiert}
         />
       )}
 
