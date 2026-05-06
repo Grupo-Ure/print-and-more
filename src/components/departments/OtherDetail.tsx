@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../supabase'
-import { validateOtherDetail } from '../../lib/sonstige/validateOtherDetail'
+import { validateOtherDetail } from '../../lib/other/validateOtherDetail'
 import type { AuftragStatus, TeilauftragRow } from '../../types/database'
 import type { Database, Json } from '../../types/supabase'
 import type { FileRecord } from '../FileList'
