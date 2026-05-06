@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { formatDatumDe } from '../formatDatum'
+import { formatDateDe } from '../formatDate'
 import { supabase } from '../../supabase'
 import type { Database } from '../../types/supabase'
 
@@ -321,11 +321,11 @@ export async function generiereUndLadePdf(teilauftragId: string, auftragId: stri
     const xRechts = 120
     doc.setFontSize(10)
     doc.setTextColor(0)
-    yRechts = addText(doc, `Termin    ${formatDatumDe(auftrag.termin)}`, xRechts, yRechts, 5)
+    yRechts = addText(doc, `Termin    ${formatDateDe(auftrag.termin)}`, xRechts, yRechts, 5)
     yRechts = addText(doc, `Lieferung    ${formatLieferung(auftrag.lieferung)}`, xRechts, yRechts, 5)
     yRechts = addText(doc, `Priorität    ${formatPrioritaet(auftrag.prioritaet)}`, xRechts, yRechts, 5)
     yRechts = addText(doc, `Bereich    ${teil.bereich}`, xRechts, yRechts, 5)
-    yRechts = addText(doc, `Erstellt    ${formatDatumDe(auftrag.erstellt_am)}`, xRechts, yRechts, 5)
+    yRechts = addText(doc, `Erstellt    ${formatDateDe(auftrag.erstellt_am)}`, xRechts, yRechts, 5)
 
     y = Math.max(yLinks, yRechts) + 8
 
