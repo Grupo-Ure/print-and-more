@@ -24,17 +24,17 @@ type Props = {
   activeSubOrder: TeilauftragRow | null
   orderCustomer: KundeKontaktJoin | null
   orderFiles: FileRecord[]
-  onOrderUpdated: (a: Auftrag) => void
+  onOrderUpdated: (updatedOrder: Auftrag) => void
   onOrderDeleted: (auftragId: string) => void
-  onSubOrderUpdated: (t: TeilauftragRow) => void
+  onSubOrderUpdated: (updatedSubOrder: TeilauftragRow) => void
   onSubOrderRemoved: (id: string) => void
   onEditCustomer: () => void
   contextRefreshTick: number
-  onFileChanged?: (neueFileRecord?: FileRecord) => void | Promise<void>
+  onFileChanged?: (newFileRecord?: FileRecord) => void | Promise<void>
 }
 
-function statusBadgeGlobal(s: AuftragStatus): string {
-  switch (s) {
+function statusBadgeGlobal(status: AuftragStatus): string {
+  switch (status) {
     case 'ANGEBOT':
       return 'badge-grau'
     case 'UNVOLLSTAENDIG':
@@ -52,78 +52,78 @@ function statusBadgeGlobal(s: AuftragStatus): string {
   }
 }
 
-function naechsterNotfallStatus(s: AuftragStatus): AuftragStatus {
-  if (s === 'ABGERECHNET') return s
-  if (s === 'UNVOLLSTAENDIG') return 'PREPRESS_BEREIT'
-  if (s === 'PREPRESS_BEREIT') return 'PRODUKTION_BEREIT'
-  if (s === 'PRODUKTION_BEREIT') return 'FERTIG'
-  return s
+function nextEmergencyStatus(status: AuftragStatus): AuftragStatus {
+  if (status === 'ABGERECHNET') return status
+  if (status === 'UNVOLLSTAENDIG') return 'PREPRESS_BEREIT'
+  if (status === 'PREPRESS_BEREIT') return 'PRODUKTION_BEREIT'
+  if (status === 'PRODUKTION_BEREIT') return 'FERTIG'
+  return status
 }
 
-function einKundeKontakt(k: KundeKontaktJoin | null): KundeKontaktRow | null {
-  if (k == null) return null
-  return Array.isArray(k) ? (k[0] ?? null) : k
+function resolveCustomerContact(contact: KundeKontaktJoin | null): KundeKontaktRow | null {
+  if (contact == null) return null
+  return Array.isArray(contact) ? (contact[0] ?? null) : contact
 }
 
-function hatStempelModellVerknuepft(detail: Record<string, unknown>): boolean {
-  const k = detail.kissen_modell_id
-  const m = detail.modell_id
-  return !!(k && String(k).trim()) || !!(m && String(m).trim())
+function hasStampModelLinked(detail: Record<string, unknown>): boolean {
+  const padModelId = detail.kissen_modell_id
+  const stampModelId = detail.modell_id
+  return !!(padModelId && String(padModelId).trim()) || !!(stampModelId && String(stampModelId).trim())
 }
 
-function istStempelBereichBestandKritisch(
-  stempelBestand: number | null,
-  kissenBestand: number | null
+function isStampStockCritical(
+  stampStock: number | null,
+  padStock: number | null
 ): boolean {
   return (
-    (stempelBestand !== null && stempelBestand === 0) ||
-    (kissenBestand !== null && kissenBestand === 0)
+    (stampStock !== null && stampStock === 0) ||
+    (padStock !== null && padStock === 0)
   )
 }
 
-function fertigGesperrtHinweis(
-  stempelBestand: number | null,
-  kissenBestand: number | null
+function completionBlockedHint(
+  stampStock: number | null,
+  padStock: number | null
 ): string {
-  const st0 = stempelBestand !== null && stempelBestand === 0
-  const k0 = kissenBestand !== null && kissenBestand === 0
-  if (st0 && k0) {
+  const stampIsZero = stampStock !== null && stampStock === 0
+  const padIsZero = padStock !== null && padStock === 0
+  if (stampIsZero && padIsZero) {
     return 'Fertigmeldung nicht möglich — Stempel- und Kissen-Bestand sind 0'
   }
-  if (st0) return 'Fertigmeldung nicht möglich — Stempel-Bestand ist 0'
-  if (k0) return 'Fertigmeldung nicht möglich — Kissen-Bestand ist 0'
+  if (stampIsZero) return 'Fertigmeldung nicht möglich — Stempel-Bestand ist 0'
+  if (padIsZero) return 'Fertigmeldung nicht möglich — Kissen-Bestand ist 0'
   return ''
 }
 
-function produktionBestandModalTitel(
-  stempelBestand: number | null,
-  kissenBestand: number | null
+function productionStockModalTitle(
+  stampStock: number | null,
+  padStock: number | null
 ): string {
-  const st0 = stempelBestand !== null && stempelBestand === 0
-  const k0 = kissenBestand !== null && kissenBestand === 0
-  if (st0 && k0) return 'Achtung: Stempel- und Kissen-Bestand sind 0'
-  if (st0) return 'Achtung: Stempel-Bestand ist 0'
-  if (k0) return 'Achtung: Kissen-Bestand ist 0'
+  const stampIsZero = stampStock !== null && stampStock === 0
+  const padIsZero = padStock !== null && padStock === 0
+  if (stampIsZero && padIsZero) return 'Achtung: Stempel- und Kissen-Bestand sind 0'
+  if (stampIsZero) return 'Achtung: Stempel-Bestand ist 0'
+  if (padIsZero) return 'Achtung: Kissen-Bestand ist 0'
   return 'Achtung: Bestand ist 0'
 }
 
-type StempelKissenBestand = { stempelBestand: number | null; kissenBestand: number | null }
+type StampPadStock = { stampStock: number | null; padStock: number | null }
 
 /** Anzeige im Status: Zahl oder „—“ bei unbekannt (z. B. Ladefehler). */
-function bestandAlsAnzeige(n: number | null): string {
-  return n === null ? '—' : String(n)
+function stockDisplayValue(stock: number | null): string {
+  return stock === null ? '—' : String(stock)
 }
 
 /**
  * Lädt Stempel- und/oder Kissen-`bestand` je nach verknüpftem Modell, Farbe und Auftragstyp.
  */
-async function ladeStempelBestand(detail: Record<string, unknown>): Promise<StempelKissenBestand> {
-  const hasMod = detail.modell_id && String(detail.modell_id).trim()
-  const hasKis = detail.kissen_modell_id && String(detail.kissen_modell_id).trim()
-  const fr = detail.farbe
-  const farbeSet = fr != null && String(fr).trim() !== ''
+async function loadStampStock(detail: Record<string, unknown>): Promise<StampPadStock> {
+  const hasStampModel = detail.modell_id && String(detail.modell_id).trim()
+  const hasPadModel = detail.kissen_modell_id && String(detail.kissen_modell_id).trim()
+  const colorValue = detail.farbe
+  const colorSet = colorValue != null && String(colorValue).trim() !== ''
 
-  async function bestandById(id: string): Promise<number | null> {
+  async function fetchStockById(id: string): Promise<number | null> {
     const { data, error } = await supabase
       .from('stempel_modelle')
       .select('bestand')
@@ -133,46 +133,46 @@ async function ladeStempelBestand(detail: Record<string, unknown>): Promise<Stem
     return (data as { bestand: number | null }).bestand ?? 0
   }
 
-  if (hasKis && !hasMod) {
-    const kb = await bestandById(String(detail.kissen_modell_id))
-    return { stempelBestand: null, kissenBestand: kb }
+  if (hasPadModel && !hasStampModel) {
+    const padStockValue = await fetchStockById(String(detail.kissen_modell_id))
+    return { stampStock: null, padStock: padStockValue }
   }
 
-  let st: number | null = null
-  let kis: number | null = null
+  let stampStockValue: number | null = null
+  let padStockValue: number | null = null
 
-  if (hasMod) {
-    st = await bestandById(String(detail.modell_id))
-    if (farbeSet) {
-      const { data: stRow, error: eE } = await supabase
+  if (hasStampModel) {
+    stampStockValue = await fetchStockById(String(detail.modell_id))
+    if (colorSet) {
+      const { data: stampModelRow, error: modelError } = await supabase
         .from('stempel_modelle')
         .select('ersatzkissen_artikelnummer')
         .eq('id', String(detail.modell_id))
         .single()
-      if (!eE && stRow) {
-        const ers = (stRow as { ersatzkissen_artikelnummer: string | null }).ersatzkissen_artikelnummer
-        const artikel = ers && String(ers).trim()
-        if (artikel) {
-          const { data: kissen, error: eKis } = await supabase
+      if (!modelError && stampModelRow) {
+        const replacementPart = (stampModelRow as { ersatzkissen_artikelnummer: string | null }).ersatzkissen_artikelnummer
+        const articleNumber = replacementPart && String(replacementPart).trim()
+        if (articleNumber) {
+          const { data: padRow, error: padError } = await supabase
             .from('stempel_modelle')
             .select('bestand')
             .eq('typ', 'TRODAT_KISSEN')
-            .eq('artikelnummer', artikel)
-            .eq('farbe', String(fr))
+            .eq('artikelnummer', articleNumber)
+            .eq('farbe', String(colorValue))
             .maybeSingle()
-          if (eKis) {
-            kis = null
-          } else if (kissen) {
-            kis = (kissen as { bestand: number | null }).bestand ?? 0
+          if (padError) {
+            padStockValue = null
+          } else if (padRow) {
+            padStockValue = (padRow as { bestand: number | null }).bestand ?? 0
           } else {
-            kis = 0
+            padStockValue = 0
           }
         }
       }
     }
   }
 
-  return { stempelBestand: st, kissenBestand: kis }
+  return { stampStock: stampStockValue, padStock: padStockValue }
 }
 
 export function ContextPanel({
@@ -189,31 +189,31 @@ export function ContextPanel({
   onFileChanged = async () => {},
 }: Props) {
   const [busy, setBusy] = useState(false)
-  const [teilBereichListe, setTeilBereichListe] = useState<{ id: string; bereich: string }[]>([])
-  const [stornoLaeuft, setStornoLaeuft] = useState(false)
-  const [loeschenLaeuft, setLoeschenLaeuft] = useState(false)
-  const [dialogNotfall, setDialogNotfall] = useState(false)
-  const [notfallBegr, setNotfallBegr] = useState('')
+  const [subOrderAreaList, setSubOrderAreaList] = useState<{ id: string; bereich: string }[]>([])
+  const [cancelInProgress, setCancelInProgress] = useState(false)
+  const [deleteInProgress, setDeleteInProgress] = useState(false)
+  const [emergencyDialogOpen, setEmergencyDialogOpen] = useState(false)
+  const [emergencyReason, setEmergencyReason] = useState('')
   const [dialogCustomerApprovalFile, setDialogCustomerApprovalFile] = useState(false)
   const [customerApprovalFileId, setCustomerApprovalFileId] = useState('')
-  const [stempelBestand, setStempelBestand] = useState<number | null>(null)
-  const [kissenBestand, setKissenBestand] = useState<number | null>(null)
-  const [dialogProduktionBestand0, setDialogProduktionBestand0] = useState(false)
+  const [stampStock, setStampStock] = useState<number | null>(null)
+  const [padStock, setPadStock] = useState<number | null>(null)
+  const [productionStockZeroDialogOpen, setProductionStockZeroDialogOpen] = useState(false)
   const { fehler, erfolg } = useToast()
 
   useEffect(() => {
     if (!activeSubOrder || activeSubOrder.bereich !== 'STEMPEL') {
-      setStempelBestand(null)
-      setKissenBestand(null)
+      setStampStock(null)
+      setPadStock(null)
       return
     }
-    const det = teilJsonAlsFeldertabelle(activeSubOrder.detail)
+    const stampDetail = teilJsonAlsFeldertabelle(activeSubOrder.detail)
     let alive = true
-    void ladeStempelBestand(det)
-      .then(r => {
+    void loadStampStock(stampDetail)
+      .then(stockResult => {
         if (alive) {
-          setStempelBestand(r.stempelBestand)
-          setKissenBestand(r.kissenBestand)
+          setStampStock(stockResult.stampStock)
+          setPadStock(stockResult.padStock)
         }
       })
       .catch((err: unknown) => console.error(err))
@@ -224,7 +224,7 @@ export function ContextPanel({
 
   useEffect(() => {
     if (!order) {
-      setTeilBereichListe([])
+      setSubOrderAreaList([])
       return
     }
     let alive = true
@@ -237,10 +237,10 @@ export function ContextPanel({
         if (!alive) return
         if (error) {
           fehler('Daten konnten nicht geladen werden')
-          setTeilBereichListe([])
+          setSubOrderAreaList([])
           return
         }
-        setTeilBereichListe((data ?? []) as { id: string; bereich: string }[])
+        setSubOrderAreaList((data ?? []) as { id: string; bereich: string }[])
       } catch (err: unknown) {
         if (alive) console.error(err)
       }
@@ -258,35 +258,35 @@ export function ContextPanel({
     )
   }
 
-  const teil = activeSubOrder
-  const teilBlock = teil && !teil.storniert
-  const darfAuftragLoeschen = order.status === 'ANGEBOT' || order.status === 'UNVOLLSTAENDIG'
-  const darfAuftragStornieren = order.status !== 'ANGEBOT' && order.status !== 'UNVOLLSTAENDIG'
+  const subOrder = activeSubOrder
+  const subOrderActive = subOrder && !subOrder.storniert
+  const canDeleteOrder = order.status === 'ANGEBOT' || order.status === 'UNVOLLSTAENDIG'
+  const canCancelOrder = order.status !== 'ANGEBOT' && order.status !== 'UNVOLLSTAENDIG'
 
   const handleInBearbeitung = async () => {
     if (busy || order.status !== 'ANGEBOT') return
     setBusy(true)
     try {
-      const { error: u1 } = await supabase
+      const { error: statusUpdateError } = await supabase
         .from('auftraege')
         .update({ status: 'UNVOLLSTAENDIG' as AuftragStatus })
         .eq('id', order.id)
-      if (u1) throw u1
+      if (statusUpdateError) throw statusUpdateError
       await writeHistory({
         auftrag_id: order.id,
         ereignisart: 'IN_BEARBEITUNG_GENOMMEN',
       })
-      const { data: raw, error: eRpc } = await supabase.rpc('fn_berechne_auftragsstatus', {
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('fn_berechne_auftragsstatus', {
         p_auftrag_id: order.id,
       })
-      if (eRpc) throw eRpc
-      const neuerStatus = parseStatusFromRpc(raw)
-      const { error: u2 } = await supabase
+      if (rpcError) throw rpcError
+      const newStatus = parseStatusFromRpc(rpcResult)
+      const { error: writeError } = await supabase
         .from('auftraege')
-        .update({ status: neuerStatus })
+        .update({ status: newStatus })
         .eq('id', order.id)
-      if (u2) throw u2
-      onOrderUpdated({ ...order, status: neuerStatus })
+      if (writeError) throw writeError
+      onOrderUpdated({ ...order, status: newStatus })
     } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
@@ -342,12 +342,12 @@ export function ContextPanel({
       return
     setBusy(true)
     try {
-      const teilStornoPatch: Database['public']['Tables']['teilauftraege']['Update'] = { storniert: true }
-      const { error: e1 } = await supabase.from('teilauftraege').update(teilStornoPatch).eq('auftrag_id', order.id)
-      if (e1) throw e1
-      const auftragArchivPatch: Database['public']['Tables']['auftraege']['Update'] = { archiviert: true }
-      const { error: e2 } = await supabase.from('auftraege').update(auftragArchivPatch).eq('id', order.id)
-      if (e2) throw e2
+      const subOrderCancelUpdate: Database['public']['Tables']['teilauftraege']['Update'] = { storniert: true }
+      const { error: cancelSubOrdersError } = await supabase.from('teilauftraege').update(subOrderCancelUpdate).eq('auftrag_id', order.id)
+      if (cancelSubOrdersError) throw cancelSubOrdersError
+      const orderArchiveUpdate: Database['public']['Tables']['auftraege']['Update'] = { archiviert: true }
+      const { error: archiveOrderError } = await supabase.from('auftraege').update(orderArchiveUpdate).eq('id', order.id)
+      if (archiveOrderError) throw archiveOrderError
       await writeHistory({ auftrag_id: order.id, ereignisart: 'STORNIERT' })
       onOrderUpdated({ ...order, archiviert: true })
     } catch {
@@ -377,28 +377,28 @@ export function ContextPanel({
     }
   }
 
-  const teilNaechstNachTeilAktion = async () => {
-    const { data: raw, error: e1 } = await supabase.rpc('fn_berechne_auftragsstatus', {
+  const syncOrderStatusAfterSubOrderAction = async () => {
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('fn_berechne_auftragsstatus', {
       p_auftrag_id: order.id,
     })
-    if (e1) throw e1
-    const neuerStatus = parseStatusFromRpc(raw)
-    const { error: e2 } = await supabase
+    if (rpcError) throw rpcError
+    const newStatus = parseStatusFromRpc(rpcResult)
+    const { error: writeError } = await supabase
       .from('auftraege')
-      .update({ status: neuerStatus })
+      .update({ status: newStatus })
       .eq('id', order.id)
-    if (e2) throw e2
-    onOrderUpdated({ ...order, status: neuerStatus })
+    if (writeError) throw writeError
+    onOrderUpdated({ ...order, status: newStatus })
   }
 
   const handlePrepressFrei = async () => {
-    if (busy || !teil || teil.status !== 'UNVOLLSTAENDIG') return
+    if (busy || !subOrder || subOrder.status !== 'UNVOLLSTAENDIG') return
     if (order.status === 'ANGEBOT') {
       fehler('Auftrag muss zuerst in Bearbeitung genommen werden')
       return
     }
-    const voll = isSubOrderComplete(teil, teil.status)
-    if (!voll) {
+    const isComplete = isSubOrderComplete(subOrder, subOrder.status)
+    if (!isComplete) {
       fehler('Teilauftrag ist noch nicht vollständig ausgefüllt')
       return
     }
@@ -407,19 +407,19 @@ export function ContextPanel({
       const { data, error } = await supabase
         .from('teilauftraege')
         .update({ status: 'PREPRESS_BEREIT' as AuftragStatus })
-        .eq('id', teil.id)
+        .eq('id', subOrder.id)
         .select(SUB_ORDER_COLUMNS)
         .single()
       if (error) throw error
       await writeHistory({
         auftrag_id: order.id,
-        teilauftrag_id: teil.id,
+        teilauftrag_id: subOrder.id,
         ereignisart: 'PREPRESS_BEREIT_MANUELL',
       })
       onSubOrderUpdated(data as TeilauftragRow)
-      const pdfOk = await generateAndDownloadPdf(teil.id, order.id)
+      const pdfOk = await generateAndDownloadPdf(subOrder.id, order.id)
       if (!pdfOk) fehler('PDF konnte nicht erstellt werden')
-      await teilNaechstNachTeilAktion()
+      await syncOrderStatusAfterSubOrderAction()
     } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
@@ -427,88 +427,88 @@ export function ContextPanel({
     }
   }
 
-  const ausfuehrenProduktionFrei = async () => {
-    if (busy || !teil || teil.status !== 'PREPRESS_BEREIT') return
-    if (teil.kundenfreigabe_erforderlich && !teil.kundenfreigabe_liegt_vor) return
+  const executeProductionRelease = async () => {
+    if (busy || !subOrder || subOrder.status !== 'PREPRESS_BEREIT') return
+    if (subOrder.kundenfreigabe_erforderlich && !subOrder.kundenfreigabe_liegt_vor) return
     setBusy(true)
     try {
       // Stempel: Automatischer Lagerabgang (vor Status-Update).
-      if (teil.bereich === 'STEMPEL') {
-        const det = teilJsonAlsFeldertabelle(teil.detail)
-        const rawM = det.stueckzahl
-        const mengeParsed =
-          typeof rawM === 'number'
-            ? rawM
-            : typeof rawM === 'string' && rawM.trim() !== ''
-              ? parseInt(rawM, 10)
+      if (subOrder.bereich === 'STEMPEL') {
+        const stampDetail = teilJsonAlsFeldertabelle(subOrder.detail)
+        const rawQuantity = stampDetail.stueckzahl
+        const parsedQuantity =
+          typeof rawQuantity === 'number'
+            ? rawQuantity
+            : typeof rawQuantity === 'string' && rawQuantity.trim() !== ''
+              ? parseInt(rawQuantity, 10)
               : 1
-        const menge = Number.isFinite(mengeParsed) && mengeParsed >= 1 ? Math.floor(mengeParsed) : 1
+        const quantity = Number.isFinite(parsedQuantity) && parsedQuantity >= 1 ? Math.floor(parsedQuantity) : 1
 
-        const notizStempel = 'Automatisch bei Produktionsfreigabe ' + (order.auftragsnummer ?? '')
+        const stampNote = 'Automatisch bei Produktionsfreigabe ' + (order.auftragsnummer ?? '')
 
-        const lagerAutoabgang = async (modellId: string, mengeLocal: number, notiz: string) => {
-          const { data: modell, error: eMod } = await supabase
+        const bookStampStockDeduction = async (modelId: string, quantity: number, note: string) => {
+          const { data: modelRow, error: modelError } = await supabase
             .from('stempel_modelle')
             .select('bestand')
-            .eq('id', modellId)
+            .eq('id', modelId)
             .single()
-          if (eMod) throw eMod
-          if (!modell) return
-          const alt = (modell as { bestand: number | null }).bestand ?? 0
-          if (alt <= 0) return
-          const neuerBestand = Math.max(0, alt - mengeLocal)
-          const stempelModellPatch: Database['public']['Tables']['stempel_modelle']['Update'] = {
-            bestand: neuerBestand,
+          if (modelError) throw modelError
+          if (!modelRow) return
+          const currentStock = (modelRow as { bestand: number | null }).bestand ?? 0
+          if (currentStock <= 0) return
+          const newStock = Math.max(0, currentStock - quantity)
+          const stampModelUpdate: Database['public']['Tables']['stempel_modelle']['Update'] = {
+            bestand: newStock,
           }
-          const { error: eUp } = await supabase.from('stempel_modelle').update(stempelModellPatch).eq('id', modellId)
-          if (eUp) throw eUp
+          const { error: updateError } = await supabase.from('stempel_modelle').update(stampModelUpdate).eq('id', modelId)
+          if (updateError) throw updateError
           const {
             data: { user },
           } = await supabase.auth.getUser()
-          const lagerBewegungInsert: Database['public']['Tables']['lager_bewegungen']['Insert'] = {
-            modell_id: modellId,
-            menge: mengeLocal,
+          const stockMovementInsert: Database['public']['Tables']['lager_bewegungen']['Insert'] = {
+            modell_id: modelId,
+            menge: quantity,
             typ: 'AUTOABGANG',
-            notiz,
+            notiz: note,
             person_id: user?.id ?? null,
           }
-          const { error: eIns } = await supabase.from('lager_bewegungen').insert(lagerBewegungInsert)
-          if (eIns) throw eIns
+          const { error: insertError } = await supabase.from('lager_bewegungen').insert(stockMovementInsert)
+          if (insertError) throw insertError
         }
 
-        if (teil.typ === 'TRODAT_KISSEN' && det.kissen_modell_id) {
-          await lagerAutoabgang(String(det.kissen_modell_id), menge, notizStempel)
-        } else if (det.modell_id) {
-          const stampId = String(det.modell_id)
-          await lagerAutoabgang(stampId, menge, notizStempel)
+        if (subOrder.typ === 'TRODAT_KISSEN' && stampDetail.kissen_modell_id) {
+          await bookStampStockDeduction(String(stampDetail.kissen_modell_id), quantity, stampNote)
+        } else if (stampDetail.modell_id) {
+          const stampId = String(stampDetail.modell_id)
+          await bookStampStockDeduction(stampId, quantity, stampNote)
 
-          const fr = det.farbe
-          if (fr != null && String(fr).trim() !== '') {
-            const { data: stRow, error: eErs } = await supabase
+          const stampColor = stampDetail.farbe
+          if (stampColor != null && String(stampColor).trim() !== '') {
+            const { data: stampModelRow, error: replacementError } = await supabase
               .from('stempel_modelle')
               .select('ersatzkissen_artikelnummer')
               .eq('id', stampId)
               .single()
-            if (eErs) {
-              throw eErs
-            } else if (stRow) {
-              const ers = (stRow as { ersatzkissen_artikelnummer: string | null }).ersatzkissen_artikelnummer
-              const artikel = ers && String(ers).trim()
-              if (artikel) {
-                const { data: kissen, error: eKis } = await supabase
+            if (replacementError) {
+              throw replacementError
+            } else if (stampModelRow) {
+              const replacementPart = (stampModelRow as { ersatzkissen_artikelnummer: string | null }).ersatzkissen_artikelnummer
+              const articleNumber = replacementPart && String(replacementPart).trim()
+              if (articleNumber) {
+                const { data: padRow, error: padError } = await supabase
                   .from('stempel_modelle')
                   .select('id, bestand')
                   .eq('typ', 'TRODAT_KISSEN')
-                  .eq('artikelnummer', artikel)
-                  .eq('farbe', String(fr))
+                  .eq('artikelnummer', articleNumber)
+                  .eq('farbe', String(stampColor))
                   .maybeSingle()
-                if (eKis) {
-                  throw eKis
-                } else if (kissen) {
-                  const b = (kissen as { bestand: number | null; id: string }).bestand ?? 0
-                  if (b > 0) {
-                    const kid = String((kissen as { id: string }).id)
-                    await lagerAutoabgang(kid, menge, notizStempel + ' (Kissen zu Stempel)')
+                if (padError) {
+                  throw padError
+                } else if (padRow) {
+                  const padCurrentStock = (padRow as { bestand: number | null; id: string }).bestand ?? 0
+                  if (padCurrentStock > 0) {
+                    const padId = String((padRow as { id: string }).id)
+                    await bookStampStockDeduction(padId, quantity, stampNote + ' (Kissen zu Stempel)')
                   }
                 }
               }
@@ -518,64 +518,64 @@ export function ContextPanel({
       }
 
       // Textil: Automatischer Lagerabgang (vor Status-Update).
-      if (teil.bereich === 'TEXTIL') {
-        const notizTextil = 'Automatisch bei Produktionsfreigabe ' + (order.auftragsnummer ?? '')
+      if (subOrder.bereich === 'TEXTIL') {
+        const textileNote = 'Automatisch bei Produktionsfreigabe ' + (order.auftragsnummer ?? '')
         const {
           data: { user },
         } = await supabase.auth.getUser()
         const userId = user?.id ?? null
 
-        const { data: posData, error: ePos } = await supabase
+        const { data: positionData, error: positionError } = await supabase
           .from('textil_positionen')
           .select('id, variante_id, stueckzahl, herkunft')
-          .eq('teilauftrag_id', teil.id)
+          .eq('teilauftrag_id', subOrder.id)
           .eq('herkunft', 'EIGENWARE')
           .not('variante_id', 'is', null)
-        if (ePos) throw ePos
+        if (positionError) throw positionError
 
-        const posList = (posData ?? []) as {
+        const positionList = (positionData ?? []) as {
           id: string
           variante_id: string | null
           stueckzahl: number
           herkunft: string
         }[]
 
-        for (const p of posList) {
-          const vid = p.variante_id ? String(p.variante_id) : ''
-          if (!vid) continue
-          const mengeLocal = Number.isFinite(p.stueckzahl) && p.stueckzahl >= 1 ? Math.floor(p.stueckzahl) : 1
+        for (const position of positionList) {
+          const variantId = position.variante_id ? String(position.variante_id) : ''
+          if (!variantId) continue
+          const quantity = Number.isFinite(position.stueckzahl) && position.stueckzahl >= 1 ? Math.floor(position.stueckzahl) : 1
 
-          const { data: vRow, error: eVar } = await supabase
+          const { data: variantRow, error: variantError } = await supabase
             .from('textil_varianten')
             .select('bestand')
-            .eq('id', vid)
+            .eq('id', variantId)
             .single()
-          if (eVar) throw eVar
-          const alt = (vRow as { bestand: number | null } | null)?.bestand ?? 0
-          if (alt <= 0) continue
+          if (variantError) throw variantError
+          const currentStock = (variantRow as { bestand: number | null } | null)?.bestand ?? 0
+          if (currentStock <= 0) continue
 
-          const neuerBestand = Math.max(0, alt - mengeLocal)
-          const { error: eUp } = await supabase.from('textil_varianten').update({ bestand: neuerBestand }).eq('id', vid)
-          if (eUp) throw eUp
+          const newStock = Math.max(0, currentStock - quantity)
+          const { error: updateError } = await supabase.from('textil_varianten').update({ bestand: newStock }).eq('id', variantId)
+          if (updateError) throw updateError
 
-          const textilLagerBewegungInsert: Database['public']['Tables']['textil_lager_bewegungen']['Insert'] = {
-            variante_id: vid,
-            menge: mengeLocal,
+          const textileStockMovementInsert: Database['public']['Tables']['textil_lager_bewegungen']['Insert'] = {
+            variante_id: variantId,
+            menge: quantity,
             typ: 'AUTOABGANG',
-            notiz: notizTextil,
+            notiz: textileNote,
             person_id: userId,
           }
-          const { error: eIns } = await supabase
+          const { error: insertError } = await supabase
             .from('textil_lager_bewegungen')
-            .insert(textilLagerBewegungInsert)
-          if (eIns) throw eIns
+            .insert(textileStockMovementInsert)
+          if (insertError) throw insertError
         }
       }
 
       const { data, error } = await supabase
         .from('teilauftraege')
         .update({ status: 'PRODUKTION_BEREIT' as AuftragStatus })
-        .eq('id', teil.id)
+        .eq('id', subOrder.id)
         .select(SUB_ORDER_COLUMNS)
         .single()
       if (error) throw error
@@ -583,7 +583,7 @@ export function ContextPanel({
       try {
         await writeHistory({
           auftrag_id: order.id,
-          teilauftrag_id: teil.id,
+          teilauftrag_id: subOrder.id,
           ereignisart: 'PRODUKTION_BEREIT_GESETZT',
         })
       } catch {
@@ -591,7 +591,7 @@ export function ContextPanel({
       }
 
       onSubOrderUpdated(data as TeilauftragRow)
-      await teilNaechstNachTeilAktion()
+      await syncOrderStatusAfterSubOrderAction()
     } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
@@ -600,36 +600,36 @@ export function ContextPanel({
   }
 
   const handleProduktionFrei = () => {
-    if (busy || !teil || teil.status !== 'PREPRESS_BEREIT') return
-    if (teil.kundenfreigabe_erforderlich && !teil.kundenfreigabe_liegt_vor) return
-    if (teil.bereich === 'STEMPEL') {
-      if (istStempelBereichBestandKritisch(stempelBestand, kissenBestand)) {
-        setDialogProduktionBestand0(true)
+    if (busy || !subOrder || subOrder.status !== 'PREPRESS_BEREIT') return
+    if (subOrder.kundenfreigabe_erforderlich && !subOrder.kundenfreigabe_liegt_vor) return
+    if (subOrder.bereich === 'STEMPEL') {
+      if (isStampStockCritical(stampStock, padStock)) {
+        setProductionStockZeroDialogOpen(true)
         return
       }
     }
-    void ausfuehrenProduktionFrei()
+    void executeProductionRelease()
   }
 
   const handleFertigMelden = async () => {
-    if (busy || !teil || teil.status !== 'PRODUKTION_BEREIT') return
+    if (busy || !subOrder || subOrder.status !== 'PRODUKTION_BEREIT') return
     if (!window.confirm('Teilauftrag als fertig markieren?')) return
     setBusy(true)
     try {
       const { data, error } = await supabase
         .from('teilauftraege')
         .update({ status: 'FERTIG' as AuftragStatus })
-        .eq('id', teil.id)
+        .eq('id', subOrder.id)
         .select(SUB_ORDER_COLUMNS)
         .single()
       if (error) throw error
       await writeHistory({
         auftrag_id: order.id,
-        teilauftrag_id: teil.id,
+        teilauftrag_id: subOrder.id,
         ereignisart: 'FERTIG_GEMELDET',
       })
       onSubOrderUpdated(data as TeilauftragRow)
-      await teilNaechstNachTeilAktion()
+      await syncOrderStatusAfterSubOrderAction()
     } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
@@ -638,47 +638,47 @@ export function ContextPanel({
   }
 
   const handleNotfallOeffnen = () => {
-    if (busy || !teil) return
-    if (teil.status === 'ANGEBOT' || teil.status === 'FERTIG') return
-    setNotfallBegr('')
-    setDialogNotfall(true)
+    if (busy || !subOrder) return
+    if (subOrder.status === 'ANGEBOT' || subOrder.status === 'FERTIG') return
+    setEmergencyReason('')
+    setEmergencyDialogOpen(true)
   }
 
   const handleNotfallBestaetigt = async () => {
-    if (busy || !teil) return
-    const b = notfallBegr.trim()
-    if (!b) {
+    if (busy || !subOrder) return
+    const reason = emergencyReason.trim()
+    if (!reason) {
       fehler('Bitte eine Begründung eingeben')
       return
     }
-    const neu = naechsterNotfallStatus(teil.status)
-    if (neu === teil.status) {
-      setDialogNotfall(false)
+    const nextStatus = nextEmergencyStatus(subOrder.status)
+    if (nextStatus === subOrder.status) {
+      setEmergencyDialogOpen(false)
       return
     }
     setBusy(true)
-    setDialogNotfall(false)
+    setEmergencyDialogOpen(false)
     try {
-      const notfallPatch: Database['public']['Tables']['teilauftraege']['Update'] = {
-        status: neu,
+      const emergencyPatch: Database['public']['Tables']['teilauftraege']['Update'] = {
+        status: nextStatus,
         notfall_aktiv: true,
-        notfall_begruendung: b,
+        notfall_begruendung: reason,
       }
       const { data, error } = await supabase
         .from('teilauftraege')
-        .update(notfallPatch)
-        .eq('id', teil.id)
+        .update(emergencyPatch)
+        .eq('id', subOrder.id)
         .select(SUB_ORDER_COLUMNS)
         .single()
       if (error) throw error
       await writeHistory({
         auftrag_id: order.id,
-        teilauftrag_id: teil.id,
+        teilauftrag_id: subOrder.id,
         ereignisart: 'NOTFALL_AUSGELOEST',
-        begruendung: b,
+        begruendung: reason,
       })
       onSubOrderUpdated(data as TeilauftragRow)
-      await teilNaechstNachTeilAktion()
+      await syncOrderStatusAfterSubOrderAction()
     } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
@@ -687,28 +687,28 @@ export function ContextPanel({
   }
 
   const handleNotfallZurueck = async () => {
-    if (busy || !teil || !teil.notfall_aktiv) return
+    if (busy || !subOrder || !subOrder.notfall_aktiv) return
     setBusy(true)
     try {
-      const notfallZurueckPatch: Database['public']['Tables']['teilauftraege']['Update'] = {
+      const emergencyResetPatch: Database['public']['Tables']['teilauftraege']['Update'] = {
         status: 'UNVOLLSTAENDIG' as AuftragStatus,
         notfall_aktiv: false,
         notfall_begruendung: null,
       }
       const { data, error } = await supabase
         .from('teilauftraege')
-        .update(notfallZurueckPatch)
-        .eq('id', teil.id)
+        .update(emergencyResetPatch)
+        .eq('id', subOrder.id)
         .select(SUB_ORDER_COLUMNS)
         .single()
       if (error) throw error
       await writeHistory({
         auftrag_id: order.id,
-        teilauftrag_id: teil.id,
+        teilauftrag_id: subOrder.id,
         ereignisart: 'RUECKSPRUNG',
       })
       onSubOrderUpdated(data as TeilauftragRow)
-      await teilNaechstNachTeilAktion()
+      await syncOrderStatusAfterSubOrderAction()
     } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
@@ -716,12 +716,12 @@ export function ContextPanel({
     }
   }
 
-  const handleCustomerApprovalToggle = async (aktiv: boolean) => {
-    if (busy || !teil) return
-    if (teil.status === 'ANGEBOT') return
+  const handleCustomerApprovalToggle = async (enabled: boolean) => {
+    if (busy || !subOrder) return
+    if (subOrder.status === 'ANGEBOT') return
     setBusy(true)
     try {
-      const patch: Database['public']['Tables']['teilauftraege']['Update'] = aktiv
+      const patch: Database['public']['Tables']['teilauftraege']['Update'] = enabled
         ? { kundenfreigabe_erforderlich: true }
         : {
             kundenfreigabe_erforderlich: false,
@@ -729,22 +729,22 @@ export function ContextPanel({
             kundenfreigabe_datei_id: null,
           }
       const { data, error } = await supabase.from('teilauftraege').update(patch)
-        .eq('id', teil.id)
+        .eq('id', subOrder.id)
         .select(SUB_ORDER_COLUMNS)
         .single()
       if (error) throw error
       // DB-Enum hat kein KUNDENFREIGABE_DEAKTIVIERT; bei Abschaltung der Anforderung VERFALLEN als nächstliegender Wert.
-      const ereignisart: HistoryEvent = aktiv
+      const historyEvent: HistoryEvent = enabled
         ? 'KUNDENFREIGABE_AKTIVIERT'
         : 'KUNDENFREIGABE_VERFALLEN'
       await writeHistory({
         auftrag_id: order.id,
-        teilauftrag_id: teil.id,
-        ereignisart,
-        meta: { aktiv } as unknown as Record<string, unknown>,
+        teilauftrag_id: subOrder.id,
+        ereignisart: historyEvent,
+        meta: { aktiv: enabled } as unknown as Record<string, unknown>,
       })
       onSubOrderUpdated(data as TeilauftragRow)
-      await teilNaechstNachTeilAktion()
+      await syncOrderStatusAfterSubOrderAction()
     } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
@@ -753,13 +753,13 @@ export function ContextPanel({
   }
 
   const handleCustomerApprovalFileOpen = () => {
-    if (busy || !teil) return
+    if (busy || !subOrder) return
     setCustomerApprovalFileId(orderFiles[0]?.id ?? '')
     setDialogCustomerApprovalFile(true)
   }
 
   const handleCustomerApprovalFileConfirmed = async () => {
-    if (busy || !teil || !customerApprovalFileId) return
+    if (busy || !subOrder || !customerApprovalFileId) return
     setBusy(true)
     setDialogCustomerApprovalFile(false)
     try {
@@ -767,18 +767,18 @@ export function ContextPanel({
         kundenfreigabe_liegt_vor: true,
         kundenfreigabe_datei_id: customerApprovalFileId,
       }
-      const { data, error } = await supabase.from('teilauftraege').update(customerApprovalPatch).eq('id', teil.id)
+      const { data, error } = await supabase.from('teilauftraege').update(customerApprovalPatch).eq('id', subOrder.id)
         .select(SUB_ORDER_COLUMNS)
         .single()
       if (error) throw error
       await writeHistory({
         auftrag_id: order.id,
-        teilauftrag_id: teil.id,
+        teilauftrag_id: subOrder.id,
         ereignisart: 'KUNDENFREIGABE_ERTEILT',
         meta: { datei_id: customerApprovalFileId } as unknown as Record<string, unknown>,
       })
       onSubOrderUpdated(data as TeilauftragRow)
-      await teilNaechstNachTeilAktion()
+      await syncOrderStatusAfterSubOrderAction()
       erfolg('Freigabe erteilt')
     } catch {
       fehler('Status konnte nicht geändert werden')
@@ -788,75 +788,75 @@ export function ContextPanel({
   }
 
   const handleStorno = async () => {
-    if (!teil || stornoLaeuft) return
+    if (!subOrder || cancelInProgress) return
     if (!window.confirm('Teilauftrag stornieren? Er wird ausgeblendet, aber nicht gelöscht.')) return
-    setStornoLaeuft(true)
+    setCancelInProgress(true)
     try {
-      const teilStornoPatch: Database['public']['Tables']['teilauftraege']['Update'] = { storniert: true }
-      const { error } = await supabase.from('teilauftraege').update(teilStornoPatch).eq('id', teil.id)
+      const cancelUpdate: Database['public']['Tables']['teilauftraege']['Update'] = { storniert: true }
+      const { error } = await supabase.from('teilauftraege').update(cancelUpdate).eq('id', subOrder.id)
       if (error) throw error
-      onSubOrderRemoved(teil.id)
+      onSubOrderRemoved(subOrder.id)
       try {
-        await teilNaechstNachTeilAktion()
+        await syncOrderStatusAfterSubOrderAction()
       } catch {
         fehler('Status konnte nicht geändert werden')
       }
     } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
-      setStornoLaeuft(false)
+      setCancelInProgress(false)
     }
   }
 
   const handleLoeschen = async () => {
-    if (!teil || loeschenLaeuft || teil.status !== 'UNVOLLSTAENDIG') return
+    if (!subOrder || deleteInProgress || subOrder.status !== 'UNVOLLSTAENDIG') return
     if (!window.confirm('Teilauftrag endgültig löschen?')) return
-    setLoeschenLaeuft(true)
+    setDeleteInProgress(true)
     try {
-      const { error } = await supabase.from('teilauftraege').delete().eq('id', teil.id)
+      const { error } = await supabase.from('teilauftraege').delete().eq('id', subOrder.id)
       if (error) throw error
-      onSubOrderRemoved(teil.id)
+      onSubOrderRemoved(subOrder.id)
       try {
-        await teilNaechstNachTeilAktion()
+        await syncOrderStatusAfterSubOrderAction()
       } catch {
         fehler('Status konnte nicht geändert werden')
       }
     } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
-      setLoeschenLaeuft(false)
+      setDeleteInProgress(false)
     }
   }
 
   const prodDisabled =
-    !!teil && teil.status === 'PREPRESS_BEREIT' && teil.kundenfreigabe_erforderlich && !teil.kundenfreigabe_liegt_vor
-  const stempelDetailAktuell = teil ? teilJsonAlsFeldertabelle(teil.detail) : {}
-  const fertigGesperrtWegenBestand =
-    !!teil &&
-    teil.bereich === 'STEMPEL' &&
-    teil.status === 'PRODUKTION_BEREIT' &&
-    hatStempelModellVerknuepft(stempelDetailAktuell) &&
-    istStempelBereichBestandKritisch(stempelBestand, kissenBestand)
-  const notfallSichtbar =
-    teil && teil.status !== 'ANGEBOT' && teil.status !== 'FERTIG' && naechsterNotfallStatus(teil.status) !== teil.status
+    !!subOrder && subOrder.status === 'PREPRESS_BEREIT' && subOrder.kundenfreigabe_erforderlich && !subOrder.kundenfreigabe_liegt_vor
+  const currentStampDetail = subOrder? teilJsonAlsFeldertabelle(subOrder.detail) : {}
+  const completionBlockedByStock =
+    !!subOrder &&
+    subOrder.bereich === 'STEMPEL' &&
+    subOrder.status === 'PRODUKTION_BEREIT' &&
+    hasStampModelLinked(currentStampDetail) &&
+    isStampStockCritical(stampStock, padStock)
+  const emergencyVisible =
+    subOrder && subOrder.status !== 'ANGEBOT' && subOrder.status !== 'FERTIG' && nextEmergencyStatus(subOrder.status) !== subOrder.status
   const customerApprovalGrantVisible =
-    !!teil &&
-    teil.kundenfreigabe_erforderlich &&
-    !teil.kundenfreigabe_liegt_vor &&
+    !!subOrder &&
+    subOrder.kundenfreigabe_erforderlich &&
+    !subOrder.kundenfreigabe_liegt_vor &&
     orderFiles.length > 0
 
-  const hinweise: string[] = []
-  if (teil && teil.kundenfreigabe_erforderlich && !teil.kundenfreigabe_liegt_vor) {
-    hinweise.push('Kundenfreigabe fehlt — Produktion blockiert')
+  const hints: string[] = []
+  if (subOrder && subOrder.kundenfreigabe_erforderlich && !subOrder.kundenfreigabe_liegt_vor) {
+    hints.push('Kundenfreigabe fehlt — Produktion blockiert')
   }
-  if (teil?.notfall_aktiv) {
-    hinweise.push(`Notfall aktiv: ${teil.notfall_begruendung ?? '—'}`)
+  if (subOrder?.notfall_aktiv) {
+    hints.push(`Notfall aktiv: ${subOrder.notfall_begruendung ?? '—'}`)
   }
-  if (teil && teil.status === 'PREPRESS_BEREIT' && !teil.kundenfreigabe_erforderlich) {
-    hinweise.push('Bereit zur Produktionsfreigabe')
+  if (subOrder && subOrder.status === 'PREPRESS_BEREIT' && !subOrder.kundenfreigabe_erforderlich) {
+    hints.push('Bereit zur Produktionsfreigabe')
   }
   if (order.status === 'FERTIG') {
-    hinweise.push('Auftrag abgeschlossen')
+    hints.push('Auftrag abgeschlossen')
   }
 
   return (
@@ -864,45 +864,45 @@ export function ContextPanel({
       <div className="cp-sektion">
         <h2>Status</h2>
         <div className="cp-status-komp">
-          {teil && (
+          {subOrder && (
             <div className="cp-st-zeile">
-              <span className={`badge ${statusBadgeGlobal(teil.status)} cp-badge-lg`}>{teil.status}</span>
+              <span className={`badge ${statusBadgeGlobal(subOrder.status)} cp-badge-lg`}>{subOrder.status}</span>
             </div>
           )}
-          {teil?.notfall_aktiv && (
+          {subOrder?.notfall_aktiv && (
             <div className="cp-st-notfall">
               <span className="badge badge-rot cp-badge-lg">!! NOTFALL !!</span>
-              {teil.notfall_begruendung && (
-                <p className="cp-hinweis cp-hinweis--komp">{teil.notfall_begruendung}</p>
+              {subOrder.notfall_begruendung && (
+                <p className="cp-hinweis cp-hinweis--komp">{subOrder.notfall_begruendung}</p>
               )}
             </div>
           )}
-          {teil?.bereich === 'STEMPEL' && hatStempelModellVerknuepft(stempelDetailAktuell) && (
+          {subOrder?.bereich === 'STEMPEL' && hasStampModelLinked(currentStampDetail) && (
             <p className="cp-hinweis cp-hinweis--komp" style={{ marginTop: 6 }}>
-              Lager: Stempel {bestandAlsAnzeige(stempelBestand)} · Kissen {bestandAlsAnzeige(kissenBestand)}
+              Lager: Stempel {stockDisplayValue(stampStock)} · Kissen {stockDisplayValue(padStock)}
             </p>
           )}
         </div>
       </div>
       {(() => {
-        const row = einKundeKontakt(orderCustomer)
-        if (!row) return null
-        const s = row.strasse?.trim()
-        const h = row.hausnummer?.trim()
-        const p = row.plz?.trim()
-        const o = row.ort?.trim()
-        const zeile1 = [s, h].filter(Boolean).join(' ')
-        const zeile2 = [p, o].filter(Boolean).join(' ')
-        if (!zeile1 && !zeile2) return null
+        const customerContact = resolveCustomerContact(orderCustomer)
+        if (!customerContact) return null
+        const street = customerContact.strasse?.trim()
+        const houseNumber = customerContact.hausnummer?.trim()
+        const postalCode = customerContact.plz?.trim()
+        const city = customerContact.ort?.trim()
+        const addressLine1 = [street, houseNumber].filter(Boolean).join(' ')
+        const addressLine2 = [postalCode, city].filter(Boolean).join(' ')
+        if (!addressLine1 && !addressLine2) return null
         return (
           <div className="cp-sektion">
             <h2>Kunde</h2>
-            {zeile1 ? (
+            {addressLine1 ? (
               <p className="cp-hinweis cp-hinweis--komp" style={{ margin: '0 0 4px' }}>
-                {zeile1}
+                {addressLine1}
               </p>
             ) : null}
-            {zeile2 ? <p className="cp-hinweis cp-hinweis--komp" style={{ margin: 0 }}>{zeile2}</p> : null}
+            {addressLine2 ? <p className="cp-hinweis cp-hinweis--komp" style={{ margin: 0 }}>{addressLine2}</p> : null}
           </div>
         )
       })()}
@@ -934,7 +934,7 @@ export function ContextPanel({
               Archivieren
             </button>
           )}
-          {darfAuftragStornieren && (
+          {canCancelOrder && (
             <button
               type="button"
               className="cp-btn cp-btn-rot"
@@ -944,7 +944,7 @@ export function ContextPanel({
               Auftrag stornieren
             </button>
           )}
-          {darfAuftragLoeschen && (
+          {canDeleteOrder && (
             <button
               type="button"
               className="cp-btn cp-btn-rot"
@@ -956,11 +956,11 @@ export function ContextPanel({
           )}
         </div>
 
-        {teilBlock && (
+        {subOrderActive && (
           <>
             <div className="cp-gruppe-trenn" />
             <div className="cp-gruppe">
-              {teil.status === 'UNVOLLSTAENDIG' && order.status !== 'ANGEBOT' && (
+              {subOrder.status === 'UNVOLLSTAENDIG' && order.status !== 'ANGEBOT' && (
                 <button
                   type="button"
                   className="cp-btn"
@@ -970,7 +970,7 @@ export function ContextPanel({
                   Prepress freigeben
                 </button>
               )}
-              {teil.status === 'PREPRESS_BEREIT' && (
+              {subOrder.status === 'PREPRESS_BEREIT' && (
                 <>
                   <button
                     type="button"
@@ -983,31 +983,31 @@ export function ContextPanel({
                   {prodDisabled && <p className="cp-sublabel">Kundenfreigabe fehlt</p>}
                 </>
               )}
-              {teil.status === 'PRODUKTION_BEREIT' && (
+              {subOrder.status === 'PRODUKTION_BEREIT' && (
                 <>
                   <button
                     type="button"
                     className="cp-btn"
-                    disabled={busy || fertigGesperrtWegenBestand}
+                    disabled={busy || completionBlockedByStock}
                     onClick={() => void handleFertigMelden()}
                   >
                     Als fertig melden
                   </button>
-                  {fertigGesperrtWegenBestand && (
+                  {completionBlockedByStock && (
                     <p className="cp-sublabel">
-                      {fertigGesperrtHinweis(stempelBestand, kissenBestand)}
+                      {completionBlockedHint(stampStock, padStock)}
                     </p>
                   )}
                 </>
               )}
-              {teilBlock && teil.status !== 'ANGEBOT' && (
+              {subOrderActive && subOrder.status !== 'ANGEBOT' && (
                 <button
                   type="button"
                   className="cp-btn cp-btn-grau"
                   disabled={busy}
                   onClick={() =>
                     void (async () => {
-                      const ok = await generateAndDownloadPdf(teil.id, order.id)
+                      const ok = await generateAndDownloadPdf(subOrder.id, order.id)
                       if (!ok) fehler('PDF konnte nicht erstellt werden')
                     })()
                   }
@@ -1018,7 +1018,7 @@ export function ContextPanel({
             </div>
             <div className="cp-gruppe-trenn" />
             <div className="cp-gruppe">
-              {notfallSichtbar && (
+              {emergencyVisible && (
                 <button
                   type="button"
                   className="cp-btn cp-btn-rot"
@@ -1028,7 +1028,7 @@ export function ContextPanel({
                   Notfall
                 </button>
               )}
-              {teil.notfall_aktiv && (
+              {subOrder.notfall_aktiv && (
                 <button
                   type="button"
                   className="cp-btn"
@@ -1038,11 +1038,11 @@ export function ContextPanel({
                   Notfall zurücknehmen
                 </button>
               )}
-              {teil.status !== 'ANGEBOT' && (
+              {subOrder.status !== 'ANGEBOT' && (
                 <label className="cp-toggle">
                   <input
                     type="checkbox"
-                    checked={teil.kundenfreigabe_erforderlich}
+                    checked={subOrder.kundenfreigabe_erforderlich}
                     disabled={busy}
                     onChange={e => void handleCustomerApprovalToggle(e.target.checked)}
                   />
@@ -1060,7 +1060,7 @@ export function ContextPanel({
               <button
                 type="button"
                 className="cp-btn cp-btn-grau"
-                disabled={stornoLaeuft}
+                disabled={cancelInProgress}
                 onClick={() => void handleStorno()}
               >
                 Teilauftrag stornieren
@@ -1068,12 +1068,12 @@ export function ContextPanel({
               <button
                 type="button"
                 className="cp-btn cp-btn-rot"
-                disabled={teil.status !== 'UNVOLLSTAENDIG' || loeschenLaeuft}
+                disabled={subOrder.status !== 'UNVOLLSTAENDIG' || deleteInProgress}
                 onClick={() => void handleLoeschen()}
               >
                 Teilauftrag löschen
               </button>
-              {teil.status !== 'UNVOLLSTAENDIG' && (
+              {subOrder.status !== 'UNVOLLSTAENDIG' && (
                 <p className="cp-sublabel">Nur löschbar im Status Unvollständig</p>
               )}
             </div>
@@ -1089,12 +1089,12 @@ export function ContextPanel({
         )}
       </div>
 
-      {hinweise.length > 0 && (
+      {hints.length > 0 && (
         <div className="cp-sektion">
           <h2>Hinweise</h2>
-          {hinweise.map((h, i) => (
+          {hints.map((hint, i) => (
             <p key={i} className="cp-hinweis">
-              {h}
+              {hint}
             </p>
           ))}
         </div>
@@ -1124,10 +1124,10 @@ export function ContextPanel({
       <HistoryPanel
         activeOrderId={order.id}
         contextRefreshTick={contextRefreshTick}
-        subOrders={teilBereichListe}
+        subOrders={subOrderAreaList}
       />
 
-      {dialogNotfall && teil && (
+      {emergencyDialogOpen && subOrder && (
         <div
           className="cp-modal-bg"
           role="dialog"
@@ -1140,18 +1140,18 @@ export function ContextPanel({
             <textarea
               className="cp-textarea"
               rows={3}
-              value={notfallBegr}
-              onChange={e => setNotfallBegr(e.target.value)}
+              value={emergencyReason}
+              onChange={e => setEmergencyReason(e.target.value)}
               placeholder="Begründung …"
             />
             <div className="cp-modal-bar">
-              <button type="button" className="cp-btn" onClick={() => setDialogNotfall(false)}>
+              <button type="button" className="cp-btn" onClick={() => setEmergencyDialogOpen(false)}>
                 Abbrechen
               </button>
               <button
                 type="button"
                 className="cp-btn"
-                disabled={!notfallBegr.trim() || busy}
+                disabled={!emergencyReason.trim() || busy}
                 onClick={() => void handleNotfallBestaetigt()}
               >
                 Bestätigen
@@ -1161,7 +1161,7 @@ export function ContextPanel({
         </div>
       )}
 
-      {dialogProduktionBestand0 && teil && (
+      {productionStockZeroDialogOpen && subOrder && (
         <div
           className="cp-modal-bg"
           role="dialog"
@@ -1169,10 +1169,10 @@ export function ContextPanel({
           aria-label="Bestand"
         >
           <div className="cp-modal">
-            <h3>{produktionBestandModalTitel(stempelBestand, kissenBestand)}</h3>
+            <h3>{productionStockModalTitle(stampStock, padStock)}</h3>
             <p className="cp-hinweis">Trotzdem auf Produktion setzen?</p>
             <div className="cp-modal-bar">
-              <button type="button" className="cp-btn" onClick={() => setDialogProduktionBestand0(false)}>
+              <button type="button" className="cp-btn" onClick={() => setProductionStockZeroDialogOpen(false)}>
                 Abbrechen
               </button>
               <button
@@ -1180,8 +1180,8 @@ export function ContextPanel({
                 className="cp-btn"
                 disabled={busy}
                 onClick={() => {
-                  setDialogProduktionBestand0(false)
-                  void ausfuehrenProduktionFrei()
+                  setProductionStockZeroDialogOpen(false)
+                  void executeProductionRelease()
                 }}
               >
                 Trotzdem freigeben
@@ -1191,7 +1191,7 @@ export function ContextPanel({
         </div>
       )}
 
-      {dialogCustomerApprovalFile && teil && (
+      {dialogCustomerApprovalFile && subOrder && (
         <div
           className="cp-modal-bg"
           role="dialog"
