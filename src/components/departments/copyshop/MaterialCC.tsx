@@ -2,27 +2,27 @@ import type { CopyShopDetailJson } from '../../../types/copyshop'
 import '../../WorkArea.css'
 
 export type MatCcProps = {
-  d: CopyShopDetailJson
-  fe: (k: string) => string
-  f: Record<string, string>
-  pruef: boolean
-  patchL: (p: CopyShopDetailJson) => void
+  detail: CopyShopDetailJson
+  fieldErrorClass: (fieldName: string) => string
+  validationErrors: Record<string, string>
+  shouldValidate: boolean
+  patchLocal: (patch: CopyShopDetailJson) => void
   commit: () => void
-  speichDetail: (d: CopyShopDetailJson) => void
+  applyDetail: (detail: CopyShopDetailJson) => void
   /** z. B. material_cc / cc_umschlag */
-  kMat: string
-  kSon: string
+  materialKey: string
+  customKey: string
   label: string
 }
 
 const CC_GRAMM = ['80G', '100G', '120G', '160G', '200G', '250G', '300G', 'SONSTIGE'] as const
 
-export function MaterialCC(p: MatCcProps) {
-  const { d, fe, f, pruef, patchL, commit, speichDetail, kMat, kSon, label } = p
-  const dr = d as Record<string, string | null | undefined>
-  const mat = String(dr[kMat] ?? '')
-  const feMat = fe(kMat)
-  const feSon = fe(kSon)
+export function MaterialCC(props: MatCcProps) {
+  const { detail, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit, applyDetail, materialKey, customKey, label } = props
+  const dr = detail as Record<string, string | null | undefined>
+  const mat = String(dr[materialKey] ?? '')
+  const feMat = fieldErrorClass(materialKey)
+  const feSon = fieldErrorClass(customKey)
   return (
     <>
       <div className="ber-zeile">
@@ -34,8 +34,8 @@ export function MaterialCC(p: MatCcProps) {
             onChange={e => {
               const v = e.target.value
               if (v === 'SONSTIGE')
-                speichDetail({ ...d, [kMat]: v } as CopyShopDetailJson)
-              else speichDetail({ ...d, [kMat]: v, [kSon]: null } as CopyShopDetailJson)
+                applyDetail({ ...detail, [materialKey]: v } as CopyShopDetailJson)
+              else applyDetail({ ...detail, [materialKey]: v, [customKey]: null } as CopyShopDetailJson)
             }}
           >
             <option value="">—</option>
@@ -46,7 +46,7 @@ export function MaterialCC(p: MatCcProps) {
             ))}
             <option value="SONSTIGE">Sonstige</option>
           </select>
-          {pruef && f[kMat] && <p className="ber-err">{f[kMat]}</p>}
+          {shouldValidate && validationErrors[materialKey] && <p className="ber-err">{validationErrors[materialKey]}</p>}
         </div>
       </div>
       {mat === 'SONSTIGE' && (
@@ -56,11 +56,11 @@ export function MaterialCC(p: MatCcProps) {
             <textarea
               className={'ber-inp ber-ta' + feSon}
               rows={2}
-              value={String(dr[kSon] ?? '')}
-              onChange={e => patchL({ [kSon]: e.target.value } as CopyShopDetailJson)}
+              value={String(dr[customKey] ?? '')}
+              onChange={e => patchLocal({ [customKey]: e.target.value } as CopyShopDetailJson)}
               onBlur={commit}
             />
-            {pruef && f[kSon] && <p className="ber-err">{f[kSon]}</p>}
+            {shouldValidate && validationErrors[customKey] && <p className="ber-err">{validationErrors[customKey]}</p>}
           </div>
         </div>
       )}

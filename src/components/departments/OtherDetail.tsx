@@ -16,7 +16,7 @@ type Props = {
   orderFiles?: FileRecord[]
 }
 
-type ProduktRow = {
+type ProductRow = {
   id: string
   teilauftrag_id: string
   bereich: string
@@ -25,24 +25,24 @@ type ProduktRow = {
   erstellt_am: string | null
 }
 
-const SONSTIGE_TYP = 'SONSTIGE' as const
+const SONSTIGE_TYPE = 'SONSTIGE' as const
 
-function sonstigeRoh(subOrder: TeilauftragRow): OtherDetailJson {
-  const d = subOrder.detail
-  return d && typeof d === 'object' && !Array.isArray(d) ? { ...d } : {}
+function extractOtherRaw(subOrder: TeilauftragRow): OtherDetailJson {
+  const rawDetail = subOrder.detail
+  return rawDetail && typeof rawDetail === 'object' && !Array.isArray(rawDetail) ? { ...rawDetail } : {}
 }
 
-type BlK = {
-  d: OtherDetailJson
-  fe: (k: string) => string
-  pruef: boolean
-  f: Record<string, string>
-  patchL: (p: OtherDetailJson) => void
+type DetailBlockProps = {
+  detail: OtherDetailJson
+  fieldErrorClass: (fieldKey: string) => string
+  shouldValidate: boolean
+  validationErrors: Record<string, string>
+  patchLocal: (patch: OtherDetailJson) => void
   commit: () => void
-  speichDetail: (d: OtherDetailJson) => void
+  applyDetail: (newDetail: OtherDetailJson) => void
 }
 
-type ProduktFileRecordZuordnung = { zuordnungId: string; dateiId: string }
+type ProductFileAssignment = { assignmentId: string; fileId: string }
 
 export function OtherDetail({
   subOrder,
@@ -50,21 +50,21 @@ export function OtherDetail({
   onDetailPatch,
   orderFiles = [],
 }: Props) {
-  const { fehler: toastFehler } = useToast()
+  const { fehler: toastError } = useToast()
 
-  const [produkte, setProdukte] = useState<ProduktRow[]>([])
-  const [productFiles, setProduktDateien] = useState<Record<string, ProduktFileRecordZuordnung[]>>({})
+  const [products, setProducts] = useState<ProductRow[]>([])
+  const [productFiles, setProductFiles] = useState<Record<string, ProductFileAssignment[]>>({})
   const productFilesRef = useRef(productFiles)
   productFilesRef.current = productFiles
-  const [produkteLaden, setProdukteLaden] = useState(false)
+  const [productsLoading, setProductsLoading] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [entsperrt, setEntsperrt] = useState(false)
+  const [unlocked, setUnlocked] = useState(false)
   const [formFileRecordIds, setFormFileRecordIds] = useState<string[]>([])
 
-  const [detail, setDetail] = useState<OtherDetailJson>(sonstigeRoh(subOrder))
-  const detailR = useRef(detail)
+  const [detail, setDetail] = useState<OtherDetailJson>(extractOtherRaw(subOrder))
+  const detailRef = useRef(detail)
   useEffect(() => {
-    detailR.current = detail
+    detailRef.current = detail
   }, [detail])
 
   useEffect(() => {
@@ -73,21 +73,21 @@ export function OtherDetail({
   }, [subOrder.id])
 
   useEffect(() => {
-    setEntsperrt(false)
+    setUnlocked(false)
   }, [subOrder.id])
 
   useEffect(() => {
     if (editingId !== null) return
-    const d = sonstigeRoh(subOrder)
-    setDetail(d)
-    detailR.current = d
+    const extracted = extractOtherRaw(subOrder)
+    setDetail(extracted)
+    detailRef.current = extracted
   }, [subOrder, editingId])
 
   const loadFilesForProducts = useCallback(
-    async (produktRows: ProduktRow[]) => {
-      const ids = produktRows.map(p => p.id)
+    async (productRows: ProductRow[]) => {
+      const ids = productRows.map(productRow => productRow.id)
       if (ids.length === 0) {
-        setProduktDateien({})
+        setProductFiles({})
         return
       }
       const { data, error } = await supabase
@@ -95,203 +95,203 @@ export function OtherDetail({
         .select('id, produkt_id, datei_id')
         .in('produkt_id', ids)
       if (error) {
-        toastFehler('FileRecord-Zuordnungen konnten nicht geladen werden')
-        setProduktDateien({})
+        toastError('FileRecord-Zuordnungen konnten nicht geladen werden')
+        setProductFiles({})
         return
       }
       const rows = (data ?? []) as Pick<
         Database['public']['Tables']['produkt_dateien']['Row'],
         'id' | 'produkt_id' | 'datei_id'
       >[]
-      const next: Record<string, ProduktFileRecordZuordnung[]> = {}
+      const next: Record<string, ProductFileAssignment[]> = {}
       for (const row of rows) {
         const list = next[row.produkt_id] ?? (next[row.produkt_id] = [])
-        list.push({ zuordnungId: row.id, dateiId: row.datei_id })
+        list.push({ assignmentId: row.id, fileId: row.datei_id })
       }
-      setProduktDateien(next)
+      setProductFiles(next)
     },
-    [toastFehler],
+    [toastError],
   )
 
-  const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
+  const reloadProducts = useCallback(async (): Promise<ProductRow[]> => {
     if (!subOrder.id) {
       await loadFilesForProducts([])
       return []
     }
-    setProdukteLaden(true)
+    setProductsLoading(true)
     const { data, error } = await supabase
       .from('teilauftrag_produkte')
       .select('*')
       .eq('teilauftrag_id', subOrder.id)
       .eq('bereich', 'SONSTIGE')
       .order('sort_order')
-    setProdukteLaden(false)
+    setProductsLoading(false)
     if (error) {
-      toastFehler('Produkte konnten nicht geladen werden')
-      setProdukte([])
+      toastError('Produkte konnten nicht geladen werden')
+      setProducts([])
       await loadFilesForProducts([])
       return []
     }
     const rows = (data ?? []) as Database['public']['Tables']['teilauftrag_produkte']['Row'][]
-    const mapped: ProduktRow[] = rows.map(r => ({
-      id: r.id,
-      teilauftrag_id: r.teilauftrag_id,
-      bereich: r.bereich,
-      detail: (r.detail ?? {}) as OtherDetailJson,
-      sort_order: r.sort_order,
-      erstellt_am: r.erstellt_am,
+    const mapped: ProductRow[] = rows.map(row => ({
+      id: row.id,
+      teilauftrag_id: row.teilauftrag_id,
+      bereich: row.bereich,
+      detail: (row.detail ?? {}) as OtherDetailJson,
+      sort_order: row.sort_order,
+      erstellt_am: row.erstellt_am,
     }))
-    setProdukte(mapped)
+    setProducts(mapped)
     await loadFilesForProducts(mapped)
     return mapped
-  }, [subOrder.id, toastFehler, loadFilesForProducts])
+  }, [subOrder.id, toastError, loadFilesForProducts])
 
   useEffect(() => {
-    void reloadProdukte()
-  }, [reloadProdukte])
+    void reloadProducts()
+  }, [reloadProducts])
 
-  const dateiZuProduktZuordnen = useCallback(
-    async (produktId: string, dateiId: string, produktRowsForReload?: ProduktRow[]) => {
-      const reloadRows = produktRowsForReload ?? produkte
-      if (productFilesRef.current[produktId]?.some(z => z.dateiId === dateiId)) return
-      const ins: Database['public']['Tables']['produkt_dateien']['Insert'] = {
-        produkt_id: produktId,
-        datei_id: dateiId,
+  const assignFileToProduct = useCallback(
+    async (productId: string, fileId: string, productRowsForReload?: ProductRow[]) => {
+      const reloadRows = productRowsForReload ?? products
+      if (productFilesRef.current[productId]?.some(assignment => assignment.fileId === fileId)) return
+      const fileAssignmentInsert: Database['public']['Tables']['produkt_dateien']['Insert'] = {
+        produkt_id: productId,
+        datei_id: fileId,
       }
-      const { error } = await supabase.from('produkt_dateien').insert(ins)
+      const { error } = await supabase.from('produkt_dateien').insert(fileAssignmentInsert)
       if (error) {
-        toastFehler('FileRecord konnte nicht zugeordnet werden')
+        toastError('FileRecord konnte nicht zugeordnet werden')
         return
       }
       await loadFilesForProducts(reloadRows)
     },
-    [toastFehler, produkte, loadFilesForProducts],
+    [toastError, products, loadFilesForProducts],
   )
 
-  const dateiVonProduktEntfernen = useCallback(
-    async (zuordnungId: string, produktRowsForReload?: ProduktRow[]) => {
-      const { error } = await supabase.from('produkt_dateien').delete().eq('id', zuordnungId)
+  const removeFileFromProduct = useCallback(
+    async (assignmentId: string, productRowsForReload?: ProductRow[]) => {
+      const { error } = await supabase.from('produkt_dateien').delete().eq('id', assignmentId)
       if (error) {
-        toastFehler('Zuordnung konnte nicht entfernt werden')
+        toastError('Zuordnung konnte nicht entfernt werden')
         return
       }
-      await loadFilesForProducts(produktRowsForReload ?? produkte)
+      await loadFilesForProducts(productRowsForReload ?? products)
     },
-    [toastFehler, produkte, loadFilesForProducts],
+    [toastError, products, loadFilesForProducts],
   )
 
   const resetForm = useCallback(() => {
     setEditingId(null)
     setFormFileRecordIds([])
-    const d = sonstigeRoh(subOrder)
-    setDetail(d)
-    detailR.current = d
+    const extracted = extractOtherRaw(subOrder)
+    setDetail(extracted)
+    detailRef.current = extracted
   }, [subOrder])
 
-  const sonstigeFehler = validateOtherDetail(detail, subOrderStatus)
-  const pruef = subOrderStatus !== 'ANGEBOT'
-  const fe = (k: string) => (pruef && sonstigeFehler[k] ? ' ber-inp--err' : '')
+  const validationErrors = validateOtherDetail(detail, subOrderStatus)
+  const shouldValidate = subOrderStatus !== 'ANGEBOT'
+  const fieldErrorClass = (fieldKey: string) => (shouldValidate && validationErrors[fieldKey] ? ' ber-inp--err' : '')
 
-  const speich = useCallback(
-    async (d: OtherDetailJson) => {
-      setDetail(d)
-      detailR.current = d
+  const saveDetail = useCallback(
+    async (json: OtherDetailJson) => {
+      setDetail(json)
+      detailRef.current = json
       if (editingId !== null) return
-      await onDetailPatch({ typ: subOrder.typ?.trim() ? subOrder.typ : SONSTIGE_TYP, detail: d })
+      await onDetailPatch({ typ: subOrder.typ?.trim() ? subOrder.typ : SONSTIGE_TYPE, detail: json })
     },
     [onDetailPatch, subOrder.typ, editingId]
   )
 
-  const patchL = useCallback((p: OtherDetailJson) => {
-    setDetail(d0 => {
-      const n = { ...d0, ...p }
-      detailR.current = n
-      return n
+  const patchLocal = useCallback((patch: OtherDetailJson) => {
+    setDetail(currentDetail => {
+      const merged = { ...currentDetail, ...patch }
+      detailRef.current = merged
+      return merged
     })
   }, [])
 
   const commit = useCallback(() => {
-    void speich({ ...detailR.current })
-  }, [speich])
+    void saveDetail({ ...detailRef.current })
+  }, [saveDetail])
 
-  const speichDetail = useCallback(
-    (d: OtherDetailJson) => {
-      setDetail(d)
-      detailR.current = d
-      void speich(d)
+  const applyDetail = useCallback(
+    (newDetail: OtherDetailJson) => {
+      setDetail(newDetail)
+      detailRef.current = newDetail
+      void saveDetail(newDetail)
     },
-    [speich]
+    [saveDetail]
   )
 
-  const p: BlK = { d: detail, fe, pruef, f: sonstigeFehler, patchL, commit, speichDetail }
+  const detailBlock: DetailBlockProps = { detail, fieldErrorClass, shouldValidate, validationErrors, patchLocal, commit, applyDetail }
 
-  const formOk = useMemo(() => Object.keys(sonstigeFehler).length === 0, [sonstigeFehler])
+  const formOk = useMemo(() => Object.keys(validationErrors).length === 0, [validationErrors])
 
-  const brauchtEntsperr =
-    (subOrderStatus === 'PREPRESS_BEREIT' || subOrderStatus === 'PRODUKTION_BEREIT') && !entsperrt
+  const requiresUnlock =
+    (subOrderStatus === 'PREPRESS_BEREIT' || subOrderStatus === 'PRODUKTION_BEREIT') && !unlocked
 
-  const patchTyp = subOrder.typ?.trim() ? subOrder.typ : SONSTIGE_TYP
+  const patchType = subOrder.typ?.trim() ? subOrder.typ : SONSTIGE_TYPE
 
   const handleAddOrSave = useCallback(async () => {
-    const d = { ...detailR.current }
-    const errors = validateOtherDetail(d, subOrderStatus)
+    const currentDetail = { ...detailRef.current }
+    const errors = validateOtherDetail(currentDetail, subOrderStatus)
     if (Object.keys(errors).length > 0) return
 
-    const detailMitTyp = { ...d, typ: SONSTIGE_TYP }
+    const detailWithType = { ...currentDetail, typ: SONSTIGE_TYPE }
 
     if (editingId) {
       const patch: Database['public']['Tables']['teilauftrag_produkte']['Update'] = {
-        detail: detailMitTyp as Json,
+        detail: detailWithType as Json,
       }
       const { error } = await supabase.from('teilauftrag_produkte').update(patch).eq('id', editingId)
       if (error) {
-        toastFehler('Produkt konnte nicht gespeichert werden')
+        toastError('Produkt konnte nicht gespeichert werden')
         return
       }
-      for (const z of [...(productFiles[editingId] ?? [])]) {
-        await dateiVonProduktEntfernen(z.zuordnungId)
+      for (const assignment of [...(productFiles[editingId] ?? [])]) {
+        await removeFileFromProduct(assignment.assignmentId)
       }
       for (const fid of formFileRecordIds) {
-        await dateiZuProduktZuordnen(editingId, fid)
+        await assignFileToProduct(editingId, fid)
       }
-      const list = await reloadProdukte()
+      const list = await reloadProducts()
       await onDetailPatch({
-        typ: patchTyp,
+        typ: patchType,
         detail: {
-          ...sonstigeRoh(subOrder),
-          hat_produkte: list.length > 0,
+          ...extractOtherRaw(subOrder),
+          hat_products: list.length > 0,
         },
       })
       resetForm()
       return
     }
 
-    const ins: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
+    const productInsert: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
       teilauftrag_id: subOrder.id,
       bereich: 'SONSTIGE',
-      detail: detailMitTyp as Json,
-      sort_order: produkte.length,
+      detail: detailWithType as Json,
+      sort_order: products.length,
     }
-    const { data: insRow, error } = await supabase.from('teilauftrag_produkte').insert(ins).select('id').single()
+    const { data: insertedRow, error } = await supabase.from('teilauftrag_produkte').insert(productInsert).select('id').single()
     if (error) {
-      toastFehler('Produkt konnte nicht hinzugefügt werden')
+      toastError('Produkt konnte nicht hinzugefügt werden')
       return
     }
-    const newId = insRow?.id != null ? String(insRow.id) : ''
+    const newId = insertedRow?.id != null ? String(insertedRow.id) : ''
     if (!newId) {
-      toastFehler('Produkt konnte nicht hinzugefügt werden')
+      toastError('Produkt konnte nicht hinzugefügt werden')
       return
     }
-    let list = await reloadProdukte()
+    let list = await reloadProducts()
     for (const fid of formFileRecordIds) {
-      await dateiZuProduktZuordnen(newId, fid, list)
+      await assignFileToProduct(newId, fid, list)
     }
-    list = await reloadProdukte()
+    list = await reloadProducts()
     await onDetailPatch({
-      typ: patchTyp,
+      typ: patchType,
       detail: {
-        ...sonstigeRoh(subOrder),
-        hat_produkte: list.length > 0,
+        ...extractOtherRaw(subOrder),
+        hat_products: list.length > 0,
       },
     })
     resetForm()
@@ -299,45 +299,44 @@ export function OtherDetail({
     subOrder,
     subOrderStatus,
     editingId,
-    produkte.length,
+    products.length,
     productFiles,
     formFileRecordIds,
-    toastFehler,
-    reloadProdukte,
+    toastError,
+    reloadProducts,
     resetForm,
     onDetailPatch,
-    patchTyp,
-    dateiZuProduktZuordnen,
-    dateiVonProduktEntfernen,
+    patchType,
+    assignFileToProduct,
+    removeFileFromProduct,
   ])
 
   const handleDelete = useCallback(
     async (id: string) => {
       const { error } = await supabase.from('teilauftrag_produkte').delete().eq('id', id)
       if (error) {
-        toastFehler('Produkt konnte nicht gelöscht werden')
+        toastError('Produkt konnte nicht gelöscht werden')
         return
       }
-      const list = await reloadProdukte()
+      const list = await reloadProducts()
       await onDetailPatch({
-        typ: patchTyp,
+        typ: patchType,
         detail: {
-          ...sonstigeRoh(subOrder),
-          hat_produkte: list.length > 0,
+          ...extractOtherRaw(subOrder),
+          hat_products: list.length > 0,
         },
       })
       if (editingId === id) resetForm()
     },
-    [toastFehler, reloadProdukte, editingId, resetForm, onDetailPatch, subOrder, patchTyp]
+    [toastError, reloadProducts, editingId, resetForm, onDetailPatch, subOrder, patchType]
   )
 
-  const handleEdit = useCallback((row: ProduktRow) => {
+  const handleEdit = useCallback((row: ProductRow) => {
     setEditingId(row.id)
-    setFormFileRecordIds(productFiles[row.id]?.map(z => z.dateiId) ?? [])
-    const raw = row.detail ?? {}
-    const dd = { ...(raw as OtherDetailJson) }
-    setDetail(dd)
-    detailR.current = dd
+    setFormFileRecordIds(productFiles[row.id]?.map(assignment => assignment.fileId) ?? [])
+    const cleanDetail = { ...(row.detail ?? {}) as OtherDetailJson }
+    setDetail(cleanDetail)
+    detailRef.current = cleanDetail
   }, [productFiles])
 
   return (
@@ -348,20 +347,20 @@ export function OtherDetail({
       <div className="ber-zeile" style={{ marginBottom: 8 }}>
         <span className="ber-lbl">Typ</span>
         <p className="td-wert td-mono" style={{ margin: 0 }}>
-          {SONSTIGE_TYP}
+          {SONSTIGE_TYPE}
         </p>
       </div>
 
-      <BerZeile
-        l="Beschreibung / Inhalt"
-        e={pruef && sonstigeFehler.beschreibung ? sonstigeFehler.beschreibung : undefined}
-        c={
+      <FieldRow
+        label="Beschreibung / Inhalt"
+        error={shouldValidate && validationErrors.beschreibung ? validationErrors.beschreibung : undefined}
+        content={
           <div>
             <textarea
-              className={'ber-inp' + fe('beschreibung')}
+              className={'ber-inp' + fieldErrorClass('beschreibung')}
               rows={8}
               value={String(detail['beschreibung'] ?? '')}
-              onChange={e => patchL({ beschreibung: e.target.value || null } as OtherDetailJson)}
+              onChange={e => patchLocal({ beschreibung: e.target.value || null } as OtherDetailJson)}
               onBlur={commit}
             />
             <p className="ber-hinweis" style={{ marginTop: 6, marginBottom: 0 }}>
@@ -371,10 +370,10 @@ export function OtherDetail({
         }
       />
 
-      <NmbStueckzahlOptional {...p} />
+      <OptionalQuantityInput {...detailBlock} />
 
       {orderFiles.length > 0 && (
-        <BerZeile l="Dateien">
+        <FieldRow label="Dateien">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
             {formFileRecordIds.map(fid => (
               <span
@@ -391,14 +390,14 @@ export function OtherDetail({
                 }}
               >
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {orderFiles.find(df => df.id === fid)?.anzeigename ?? fid}
+                  {orderFiles.find(file => file.id === fid)?.anzeigename ?? fid}
                 </span>
                 <button
                   type="button"
                   className="cp-btn cp-btn-grau"
                   style={{ minWidth: 22, padding: '0 6px', fontSize: 14, lineHeight: 1 }}
                   title="Entfernen"
-                  onClick={() => setFormFileRecordIds(prev => prev.filter(x => x !== fid))}
+                  onClick={() => setFormFileRecordIds(prev => prev.filter(id => id !== fid))}
                 >
                   ×
                 </button>
@@ -410,45 +409,45 @@ export function OtherDetail({
               style={{ fontSize: 12, maxWidth: 260 }}
               defaultValue=""
               onChange={e => {
-                const v = e.target.value
-                if (v && !formFileRecordIds.includes(v)) {
-                  setFormFileRecordIds(prev => [...prev, v])
+                const selected = e.target.value
+                if (selected && !formFileRecordIds.includes(selected)) {
+                  setFormFileRecordIds(prev => [...prev, selected])
                 }
               }}
             >
               <option value="">FileRecord hinzufügen…</option>
               {orderFiles
-                .filter(df => !formFileRecordIds.includes(df.id))
-                .map(df => (
-                  <option key={df.id} value={df.id}>
-                    {df.anzeigename}
+                .filter(file => !formFileRecordIds.includes(file.id))
+                .map(file => (
+                  <option key={file.id} value={file.id}>
+                    {file.anzeigename}
                   </option>
                 ))}
             </select>
           </div>
-        </BerZeile>
+        </FieldRow>
       )}
 
       <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
         <button
           type="button"
           className="cp-btn"
-          disabled={brauchtEntsperr ? false : !formOk}
+          disabled={requiresUnlock ? false : !formOk}
           onClick={() => {
-            if (brauchtEntsperr) {
+            if (requiresUnlock) {
               if (
                 window.confirm(
                   'Teilauftrag ist bereits freigegeben.\nWirklich Produkte bearbeiten?',
                 )
               ) {
-                setEntsperrt(true)
+                setUnlocked(true)
               }
               return
             }
             void handleAddOrSave()
           }}
         >
-          {brauchtEntsperr
+          {requiresUnlock
             ? 'Bearbeitung entsperren'
             : editingId
               ? 'Speichern'
@@ -460,7 +459,7 @@ export function OtherDetail({
           </button>
         )}
       </div>
-      {entsperrt && (
+      {unlocked && (
         <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
           Bearbeitung entsperrt — Änderungen setzen Status zurück
         </p>
@@ -470,11 +469,11 @@ export function OtherDetail({
         <h3 className="wa-dl-titel" style={{ margin: 0 }}>
           Produkte
         </h3>
-        {produkteLaden ? (
+        {productsLoading ? (
           <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
             Lädt Produkte …
           </p>
-        ) : produkte.length === 0 ? (
+        ) : products.length === 0 ? (
           <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
             Noch keine Produkte.
           </p>
@@ -498,27 +497,27 @@ export function OtherDetail({
                 </tr>
               </thead>
               <tbody>
-                {produkte.map(r => {
-                  const pd = (r.detail ?? {}) as Record<string, unknown>
-                  const st = pd.stueckzahl ?? ''
-                  const beschr =
-                    String(pd.beschreibung ?? '')
+                {products.map(product => {
+                  const productDetail = (product.detail ?? {}) as Record<string, unknown>
+                  const quantity = productDetail.stueckzahl ?? ''
+                  const description =
+                    String(productDetail.beschreibung ?? '')
                       .trim()
                       .slice(0, 72) || '—'
-                  const zuo = productFiles[r.id] ?? []
+                  const fileAssignments = productFiles[product.id] ?? []
                   return (
-                    <tr key={r.id}>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{SONSTIGE_TYP}</td>
+                    <tr key={product.id}>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{SONSTIGE_TYPE}</td>
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
-                        {String(st || '—')}
+                        {String(quantity || '—')}
                       </td>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{beschr}</td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{description}</td>
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          <button type="button" className="cp-btn cp-btn-grau" onClick={() => handleEdit(r)}>
+                          <button type="button" className="cp-btn cp-btn-grau" onClick={() => handleEdit(product)}>
                             Bearbeiten
                           </button>
-                          <button type="button" className="cp-btn cp-btn-rot" onClick={() => void handleDelete(r.id)}>
+                          <button type="button" className="cp-btn cp-btn-rot" onClick={() => void handleDelete(product.id)}>
                             Löschen
                           </button>
                         </div>
@@ -529,12 +528,12 @@ export function OtherDetail({
                             color: 'var(--color-muted-fg, #6b7280)',
                           }}
                         >
-                          {zuo.length === 0
+                          {fileAssignments.length === 0
                             ? '—'
-                            : zuo
+                            : fileAssignments
                                 .map(
-                                  z =>
-                                    orderFiles.find(df => df.id === z.dateiId)?.anzeigename ?? z.dateiId,
+                                  assignment =>
+                                    orderFiles.find(file => file.id === assignment.fileId)?.anzeigename ?? assignment.fileId,
                                 )
                                 .join(', ')}
                         </div>
@@ -551,41 +550,40 @@ export function OtherDetail({
   )
 }
 
-function BerZeile({ l, c, e, children }: { l: string; c?: React.ReactNode; e?: string; children?: React.ReactNode }) {
-  const inhalt = c ?? children
+function FieldRow({ label, content, error, children }: { label: string; content?: React.ReactNode; error?: string; children?: React.ReactNode }) {
+  const body = content ?? children
   return (
     <div className="ber-zeile">
-      <span className="ber-lbl">{l}</span>
+      <span className="ber-lbl">{label}</span>
       <div>
-        {inhalt}
-        {e && <p className="ber-err">{e}</p>}
+        {body}
+        {error && <p className="ber-err">{error}</p>}
       </div>
     </div>
   )
 }
 
-function NmbStueckzahlOptional(a: BlK) {
-  const { d, fe, f, pruef, patchL, commit } = a
-  const raw = d.stueckzahl
+function OptionalQuantityInput({ detail, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit }: DetailBlockProps) {
+  const rawValue = detail.stueckzahl
   let numForInput: number | '' = ''
-  if (typeof raw === 'number' && Number.isInteger(raw) && raw >= 1) numForInput = raw
-  else if (typeof raw === 'string' && raw.trim() !== '') {
-    const n = parseInt(raw, 10)
-    if (Number.isInteger(n) && n >= 1) numForInput = n
+  if (typeof rawValue === 'number' && Number.isInteger(rawValue) && rawValue >= 1) numForInput = rawValue
+  else if (typeof rawValue === 'string' && rawValue.trim() !== '') {
+    const parsed = parseInt(rawValue, 10)
+    if (Number.isInteger(parsed) && parsed >= 1) numForInput = parsed
   }
   return (
-    <BerZeile
-      l="Stückzahl (optional)"
-      e={pruef && f.stueckzahl ? f.stueckzahl : undefined}
-      c={
+    <FieldRow
+      label="Stückzahl (optional)"
+      error={shouldValidate && validationErrors.stueckzahl ? validationErrors.stueckzahl : undefined}
+      content={
         <div>
           <input
             type="number"
-            className={'ber-inp' + fe('stueckzahl')}
+            className={'ber-inp' + fieldErrorClass('stueckzahl')}
             value={numForInput}
             onChange={e => {
-              const v = e.target.value
-              patchL({ stueckzahl: v === '' ? null : parseInt(v, 10) } as OtherDetailJson)
+              const inputValue = e.target.value
+              patchLocal({ stueckzahl: inputValue === '' ? null : parseInt(inputValue, 10) } as OtherDetailJson)
             }}
             onBlur={commit}
             min={1}

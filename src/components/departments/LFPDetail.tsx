@@ -14,7 +14,7 @@ import { DateInput } from '../DateInput'
 import { useToast } from '../Toast'
 import '../WorkArea.css'
 
-type ProduktRow = {
+type ProductRow = {
   id: string
   teilauftrag_id: string
   bereich: string
@@ -27,28 +27,25 @@ type Props = {
   subOrder: TeilauftragRow
   subOrderStatus: AuftragStatus
   onDetailPatch: (patch: { typ?: string | null; detail: LfpDetail | null }) => Promise<void>
-  /** Auftragsdateien für Zuordnung zu Produktzeilen */
   orderFiles?: FileRecord[]
 }
 
-function lfpRoh(subOrder: TeilauftragRow): LfpDetail {
-  const d = subOrder.detail
-  return d && typeof d === 'object' && !Array.isArray(d) ? { ...d } : {}
+function extractLfpRaw(subOrder: TeilauftragRow): LfpDetail {
+  const rawDetail = subOrder.detail
+  return rawDetail && typeof rawDetail === 'object' && !Array.isArray(rawDetail) ? { ...rawDetail } : {}
 }
 
-type BlK = {
-  d: LfpDetail
-  fe: (k: string) => string
-  pruef: boolean
-  f: Record<string, string>
-  patchL: (p: LfpDetail) => void
+type DetailBlockProps = {
+  detail: LfpDetail
+  fieldErrorClass: (fieldKey: string) => string
+  shouldValidate: boolean
+  validationErrors: Record<string, string>
+  patchLocal: (patch: LfpDetail) => void
   commit: () => void
-  /** Komplettes detail in State schreiben und sofort persistieren (z. B. Bauzaunbanner-Defaults) */
-  speichDetail: (d: LfpDetail) => void
+  applyDetail: (newDetail: LfpDetail) => void
 }
 
-/** produkt_id → Zuordnungen (datei_id + produkt_dateien-Zeile für Entfernen) */
-type ProduktFileRecordZuordnung = { zuordnungId: string; dateiId: string }
+type ProductFileAssignment = { assignmentId: string; fileId: string }
 
 export function LFPDetail({
   subOrder,
@@ -56,27 +53,27 @@ export function LFPDetail({
   onDetailPatch,
   orderFiles = [],
 }: Props) {
-  const { fehler } = useToast()
+  const { fehler: toastError } = useToast()
 
-  const [produkte, setProdukte] = useState<ProduktRow[]>([])
-  const [productFiles, setProduktDateien] = useState<Record<string, ProduktFileRecordZuordnung[]>>({})
+  const [products, setProducts] = useState<ProductRow[]>([])
+  const [productFiles, setProductFiles] = useState<Record<string, ProductFileAssignment[]>>({})
   const productFilesRef = useRef(productFiles)
   productFilesRef.current = productFiles
-  const [produkteLaden, setProdukteLaden] = useState(false)
+  const [productsLoading, setProductsLoading] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [entsperrt, setEntsperrt] = useState(false)
+  const [unlocked, setUnlocked] = useState(false)
   const [formFileRecordIds, setFormFileRecordIds] = useState<string[]>([])
 
-  const [typ, setTyp] = useState<string | null>(subOrder.typ)
-  const [detail, setDetail] = useState<LfpDetail>(lfpRoh(subOrder))
-  const detailR = useRef(detail)
-  const typR = useRef(typ)
+  const [selectedType, setSelectedType] = useState<string | null>(subOrder.typ)
+  const [detail, setDetail] = useState<LfpDetail>(extractLfpRaw(subOrder))
+  const detailRef = useRef(detail)
+  const typeRef = useRef(selectedType)
   useEffect(() => {
-    detailR.current = detail
+    detailRef.current = detail
   }, [detail])
   useEffect(() => {
-    typR.current = typ
-  }, [typ])
+    typeRef.current = selectedType
+  }, [selectedType])
 
   useEffect(() => {
     setEditingId(null)
@@ -84,23 +81,23 @@ export function LFPDetail({
   }, [subOrder.id])
 
   useEffect(() => {
-    setEntsperrt(false)
+    setUnlocked(false)
   }, [subOrder.id])
 
   useEffect(() => {
     if (editingId !== null) return
-    setTyp(subOrder.typ)
-    const d = lfpRoh(subOrder)
-    setDetail(d)
-    detailR.current = d
-    typR.current = subOrder.typ
+    setSelectedType(subOrder.typ)
+    const extracted = extractLfpRaw(subOrder)
+    setDetail(extracted)
+    detailRef.current = extracted
+    typeRef.current = subOrder.typ
   }, [subOrder, editingId])
 
   const loadFilesForProducts = useCallback(
-    async (produktRows: ProduktRow[]) => {
-      const ids = produktRows.map(p => p.id)
+    async (productRows: ProductRow[]) => {
+      const ids = productRows.map(productRow => productRow.id)
       if (ids.length === 0) {
-        setProduktDateien({})
+        setProductFiles({})
         return
       }
       const { data, error } = await supabase
@@ -108,171 +105,171 @@ export function LFPDetail({
         .select('id, produkt_id, datei_id')
         .in('produkt_id', ids)
       if (error) {
-        fehler('FileRecord-Zuordnungen konnten nicht geladen werden')
-        setProduktDateien({})
+        toastError('FileRecord-Zuordnungen konnten nicht geladen werden')
+        setProductFiles({})
         return
       }
       const rows = (data ?? []) as Pick<
         Database['public']['Tables']['produkt_dateien']['Row'],
         'id' | 'produkt_id' | 'datei_id'
       >[]
-      const next: Record<string, ProduktFileRecordZuordnung[]> = {}
+      const next: Record<string, ProductFileAssignment[]> = {}
       for (const row of rows) {
         const list = next[row.produkt_id] ?? (next[row.produkt_id] = [])
-        list.push({ zuordnungId: row.id, dateiId: row.datei_id })
+        list.push({ assignmentId: row.id, fileId: row.datei_id })
       }
-      setProduktDateien(next)
+      setProductFiles(next)
     },
-    [fehler],
+    [toastError],
   )
 
-  const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
+  const reloadProducts = useCallback(async (): Promise<ProductRow[]> => {
     if (!subOrder.id) {
       await loadFilesForProducts([])
       return []
     }
-    setProdukteLaden(true)
+    setProductsLoading(true)
     const { data, error } = await supabase
       .from('teilauftrag_produkte')
       .select('*')
       .eq('teilauftrag_id', subOrder.id)
       .eq('bereich', 'LFP')
       .order('sort_order')
-    setProdukteLaden(false)
+    setProductsLoading(false)
     if (error) {
-      fehler('Produkte konnten nicht geladen werden')
-      setProdukte([])
+      toastError('Produkte konnten nicht geladen werden')
+      setProducts([])
       await loadFilesForProducts([])
       return []
     }
     const rows = (data ?? []) as Database['public']['Tables']['teilauftrag_produkte']['Row'][]
-    const mapped: ProduktRow[] = rows.map(r => ({
-      id: r.id,
-      teilauftrag_id: r.teilauftrag_id,
-      bereich: r.bereich,
-      detail: (r.detail ?? {}) as LfpDetail,
-      sort_order: r.sort_order,
-      erstellt_am: r.erstellt_am,
+    const mapped: ProductRow[] = rows.map(row => ({
+      id: row.id,
+      teilauftrag_id: row.teilauftrag_id,
+      bereich: row.bereich,
+      detail: (row.detail ?? {}) as LfpDetail,
+      sort_order: row.sort_order,
+      erstellt_am: row.erstellt_am,
     }))
-    setProdukte(mapped)
+    setProducts(mapped)
     await loadFilesForProducts(mapped)
     return mapped
-  }, [subOrder.id, fehler, loadFilesForProducts])
+  }, [subOrder.id, toastError, loadFilesForProducts])
 
   useEffect(() => {
-    void reloadProdukte()
-  }, [reloadProdukte])
+    void reloadProducts()
+  }, [reloadProducts])
 
-  const dateiZuProduktZuordnen = useCallback(
-    async (produktId: string, dateiId: string, produktRowsForReload?: ProduktRow[]) => {
-      const reloadRows = produktRowsForReload ?? produkte
-      if (productFilesRef.current[produktId]?.some(z => z.dateiId === dateiId)) return
-      const ins: Database['public']['Tables']['produkt_dateien']['Insert'] = {
-        produkt_id: produktId,
-        datei_id: dateiId,
+  const assignFileToProduct = useCallback(
+    async (productId: string, fileId: string, productRowsForReload?: ProductRow[]) => {
+      const reloadRows = productRowsForReload ?? products
+      if (productFilesRef.current[productId]?.some(assignment => assignment.fileId === fileId)) return
+      const fileAssignmentInsert: Database['public']['Tables']['produkt_dateien']['Insert'] = {
+        produkt_id: productId,
+        datei_id: fileId,
       }
-      const { error } = await supabase.from('produkt_dateien').insert(ins)
+      const { error } = await supabase.from('produkt_dateien').insert(fileAssignmentInsert)
       if (error) {
-        fehler('FileRecord konnte nicht zugeordnet werden')
+        toastError('FileRecord konnte nicht zugeordnet werden')
         return
       }
       await loadFilesForProducts(reloadRows)
     },
-    [fehler, produkte, loadFilesForProducts],
+    [toastError, products, loadFilesForProducts],
   )
 
-  const dateiVonProduktEntfernen = useCallback(
-    async (zuordnungId: string, produktRowsForReload?: ProduktRow[]) => {
-      const { error } = await supabase.from('produkt_dateien').delete().eq('id', zuordnungId)
+  const removeFileFromProduct = useCallback(
+    async (assignmentId: string, productRowsForReload?: ProductRow[]) => {
+      const { error } = await supabase.from('produkt_dateien').delete().eq('id', assignmentId)
       if (error) {
-        fehler('Zuordnung konnte nicht entfernt werden')
+        toastError('Zuordnung konnte nicht entfernt werden')
         return
       }
-      await loadFilesForProducts(produktRowsForReload ?? produkte)
+      await loadFilesForProducts(productRowsForReload ?? products)
     },
-    [fehler, produkte, loadFilesForProducts],
+    [toastError, products, loadFilesForProducts],
   )
 
   const resetForm = useCallback(() => {
     setEditingId(null)
     setFormFileRecordIds([])
-    setTyp(subOrder.typ)
-    const d = lfpRoh(subOrder)
-    setDetail(d)
-    detailR.current = d
-    typR.current = subOrder.typ
+    setSelectedType(subOrder.typ)
+    const extracted = extractLfpRaw(subOrder)
+    setDetail(extracted)
+    detailRef.current = extracted
+    typeRef.current = subOrder.typ
   }, [subOrder])
 
-  const lfpFehler = validateLfpDetail(typ, detail, subOrderStatus)
-  const pruef = subOrderStatus !== 'ANGEBOT'
-  const fe = (k: string) => (pruef && lfpFehler[k] ? ' ber-inp--err' : '')
+  const validationErrors = validateLfpDetail(selectedType, detail, subOrderStatus)
+  const shouldValidate = subOrderStatus !== 'ANGEBOT'
+  const fieldErrorClass = (fieldKey: string) => (shouldValidate && validationErrors[fieldKey] ? ' ber-inp--err' : '')
 
-  const speich = useCallback(
-    async (nextTyp: string | null, d: LfpDetail) => {
-      setDetail(d)
-      detailR.current = d
-      setTyp(nextTyp)
+  const saveDetail = useCallback(
+    async (nextType: string | null, json: LfpDetail) => {
+      setDetail(json)
+      detailRef.current = json
+      setSelectedType(nextType)
       if (editingId !== null) return
-      await onDetailPatch({ typ: nextTyp, detail: d })
+      await onDetailPatch({ typ: nextType, detail: json })
     },
     [onDetailPatch, editingId]
   )
 
-  const patchL = useCallback((p: LfpDetail) => {
-    setDetail(d0 => {
-      const n = { ...d0, ...p }
-      detailR.current = n
-      return n
+  const patchLocal = useCallback((patch: LfpDetail) => {
+    setDetail(currentDetail => {
+      const merged = { ...currentDetail, ...patch }
+      detailRef.current = merged
+      return merged
     })
   }, [])
 
   const commit = useCallback(() => {
-    void speich(typR.current, { ...detailR.current })
-  }, [speich])
+    void saveDetail(typeRef.current, { ...detailRef.current })
+  }, [saveDetail])
 
-  const speichDetail = useCallback(
-    (d: LfpDetail) => {
-      setDetail(d)
-      detailR.current = d
-      void speich(typR.current, d)
+  const applyDetail = useCallback(
+    (newDetail: LfpDetail) => {
+      setDetail(newDetail)
+      detailRef.current = newDetail
+      void saveDetail(typeRef.current, newDetail)
     },
-    [speich]
+    [saveDetail]
   )
 
-  const p: BlK = { d: detail, fe, pruef, f: lfpFehler, patchL, commit, speichDetail }
+  const detailBlock: DetailBlockProps = { detail, fieldErrorClass, shouldValidate, validationErrors, patchLocal, commit, applyDetail }
 
-  const formOk = useMemo(() => Object.keys(lfpFehler).length === 0, [lfpFehler])
+  const formOk = useMemo(() => Object.keys(validationErrors).length === 0, [validationErrors])
 
-  const brauchtEntsperr =
-    (subOrderStatus === 'PREPRESS_BEREIT' || subOrderStatus === 'PRODUKTION_BEREIT') && !entsperrt
+  const requiresUnlock =
+    (subOrderStatus === 'PREPRESS_BEREIT' || subOrderStatus === 'PRODUKTION_BEREIT') && !unlocked
 
   const handleAddOrSave = useCallback(async () => {
-    const t = typR.current
-    const d = { ...detailR.current }
-    if (!t) return
-    const errors = validateLfpDetail(t, d, subOrderStatus)
+    const currentType = typeRef.current
+    const currentDetail = { ...detailRef.current }
+    if (!currentType) return
+    const errors = validateLfpDetail(currentType, currentDetail, subOrderStatus)
     if (Object.keys(errors).length > 0) return
 
     if (editingId) {
       const patch: Database['public']['Tables']['teilauftrag_produkte']['Update'] = {
-        detail: { ...d, typ: t } as Json,
+        detail: { ...currentDetail, typ: currentType } as Json,
       }
       const { error } = await supabase.from('teilauftrag_produkte').update(patch).eq('id', editingId)
       if (error) {
-        fehler('Produkt konnte nicht gespeichert werden')
+        toastError('Produkt konnte nicht gespeichert werden')
         return
       }
-      for (const z of [...(productFiles[editingId] ?? [])]) {
-        await dateiVonProduktEntfernen(z.zuordnungId)
+      for (const assignment of [...(productFiles[editingId] ?? [])]) {
+        await removeFileFromProduct(assignment.assignmentId)
       }
       for (const fid of formFileRecordIds) {
-        await dateiZuProduktZuordnen(editingId, fid)
+        await assignFileToProduct(editingId, fid)
       }
-      const list = await reloadProdukte()
+      const list = await reloadProducts()
       await onDetailPatch({
         typ: subOrder.typ,
         detail: {
-          ...lfpRoh(subOrder),
+          ...extractLfpRaw(subOrder),
           hat_produkte: list.length > 0,
         } as LfpDetail,
       })
@@ -280,31 +277,31 @@ export function LFPDetail({
       return
     }
 
-    const ins: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
+    const productInsert: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
       teilauftrag_id: subOrder.id,
       bereich: 'LFP',
-      detail: { ...d, typ: t } as Json,
-      sort_order: produkte.length,
+      detail: { ...currentDetail, typ: currentType } as Json,
+      sort_order: products.length,
     }
-    const { data: insRow, error } = await supabase.from('teilauftrag_produkte').insert(ins).select('id').single()
+    const { data: insertedRow, error } = await supabase.from('teilauftrag_produkte').insert(productInsert).select('id').single()
     if (error) {
-      fehler('Produkt konnte nicht hinzugefügt werden')
+      toastError('Produkt konnte nicht hinzugefügt werden')
       return
     }
-    const newId = insRow?.id != null ? String(insRow.id) : ''
+    const newId = insertedRow?.id != null ? String(insertedRow.id) : ''
     if (!newId) {
-      fehler('Produkt konnte nicht hinzugefügt werden')
+      toastError('Produkt konnte nicht hinzugefügt werden')
       return
     }
-    let list = await reloadProdukte()
+    let list = await reloadProducts()
     for (const fid of formFileRecordIds) {
-      await dateiZuProduktZuordnen(newId, fid, list)
+      await assignFileToProduct(newId, fid, list)
     }
-    list = await reloadProdukte()
+    list = await reloadProducts()
     await onDetailPatch({
       typ: subOrder.typ,
       detail: {
-        ...lfpRoh(subOrder),
+        ...extractLfpRaw(subOrder),
         hat_produkte: list.length > 0,
       } as LfpDetail,
     })
@@ -313,48 +310,48 @@ export function LFPDetail({
     subOrder,
     subOrderStatus,
     editingId,
-    produkte.length,
+    products.length,
     productFiles,
     formFileRecordIds,
-    fehler,
-    reloadProdukte,
+    toastError,
+    reloadProducts,
     resetForm,
     onDetailPatch,
-    dateiZuProduktZuordnen,
-    dateiVonProduktEntfernen,
+    assignFileToProduct,
+    removeFileFromProduct,
   ])
 
   const handleDelete = useCallback(
     async (id: string) => {
       const { error } = await supabase.from('teilauftrag_produkte').delete().eq('id', id)
       if (error) {
-        fehler('Produkt konnte nicht gelöscht werden')
+        toastError('Produkt konnte nicht gelöscht werden')
         return
       }
-      const list = await reloadProdukte()
+      const list = await reloadProducts()
       await onDetailPatch({
         typ: subOrder.typ,
         detail: {
-          ...lfpRoh(subOrder),
+          ...extractLfpRaw(subOrder),
           hat_produkte: list.length > 0,
         } as LfpDetail,
       })
       if (editingId === id) resetForm()
     },
-    [fehler, reloadProdukte, editingId, resetForm, onDetailPatch, subOrder]
+    [toastError, reloadProducts, editingId, resetForm, onDetailPatch, subOrder]
   )
 
-  const handleEdit = useCallback((row: ProduktRow) => {
+  const handleEdit = useCallback((row: ProductRow) => {
     setEditingId(row.id)
-    setFormFileRecordIds(productFiles[row.id]?.map(z => z.dateiId) ?? [])
-    const raw = row.detail ?? {}
-    const d = raw as Record<string, unknown>
-    const tt = typeof d.typ === 'string' ? d.typ : null
-    setTyp(tt)
-    const dd = { ...(raw as LfpDetail) }
-    setDetail(dd)
-    detailR.current = dd
-    typR.current = tt
+    setFormFileRecordIds(productFiles[row.id]?.map(assignment => assignment.fileId) ?? [])
+    const rowDetail = row.detail ?? {}
+    const detailRecord = rowDetail as Record<string, unknown>
+    const rowType = typeof detailRecord.typ === 'string' ? detailRecord.typ : null
+    setSelectedType(rowType)
+    const cleanDetail = { ...(rowDetail as LfpDetail) }
+    setDetail(cleanDetail)
+    detailRef.current = cleanDetail
+    typeRef.current = rowType
   }, [productFiles])
 
   return (
@@ -362,59 +359,59 @@ export function LFPDetail({
       <div className="td-bereich-hd" aria-hidden>
         LFP
       </div>
-      {typ === 'SONSTIGE_LFP' && (
-        <p className="ber-hinweis">Bei „Sonstige LFP“ wird PREPRESS_BEREIT nur manuell gesetzt, nicht automatisch.</p>
+      {selectedType === 'SONSTIGE_LFP' && (
+        <p className="ber-hinweis">Bei „Sonstige LFP” wird PREPRESS_BEREIT nur manuell gesetzt, nicht automatisch.</p>
       )}
-      {typ === 'SCHILD_FOLIE' && detail.material === 'ACRYLGLAS' && (
+      {selectedType === 'SCHILD_FOLIE' && detail.material === 'ACRYLGLAS' && (
         <p className="ber-hinweis">Bei Acrylglas: Rückseitenverklebung inkl., kein Zusatzfeld nötig.</p>
       )}
 
       <div className="ber-grid-2" style={{ marginTop: 4 }}>
-        <BerZeile
+        <FieldRow
           stack
-          l="Typ"
-          e={pruef && lfpFehler.typ ? lfpFehler.typ : undefined}
-          c={
+          label="Typ"
+          error={shouldValidate && validationErrors.typ ? validationErrors.typ : undefined}
+          content={
             <select
-              className={'ber-inp' + fe('typ')}
-              value={typ ?? ''}
+              className={'ber-inp' + fieldErrorClass('typ')}
+              value={selectedType ?? ''}
               onChange={e => {
-                const v = e.target.value
-                if (v !== (typ ?? '')) {
-                  setTyp(v || null)
+                const selected = e.target.value
+                if (selected !== (selectedType ?? '')) {
+                  setSelectedType(selected || null)
                   setDetail({})
-                  detailR.current = {}
-                  typR.current = v || null
-                  if (editingId === null) void speich(v || null, {})
+                  detailRef.current = {}
+                  typeRef.current = selected || null
+                  if (editingId === null) void saveDetail(selected || null, {})
                 } else {
-                  setTyp(v || null)
-                  typR.current = v || null
+                  setSelectedType(selected || null)
+                  typeRef.current = selected || null
                 }
               }}
             >
               <option value="">—</option>
-              {LFP_TYPES.map(x => (
-                <option key={x} value={x}>
-                  {LFP_TYPE_LABELS[x]}
+              {LFP_TYPES.map(lfpType => (
+                <option key={lfpType} value={lfpType}>
+                  {LFP_TYPE_LABELS[lfpType]}
                 </option>
               ))}
             </select>
           }
         />
-        <NmbStueckzahl {...p} stack />
+        <QuantityInput {...detailBlock} stack />
       </div>
 
-      {typ === 'AUFKLEBER' && <Aufkleber {...p} />}
-      {typ === 'SCHILD_UV' && <SchildUv {...p} />}
-      {typ === 'SCHILD_FOLIE' && <SchildFolie {...p} />}
-      {typ === 'FOLIENPLOTT' && <Folienplott {...p} />}
-      {typ === 'BANNER' && <BannerF {...p} />}
-      {typ === 'ROLLUP' && <RollupF {...p} />}
-      {typ === 'FAHRZEUGBESCHRIFTUNG' && <FzB {...p} />}
-      {typ === 'SONSTIGE_LFP' && <Sons {...p} />}
+      {selectedType === 'AUFKLEBER' && <StickerSection {...detailBlock} />}
+      {selectedType === 'SCHILD_UV' && <UvSignSection {...detailBlock} />}
+      {selectedType === 'SCHILD_FOLIE' && <FoilSignSection {...detailBlock} />}
+      {selectedType === 'FOLIENPLOTT' && <FoilPlottSection {...detailBlock} />}
+      {selectedType === 'BANNER' && <BannerSection {...detailBlock} />}
+      {selectedType === 'ROLLUP' && <RollupSection {...detailBlock} />}
+      {selectedType === 'FAHRZEUGBESCHRIFTUNG' && <VehicleWrapSection {...detailBlock} />}
+      {selectedType === 'SONSTIGE_LFP' && <OtherSection {...detailBlock} />}
 
       {orderFiles.length > 0 && (
-        <BerZeile l="Dateien">
+        <FieldRow label="Dateien">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
             {formFileRecordIds.map(fid => (
               <span
@@ -431,14 +428,14 @@ export function LFPDetail({
                 }}
               >
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {orderFiles.find(df => df.id === fid)?.anzeigename ?? fid}
+                  {orderFiles.find(file => file.id === fid)?.anzeigename ?? fid}
                 </span>
                 <button
                   type="button"
                   className="cp-btn cp-btn-grau"
                   style={{ minWidth: 22, padding: '0 6px', fontSize: 14, lineHeight: 1 }}
                   title="Entfernen"
-                  onClick={() => setFormFileRecordIds(prev => prev.filter(x => x !== fid))}
+                  onClick={() => setFormFileRecordIds(prev => prev.filter(id => id !== fid))}
                 >
                   ×
                 </button>
@@ -450,45 +447,45 @@ export function LFPDetail({
               style={{ fontSize: 12, maxWidth: 260 }}
               defaultValue=""
               onChange={e => {
-                const v = e.target.value
-                if (v && !formFileRecordIds.includes(v)) {
-                  setFormFileRecordIds(prev => [...prev, v])
+                const selected = e.target.value
+                if (selected && !formFileRecordIds.includes(selected)) {
+                  setFormFileRecordIds(prev => [...prev, selected])
                 }
               }}
             >
               <option value="">FileRecord hinzufügen…</option>
               {orderFiles
-                .filter(df => !formFileRecordIds.includes(df.id))
-                .map(df => (
-                  <option key={df.id} value={df.id}>
-                    {df.anzeigename}
+                .filter(file => !formFileRecordIds.includes(file.id))
+                .map(file => (
+                  <option key={file.id} value={file.id}>
+                    {file.anzeigename}
                   </option>
                 ))}
             </select>
           </div>
-        </BerZeile>
+        </FieldRow>
       )}
 
       <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
         <button
           type="button"
           className="cp-btn"
-          disabled={brauchtEntsperr ? false : !typ || !formOk}
+          disabled={requiresUnlock ? false : !selectedType || !formOk}
           onClick={() => {
-            if (brauchtEntsperr) {
+            if (requiresUnlock) {
               if (
                 window.confirm(
                   'Teilauftrag ist bereits freigegeben.\nWirklich Produkte bearbeiten?',
                 )
               ) {
-                setEntsperrt(true)
+                setUnlocked(true)
               }
               return
             }
             void handleAddOrSave()
           }}
         >
-          {brauchtEntsperr
+          {requiresUnlock
             ? 'Bearbeitung entsperren'
             : editingId
               ? 'Speichern'
@@ -500,9 +497,9 @@ export function LFPDetail({
           </button>
         )}
       </div>
-      {entsperrt && (
+      {unlocked && (
         <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
-          Bearbeitung entsperrt — Änderungen setzen Status zurück
+          Bearbeitung unlocked — Änderungen setzen Status zurück
         </p>
       )}
 
@@ -510,11 +507,11 @@ export function LFPDetail({
         <h3 className="wa-dl-titel" style={{ margin: 0 }}>
           Produkte
         </h3>
-        {produkteLaden ? (
+        {productsLoading ? (
           <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
             Lädt Produkte …
           </p>
-        ) : produkte.length === 0 ? (
+        ) : products.length === 0 ? (
           <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
             Noch keine Produkte.
           </p>
@@ -541,39 +538,39 @@ export function LFPDetail({
                 </tr>
               </thead>
               <tbody>
-                {produkte.map(r => {
-                  const pd = (r.detail ?? {}) as Record<string, unknown>
-                  const pt = typeof pd.typ === 'string' ? pd.typ : ''
-                  const st = pd.stueckzahl ?? ''
-                  const mat = pd.material ?? '—'
-                  const fw = pd.format_breite
-                  const fh = pd.format_hoehe
-                  const fmt = fw && fh ? `${fw}×${fh} mm` : '—'
-                  const typLabel = (LFP_TYPE_LABELS as Record<string, string>)[pt] ?? pt
-                  const zuo = productFiles[r.id] ?? []
+                {products.map(product => {
+                  const productDetail = (product.detail ?? {}) as Record<string, unknown>
+                  const productType = typeof productDetail.typ === 'string' ? productDetail.typ : ''
+                  const quantity = productDetail.stueckzahl ?? ''
+                  const material = productDetail.material ?? '—'
+                  const formatWidth = productDetail.format_breite
+                  const formatHeight = productDetail.format_hoehe
+                  const formatDisplay = formatWidth && formatHeight ? `${formatWidth}×${formatHeight} mm` : '—'
+                  const typeLabel = (LFP_TYPE_LABELS as Record<string, string>)[productType] ?? productType
+                  const fileAssignments = productFiles[product.id] ?? []
                   return (
-                    <tr key={r.id}>
+                    <tr key={product.id}>
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
-                        {typLabel || '—'}
+                        {typeLabel || '—'}
                       </td>
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
-                        {String(st || '—')}
+                        {String(quantity || '—')}
                       </td>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{String(mat)}</td>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{fmt}</td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{String(material)}</td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{formatDisplay}</td>
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                           <button
                             type="button"
                             className="cp-btn cp-btn-grau"
-                            onClick={() => handleEdit(r)}
+                            onClick={() => handleEdit(product)}
                           >
                             Bearbeiten
                           </button>
                           <button
                             type="button"
                             className="cp-btn cp-btn-rot"
-                            onClick={() => void handleDelete(r.id)}
+                            onClick={() => void handleDelete(product.id)}
                           >
                             Löschen
                           </button>
@@ -585,12 +582,12 @@ export function LFPDetail({
                             color: 'var(--color-muted-fg, #6b7280)',
                           }}
                         >
-                          {zuo.length === 0
+                          {fileAssignments.length === 0
                             ? '—'
-                            : zuo
+                            : fileAssignments
                                 .map(
-                                  z =>
-                                    orderFiles.find(df => df.id === z.dateiId)?.anzeigename ?? z.dateiId,
+                                  assignment =>
+                                    orderFiles.find(file => file.id === assignment.fileId)?.anzeigename ?? assignment.fileId,
                                 )
                                 .join(', ')}
                         </div>
@@ -607,168 +604,168 @@ export function LFPDetail({
   )
 }
 
-function BerZeile({
-  l,
-  c,
-  e,
+function FieldRow({
+  label,
+  content,
+  error,
   children,
   stack,
 }: {
-  l: string
-  c?: ReactNode
-  e?: string
+  label: string
+  content?: ReactNode
+  error?: string
   children?: ReactNode
   stack?: boolean
 }) {
-  const inhalt = c ?? children
+  const body = content ?? children
   return (
     <div className={stack ? 'ber-zeile-stack' : 'ber-zeile'}>
-      <span className="ber-lbl">{l}</span>
+      <span className="ber-lbl">{label}</span>
       <div>
-        {inhalt}
-        {e && <p className="ber-err">{e}</p>}
+        {body}
+        {error && <p className="ber-err">{error}</p>}
       </div>
     </div>
   )
 }
 
-function NmbStueckzahl(a: BlK & { stack?: boolean }) {
-  const { d, fe, f, pruef, patchL, commit, stack } = a
-  const val = d.stueckzahl
-  const s = val === null || val === undefined ? '' : String(val)
+function QuantityInput(props: DetailBlockProps & { stack?: boolean }) {
+  const { detail, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit, stack } = props
+  const rawQuantity = detail.stueckzahl
+  const displayValue = rawQuantity === null || rawQuantity === undefined ? '' : String(rawQuantity)
   return (
-    <BerZeile stack={stack} l="Stückzahl" e={pruef && f.stueckzahl ? f.stueckzahl : undefined}>
+    <FieldRow stack={stack} label="Stückzahl" error={shouldValidate && validationErrors.stueckzahl ? validationErrors.stueckzahl : undefined}>
       <input
         type="number"
-        className={'ber-inp' + fe('stueckzahl')}
+        className={'ber-inp' + fieldErrorClass('stueckzahl')}
         min={1}
         step={1}
-        value={s}
+        value={displayValue}
         onChange={e => {
-          const raw = e.target.value
-          patchL({
-            stueckzahl: raw === '' ? null : parseInt(raw, 10),
+          const rawInput = e.target.value
+          patchLocal({
+            stueckzahl: rawInput === '' ? null : parseInt(rawInput, 10),
           } as LfpDetail)
         }}
         onBlur={commit}
       />
-    </BerZeile>
+    </FieldRow>
   )
 }
 
-function SelB(
-  a: BlK & { k: string; l?: string; o: { v: string; t: string }[]; stack?: boolean },
+function SelectField(
+  props: DetailBlockProps & { fieldKey: string; label?: string; options: { value: string; text: string }[]; stack?: boolean },
 ) {
-  const { k, o, d, fe, f, pruef, speichDetail, l: lb, stack } = a
+  const { fieldKey, options, detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail, label: labelText, stack } = props
   return (
-    <BerZeile stack={stack} l={lb ?? k} e={pruef ? f[k] : undefined}>
+    <FieldRow stack={stack} label={labelText ?? fieldKey} error={shouldValidate ? validationErrors[fieldKey] : undefined}>
       <select
-        className={'ber-inp' + fe(k)}
-        value={String((d as Record<string, string>)[k] ?? '')}
+        className={'ber-inp' + fieldErrorClass(fieldKey)}
+        value={String((detail as Record<string, string>)[fieldKey] ?? '')}
         onChange={e => {
-          const val = e.target.value
-          speichDetail({ ...d, [k]: val } as LfpDetail)
+          const selected = e.target.value
+          applyDetail({ ...detail, [fieldKey]: selected } as LfpDetail)
         }}
       >
         <option value="">—</option>
-        {o.map(x => (
-          <option key={x.v} value={x.v}>
-            {x.t}
+        {options.map(option => (
+          <option key={option.value} value={option.value}>
+            {option.text}
           </option>
         ))}
       </select>
-    </BerZeile>
+    </FieldRow>
   )
 }
 
-function boolSel(a: BlK & { k: string; l?: string }) {
-  const { k, d, fe, f, pruef, speichDetail, l: lb } = a
-  const v = (d as Record<string, unknown>)[k]
-  const s = v === true ? 'true' : v === false ? 'false' : ''
+function BooleanSelect(props: DetailBlockProps & { fieldKey: string; label?: string }) {
+  const { fieldKey, detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail, label: labelText } = props
+  const rawValue = (detail as Record<string, unknown>)[fieldKey]
+  const selectValue = rawValue === true ? 'true' : rawValue === false ? 'false' : ''
   return (
-    <BerZeile l={lb ?? k} e={pruef ? f[k] : undefined}>
+    <FieldRow label={labelText ?? fieldKey} error={shouldValidate ? validationErrors[fieldKey] : undefined}>
       <select
-        className={'ber-inp' + fe(k)}
-        value={s}
+        className={'ber-inp' + fieldErrorClass(fieldKey)}
+        value={selectValue}
         onChange={e => {
-          const t = e.target.value
-          const b: true | false | undefined = t === 'true' ? true : t === 'false' ? false : undefined
-          speichDetail({ ...d, [k]: b } as LfpDetail)
+          const selected = e.target.value
+          const boolValue: true | false | undefined = selected === 'true' ? true : selected === 'false' ? false : undefined
+          applyDetail({ ...detail, [fieldKey]: boolValue } as LfpDetail)
         }}
       >
         <option value="">—</option>
         <option value="true">Ja</option>
         <option value="false">Nein</option>
       </select>
-    </BerZeile>
+    </FieldRow>
   )
 }
 
-function Txt(
-  a: BlK & { k: string; l: string; rows?: number },
+function TextField(
+  props: DetailBlockProps & { fieldKey: string; label: string; rows?: number },
 ) {
-  const { k, l, d, fe, f, pruef, patchL, commit, rows = 1 } = a
-  const val = String((d as Record<string, string>)[k] ?? '')
+  const { fieldKey, label, detail, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit, rows = 1 } = props
+  const fieldValue = String((detail as Record<string, string>)[fieldKey] ?? '')
   return (
-    <BerZeile l={l} e={pruef ? f[k] : undefined}>
+    <FieldRow label={label} error={shouldValidate ? validationErrors[fieldKey] : undefined}>
       {rows > 1 ? (
         <textarea
-          className={'ber-inp ber-ta' + fe(k)}
+          className={'ber-inp ber-ta' + fieldErrorClass(fieldKey)}
           rows={rows}
-          value={val}
-          onChange={e => patchL({ [k]: e.target.value })}
+          value={fieldValue}
+          onChange={e => patchLocal({ [fieldKey]: e.target.value })}
           onBlur={commit}
         />
       ) : (
         <input
           type="text"
-          className={'ber-inp' + fe(k)}
-          value={val}
-          onChange={e => patchL({ [k]: e.target.value })}
+          className={'ber-inp' + fieldErrorClass(fieldKey)}
+          value={fieldValue}
+          onChange={e => patchLocal({ [fieldKey]: e.target.value })}
           onBlur={commit}
         />
       )}
-    </BerZeile>
+    </FieldRow>
   )
 }
 
-function NmbInt(
-  a: BlK & { k: string; l: string; suffix?: string; feKey?: string; min?: number },
+function IntegerInput(
+  props: DetailBlockProps & { fieldKey: string; label: string; suffix?: string; errorKey?: string; min?: number },
 ) {
-  const { k, l, d, fe, f, pruef, patchL, commit, suffix, feKey, min = 1 } = a
-  const feK = feKey ?? k
-  const val = (d as Record<string, number | null | string>)[k]
-  const s = val === null || val === undefined ? '' : String(val)
+  const { fieldKey, label, detail, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit, suffix, errorKey, min = 1 } = props
+  const errorFieldKey = errorKey ?? fieldKey
+  const rawValue = (detail as Record<string, number | null | string>)[fieldKey]
+  const displayValue = rawValue === null || rawValue === undefined ? '' : String(rawValue)
   return (
-    <BerZeile l={l} e={pruef ? f[feK] : undefined}>
+    <FieldRow label={label} error={shouldValidate ? validationErrors[errorFieldKey] : undefined}>
       <div className="ber-nmb">
         <input
           type="number"
-          className={'ber-inp' + fe(feK)}
+          className={'ber-inp' + fieldErrorClass(errorFieldKey)}
           min={min}
           step={1}
-          value={s}
+          value={displayValue}
           onChange={e => {
-            const raw = e.target.value
-            const n = raw === '' ? null : parseInt(raw, 10)
-            patchL({ [k]: Number.isNaN(n as number) ? null : n } as LfpDetail)
+            const rawInput = e.target.value
+            const parsedValue = rawInput === '' ? null : parseInt(rawInput, 10)
+            patchLocal({ [fieldKey]: Number.isNaN(parsedValue as number) ? null : parsedValue } as LfpDetail)
           }}
           onBlur={commit}
         />
         {suffix && <span className="ber-suf">{suffix}</span>}
       </div>
-    </BerZeile>
+    </FieldRow>
   )
 }
 
 /** Breite/Höhe: mindestens eines &gt; 0 – gemeinsame Fehlermeldung format_masse */
-function MasseHoeheBreite(p: BlK) {
-  const { d, fe, f, pruef, patchL, commit } = p
-  const msg = pruef ? f.format_masse : undefined
-  const b = d.format_breite
-  const h = d.format_hoehe
-  const sb = b === null || b === undefined ? '' : String(b)
-  const sh = h === null || h === undefined ? '' : String(h)
+function DimensionInputs(props: DetailBlockProps) {
+  const { detail, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit } = props
+  const errorMsg = shouldValidate ? validationErrors.format_masse : undefined
+  const widthValue = detail.format_breite
+  const heightValue = detail.format_hoehe
+  const widthDisplay = widthValue === null || widthValue === undefined ? '' : String(widthValue)
+  const heightDisplay = heightValue === null || heightValue === undefined ? '' : String(heightValue)
   return (
     <div>
       <div className="ber-grid-2">
@@ -777,14 +774,14 @@ function MasseHoeheBreite(p: BlK) {
           <div>
             <input
               type="number"
-              className={'ber-inp' + fe('format_masse')}
+              className={'ber-inp' + fieldErrorClass('format_masse')}
               min={0.01}
               step={0.01}
-              value={sb}
+              value={widthDisplay}
               onChange={e => {
-                const raw = e.target.value
-                patchL({
-                  format_breite: raw === '' ? null : parseFloat(raw),
+                const rawInput = e.target.value
+                patchLocal({
+                  format_breite: rawInput === '' ? null : parseFloat(rawInput),
                 } as LfpDetail)
               }}
               onBlur={commit}
@@ -796,14 +793,14 @@ function MasseHoeheBreite(p: BlK) {
           <div>
             <input
               type="number"
-              className={'ber-inp' + fe('format_masse')}
+              className={'ber-inp' + fieldErrorClass('format_masse')}
               min={0.01}
               step={0.01}
-              value={sh}
+              value={heightDisplay}
               onChange={e => {
-                const raw = e.target.value
-                patchL({
-                  format_hoehe: raw === '' ? null : parseFloat(raw),
+                const rawInput = e.target.value
+                patchLocal({
+                  format_hoehe: rawInput === '' ? null : parseFloat(rawInput),
                 } as LfpDetail)
               }}
               onBlur={commit}
@@ -811,261 +808,261 @@ function MasseHoeheBreite(p: BlK) {
           </div>
         </div>
       </div>
-      {msg && <p className="ber-err ber-err--mass">{msg}</p>}
+      {errorMsg && <p className="ber-err ber-err--mass">{errorMsg}</p>}
     </div>
   )
 }
 
-function Dat(a: BlK & { k: string; l: string }) {
-  const { k, l, d, fe, f, pruef, patchL, commit } = a
-  const v = (d as Record<string, string>)[k] ?? ''
-  const iso = v ? (v.length > 10 ? v.slice(0, 10) : v) : ''
+function DateField(props: DetailBlockProps & { fieldKey: string; label: string }) {
+  const { fieldKey, label, detail, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit } = props
+  const dateValue = (detail as Record<string, string>)[fieldKey] ?? ''
+  const isoValue = dateValue ? (dateValue.length > 10 ? dateValue.slice(0, 10) : dateValue) : ''
   return (
-    <BerZeile l={l} e={pruef ? f[k] : undefined}>
+    <FieldRow label={label} error={shouldValidate ? validationErrors[fieldKey] : undefined}>
       <DateInput
-        className={'ber-inp' + fe(k)}
-        value={iso}
-        onChange={e => patchL({ [k]: e.target.value })}
+        className={'ber-inp' + fieldErrorClass(fieldKey)}
+        value={isoValue}
+        onChange={e => patchLocal({ [fieldKey]: e.target.value })}
         onBlur={commit}
       />
-    </BerZeile>
+    </FieldRow>
   )
 }
 
-function BesonderheitenUnten(p: BlK) {
-  return <Txt {...p} k="besonderheiten" l="Besonderheiten" rows={3} />
+function NotesField(props: DetailBlockProps) {
+  return <TextField {...props} fieldKey="besonderheiten" label="Besonderheiten" rows={3} />
 }
 
-function Aufkleber(p: BlK) {
-  const { d, fe, f, pruef, speichDetail } = p
+function StickerSection(props: DetailBlockProps) {
+  const { detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail } = props
   return (
     <>
       <div className="ber-grid-2">
-        <BerZeile stack l="Material" e={pruef ? f.material : undefined}>
+        <FieldRow stack label="Material" error={shouldValidate ? validationErrors.material : undefined}>
           <select
-            className={'ber-inp' + fe('material')}
-            value={String((d as Record<string, string>).material ?? '')}
+            className={'ber-inp' + fieldErrorClass('material')}
+            value={String((detail as Record<string, string>).material ?? '')}
             onChange={e => {
-              const v = e.target.value
-              const next: LfpDetail = { ...d, material: v }
-              if (v !== '3551') next.material_3551_variante = null
-              speichDetail(next)
+              const selected = e.target.value
+              const updatedDetail: LfpDetail = { ...detail, material: selected }
+              if (selected !== '3551') updatedDetail.material_3551_variante = null
+              applyDetail(updatedDetail)
             }}
           >
             <option value="">—</option>
-            {LFP_AUFKLEBER_MATERIALIEN.map(x => (
-              <option key={x.wert} value={x.wert}>
-                {x.anzeige}
+            {LFP_AUFKLEBER_MATERIALIEN.map(stickerMaterial => (
+              <option key={stickerMaterial.wert} value={stickerMaterial.wert}>
+                {stickerMaterial.anzeige}
               </option>
             ))}
           </select>
-        </BerZeile>
-        <SelB
-          {...p}
+        </FieldRow>
+        <SelectField
+          {...props}
           stack
-          k="konturschnitt"
-          l="Konturschnitt"
-          o={[
-            { v: 'FREIFORM', t: 'Freiform' },
-            { v: 'RECHTECK', t: 'Rechteck' },
+          fieldKey="konturschnitt"
+          label="Konturschnitt"
+          options={[
+            { value: 'FREIFORM', text: 'Freiform' },
+            { value: 'RECHTECK', text: 'Rechteck' },
           ]}
         />
       </div>
-      {p.d.material === '3551' && (
+      {props.detail.material === '3551' && (
         <div className="ber-col-voll" style={{ marginBottom: 6 }}>
-          <BerZeile stack l="3551 Variante">
+          <FieldRow stack label="3551 Variante">
             <select
               className="ber-inp"
-              value={String((d as Record<string, string | null>).material_3551_variante ?? '')}
+              value={String((detail as Record<string, string | null>).material_3551_variante ?? '')}
               onChange={e =>
-                speichDetail({
-                  ...d,
+                applyDetail({
+                  ...detail,
                   material_3551_variante: e.target.value || null,
                 } as LfpDetail)
               }
             >
-              {LFP_3551_VARIANTEN.map(x => (
-                <option key={String(x.wert)} value={String(x.wert ?? '')}>
-                  {x.anzeige}
+              {LFP_3551_VARIANTEN.map(variant => (
+                <option key={String(variant.wert)} value={String(variant.wert ?? '')}>
+                  {variant.anzeige}
                 </option>
               ))}
             </select>
-          </BerZeile>
+          </FieldRow>
         </div>
       )}
       <div className="ber-grid-2">
-        <SelB
-          {...p}
+        <SelectField
+          {...props}
           stack
-          k="laminat"
-          l="Laminat"
-          o={[
-            { v: 'NEIN', t: 'Nein' },
-            { v: 'MATT', t: 'Matt' },
-            { v: 'GLAENZEND', t: 'Glänzend' },
+          fieldKey="laminat"
+          label="Laminat"
+          options={[
+            { value: 'NEIN', text: 'Nein' },
+            { value: 'MATT', text: 'Matt' },
+            { value: 'GLAENZEND', text: 'Glänzend' },
           ]}
         />
-        <SelB
-          {...p}
+        <SelectField
+          {...props}
           stack
-          k="ausgabe"
-          l="Ausgabe"
-          o={[
-            { v: 'EINZEL', t: 'Einzel' },
-            { v: 'BOGEN', t: 'Bogen' },
+          fieldKey="ausgabe"
+          label="Ausgabe"
+          options={[
+            { value: 'EINZEL', text: 'Einzel' },
+            { value: 'BOGEN', text: 'Bogen' },
           ]}
         />
       </div>
-      <MasseHoeheBreite {...p} />
-      <BesonderheitenUnten {...p} />
+      <DimensionInputs {...props} />
+      <NotesField {...props} />
     </>
   )
 }
 
-function SchildUv(p: BlK) {
+function UvSignSection(props: DetailBlockProps) {
   return (
     <>
       <div className="ber-grid-2">
-        <SelB
-          {...p}
+        <SelectField
+          {...props}
           stack
-          k="material"
-          l="Material"
-          o={[
-            { v: 'ALUVERBUND', t: 'Alu-Verbund' },
-            { v: 'PVC', t: 'PVC' },
-            { v: 'ACRYLGLAS', t: 'Acrylglas' },
+          fieldKey="material"
+          label="Material"
+          options={[
+            { value: 'ALUVERBUND', text: 'Alu-Verbund' },
+            { value: 'PVC', text: 'PVC' },
+            { value: 'ACRYLGLAS', text: 'Acrylglas' },
           ]}
         />
-        <SelB
-          {...p}
+        <SelectField
+          {...props}
           stack
-          k="druckseite"
-          l="Druckseite"
-          o={[
-            { v: 'EINSEITIG', t: 'Einseitig' },
-            { v: 'BEIDSEITIG', t: 'Beidseitig' },
+          fieldKey="druckseite"
+          label="Druckseite"
+          options={[
+            { value: 'EINSEITIG', text: 'Einseitig' },
+            { value: 'BEIDSEITIG', text: 'Beidseitig' },
           ]}
         />
       </div>
-      {p.d.material === 'ACRYLGLAS' && (
-        <SelB
-          {...p}
-          k="acryl_druckrichtung"
-          l="Acryl Druckrichtung"
-          o={[
-            { v: 'VORDERSEITE', t: 'Vorderseite' },
-            { v: 'RUECKSEITE', t: 'Rückseite' },
+      {props.detail.material === 'ACRYLGLAS' && (
+        <SelectField
+          {...props}
+          fieldKey="acryl_druckrichtung"
+          label="Acryl Druckrichtung"
+          options={[
+            { value: 'VORDERSEITE', text: 'Vorderseite' },
+            { value: 'RUECKSEITE', text: 'Rückseite' },
           ]}
         />
       )}
-      <MasseHoeheBreite {...p} />
-      {boolSel({ ...p, k: 'ecken_runden', l: 'Ecken runden' })}
-      {boolSel({ ...p, k: 'bohrungen', l: 'Bohrungen' })}
-      {p.d.bohrungen === true && (
+      <DimensionInputs {...props} />
+      {BooleanSelect({ ...props, fieldKey: 'ecken_runden', label: 'Ecken runden' })}
+      {BooleanSelect({ ...props, fieldKey: 'bohrungen', label: 'Bohrungen' })}
+      {props.detail.bohrungen === true && (
         <>
-          <NmbInt {...p} k="bohrungen_durchmesser" l="Bohrungen Ø (mm)" feKey="bohrungen_durchmesser" min={1} />
-          <Txt {...p} k="bohrungen_position" l="Bohrungen Position" />
+          <IntegerInput {...props} fieldKey="bohrungen_durchmesser" label="Bohrungen Ø (mm)" errorKey="bohrungen_durchmesser" min={1} />
+          <TextField {...props} fieldKey="bohrungen_position" label="Bohrungen Position" />
         </>
       )}
-      <BesonderheitenUnten {...p} />
+      <NotesField {...props} />
     </>
   )
 }
 
-function SchildFolie(p: BlK) {
+function FoilSignSection(props: DetailBlockProps) {
   return (
     <>
       <div className="ber-grid-2">
-        <SelB
-          {...p}
+        <SelectField
+          {...props}
           stack
-          k="material"
-          l="Material"
-          o={[
-            { v: 'ALUVERBUND', t: 'Alu-Verbund' },
-            { v: 'PVC', t: 'PVC' },
-            { v: 'ACRYLGLAS', t: 'Acrylglas' },
+          fieldKey="material"
+          label="Material"
+          options={[
+            { value: 'ALUVERBUND', text: 'Alu-Verbund' },
+            { value: 'PVC', text: 'PVC' },
+            { value: 'ACRYLGLAS', text: 'Acrylglas' },
           ]}
         />
-        <SelB
-          {...p}
+        <SelectField
+          {...props}
           stack
-          k="druckseite"
-          l="Druckseite"
-          o={[
-            { v: 'EINSEITIG', t: 'Einseitig' },
-            { v: 'BEIDSEITIG', t: 'Beidseitig' },
+          fieldKey="druckseite"
+          label="Druckseite"
+          options={[
+            { value: 'EINSEITIG', text: 'Einseitig' },
+            { value: 'BEIDSEITIG', text: 'Beidseitig' },
           ]}
         />
       </div>
       <div style={{ maxWidth: '20rem' }}>
-        <SelB
-          {...p}
+        <SelectField
+          {...props}
           stack
-          k="laminat"
-          l="Laminat"
-          o={[
-            { v: 'NEIN', t: 'Nein' },
-            { v: 'MATT', t: 'Matt' },
-            { v: 'GLAENZEND', t: 'Glänzend' },
+          fieldKey="laminat"
+          label="Laminat"
+          options={[
+            { value: 'NEIN', text: 'Nein' },
+            { value: 'MATT', text: 'Matt' },
+            { value: 'GLAENZEND', text: 'Glänzend' },
           ]}
         />
       </div>
-      <MasseHoeheBreite {...p} />
-      {boolSel({ ...p, k: 'ecken_runden', l: 'Ecken runden' })}
-      {boolSel({ ...p, k: 'bohrungen', l: 'Bohrungen' })}
-      {p.d.bohrungen === true && (
+      <DimensionInputs {...props} />
+      {BooleanSelect({ ...props, fieldKey: 'ecken_runden', label: 'Ecken runden' })}
+      {BooleanSelect({ ...props, fieldKey: 'bohrungen', label: 'Bohrungen' })}
+      {props.detail.bohrungen === true && (
         <>
-          <NmbInt {...p} k="bohrungen_durchmesser" l="Bohrungen Ø (mm)" feKey="bohrungen_durchmesser" min={1} />
-          <Txt {...p} k="bohrungen_position" l="Bohrungen Position" />
+          <IntegerInput {...props} fieldKey="bohrungen_durchmesser" label="Bohrungen Ø (mm)" errorKey="bohrungen_durchmesser" min={1} />
+          <TextField {...props} fieldKey="bohrungen_position" label="Bohrungen Position" />
         </>
       )}
-      <BesonderheitenUnten {...p} />
+      <NotesField {...props} />
     </>
   )
 }
 
-function Folienplott(p: BlK) {
+function FoilPlottSection(props: DetailBlockProps) {
   return (
     <>
       <div className="ber-grid-2">
-        <SelB
-          {...p}
+        <SelectField
+          {...props}
           stack
-          k="material"
-          l="Material"
-          o={LFP_FOLIENPLOTT_MATERIALIEN.map(x => ({ v: x.wert, t: x.anzeige }))}
+          fieldKey="material"
+          label="Material"
+          options={LFP_FOLIENPLOTT_MATERIALIEN.map(foilMaterial => ({ value: foilMaterial.wert, text: foilMaterial.anzeige }))}
         />
-        <SelB
-          {...p}
+        <SelectField
+          {...props}
           stack
-          k="ausgabe"
-          l="Ausgabe"
-          o={[
-            { v: 'EINZEL', t: 'Einzel' },
-            { v: 'BOGEN', t: 'Bogen' },
+          fieldKey="ausgabe"
+          label="Ausgabe"
+          options={[
+            { value: 'EINZEL', text: 'Einzel' },
+            { value: 'BOGEN', text: 'Bogen' },
           ]}
         />
       </div>
-      <BesonderheitenUnten {...p} />
+      <NotesField {...props} />
     </>
   )
 }
 
-function BannerF(p: BlK) {
-  const { d, fe, f, pruef, speichDetail } = p
+function BannerSection(props: DetailBlockProps) {
+  const { detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail } = props
   return (
     <>
-      <BerZeile l="Material" e={pruef ? f.material : undefined}>
+      <FieldRow label="Material" error={shouldValidate ? validationErrors.material : undefined}>
         <select
-          className={'ber-inp' + fe('material')}
-          value={String(d.material ?? '')}
+          className={'ber-inp' + fieldErrorClass('material')}
+          value={String(detail.material ?? '')}
           onChange={e => {
-            const v = e.target.value
-            if (v === 'BAUZAUNBANNER') {
-              speichDetail({
-                ...d,
+            const materialValue = e.target.value
+            if (materialValue === 'BAUZAUNBANNER') {
+              applyDetail({
+                ...detail,
                 material: 'BAUZAUNBANNER',
                 format_hoehe: 1730,
                 format_breite: 3400,
@@ -1073,97 +1070,97 @@ function BannerF(p: BlK) {
                 oesen: true,
               })
             } else {
-              speichDetail({ ...d, material: v })
+              applyDetail({ ...detail, material: materialValue })
             }
           }}
         >
           <option value="">—</option>
-          {['PVC_FRONTLIT', 'MESH', 'BAUZAUNBANNER'].map(m => {
-            const t =
-              m === 'PVC_FRONTLIT' ? 'PVC Frontlit' : m === 'MESH' ? 'Mesh' : 'Bauzaunbanner'
+          {(['PVC_FRONTLIT', 'MESH', 'BAUZAUNBANNER'] as const).map(bannerMaterial => {
+            const materialLabel =
+              bannerMaterial === 'PVC_FRONTLIT' ? 'PVC Frontlit' : bannerMaterial === 'MESH' ? 'Mesh' : 'Bauzaunbanner'
             return (
-              <option key={m} value={m}>
-                {t}
+              <option key={bannerMaterial} value={bannerMaterial}>
+                {materialLabel}
               </option>
             )
           })}
         </select>
-      </BerZeile>
-      <MasseHoeheBreite {...p} />
-      {boolSel({ ...p, k: 'saum', l: 'Saum' })}
-      {p.d.saum === true && <Txt {...p} k="saum_seiten" l="Saum (Seiten)" />}
-      {boolSel({ ...p, k: 'oesen', l: 'Ösen' })}
-      {p.d.oesen === true && <Txt {...p} k="oesen_detail" l="Ösen Detail" />}
-      <BesonderheitenUnten {...p} />
+      </FieldRow>
+      <DimensionInputs {...props} />
+      {BooleanSelect({ ...props, fieldKey: 'saum', label: 'Saum' })}
+      {props.detail.saum === true && <TextField {...props} fieldKey="saum_seiten" label="Saum (Seiten)" />}
+      {BooleanSelect({ ...props, fieldKey: 'oesen', label: 'Ösen' })}
+      {props.detail.oesen === true && <TextField {...props} fieldKey="oesen_detail" label="Ösen Detail" />}
+      <NotesField {...props} />
     </>
   )
 }
 
-function RollupF(p: BlK) {
-  const br = (p.d as Record<string, number>).breite
+function RollupSection(props: DetailBlockProps) {
+  const rollupWidth = (props.detail as Record<string, number>).breite
   return (
     <>
-      <SelB
-        {...p}
-        k="material"
-        l="Material"
-        o={[
-          { v: 'PVC_FRONTLIT', t: 'PVC Frontlit' },
-          { v: 'ROLLUP_FILM', t: 'Rollup-Film' },
+      <SelectField
+        {...props}
+        fieldKey="material"
+        label="Material"
+        options={[
+          { value: 'PVC_FRONTLIT', text: 'PVC Frontlit' },
+          { value: 'ROLLUP_FILM', text: 'Rollup-Film' },
         ]}
       />
-      <SelB
-        {...p}
-        k="system"
-        l="System"
-        o={[
-          { v: 'NEUE_KASSETTE', t: 'Neue Kassette' },
-          { v: 'MOTIVTAUSCH', t: 'Motivtausch' },
+      <SelectField
+        {...props}
+        fieldKey="system"
+        label="System"
+        options={[
+          { value: 'NEUE_KASSETTE', text: 'Neue Kassette' },
+          { value: 'MOTIVTAUSCH', text: 'Motivtausch' },
         ]}
       />
-      <BerZeile l="Breite" e={p.pruef ? p.f.breite : undefined}>
+      <FieldRow label="Breite" error={p.shouldValidate ? p.validationErrors.breite : undefined}>
         <select
-          className={'ber-inp' + p.fe('breite')}
-          value={br === 85 || br === 100 ? String(br) : ''}
+          className={'ber-inp' + p.fieldErrorClass('breite')}
+          value={rollupWidth === 85 || rollupWidth === 100 ? String(rollupWidth) : ''}
           onChange={e => {
-            const n = e.target.value === '' ? null : parseInt(e.target.value, 10)
-            p.speichDetail({ ...p.d, breite: n } as LfpDetail)
+            const widthValue = e.target.value === '' ? null : parseInt(e.target.value, 10)
+            p.applyDetail({ ...props.detail, breite: widthValue } as LfpDetail)
           }}
         >
           <option value="">—</option>
           <option value="85">85 cm</option>
           <option value="100">100 cm</option>
         </select>
-      </BerZeile>
-      <BesonderheitenUnten {...p} />
+      </FieldRow>
+      <NotesField {...props} />
     </>
   )
 }
 
-function FzB(p: BlK) {
-  const { d, fe, f, pruef, speichDetail } = p
+function VehicleWrapSection(props: DetailBlockProps) {
+  const { detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail } = props
   return (
     <>
-      <Txt {...p} k="marke" l="Marke" />
-      <Txt {...p} k="modell" l="Modell" />
-      {boolSel({ ...p, k: 'bereiche_seiten', l: 'Bereich Seiten' })}
-      {boolSel({ ...p, k: 'bereiche_front', l: 'Bereich Front' })}
-      {boolSel({ ...p, k: 'bereiche_heck', l: 'Bereich Heck' })}
-      <BerZeile l="Montage" e={pruef ? f.montage : undefined}>
+      <TextField {...props} fieldKey="marke" label="Marke" />
+      <TextField {...props} fieldKey="modell" label="Modell" />
+      {BooleanSelect({ ...props, fieldKey: 'bereiche_seiten', label: 'Bereich Seiten' })}
+      {BooleanSelect({ ...props, fieldKey: 'bereiche_front', label: 'Bereich Front' })}
+      {BooleanSelect({ ...props, fieldKey: 'bereiche_heck', label: 'Bereich Heck' })}
+      <FieldRow label="Montage" error={shouldValidate ? validationErrors.montage : undefined}>
         <select
-          className={'ber-inp' + fe('montage')}
-          value={String((d as Record<string, string>).montage ?? '')}
+          className={'ber-inp' + fieldErrorClass('montage')}
+          value={String((detail as Record<string, string>).montage ?? '')}
           onChange={e => {
-            const v = e.target.value
-            if (v === 'OHNE') {
-              speichDetail({
-                ...d,
+            const montageValue = e.target.value
+            if (montageValue === 'OHNE') {
+              applyDetail({
+                ...detail,
                 montage: 'OHNE',
                 montagetermin: null,
                 altbeklebung: null,
               } as LfpDetail)
             } else {
-              speichDetail({ ...d, montage: v } as LfpDetail)
+              applyDetail({ ...detail, montage: montageValue } as LfpDetail)
             }
           }}
         >
@@ -1171,14 +1168,14 @@ function FzB(p: BlK) {
           <option value="MIT">Mit</option>
           <option value="OHNE">Ohne</option>
         </select>
-      </BerZeile>
-      {d.montage === 'MIT' && boolSel({ ...p, k: 'altbeklebung', l: 'Altbeklebung' })}
-      {d.montage === 'MIT' && <Dat {...p} k="montagetermin" l="Montagetermin" />}
-      <Txt {...p} k="besonderheiten" l="Besonderheiten" rows={3} />
+      </FieldRow>
+      {detail.montage === 'MIT' && BooleanSelect({ ...props, fieldKey: 'altbeklebung', label: 'Altbeklebung' })}
+      {detail.montage === 'MIT' && <DateField {...props} fieldKey="montagetermin" label="Montagetermin" />}
+      <TextField {...props} fieldKey="besonderheiten" label="Besonderheiten" rows={3} />
     </>
   )
 }
 
-function Sons(p: BlK) {
-  return <Txt {...p} k="beschreibung" l="Beschreibung" rows={6} />
+function OtherSection(props: DetailBlockProps) {
+  return <TextField {...props} fieldKey="beschreibung" label="Beschreibung" rows={6} />
 }

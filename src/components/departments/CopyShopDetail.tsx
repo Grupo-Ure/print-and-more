@@ -25,7 +25,7 @@ type Props = {
   orderFiles?: FileRecord[]
 }
 
-type ProduktRow = {
+type ProductRow = {
   id: string
   teilauftrag_id: string
   bereich: string
@@ -34,21 +34,19 @@ type ProduktRow = {
   erstellt_am: string | null
 }
 
-/** `datei_id` gehört nicht ins Produkt-JSON — Zuordnung nur über `produkt_dateien`. */
-function detailOhneFileRecordId(d: CopyShopDetailJson): CopyShopDetailJson {
-  const o = { ...d } as Record<string, unknown>
-  delete o.datei_id
-  return o as CopyShopDetailJson
+function stripFileRecordId(json: CopyShopDetailJson): CopyShopDetailJson {
+  const copy = { ...json } as Record<string, unknown>
+  delete copy.datei_id
+  return copy as CopyShopDetailJson
 }
 
-function copyRoh(subOrder: TeilauftragRow): CopyShopDetailJson {
-  const d = subOrder.detail
-  const base = d && typeof d === 'object' && !Array.isArray(d) ? { ...d } : {}
-  return detailOhneFileRecordId(base)
+function extractCopyShopRaw(subOrder: TeilauftragRow): CopyShopDetailJson {
+  const rawDetail = subOrder.detail
+  const base = rawDetail && typeof rawDetail === 'object' && !Array.isArray(rawDetail) ? { ...rawDetail } : {}
+  return stripFileRecordId(base)
 }
 
-/** PLAKAT: DIN-Hochformat, Breite × Höhe (mm) */
-const PLAKAT_DIN: Record<'A0' | 'A1' | 'A2' | 'A3' | 'A4', { b: number; h: number }> = {
+const POSTER_DIN: Record<'A0' | 'A1' | 'A2' | 'A3' | 'A4', { b: number; h: number }> = {
   A4: { b: 210, h: 297 },
   A3: { b: 297, h: 420 },
   A2: { b: 420, h: 594 },
@@ -56,13 +54,13 @@ const PLAKAT_DIN: Record<'A0' | 'A1' | 'A2' | 'A3' | 'A4', { b: number; h: numbe
   A0: { b: 841, h: 1189 },
 }
 
-const PLAKAT_DEFAULT: CopyShopDetailJson = {
+const POSTER_DEFAULT: CopyShopDetailJson = {
   format: 'A1',
   format_breite: 594,
   format_hoehe: 841,
 }
 
-const KARTE_FALZ_MAT_NULL: CopyShopDetailJson = {
+const CARD_FOLD_MATERIAL_RESET: CopyShopDetailJson = {
   material_cc: null,
   material_cc_sonstige: null,
   offset_art: null,
@@ -75,8 +73,8 @@ const KARTE_FALZ_MAT_NULL: CopyShopDetailJson = {
   recycling_grammatur: null,
 }
 
-const BROSCH_MAT_NULL: CopyShopDetailJson = {
-  ...KARTE_FALZ_MAT_NULL,
+const BROCHURE_MATERIAL_RESET: CopyShopDetailJson = {
+  ...CARD_FOLD_MATERIAL_RESET,
   cc_umschlag: null,
   cc_umschlag_sonstige: null,
   cc_inhalt: null,
@@ -88,17 +86,17 @@ const BROSCH_MAT_NULL: CopyShopDetailJson = {
   brosch_i_ober: null,
 }
 
-type BlK = {
-  d: CopyShopDetailJson
-  fe: (k: string) => string
-  pruef: boolean
-  f: Record<string, string>
-  patchL: (p: CopyShopDetailJson) => void
+type DetailBlockProps = {
+  detail: CopyShopDetailJson
+  fieldErrorClass: (fieldKey: string) => string
+  shouldValidate: boolean
+  validationErrors: Record<string, string>
+  patchLocal: (patch: CopyShopDetailJson) => void
   commit: () => void
-  speichDetail: (d: CopyShopDetailJson) => void
+  applyDetail: (newDetail: CopyShopDetailJson) => void
 }
 
-type ProduktFileRecordZuordnung = { zuordnungId: string; dateiId: string }
+type ProductFileAssignment = { assignmentId: string; fileId: string } // assignmentId = produkt_dateien.id
 
 export function CopyShopDetail({
   subOrder,
@@ -106,48 +104,48 @@ export function CopyShopDetail({
   onDetailPatch,
   orderFiles = [],
 }: Props) {
-  const { fehler: toastFehler } = useToast()
+  const { fehler: toastError } = useToast()
 
-  const [produkte, setProdukte] = useState<ProduktRow[]>([])
-  const [productFiles, setProduktDateien] = useState<Record<string, ProduktFileRecordZuordnung[]>>({})
+  const [products, setProducts] = useState<ProductRow[]>([])
+  const [productFiles, setProductFiles] = useState<Record<string, ProductFileAssignment[]>>({})
   const productFilesRef = useRef(productFiles)
   productFilesRef.current = productFiles
-  const [produkteLaden, setProdukteLaden] = useState(false)
+  const [productsLoading, setProductsLoading] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [entsperrt, setEntsperrt] = useState(false)
+  const [unlocked, setUnlocked] = useState(false)
   const [formFileRecordIds, setFormFileRecordIds] = useState<string[]>([])
 
-  const [typ, setTyp] = useState<string | null>(subOrder.typ)
-  const [detail, setDetail] = useState<CopyShopDetailJson>(copyRoh(subOrder))
-  const detailR = useRef(detail)
-  const typR = useRef(typ)
+  const [selectedType, setSelectedType] = useState<string | null>(subOrder.typ)
+  const [detail, setDetail] = useState<CopyShopDetailJson>(extractCopyShopRaw(subOrder))
+  const detailRef = useRef(detail)
+  const typeRef = useRef(selectedType)
   useEffect(() => {
-    detailR.current = detail
+    detailRef.current = detail
   }, [detail])
   useEffect(() => {
-    typR.current = typ
-  }, [typ])
+    typeRef.current = selectedType
+  }, [selectedType])
 
   useEffect(() => {
     setEditingId(null)
     setFormFileRecordIds([])
-    setEntsperrt(false)
+    setUnlocked(false)
   }, [subOrder.id])
 
   useEffect(() => {
     if (editingId !== null) return
-    setTyp(subOrder.typ)
-    const d = copyRoh(subOrder)
-    setDetail(d)
-    detailR.current = d
-    typR.current = subOrder.typ
+    setSelectedType(subOrder.typ)
+    const extracted = extractCopyShopRaw(subOrder)
+    setDetail(extracted)
+    detailRef.current = extracted
+    typeRef.current = subOrder.typ
   }, [subOrder, editingId])
 
   const loadFilesForProducts = useCallback(
-    async (produktRows: ProduktRow[]) => {
-      const ids = produktRows.map(p => p.id)
+    async (productRows: ProductRow[]) => {
+      const ids = productRows.map(productRow => productRow.id)
       if (ids.length === 0) {
-        setProduktDateien({})
+        setProductFiles({})
         return
       }
       const { data, error } = await supabase
@@ -155,172 +153,172 @@ export function CopyShopDetail({
         .select('id, produkt_id, datei_id')
         .in('produkt_id', ids)
       if (error) {
-        toastFehler('FileRecord-Zuordnungen konnten nicht geladen werden')
-        setProduktDateien({})
+        toastError('FileRecord-Zuordnungen konnten nicht geladen werden')
+        setProductFiles({})
         return
       }
       const rows = (data ?? []) as Pick<
         Database['public']['Tables']['produkt_dateien']['Row'],
         'id' | 'produkt_id' | 'datei_id'
       >[]
-      const next: Record<string, ProduktFileRecordZuordnung[]> = {}
+      const next: Record<string, ProductFileAssignment[]> = {}
       for (const row of rows) {
         const list = next[row.produkt_id] ?? (next[row.produkt_id] = [])
-        list.push({ zuordnungId: row.id, dateiId: row.datei_id })
+        list.push({ assignmentId: row.id, fileId: row.datei_id })
       }
-      setProduktDateien(next)
+      setProductFiles(next)
     },
-    [toastFehler],
+    [toastError],
   )
 
-  const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
+  const reloadProducts = useCallback(async (): Promise<ProductRow[]> => {
     if (!subOrder.id) {
       await loadFilesForProducts([])
       return []
     }
-    setProdukteLaden(true)
+    setProductsLoading(true)
     const { data, error } = await supabase
       .from('teilauftrag_produkte')
       .select('*')
       .eq('teilauftrag_id', subOrder.id)
       .eq('bereich', 'COPYSHOP')
       .order('sort_order')
-    setProdukteLaden(false)
+    setProductsLoading(false)
     if (error) {
-      toastFehler('Produkte konnten nicht geladen werden')
-      setProdukte([])
+      toastError('Produkte konnten nicht geladen werden')
+      setProducts([])
       await loadFilesForProducts([])
       return []
     }
     const rows = (data ?? []) as Database['public']['Tables']['teilauftrag_produkte']['Row'][]
-    const mapped: ProduktRow[] = rows.map(r => ({
-      id: r.id,
-      teilauftrag_id: r.teilauftrag_id,
-      bereich: r.bereich,
-      detail: detailOhneFileRecordId((r.detail ?? {}) as CopyShopDetailJson),
-      sort_order: r.sort_order,
-      erstellt_am: r.erstellt_am,
+    const mapped: ProductRow[] = rows.map(row => ({
+      id: row.id,
+      teilauftrag_id: row.teilauftrag_id,
+      bereich: row.bereich,
+      detail: stripFileRecordId((row.detail ?? {}) as CopyShopDetailJson),
+      sort_order: row.sort_order,
+      erstellt_am: row.erstellt_am,
     }))
-    setProdukte(mapped)
+    setProducts(mapped)
     await loadFilesForProducts(mapped)
     return mapped
-  }, [subOrder.id, toastFehler, loadFilesForProducts])
+  }, [subOrder.id, toastError, loadFilesForProducts])
 
   useEffect(() => {
-    void reloadProdukte()
-  }, [reloadProdukte])
+    void reloadProducts()
+  }, [reloadProducts])
 
-  const dateiZuProduktZuordnen = useCallback(
-    async (produktId: string, dateiId: string, produktRowsForReload?: ProduktRow[]) => {
-      const reloadRows = produktRowsForReload ?? produkte
-      if (productFilesRef.current[produktId]?.some(z => z.dateiId === dateiId)) return
-      const ins: Database['public']['Tables']['produkt_dateien']['Insert'] = {
-        produkt_id: produktId,
-        datei_id: dateiId,
+  const assignFileToProduct = useCallback(
+    async (productId: string, fileId: string, productRowsForReload?: ProductRow[]) => {
+      const reloadRows = productRowsForReload ?? products
+      if (productFilesRef.current[productId]?.some(assignment => assignment.fileId === fileId)) return
+      const fileAssignmentInsert: Database['public']['Tables']['produkt_dateien']['Insert'] = {
+        produkt_id: productId,
+        datei_id: fileId,
       }
-      const { error } = await supabase.from('produkt_dateien').insert(ins)
+      const { error } = await supabase.from('produkt_dateien').insert(fileAssignmentInsert)
       if (error) {
-        toastFehler('FileRecord konnte nicht zugeordnet werden')
+        toastError('FileRecord konnte nicht zugeordnet werden')
         return
       }
       await loadFilesForProducts(reloadRows)
     },
-    [toastFehler, produkte, loadFilesForProducts],
+    [toastError, products, loadFilesForProducts],
   )
 
-  const dateiVonProduktEntfernen = useCallback(
-    async (zuordnungId: string, produktRowsForReload?: ProduktRow[]) => {
-      const { error } = await supabase.from('produkt_dateien').delete().eq('id', zuordnungId)
+  const removeFileFromProduct = useCallback(
+    async (assignmentId: string, productRowsForReload?: ProductRow[]) => {
+      const { error } = await supabase.from('produkt_dateien').delete().eq('id', assignmentId)
       if (error) {
-        toastFehler('Zuordnung konnte nicht entfernt werden')
+        toastError('Zuordnung konnte nicht entfernt werden')
         return
       }
-      await loadFilesForProducts(produktRowsForReload ?? produkte)
+      await loadFilesForProducts(productRowsForReload ?? products)
     },
-    [toastFehler, produkte, loadFilesForProducts],
+    [toastError, products, loadFilesForProducts],
   )
 
   const resetForm = useCallback(() => {
     setEditingId(null)
     setFormFileRecordIds([])
-    setTyp(subOrder.typ)
-    const d = copyRoh(subOrder)
-    setDetail(d)
-    detailR.current = d
-    typR.current = subOrder.typ
+    setSelectedType(subOrder.typ)
+    const extracted = extractCopyShopRaw(subOrder)
+    setDetail(extracted)
+    detailRef.current = extracted
+    typeRef.current = subOrder.typ
   }, [subOrder])
 
-  const copyErr = validateCopyShopDetail(typ, detail, subOrderStatus)
-  const pruef = subOrderStatus !== 'ANGEBOT'
-  const fe = (k: string) => (pruef && copyErr[k] ? ' ber-inp--err' : '')
+  const validationErrors = validateCopyShopDetail(selectedType, detail, subOrderStatus)
+  const shouldValidate = subOrderStatus !== 'ANGEBOT'
+  const fieldErrorClass = (fieldKey: string) => (shouldValidate && validationErrors[fieldKey] ? ' ber-inp--err' : '')
 
-  const speich = useCallback(
-    async (nextTyp: string | null, d: CopyShopDetailJson) => {
-      const clean = detailOhneFileRecordId(d)
+  const saveDetail = useCallback(
+    async (nextType: string | null, json: CopyShopDetailJson) => {
+      const clean = stripFileRecordId(json)
       setDetail(clean)
-      detailR.current = clean
-      setTyp(nextTyp)
+      detailRef.current = clean
+      setSelectedType(nextType)
       if (editingId !== null) return
-      await onDetailPatch({ typ: nextTyp, detail: clean })
+      await onDetailPatch({ typ: nextType, detail: clean })
     },
     [onDetailPatch, editingId]
   )
 
-  const patchL = useCallback((p: CopyShopDetailJson) => {
-    setDetail(d0 => {
-      const n = { ...d0, ...p }
-      detailR.current = n
-      return n
+  const patchLocal = useCallback((patch: CopyShopDetailJson) => {
+    setDetail(currentDetail => {
+      const merged = { ...currentDetail, ...patch }
+      detailRef.current = merged
+      return merged
     })
   }, [])
 
   const commit = useCallback(() => {
-    void speich(typR.current, { ...detailR.current })
-  }, [speich])
+    void saveDetail(typeRef.current, { ...detailRef.current })
+  }, [saveDetail])
 
-  const speichDetail = useCallback(
-    (d: CopyShopDetailJson) => {
-      setDetail(d)
-      detailR.current = d
-      void speich(typR.current, d)
+  const applyDetail = useCallback(
+    (newDetail: CopyShopDetailJson) => {
+      setDetail(newDetail)
+      detailRef.current = newDetail
+      void saveDetail(typeRef.current, newDetail)
     },
-    [speich]
+    [saveDetail]
   )
 
-  const p: BlK = { d: detail, fe, pruef, f: copyErr, patchL, commit, speichDetail }
+  const detailBlock: DetailBlockProps = { detail, fieldErrorClass, shouldValidate, validationErrors, patchLocal, commit, applyDetail }
 
-  const formOk = useMemo(() => Object.keys(copyErr).length === 0, [copyErr])
+  const formOk = useMemo(() => Object.keys(validationErrors).length === 0, [validationErrors])
 
-  const brauchtEntsperr =
-    (subOrderStatus === 'PREPRESS_BEREIT' || subOrderStatus === 'PRODUKTION_BEREIT') && !entsperrt
+  const requiresUnlock =
+    (subOrderStatus === 'PREPRESS_BEREIT' || subOrderStatus === 'PRODUKTION_BEREIT') && !unlocked
 
   const handleAddOrSave = useCallback(async () => {
-    const t = typR.current
-    const d = detailOhneFileRecordId({ ...detailR.current })
-    if (!t) return
-    const errors = validateCopyShopDetail(t, d, subOrderStatus)
+    const currentType = typeRef.current
+    const currentDetail = stripFileRecordId({ ...detailRef.current })
+    if (!currentType) return
+    const errors = validateCopyShopDetail(currentType, currentDetail, subOrderStatus)
     if (Object.keys(errors).length > 0) return
 
     if (editingId) {
       const patch: Database['public']['Tables']['teilauftrag_produkte']['Update'] = {
-        detail: { ...d, typ: t } as Json,
+        detail: { ...currentDetail, typ: currentType } as Json,
       }
       const { error } = await supabase.from('teilauftrag_produkte').update(patch).eq('id', editingId)
       if (error) {
-        toastFehler('Produkt konnte nicht gespeichert werden')
+        toastError('Produkt konnte nicht gespeichert werden')
         return
       }
-      for (const z of [...(productFiles[editingId] ?? [])]) {
-        await dateiVonProduktEntfernen(z.zuordnungId)
+      for (const assignment of [...(productFiles[editingId] ?? [])]) {
+        await removeFileFromProduct(assignment.assignmentId)
       }
       for (const fid of formFileRecordIds) {
-        await dateiZuProduktZuordnen(editingId, fid)
+        await assignFileToProduct(editingId, fid)
       }
-      const list = await reloadProdukte()
+      const list = await reloadProducts()
       await onDetailPatch({
         typ: subOrder.typ,
         detail: {
-          ...copyRoh(subOrder),
+          ...extractCopyShopRaw(subOrder),
           hat_produkte: list.length > 0,
         } as CopyShopDetailJson,
       })
@@ -328,31 +326,31 @@ export function CopyShopDetail({
       return
     }
 
-    const ins: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
+    const productInsert: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
       teilauftrag_id: subOrder.id,
       bereich: 'COPYSHOP',
-      detail: { ...d, typ: t } as Json,
-      sort_order: produkte.length,
+      detail: { ...currentDetail, typ: currentType } as Json,
+      sort_order: products.length,
     }
-    const { data: insRow, error } = await supabase.from('teilauftrag_produkte').insert(ins).select('id').single()
+    const { data: insertedRow, error } = await supabase.from('teilauftrag_produkte').insert(productInsert).select('id').single()
     if (error) {
-      toastFehler('Produkt konnte nicht hinzugefügt werden')
+      toastError('Produkt konnte nicht hinzugefügt werden')
       return
     }
-    const newId = insRow?.id != null ? String(insRow.id) : ''
+    const newId = insertedRow?.id != null ? String(insertedRow.id) : ''
     if (!newId) {
-      toastFehler('Produkt konnte nicht hinzugefügt werden')
+      toastError('Produkt konnte nicht hinzugefügt werden')
       return
     }
-    let list = await reloadProdukte()
+    let list = await reloadProducts()
     for (const fid of formFileRecordIds) {
-      await dateiZuProduktZuordnen(newId, fid, list)
+      await assignFileToProduct(newId, fid, list)
     }
-    list = await reloadProdukte()
+    list = await reloadProducts()
     await onDetailPatch({
       typ: subOrder.typ,
       detail: {
-        ...copyRoh(subOrder),
+        ...extractCopyShopRaw(subOrder),
         hat_produkte: list.length > 0,
       } as CopyShopDetailJson,
     })
@@ -361,59 +359,59 @@ export function CopyShopDetail({
     subOrder,
     subOrderStatus,
     editingId,
-    produkte.length,
+    products.length,
     productFiles,
     formFileRecordIds,
-    toastFehler,
-    reloadProdukte,
+    toastError,
+    reloadProducts,
     resetForm,
     onDetailPatch,
-    dateiZuProduktZuordnen,
-    dateiVonProduktEntfernen,
+    assignFileToProduct,
+    removeFileFromProduct,
   ])
 
   const handleDelete = useCallback(
     async (id: string) => {
       const { error } = await supabase.from('teilauftrag_produkte').delete().eq('id', id)
       if (error) {
-        toastFehler('Produkt konnte nicht gelöscht werden')
+        toastError('Produkt konnte nicht gelöscht werden')
         return
       }
-      const list = await reloadProdukte()
+      const list = await reloadProducts()
       await onDetailPatch({
         typ: subOrder.typ,
         detail: {
-          ...copyRoh(subOrder),
+          ...extractCopyShopRaw(subOrder),
           hat_produkte: list.length > 0,
         } as CopyShopDetailJson,
       })
       if (editingId === id) resetForm()
     },
-    [toastFehler, reloadProdukte, editingId, resetForm, onDetailPatch, subOrder]
+    [toastError, reloadProducts, editingId, resetForm, onDetailPatch, subOrder]
   )
 
-  const handleEdit = useCallback((row: ProduktRow) => {
+  const handleEdit = useCallback((row: ProductRow) => {
     setEditingId(row.id)
-    setFormFileRecordIds(productFiles[row.id]?.map(z => z.dateiId) ?? [])
-    const raw = row.detail ?? {}
-    const dr = raw as Record<string, unknown>
-    const tt = typeof dr.typ === 'string' ? dr.typ : null
-    setTyp(tt)
-    const dd = detailOhneFileRecordId({ ...(raw as CopyShopDetailJson) })
-    setDetail(dd)
-    detailR.current = dd
-    typR.current = tt
+    setFormFileRecordIds(productFiles[row.id]?.map(assignment => assignment.fileId) ?? [])
+    const rowDetail = row.detail ?? {}
+    const detailRecord = rowDetail as Record<string, unknown>
+    const rowType = typeof detailRecord.typ === 'string' ? detailRecord.typ : null
+    setSelectedType(rowType)
+    const cleanDetail = stripFileRecordId({ ...(rowDetail as CopyShopDetailJson) })
+    setDetail(cleanDetail)
+    detailRef.current = cleanDetail
+    typeRef.current = rowType
   }, [productFiles])
 
   useEffect(() => {
-    if (typ !== 'BINDUNG') return
-    const d0 = detailR.current
-    const r = d0 as Record<string, string | number | null | boolean | undefined>
-    const ba = String(r.bindungsart ?? '')
-    if (ba === 'SOFTCOVER' || ba === 'HARDCOVER') {
-      if (r.format === 'A4_HOCH') {
-        speichDetail({
-          ...d0,
+    if (selectedType !== 'BINDUNG') return
+    const currentDetail = detailRef.current
+    const detailRecord = currentDetail as Record<string, string | number | null | boolean | undefined>
+    const bindingType = String(detailRecord.bindungsart ?? '')
+    if (bindingType === 'SOFTCOVER' || bindingType === 'HARDCOVER') {
+      if (detailRecord.format === 'A4_HOCH') {
+        applyDetail({
+          ...currentDetail,
           format: 'A4',
           orientierung: 'HOCHFORMAT',
           format_breite: 210,
@@ -422,152 +420,152 @@ export function CopyShopDetail({
         return
       }
       if (
-        r.format !== 'A4' ||
-        r.orientierung !== 'HOCHFORMAT' ||
-        r.format_breite !== 210 ||
-        r.format_hoehe !== 297
+        detailRecord.format !== 'A4' ||
+        detailRecord.orientierung !== 'HOCHFORMAT' ||
+        detailRecord.format_breite !== 210 ||
+        detailRecord.format_hoehe !== 297
       ) {
-        speichDetail({
-          ...d0,
+        applyDetail({
+          ...currentDetail,
           format: 'A4',
           orientierung: 'HOCHFORMAT',
           format_breite: 210,
           format_hoehe: 297,
         } as CopyShopDetailJson)
       }
-    } else if (ba === 'WIRE_O' || ba === 'KUNSTSTOFFSPIRALE') {
-      const ffmt = String(r.format ?? '')
-      const mapLeg: Record<string, { format: string; orientierung: string }> = {
+    } else if (bindingType === 'WIRE_O' || bindingType === 'KUNSTSTOFFSPIRALE') {
+      const formatStr = String(detailRecord.format ?? '')
+      const legacyFormatMap: Record<string, { format: string; orientierung: string }> = {
         A5_HOCH: { format: 'A5', orientierung: 'HOCHFORMAT' },
         A4_HOCH: { format: 'A4', orientierung: 'HOCHFORMAT' },
         A3_QUER: { format: 'A3', orientierung: 'QUERFORMAT' },
       }
-      if (ffmt in mapLeg) {
-        const m = mapLeg[ffmt]!
-        speichDetail({ ...d0, format: m.format, orientierung: m.orientierung } as CopyShopDetailJson)
+      if (formatStr in legacyFormatMap) {
+        const mappedFormat = legacyFormatMap[formatStr]!
+        applyDetail({ ...currentDetail, format: mappedFormat.format, orientierung: mappedFormat.orientierung } as CopyShopDetailJson)
         return
       }
-      if (ffmt === 'A3' && r.orientierung !== 'QUERFORMAT') {
-        speichDetail({ ...d0, orientierung: 'QUERFORMAT' } as CopyShopDetailJson)
+      if (formatStr === 'A3' && detailRecord.orientierung !== 'QUERFORMAT') {
+        applyDetail({ ...currentDetail, orientierung: 'QUERFORMAT' } as CopyShopDetailJson)
       }
     }
-  }, [typ, subOrder.id, subOrder.detail, speichDetail])
+  }, [selectedType, subOrder.id, subOrder.detail, applyDetail])
 
   useEffect(() => {
-    if (typ !== 'PLAKAT_POSTER') return
-    const d0 = detailR.current
-    const f = String((d0 as Record<string, string>).format ?? '').trim()
-    if (!f) {
-      speichDetail({ ...d0, ...PLAKAT_DEFAULT } as CopyShopDetailJson)
+    if (selectedType !== 'PLAKAT_POSTER') return
+    const currentDetail = detailRef.current
+    const formatStr = String((currentDetail as Record<string, string>).format ?? '').trim()
+    if (!formatStr) {
+      applyDetail({ ...currentDetail, ...POSTER_DEFAULT } as CopyShopDetailJson)
       return
     }
-    if (f !== 'FREI' && f in PLAKAT_DIN) {
-      const dim = PLAKAT_DIN[f as keyof typeof PLAKAT_DIN]
-      const b = d0.format_breite
-      const h = d0.format_hoehe
-      if (b !== dim.b || h !== dim.h) {
-        speichDetail({ ...d0, format: f, format_breite: dim.b, format_hoehe: dim.h } as CopyShopDetailJson)
+    if (formatStr !== 'FREI' && formatStr in POSTER_DIN) {
+      const dinDimensions = POSTER_DIN[formatStr as keyof typeof POSTER_DIN]
+      const currentWidth = currentDetail.format_breite
+      const currentHeight = currentDetail.format_hoehe
+      if (currentWidth !== dinDimensions.b || currentHeight !== dinDimensions.h) {
+        applyDetail({ ...currentDetail, format: formatStr, format_breite: dinDimensions.b, format_hoehe: dinDimensions.h } as CopyShopDetailJson)
       }
     }
-  }, [typ, subOrder.id, subOrder.detail, speichDetail])
+  }, [selectedType, subOrder.id, subOrder.detail, applyDetail])
 
   useEffect(() => {
-    if (typ === 'KARTE_FLYER') {
-      const d0 = detailR.current
-      const fmt = String((d0 as Record<string, string>).format ?? '').trim()
-      if (fmt && fmt !== 'FREI' && fmt in CARD_DIN) {
-        const dim = CARD_DIN[fmt as keyof typeof CARD_DIN]
-        if (d0.format_breite !== dim.b || d0.format_hoehe !== dim.h) {
-          speichDetail({ ...d0, format: fmt, format_breite: dim.b, format_hoehe: dim.h } as CopyShopDetailJson)
+    if (selectedType === 'KARTE_FLYER') {
+      const currentDetail = detailRef.current
+      const formatStr = String((currentDetail as Record<string, string>).format ?? '').trim()
+      if (formatStr && formatStr !== 'FREI' && formatStr in CARD_DIN) {
+        const dinDimensions = CARD_DIN[formatStr as keyof typeof CARD_DIN]
+        if (currentDetail.format_breite !== dinDimensions.b || currentDetail.format_hoehe !== dinDimensions.h) {
+          applyDetail({ ...currentDetail, format: formatStr, format_breite: dinDimensions.b, format_hoehe: dinDimensions.h } as CopyShopDetailJson)
         }
       }
-    } else if (typ === 'FALZFLYER') {
-      const d0 = detailR.current
-      const fmt = String((d0 as Record<string, string>).format ?? '').trim()
-      if (fmt && fmt !== 'FREI' && fmt in FOLD_DIN) {
-        const dim = FOLD_DIN[fmt as keyof typeof FOLD_DIN]
-        if (d0.format_breite !== dim.b || d0.format_hoehe !== dim.h) {
-          speichDetail({ ...d0, format: fmt, format_breite: dim.b, format_hoehe: dim.h } as CopyShopDetailJson)
+    } else if (selectedType === 'FALZFLYER') {
+      const currentDetail = detailRef.current
+      const formatStr = String((currentDetail as Record<string, string>).format ?? '').trim()
+      if (formatStr && formatStr !== 'FREI' && formatStr in FOLD_DIN) {
+        const dinDimensions = FOLD_DIN[formatStr as keyof typeof FOLD_DIN]
+        if (currentDetail.format_breite !== dinDimensions.b || currentDetail.format_hoehe !== dinDimensions.h) {
+          applyDetail({ ...currentDetail, format: formatStr, format_breite: dinDimensions.b, format_hoehe: dinDimensions.h } as CopyShopDetailJson)
         }
       }
-    } else if (typ === 'BROSCHUERE') {
-      const d0 = detailR.current
-      const fmt = String((d0 as Record<string, string>).format ?? '').trim()
-      if (fmt && fmt !== 'FREI' && fmt in BROCHURE_DIN) {
-        const dim = BROCHURE_DIN[fmt as keyof typeof BROCHURE_DIN]
-        if (d0.format_breite !== dim.b || d0.format_hoehe !== dim.h) {
-          speichDetail({ ...d0, format: fmt, format_breite: dim.b, format_hoehe: dim.h } as CopyShopDetailJson)
+    } else if (selectedType === 'BROSCHUERE') {
+      const currentDetail = detailRef.current
+      const formatStr = String((currentDetail as Record<string, string>).format ?? '').trim()
+      if (formatStr && formatStr !== 'FREI' && formatStr in BROCHURE_DIN) {
+        const dinDimensions = BROCHURE_DIN[formatStr as keyof typeof BROCHURE_DIN]
+        if (currentDetail.format_breite !== dinDimensions.b || currentDetail.format_hoehe !== dinDimensions.h) {
+          applyDetail({ ...currentDetail, format: formatStr, format_breite: dinDimensions.b, format_hoehe: dinDimensions.h } as CopyShopDetailJson)
         }
       }
-      if (String(d0.produktionsweg) === 'CC' && d0.brosch_bindung !== 'DRAHTHEFTUNG') {
-        speichDetail({ ...d0, brosch_bindung: 'DRAHTHEFTUNG' } as CopyShopDetailJson)
+      if (String(currentDetail.produktionsweg) === 'CC' && currentDetail.brosch_bindung !== 'DRAHTHEFTUNG') {
+        applyDetail({ ...currentDetail, brosch_bindung: 'DRAHTHEFTUNG' } as CopyShopDetailJson)
       }
     }
-  }, [typ, subOrder.id, subOrder.detail, speichDetail])
+  }, [selectedType, subOrder.id, subOrder.detail, applyDetail])
 
   return (
     <div className="ber-lfp">
       <h3 className="ber-h3">Copy-Shop-Details</h3>
 
-      <BerZeile
-        l="Typ"
-        e={pruef && copyErr.typ ? copyErr.typ : undefined}
-        c={
+      <FieldRow
+        label="Typ"
+        error={shouldValidate && validationErrors.typ ? validationErrors.typ : undefined}
+        content={
           <select
-            className={'ber-inp' + fe('typ')}
-            value={typ ?? ''}
+            className={'ber-inp' + fieldErrorClass('typ')}
+            value={selectedType ?? ''}
             onChange={e => {
-              const v = e.target.value
-              if (v !== (typ ?? '')) {
-                if (v === 'PLAKAT_POSTER') {
-                  setTyp('PLAKAT_POSTER')
-                  setDetail(PLAKAT_DEFAULT)
-                  detailR.current = PLAKAT_DEFAULT
-                  typR.current = 'PLAKAT_POSTER'
-                  if (editingId === null) void speich('PLAKAT_POSTER', { ...PLAKAT_DEFAULT } as CopyShopDetailJson)
+              const selected = e.target.value
+              if (selected !== (selectedType ?? '')) {
+                if (selected === 'PLAKAT_POSTER') {
+                  setSelectedType('PLAKAT_POSTER')
+                  setDetail(POSTER_DEFAULT)
+                  detailRef.current = POSTER_DEFAULT
+                  typeRef.current = 'PLAKAT_POSTER'
+                  if (editingId === null) void saveDetail('PLAKAT_POSTER', { ...POSTER_DEFAULT } as CopyShopDetailJson)
                 } else {
-                  setTyp(v || null)
+                  setSelectedType(selected || null)
                   setDetail({})
-                  detailR.current = {}
-                  typR.current = v || null
-                  if (editingId === null) void speich(v || null, {})
+                  detailRef.current = {}
+                  typeRef.current = selected || null
+                  if (editingId === null) void saveDetail(selected || null, {})
                 }
               } else {
-                setTyp(v || null)
-                typR.current = v || null
+                setSelectedType(selected || null)
+                typeRef.current = selected || null
               }
             }}
           >
             <option value="">—</option>
-            {COPY_SHOP_TYPES.map(x => (
-              <option key={x} value={x}>
-                {COPY_SHOP_TYPE_LABELS[x]}
+            {COPY_SHOP_TYPES.map(copyShopType => (
+              <option key={copyShopType} value={copyShopType}>
+                {COPY_SHOP_TYPE_LABELS[copyShopType]}
               </option>
             ))}
           </select>
         }
       />
 
-      <NmbStueckzahl {...p} />
-      {typ &&
-        typ !== 'PLAKAT_POSTER' &&
-        typ !== 'AUSDRUCK' &&
-        typ !== 'KARTE_FLYER' &&
-        typ !== 'FALZFLYER' &&
-        typ !== 'BROSCHUERE' &&
-        typ !== 'VISITENKARTE' &&
-        typ !== 'BINDUNG' && <ProduktionswegSel {...p} />}
+      <QuantityInput {...detailBlock} />
+      {selectedType &&
+        selectedType !== 'PLAKAT_POSTER' &&
+        selectedType !== 'AUSDRUCK' &&
+        selectedType !== 'KARTE_FLYER' &&
+        selectedType !== 'FALZFLYER' &&
+        selectedType !== 'BROSCHUERE' &&
+        selectedType !== 'VISITENKARTE' &&
+        selectedType !== 'BINDUNG' && <ProductionPathSelect {...detailBlock} />}
 
-      {typ === 'PLAKAT_POSTER' && <PlakatPoster {...p} />}
-      {typ === 'KARTE_FLYER' && <KarteFlyer {...p} />}
-      {typ === 'FALZFLYER' && <Falzflyer {...p} />}
-      {typ === 'BROSCHUERE' && <Broschuere {...p} />}
-      {typ === 'VISITENKARTE' && <Visitenkarte {...p} />}
-      {typ === 'BINDUNG' && <BindungF {...p} />}
-      {typ === 'AUSDRUCK' && <AusdruckF {...p} />}
+      {selectedType === 'PLAKAT_POSTER' && <PlakatPoster {...detailBlock} />}
+      {selectedType === 'KARTE_FLYER' && <CardFlyerSection {...detailBlock} />}
+      {selectedType === 'FALZFLYER' && <FoldFlyerSection {...detailBlock} />}
+      {selectedType === 'BROSCHUERE' && <BrochureSection {...detailBlock} />}
+      {selectedType === 'VISITENKARTE' && <BusinessCardSection {...detailBlock} />}
+      {selectedType === 'BINDUNG' && <BindingSection {...detailBlock} />}
+      {selectedType === 'AUSDRUCK' && <PrintSection {...detailBlock} />}
 
       {orderFiles.length > 0 && (
-        <BerZeile l="Dateien">
+        <FieldRow label="Dateien">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
             {formFileRecordIds.map(fid => (
               <span
@@ -584,14 +582,14 @@ export function CopyShopDetail({
                 }}
               >
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {orderFiles.find(df => df.id === fid)?.anzeigename ?? fid}
+                  {orderFiles.find(file => file.id === fid)?.anzeigename ?? fid}
                 </span>
                 <button
                   type="button"
                   className="cp-btn cp-btn-grau"
                   style={{ minWidth: 22, padding: '0 6px', fontSize: 14, lineHeight: 1 }}
                   title="Entfernen"
-                  onClick={() => setFormFileRecordIds(prev => prev.filter(x => x !== fid))}
+                  onClick={() => setFormFileRecordIds(prev => prev.filter(id => id !== fid))}
                 >
                   ×
                 </button>
@@ -603,45 +601,45 @@ export function CopyShopDetail({
               style={{ fontSize: 12, maxWidth: 260 }}
               defaultValue=""
               onChange={e => {
-                const v = e.target.value
-                if (v && !formFileRecordIds.includes(v)) {
-                  setFormFileRecordIds(prev => [...prev, v])
+                const selected = e.target.value
+                if (selected && !formFileRecordIds.includes(selected)) {
+                  setFormFileRecordIds(prev => [...prev, selected])
                 }
               }}
             >
               <option value="">FileRecord hinzufügen…</option>
               {orderFiles
-                .filter(df => !formFileRecordIds.includes(df.id))
-                .map(df => (
-                  <option key={df.id} value={df.id}>
-                    {df.anzeigename}
+                .filter(file => !formFileRecordIds.includes(file.id))
+                .map(file => (
+                  <option key={file.id} value={file.id}>
+                    {file.anzeigename}
                   </option>
                 ))}
             </select>
           </div>
-        </BerZeile>
+        </FieldRow>
       )}
 
       <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
         <button
           type="button"
           className="cp-btn"
-          disabled={brauchtEntsperr ? false : !typ || !formOk}
+          disabled={requiresUnlock ? false : !selectedType || !formOk}
           onClick={() => {
-            if (brauchtEntsperr) {
+            if (requiresUnlock) {
               if (
                 window.confirm(
                   'Teilauftrag ist bereits freigegeben.\nWirklich Produkte bearbeiten?',
                 )
               ) {
-                setEntsperrt(true)
+                setUnlocked(true)
               }
               return
             }
             void handleAddOrSave()
           }}
         >
-          {brauchtEntsperr
+          {requiresUnlock
             ? 'Bearbeitung entsperren'
             : editingId
               ? 'Speichern'
@@ -653,7 +651,7 @@ export function CopyShopDetail({
           </button>
         )}
       </div>
-      {entsperrt && (
+      {unlocked && (
         <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
           Bearbeitung entsperrt — Änderungen setzen Status zurück
         </p>
@@ -663,11 +661,11 @@ export function CopyShopDetail({
         <h3 className="wa-dl-titel" style={{ margin: 0 }}>
           Produkte
         </h3>
-        {produkteLaden ? (
+        {productsLoading ? (
           <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
             Lädt Produkte …
           </p>
-        ) : produkte.length === 0 ? (
+        ) : products.length === 0 ? (
           <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
             Noch keine Produkte.
           </p>
@@ -694,35 +692,35 @@ export function CopyShopDetail({
                 </tr>
               </thead>
               <tbody>
-                {produkte.map(r => {
-                  const pd = (r.detail ?? {}) as Record<string, unknown>
-                  const pt = typeof pd.typ === 'string' ? pd.typ : ''
-                  const st = pd.stueckzahl ?? ''
-                  const pwg = pd.produktionsweg != null ? String(pd.produktionsweg) : ''
-                  const mat = pd.material != null ? String(pd.material) : ''
-                  const kurz = pwg || mat || '—'
-                  const fw = pd.format_breite
-                  const fh = pd.format_hoehe
-                  const fmt = fw && fh ? `${fw}×${fh} mm` : '—'
-                  const typLabel =
-                    (COPY_SHOP_TYPE_LABELS as Record<string, string>)[pt] ?? pt
-                  const zuo = productFiles[r.id] ?? []
+                {products.map(product => {
+                  const productDetail = (product.detail ?? {}) as Record<string, unknown>
+                  const productType = typeof productDetail.typ === 'string' ? productDetail.typ : ''
+                  const quantity = productDetail.stueckzahl ?? ''
+                  const productionPath = productDetail.produktionsweg != null ? String(productDetail.produktionsweg) : ''
+                  const material = productDetail.material != null ? String(productDetail.material) : ''
+                  const shortPath = productionPath || material || '—'
+                  const formatWidth = productDetail.format_breite
+                  const formatHeight = productDetail.format_hoehe
+                  const formatDisplay = formatWidth && formatHeight ? `${formatWidth}×${formatHeight} mm` : '—'
+                  const typeLabel =
+                    (COPY_SHOP_TYPE_LABELS as Record<string, string>)[productType] ?? productType
+                  const fileAssignments = productFiles[product.id] ?? []
                   return (
-                    <tr key={r.id}>
+                    <tr key={product.id}>
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
-                        {typLabel || '—'}
+                        {typeLabel || '—'}
                       </td>
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
-                        {String(st || '—')}
+                        {String(quantity || '—')}
                       </td>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{kurz}</td>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{fmt}</td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{shortPath}</td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{formatDisplay}</td>
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          <button type="button" className="cp-btn cp-btn-grau" onClick={() => handleEdit(r)}>
+                          <button type="button" className="cp-btn cp-btn-grau" onClick={() => handleEdit(product)}>
                             Bearbeiten
                           </button>
-                          <button type="button" className="cp-btn cp-btn-rot" onClick={() => void handleDelete(r.id)}>
+                          <button type="button" className="cp-btn cp-btn-rot" onClick={() => void handleDelete(product.id)}>
                             Löschen
                           </button>
                         </div>
@@ -733,12 +731,12 @@ export function CopyShopDetail({
                             color: 'var(--color-muted-fg, #6b7280)',
                           }}
                         >
-                          {zuo.length === 0
+                          {fileAssignments.length === 0
                             ? '—'
-                            : zuo
+                            : fileAssignments
                                 .map(
-                                  z =>
-                                    orderFiles.find(df => df.id === z.dateiId)?.anzeigename ?? z.dateiId,
+                                  assignment =>
+                                    orderFiles.find(file => file.id === assignment.fileId)?.anzeigename ?? assignment.fileId,
                                 )
                                 .join(', ')}
                         </div>
@@ -755,146 +753,146 @@ export function CopyShopDetail({
   )
 }
 
-function BerZeile({ l, c, e, children }: { l: string; c?: React.ReactNode; e?: string; children?: React.ReactNode }) {
-  const inhalt = c ?? children
+function FieldRow({ label, content, error, children }: { label: string; content?: React.ReactNode; error?: string; children?: React.ReactNode }) {
+  const body = content ?? children
   return (
     <div className="ber-zeile">
-      <span className="ber-lbl">{l}</span>
+      <span className="ber-lbl">{label}</span>
       <div>
-        {inhalt}
-        {e && <p className="ber-err">{e}</p>}
+        {body}
+        {error && <p className="ber-err">{error}</p>}
       </div>
     </div>
   )
 }
 
-function NmbStueckzahl(a: BlK) {
-  const { d, fe, f, pruef, patchL, commit } = a
-  const val = d.stueckzahl
-  const s = val === null || val === undefined ? '' : String(val)
+function QuantityInput(props: DetailBlockProps) {
+  const { detail, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit } = props
+  const quantity = detail.stueckzahl
+  const inputValue = quantity === null || quantity === undefined ? '' : String(quantity)
   return (
-    <BerZeile l="Stückzahl" e={pruef && f.stueckzahl ? f.stueckzahl : undefined}>
+    <FieldRow label="Stückzahl" error={shouldValidate && validationErrors.stueckzahl ? validationErrors.stueckzahl : undefined}>
       <input
         type="number"
-        className={'ber-inp' + fe('stueckzahl')}
+        className={'ber-inp' + fieldErrorClass('stueckzahl')}
         min={1}
         step={1}
-        value={s}
+        value={inputValue}
         onChange={e => {
           const raw = e.target.value
-          patchL({
+          patchLocal({
             stueckzahl: raw === '' ? null : parseInt(raw, 10),
           } as CopyShopDetailJson)
         }}
         onBlur={commit}
       />
-    </BerZeile>
+    </FieldRow>
   )
 }
 
-function ProduktionswegSel(a: BlK) {
-  const { d, fe, f, pruef, speichDetail } = a
-  const v = (d.produktionsweg as string | null | undefined) ?? ''
+function ProductionPathSelect(props: DetailBlockProps) {
+  const { detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail } = props
+  const productionPath = (detail.produktionsweg as string | null | undefined) ?? ''
   return (
-    <BerZeile l="Produktionsweg" e={pruef && f.produktionsweg ? f.produktionsweg : undefined}>
+    <FieldRow label="Produktionsweg" error={shouldValidate && validationErrors.produktionsweg ? validationErrors.produktionsweg : undefined}>
       <select
-        className={'ber-inp' + fe('produktionsweg')}
-        value={v}
+        className={'ber-inp' + fieldErrorClass('produktionsweg')}
+        value={productionPath}
         onChange={e => {
-          const x = e.target.value
-          speichDetail({ ...d, produktionsweg: x === '' ? null : x } as CopyShopDetailJson)
+          const selected = e.target.value
+          applyDetail({ ...detail, produktionsweg: selected === '' ? null : selected } as CopyShopDetailJson)
         }}
       >
         <option value="">—</option>
         <option value="COPYSHOP">Copy-Shop</option>
         <option value="OFFSET">Offset</option>
       </select>
-    </BerZeile>
+    </FieldRow>
   )
 }
 
-function SelB(
-  a: BlK & { k: string; l?: string; o: { v: string; t: string }[] },
+function SelectField(
+  props: DetailBlockProps & { fieldKey: string; label?: string; options: { value: string; text: string }[] },
 ) {
-  const { k, o, d, fe, f, pruef, speichDetail, l: lb } = a
+  const { fieldKey, options, detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail, label } = props
   return (
-    <BerZeile l={lb ?? k} e={pruef ? f[k] : undefined}>
+    <FieldRow label={label ?? fieldKey} error={shouldValidate ? validationErrors[fieldKey] : undefined}>
       <select
-        className={'ber-inp' + fe(k)}
-        value={String((d as Record<string, string>)[k] ?? '')}
+        className={'ber-inp' + fieldErrorClass(fieldKey)}
+        value={String((detail as Record<string, string>)[fieldKey] ?? '')}
         onChange={e =>
-          speichDetail({ ...d, [k]: e.target.value } as CopyShopDetailJson)
+          applyDetail({ ...detail, [fieldKey]: e.target.value } as CopyShopDetailJson)
         }
       >
         <option value="">—</option>
-        {o.map(x => (
-          <option key={x.v} value={x.v}>
-            {x.t}
+        {options.map(option => (
+          <option key={option.value} value={option.value}>
+            {option.text}
           </option>
         ))}
       </select>
-    </BerZeile>
+    </FieldRow>
   )
 }
 
-function boolSel(a: BlK & { k: string; l?: string }) {
-  const { k, d, fe, f, pruef, speichDetail, l: lb } = a
-  const v = (d as Record<string, unknown>)[k]
-  const s = v === true ? 'true' : v === false ? 'false' : ''
+function BooleanSelect(props: DetailBlockProps & { fieldKey: string; label?: string }) {
+  const { fieldKey, detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail, label } = props
+  const rawValue = (detail as Record<string, unknown>)[fieldKey]
+  const selectValue = rawValue === true ? 'true' : rawValue === false ? 'false' : ''
   return (
-    <BerZeile l={lb ?? k} e={pruef ? f[k] : undefined}>
+    <FieldRow label={label ?? fieldKey} error={shouldValidate ? validationErrors[fieldKey] : undefined}>
       <select
-        className={'ber-inp' + fe(k)}
-        value={s}
+        className={'ber-inp' + fieldErrorClass(fieldKey)}
+        value={selectValue}
         onChange={e => {
-          const t = e.target.value
-          const b: true | false | undefined = t === 'true' ? true : t === 'false' ? false : undefined
-          speichDetail({ ...d, [k]: b } as CopyShopDetailJson)
+          const selected = e.target.value
+          const boolValue: true | false | undefined = selected === 'true' ? true : selected === 'false' ? false : undefined
+          applyDetail({ ...detail, [fieldKey]: boolValue } as CopyShopDetailJson)
         }}
       >
         <option value="">—</option>
         <option value="true">Ja</option>
         <option value="false">Nein</option>
       </select>
-    </BerZeile>
+    </FieldRow>
   )
 }
 
-function Txt(
-  a: BlK & { k: string; l: string; rows?: number },
+function TextField(
+  props: DetailBlockProps & { fieldKey: string; label: string; rows?: number },
 ) {
-  const { k, l, d, fe, f, pruef, patchL, commit, rows = 1 } = a
-  const val = String((d as Record<string, string>)[k] ?? '')
+  const { fieldKey, label, detail, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit, rows = 1 } = props
+  const fieldValue = String((detail as Record<string, string>)[fieldKey] ?? '')
   return (
-    <BerZeile l={l} e={pruef ? f[k] : undefined}>
+    <FieldRow label={label} error={shouldValidate ? validationErrors[fieldKey] : undefined}>
       {rows > 1 ? (
         <textarea
-          className={'ber-inp ber-ta' + fe(k)}
+          className={'ber-inp ber-ta' + fieldErrorClass(fieldKey)}
           rows={rows}
-          value={val}
-          onChange={e => patchL({ [k]: e.target.value } as CopyShopDetailJson)}
+          value={fieldValue}
+          onChange={e => patchLocal({ [fieldKey]: e.target.value } as CopyShopDetailJson)}
           onBlur={commit}
         />
       ) : (
         <input
           type="text"
-          className={'ber-inp' + fe(k)}
-          value={val}
-          onChange={e => patchL({ [k]: e.target.value } as CopyShopDetailJson)}
+          className={'ber-inp' + fieldErrorClass(fieldKey)}
+          value={fieldValue}
+          onChange={e => patchLocal({ [fieldKey]: e.target.value } as CopyShopDetailJson)}
           onBlur={commit}
         />
       )}
-    </BerZeile>
+    </FieldRow>
   )
 }
 
-function MasseHoeheBreite(p: BlK) {
-  const { d, fe, f, pruef, patchL, commit } = p
-  const msg = pruef ? f.format_masse : undefined
-  const b = d.format_breite
-  const h = d.format_hoehe
-  const sb = b === null || b === undefined ? '' : String(b)
-  const sh = h === null || h === undefined ? '' : String(h)
+function DimensionInputs(props: DetailBlockProps) {
+  const { detail, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit } = props
+  const errorMessage = shouldValidate ? validationErrors.format_masse : undefined
+  const width = detail.format_breite
+  const height = detail.format_hoehe
+  const widthValue = width === null || width === undefined ? '' : String(width)
+  const heightValue = height === null || height === undefined ? '' : String(height)
   return (
     <div>
       <div className="ber-zeile">
@@ -902,13 +900,13 @@ function MasseHoeheBreite(p: BlK) {
         <div>
           <input
             type="number"
-            className={'ber-inp' + fe('format_masse')}
+            className={'ber-inp' + fieldErrorClass('format_masse')}
             min={0.01}
             step={0.01}
-            value={sb}
+            value={widthValue}
             onChange={e => {
               const raw = e.target.value
-              patchL({
+              patchLocal({
                 format_breite: raw === '' ? null : parseFloat(raw),
               } as CopyShopDetailJson)
             }}
@@ -921,13 +919,13 @@ function MasseHoeheBreite(p: BlK) {
         <div>
           <input
             type="number"
-            className={'ber-inp' + fe('format_masse')}
+            className={'ber-inp' + fieldErrorClass('format_masse')}
             min={0.01}
             step={0.01}
-            value={sh}
+            value={heightValue}
             onChange={e => {
               const raw = e.target.value
-              patchL({
+              patchLocal({
                 format_hoehe: raw === '' ? null : parseFloat(raw),
               } as CopyShopDetailJson)
             }}
@@ -935,140 +933,140 @@ function MasseHoeheBreite(p: BlK) {
           />
         </div>
       </div>
-      {msg && <p className="ber-err ber-err--mass">{msg}</p>}
+      {errorMessage && <p className="ber-err ber-err--mass">{errorMessage}</p>}
     </div>
   )
 }
 
-function BesonderheitenUnten(p: BlK) {
-  return <Txt {...p} k="besonderheiten" l="Besonderheiten" rows={3} />
+function NotesField(props: DetailBlockProps) {
+  return <TextField {...props} fieldKey="besonderheiten" label="Besonderheiten" rows={3} />
 }
 
-function PlakatPoster(p: BlK) {
-  const { d, fe, f, pruef, speichDetail } = p
-  const fmt = String((d as Record<string, string>).format ?? '')
+function PlakatPoster(props: DetailBlockProps) {
+  const { detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail } = props
+  const formatStr = String((detail as Record<string, string>).format ?? '')
   return (
     <>
-      <BerZeile l="Format" e={pruef && f.format ? f.format : undefined}>
+      <FieldRow label="Format" error={shouldValidate && validationErrors.format ? validationErrors.format : undefined}>
         <select
-          className={'ber-inp' + fe('format')}
-          value={fmt}
+          className={'ber-inp' + fieldErrorClass('format')}
+          value={formatStr}
           onChange={e => {
-            const v = e.target.value
-            if (v === 'FREI') {
-              speichDetail({ ...d, format: 'FREI' } as CopyShopDetailJson)
-            } else if (v in PLAKAT_DIN) {
-              const dim = PLAKAT_DIN[v as keyof typeof PLAKAT_DIN]
-              speichDetail({
-                ...d,
-                format: v,
-                format_breite: dim.b,
-                format_hoehe: dim.h,
+            const selected = e.target.value
+            if (selected === 'FREI') {
+              applyDetail({ ...detail, format: 'FREI' } as CopyShopDetailJson)
+            } else if (selected in POSTER_DIN) {
+              const dinDimensions = POSTER_DIN[selected as keyof typeof POSTER_DIN]
+              applyDetail({
+                ...detail,
+                format: selected,
+                format_breite: dinDimensions.b,
+                format_hoehe: dinDimensions.h,
               } as CopyShopDetailJson)
             } else {
-              speichDetail({ ...d, format: v || null } as CopyShopDetailJson)
+              applyDetail({ ...detail, format: selected || null } as CopyShopDetailJson)
             }
           }}
         >
           <option value="">—</option>
-          {(['A4', 'A3', 'A2', 'A1', 'A0'] as const).map(x => {
-            const dim = PLAKAT_DIN[x]
+          {(['A4', 'A3', 'A2', 'A1', 'A0'] as const).map(size => {
+            const dinDimensions = POSTER_DIN[size]
             return (
-              <option key={x} value={x}>
-                {x} ({dim.b}×{dim.h} mm)
+              <option key={size} value={size}>
+                {size} ({dinDimensions.b}×{dinDimensions.h} mm)
               </option>
             )
           })}
           <option value="FREI">Frei</option>
         </select>
-      </BerZeile>
-      <SelB
-        {...p}
-        k="material"
-        l="Material"
-        o={POSTER_MATERIALIEN.map(x => ({ v: x.wert, t: x.anzeige }))}
+      </FieldRow>
+      <SelectField
+        {...props}
+        fieldKey="material"
+        label="Material"
+        options={POSTER_MATERIALIEN.map(posterMaterial => ({ value: posterMaterial.wert, text: posterMaterial.anzeige }))}
       />
-      <SelB
-        {...p}
-        k="laminat"
-        l="Laminat"
-        o={[
-          { v: 'NEIN', t: 'Nein' },
-          { v: 'MATT', t: 'Matt' },
-          { v: 'GLAENZEND', t: 'Glänzend' },
+      <SelectField
+        {...props}
+        fieldKey="laminat"
+        label="Laminat"
+        options={[
+          { value: 'NEIN', text: 'Nein' },
+          { value: 'MATT', text: 'Matt' },
+          { value: 'GLAENZEND', text: 'Glänzend' },
         ]}
       />
-      {fmt === 'FREI' && <MasseHoeheBreite {...p} />}
-      <BesonderheitenUnten {...p} />
+      {formatStr === 'FREI' && <DimensionInputs {...props} />}
+      <NotesField {...props} />
     </>
   )
 }
 
-function KfbFormatFeld(q: {
-  blk: BlK
+function FormatDinSelect(props: {
+  block: DetailBlockProps
   din: Record<string, { b: number; h: number }>
   order: readonly string[]
 }) {
-  const { blk, din, order } = q
-  const { d, fe, f, pruef, speichDetail } = blk
-  const fmt = String((d as Record<string, string>).format ?? '')
+  const { block, din, order } = props
+  const { detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail } = block
+  const formatStr = String((detail as Record<string, string>).format ?? '')
   return (
-    <BerZeile l="Format" e={pruef && f.format ? f.format : undefined}>
+    <FieldRow label="Format" error={shouldValidate && validationErrors.format ? validationErrors.format : undefined}>
       <select
-        className={'ber-inp' + fe('format')}
-        value={fmt}
+        className={'ber-inp' + fieldErrorClass('format')}
+        value={formatStr}
         onChange={e => {
-          const v = e.target.value
-          if (v === 'FREI') speichDetail({ ...d, format: 'FREI' } as CopyShopDetailJson)
-          else if (v in din) {
-            const dim = din[v]!
-            speichDetail({
-              ...d,
-              format: v,
-              format_breite: dim.b,
-              format_hoehe: dim.h,
+          const selected = e.target.value
+          if (selected === 'FREI') applyDetail({ ...detail, format: 'FREI' } as CopyShopDetailJson)
+          else if (selected in din) {
+            const dinDimensions = din[selected]!
+            applyDetail({
+              ...detail,
+              format: selected,
+              format_breite: dinDimensions.b,
+              format_hoehe: dinDimensions.h,
             } as CopyShopDetailJson)
           } else {
-            speichDetail({ ...d, format: v || null } as CopyShopDetailJson)
+            applyDetail({ ...detail, format: selected || null } as CopyShopDetailJson)
           }
         }}
       >
         <option value="">—</option>
-        {order.map(k => {
-          if (k === 'FREI') {
+        {order.map(formatKey => {
+          if (formatKey === 'FREI') {
             return (
               <option key="FREI" value="FREI">
                 Frei
               </option>
             )
           }
-          const dim = din[k]
-          if (!dim) return null
+          const dinDimensions = din[formatKey]
+          if (!dinDimensions) return null
           return (
-            <option key={k} value={k}>
-              {k} ({dim.b}×{dim.h} mm)
+            <option key={formatKey} value={formatKey}>
+              {formatKey} ({dinDimensions.b}×{dinDimensions.h} mm)
             </option>
           )
         })}
       </select>
-    </BerZeile>
+    </FieldRow>
   )
 }
 
-function KfbPwgKarteFalz({ blk }: { blk: BlK }) {
-  const { d, fe, f, pruef, speichDetail } = blk
-  const v = String((d as Record<string, string>).produktionsweg ?? '')
+function CardFoldProductionPathSelect({ block }: { block: DetailBlockProps }) {
+  const { detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail } = block
+  const productionPath = String((detail as Record<string, string>).produktionsweg ?? '')
   return (
-    <BerZeile l="Produktionsweg" e={pruef && f.produktionsweg ? f.produktionsweg : undefined}>
+    <FieldRow label="Produktionsweg" error={shouldValidate && validationErrors.produktionsweg ? validationErrors.produktionsweg : undefined}>
       <select
-        className={'ber-inp' + fe('produktionsweg')}
-        value={v}
+        className={'ber-inp' + fieldErrorClass('produktionsweg')}
+        value={productionPath}
         onChange={e => {
-          const x = e.target.value
-          speichDetail({
-            ...d,
-            produktionsweg: x || null,
-            ...KARTE_FALZ_MAT_NULL,
+          const selected = e.target.value
+          applyDetail({
+            ...detail,
+            produktionsweg: selected || null,
+            ...CARD_FOLD_MATERIAL_RESET,
           } as CopyShopDetailJson)
         }}
       >
@@ -1077,32 +1075,32 @@ function KfbPwgKarteFalz({ blk }: { blk: BlK }) {
         <option value="OFFSET">Offset</option>
         <option value="OFFEN">Offen</option>
       </select>
-    </BerZeile>
+    </FieldRow>
   )
 }
 
-function BrosPwgWahl({ blk }: { blk: BlK }) {
-  const { d, fe, f, pruef, speichDetail } = blk
-  const v = String((d as Record<string, string>).produktionsweg ?? '')
+function BrochureProductionPathSelect({ block }: { block: DetailBlockProps }) {
+  const { detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail } = block
+  const productionPath = String((detail as Record<string, string>).produktionsweg ?? '')
   return (
-    <BerZeile l="Produktionsweg" e={pruef && f.produktionsweg ? f.produktionsweg : undefined}>
+    <FieldRow label="Produktionsweg" error={shouldValidate && validationErrors.produktionsweg ? validationErrors.produktionsweg : undefined}>
       <select
-        className={'ber-inp' + fe('produktionsweg')}
-        value={v}
+        className={'ber-inp' + fieldErrorClass('produktionsweg')}
+        value={productionPath}
         onChange={e => {
-          const x = e.target.value
-          if (x === 'CC') {
-            speichDetail({
-              ...d,
+          const selected = e.target.value
+          if (selected === 'CC') {
+            applyDetail({
+              ...detail,
               produktionsweg: 'CC',
-              ...BROSCH_MAT_NULL,
+              ...BROCHURE_MATERIAL_RESET,
               brosch_bindung: 'DRAHTHEFTUNG',
             } as CopyShopDetailJson)
           } else {
-            speichDetail({
-              ...d,
-              produktionsweg: x || null,
-              ...BROSCH_MAT_NULL,
+            applyDetail({
+              ...detail,
+              produktionsweg: selected || null,
+              ...BROCHURE_MATERIAL_RESET,
             } as CopyShopDetailJson)
           }
         }}
@@ -1112,352 +1110,352 @@ function BrosPwgWahl({ blk }: { blk: BlK }) {
         <option value="OFFSET">Offset</option>
         <option value="OFFEN">Offen</option>
       </select>
-    </BerZeile>
+    </FieldRow>
   )
 }
 
-function BroschOffsetOffenForm(p: BlK) {
+function BrochureOffsetFields(props: DetailBlockProps) {
   return (
     <>
-      <SelB
-        {...p}
-        k="brosch_bindung"
-        l="Bindung"
-        o={[
-          { v: 'DRAHTHEFTUNG', t: 'Drahtheftung' },
-          { v: 'RINGSÖSEN', t: 'Ringsösen' },
-          { v: 'KLEBEBINDUNG', t: 'Klebebindung' },
-          { v: 'SPIRALBINDUNG', t: 'Spiralbindung' },
+      <SelectField
+        {...props}
+        fieldKey="brosch_bindung"
+        label="Bindung"
+        options={[
+          { value: 'DRAHTHEFTUNG', text: 'Drahtheftung' },
+          { value: 'RINGSÖSEN', text: 'Ringsösen' },
+          { value: 'KLEBEBINDUNG', text: 'Klebebindung' },
+          { value: 'SPIRALBINDUNG', text: 'Spiralbindung' },
         ]}
       />
-      <SelB
-        {...p}
-        k="brosch_u_gramm"
-        l="Umschlag Grammatur"
-        o={['135G', '170G', '250G', '300G'].map(x => ({ v: x, t: x }))}
+      <SelectField
+        {...props}
+        fieldKey="brosch_u_gramm"
+        label="Umschlag Grammatur"
+        options={['135G', '170G', '250G', '300G'].map(weight => ({ value: weight, text: weight }))}
       />
-      <SelB
-        {...p}
-        k="brosch_u_ober"
-        l="Umschlag Oberfläche"
-        o={[
-          { v: 'MATT', t: 'Matt' },
-          { v: 'GLAENZEND', t: 'Glänzend' },
+      <SelectField
+        {...props}
+        fieldKey="brosch_u_ober"
+        label="Umschlag Oberfläche"
+        options={[
+          { value: 'MATT', text: 'Matt' },
+          { value: 'GLAENZEND', text: 'Glänzend' },
         ]}
       />
-      <SelB
-        {...p}
-        k="brosch_i_gramm"
-        l="Inhalt Grammatur"
-        o={['90G', '135G', '170G'].map(x => ({ v: x, t: x }))}
+      <SelectField
+        {...props}
+        fieldKey="brosch_i_gramm"
+        label="Inhalt Grammatur"
+        options={['90G', '135G', '170G'].map(weight => ({ value: weight, text: weight }))}
       />
-      <SelB
-        {...p}
-        k="brosch_i_ober"
-        l="Inhalt Oberfläche"
-        o={[
-          { v: 'MATT', t: 'Matt' },
-          { v: 'GLAENZEND', t: 'Glänzend' },
+      <SelectField
+        {...props}
+        fieldKey="brosch_i_ober"
+        label="Inhalt Oberfläche"
+        options={[
+          { value: 'MATT', text: 'Matt' },
+          { value: 'GLAENZEND', text: 'Glänzend' },
         ]}
       />
     </>
   )
 }
 
-function NmbFalzSeite(p: BlK) {
-  const { d, fe, f, pruef, patchL, commit } = p
-  const val = d.seitenzahl
-  const s = val == null || val === undefined ? '' : String(val)
+function FoldPageCountInput(props: DetailBlockProps) {
+  const { detail, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit } = props
+  const pageCount = detail.seitenzahl
+  const inputValue = pageCount == null ? '' : String(pageCount)
   return (
-    <BerZeile l="Seitenzahl" e={pruef && f.seitenzahl ? f.seitenzahl : undefined}>
+    <FieldRow label="Seitenzahl" error={shouldValidate && validationErrors.seitenzahl ? validationErrors.seitenzahl : undefined}>
       <input
         type="number"
-        className={'ber-inp' + fe('seitenzahl')}
+        className={'ber-inp' + fieldErrorClass('seitenzahl')}
         min={2}
         max={100}
         step={2}
-        value={s}
+        value={inputValue}
         onChange={e => {
           const raw = e.target.value
           if (raw === '') {
-            patchL({ seitenzahl: null } as CopyShopDetailJson)
+            patchLocal({ seitenzahl: null } as CopyShopDetailJson)
             return
           }
-          let n = parseInt(raw, 10)
-          if (Number.isNaN(n)) return
-          n = Math.max(2, Math.min(100, n))
-          if (n % 2 !== 0) n = n - 1
-          if (n < 2) n = 2
-          patchL({ seitenzahl: n } as CopyShopDetailJson)
+          let parsed = parseInt(raw, 10)
+          if (Number.isNaN(parsed)) return
+          parsed = Math.max(2, Math.min(100, parsed))
+          if (parsed % 2 !== 0) parsed = parsed - 1
+          if (parsed < 2) parsed = 2
+          patchLocal({ seitenzahl: parsed } as CopyShopDetailJson)
         }}
         onBlur={commit}
       />
-    </BerZeile>
+    </FieldRow>
   )
 }
 
-function NmbBroschSeite(p: BlK) {
-  const { d, fe, f, pruef, patchL, commit } = p
-  const val = d.seitenzahl
-  const s = val == null || val === undefined ? '' : String(val)
+function BrochurePageCountInput(props: DetailBlockProps) {
+  const { detail, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit } = props
+  const pageCount = detail.seitenzahl
+  const inputValue = pageCount == null ? '' : String(pageCount)
   return (
-    <BerZeile l="Seitenzahl" e={pruef && f.seitenzahl ? f.seitenzahl : undefined}>
+    <FieldRow label="Seitenzahl" error={shouldValidate && validationErrors.seitenzahl ? validationErrors.seitenzahl : undefined}>
       <input
         type="number"
-        className={'ber-inp' + fe('seitenzahl')}
+        className={'ber-inp' + fieldErrorClass('seitenzahl')}
         min={4}
         max={152}
         step={4}
-        value={s}
+        value={inputValue}
         onChange={e => {
           const raw = e.target.value
           if (raw === '') {
-            patchL({ seitenzahl: null } as CopyShopDetailJson)
+            patchLocal({ seitenzahl: null } as CopyShopDetailJson)
             return
           }
-          let n = parseInt(raw, 10)
-          if (Number.isNaN(n)) return
-          n = Math.max(4, Math.min(152, n))
-          n = n - (n % 4)
-          if (n < 4) n = 4
-          patchL({ seitenzahl: n } as CopyShopDetailJson)
+          let parsed = parseInt(raw, 10)
+          if (Number.isNaN(parsed)) return
+          parsed = Math.max(4, Math.min(152, parsed))
+          parsed = parsed - (parsed % 4)
+          if (parsed < 4) parsed = 4
+          patchLocal({ seitenzahl: parsed } as CopyShopDetailJson)
         }}
         onBlur={commit}
       />
-    </BerZeile>
+    </FieldRow>
   )
 }
 
-function KarteFlyer(p: BlK) {
-  const { d } = p
-  const r = d as Record<string, string>
-  const pwg = String(r.produktionsweg ?? '')
+function CardFlyerSection(props: DetailBlockProps) {
+  const { detail } = props
+  const detailRecord = detail as Record<string, string>
+  const productionPath = String(detailRecord.produktionsweg ?? '')
   return (
     <>
-      <SelB
-        {...p}
-        k="farbigkeit"
-        l="Farbigkeit"
-        o={[
-          { v: '1_0', t: '1/0' },
-          { v: '1_1', t: '1/1' },
-          { v: '4_0', t: '4/0' },
-          { v: '4_4', t: '4/4' },
+      <SelectField
+        {...props}
+        fieldKey="farbigkeit"
+        label="Farbigkeit"
+        options={[
+          { value: '1_0', text: '1/0' },
+          { value: '1_1', text: '1/1' },
+          { value: '4_0', text: '4/0' },
+          { value: '4_4', text: '4/4' },
         ]}
       />
-      <KfbFormatFeld din={CARD_DIN} order={CARD_FORMAT_ORDER} blk={p} />
-      {String(r.format) === 'FREI' && <MasseHoeheBreite {...p} />}
-      {boolSel({ ...p, k: 'randabfallend', l: 'Randabfallend' })}
-      <KfbPwgKarteFalz blk={p} />
-      {pwg === 'CC' && (
+      <FormatDinSelect din={CARD_DIN} order={CARD_FORMAT_ORDER} block={props} />
+      {String(detailRecord.format) === 'FREI' && <DimensionInputs {...props} />}
+      {BooleanSelect({ ...props, fieldKey: 'randabfallend', label: 'Randabfallend' })}
+      <CardFoldProductionPathSelect block={props} />
+      {productionPath === 'CC' && (
         <MaterialCC
-          d={d}
-          fe={p.fe}
-          f={p.f}
-          pruef={p.pruef}
-          patchL={p.patchL}
-          commit={p.commit}
-          speichDetail={p.speichDetail}
-          kMat="material_cc"
-          kSon="material_cc_sonstige"
+          detail={detail}
+          fieldErrorClass={props.fieldErrorClass}
+          validationErrors={props.validationErrors}
+          shouldValidate={props.shouldValidate}
+          patchLocal={props.patchLocal}
+          commit={props.commit}
+          applyDetail={props.applyDetail}
+          materialKey="material_cc"
+          customKey="material_cc_sonstige"
           label="Material"
         />
       )}
-      {pwg === 'OFFSET' && <MaterialOffset {...p} speichDetail={p.speichDetail} />}
-      <BesonderheitenUnten {...p} />
+      {productionPath === 'OFFSET' && <MaterialOffset detail={detail} fieldErrorClass={props.fieldErrorClass} validationErrors={props.validationErrors} shouldValidate={props.shouldValidate} patchLocal={props.patchLocal} commit={props.commit} applyDetail={props.applyDetail} />}
+      <NotesField {...props} />
     </>
   )
 }
 
-function Falzflyer(p: BlK) {
-  const { d } = p
-  const r = d as Record<string, string>
-  const pwg = String(r.produktionsweg ?? '')
+function FoldFlyerSection(props: DetailBlockProps) {
+  const { detail } = props
+  const detailRecord = detail as Record<string, string>
+  const productionPath = String(detailRecord.produktionsweg ?? '')
   return (
     <>
-      <SelB
-        {...p}
-        k="farbigkeit"
-        l="Farbigkeit"
-        o={[
-          { v: '1_1', t: '1/1' },
-          { v: '4_4', t: '4/4' },
+      <SelectField
+        {...props}
+        fieldKey="farbigkeit"
+        label="Farbigkeit"
+        options={[
+          { value: '1_1', text: '1/1' },
+          { value: '4_4', text: '4/4' },
         ]}
       />
-      <SelB
-        {...p}
-        k="falzart"
-        l="Falzart"
-        o={[
-          { v: 'MITTELFALZ', t: 'Mittelfalz' },
-          { v: 'WICKELFALZ', t: 'Wickelfalz' },
-          { v: 'ZICKZACK', t: 'Zick-Zack-Falz' },
+      <SelectField
+        {...props}
+        fieldKey="falzart"
+        label="Falzart"
+        options={[
+          { value: 'MITTELFALZ', text: 'Mittelfalz' },
+          { value: 'WICKELFALZ', text: 'Wickelfalz' },
+          { value: 'ZICKZACK', text: 'Zick-Zack-Falz' },
         ]}
       />
-      <KfbFormatFeld din={FOLD_DIN as Record<string, { b: number; h: number }>} order={FOLD_FORMAT_ORDER} blk={p} />
-      {String(r.format) === 'FREI' && <MasseHoeheBreite {...p} />}
-      <NmbFalzSeite {...p} />
-      {boolSel({ ...p, k: 'randabfallend', l: 'Randabfallend' })}
-      <KfbPwgKarteFalz blk={p} />
-      {pwg === 'CC' && (
+      <FormatDinSelect din={FOLD_DIN as Record<string, { b: number; h: number }>} order={FOLD_FORMAT_ORDER} block={props} />
+      {String(detailRecord.format) === 'FREI' && <DimensionInputs {...props} />}
+      <FoldPageCountInput {...props} />
+      {BooleanSelect({ ...props, fieldKey: 'randabfallend', label: 'Randabfallend' })}
+      <CardFoldProductionPathSelect block={props} />
+      {productionPath === 'CC' && (
         <MaterialCC
-          d={d}
-          fe={p.fe}
-          f={p.f}
-          pruef={p.pruef}
-          patchL={p.patchL}
-          commit={p.commit}
-          speichDetail={p.speichDetail}
-          kMat="material_cc"
-          kSon="material_cc_sonstige"
+          detail={detail}
+          fieldErrorClass={props.fieldErrorClass}
+          validationErrors={props.validationErrors}
+          shouldValidate={props.shouldValidate}
+          patchLocal={props.patchLocal}
+          commit={props.commit}
+          applyDetail={props.applyDetail}
+          materialKey="material_cc"
+          customKey="material_cc_sonstige"
           label="Material"
         />
       )}
-      {pwg === 'OFFSET' && <MaterialOffset {...p} speichDetail={p.speichDetail} />}
-      <BesonderheitenUnten {...p} />
+      {productionPath === 'OFFSET' && <MaterialOffset detail={detail} fieldErrorClass={props.fieldErrorClass} validationErrors={props.validationErrors} shouldValidate={props.shouldValidate} patchLocal={props.patchLocal} commit={props.commit} applyDetail={props.applyDetail} />}
+      <NotesField {...props} />
     </>
   )
 }
 
-function Broschuere(p: BlK) {
-  const { d, fe, f, pruef } = p
-  const r = d as Record<string, string>
-  const pwg = String(r.produktionsweg ?? '')
-  const oStr = r.orientierung ?? ''
+function BrochureSection(props: DetailBlockProps) {
+  const { detail, fieldErrorClass, validationErrors, shouldValidate } = props
+  const detailRecord = detail as Record<string, string>
+  const productionPath = String(detailRecord.produktionsweg ?? '')
+  const orientation = detailRecord.orientierung ?? ''
   return (
     <>
-      <KfbFormatFeld din={BROCHURE_DIN} order={BROCHURE_FORMAT_ORDER} blk={p} />
-      <BerZeile
-        l="Ausrichtung"
-        e={pruef && (f.orientierung || f.brosch_quer_cc) ? f.orientierung || f.brosch_quer_cc : undefined}
+      <FormatDinSelect din={BROCHURE_DIN} order={BROCHURE_FORMAT_ORDER} block={props} />
+      <FieldRow
+        label="Ausrichtung"
+        error={shouldValidate && (validationErrors.orientierung || validationErrors.brosch_quer_cc) ? validationErrors.orientierung || validationErrors.brosch_quer_cc : undefined}
       >
         <select
-          className={'ber-inp' + (pruef && f.brosch_quer_cc ? fe('brosch_quer_cc') : fe('orientierung'))}
-          value={oStr}
+          className={'ber-inp' + (shouldValidate && validationErrors.brosch_quer_cc ? fieldErrorClass('brosch_quer_cc') : fieldErrorClass('orientierung'))}
+          value={orientation}
           onChange={e =>
-            p.speichDetail({ ...d, orientierung: e.target.value } as CopyShopDetailJson)
+            props.applyDetail({ ...detail, orientierung: e.target.value } as CopyShopDetailJson)
           }
         >
           <option value="">—</option>
           <option value="HOCHFORMAT">Hochformat</option>
           <option value="QUERFORMAT">Querformat</option>
         </select>
-      </BerZeile>
-      <NmbBroschSeite {...p} />
-      <BrosPwgWahl blk={p} />
-      {pwg === 'CC' && (
+      </FieldRow>
+      <BrochurePageCountInput {...props} />
+      <BrochureProductionPathSelect block={props} />
+      {productionPath === 'CC' && (
         <>
           <p className="ber-hinweis">Bindung: Drahtheftung (fix)</p>
           <MaterialCC
-            d={d}
-            fe={p.fe}
-            f={p.f}
-            pruef={p.pruef}
-            patchL={p.patchL}
-            commit={p.commit}
-            speichDetail={p.speichDetail}
-            kMat="cc_umschlag"
-            kSon="cc_umschlag_sonstige"
+            detail={detail}
+            fieldErrorClass={props.fieldErrorClass}
+            validationErrors={props.validationErrors}
+            shouldValidate={props.shouldValidate}
+            patchLocal={props.patchLocal}
+            commit={props.commit}
+            applyDetail={props.applyDetail}
+            materialKey="cc_umschlag"
+            customKey="cc_umschlag_sonstige"
             label="Umschlag"
           />
           <MaterialCC
-            d={d}
-            fe={p.fe}
-            f={p.f}
-            pruef={p.pruef}
-            patchL={p.patchL}
-            commit={p.commit}
-            speichDetail={p.speichDetail}
-            kMat="cc_inhalt"
-            kSon="cc_inhalt_sonstige"
+            detail={detail}
+            fieldErrorClass={props.fieldErrorClass}
+            validationErrors={props.validationErrors}
+            shouldValidate={props.shouldValidate}
+            patchLocal={props.patchLocal}
+            commit={props.commit}
+            applyDetail={props.applyDetail}
+            materialKey="cc_inhalt"
+            customKey="cc_inhalt_sonstige"
             label="Inhalt"
           />
         </>
       )}
-      {(pwg === 'OFFSET' || pwg === 'OFFEN') && <BroschOffsetOffenForm {...p} />}
-      {boolSel({ ...p, k: 'randabfallend', l: 'Randabfallend' })}
-      <BesonderheitenUnten {...p} />
+      {(productionPath === 'OFFSET' || productionPath === 'OFFEN') && <BrochureOffsetFields {...props} />}
+      {BooleanSelect({ ...props, fieldKey: 'randabfallend', label: 'Randabfallend' })}
+      <NotesField {...props} />
     </>
   )
 }
 
-function Visitenkarte(p: BlK) {
-  const { d, fe, f, pruef, speichDetail } = p
-  const r = d as Record<string, string>
-  const fmt = String(r.format ?? '')
-  const mat = String(r.material ?? '')
+function BusinessCardSection(props: DetailBlockProps) {
+  const { detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail } = props
+  const detailRecord = detail as Record<string, string>
+  const format = String(detailRecord.format ?? '')
+  const material = String(detailRecord.material ?? '')
   return (
     <>
-      <SelB
-        {...p}
-        k="format"
-        l="Format"
-        o={[
-          { v: 'STANDARD_85_55', t: '85 × 55 mm (Standard)' },
-          { v: 'STANDARD_90_50', t: '90 × 50 mm' },
-          { v: 'FREI', t: 'Frei' },
+      <SelectField
+        {...props}
+        fieldKey="format"
+        label="Format"
+        options={[
+          { value: 'STANDARD_85_55', text: '85 × 55 mm (Standard)' },
+          { value: 'STANDARD_90_50', text: '90 × 50 mm' },
+          { value: 'FREI', text: 'Frei' },
         ]}
       />
-      <SelB
-        {...p}
-        k="orientierung"
-        l="Ausrichtung"
-        o={[
-          { v: 'HOCHFORMAT', t: 'Hochformat' },
-          { v: 'QUERFORMAT', t: 'Querformat' },
+      <SelectField
+        {...props}
+        fieldKey="orientierung"
+        label="Ausrichtung"
+        options={[
+          { value: 'HOCHFORMAT', text: 'Hochformat' },
+          { value: 'QUERFORMAT', text: 'Querformat' },
         ]}
       />
-      <SelB
-        {...p}
-        k="farbigkeit"
-        l="Farbigkeit"
-        o={[
-          { v: '4_0', t: '4/0' },
-          { v: '4_4', t: '4/4' },
+      <SelectField
+        {...props}
+        fieldKey="farbigkeit"
+        label="Farbigkeit"
+        options={[
+          { value: '4_0', text: '4/0' },
+          { value: '4_4', text: '4/4' },
         ]}
       />
-      <BerZeile l="Material" e={pruef && f.material ? f.material : undefined}>
+      <FieldRow label="Material" error={shouldValidate && validationErrors.material ? validationErrors.material : undefined}>
         <select
-          className={'ber-inp' + fe('material')}
-          value={mat}
+          className={'ber-inp' + fieldErrorClass('material')}
+          value={material}
           onChange={e => {
-            const v = e.target.value
-            const patch: CopyShopDetailJson = { material: v }
-            if (v !== '350G_OFFSET') (patch as Record<string, unknown>).folienkaschiert = null
-            if (v !== 'MULTILOFT') (patch as Record<string, unknown>).multiloft_farbkern = null
-            speichDetail({ ...d, ...patch } as CopyShopDetailJson)
+            const selected = e.target.value
+            const patch: CopyShopDetailJson = { material: selected }
+            if (selected !== '350G_OFFSET') (patch as Record<string, unknown>).folienkaschiert = null
+            if (selected !== 'MULTILOFT') (patch as Record<string, unknown>).multiloft_farbkern = null
+            applyDetail({ ...detail, ...patch } as CopyShopDetailJson)
           }}
         >
           <option value="">—</option>
-          {VISITENKARTE_MATERIALIEN.map(x => (
-            <option key={x.wert} value={x.wert}>
-              {x.anzeige}
+          {VISITENKARTE_MATERIALIEN.map(cardMaterial => (
+            <option key={cardMaterial.wert} value={cardMaterial.wert}>
+              {cardMaterial.anzeige}
             </option>
           ))}
         </select>
-      </BerZeile>
-      {mat === '350G_OFFSET' && boolSel({ ...p, k: 'folienkaschiert', l: 'Beidseitig Folienkaschiert matt' })}
-      {mat === 'MULTILOFT' && (
-        <SelB
-          {...p}
-          k="multiloft_farbkern"
-          l="Farbkern"
-          o={MULTILOFT_FARBKERNE.map(x => ({ v: x.wert, t: x.anzeige }))}
+      </FieldRow>
+      {material === '350G_OFFSET' && BooleanSelect({ ...props, fieldKey: 'folienkaschiert', label: 'Beidseitig Folienkaschiert matt' })}
+      {material === 'MULTILOFT' && (
+        <SelectField
+          {...props}
+          fieldKey="multiloft_farbkern"
+          label="Farbkern"
+          options={MULTILOFT_FARBKERNE.map(colorCore => ({ value: colorCore.wert, text: colorCore.anzeige }))}
         />
       )}
-      {fmt === 'FREI' && <MasseHoeheBreite {...p} />}
-      {boolSel({ ...p, k: 'randabfallend', l: 'Randabfallend' })}
-      <BesonderheitenUnten {...p} />
+      {format === 'FREI' && <DimensionInputs {...props} />}
+      {BooleanSelect({ ...props, fieldKey: 'randabfallend', label: 'Randabfallend' })}
+      <NotesField {...props} />
     </>
   )
 }
 
-function BindungFreiMasse(p: BlK) {
-  const { d, fe, f, pruef, patchL, commit } = p
-  const b = d.format_breite
-  const h = d.format_hoehe
-  const sb = b === null || b === undefined ? '' : String(b)
-  const sh = h === null || h === undefined ? '' : String(h)
+function BindingFreeDimensions(props: DetailBlockProps) {
+  const { detail, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit } = props
+  const width = detail.format_breite
+  const height = detail.format_hoehe
+  const widthValue = width === null || width === undefined ? '' : String(width)
+  const heightValue = height === null || height === undefined ? '' : String(height)
   return (
     <div>
       <div className="ber-zeile">
@@ -1465,13 +1463,13 @@ function BindungFreiMasse(p: BlK) {
         <div>
           <input
             type="number"
-            className={'ber-inp' + fe('format_breite')}
+            className={'ber-inp' + fieldErrorClass('format_breite')}
             min={0.01}
             step={0.01}
-            value={sb}
+            value={widthValue}
             onChange={e => {
               const raw = e.target.value
-              patchL({
+              patchLocal({
                 format_breite: raw === '' ? null : parseFloat(raw),
               } as CopyShopDetailJson)
             }}
@@ -1484,92 +1482,137 @@ function BindungFreiMasse(p: BlK) {
         <div>
           <input
             type="number"
-            className={'ber-inp' + fe('format_hoehe')}
+            className={'ber-inp' + fieldErrorClass('format_hoehe')}
             min={0.01}
             max={300}
             step={0.01}
-            value={sh}
+            value={heightValue}
             onChange={e => {
               const raw = e.target.value
-              patchL({
+              patchLocal({
                 format_hoehe: raw === '' ? null : parseFloat(raw),
               } as CopyShopDetailJson)
             }}
             onBlur={commit}
           />
-          {pruef && f.format_hoehe && <p className="ber-err ber-err--mass">{f.format_hoehe}</p>}
+          {shouldValidate && validationErrors.format_hoehe && <p className="ber-err ber-err--mass">{validationErrors.format_hoehe}</p>}
         </div>
       </div>
     </div>
   )
 }
 
-function BindungF(p: BlK) {
-  const { d, fe, f, pruef, speichDetail } = p
-  const r = d as Record<string, string>
-  const ba = String(r.bindungsart ?? '') as
+function BindingColorSelect(
+  props: DetailBlockProps & {
+    bindungsart: 'WIRE_O' | 'KUNSTSTOFFSPIRALE' | 'SOFTCOVER' | 'HARDCOVER' | ''
+  },
+) {
+  const { bindungsart, detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail } = props
+  let colorOptions: { value: string; text: string }[] = []
+  if (bindungsart === 'WIRE_O') {
+    colorOptions = [
+      { value: 'SCHWARZ', text: 'Schwarz' },
+      { value: 'SILBER', text: 'Silber' },
+    ]
+  } else if (bindungsart === 'KUNSTSTOFFSPIRALE') {
+    colorOptions = [
+      { value: 'SCHWARZ', text: 'Schwarz' },
+      { value: 'WEISS', text: 'Weiß' },
+    ]
+  } else if (bindungsart === 'SOFTCOVER' || bindungsart === 'HARDCOVER') {
+    colorOptions = [
+      { value: 'SCHWARZ', text: 'Schwarz' },
+      { value: 'DUNKELBLAU', text: 'Dunkelblau' },
+      { value: 'DUNKELROT', text: 'Dunkelrot' },
+    ]
+  }
+  return (
+    <FieldRow label="Bindungsfarbe" error={shouldValidate && validationErrors.bindungsart_farbe ? validationErrors.bindungsart_farbe : undefined}>
+      <select
+        className={'ber-inp' + fieldErrorClass('bindungsart_farbe')}
+        value={String((detail as Record<string, string>).bindungsart_farbe ?? '')}
+        onChange={e =>
+          applyDetail({ ...detail, bindungsart_farbe: e.target.value } as CopyShopDetailJson)
+        }
+        disabled={!bindungsart}
+      >
+        <option value="">—</option>
+        {colorOptions.map(colorOption => (
+          <option key={colorOption.value} value={colorOption.value}>
+            {colorOption.text}
+          </option>
+        ))}
+      </select>
+    </FieldRow>
+  )
+}
+
+function BindingSection(props: DetailBlockProps) {
+  const { detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail } = props
+  const detailRecord = detail as Record<string, string>
+  const bindingType = String(detailRecord.bindungsart ?? '') as
     | 'WIRE_O'
     | 'KUNSTSTOFFSPIRALE'
     | 'SOFTCOVER'
     | 'HARDCOVER'
     | ''
-  const wireFmt = String(r.format ?? '')
+  const wireFormat = String(detailRecord.format ?? '')
   return (
     <>
-      <BerZeile l="Material" e={pruef && f.material ? f.material : undefined}>
+      <FieldRow label="Material" error={shouldValidate && validationErrors.material ? validationErrors.material : undefined}>
         <select
-          className={'ber-inp' + fe('material')}
-          value={r.material ?? ''}
+          className={'ber-inp' + fieldErrorClass('material')}
+          value={detailRecord.material ?? ''}
           onChange={e => {
-            const v = e.target.value
-            if (v === 'SONSTIGE') {
-              speichDetail({ ...d, material: v } as CopyShopDetailJson)
+            const selected = e.target.value
+            if (selected === 'SONSTIGE') {
+              applyDetail({ ...detail, material: selected } as CopyShopDetailJson)
             } else {
-              speichDetail({ ...d, material: v, material_sonstige: null } as CopyShopDetailJson)
+              applyDetail({ ...detail, material: selected, material_sonstige: null } as CopyShopDetailJson)
             }
           }}
         >
           <option value="">—</option>
-          {BINDUNG_MATERIALIEN.map(x => (
-            <option key={String(x.wert)} value={String(x.wert)}>
-              {x.anzeige}
+          {BINDUNG_MATERIALIEN.map(bindingMaterial => (
+            <option key={String(bindingMaterial.wert)} value={String(bindingMaterial.wert)}>
+              {bindingMaterial.anzeige}
             </option>
           ))}
         </select>
-      </BerZeile>
-      {r.material === 'SONSTIGE' && <Txt {...p} k="material_sonstige" l="Material (sonstige)" rows={2} />}
-      <SelB
-        {...p}
-        k="farbigkeit"
-        l="Farbigkeit"
-        o={[
-          { v: '1_0', t: '1/0' },
-          { v: '1_1', t: '1/1' },
-          { v: '4_0', t: '4/0' },
-          { v: '4_1', t: '4/1' },
+      </FieldRow>
+      {detailRecord.material === 'SONSTIGE' && <TextField {...props} fieldKey="material_sonstige" label="Material (sonstige)" rows={2} />}
+      <SelectField
+        {...props}
+        fieldKey="farbigkeit"
+        label="Farbigkeit"
+        options={[
+          { value: '1_0', text: '1/0' },
+          { value: '1_1', text: '1/1' },
+          { value: '4_0', text: '4/0' },
+          { value: '4_1', text: '4/1' },
         ]}
       />
-      <BerZeile l="Bindungsart" e={pruef && f.bindungsart ? f.bindungsart : undefined}>
+      <FieldRow label="Bindungsart" error={shouldValidate && validationErrors.bindungsart ? validationErrors.bindungsart : undefined}>
         <select
-          className={'ber-inp' + fe('bindungsart')}
-          value={ba}
+          className={'ber-inp' + fieldErrorClass('bindungsart')}
+          value={bindingType}
           onChange={e => {
-            const v = e.target.value
-            if (v === 'SOFTCOVER' || v === 'HARDCOVER') {
-              speichDetail({
-                ...d,
-                bindungsart: v,
+            const selected = e.target.value
+            if (selected === 'SOFTCOVER' || selected === 'HARDCOVER') {
+              applyDetail({
+                ...detail,
+                bindungsart: selected,
                 format: 'A4',
                 orientierung: 'HOCHFORMAT',
                 format_breite: 210,
                 format_hoehe: 297,
-                hardcover_druck: v === 'HARDCOVER' ? d.hardcover_druck : null,
-                hardcover_einband: v === 'HARDCOVER' ? d.hardcover_einband : null,
+                hardcover_druck: selected === 'HARDCOVER' ? detail.hardcover_druck : null,
+                hardcover_einband: selected === 'HARDCOVER' ? detail.hardcover_einband : null,
               } as CopyShopDetailJson)
-            } else if (v === 'WIRE_O' || v === 'KUNSTSTOFFSPIRALE') {
-              speichDetail({
-                ...d,
-                bindungsart: v,
+            } else if (selected === 'WIRE_O' || selected === 'KUNSTSTOFFSPIRALE') {
+              applyDetail({
+                ...detail,
+                bindungsart: selected,
                 format: 'A5',
                 orientierung: 'HOCHFORMAT',
                 hardcover_druck: null,
@@ -1578,7 +1621,7 @@ function BindungF(p: BlK) {
                 format_hoehe: null,
               } as CopyShopDetailJson)
             } else {
-              speichDetail({ ...d, bindungsart: v || null } as CopyShopDetailJson)
+              applyDetail({ ...detail, bindungsart: selected || null } as CopyShopDetailJson)
             }
           }}
         >
@@ -1588,33 +1631,33 @@ function BindungF(p: BlK) {
           <option value="SOFTCOVER">Softcover</option>
           <option value="HARDCOVER">Hardcover</option>
         </select>
-      </BerZeile>
+      </FieldRow>
 
-      <FarbeBindung {...p} bindungsart={ba} />
+      <BindingColorSelect {...props} bindungsart={bindingType} />
 
-      {ba === 'WIRE_O' || ba === 'KUNSTSTOFFSPIRALE' ? (
-        <BerZeile l="Format" e={pruef && f.format ? f.format : undefined}>
+      {bindingType === 'WIRE_O' || bindingType === 'KUNSTSTOFFSPIRALE' ? (
+        <FieldRow label="Format" error={shouldValidate && validationErrors.format ? validationErrors.format : undefined}>
           <select
-            className={'ber-inp' + fe('format')}
-            value={wireFmt}
+            className={'ber-inp' + fieldErrorClass('format')}
+            value={wireFormat}
             onChange={e => {
-              const v = e.target.value
-              if (v === 'A3') {
-                speichDetail({ ...d, format: v, orientierung: 'QUERFORMAT' } as CopyShopDetailJson)
-              } else if (v === 'FREI') {
-                speichDetail({
-                  ...d,
+              const selected = e.target.value
+              if (selected === 'A3') {
+                applyDetail({ ...detail, format: selected, orientierung: 'QUERFORMAT' } as CopyShopDetailJson)
+              } else if (selected === 'FREI') {
+                applyDetail({
+                  ...detail,
                   format: 'FREI',
                   orientierung: null,
                   format_breite: null,
                   format_hoehe: null,
                 } as CopyShopDetailJson)
-              } else if (v === 'A5' || v === 'A4') {
-                const o0 = (r.orientierung as string) || 'HOCHFORMAT'
-                const o1 = o0 === 'QUERFORMAT' || o0 === 'HOCHFORMAT' ? o0 : 'HOCHFORMAT'
-                speichDetail({ ...d, format: v, orientierung: o1 } as CopyShopDetailJson)
+              } else if (selected === 'A5' || selected === 'A4') {
+                const currentOrientation = (detailRecord.orientierung as string) || 'HOCHFORMAT'
+                const validOrientation = currentOrientation === 'QUERFORMAT' || currentOrientation === 'HOCHFORMAT' ? currentOrientation : 'HOCHFORMAT'
+                applyDetail({ ...detail, format: selected, orientierung: validOrientation } as CopyShopDetailJson)
               } else {
-                speichDetail({ ...d, format: v } as CopyShopDetailJson)
+                applyDetail({ ...detail, format: selected } as CopyShopDetailJson)
               }
             }}
           >
@@ -1624,158 +1667,113 @@ function BindungF(p: BlK) {
             <option value="A3">A3</option>
             <option value="FREI">Frei</option>
           </select>
-        </BerZeile>
+        </FieldRow>
       ) : null}
 
-      {ba === 'WIRE_O' || ba === 'KUNSTSTOFFSPIRALE' ? (wireFmt === 'A5' || wireFmt === 'A4' ? (
-        <SelB
-          {...p}
-          k="orientierung"
-          l="Ausrichtung"
-          o={[
-            { v: 'HOCHFORMAT', t: 'Hochformat' },
-            { v: 'QUERFORMAT', t: 'Querformat' },
+      {bindingType === 'WIRE_O' || bindingType === 'KUNSTSTOFFSPIRALE' ? (wireFormat === 'A5' || wireFormat === 'A4' ? (
+        <SelectField
+          {...props}
+          fieldKey="orientierung"
+          label="Ausrichtung"
+          options={[
+            { value: 'HOCHFORMAT', text: 'Hochformat' },
+            { value: 'QUERFORMAT', text: 'Querformat' },
           ]}
         />
-      ) : wireFmt === 'A3' ? (
-        <BerZeile l="Ausrichtung" c={<span className="td-wert">Querformat (fix)</span>} />
+      ) : wireFormat === 'A3' ? (
+        <FieldRow label="Ausrichtung" content={<span className="td-wert">Querformat (fix)</span>} />
       ) : null) : null}
 
-      {ba === 'WIRE_O' || ba === 'KUNSTSTOFFSPIRALE' ? (wireFmt === 'FREI' ? <BindungFreiMasse {...p} /> : null) : null}
+      {bindingType === 'WIRE_O' || bindingType === 'KUNSTSTOFFSPIRALE' ? (wireFormat === 'FREI' ? <BindingFreeDimensions {...props} /> : null) : null}
 
-      {ba === 'SOFTCOVER' || ba === 'HARDCOVER' ? (
-        <BerZeile l="Format" c={<span className="td-wert">A4 Hochformat (210 × 297 mm)</span>} />
+      {bindingType === 'SOFTCOVER' || bindingType === 'HARDCOVER' ? (
+        <FieldRow label="Format" content={<span className="td-wert">A4 Hochformat (210 × 297 mm)</span>} />
       ) : null}
 
-      {boolSel({ ...p, k: 'randabfallend', l: 'Randabfallend' })}
+      {BooleanSelect({ ...props, fieldKey: 'randabfallend', label: 'Randabfallend' })}
 
-      {ba === 'HARDCOVER' && (
+      {bindingType === 'HARDCOVER' && (
         <>
-          {boolSel({ ...p, k: 'hardcover_druck', l: 'Druck auf Hardcover' })}
-          {d.hardcover_druck === true && <Txt {...p} k="hardcover_einband" l="Hardcover Einband" rows={2} />}
+          {BooleanSelect({ ...props, fieldKey: 'hardcover_druck', label: 'Druck auf Hardcover' })}
+          {detail.hardcover_druck === true && <TextField {...props} fieldKey="hardcover_einband" label="Hardcover Einband" rows={2} />}
         </>
       )}
 
-      <BesonderheitenUnten {...p} />
+      <NotesField {...props} />
     </>
   )
 }
 
-function FarbeBindung(
-  p: BlK & {
-    bindungsart: 'WIRE_O' | 'KUNSTSTOFFSPIRALE' | 'SOFTCOVER' | 'HARDCOVER' | ''
-  },
-) {
-  const { bindungsart: ba, d, fe, f, pruef, speichDetail } = p
-  let o: { v: string; t: string }[] = []
-  if (ba === 'WIRE_O') {
-    o = [
-      { v: 'SCHWARZ', t: 'Schwarz' },
-      { v: 'SILBER', t: 'Silber' },
-    ]
-  } else if (ba === 'KUNSTSTOFFSPIRALE') {
-    o = [
-      { v: 'SCHWARZ', t: 'Schwarz' },
-      { v: 'WEISS', t: 'Weiß' },
-    ]
-  } else if (ba === 'SOFTCOVER' || ba === 'HARDCOVER') {
-    o = [
-      { v: 'SCHWARZ', t: 'Schwarz' },
-      { v: 'DUNKELBLAU', t: 'Dunkelblau' },
-      { v: 'DUNKELROT', t: 'Dunkelrot' },
-    ]
-  }
-  return (
-    <BerZeile l="Bindungsfarbe" e={pruef && f.bindungsart_farbe ? f.bindungsart_farbe : undefined}>
-      <select
-        className={'ber-inp' + fe('bindungsart_farbe')}
-        value={String((d as Record<string, string>).bindungsart_farbe ?? '')}
-        onChange={e =>
-          speichDetail({ ...d, bindungsart_farbe: e.target.value } as CopyShopDetailJson)
-        }
-        disabled={!ba}
-      >
-        <option value="">—</option>
-        {o.map(x => (
-          <option key={x.v} value={x.v}>
-            {x.t}
-          </option>
-        ))}
-      </select>
-    </BerZeile>
-  )
-}
-
-function AusdruckF(p: BlK) {
-  const { d, fe, f, pruef, speichDetail } = p
-  const mat = String((d as Record<string, string>).material ?? '')
+function PrintSection(props: DetailBlockProps) {
+  const { detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail } = props
+  const material = String((detail as Record<string, string>).material ?? '')
   return (
     <>
-      <SelB
-        {...p}
-        k="format"
-        l="Format"
-        o={[
-          { v: 'A5', t: 'A5' },
-          { v: 'A4', t: 'A4' },
-          { v: 'A3', t: 'A3' },
+      <SelectField
+        {...props}
+        fieldKey="format"
+        label="Format"
+        options={[
+          { value: 'A5', text: 'A5' },
+          { value: 'A4', text: 'A4' },
+          { value: 'A3', text: 'A3' },
         ]}
       />
-      <BerZeile l="Material" e={pruef && f.material ? f.material : undefined}>
+      <FieldRow label="Material" error={shouldValidate && validationErrors.material ? validationErrors.material : undefined}>
         <select
-          className={'ber-inp' + fe('material')}
-          value={mat}
+          className={'ber-inp' + fieldErrorClass('material')}
+          value={material}
           onChange={e => {
-            const v = e.target.value
-            if (v === 'SONSTIGE') {
-              speichDetail({ ...d, material: v } as CopyShopDetailJson)
+            const selected = e.target.value
+            if (selected === 'SONSTIGE') {
+              applyDetail({ ...detail, material: selected } as CopyShopDetailJson)
             } else {
-              speichDetail({ ...d, material: v, material_sonstige: null } as CopyShopDetailJson)
+              applyDetail({ ...detail, material: selected, material_sonstige: null } as CopyShopDetailJson)
             }
           }}
         >
           <option value="">—</option>
-          {AUSDRUCK_MATERIALIEN.map(x => (
-            <option key={String(x.wert)} value={String(x.wert)}>
-              {x.anzeige}
+          {AUSDRUCK_MATERIALIEN.map(printMaterial => (
+            <option key={String(printMaterial.wert)} value={String(printMaterial.wert)}>
+              {printMaterial.anzeige}
             </option>
           ))}
         </select>
-      </BerZeile>
-      {mat === 'SONSTIGE' && <Txt {...p} k="material_sonstige" l="Material (sonstige)" rows={2} />}
-      <SelB
-        {...p}
-        k="farbigkeit"
-        l="Farbigkeit"
-        o={[
-          { v: '1_0', t: '1/0' },
-          { v: '1_1', t: '1/1' },
-          { v: '4_0', t: '4/0' },
-          { v: '4_1', t: '4/1' },
+      </FieldRow>
+      {material === 'SONSTIGE' && <TextField {...props} fieldKey="material_sonstige" label="Material (sonstige)" rows={2} />}
+      <SelectField
+        {...props}
+        fieldKey="farbigkeit"
+        label="Farbigkeit"
+        options={[
+          { value: '1_0', text: '1/0' },
+          { value: '1_1', text: '1/1' },
+          { value: '4_0', text: '4/0' },
+          { value: '4_1', text: '4/1' },
         ]}
       />
-      <SelB
-        {...p}
-        k="lochen"
-        l="Lochen"
-        o={[
-          { v: 'NEIN', t: 'Nein' },
-          { v: '2_LOCH', t: '2 Loch' },
-          { v: '4_LOCH', t: '4 Loch' },
+      <SelectField
+        {...props}
+        fieldKey="lochen"
+        label="Lochen"
+        options={[
+          { value: 'NEIN', text: 'Nein' },
+          { value: '2_LOCH', text: '2 Loch' },
+          { value: '4_LOCH', text: '4 Loch' },
         ]}
       />
-      {boolSel({ ...p, k: 'heften', l: 'Heften' })}
-      <SelB
-        {...p}
-        k="laminieren"
-        l="Laminieren"
-        o={[
-          { v: 'NEIN', t: 'Nein' },
-          { v: 'MATT', t: 'Matt' },
-          { v: 'GLAENZEND', t: 'Glänzend' },
+      {BooleanSelect({ ...props, fieldKey: 'heften', label: 'Heften' })}
+      <SelectField
+        {...props}
+        fieldKey="laminieren"
+        label="Laminieren"
+        options={[
+          { value: 'NEIN', text: 'Nein' },
+          { value: 'MATT', text: 'Matt' },
+          { value: 'GLAENZEND', text: 'Glänzend' },
         ]}
       />
-      <BesonderheitenUnten {...p} />
+      <NotesField {...props} />
     </>
   )
 }

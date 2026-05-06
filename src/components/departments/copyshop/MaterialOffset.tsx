@@ -2,45 +2,45 @@ import type { ReactNode } from 'react'
 import type { CopyShopDetailJson } from '../../../types/copyshop'
 import '../../WorkArea.css'
 
-export type MatOffProps = {
-  d: CopyShopDetailJson
-  fe: (k: string) => string
-  f: Record<string, string>
-  pruef: boolean
-  patchL: (p: CopyShopDetailJson) => void
+export type MaterialOffsetProps = {
+  detail: CopyShopDetailJson
+  fieldErrorClass: (fieldName: string) => string
+  validationErrors: Record<string, string>
+  shouldValidate: boolean
+  patchLocal: (patch: CopyShopDetailJson) => void
   commit: () => void
-  speichDetail: (d: CopyShopDetailJson) => void
+  applyDetail: (detail: CopyShopDetailJson) => void
 }
 
-function BerZeile({
-  l,
-  e,
+function FieldRow({
+  label,
+  error,
   children,
 }: {
-  l: string
-  e?: string
+  label: string
+  error?: string
   children: ReactNode
 }) {
   return (
     <div className="ber-zeile">
-      <span className="ber-lbl">{l}</span>
+      <span className="ber-lbl">{label}</span>
       <div>
         {children}
-        {e && <p className="ber-err">{e}</p>}
+        {error && <p className="ber-err">{error}</p>}
       </div>
     </div>
   )
 }
 
-export function MaterialOffset(p: MatOffProps) {
-  const { d, fe, f, pruef, patchL, commit, speichDetail } = p
-  const r = d as Record<string, string | null | undefined>
-  const oa = String(r.offset_art ?? '')
+export function MaterialOffset(props: MaterialOffsetProps) {
+  const { detail, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit, applyDetail } = props
+  const detailRecord = detail as Record<string, string | null | undefined>
+  const offsetType = String(detailRecord.offset_art ?? '')
 
-  const onArtChange = (v: string) => {
+  const onArtChange = (selected: string) => {
     const base: CopyShopDetailJson = {
-      ...d,
-      offset_art: v || null,
+      ...detail,
+      offset_art: selected || null,
       offset_grammatur: null,
       offset_oberflaeche: null,
       spezial_papier: null,
@@ -49,15 +49,15 @@ export function MaterialOffset(p: MatOffProps) {
       kaschierung_seiten: null,
       recycling_grammatur: null,
     } as CopyShopDetailJson
-    speichDetail(base)
+    applyDetail(base)
   }
 
   return (
     <>
-      <BerZeile l="Offset-Art" e={pruef && f.offset_art ? f.offset_art : undefined}>
+      <FieldRow label="Offset-Art" error={shouldValidate && validationErrors.offset_art ? validationErrors.offset_art : undefined}>
         <select
-          className={'ber-inp' + fe('offset_art')}
-          value={oa}
+          className={'ber-inp' + fieldErrorClass('offset_art')}
+          value={offsetType}
           onChange={e => onArtChange(e.target.value)}
         >
           <option value="">—</option>
@@ -65,85 +65,85 @@ export function MaterialOffset(p: MatOffProps) {
           <option value="OFFSET">Offset</option>
           <option value="SPEZIAL">Spezial</option>
         </select>
-      </BerZeile>
+      </FieldRow>
 
-      {oa === 'STANDARD' && (
+      {offsetType === 'STANDARD' && (
         <>
-          <BerZeile
-            l="Grammatur"
-            e={pruef && f.offset_grammatur ? f.offset_grammatur : undefined}
+          <FieldRow
+            label="Grammatur"
+            error={shouldValidate && validationErrors.offset_grammatur ? validationErrors.offset_grammatur : undefined}
           >
             <select
-              className={'ber-inp' + fe('offset_grammatur')}
-              value={String(r.offset_grammatur ?? '')}
+              className={'ber-inp' + fieldErrorClass('offset_grammatur')}
+              value={String(detailRecord.offset_grammatur ?? '')}
               onChange={e =>
-                speichDetail({ ...d, offset_grammatur: e.target.value } as CopyShopDetailJson)
+                applyDetail({ ...detail, offset_grammatur: e.target.value } as CopyShopDetailJson)
               }
             >
               <option value="">—</option>
-              {(['115G', '135G', '170G', '250G', '300G', '350G', '400G'] as const).map(x => (
-                <option key={x} value={x}>
-                  {x}
+              {(['115G', '135G', '170G', '250G', '300G', '350G', '400G'] as const).map(weight => (
+                <option key={weight} value={weight}>
+                  {weight}
                 </option>
               ))}
             </select>
-          </BerZeile>
-          <BerZeile
-            l="Oberfläche"
-            e={pruef && f.offset_oberflaeche ? f.offset_oberflaeche : undefined}
+          </FieldRow>
+          <FieldRow
+            label="Oberfläche"
+            error={shouldValidate && validationErrors.offset_oberflaeche ? validationErrors.offset_oberflaeche : undefined}
           >
             <select
-              className={'ber-inp' + fe('offset_oberflaeche')}
-              value={String(r.offset_oberflaeche ?? '')}
+              className={'ber-inp' + fieldErrorClass('offset_oberflaeche')}
+              value={String(detailRecord.offset_oberflaeche ?? '')}
               onChange={e =>
-                speichDetail({ ...d, offset_oberflaeche: e.target.value } as CopyShopDetailJson)
+                applyDetail({ ...detail, offset_oberflaeche: e.target.value } as CopyShopDetailJson)
               }
             >
               <option value="">—</option>
               <option value="MATT">Matt</option>
               <option value="GLAENZEND">Glänzend</option>
             </select>
-          </BerZeile>
+          </FieldRow>
         </>
       )}
 
-      {oa === 'OFFSET' && (
-        <BerZeile
-          l="Grammatur"
-          e={pruef && f.offset_grammatur ? f.offset_grammatur : undefined}
+      {offsetType === 'OFFSET' && (
+        <FieldRow
+          label="Grammatur"
+          error={shouldValidate && validationErrors.offset_grammatur ? validationErrors.offset_grammatur : undefined}
         >
           <select
-            className={'ber-inp' + fe('offset_grammatur')}
-            value={String(r.offset_grammatur ?? '')}
+            className={'ber-inp' + fieldErrorClass('offset_grammatur')}
+            value={String(detailRecord.offset_grammatur ?? '')}
             onChange={e =>
-              speichDetail({ ...d, offset_grammatur: e.target.value } as CopyShopDetailJson)
+              applyDetail({ ...detail, offset_grammatur: e.target.value } as CopyShopDetailJson)
             }
           >
             <option value="">—</option>
-            {(['80G', '90G', '100G', '120G', '150G', '250G'] as const).map(x => (
-              <option key={x} value={x}>
-                {x}
+            {(['80G', '90G', '100G', '120G', '150G', '250G'] as const).map(weight => (
+              <option key={weight} value={weight}>
+                {weight}
               </option>
             ))}
           </select>
-        </BerZeile>
+        </FieldRow>
       )}
 
-      {oa === 'SPEZIAL' && (
+      {offsetType === 'SPEZIAL' && (
         <>
-          <BerZeile
-            l="Papier"
-            e={pruef && f.spezial_papier ? f.spezial_papier : undefined}
+          <FieldRow
+            label="Papier"
+            error={shouldValidate && validationErrors.spezial_papier ? validationErrors.spezial_papier : undefined}
           >
             <select
-              className={'ber-inp' + fe('spezial_papier')}
-              value={String(r.spezial_papier ?? '')}
+              className={'ber-inp' + fieldErrorClass('spezial_papier')}
+              value={String(detailRecord.spezial_papier ?? '')}
               onChange={e => {
-                const v = e.target.value
-                speichDetail({
-                  ...d,
-                  spezial_papier: v,
-                  spezial_sonstige: v === 'SONSTIGE' ? (r.spezial_sonstige ?? null) : null,
+                const selected = e.target.value
+                applyDetail({
+                  ...detail,
+                  spezial_papier: selected,
+                  spezial_sonstige: selected === 'SONSTIGE' ? (detailRecord.spezial_sonstige ?? null) : null,
                   kaschierung: null,
                   kaschierung_seiten: null,
                   recycling_grammatur: null,
@@ -156,77 +156,77 @@ export function MaterialOffset(p: MatOffProps) {
               <option value="250G_LEINENSTRUKTUR">250g Leinenstruktur</option>
               <option value="SONSTIGE">Sonstige</option>
             </select>
-          </BerZeile>
-          {r.spezial_papier === '300G_FOLIENKASCHIERT' && (
+          </FieldRow>
+          {detailRecord.spezial_papier === '300G_FOLIENKASCHIERT' && (
             <>
-              <BerZeile
-                l="Kaschierung"
-                e={pruef && f.kaschierung ? f.kaschierung : undefined}
+              <FieldRow
+                label="Kaschierung"
+                error={shouldValidate && validationErrors.kaschierung ? validationErrors.kaschierung : undefined}
               >
                 <select
-                  className={'ber-inp' + fe('kaschierung')}
-                  value={String(r.kaschierung ?? '')}
+                  className={'ber-inp' + fieldErrorClass('kaschierung')}
+                  value={String(detailRecord.kaschierung ?? '')}
                   onChange={e =>
-                    speichDetail({ ...d, kaschierung: e.target.value } as CopyShopDetailJson)
+                    applyDetail({ ...detail, kaschierung: e.target.value } as CopyShopDetailJson)
                   }
                 >
                   <option value="">—</option>
                   <option value="MATT">Matt</option>
                   <option value="GLAENZEND">Glänzend</option>
                 </select>
-              </BerZeile>
-              <BerZeile
-                l="Seiten"
-                e={pruef && f.kaschierung_seiten ? f.kaschierung_seiten : undefined}
+              </FieldRow>
+              <FieldRow
+                label="Seiten"
+                error={shouldValidate && validationErrors.kaschierung_seiten ? validationErrors.kaschierung_seiten : undefined}
               >
                 <select
-                  className={'ber-inp' + fe('kaschierung_seiten')}
-                  value={String(r.kaschierung_seiten ?? '')}
+                  className={'ber-inp' + fieldErrorClass('kaschierung_seiten')}
+                  value={String(detailRecord.kaschierung_seiten ?? '')}
                   onChange={e =>
-                    speichDetail({ ...d, kaschierung_seiten: e.target.value } as CopyShopDetailJson)
+                    applyDetail({ ...detail, kaschierung_seiten: e.target.value } as CopyShopDetailJson)
                   }
                 >
                   <option value="">—</option>
                   <option value="EINSEITIG">Einseitig</option>
                   <option value="BEIDSEITIG">Beidseitig</option>
                 </select>
-              </BerZeile>
+              </FieldRow>
             </>
           )}
-          {r.spezial_papier === 'RECYCLING' && (
-            <BerZeile
-              l="Grammatur"
-              e={pruef && f.recycling_grammatur ? f.recycling_grammatur : undefined}
+          {detailRecord.spezial_papier === 'RECYCLING' && (
+            <FieldRow
+              label="Grammatur"
+              error={shouldValidate && validationErrors.recycling_grammatur ? validationErrors.recycling_grammatur : undefined}
             >
               <select
-                className={'ber-inp' + fe('recycling_grammatur')}
-                value={String(r.recycling_grammatur ?? '')}
+                className={'ber-inp' + fieldErrorClass('recycling_grammatur')}
+                value={String(detailRecord.recycling_grammatur ?? '')}
                 onChange={e =>
-                  speichDetail({ ...d, recycling_grammatur: e.target.value } as CopyShopDetailJson)
+                  applyDetail({ ...detail, recycling_grammatur: e.target.value } as CopyShopDetailJson)
                 }
               >
                 <option value="">—</option>
-                {(['80G', '135G', '150G', '300G'] as const).map(x => (
-                  <option key={x} value={x}>
-                    {x}
+                {(['80G', '135G', '150G', '300G'] as const).map(weight => (
+                  <option key={weight} value={weight}>
+                    {weight}
                   </option>
                 ))}
               </select>
-            </BerZeile>
+            </FieldRow>
           )}
-          {r.spezial_papier === 'SONSTIGE' && (
-            <BerZeile
-              l="Papier (sonstige)"
-              e={pruef && f.spezial_sonstige ? f.spezial_sonstige : undefined}
+          {detailRecord.spezial_papier === 'SONSTIGE' && (
+            <FieldRow
+              label="Papier (sonstige)"
+              error={shouldValidate && validationErrors.spezial_sonstige ? validationErrors.spezial_sonstige : undefined}
             >
               <textarea
-                className={'ber-inp ber-ta' + fe('spezial_sonstige')}
+                className={'ber-inp ber-ta' + fieldErrorClass('spezial_sonstige')}
                 rows={2}
-                value={String(r.spezial_sonstige ?? '')}
-                onChange={e => patchL({ spezial_sonstige: e.target.value } as CopyShopDetailJson)}
+                value={String(detailRecord.spezial_sonstige ?? '')}
+                onChange={e => patchLocal({ spezial_sonstige: e.target.value } as CopyShopDetailJson)}
                 onBlur={commit}
               />
-            </BerZeile>
+            </FieldRow>
           )}
         </>
       )}
