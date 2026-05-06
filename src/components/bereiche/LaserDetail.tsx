@@ -12,7 +12,7 @@ import {
 import { validateLaserDetail } from '../../lib/laser/validateLaserDetail'
 import type { AuftragStatus, TeilauftragRow } from '../../types/database'
 import type { Database, Json } from '../../types/supabase'
-import type { Datei } from '../FileList'
+import type { FileRecord } from '../FileList'
 import { useToast } from '../Toast'
 import '../WorkArea.css'
 
@@ -20,7 +20,7 @@ type Props = {
   subOrder: TeilauftragRow
   subOrderStatus: AuftragStatus
   onDetailPatch: (patch: { typ?: string | null; detail: LaserDetailJson | null }) => Promise<void>
-  orderFiles?: Datei[]
+  orderFiles?: FileRecord[]
 }
 
 type ProduktRow = {
@@ -49,7 +49,7 @@ type BlK = {
 
 const SCHILD_T = new Set(['SCHILD', 'POKALSCHILD', 'NAMENSSCHILD'])
 
-type ProduktDateiZuordnung = { zuordnungId: string; dateiId: string }
+type ProduktFileRecordZuordnung = { zuordnungId: string; dateiId: string }
 
 export function LaserDetail({
   subOrder,
@@ -60,13 +60,13 @@ export function LaserDetail({
   const { fehler: toastFehler } = useToast()
 
   const [produkte, setProdukte] = useState<ProduktRow[]>([])
-  const [produktDateien, setProduktDateien] = useState<Record<string, ProduktDateiZuordnung[]>>({})
-  const produktDateienRef = useRef(produktDateien)
-  produktDateienRef.current = produktDateien
+  const [productFiles, setProduktDateien] = useState<Record<string, ProduktFileRecordZuordnung[]>>({})
+  const productFilesRef = useRef(productFiles)
+  productFilesRef.current = productFiles
   const [produkteLaden, setProdukteLaden] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [entsperrt, setEntsperrt] = useState(false)
-  const [formDateiIds, setFormDateiIds] = useState<string[]>([])
+  const [formFileRecordIds, setFormFileRecordIds] = useState<string[]>([])
 
   const [typ, setTyp] = useState<string | null>(subOrder.typ)
   const [detail, setDetail] = useState<LaserDetailJson>(laserRoh(subOrder))
@@ -81,7 +81,7 @@ export function LaserDetail({
 
   useEffect(() => {
     setEditingId(null)
-    setFormDateiIds([])
+    setFormFileRecordIds([])
   }, [subOrder.id])
 
   useEffect(() => {
@@ -97,7 +97,7 @@ export function LaserDetail({
     typR.current = subOrder.typ
   }, [subOrder, editingId])
 
-  const ladeDateienFuerProdukte = useCallback(
+  const loadFilesForProducts = useCallback(
     async (produktRows: ProduktRow[]) => {
       const ids = produktRows.map(p => p.id)
       if (ids.length === 0) {
@@ -109,7 +109,7 @@ export function LaserDetail({
         .select('id, produkt_id, datei_id')
         .in('produkt_id', ids)
       if (error) {
-        toastFehler('Datei-Zuordnungen konnten nicht geladen werden')
+        toastFehler('FileRecord-Zuordnungen konnten nicht geladen werden')
         setProduktDateien({})
         return
       }
@@ -117,7 +117,7 @@ export function LaserDetail({
         Database['public']['Tables']['produkt_dateien']['Row'],
         'id' | 'produkt_id' | 'datei_id'
       >[]
-      const next: Record<string, ProduktDateiZuordnung[]> = {}
+      const next: Record<string, ProduktFileRecordZuordnung[]> = {}
       for (const row of rows) {
         const list = next[row.produkt_id] ?? (next[row.produkt_id] = [])
         list.push({ zuordnungId: row.id, dateiId: row.datei_id })
@@ -129,7 +129,7 @@ export function LaserDetail({
 
   const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
     if (!subOrder.id) {
-      await ladeDateienFuerProdukte([])
+      await loadFilesForProducts([])
       return []
     }
     setProdukteLaden(true)
@@ -143,7 +143,7 @@ export function LaserDetail({
     if (error) {
       toastFehler('Produkte konnten nicht geladen werden')
       setProdukte([])
-      await ladeDateienFuerProdukte([])
+      await loadFilesForProducts([])
       return []
     }
     const rows = (data ?? []) as Database['public']['Tables']['teilauftrag_produkte']['Row'][]
@@ -156,9 +156,9 @@ export function LaserDetail({
       erstellt_am: r.erstellt_am,
     }))
     setProdukte(mapped)
-    await ladeDateienFuerProdukte(mapped)
+    await loadFilesForProducts(mapped)
     return mapped
-  }, [subOrder.id, toastFehler, ladeDateienFuerProdukte])
+  }, [subOrder.id, toastFehler, loadFilesForProducts])
 
   useEffect(() => {
     void reloadProdukte()
@@ -167,19 +167,19 @@ export function LaserDetail({
   const dateiZuProduktZuordnen = useCallback(
     async (produktId: string, dateiId: string, produktRowsForReload?: ProduktRow[]) => {
       const reloadRows = produktRowsForReload ?? produkte
-      if (produktDateienRef.current[produktId]?.some(z => z.dateiId === dateiId)) return
+      if (productFilesRef.current[produktId]?.some(z => z.dateiId === dateiId)) return
       const ins: Database['public']['Tables']['produkt_dateien']['Insert'] = {
         produkt_id: produktId,
         datei_id: dateiId,
       }
       const { error } = await supabase.from('produkt_dateien').insert(ins)
       if (error) {
-        toastFehler('Datei konnte nicht zugeordnet werden')
+        toastFehler('FileRecord konnte nicht zugeordnet werden')
         return
       }
-      await ladeDateienFuerProdukte(reloadRows)
+      await loadFilesForProducts(reloadRows)
     },
-    [toastFehler, produkte, ladeDateienFuerProdukte],
+    [toastFehler, produkte, loadFilesForProducts],
   )
 
   const dateiVonProduktEntfernen = useCallback(
@@ -189,14 +189,14 @@ export function LaserDetail({
         toastFehler('Zuordnung konnte nicht entfernt werden')
         return
       }
-      await ladeDateienFuerProdukte(produktRowsForReload ?? produkte)
+      await loadFilesForProducts(produktRowsForReload ?? produkte)
     },
-    [toastFehler, produkte, ladeDateienFuerProdukte],
+    [toastFehler, produkte, loadFilesForProducts],
   )
 
   const resetForm = useCallback(() => {
     setEditingId(null)
-    setFormDateiIds([])
+    setFormFileRecordIds([])
     setTyp(subOrder.typ)
     const d = laserRoh(subOrder)
     setDetail(d)
@@ -274,10 +274,10 @@ export function LaserDetail({
         toastFehler('Produkt konnte nicht gespeichert werden')
         return
       }
-      for (const z of [...(produktDateien[editingId] ?? [])]) {
+      for (const z of [...(productFiles[editingId] ?? [])]) {
         await dateiVonProduktEntfernen(z.zuordnungId)
       }
-      for (const fid of formDateiIds) {
+      for (const fid of formFileRecordIds) {
         await dateiZuProduktZuordnen(editingId, fid)
       }
       const list = await reloadProdukte()
@@ -309,7 +309,7 @@ export function LaserDetail({
       return
     }
     let list = await reloadProdukte()
-    for (const fid of formDateiIds) {
+    for (const fid of formFileRecordIds) {
       await dateiZuProduktZuordnen(newId, fid, list)
     }
     list = await reloadProdukte()
@@ -326,8 +326,8 @@ export function LaserDetail({
     subOrderStatus,
     editingId,
     produkte.length,
-    produktDateien,
-    formDateiIds,
+    productFiles,
+    formFileRecordIds,
     toastFehler,
     reloadProdukte,
     resetForm,
@@ -358,7 +358,7 @@ export function LaserDetail({
 
   const handleEdit = useCallback((row: ProduktRow) => {
     setEditingId(row.id)
-    setFormDateiIds(produktDateien[row.id]?.map(z => z.dateiId) ?? [])
+    setFormFileRecordIds(productFiles[row.id]?.map(z => z.dateiId) ?? [])
     const raw = row.detail ?? {}
     const dr = raw as Record<string, unknown>
     const tt = typeof dr.typ === 'string' ? dr.typ : null
@@ -367,7 +367,7 @@ export function LaserDetail({
     setDetail(dd)
     detailR.current = dd
     typR.current = tt
-  }, [produktDateien])
+  }, [productFiles])
 
   return (
     <div className="ber-lfp">
@@ -424,7 +424,7 @@ export function LaserDetail({
       {orderFiles.length > 0 && (
         <BerZeile l="Dateien">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-            {formDateiIds.map(fid => (
+            {formFileRecordIds.map(fid => (
               <span
                 key={fid}
                 style={{
@@ -446,27 +446,27 @@ export function LaserDetail({
                   className="cp-btn cp-btn-grau"
                   style={{ minWidth: 22, padding: '0 6px', fontSize: 14, lineHeight: 1 }}
                   title="Entfernen"
-                  onClick={() => setFormDateiIds(prev => prev.filter(x => x !== fid))}
+                  onClick={() => setFormFileRecordIds(prev => prev.filter(x => x !== fid))}
                 >
                   ×
                 </button>
               </span>
             ))}
             <select
-              key={formDateiIds.join('|')}
+              key={formFileRecordIds.join('|')}
               className="ber-inp"
               style={{ fontSize: 12, maxWidth: 260 }}
               defaultValue=""
               onChange={e => {
                 const v = e.target.value
-                if (v && !formDateiIds.includes(v)) {
-                  setFormDateiIds(prev => [...prev, v])
+                if (v && !formFileRecordIds.includes(v)) {
+                  setFormFileRecordIds(prev => [...prev, v])
                 }
               }}
             >
-              <option value="">Datei hinzufügen…</option>
+              <option value="">FileRecord hinzufügen…</option>
               {orderFiles
-                .filter(df => !formDateiIds.includes(df.id))
+                .filter(df => !formFileRecordIds.includes(df.id))
                 .map(df => (
                   <option key={df.id} value={df.id}>
                     {df.anzeigename}
@@ -557,7 +557,7 @@ export function LaserDetail({
                   const mat = matRaw != null ? String(matRaw) : '—'
                   const beschr = pd.beschreibung != null ? String(pd.beschreibung).slice(0, 48) : '—'
                   const typLabel = (LASER_TYPE_LABELS as Record<string, string>)[pt] ?? pt
-                  const zuo = produktDateien[r.id] ?? []
+                  const zuo = productFiles[r.id] ?? []
                   return (
                     <tr key={r.id}>
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>

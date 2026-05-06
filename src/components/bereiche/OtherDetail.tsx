@@ -3,7 +3,7 @@ import { supabase } from '../../supabase'
 import { validateOtherDetail } from '../../lib/sonstige/validateOtherDetail'
 import type { AuftragStatus, TeilauftragRow } from '../../types/database'
 import type { Database, Json } from '../../types/supabase'
-import type { Datei } from '../FileList'
+import type { FileRecord } from '../FileList'
 import { useToast } from '../Toast'
 import '../WorkArea.css'
 
@@ -13,7 +13,7 @@ type Props = {
   subOrder: TeilauftragRow
   subOrderStatus: AuftragStatus
   onDetailPatch: (patch: { typ?: string | null; detail: OtherDetailJson | null }) => Promise<void>
-  orderFiles?: Datei[]
+  orderFiles?: FileRecord[]
 }
 
 type ProduktRow = {
@@ -42,7 +42,7 @@ type BlK = {
   speichDetail: (d: OtherDetailJson) => void
 }
 
-type ProduktDateiZuordnung = { zuordnungId: string; dateiId: string }
+type ProduktFileRecordZuordnung = { zuordnungId: string; dateiId: string }
 
 export function OtherDetail({
   subOrder,
@@ -53,13 +53,13 @@ export function OtherDetail({
   const { fehler: toastFehler } = useToast()
 
   const [produkte, setProdukte] = useState<ProduktRow[]>([])
-  const [produktDateien, setProduktDateien] = useState<Record<string, ProduktDateiZuordnung[]>>({})
-  const produktDateienRef = useRef(produktDateien)
-  produktDateienRef.current = produktDateien
+  const [productFiles, setProduktDateien] = useState<Record<string, ProduktFileRecordZuordnung[]>>({})
+  const productFilesRef = useRef(productFiles)
+  productFilesRef.current = productFiles
   const [produkteLaden, setProdukteLaden] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [entsperrt, setEntsperrt] = useState(false)
-  const [formDateiIds, setFormDateiIds] = useState<string[]>([])
+  const [formFileRecordIds, setFormFileRecordIds] = useState<string[]>([])
 
   const [detail, setDetail] = useState<OtherDetailJson>(sonstigeRoh(subOrder))
   const detailR = useRef(detail)
@@ -69,7 +69,7 @@ export function OtherDetail({
 
   useEffect(() => {
     setEditingId(null)
-    setFormDateiIds([])
+    setFormFileRecordIds([])
   }, [subOrder.id])
 
   useEffect(() => {
@@ -83,7 +83,7 @@ export function OtherDetail({
     detailR.current = d
   }, [subOrder, editingId])
 
-  const ladeDateienFuerProdukte = useCallback(
+  const loadFilesForProducts = useCallback(
     async (produktRows: ProduktRow[]) => {
       const ids = produktRows.map(p => p.id)
       if (ids.length === 0) {
@@ -95,7 +95,7 @@ export function OtherDetail({
         .select('id, produkt_id, datei_id')
         .in('produkt_id', ids)
       if (error) {
-        toastFehler('Datei-Zuordnungen konnten nicht geladen werden')
+        toastFehler('FileRecord-Zuordnungen konnten nicht geladen werden')
         setProduktDateien({})
         return
       }
@@ -103,7 +103,7 @@ export function OtherDetail({
         Database['public']['Tables']['produkt_dateien']['Row'],
         'id' | 'produkt_id' | 'datei_id'
       >[]
-      const next: Record<string, ProduktDateiZuordnung[]> = {}
+      const next: Record<string, ProduktFileRecordZuordnung[]> = {}
       for (const row of rows) {
         const list = next[row.produkt_id] ?? (next[row.produkt_id] = [])
         list.push({ zuordnungId: row.id, dateiId: row.datei_id })
@@ -115,7 +115,7 @@ export function OtherDetail({
 
   const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
     if (!subOrder.id) {
-      await ladeDateienFuerProdukte([])
+      await loadFilesForProducts([])
       return []
     }
     setProdukteLaden(true)
@@ -129,7 +129,7 @@ export function OtherDetail({
     if (error) {
       toastFehler('Produkte konnten nicht geladen werden')
       setProdukte([])
-      await ladeDateienFuerProdukte([])
+      await loadFilesForProducts([])
       return []
     }
     const rows = (data ?? []) as Database['public']['Tables']['teilauftrag_produkte']['Row'][]
@@ -142,9 +142,9 @@ export function OtherDetail({
       erstellt_am: r.erstellt_am,
     }))
     setProdukte(mapped)
-    await ladeDateienFuerProdukte(mapped)
+    await loadFilesForProducts(mapped)
     return mapped
-  }, [subOrder.id, toastFehler, ladeDateienFuerProdukte])
+  }, [subOrder.id, toastFehler, loadFilesForProducts])
 
   useEffect(() => {
     void reloadProdukte()
@@ -153,19 +153,19 @@ export function OtherDetail({
   const dateiZuProduktZuordnen = useCallback(
     async (produktId: string, dateiId: string, produktRowsForReload?: ProduktRow[]) => {
       const reloadRows = produktRowsForReload ?? produkte
-      if (produktDateienRef.current[produktId]?.some(z => z.dateiId === dateiId)) return
+      if (productFilesRef.current[produktId]?.some(z => z.dateiId === dateiId)) return
       const ins: Database['public']['Tables']['produkt_dateien']['Insert'] = {
         produkt_id: produktId,
         datei_id: dateiId,
       }
       const { error } = await supabase.from('produkt_dateien').insert(ins)
       if (error) {
-        toastFehler('Datei konnte nicht zugeordnet werden')
+        toastFehler('FileRecord konnte nicht zugeordnet werden')
         return
       }
-      await ladeDateienFuerProdukte(reloadRows)
+      await loadFilesForProducts(reloadRows)
     },
-    [toastFehler, produkte, ladeDateienFuerProdukte],
+    [toastFehler, produkte, loadFilesForProducts],
   )
 
   const dateiVonProduktEntfernen = useCallback(
@@ -175,14 +175,14 @@ export function OtherDetail({
         toastFehler('Zuordnung konnte nicht entfernt werden')
         return
       }
-      await ladeDateienFuerProdukte(produktRowsForReload ?? produkte)
+      await loadFilesForProducts(produktRowsForReload ?? produkte)
     },
-    [toastFehler, produkte, ladeDateienFuerProdukte],
+    [toastFehler, produkte, loadFilesForProducts],
   )
 
   const resetForm = useCallback(() => {
     setEditingId(null)
-    setFormDateiIds([])
+    setFormFileRecordIds([])
     const d = sonstigeRoh(subOrder)
     setDetail(d)
     detailR.current = d
@@ -248,10 +248,10 @@ export function OtherDetail({
         toastFehler('Produkt konnte nicht gespeichert werden')
         return
       }
-      for (const z of [...(produktDateien[editingId] ?? [])]) {
+      for (const z of [...(productFiles[editingId] ?? [])]) {
         await dateiVonProduktEntfernen(z.zuordnungId)
       }
-      for (const fid of formDateiIds) {
+      for (const fid of formFileRecordIds) {
         await dateiZuProduktZuordnen(editingId, fid)
       }
       const list = await reloadProdukte()
@@ -283,7 +283,7 @@ export function OtherDetail({
       return
     }
     let list = await reloadProdukte()
-    for (const fid of formDateiIds) {
+    for (const fid of formFileRecordIds) {
       await dateiZuProduktZuordnen(newId, fid, list)
     }
     list = await reloadProdukte()
@@ -300,8 +300,8 @@ export function OtherDetail({
     subOrderStatus,
     editingId,
     produkte.length,
-    produktDateien,
-    formDateiIds,
+    productFiles,
+    formFileRecordIds,
     toastFehler,
     reloadProdukte,
     resetForm,
@@ -333,12 +333,12 @@ export function OtherDetail({
 
   const handleEdit = useCallback((row: ProduktRow) => {
     setEditingId(row.id)
-    setFormDateiIds(produktDateien[row.id]?.map(z => z.dateiId) ?? [])
+    setFormFileRecordIds(productFiles[row.id]?.map(z => z.dateiId) ?? [])
     const raw = row.detail ?? {}
     const dd = { ...(raw as OtherDetailJson) }
     setDetail(dd)
     detailR.current = dd
-  }, [produktDateien])
+  }, [productFiles])
 
   return (
     <div className="ber-lfp">
@@ -376,7 +376,7 @@ export function OtherDetail({
       {orderFiles.length > 0 && (
         <BerZeile l="Dateien">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-            {formDateiIds.map(fid => (
+            {formFileRecordIds.map(fid => (
               <span
                 key={fid}
                 style={{
@@ -398,27 +398,27 @@ export function OtherDetail({
                   className="cp-btn cp-btn-grau"
                   style={{ minWidth: 22, padding: '0 6px', fontSize: 14, lineHeight: 1 }}
                   title="Entfernen"
-                  onClick={() => setFormDateiIds(prev => prev.filter(x => x !== fid))}
+                  onClick={() => setFormFileRecordIds(prev => prev.filter(x => x !== fid))}
                 >
                   ×
                 </button>
               </span>
             ))}
             <select
-              key={formDateiIds.join('|')}
+              key={formFileRecordIds.join('|')}
               className="ber-inp"
               style={{ fontSize: 12, maxWidth: 260 }}
               defaultValue=""
               onChange={e => {
                 const v = e.target.value
-                if (v && !formDateiIds.includes(v)) {
-                  setFormDateiIds(prev => [...prev, v])
+                if (v && !formFileRecordIds.includes(v)) {
+                  setFormFileRecordIds(prev => [...prev, v])
                 }
               }}
             >
-              <option value="">Datei hinzufügen…</option>
+              <option value="">FileRecord hinzufügen…</option>
               {orderFiles
-                .filter(df => !formDateiIds.includes(df.id))
+                .filter(df => !formFileRecordIds.includes(df.id))
                 .map(df => (
                   <option key={df.id} value={df.id}>
                     {df.anzeigename}
@@ -505,7 +505,7 @@ export function OtherDetail({
                     String(pd.beschreibung ?? '')
                       .trim()
                       .slice(0, 72) || '—'
-                  const zuo = produktDateien[r.id] ?? []
+                  const zuo = productFiles[r.id] ?? []
                   return (
                     <tr key={r.id}>
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{SONSTIGE_TYP}</td>

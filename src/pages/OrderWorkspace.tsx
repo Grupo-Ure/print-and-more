@@ -10,7 +10,7 @@ import { CustomerDialog } from '../components/CustomerDialog'
 import { contactJoinToCustomer } from '../lib/customers'
 import type { Customer } from '../lib/customers'
 import type { Auftrag, AuftragStatus, KundeKontaktJoin, TeilauftragRow } from '../types/database'
-import type { Datei } from '../components/FileList'
+import type { FileRecord } from '../components/FileList'
 
 const ORDER_LIST_IN_PLACE_INITIAL: { tick: number; id: string; status: AuftragStatus } = {
   tick: 0,
@@ -25,7 +25,7 @@ export function OrderWorkspace() {
   const [activeOrder, setActiveOrder] = useState<Auftrag | null>(null)
   const [activeSubOrder, setActiveSubOrder] = useState<TeilauftragRow | null>(null)
   const [orderCustomer, setOrderCustomer] = useState<KundeKontaktJoin | null>(null)
-  const [orderFiles, setOrderFiles] = useState<Datei[]>([])
+  const [orderFiles, setOrderFiles] = useState<FileRecord[]>([])
   const [contextRefreshTick, setContextRefreshTick] = useState(0)
   const [orderListKey, setOrderListKey] = useState(0)
   const [orderInPlace, setOrderInPlace] = useState(ORDER_LIST_IN_PLACE_INITIAL)
@@ -70,11 +70,11 @@ export function OrderWorkspace() {
     setActiveSubOrder(t)
   }, [])
 
-  const handleOrderFilesChanged = useCallback((d: Datei[]) => {
+  const handleOrderFilesChanged = useCallback((d: FileRecord[]) => {
     setOrderFiles(d)
   }, [])
 
-  const handleFileChanged = useCallback((newFile?: Datei) => {
+  const handleFileChanged = useCallback((newFile?: FileRecord) => {
     if (newFile) {
       setOrderFiles(prev => [...prev, newFile])
     }

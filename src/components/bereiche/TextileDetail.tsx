@@ -9,7 +9,7 @@ import {
   textileRecordsAllowPrepress,
 } from '../../lib/textil/validateTextileDetail'
 import type { AuftragStatus, KundeKontaktJoin, TeilauftragRow } from '../../types/database'
-import type { Datei } from '../FileList'
+import type { FileRecord } from '../FileList'
 import type {
   TextileSize,
   TextileOrigin,
@@ -40,7 +40,7 @@ type Props = {
   subOrder: TeilauftragRow
   subOrderStatus: AuftragStatus
   orderStatus?: AuftragStatus
-  orderFiles: Datei[]
+  orderFiles: FileRecord[]
   orderCustomer: KundeKontaktJoin
   onUpdated: (t: TeilauftragRow) => void
 }
@@ -169,7 +169,7 @@ export function TextileDetail({
   const [mFarbe, setMFarbe] = useState('')
   const [mSchriftkl, setMSchriftkl] = useState<TextileFontClass>('SERIFENLOS')
   const [mSchriftart, setMSchriftart] = useState('')
-  const [mDatei, setMDatei] = useState('')
+  const [mFileRecord, setMFileRecord] = useState('')
   const [mPlatz, setMPlatz] = useState<TextilePlacement>('BRUST_LINKS')
   const [mGrArt, setMGrArt] = useState<TextileSize>('MITTEL')
   const [mGrFrei, setMGrFrei] = useState('')
@@ -496,7 +496,7 @@ export function TextileDetail({
     setMFarbe('')
     setMSchriftkl('SERIFENLOS')
     setMSchriftart('')
-    setMDatei('')
+    setMFileRecord('')
     setMTyp('TEXT')
     setMPlatz('BRUST_LINKS')
     setMGrArt('MITTEL')
@@ -541,7 +541,7 @@ export function TextileDetail({
     setMFarbe(m.farbe ?? '')
     setMSchriftkl((m.schriftklasse as TextileFontClass) || 'SERIFENLOS')
     setMSchriftart(m.schriftart ?? '')
-    setMDatei(m.datei_id ?? '')
+    setMFileRecord(m.datei_id ?? '')
     const pl = String(m.platz ?? 'BRUST_LINKS')
     setMPlatz((PLATZ_OPT.some(o => o.v === pl) ? pl : 'BRUST_LINKS') as TextilePlacement)
     const { art, frei } = splitGroesseDb(m.groesse)
@@ -709,8 +709,8 @@ export function TextileDetail({
         void syncTeil(nextM, positionen, zuordnungen, prod)
       }
     } else {
-      if (!mDatei) {
-        setFehler('Bitte eine Datei wählen.')
+      if (!mFileRecord) {
+        setFehler('Bitte eine FileRecord wählen.')
         return
       }
       setSMut(true)
@@ -726,7 +726,7 @@ export function TextileDetail({
               farbe: null,
               schriftklasse: null,
               schriftart: null,
-              datei_id: mDatei,
+              datei_id: mFileRecord,
             })
             .eq('id', editId)
             .select('*')
@@ -743,7 +743,7 @@ export function TextileDetail({
               farbe: null,
               schriftklasse: null,
               schriftart: null,
-              datei_id: mDatei,
+              datei_id: mFileRecord,
             })
             .select('*')
             .single()
@@ -1233,7 +1233,7 @@ export function TextileDetail({
                     <input type="radio" name="mtyp" checked={mTyp === 'TEXT'} onChange={() => setMTyp('TEXT')} /> Text
                   </label>
                   <label>
-                    <input type="radio" name="mtyp" checked={mTyp === 'DATEI'} onChange={() => setMTyp('DATEI')} /> Datei
+                    <input type="radio" name="mtyp" checked={mTyp === 'DATEI'} onChange={() => setMTyp('DATEI')} /> FileRecord
                   </label>
                 </div>
               </div>
@@ -1281,14 +1281,14 @@ export function TextileDetail({
               )}
               {mTyp === 'DATEI' && (
                 <div className="ber-zeile">
-                  <span className="ber-lbl">Datei</span>
+                  <span className="ber-lbl">FileRecord</span>
                   <div>
                     {orderFiles.length === 0 ? (
                       <p className="ber-hinweis" style={{ fontStyle: 'normal' }}>
                         Zuerst Dateien am Auftrag hinterlegen (Abschnitt &apos;Dateien dieses Auftrags&apos;).
                       </p>
                     ) : (
-                      <select className="ber-inp" value={mDatei} onChange={e => setMDatei(e.target.value)} required>
+                      <select className="ber-inp" value={mFileRecord} onChange={e => setMFileRecord(e.target.value)} required>
                         <option value="">—</option>
                         {orderFiles.map(d => (
                           <option key={d.id} value={d.id}>
@@ -1745,7 +1745,7 @@ export function TextileDetail({
                         <option key={m.id} value={m.id}>
                           {m.typ === 'TEXT'
                             ? (m.inhalt ?? 'Text-Motiv')
-                            : `Datei-Motiv ${motive.indexOf(m) + 1}`}
+                            : `FileRecord-Motiv ${motive.indexOf(m) + 1}`}
                         </option>
                       ))}
                     </select>
@@ -1854,7 +1854,7 @@ export function TextileDetail({
                       mo?.typ === 'TEXT'
                         ? (mo.inhalt ?? 'Text-Motiv')
                         : mo
-                          ? `Datei-Motiv ${motive.indexOf(mo) + 1}`
+                          ? `FileRecord-Motiv ${motive.indexOf(mo) + 1}`
                           : z.motiv_id
                     return (
                       <span

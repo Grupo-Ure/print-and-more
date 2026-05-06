@@ -5,7 +5,7 @@ import { BROCHURE_DIN, FOLD_DIN, CARD_DIN, CARD_FORMAT_ORDER, FOLD_FORMAT_ORDER,
 import { validateCopyShopDetail } from '../../lib/copyshop/validateCopyShopDetail'
 import type { AuftragStatus, TeilauftragRow } from '../../types/database'
 import type { Database, Json } from '../../types/supabase'
-import type { Datei } from '../FileList'
+import type { FileRecord } from '../FileList'
 import { useToast } from '../Toast'
 import { MaterialCC } from './copyshop/MaterialCC'
 import { MaterialOffset } from './copyshop/MaterialOffset'
@@ -22,7 +22,7 @@ type Props = {
   subOrder: TeilauftragRow
   subOrderStatus: AuftragStatus
   onDetailPatch: (patch: { typ?: string | null; detail: CopyShopDetailJson | null }) => Promise<void>
-  orderFiles?: Datei[]
+  orderFiles?: FileRecord[]
 }
 
 type ProduktRow = {
@@ -35,7 +35,7 @@ type ProduktRow = {
 }
 
 /** `datei_id` gehört nicht ins Produkt-JSON — Zuordnung nur über `produkt_dateien`. */
-function detailOhneDateiId(d: CopyShopDetailJson): CopyShopDetailJson {
+function detailOhneFileRecordId(d: CopyShopDetailJson): CopyShopDetailJson {
   const o = { ...d } as Record<string, unknown>
   delete o.datei_id
   return o as CopyShopDetailJson
@@ -44,7 +44,7 @@ function detailOhneDateiId(d: CopyShopDetailJson): CopyShopDetailJson {
 function copyRoh(subOrder: TeilauftragRow): CopyShopDetailJson {
   const d = subOrder.detail
   const base = d && typeof d === 'object' && !Array.isArray(d) ? { ...d } : {}
-  return detailOhneDateiId(base)
+  return detailOhneFileRecordId(base)
 }
 
 /** PLAKAT: DIN-Hochformat, Breite × Höhe (mm) */
@@ -98,7 +98,7 @@ type BlK = {
   speichDetail: (d: CopyShopDetailJson) => void
 }
 
-type ProduktDateiZuordnung = { zuordnungId: string; dateiId: string }
+type ProduktFileRecordZuordnung = { zuordnungId: string; dateiId: string }
 
 export function CopyShopDetail({
   subOrder,
@@ -109,13 +109,13 @@ export function CopyShopDetail({
   const { fehler: toastFehler } = useToast()
 
   const [produkte, setProdukte] = useState<ProduktRow[]>([])
-  const [produktDateien, setProduktDateien] = useState<Record<string, ProduktDateiZuordnung[]>>({})
-  const produktDateienRef = useRef(produktDateien)
-  produktDateienRef.current = produktDateien
+  const [productFiles, setProduktDateien] = useState<Record<string, ProduktFileRecordZuordnung[]>>({})
+  const productFilesRef = useRef(productFiles)
+  productFilesRef.current = productFiles
   const [produkteLaden, setProdukteLaden] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [entsperrt, setEntsperrt] = useState(false)
-  const [formDateiIds, setFormDateiIds] = useState<string[]>([])
+  const [formFileRecordIds, setFormFileRecordIds] = useState<string[]>([])
 
   const [typ, setTyp] = useState<string | null>(subOrder.typ)
   const [detail, setDetail] = useState<CopyShopDetailJson>(copyRoh(subOrder))
@@ -130,7 +130,7 @@ export function CopyShopDetail({
 
   useEffect(() => {
     setEditingId(null)
-    setFormDateiIds([])
+    setFormFileRecordIds([])
     setEntsperrt(false)
   }, [subOrder.id])
 
@@ -143,7 +143,7 @@ export function CopyShopDetail({
     typR.current = subOrder.typ
   }, [subOrder, editingId])
 
-  const ladeDateienFuerProdukte = useCallback(
+  const loadFilesForProducts = useCallback(
     async (produktRows: ProduktRow[]) => {
       const ids = produktRows.map(p => p.id)
       if (ids.length === 0) {
@@ -155,7 +155,7 @@ export function CopyShopDetail({
         .select('id, produkt_id, datei_id')
         .in('produkt_id', ids)
       if (error) {
-        toastFehler('Datei-Zuordnungen konnten nicht geladen werden')
+        toastFehler('FileRecord-Zuordnungen konnten nicht geladen werden')
         setProduktDateien({})
         return
       }
@@ -163,7 +163,7 @@ export function CopyShopDetail({
         Database['public']['Tables']['produkt_dateien']['Row'],
         'id' | 'produkt_id' | 'datei_id'
       >[]
-      const next: Record<string, ProduktDateiZuordnung[]> = {}
+      const next: Record<string, ProduktFileRecordZuordnung[]> = {}
       for (const row of rows) {
         const list = next[row.produkt_id] ?? (next[row.produkt_id] = [])
         list.push({ zuordnungId: row.id, dateiId: row.datei_id })
@@ -175,7 +175,7 @@ export function CopyShopDetail({
 
   const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
     if (!subOrder.id) {
-      await ladeDateienFuerProdukte([])
+      await loadFilesForProducts([])
       return []
     }
     setProdukteLaden(true)
@@ -189,7 +189,7 @@ export function CopyShopDetail({
     if (error) {
       toastFehler('Produkte konnten nicht geladen werden')
       setProdukte([])
-      await ladeDateienFuerProdukte([])
+      await loadFilesForProducts([])
       return []
     }
     const rows = (data ?? []) as Database['public']['Tables']['teilauftrag_produkte']['Row'][]
@@ -197,14 +197,14 @@ export function CopyShopDetail({
       id: r.id,
       teilauftrag_id: r.teilauftrag_id,
       bereich: r.bereich,
-      detail: detailOhneDateiId((r.detail ?? {}) as CopyShopDetailJson),
+      detail: detailOhneFileRecordId((r.detail ?? {}) as CopyShopDetailJson),
       sort_order: r.sort_order,
       erstellt_am: r.erstellt_am,
     }))
     setProdukte(mapped)
-    await ladeDateienFuerProdukte(mapped)
+    await loadFilesForProducts(mapped)
     return mapped
-  }, [subOrder.id, toastFehler, ladeDateienFuerProdukte])
+  }, [subOrder.id, toastFehler, loadFilesForProducts])
 
   useEffect(() => {
     void reloadProdukte()
@@ -213,19 +213,19 @@ export function CopyShopDetail({
   const dateiZuProduktZuordnen = useCallback(
     async (produktId: string, dateiId: string, produktRowsForReload?: ProduktRow[]) => {
       const reloadRows = produktRowsForReload ?? produkte
-      if (produktDateienRef.current[produktId]?.some(z => z.dateiId === dateiId)) return
+      if (productFilesRef.current[produktId]?.some(z => z.dateiId === dateiId)) return
       const ins: Database['public']['Tables']['produkt_dateien']['Insert'] = {
         produkt_id: produktId,
         datei_id: dateiId,
       }
       const { error } = await supabase.from('produkt_dateien').insert(ins)
       if (error) {
-        toastFehler('Datei konnte nicht zugeordnet werden')
+        toastFehler('FileRecord konnte nicht zugeordnet werden')
         return
       }
-      await ladeDateienFuerProdukte(reloadRows)
+      await loadFilesForProducts(reloadRows)
     },
-    [toastFehler, produkte, ladeDateienFuerProdukte],
+    [toastFehler, produkte, loadFilesForProducts],
   )
 
   const dateiVonProduktEntfernen = useCallback(
@@ -235,14 +235,14 @@ export function CopyShopDetail({
         toastFehler('Zuordnung konnte nicht entfernt werden')
         return
       }
-      await ladeDateienFuerProdukte(produktRowsForReload ?? produkte)
+      await loadFilesForProducts(produktRowsForReload ?? produkte)
     },
-    [toastFehler, produkte, ladeDateienFuerProdukte],
+    [toastFehler, produkte, loadFilesForProducts],
   )
 
   const resetForm = useCallback(() => {
     setEditingId(null)
-    setFormDateiIds([])
+    setFormFileRecordIds([])
     setTyp(subOrder.typ)
     const d = copyRoh(subOrder)
     setDetail(d)
@@ -256,7 +256,7 @@ export function CopyShopDetail({
 
   const speich = useCallback(
     async (nextTyp: string | null, d: CopyShopDetailJson) => {
-      const clean = detailOhneDateiId(d)
+      const clean = detailOhneFileRecordId(d)
       setDetail(clean)
       detailR.current = clean
       setTyp(nextTyp)
@@ -296,7 +296,7 @@ export function CopyShopDetail({
 
   const handleAddOrSave = useCallback(async () => {
     const t = typR.current
-    const d = detailOhneDateiId({ ...detailR.current })
+    const d = detailOhneFileRecordId({ ...detailR.current })
     if (!t) return
     const errors = validateCopyShopDetail(t, d, subOrderStatus)
     if (Object.keys(errors).length > 0) return
@@ -310,10 +310,10 @@ export function CopyShopDetail({
         toastFehler('Produkt konnte nicht gespeichert werden')
         return
       }
-      for (const z of [...(produktDateien[editingId] ?? [])]) {
+      for (const z of [...(productFiles[editingId] ?? [])]) {
         await dateiVonProduktEntfernen(z.zuordnungId)
       }
-      for (const fid of formDateiIds) {
+      for (const fid of formFileRecordIds) {
         await dateiZuProduktZuordnen(editingId, fid)
       }
       const list = await reloadProdukte()
@@ -345,7 +345,7 @@ export function CopyShopDetail({
       return
     }
     let list = await reloadProdukte()
-    for (const fid of formDateiIds) {
+    for (const fid of formFileRecordIds) {
       await dateiZuProduktZuordnen(newId, fid, list)
     }
     list = await reloadProdukte()
@@ -362,8 +362,8 @@ export function CopyShopDetail({
     subOrderStatus,
     editingId,
     produkte.length,
-    produktDateien,
-    formDateiIds,
+    productFiles,
+    formFileRecordIds,
     toastFehler,
     reloadProdukte,
     resetForm,
@@ -394,16 +394,16 @@ export function CopyShopDetail({
 
   const handleEdit = useCallback((row: ProduktRow) => {
     setEditingId(row.id)
-    setFormDateiIds(produktDateien[row.id]?.map(z => z.dateiId) ?? [])
+    setFormFileRecordIds(productFiles[row.id]?.map(z => z.dateiId) ?? [])
     const raw = row.detail ?? {}
     const dr = raw as Record<string, unknown>
     const tt = typeof dr.typ === 'string' ? dr.typ : null
     setTyp(tt)
-    const dd = detailOhneDateiId({ ...(raw as CopyShopDetailJson) })
+    const dd = detailOhneFileRecordId({ ...(raw as CopyShopDetailJson) })
     setDetail(dd)
     detailR.current = dd
     typR.current = tt
-  }, [produktDateien])
+  }, [productFiles])
 
   useEffect(() => {
     if (typ !== 'BINDUNG') return
@@ -569,7 +569,7 @@ export function CopyShopDetail({
       {orderFiles.length > 0 && (
         <BerZeile l="Dateien">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-            {formDateiIds.map(fid => (
+            {formFileRecordIds.map(fid => (
               <span
                 key={fid}
                 style={{
@@ -591,27 +591,27 @@ export function CopyShopDetail({
                   className="cp-btn cp-btn-grau"
                   style={{ minWidth: 22, padding: '0 6px', fontSize: 14, lineHeight: 1 }}
                   title="Entfernen"
-                  onClick={() => setFormDateiIds(prev => prev.filter(x => x !== fid))}
+                  onClick={() => setFormFileRecordIds(prev => prev.filter(x => x !== fid))}
                 >
                   ×
                 </button>
               </span>
             ))}
             <select
-              key={formDateiIds.join('|')}
+              key={formFileRecordIds.join('|')}
               className="ber-inp"
               style={{ fontSize: 12, maxWidth: 260 }}
               defaultValue=""
               onChange={e => {
                 const v = e.target.value
-                if (v && !formDateiIds.includes(v)) {
-                  setFormDateiIds(prev => [...prev, v])
+                if (v && !formFileRecordIds.includes(v)) {
+                  setFormFileRecordIds(prev => [...prev, v])
                 }
               }}
             >
-              <option value="">Datei hinzufügen…</option>
+              <option value="">FileRecord hinzufügen…</option>
               {orderFiles
-                .filter(df => !formDateiIds.includes(df.id))
+                .filter(df => !formFileRecordIds.includes(df.id))
                 .map(df => (
                   <option key={df.id} value={df.id}>
                     {df.anzeigename}
@@ -706,7 +706,7 @@ export function CopyShopDetail({
                   const fmt = fw && fh ? `${fw}×${fh} mm` : '—'
                   const typLabel =
                     (COPY_SHOP_TYPE_LABELS as Record<string, string>)[pt] ?? pt
-                  const zuo = produktDateien[r.id] ?? []
+                  const zuo = productFiles[r.id] ?? []
                   return (
                     <tr key={r.id}>
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>

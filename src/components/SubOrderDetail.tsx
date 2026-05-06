@@ -26,7 +26,7 @@ import { StampDetail } from './bereiche/StampDetail'
 import { OtherDetail, type OtherDetailJson } from './bereiche/OtherDetail'
 import { LaserDetail } from './bereiche/LaserDetail'
 import { TextileDetail } from './bereiche/TextileDetail'
-import type { Datei } from './FileList'
+import type { FileRecord } from './FileList'
 import type { LfpDetail } from '../types/lfp'
 import type { CopyShopDetailJson } from '../types/copyshop'
 import type { StampDetailJson } from '../types/stamp'
@@ -45,7 +45,7 @@ type Props = {
   orderPriority: Prioritaet
   /** Server join for customer contact (name, email, telefon) */
   orderCustomer: KundeKontaktJoin
-  orderFiles: Datei[]
+  orderFiles: FileRecord[]
   onUpdated: (t: TeilauftragRow) => void
 }
 

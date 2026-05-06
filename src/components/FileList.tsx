@@ -2,24 +2,24 @@ import { useCallback, useState, type FormEvent } from 'react'
 import { supabase } from '../supabase'
 import { useToast } from './Toast'
 
-export type DateiRolle = 'PRODUKTIONSDATEI' | 'VORSCHAU' | 'KUNDENFREIGABE' | 'REFERENZ'
+export type FileRole = 'PRODUKTIONSDATEI' | 'VORSCHAU' | 'KUNDENFREIGABE' | 'REFERENZ'
 
-export type Datei = {
+export type FileRecord = {
   id: string
   anzeigename: string
   pfad: string
-  rolle: DateiRolle
+  rolle: FileRole
   erstellt_am: string
 }
 
-const ROLLEN: { value: DateiRolle; label: string }[] = [
+const ROLLEN: { value: FileRole; label: string }[] = [
   { value: 'PRODUKTIONSDATEI', label: 'Produktionsdatei' },
   { value: 'VORSCHAU', label: 'Vorschau / Mockup' },
   { value: 'KUNDENFREIGABE', label: 'Kundenfreigabe' },
   { value: 'REFERENZ', label: 'Referenz / Altstand' },
 ]
 
-const ROLLE_KURZ: Record<DateiRolle, string> = {
+const ROLLE_KURZ: Record<FileRole, string> = {
   PRODUKTIONSDATEI: 'Produkt.',
   VORSCHAU: 'Vorschau',
   KUNDENFREIGABE: 'Freigabe',
@@ -28,9 +28,9 @@ const ROLLE_KURZ: Record<DateiRolle, string> = {
 
 type Props = {
   activeOrderId: string
-  files: Datei[]
+  files: FileRecord[]
   filesLoading: boolean
-  onFileChanged: (neueDatei?: Datei) => void | Promise<void>
+  onFileChanged: (neueFileRecord?: FileRecord) => void | Promise<void>
 }
 
 export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: Props) {
@@ -38,7 +38,7 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
   const { erfolg } = useToast()
   const [anzeigename, setAnzeigename] = useState('')
   const [pfad, setPfad] = useState('')
-  const [rolle, setRolle] = useState<DateiRolle>('PRODUKTIONSDATEI')
+  const [rolle, setRolle] = useState<FileRole>('PRODUKTIONSDATEI')
   const [fehler, setFehler] = useState<string | null>(null)
   const [speichert, setSpeichert] = useState(false)
   const [entferntId, setEntferntId] = useState<string | null>(null)
@@ -95,7 +95,7 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
       setPfad('')
       setRolle('PRODUKTIONSDATEI')
       setFormOffen(false)
-      void onFileChanged(data as Datei)
+      void onFileChanged(data as FileRecord)
     }
   }
 
@@ -150,7 +150,7 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
             <select
               className="ber-inp wa-dl-rolle"
               value={rolle}
-              onChange={e => setRolle(e.target.value as DateiRolle)}
+              onChange={e => setRolle(e.target.value as FileRole)}
               required
               aria-label="Rolle"
             >

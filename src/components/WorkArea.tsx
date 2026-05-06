@@ -20,7 +20,7 @@ import {
 import { useToast } from './Toast'
 import { AddSubOrderOverlay } from './AddSubOrderOverlay'
 import { DateInput } from './DateInput'
-import type { Datei } from './FileList'
+import type { FileRecord } from './FileList'
 import { SubOrderDetail } from './SubOrderDetail'
 import './WorkArea.css'
 
@@ -62,7 +62,7 @@ type Props = {
   onActiveSubOrderChanged: (t: TeilauftragRow | null) => void
   onOrderCustomerLoaded: (k: KundeKontaktJoin | null) => void
   onOrderFromWorkArea: (a: Auftrag | null) => void
-  onOrderFilesChanged: (d: Datei[]) => void
+  onOrderFilesChanged: (d: FileRecord[]) => void
   onOrderUpdated: (a: Auftrag) => void
   onEditCustomer: () => void
 }
@@ -84,7 +84,7 @@ export function WorkArea({
   const [fehler, setFehler] = useState<string | null>(null)
   const [overlayOffen, setOverlayOffen] = useState(false)
   const [speichert, setSpeichert] = useState(false)
-  const [dateien, setDateien] = useState<Datei[]>([])
+  const [dateien, setFiles] = useState<FileRecord[]>([])
   const [kopfTermin, setKopfTermin] = useState('')
   const [kopfLieferung, setKopfLieferung] = useState<LieferungWahl | ''>('')
   const [kopfPrioritaet, setKopfPrioritaet] = useState<Prioritaet>('NORMAL')
@@ -97,7 +97,7 @@ export function WorkArea({
   const { fehler: toastFehler } = useToast()
   const ladeAuftragRequestIdRef = useRef(0)
 
-  const reloadDateien = useCallback(async () => {
+  const reloadFiles = useCallback(async () => {
     if (!activeOrderId) return
     const { data, error } = await supabase
       .from('dateien')
@@ -105,20 +105,20 @@ export function WorkArea({
       .eq('auftrag_id', activeOrderId)
       .order('erstellt_am', { ascending: true })
     if (error) {
-      setDateien([])
+      setFiles([])
       toastFehler('Dateien konnten nicht geladen werden')
     } else {
-      setDateien((data ?? []) as Datei[])
+      setFiles((data ?? []) as FileRecord[])
     }
   }, [activeOrderId, toastFehler])
 
   useEffect(() => {
     if (!activeOrderId) {
-      setDateien([])
+      setFiles([])
       return
     }
-    void reloadDateien()
-  }, [activeOrderId, contextRefreshTick, reloadDateien])
+    void reloadFiles()
+  }, [activeOrderId, contextRefreshTick, reloadFiles])
 
   useEffect(() => {
     if (!activeOrderId) {

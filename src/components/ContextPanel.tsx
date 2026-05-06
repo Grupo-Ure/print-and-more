@@ -13,7 +13,7 @@ import {
   type TeilauftragRow,
 } from '../types/database'
 import type { Database } from '../types/supabase'
-import { FileList, type Datei } from './FileList'
+import { FileList, type FileRecord } from './FileList'
 import { HistoryPanel } from './HistoryPanel'
 import { useToast } from './Toast'
 import { isSubOrderComplete } from '../lib/subOrderShared'
@@ -23,14 +23,14 @@ type Props = {
   order: Auftrag | null
   activeSubOrder: TeilauftragRow | null
   orderCustomer: KundeKontaktJoin | null
-  orderFiles: Datei[]
+  orderFiles: FileRecord[]
   onOrderUpdated: (a: Auftrag) => void
   onOrderDeleted: (auftragId: string) => void
   onSubOrderUpdated: (t: TeilauftragRow) => void
   onSubOrderRemoved: (id: string) => void
   onEditCustomer: () => void
   contextRefreshTick: number
-  onFileChanged?: (neueDatei?: Datei) => void | Promise<void>
+  onFileChanged?: (neueFileRecord?: FileRecord) => void | Promise<void>
 }
 
 function statusBadgeGlobal(s: AuftragStatus): string {
@@ -194,8 +194,8 @@ export function ContextPanel({
   const [loeschenLaeuft, setLoeschenLaeuft] = useState(false)
   const [dialogNotfall, setDialogNotfall] = useState(false)
   const [notfallBegr, setNotfallBegr] = useState('')
-  const [dialogKfDatei, setDialogKfDatei] = useState(false)
-  const [kfDateiId, setKfDateiId] = useState('')
+  const [dialogCustomerApprovalFile, setDialogCustomerApprovalFile] = useState(false)
+  const [customerApprovalFileId, setCustomerApprovalFileId] = useState('')
   const [stempelBestand, setStempelBestand] = useState<number | null>(null)
   const [kissenBestand, setKissenBestand] = useState<number | null>(null)
   const [dialogProduktionBestand0, setDialogProduktionBestand0] = useState(false)
@@ -716,7 +716,7 @@ export function ContextPanel({
     }
   }
 
-  const handleKfToggle = async (aktiv: boolean) => {
+  const handleCustomerApprovalToggle = async (aktiv: boolean) => {
     if (busy || !teil) return
     if (teil.status === 'ANGEBOT') return
     setBusy(true)
@@ -752,22 +752,22 @@ export function ContextPanel({
     }
   }
 
-  const handleKfDateiOeffnen = () => {
+  const handleCustomerApprovalFileOpen = () => {
     if (busy || !teil) return
-    setKfDateiId(orderFiles[0]?.id ?? '')
-    setDialogKfDatei(true)
+    setCustomerApprovalFileId(orderFiles[0]?.id ?? '')
+    setDialogCustomerApprovalFile(true)
   }
 
-  const handleKfDateiBestaetigt = async () => {
-    if (busy || !teil || !kfDateiId) return
+  const handleCustomerApprovalFileConfirmed = async () => {
+    if (busy || !teil || !customerApprovalFileId) return
     setBusy(true)
-    setDialogKfDatei(false)
+    setDialogCustomerApprovalFile(false)
     try {
-      const kfDateiPatch: Database['public']['Tables']['teilauftraege']['Update'] = {
+      const customerApprovalPatch: Database['public']['Tables']['teilauftraege']['Update'] = {
         kundenfreigabe_liegt_vor: true,
-        kundenfreigabe_datei_id: kfDateiId,
+        kundenfreigabe_datei_id: customerApprovalFileId,
       }
-      const { data, error } = await supabase.from('teilauftraege').update(kfDateiPatch).eq('id', teil.id)
+      const { data, error } = await supabase.from('teilauftraege').update(customerApprovalPatch).eq('id', teil.id)
         .select(SUB_ORDER_COLUMNS)
         .single()
       if (error) throw error
@@ -775,7 +775,7 @@ export function ContextPanel({
         auftrag_id: order.id,
         teilauftrag_id: teil.id,
         ereignisart: 'KUNDENFREIGABE_ERTEILT',
-        meta: { datei_id: kfDateiId } as unknown as Record<string, unknown>,
+        meta: { datei_id: customerApprovalFileId } as unknown as Record<string, unknown>,
       })
       onSubOrderUpdated(data as TeilauftragRow)
       await teilNaechstNachTeilAktion()
@@ -839,7 +839,7 @@ export function ContextPanel({
     istStempelBereichBestandKritisch(stempelBestand, kissenBestand)
   const notfallSichtbar =
     teil && teil.status !== 'ANGEBOT' && teil.status !== 'FERTIG' && naechsterNotfallStatus(teil.status) !== teil.status
-  const kfErteilenSichtbar =
+  const customerApprovalGrantVisible =
     !!teil &&
     teil.kundenfreigabe_erforderlich &&
     !teil.kundenfreigabe_liegt_vor &&
@@ -1044,13 +1044,13 @@ export function ContextPanel({
                     type="checkbox"
                     checked={teil.kundenfreigabe_erforderlich}
                     disabled={busy}
-                    onChange={e => void handleKfToggle(e.target.checked)}
+                    onChange={e => void handleCustomerApprovalToggle(e.target.checked)}
                   />
                   <span>Kundenfreigabe erforderlich</span>
                 </label>
               )}
-              {kfErteilenSichtbar && (
-                <button type="button" className="cp-btn" disabled={busy} onClick={handleKfDateiOeffnen}>
+              {customerApprovalGrantVisible && (
+                <button type="button" className="cp-btn" disabled={busy} onClick={handleCustomerApprovalFileOpen}>
                   Kundenfreigabe erteilen
                 </button>
               )}
@@ -1191,7 +1191,7 @@ export function ContextPanel({
         </div>
       )}
 
-      {dialogKfDatei && teil && (
+      {dialogCustomerApprovalFile && teil && (
         <div
           className="cp-modal-bg"
           role="dialog"
@@ -1200,11 +1200,11 @@ export function ContextPanel({
         >
           <div className="cp-modal">
             <h3>Kundenfreigabe erteilen</h3>
-            <p className="cp-hinweis">Datei wählen:</p>
+            <p className="cp-hinweis">FileRecord wählen:</p>
             <select
               className="cp-select"
-              value={kfDateiId}
-              onChange={e => setKfDateiId(e.target.value)}
+              value={customerApprovalFileId}
+              onChange={e => setCustomerApprovalFileId(e.target.value)}
             >
               {orderFiles.map(d => (
                 <option key={d.id} value={d.id}>
@@ -1213,14 +1213,14 @@ export function ContextPanel({
               ))}
             </select>
             <div className="cp-modal-bar">
-              <button type="button" className="cp-btn" onClick={() => setDialogKfDatei(false)}>
+              <button type="button" className="cp-btn" onClick={() => setDialogCustomerApprovalFile(false)}>
                 Abbrechen
               </button>
               <button
                 type="button"
                 className="cp-btn"
-                disabled={!kfDateiId || busy}
-                onClick={() => void handleKfDateiBestaetigt()}
+                disabled={!customerApprovalFileId || busy}
+                onClick={() => void handleCustomerApprovalFileConfirmed()}
               >
                 Bestätigen
               </button>

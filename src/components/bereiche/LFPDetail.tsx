@@ -9,7 +9,7 @@ import {
   LFP_AUFKLEBER_MATERIALIEN,
   LFP_FOLIENPLOTT_MATERIALIEN,
 } from '../../config/materialien'
-import type { Datei } from '../FileList'
+import type { FileRecord } from '../FileList'
 import { DateInput } from '../DateInput'
 import { useToast } from '../Toast'
 import '../WorkArea.css'
@@ -28,7 +28,7 @@ type Props = {
   subOrderStatus: AuftragStatus
   onDetailPatch: (patch: { typ?: string | null; detail: LfpDetail | null }) => Promise<void>
   /** Auftragsdateien für Zuordnung zu Produktzeilen */
-  orderFiles?: Datei[]
+  orderFiles?: FileRecord[]
 }
 
 function lfpRoh(subOrder: TeilauftragRow): LfpDetail {
@@ -48,7 +48,7 @@ type BlK = {
 }
 
 /** produkt_id → Zuordnungen (datei_id + produkt_dateien-Zeile für Entfernen) */
-type ProduktDateiZuordnung = { zuordnungId: string; dateiId: string }
+type ProduktFileRecordZuordnung = { zuordnungId: string; dateiId: string }
 
 export function LFPDetail({
   subOrder,
@@ -59,13 +59,13 @@ export function LFPDetail({
   const { fehler } = useToast()
 
   const [produkte, setProdukte] = useState<ProduktRow[]>([])
-  const [produktDateien, setProduktDateien] = useState<Record<string, ProduktDateiZuordnung[]>>({})
-  const produktDateienRef = useRef(produktDateien)
-  produktDateienRef.current = produktDateien
+  const [productFiles, setProduktDateien] = useState<Record<string, ProduktFileRecordZuordnung[]>>({})
+  const productFilesRef = useRef(productFiles)
+  productFilesRef.current = productFiles
   const [produkteLaden, setProdukteLaden] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [entsperrt, setEntsperrt] = useState(false)
-  const [formDateiIds, setFormDateiIds] = useState<string[]>([])
+  const [formFileRecordIds, setFormFileRecordIds] = useState<string[]>([])
 
   const [typ, setTyp] = useState<string | null>(subOrder.typ)
   const [detail, setDetail] = useState<LfpDetail>(lfpRoh(subOrder))
@@ -80,7 +80,7 @@ export function LFPDetail({
 
   useEffect(() => {
     setEditingId(null)
-    setFormDateiIds([])
+    setFormFileRecordIds([])
   }, [subOrder.id])
 
   useEffect(() => {
@@ -96,7 +96,7 @@ export function LFPDetail({
     typR.current = subOrder.typ
   }, [subOrder, editingId])
 
-  const ladeDateienFuerProdukte = useCallback(
+  const loadFilesForProducts = useCallback(
     async (produktRows: ProduktRow[]) => {
       const ids = produktRows.map(p => p.id)
       if (ids.length === 0) {
@@ -108,7 +108,7 @@ export function LFPDetail({
         .select('id, produkt_id, datei_id')
         .in('produkt_id', ids)
       if (error) {
-        fehler('Datei-Zuordnungen konnten nicht geladen werden')
+        fehler('FileRecord-Zuordnungen konnten nicht geladen werden')
         setProduktDateien({})
         return
       }
@@ -116,7 +116,7 @@ export function LFPDetail({
         Database['public']['Tables']['produkt_dateien']['Row'],
         'id' | 'produkt_id' | 'datei_id'
       >[]
-      const next: Record<string, ProduktDateiZuordnung[]> = {}
+      const next: Record<string, ProduktFileRecordZuordnung[]> = {}
       for (const row of rows) {
         const list = next[row.produkt_id] ?? (next[row.produkt_id] = [])
         list.push({ zuordnungId: row.id, dateiId: row.datei_id })
@@ -128,7 +128,7 @@ export function LFPDetail({
 
   const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
     if (!subOrder.id) {
-      await ladeDateienFuerProdukte([])
+      await loadFilesForProducts([])
       return []
     }
     setProdukteLaden(true)
@@ -142,7 +142,7 @@ export function LFPDetail({
     if (error) {
       fehler('Produkte konnten nicht geladen werden')
       setProdukte([])
-      await ladeDateienFuerProdukte([])
+      await loadFilesForProducts([])
       return []
     }
     const rows = (data ?? []) as Database['public']['Tables']['teilauftrag_produkte']['Row'][]
@@ -155,9 +155,9 @@ export function LFPDetail({
       erstellt_am: r.erstellt_am,
     }))
     setProdukte(mapped)
-    await ladeDateienFuerProdukte(mapped)
+    await loadFilesForProducts(mapped)
     return mapped
-  }, [subOrder.id, fehler, ladeDateienFuerProdukte])
+  }, [subOrder.id, fehler, loadFilesForProducts])
 
   useEffect(() => {
     void reloadProdukte()
@@ -166,19 +166,19 @@ export function LFPDetail({
   const dateiZuProduktZuordnen = useCallback(
     async (produktId: string, dateiId: string, produktRowsForReload?: ProduktRow[]) => {
       const reloadRows = produktRowsForReload ?? produkte
-      if (produktDateienRef.current[produktId]?.some(z => z.dateiId === dateiId)) return
+      if (productFilesRef.current[produktId]?.some(z => z.dateiId === dateiId)) return
       const ins: Database['public']['Tables']['produkt_dateien']['Insert'] = {
         produkt_id: produktId,
         datei_id: dateiId,
       }
       const { error } = await supabase.from('produkt_dateien').insert(ins)
       if (error) {
-        fehler('Datei konnte nicht zugeordnet werden')
+        fehler('FileRecord konnte nicht zugeordnet werden')
         return
       }
-      await ladeDateienFuerProdukte(reloadRows)
+      await loadFilesForProducts(reloadRows)
     },
-    [fehler, produkte, ladeDateienFuerProdukte],
+    [fehler, produkte, loadFilesForProducts],
   )
 
   const dateiVonProduktEntfernen = useCallback(
@@ -188,14 +188,14 @@ export function LFPDetail({
         fehler('Zuordnung konnte nicht entfernt werden')
         return
       }
-      await ladeDateienFuerProdukte(produktRowsForReload ?? produkte)
+      await loadFilesForProducts(produktRowsForReload ?? produkte)
     },
-    [fehler, produkte, ladeDateienFuerProdukte],
+    [fehler, produkte, loadFilesForProducts],
   )
 
   const resetForm = useCallback(() => {
     setEditingId(null)
-    setFormDateiIds([])
+    setFormFileRecordIds([])
     setTyp(subOrder.typ)
     const d = lfpRoh(subOrder)
     setDetail(d)
@@ -262,10 +262,10 @@ export function LFPDetail({
         fehler('Produkt konnte nicht gespeichert werden')
         return
       }
-      for (const z of [...(produktDateien[editingId] ?? [])]) {
+      for (const z of [...(productFiles[editingId] ?? [])]) {
         await dateiVonProduktEntfernen(z.zuordnungId)
       }
-      for (const fid of formDateiIds) {
+      for (const fid of formFileRecordIds) {
         await dateiZuProduktZuordnen(editingId, fid)
       }
       const list = await reloadProdukte()
@@ -297,7 +297,7 @@ export function LFPDetail({
       return
     }
     let list = await reloadProdukte()
-    for (const fid of formDateiIds) {
+    for (const fid of formFileRecordIds) {
       await dateiZuProduktZuordnen(newId, fid, list)
     }
     list = await reloadProdukte()
@@ -314,8 +314,8 @@ export function LFPDetail({
     subOrderStatus,
     editingId,
     produkte.length,
-    produktDateien,
-    formDateiIds,
+    productFiles,
+    formFileRecordIds,
     fehler,
     reloadProdukte,
     resetForm,
@@ -346,7 +346,7 @@ export function LFPDetail({
 
   const handleEdit = useCallback((row: ProduktRow) => {
     setEditingId(row.id)
-    setFormDateiIds(produktDateien[row.id]?.map(z => z.dateiId) ?? [])
+    setFormFileRecordIds(productFiles[row.id]?.map(z => z.dateiId) ?? [])
     const raw = row.detail ?? {}
     const d = raw as Record<string, unknown>
     const tt = typeof d.typ === 'string' ? d.typ : null
@@ -355,7 +355,7 @@ export function LFPDetail({
     setDetail(dd)
     detailR.current = dd
     typR.current = tt
-  }, [produktDateien])
+  }, [productFiles])
 
   return (
     <div className="ber-lfp td-bereich-sect">
@@ -416,7 +416,7 @@ export function LFPDetail({
       {orderFiles.length > 0 && (
         <BerZeile l="Dateien">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-            {formDateiIds.map(fid => (
+            {formFileRecordIds.map(fid => (
               <span
                 key={fid}
                 style={{
@@ -438,27 +438,27 @@ export function LFPDetail({
                   className="cp-btn cp-btn-grau"
                   style={{ minWidth: 22, padding: '0 6px', fontSize: 14, lineHeight: 1 }}
                   title="Entfernen"
-                  onClick={() => setFormDateiIds(prev => prev.filter(x => x !== fid))}
+                  onClick={() => setFormFileRecordIds(prev => prev.filter(x => x !== fid))}
                 >
                   ×
                 </button>
               </span>
             ))}
             <select
-              key={formDateiIds.join('|')}
+              key={formFileRecordIds.join('|')}
               className="ber-inp"
               style={{ fontSize: 12, maxWidth: 260 }}
               defaultValue=""
               onChange={e => {
                 const v = e.target.value
-                if (v && !formDateiIds.includes(v)) {
-                  setFormDateiIds(prev => [...prev, v])
+                if (v && !formFileRecordIds.includes(v)) {
+                  setFormFileRecordIds(prev => [...prev, v])
                 }
               }}
             >
-              <option value="">Datei hinzufügen…</option>
+              <option value="">FileRecord hinzufügen…</option>
               {orderFiles
-                .filter(df => !formDateiIds.includes(df.id))
+                .filter(df => !formFileRecordIds.includes(df.id))
                 .map(df => (
                   <option key={df.id} value={df.id}>
                     {df.anzeigename}
@@ -550,7 +550,7 @@ export function LFPDetail({
                   const fh = pd.format_hoehe
                   const fmt = fw && fh ? `${fw}×${fh} mm` : '—'
                   const typLabel = (LFP_TYPE_LABELS as Record<string, string>)[pt] ?? pt
-                  const zuo = produktDateien[r.id] ?? []
+                  const zuo = productFiles[r.id] ?? []
                   return (
                     <tr key={r.id}>
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
