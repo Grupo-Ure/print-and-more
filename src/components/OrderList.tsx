@@ -44,8 +44,8 @@ const DEFAULT_STATUS_TOGGLES: Record<AuftragStatus, boolean> = {
   ABGERECHNET: false,
 }
 
-/** Anzeige in einer Zeile (kurz) */
-const STATUS_CBX_KURZ: Record<AuftragStatus, string> = {
+/** Short label for the status filter checkboxes. */
+const STATUS_CHECKBOX_SHORT: Record<AuftragStatus, string> = {
   ANGEBOT: 'Angebot',
   UNVOLLSTAENDIG: 'Unvollst.',
   PREPRESS_BEREIT: 'PrePress',
@@ -54,8 +54,8 @@ const STATUS_CBX_KURZ: Record<AuftragStatus, string> = {
   ABGERECHNET: 'Abgerech.',
 }
 
-type TeilBereichRow = { bereich: string; status: string }
-type OrderListAuftragRow = {
+type SubOrderDepartmentRow = { bereich: string; status: string }
+type OrderListEntry = {
   id: string
   auftragsnummer: string
   status: AuftragStatus
@@ -65,20 +65,20 @@ type OrderListAuftragRow = {
   notfall_aktiv: boolean
   kunde_id: string
   kunden: { name: string } | { name: string }[] | null
-  teilauftraege: TeilBereichRow[] | null
+  teilauftraege: SubOrderDepartmentRow[] | null
 }
 
 function defaultFilterState() {
   return {
     searchInput: '',
     searchDebounced: '',
-    statusAlle: false,
+    statusAll: false,
     statusToggles: { ...DEFAULT_STATUS_TOGGLES },
-    terminVon: '',
-    terminBis: '',
-    annVon: '',
-    annBis: '',
-    bereich: 'Alle' as 'Alle' | (typeof TEILAUFTRAG_BEREICHE)[number],
+    deadlineFrom: '',
+    deadlineTo: '',
+    intakeFrom: '',
+    intakeTo: '',
+    department: 'Alle' as 'Alle' | (typeof TEILAUFTRAG_BEREICHE)[number],
   }
 }
 
@@ -86,30 +86,30 @@ type FilterState = ReturnType<typeof defaultFilterState>
 
 function statusTogglesToIn(toggles: Record<AuftragStatus, boolean>): AuftragStatus[] {
   return (Object.entries(toggles) as [AuftragStatus, boolean][])
-    .filter(([, on]) => on)
-    .map(([s]) => s)
+    .filter(([, enabled]) => enabled)
+    .map(([status]) => status)
 }
 
-const AUFTRAG_STATUS_GUELTIG = new Set<string>(STATUS_ORDER)
+const VALID_ORDER_STATUSES = new Set<string>(STATUS_ORDER)
 
-/** Nur Werte aus der festen Statusliste (für PostgREST `.in('status', …)` ohne Assertions). */
-function nurGueltigeAuftragStatus(werte: readonly AuftragStatus[]): AuftragStatus[] {
-  return werte.filter((s): s is AuftragStatus => AUFTRAG_STATUS_GUELTIG.has(s))
+/** Only values from the fixed status list — prevents PostgREST `.in('status', …)` type assertions. */
+function filterValidOrderStatuses(values: readonly AuftragStatus[]): AuftragStatus[] {
+  return values.filter((status): status is AuftragStatus => VALID_ORDER_STATUSES.has(status))
 }
 
-function isFilterAktiv(f: FilterState): boolean {
-  const d = defaultFilterState()
-  if (f.searchInput.trim() !== '' || f.searchDebounced.trim() !== '') return true
-  if (f.terminVon || f.terminBis || f.annVon || f.annBis) return true
-  if (f.bereich !== 'Alle') return true
-  if (f.statusAlle !== d.statusAlle) return true
-  for (const s of STATUS_ORDER) {
-    if (f.statusToggles[s] !== d.statusToggles[s]) return true
+function isFilterActive(filterState: FilterState): boolean {
+  const defaultState = defaultFilterState()
+  if (filterState.searchInput.trim() !== '' || filterState.searchDebounced.trim() !== '') return true
+  if (filterState.deadlineFrom || filterState.deadlineTo || filterState.intakeFrom || filterState.intakeTo) return true
+  if (filterState.department !== 'Alle') return true
+  if (filterState.statusAll !== defaultState.statusAll) return true
+  for (const status of STATUS_ORDER) {
+    if (filterState.statusToggles[status] !== defaultState.statusToggles[status]) return true
   }
   return false
 }
 
-function statusBadgeKlasse(s: AuftragStatus): string {
+function statusBadgeClass(s: AuftragStatus): string {
   switch (s) {
     case 'ANGEBOT':
       return 'badge-grau'
@@ -126,8 +126,8 @@ function statusBadgeKlasse(s: AuftragStatus): string {
   }
 }
 
-function statusLabel(s: AuftragStatus): string {
-  const m: Record<AuftragStatus, string> = {
+function statusLabel(status: AuftragStatus): string {
+  const labels: Record<AuftragStatus, string> = {
     ANGEBOT: 'Angebot',
     UNVOLLSTAENDIG: 'Unvollständig',
     PREPRESS_BEREIT: 'PrePress',
@@ -135,15 +135,15 @@ function statusLabel(s: AuftragStatus): string {
     FERTIG: 'Fertig',
     ABGERECHNET: 'Abgerechnet',
   }
-  return m[s] ?? s
+  return labels[status] ?? status
 }
 
 export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrder }: Props) {
   const [filter, setFilter] = useState<FilterState>(() => defaultFilterState())
-  const { searchInput, searchDebounced, statusAlle, statusToggles, terminVon, terminBis, annVon, annBis, bereich } =
+  const { searchInput, searchDebounced, statusAll, statusToggles, deadlineFrom, deadlineTo, intakeFrom, intakeTo, department } =
     filter
-  const [sucheOffen, setSucheOffen] = useState(false)
-  const [filterPopOffen, setFilterPopOffen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [filterPopOpen, setFilterPopOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -153,67 +153,67 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
     return () => clearTimeout(t)
   }, [searchInput])
 
-  const setSearchInput = (v: string) => setFilter(f => ({ ...f, searchInput: v }))
+  const setSearchInput = (value: string) => setFilter(f => ({ ...f, searchInput: value }))
 
-  const clearSuche = () => {
+  const clearSearch = () => {
     setFilter(f => ({ ...f, searchInput: '', searchDebounced: '' }))
     queueMicrotask(() => searchInputRef.current?.focus())
   }
 
-  const [quelle, setQuelle] = useState<OrderListAuftragRow[]>([])
-  const quelleRef = useRef(quelle)
+  const [rawOrders, setRawOrders] = useState<OrderListEntry[]>([])
+  const rawOrdersRef = useRef(rawOrders)
   useEffect(() => {
-    quelleRef.current = quelle
-  }, [quelle])
-  const [initLaden, setInitLaden] = useState(true)
-  const [aktualisiere, setAktualisiere] = useState(false)
-  const mindestensEinmalGeladen = useRef(false)
-  const ladeAuftraegeRequestIdRef = useRef(0)
-  const filterAktiv = isFilterAktiv(filter)
+    rawOrdersRef.current = rawOrders
+  }, [rawOrders])
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const hasLoadedOnce = useRef(false)
+  const loadRequestIdRef = useRef(0)
+  const filterActive = isFilterActive(filter)
   const { fehler } = useToast()
 
-  const ladeAuftraege = useCallback(
-    async (opts?: { lebtNoch?: () => boolean }) => {
-      const meineRequestId = ++ladeAuftraegeRequestIdRef.current
+  const loadOrders = useCallback(
+    async (opts?: { isAlive?: () => boolean }) => {
+      const requestId = ++loadRequestIdRef.current
       const isStale = () =>
-        (opts?.lebtNoch !== undefined && !opts.lebtNoch()) ||
-        meineRequestId !== ladeAuftraegeRequestIdRef.current
+        (opts?.isAlive !== undefined && !opts.isAlive()) ||
+        requestId !== loadRequestIdRef.current
 
-      if (mindestensEinmalGeladen.current) setAktualisiere(true)
-      const qtrim = searchDebounced.trim()
-      let kundenIds: string[] | null = null
-      if (qtrim) {
-        const { data: kunden, error: ek } = await supabase
+      if (hasLoadedOnce.current) setRefreshing(true)
+      const trimmedSearch = searchDebounced.trim()
+      let customerIds: string[] | null = null
+      if (trimmedSearch) {
+        const { data: customerData, error: customerError } = await supabase
           .from('kunden')
           .select('id')
-          .ilike('name', `%${qtrim}%`)
+          .ilike('name', `%${trimmedSearch}%`)
         if (isStale()) return
-        if (ek) {
+        if (customerError) {
           fehler('Aufträge konnten nicht geladen werden')
-          setQuelle([])
-          mindestensEinmalGeladen.current = true
-          setInitLaden(false)
-          setAktualisiere(false)
+          setRawOrders([])
+          hasLoadedOnce.current = true
+          setInitialLoading(false)
+          setRefreshing(false)
           return
         }
-        kundenIds = (kunden ?? []).map(r => r.id)
-        if (kundenIds.length === 0) {
+        customerIds = (customerData ?? []).map(customer => customer.id)
+        if (customerIds.length === 0) {
           if (isStale()) return
-          setQuelle([])
-          mindestensEinmalGeladen.current = true
-          setInitLaden(false)
-          setAktualisiere(false)
+          setRawOrders([])
+          hasLoadedOnce.current = true
+          setInitialLoading(false)
+          setRefreshing(false)
           return
         }
       }
 
-      const chosen = statusTogglesToIn(statusToggles)
-      if (!statusAlle && chosen.length === 0) {
+      const selectedStatuses = statusTogglesToIn(statusToggles)
+      if (!statusAll && selectedStatuses.length === 0) {
         if (isStale()) return
-        setQuelle([])
-        mindestensEinmalGeladen.current = true
-        setInitLaden(false)
-        setAktualisiere(false)
+        setRawOrders([])
+        hasLoadedOnce.current = true
+        setInitialLoading(false)
+        setRefreshing(false)
         return
       }
 
@@ -226,58 +226,58 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
         )
         .order('erstellt_am', { ascending: false })
 
-      if (statusAlle) {
+      if (statusAll) {
         query = query.eq('archiviert', false)
       } else {
-        const abgerechnetGewaehlt = chosen.includes('ABGERECHNET')
-        const andereGewaehlt = chosen.some(s => s !== 'ABGERECHNET')
-        if (abgerechnetGewaehlt && andereGewaehlt) {
-          // kein archiviert-Filter — zeigt beide
-        } else if (abgerechnetGewaehlt) {
+        const billedSelected = selectedStatuses.includes('ABGERECHNET')
+        const otherSelected = selectedStatuses.some(status => status !== 'ABGERECHNET')
+        if (billedSelected && otherSelected) {
+          // no archiviert filter — shows both archived and non-archived
+        } else if (billedSelected) {
           query = query.eq('archiviert', true)
         } else {
           query = query.eq('archiviert', false)
         }
       }
 
-      if (kundenIds) query = query.in('kunde_id', kundenIds)
-      if (!statusAlle) {
-        const statusFuerIn = nurGueltigeAuftragStatus(chosen)
-        query = query.in('status', statusFuerIn)
+      if (customerIds) query = query.in('kunde_id', customerIds)
+      if (!statusAll) {
+        const validStatuses = filterValidOrderStatuses(selectedStatuses)
+        query = query.in('status', validStatuses)
       }
-      if (terminVon) query = query.gte('termin', terminVon)
-      if (terminBis) query = query.lte('termin', terminBis)
-      if (annVon) query = query.gte('erstellt_am', `${annVon}T00:00:00`)
-      if (annBis) query = query.lte('erstellt_am', `${annBis}T23:59:59.999`)
+      if (deadlineFrom) query = query.gte('termin', deadlineFrom)
+      if (deadlineTo) query = query.lte('termin', deadlineTo)
+      if (intakeFrom) query = query.gte('erstellt_am', `${intakeFrom}T00:00:00`)
+      if (intakeTo) query = query.lte('erstellt_am', `${intakeTo}T23:59:59.999`)
 
       const { data, error } = await query
       if (isStale()) return
       if (error) {
         fehler('Aufträge konnten nicht geladen werden')
-        setQuelle([])
+        setRawOrders([])
       } else {
-        setQuelle((data as OrderListAuftragRow[]) ?? [])
+        setRawOrders((data as OrderListEntry[]) ?? [])
       }
       if (isStale()) return
-      mindestensEinmalGeladen.current = true
-      setInitLaden(false)
-      setAktualisiere(false)
+      hasLoadedOnce.current = true
+      setInitialLoading(false)
+      setRefreshing(false)
     },
-    [annBis, annVon, fehler, searchDebounced, statusAlle, statusToggles, terminBis, terminVon]
+    [intakeTo, intakeFrom, fehler, searchDebounced, statusAll, statusToggles, deadlineTo, deadlineFrom]
   )
 
   useEffect(() => {
     let alive = true
-    void ladeAuftraege({ lebtNoch: () => alive })
+    void loadOrders({ isAlive: () => alive })
     return () => {
       alive = false
     }
-  }, [ladeAuftraege])
+  }, [loadOrders])
 
   useEffect(() => {
     if (orderInPlace.tick === 0) return
-    setQuelle(q =>
-      q.map(r => (r.id === orderInPlace.id ? { ...r, status: orderInPlace.status } : r))
+    setRawOrders(previous =>
+      previous.map(order => (order.id === orderInPlace.id ? { ...order, status: orderInPlace.status } : order))
     )
   }, [orderInPlace])
 
@@ -288,88 +288,88 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'kunden' },
         payload => {
-          const kundeId = (payload.new as { id?: string } | null)?.id
-          if (!kundeId) return
-          const betroffen = quelleRef.current.some(a => a.kunde_id === kundeId)
-          if (!betroffen) return
-          void ladeAuftraege()
+          const customerId = (payload.new as { id?: string } | null)?.id
+          if (!customerId) return
+          const affected = rawOrdersRef.current.some(order => order.kunde_id === customerId)
+          if (!affected) return
+          void loadOrders()
         },
       )
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'kunden' },
         payload => {
-          const kundeId = (payload.new as { id?: string } | null)?.id
-          if (!kundeId) return
-          const betroffen = quelleRef.current.some(a => a.kunde_id === kundeId)
-          if (!betroffen) return
-          void ladeAuftraege()
+          const customerId = (payload.new as { id?: string } | null)?.id
+          if (!customerId) return
+          const affected = rawOrdersRef.current.some(order => order.kunde_id === customerId)
+          if (!affected) return
+          void loadOrders()
         },
       )
       .on(
         'postgres_changes',
         { event: 'DELETE', schema: 'public', table: 'kunden' },
         payload => {
-          const kundeId = (payload.old as { id?: string } | null)?.id
-          if (!kundeId) return
-          const betroffen = quelleRef.current.some(a => a.kunde_id === kundeId)
-          if (!betroffen) return
-          void ladeAuftraege()
+          const customerId = (payload.old as { id?: string } | null)?.id
+          if (!customerId) return
+          const affected = rawOrdersRef.current.some(order => order.kunde_id === customerId)
+          if (!affected) return
+          void loadOrders()
         },
       )
       .subscribe()
     return () => {
       void supabase.removeChannel(channel)
     }
-  }, [ladeAuftraege])
+  }, [loadOrders])
 
-  const auftraege = useMemo(() => {
-    if (bereich === 'Alle') return quelle
-    return quelle.filter(
-      a => a.teilauftraege?.some(t => t.bereich === bereich) ?? false,
+  const orders = useMemo(() => {
+    if (department === 'Alle') return rawOrders
+    return rawOrders.filter(
+      order => order.teilauftraege?.some(subOrder => subOrder.bereich === department) ?? false,
     )
-  }, [quelle, bereich])
+  }, [rawOrders, department])
 
-  const filterZuruecksetzen = () => {
+  const resetFilter = () => {
     setFilter(defaultFilterState())
   }
 
-  const leer = !initLaden && auftraege.length === 0
+  const isEmpty = !initialLoading && orders.length === 0
 
-  const [duplOffen, setDuplOffen] = useState(false)
-  const [duplBusy, setDuplBusy] = useState(false)
-  const [duplFehler, setDuplFehler] = useState<string | null>(null)
-  const [duplAuftrag, setDuplAuftrag] = useState<Auftrag | null>(null)
-  const [duplTeil, setDuplTeil] = useState<TeilauftragRow[]>([])
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false)
+  const [duplicateBusy, setDuplicateBusy] = useState(false)
+  const [duplicateError, setDuplicateError] = useState<string | null>(null)
+  const [duplicateOrder, setDuplicateOrder] = useState<Auftrag | null>(null)
+  const [duplicateSubOrders, setDuplicateSubOrders] = useState<TeilauftragRow[]>([])
 
-  const openDuplizieren = useCallback(
+  const openDuplicateDialog = useCallback(
     async (auftragId: string) => {
-      if (duplBusy) return
-      setDuplBusy(true)
-      setDuplFehler(null)
+      if (duplicateBusy) return
+      setDuplicateBusy(true)
+      setDuplicateError(null)
       try {
-        const { data: a, error: e1 } = await supabase
+        const { data: orderData, error: orderError } = await supabase
           .from('auftraege')
           .select(ORDER_COLUMNS)
           .eq('id', auftragId)
           .single()
-        if (e1) throw e1
-        const { data: t, error: e2 } = await supabase
+        if (orderError) throw orderError
+        const { data: subOrderData, error: subOrderError } = await supabase
           .from('teilauftraege')
           .select(SUB_ORDER_COLUMNS)
           .eq('auftrag_id', auftragId)
-        if (e2) throw e2
-        setDuplAuftrag(a as Auftrag)
-        setDuplTeil((t ?? []) as TeilauftragRow[])
-        setDuplOffen(true)
+        if (subOrderError) throw subOrderError
+        setDuplicateOrder(orderData as Auftrag)
+        setDuplicateSubOrders((subOrderData ?? []) as TeilauftragRow[])
+        setDuplicateDialogOpen(true)
       } catch (e) {
         fehler('Aufträge konnten nicht geladen werden')
-        setDuplFehler(e instanceof Error ? e.message : String(e))
+        setDuplicateError(e instanceof Error ? e.message : String(e))
       } finally {
-        setDuplBusy(false)
+        setDuplicateBusy(false)
       }
     },
-    [duplBusy, fehler]
+    [duplicateBusy, fehler]
   )
 
   return (
@@ -383,23 +383,23 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
               className="ol-icon-btn"
               title="Kunde suchen"
               aria-label="Kunde suchen"
-              aria-pressed={sucheOffen}
+              aria-pressed={searchOpen}
               onClick={() => {
-                setSucheOffen(o => !o)
-                if (filterPopOffen) setFilterPopOffen(false)
+                setSearchOpen(o => !o)
+                if (filterPopOpen) setFilterPopOpen(false)
               }}
             >
               🔍
             </button>
             <button
               type="button"
-              className={`ol-icon-btn${filterAktiv ? ' ol-icon-btn--badge' : ''}`}
+              className={`ol-icon-btn${filterActive ? ' ol-icon-btn--badge' : ''}`}
               title="Filter"
               aria-label="Filter"
-              aria-pressed={filterPopOffen}
+              aria-pressed={filterPopOpen}
               onClick={() => {
-                setFilterPopOffen(o => !o)
-                if (sucheOffen) setSucheOffen(false)
+                setFilterPopOpen(o => !o)
+                if (searchOpen) setSearchOpen(false)
               }}
             >
               ⚙
@@ -407,7 +407,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
           </div>
         </div>
 
-        {sucheOffen && (
+        {searchOpen && (
           <div className="ol-suche" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
               ref={searchInputRef}
@@ -424,14 +424,14 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
               className="ol-icon-btn"
               title="Suche löschen"
               aria-label="Suche löschen"
-              onClick={clearSuche}
+              onClick={clearSearch}
             >
               ×
             </button>
           </div>
         )}
 
-        {filterPopOffen && (
+        {filterPopOpen && (
           <div className="ol-filter-pop">
             <div className="ol-filter-inhalt">
               <div className="ol-filter-row">
@@ -440,30 +440,30 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
                   <label className="ol-cb">
                     <input
                       type="checkbox"
-                      checked={statusAlle}
+                      checked={statusAll}
                       onChange={e => {
-                        const c = e.target.checked
-                        setFilter(f => ({ ...f, statusAlle: c }))
+                        const checked = e.target.checked
+                        setFilter(f => ({ ...f, statusAll: checked }))
                       }}
                     />
                     Alle
                   </label>
-                  {!statusAlle &&
-                    STATUS_ORDER.map(s => (
-                      <label key={s} className="ol-cb" title={s}>
+                  {!statusAll &&
+                    STATUS_ORDER.map(status => (
+                      <label key={status} className="ol-cb" title={status}>
                         <input
                           type="checkbox"
-                          checked={statusToggles[s]}
+                          checked={statusToggles[status]}
                           onChange={e => {
-                            const c = e.target.checked
+                            const checked = e.target.checked
                             setFilter(f => ({
                               ...f,
-                              statusAlle: false,
-                              statusToggles: { ...f.statusToggles, [s]: c },
+                              statusAll: false,
+                              statusToggles: { ...f.statusToggles, [status]: checked },
                             }))
                           }}
                         />
-                        {STATUS_CBX_KURZ[s]}
+                        {STATUS_CHECKBOX_SHORT[status]}
                       </label>
                     ))}
                 </div>
@@ -476,16 +476,16 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
                 <select
                   id="ol-bereich"
                   className="input-compact"
-                  value={bereich}
+                  value={department}
                   onChange={e =>
-                    setFilter(f => ({ ...f, bereich: e.target.value as FilterState['bereich'] }))
+                    setFilter(f => ({ ...f, department: e.target.value as FilterState['department'] }))
                   }
                   style={{ width: '100%', boxSizing: 'border-box' }}
                 >
                   <option value="Alle">Alle</option>
-                  {TEILAUFTRAG_BEREICHE.map(b => (
-                    <option key={b} value={b}>
-                      {TEILAUFTRAG_BEREICH_ANZEIGE[b]}
+                  {TEILAUFTRAG_BEREICHE.map(dep => (
+                    <option key={dep} value={dep}>
+                      {TEILAUFTRAG_BEREICH_ANZEIGE[dep]}
                     </option>
                   ))}
                 </select>
@@ -496,13 +496,13 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
                 <div className="ol-filter-dates">
                   <DateInput
                     className="input-compact"
-                    value={terminVon}
-                    onChange={e => setFilter(f => ({ ...f, terminVon: e.target.value }))}
+                    value={deadlineFrom}
+                    onChange={e => setFilter(f => ({ ...f, deadlineFrom: e.target.value }))}
                   />
                   <DateInput
                     className="input-compact"
-                    value={terminBis}
-                    onChange={e => setFilter(f => ({ ...f, terminBis: e.target.value }))}
+                    value={deadlineTo}
+                    onChange={e => setFilter(f => ({ ...f, deadlineTo: e.target.value }))}
                   />
                 </div>
               </div>
@@ -512,18 +512,18 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
                 <div className="ol-filter-dates">
                   <DateInput
                     className="input-compact"
-                    value={annVon}
-                    onChange={e => setFilter(f => ({ ...f, annVon: e.target.value }))}
+                    value={intakeFrom}
+                    onChange={e => setFilter(f => ({ ...f, intakeFrom: e.target.value }))}
                   />
                   <DateInput
                     className="input-compact"
-                    value={annBis}
-                    onChange={e => setFilter(f => ({ ...f, annBis: e.target.value }))}
+                    value={intakeTo}
+                    onChange={e => setFilter(f => ({ ...f, intakeTo: e.target.value }))}
                   />
                 </div>
               </div>
 
-              <button type="button" className="ol-filter-reset" onClick={filterZuruecksetzen}>
+              <button type="button" className="ol-filter-reset" onClick={resetFilter}>
                 Filter zurücksetzen
               </button>
             </div>
@@ -531,41 +531,41 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
         )}
       </div>
 
-      <div className="ol-body" style={{ opacity: aktualisiere && !initLaden ? 0.5 : 1, transition: 'opacity 0.15s' }}>
-        {initLaden && <div className="ol-leer">Lädt...</div>}
-        {leer && (
+      <div className="ol-body" style={{ opacity: refreshing && !initialLoading ? 0.5 : 1, transition: 'opacity 0.15s' }}>
+        {initialLoading && <div className="ol-leer">Lädt...</div>}
+        {isEmpty && (
           <div className="ol-leer">
             <div style={{ marginBottom: 8 }}>Keine Aufträge gefunden</div>
-            <button type="button" className="ol-filter-reset" onClick={filterZuruecksetzen}>
+            <button type="button" className="ol-filter-reset" onClick={resetFilter}>
               Filter zurücksetzen
             </button>
           </div>
         )}
-        {aktualisiere && !initLaden && <div className="ol-aktual">Aktualisiere…</div>}
-        {!initLaden &&
-          auftraege.map(a => {
-            const aktiv = a.id === activeOrderId
-            const orderSeen = new Set<string>()
-            const uniqueBereiche: string[] = []
-            for (const t of a.teilauftraege ?? []) {
-              const b = t.bereich
-              if (!b || orderSeen.has(b)) continue
-              orderSeen.add(b)
-              uniqueBereiche.push(b)
+        {refreshing && !initialLoading && <div className="ol-aktual">Aktualisiere…</div>}
+        {!initialLoading &&
+          orders.map(order => {
+            const isActive = order.id === activeOrderId
+            const seenDepartments = new Set<string>()
+            const uniqueDepartments: string[] = []
+            for (const subOrder of order.teilauftraege ?? []) {
+              const dep = subOrder.bereich
+              if (!dep || seenDepartments.has(dep)) continue
+              seenDepartments.add(dep)
+              uniqueDepartments.push(dep)
             }
             const maxTag = 4
-            const tagLabels = uniqueBereiche.map(b => departmentAbbreviation(b))
-            const sichtTags = tagLabels.slice(0, maxTag)
-            const mehr = tagLabels.length - maxTag
+            const tagLabels = uniqueDepartments.map(dep => departmentAbbreviation(dep))
+            const visibleTags = tagLabels.slice(0, maxTag)
+            const extraCount = tagLabels.length - maxTag
             return (
               <div
-                key={a.id}
-                className={aktiv ? 'ol-eintrag ol-eintrag--aktiv' : 'ol-eintrag'}
-                onClick={() => onSelectOrder(a.id)}
+                key={order.id}
+                className={isActive ? 'ol-eintrag ol-eintrag--aktiv' : 'ol-eintrag'}
+                onClick={() => onSelectOrder(order.id)}
                 onKeyDown={e => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
-                    onSelectOrder(a.id)
+                    onSelectOrder(order.id)
                   }
                 }}
                 role="button"
@@ -582,41 +582,41 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
                         gap: 4,
                       }}
                     >
-                      <span className="ol-kunde">{customerName(a.kunden)}</span>
-                      {a.notfall_aktiv && (
+                      <span className="ol-kunde">{customerName(order.kunden)}</span>
+                      {order.notfall_aktiv && (
                         <span className="ol-alarm" title="Notfall" aria-label="Notfall">
                           !
                         </span>
                       )}
-                      {a.prioritaet === 'HOCH' && (
+                      {order.prioritaet === 'HOCH' && (
                         <span className="ol-prio" title="Priorität hoch" aria-label="Priorität hoch">
                           ↑
                         </span>
                       )}
                     </div>
-                    <span className="ol-datum">{formatDateDe(a.erstellt_am)}</span>
+                    <span className="ol-datum">{formatDateDe(order.erstellt_am)}</span>
                   </div>
                   <div className="ol-ze2">
-                    <span className={`badge ${statusBadgeKlasse(a.status)}`}>{statusLabel(a.status)}</span>
-                    {sichtTags.map(b => (
-                      <span key={b} className="ol-bereich-tag">
-                        {b}
+                    <span className={`badge ${statusBadgeClass(order.status)}`}>{statusLabel(order.status)}</span>
+                    {visibleTags.map(tag => (
+                      <span key={tag} className="ol-bereich-tag">
+                        {tag}
                       </span>
                     ))}
-                    {mehr > 0 && <span className="ol-bereich-tag">+{mehr}</span>}
+                    {extraCount > 0 && <span className="ol-bereich-tag">+{extraCount}</span>}
                   </div>
 
-                  {aktiv && (
+                  {isActive && (
                     <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
                       <button
                         type="button"
                         className="ol-icon-btn"
                         title="Auftrag duplizieren"
                         aria-label="Auftrag duplizieren"
-                        disabled={duplBusy}
+                        disabled={duplicateBusy}
                         onClick={e => {
                           e.stopPropagation()
-                          void openDuplizieren(a.id)
+                          void openDuplicateDialog(order.id)
                         }}
                       >
                         ⎘
@@ -624,10 +624,10 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
                       <button
                         type="button"
                         className="ol-filter-reset"
-                        disabled={duplBusy}
+                        disabled={duplicateBusy}
                         onClick={e => {
                           e.stopPropagation()
-                          void openDuplizieren(a.id)
+                          void openDuplicateDialog(order.id)
                         }}
                         style={{ padding: '6px 10px' }}
                       >
@@ -647,17 +647,17 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
         </button>
       </div>
 
-      {duplFehler && <div className="ol-aktual">{duplFehler}</div>}
+      {duplicateError && <div className="ol-aktual">{duplicateError}</div>}
 
-      {duplOffen && duplAuftrag && (
+      {duplicateDialogOpen && duplicateOrder && (
         <DuplicateDialog
-          auftrag={duplAuftrag}
-          teilauftraege={duplTeil}
-          onCancel={() => setDuplOffen(false)}
-          onSuccess={neu => {
-            setDuplOffen(false)
-            void ladeAuftraege().catch(() => fehler('Aufträge konnten nicht aktualisiert werden'))
-            onSelectOrder(neu.id)
+          auftrag={duplicateOrder}
+          teilauftraege={duplicateSubOrders}
+          onCancel={() => setDuplicateDialogOpen(false)}
+          onSuccess={newOrder => {
+            setDuplicateDialogOpen(false)
+            void loadOrders().catch(() => fehler('Aufträge konnten nicht aktualisiert werden'))
+            onSelectOrder(newOrder.id)
           }}
         />
       )}
