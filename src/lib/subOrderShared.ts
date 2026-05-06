@@ -26,7 +26,7 @@
  */
 
 import { teilJsonAlsFeldertabelle, type AuftragStatus, type TeilauftragRow } from '../types/database'
-import { textileDetailMarkedComplete } from './textil/validateTextileDetail'
+import { textileDetailMarkedComplete } from './textile/validateTextileDetail'
 
 const UUID_LOOSE = /^[0-9a-fA-F-]{30,40}$/
 

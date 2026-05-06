@@ -7,7 +7,7 @@ import {
   buildFreeSizeString,
   isUniqueViolation,
   textileRecordsAllowPrepress,
-} from '../../lib/textil/validateTextileDetail'
+} from '../../lib/textile/validateTextileDetail'
 import type { AuftragStatus, KundeKontaktJoin, TeilauftragRow } from '../../types/database'
 import type { FileRecord } from '../FileList'
 import type {
