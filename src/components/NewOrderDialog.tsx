@@ -24,12 +24,12 @@ export type NewOrderInsertRow = {
 }
 
 type Props = {
-  offen: boolean
-  onSchliessen: () => void
-  onErfolg: (a: NewOrderInsertRow) => void
+  open: boolean
+  onClose: () => void
+  onSuccess: (a: NewOrderInsertRow) => void
 }
 
-export function NewOrderDialog({ offen, onSchliessen, onErfolg }: Props) {
+export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
   const { fehler: toastFehler } = useToast()
   const [gewaehlterCustomer, setGewaehlterCustomer] = useState<Customer | null>(null)
   const [suchBegr, setSuchBegr] = useState('')
@@ -42,7 +42,7 @@ export function NewOrderDialog({ offen, onSchliessen, onErfolg }: Props) {
   const [kundeFuerBearbLaeuft, setCustomerFuerBearbLaeuft] = useState(false)
 
   useEffect(() => {
-    if (!offen) return
+    if (!open) return
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset beim Öffnen
     setGewaehlterCustomer(null)
     setSuchBegr('')
@@ -50,7 +50,7 @@ export function NewOrderDialog({ offen, onSchliessen, onErfolg }: Props) {
     setFehler(null)
     setCustomerSubDialog(null)
     setCustomerFuerFormular(null)
-  }, [offen])
+  }, [open])
 
   const suche = useCallback(async (q: string) => {
     const t = q.trim()
@@ -77,12 +77,12 @@ export function NewOrderDialog({ offen, onSchliessen, onErfolg }: Props) {
   }, [toastFehler])
 
   useEffect(() => {
-    if (!offen) return
+    if (!open) return
     const t = setTimeout(() => {
       void suche(suchBegr)
     }, 300)
     return () => clearTimeout(t)
-  }, [suchBegr, suche, offen])
+  }, [suchBegr, suche, open])
 
   const oeffneBearbeiten = async () => {
     if (!gewaehlterCustomer) return
@@ -131,7 +131,7 @@ export function NewOrderDialog({ offen, onSchliessen, onErfolg }: Props) {
       return
     }
     if (data) {
-      onErfolg(data as NewOrderInsertRow)
+      onSuccess(data as NewOrderInsertRow)
       try {
         await writeHistory({
           auftrag_id: (data as NewOrderInsertRow).id,
@@ -144,7 +144,7 @@ export function NewOrderDialog({ offen, onSchliessen, onErfolg }: Props) {
     }
   }
 
-  if (!offen) return null
+  if (!open) return null
 
   return (
     <>
@@ -250,7 +250,7 @@ export function NewOrderDialog({ offen, onSchliessen, onErfolg }: Props) {
           )}
 
           <div className="cp-modal-bar" style={{ marginTop: 16 }}>
-            <button type="button" className="cp-btn" onClick={onSchliessen} disabled={anlegenLaeuft}>
+            <button type="button" className="cp-btn" onClick={onClose} disabled={anlegenLaeuft}>
               Abbrechen
             </button>
             <button
@@ -266,13 +266,13 @@ export function NewOrderDialog({ offen, onSchliessen, onErfolg }: Props) {
       </div>
 
       {kundeSubDialog === 'neu' && (
-        <CustomerDialog kunde={null} onGespeichert={handleCustomerGespeichert} onAbbrechen={() => setCustomerSubDialog(null)} />
+        <CustomerDialog kunde={null} onSaved={handleCustomerGespeichert} onCancel={() => setCustomerSubDialog(null)} />
       )}
       {kundeSubDialog === 'bearbeiten' && kundeFuerFormular && (
         <CustomerDialog
           kunde={kundeFuerFormular}
-          onGespeichert={handleCustomerGespeichert}
-          onAbbrechen={() => {
+          onSaved={handleCustomerGespeichert}
+          onCancel={() => {
             setCustomerSubDialog(null)
             setCustomerFuerFormular(null)
           }}

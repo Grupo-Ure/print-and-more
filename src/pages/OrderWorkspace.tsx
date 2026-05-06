@@ -192,15 +192,15 @@ export function OrderWorkspace() {
       </div>
 
       <NewOrderDialog
-        offen={newOrderOpen}
-        onSchliessen={() => setNewOrderOpen(false)}
-        onErfolg={handleNewOrderSuccess}
+        open={newOrderOpen}
+        onClose={() => setNewOrderOpen(false)}
+        onSuccess={handleNewOrderSuccess}
       />
       {customerDialog.open && (
         <CustomerDialog
           kunde={customerDialog.customer}
-          onGespeichert={handleCustomerSaved}
-          onAbbrechen={() => setCustomerDialog({ open: false, customer: null })}
+          onSaved={handleCustomerSaved}
+          onCancel={() => setCustomerDialog({ open: false, customer: null })}
         />
       )}
     </div>

@@ -5,8 +5,8 @@ import './ContextPanel.css'
 
 type Props = {
   kunde?: Customer | null
-  onGespeichert: (k: Customer) => void
-  onAbbrechen: () => void
+  onSaved: (k: Customer) => void
+  onCancel: () => void
 }
 
 function hatAdressdaten(k: Customer | null | undefined): boolean {
@@ -22,7 +22,7 @@ function validiere(name: string): string | null {
 const KUNDEN_SPALTEN =
   'id, name, email, telefon, notiz, strasse, hausnummer, plz, ort' as const
 
-export function CustomerDialog({ kunde, onGespeichert, onAbbrechen }: Props) {
+export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
   const istBearbeiten = kunde != null
   const [name, setName] = useState(kunde?.name ?? '')
   const [email, setEmail] = useState(kunde?.email ?? '')
@@ -80,7 +80,7 @@ export function CustomerDialog({ kunde, onGespeichert, onAbbrechen }: Props) {
         setFehler(error.message)
         return
       }
-      if (data) onGespeichert(data as Customer)
+      if (data) onSaved(data as Customer)
     } else {
       const { data, error } = await supabase
         .from('kunden')
@@ -93,7 +93,7 @@ export function CustomerDialog({ kunde, onGespeichert, onAbbrechen }: Props) {
         setFehler(error.message)
         return
       }
-      if (data) onGespeichert(data as Customer)
+      if (data) onSaved(data as Customer)
     }
   }
 
@@ -204,7 +204,7 @@ export function CustomerDialog({ kunde, onGespeichert, onAbbrechen }: Props) {
         )}
 
         <div className="cp-modal-bar" style={{ marginTop: 14 }}>
-          <button type="button" className="cp-btn" onClick={onAbbrechen} disabled={speichert}>
+          <button type="button" className="cp-btn" onClick={onCancel} disabled={speichert}>
             Abbrechen
           </button>
           <button type="button" className="cp-btn" disabled={speichert} onClick={() => void speichern()}>

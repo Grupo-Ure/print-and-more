@@ -6,14 +6,14 @@ import {
 import './WorkArea.css'
 
 type Props = {
-  offen: boolean
-  speichert: boolean
-  onBereich: (b: Bereich) => void
-  onSchliessen: () => void
+  open: boolean
+  saving: boolean
+  onBereichSelected: (b: Bereich) => void
+  onClose: () => void
 }
 
-export function AddSubOrderOverlay({ offen, speichert, onBereich, onSchliessen }: Props) {
-  if (!offen) return null
+export function AddSubOrderOverlay({ open, saving, onBereichSelected, onClose }: Props) {
+  if (!open) return null
 
   return (
     <div
@@ -21,7 +21,7 @@ export function AddSubOrderOverlay({ offen, speichert, onBereich, onSchliessen }
       role="dialog"
       aria-modal="true"
       aria-labelledby="wa-dialog-title"
-      onClick={e => e.target === e.currentTarget && !speichert && onSchliessen()}
+      onClick={e => e.target === e.currentTarget && !saving && onClose()}
     >
       <div className="wa-dialog" onClick={e => e.stopPropagation()}>
         <h2 id="wa-dialog-title">Neuer Teilauftrag</h2>
@@ -32,15 +32,15 @@ export function AddSubOrderOverlay({ offen, speichert, onBereich, onSchliessen }
               key={b}
               type="button"
               className="wa-bereich-btn"
-              disabled={speichert}
-              onClick={() => onBereich(b)}
+              disabled={saving}
+              onClick={() => onBereichSelected(b)}
             >
               {TEILAUFTRAG_BEREICH_ANZEIGE[b]}
             </button>
           ))}
         </div>
         <div className="wa-dialog-foot">
-          <button type="button" className="wa-ghost-btn" disabled={speichert} onClick={onSchliessen}>
+          <button type="button" className="wa-ghost-btn" disabled={saving} onClick={onClose}>
             Abbrechen
           </button>
         </div>

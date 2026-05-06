@@ -603,10 +603,10 @@ export function WorkArea({
       </div>
 
       <AddSubOrderOverlay
-        offen={overlayOffen}
-        speichert={speichert}
-        onBereich={handleNeuerTeilauftrag}
-        onSchliessen={() => !speichert && setOverlayOffen(false)}
+        open={overlayOffen}
+        saving={speichert}
+        onBereichSelected={handleNeuerTeilauftrag}
+        onClose={() => !speichert && setOverlayOffen(false)}
       />
     </div>
   )

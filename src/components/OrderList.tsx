@@ -653,8 +653,8 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
         <DuplicateDialog
           auftrag={duplAuftrag}
           teilauftraege={duplTeil}
-          onAbbrechen={() => setDuplOffen(false)}
-          onErfolg={neu => {
+          onCancel={() => setDuplOffen(false)}
+          onSuccess={neu => {
             setDuplOffen(false)
             void ladeAuftraege().catch(() => fehler('Aufträge konnten nicht aktualisiert werden'))
             onAuftragWaehlen(neu.id)

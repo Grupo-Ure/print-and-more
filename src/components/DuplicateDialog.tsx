@@ -14,8 +14,8 @@ import { useToast } from './Toast'
 type Props = {
   auftrag: Auftrag
   teilauftraege: TeilauftragRow[]
-  onErfolg: (neuerAuftrag: Auftrag) => void
-  onAbbrechen: () => void
+  onSuccess: (neuerAuftrag: Auftrag) => void
+  onCancel: () => void
 }
 
 type Schritt = 1 | 2
@@ -48,7 +48,7 @@ function formatAusDetail(detail: import('../types/database').TeilauftragRow['det
   return ''
 }
 
-export function DuplicateDialog({ auftrag, teilauftraege, onErfolg, onAbbrechen }: Props) {
+export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }: Props) {
   const aktive = useMemo(() => teilauftraege.filter(t => !t.storniert), [teilauftraege])
   const hatMehrAlsEinen = aktive.length > 1
 
@@ -124,7 +124,7 @@ export function DuplicateDialog({ auftrag, teilauftraege, onErfolg, onAbbrechen 
       const neuerAuftrag = neuA as Auftrag
 
       erfolg('Auftrag dupliziert')
-      onErfolg(neuerAuftrag)
+      onSuccess(neuerAuftrag)
     } catch (e) {
       toastFehler('Auftrag konnte nicht dupliziert werden')
       setFehler(e instanceof Error ? e.message : String(e))
@@ -164,7 +164,7 @@ export function DuplicateDialog({ auftrag, teilauftraege, onErfolg, onAbbrechen 
                 ))}
                 {!minEins && <p className="cp-hinweis">Mindestens 1 Teilauftrag wählen.</p>}
                 <div className="cp-modal-bar">
-                  <button type="button" className="cp-btn" onClick={onAbbrechen}>
+                  <button type="button" className="cp-btn" onClick={onCancel}>
                     Abbrechen
                   </button>
                   <button type="button" className="cp-btn" disabled={!minEins} onClick={weiter}>
@@ -176,7 +176,7 @@ export function DuplicateDialog({ auftrag, teilauftraege, onErfolg, onAbbrechen 
 
             {modus === 'ALLE' && (
               <div className="cp-modal-bar">
-                <button type="button" className="cp-btn" onClick={onAbbrechen}>
+                <button type="button" className="cp-btn" onClick={onCancel}>
                   Abbrechen
                 </button>
               </div>
@@ -211,7 +211,7 @@ export function DuplicateDialog({ auftrag, teilauftraege, onErfolg, onAbbrechen 
             {fehler && <p className="cp-hinweis" style={{ color: '#b91c1c' }}>{fehler}</p>}
 
             <div className="cp-modal-bar" style={{ marginTop: 12 }}>
-              <button type="button" className="cp-btn" disabled={busy} onClick={onAbbrechen}>
+              <button type="button" className="cp-btn" disabled={busy} onClick={onCancel}>
                 Abbrechen
               </button>
               <button type="button" className="cp-btn" disabled={busy || !minEins} onClick={() => void duplizieren()}>
