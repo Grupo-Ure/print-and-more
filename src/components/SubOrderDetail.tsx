@@ -31,7 +31,7 @@ import type { LfpDetail } from '../types/lfp'
 import type { CopyShopDetailJson } from '../types/copyshop'
 import type { StampDetailJson } from '../types/stamp'
 import type { LaserDetailJson } from '../types/laser'
-import { generiereUndLadePdf } from '../lib/pdf/auftragsPdf'
+import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import './WorkArea.css'
 
 type Props = {
@@ -173,7 +173,7 @@ export function SubOrderDetail({
         setLokal(row)
         onAktualisiert(row)
         if (row.status === 'PREPRESS_BEREIT' && statusVorher !== 'PREPRESS_BEREIT') {
-          const pdfOk = await generiereUndLadePdf(teil.id, teil.auftrag_id)
+          const pdfOk = await generateAndDownloadPdf(teil.id, teil.auftrag_id)
           if (!pdfOk) fehler('PDF konnte nicht erstellt werden')
         }
       }

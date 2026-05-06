@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
 import { writeHistory, type HistoryEvent } from '../lib/history'
 import { parseStatusFromRpc } from '../lib/orderStatus'
-import { generiereUndLadePdf } from '../lib/pdf/auftragsPdf'
+import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import {
   teilJsonAlsFeldertabelle,
   type Auftrag,
@@ -417,7 +417,7 @@ export function ContextPanel({
         ereignisart: 'PREPRESS_BEREIT_MANUELL',
       })
       onTeilauftragAktualisiert(data as TeilauftragRow)
-      const pdfOk = await generiereUndLadePdf(teil.id, auftrag.id)
+      const pdfOk = await generateAndDownloadPdf(teil.id, auftrag.id)
       if (!pdfOk) fehler('PDF konnte nicht erstellt werden')
       await teilNaechstNachTeilAktion()
     } catch {
@@ -1007,7 +1007,7 @@ export function ContextPanel({
                   disabled={busy}
                   onClick={() =>
                     void (async () => {
-                      const ok = await generiereUndLadePdf(teil.id, auftrag.id)
+                      const ok = await generateAndDownloadPdf(teil.id, auftrag.id)
                       if (!ok) fehler('PDF konnte nicht erstellt werden')
                     })()
                   }

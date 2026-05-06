@@ -4,7 +4,7 @@ import { formatDateDe } from '../formatDate'
 import { supabase } from '../../supabase'
 import type { Database } from '../../types/supabase'
 
-type AuftragPdfRow = Pick<
+type OrderPdfRow = Pick<
   Database['public']['Tables']['auftraege']['Row'],
   'auftragsnummer' | 'termin' | 'lieferung' | 'prioritaet' | 'erstellt_am'
 > & {
@@ -14,8 +14,8 @@ type AuftragPdfRow = Pick<
     | null
 }
 
-type TeilauftragRow = Database['public']['Tables']['teilauftraege']['Row']
-type TextilPositionRow = Database['public']['Tables']['textil_positionen']['Row']
+type SubOrderRow = Database['public']['Tables']['teilauftraege']['Row']
+type TextilePositionRow = Database['public']['Tables']['textil_positionen']['Row']
 
 type PdfDoc = jsPDF & { lastAutoTable?: { finalY: number } }
 
@@ -42,7 +42,7 @@ function asDetailRecord(detail: unknown): Record<string, unknown> {
   return {}
 }
 
-function detailZeilen(detail: Record<string, unknown>): { label: string; wert: string }[] {
+function detailRows(detail: Record<string, unknown>): { label: string; wert: string }[] {
   const d = asDetailRecord(detail)
   const keys = Object.keys(d).filter(k => k !== 'hat_produkte' && k !== 'datei_id')
   const ordered = [
@@ -53,13 +53,13 @@ function detailZeilen(detail: Record<string, unknown>): { label: string; wert: s
   const out: { label: string; wert: string }[] = []
   for (const key of ordered) {
     const val = d[key]
-    const pair = detailEintraeg(key, val)
+    const pair = detailEntry(key, val)
     if (pair) out.push(pair)
   }
   return out
 }
 
-function feldZuLabel(key: string): string {
+function fieldToLabel(key: string): string {
   switch (key) {
     case 'typ':
       return 'Typ'
@@ -91,37 +91,37 @@ function feldZuLabel(key: string): string {
   }
 }
 
-function istLeer(val: unknown): boolean {
+function isEmpty(val: unknown): boolean {
   return val === null || val === undefined || val === ''
 }
 
-function wertAlsString(val: unknown): string {
+function valueAsString(val: unknown): string {
   if (val === null || val === undefined) return ''
   if (typeof val === 'boolean') return val ? 'Ja' : 'Nein'
   if (typeof val === 'object') return JSON.stringify(val)
   return String(val)
 }
 
-function detailEintraeg(key: string, val: unknown): { label: string; wert: string } | null {
+function detailEntry(key: string, val: unknown): { label: string; wert: string } | null {
   if (key === 'hat_produkte' || key === 'datei_id') return null
-  if (istLeer(val)) return null
+  if (isEmpty(val)) return null
 
   if (key === 'ecken_runden' || key === 'selbstklebend') {
-    if (val === true) return { label: feldZuLabel(key), wert: 'Ja' }
-    if (val === false) return { label: feldZuLabel(key), wert: 'Nein' }
-    return { label: feldZuLabel(key), wert: String(val) }
+    if (val === true) return { label: fieldToLabel(key), wert: 'Ja' }
+    if (val === false) return { label: fieldToLabel(key), wert: 'Nein' }
+    return { label: fieldToLabel(key), wert: String(val) }
   }
 
-  return { label: feldZuLabel(key), wert: wertAlsString(val) }
+  return { label: fieldToLabel(key), wert: valueAsString(val) }
 }
 
-function extrahiereKunde(raw: AuftragPdfRow['kunden']): Database['public']['Tables']['kunden']['Row'] | null {
+function extractCustomer(raw: OrderPdfRow['kunden']): Database['public']['Tables']['kunden']['Row'] | null {
   if (!raw) return null
   if (Array.isArray(raw)) return raw.length ? (raw[0] as Database['public']['Tables']['kunden']['Row']) : null
   return raw as Database['public']['Tables']['kunden']['Row']
 }
 
-function normalisiereDateinameSegment(s: string): string {
+function normalizeFileNameSegment(s: string): string {
   let t = s.trim()
   const uml = [
     ['ä', 'ae'],
@@ -141,7 +141,7 @@ function normalisiereDateinameSegment(s: string): string {
   return t || 'kunde'
 }
 
-function jahrMonat(iso: string | null | undefined): string {
+function yearMonth(iso: string | null | undefined): string {
   if (!iso) return '0000-00'
   const m = iso.match(/^(\d{4})-(\d{2})/)
   if (m) return `${m[1]}-${m[2]}`
@@ -152,27 +152,27 @@ function jahrMonat(iso: string | null | undefined): string {
   return `${y}-${mo}`
 }
 
-function berechneDateiname(
-  kundenname: string,
+function buildFileName(
+  customerName: string,
   termin: string | null | undefined,
   erstelltAm: string,
   bereich: string,
   auftragsnummer: string,
 ): string {
-  const kn = normalisiereDateinameSegment(kundenname)
-  const ym = jahrMonat(termin || erstelltAm)
+  const kn = normalizeFileNameSegment(customerName)
+  const ym = yearMonth(termin || erstelltAm)
   const typ = bereich.toLowerCase()
-  const nr = normalisiereDateinameSegment(auftragsnummer) || auftragsnummer.toLowerCase().replace(/\s+/g, '_')
+  const nr = normalizeFileNameSegment(auftragsnummer) || auftragsnummer.toLowerCase().replace(/\s+/g, '_')
   return `${kn}_${ym}_${typ}_${nr}.pdf`
 }
 
-function formatLieferung(v: Database['public']['Enums']['lieferung_typ'] | null | undefined): string {
+function formatDelivery(v: Database['public']['Enums']['lieferung_typ'] | null | undefined): string {
   if (v === 'ABHOLUNG') return 'Abholung'
   if (v === 'VERSAND') return 'Versand'
   return '—'
 }
 
-function formatPrioritaet(v: Database['public']['Enums']['prioritaet_typ']): string {
+function formatPriority(v: Database['public']['Enums']['prioritaet_typ']): string {
   if (v === 'HOCH') return '⚡ HOCH'
   return 'Normal'
 }
@@ -197,7 +197,7 @@ function checkNewPage(doc: jsPDF, y: number, benoetigt = 20): number {
   return y
 }
 
-function produktDetailSchluessel(produkte: Record<string, unknown>[]): string[] {
+function productDetailKeys(produkte: Record<string, unknown>[]): string[] {
   const seen = new Set<string>()
   const order: string[] = []
   const skip = new Set(['typ', 'hat_produkte', 'datei_id'])
@@ -215,18 +215,18 @@ function produktDetailSchluessel(produkte: Record<string, unknown>[]): string[] 
   return order
 }
 
-function zellenWertFuerSchluessel(row: Record<string, unknown>, key: string): string {
+function cellValueForKey(row: Record<string, unknown>, key: string): string {
   const detail = asDetailRecord(row.detail)
   const val = detail[key]
-  if (istLeer(val)) return ''
+  if (isEmpty(val)) return ''
   if (key === 'ecken_runden' || key === 'selbstklebend') {
     if (val === true) return 'Ja'
     if (val === false) return 'Nein'
   }
-  return wertAlsString(val)
+  return valueAsString(val)
 }
 
-export async function generiereUndLadePdf(teilauftragId: string, auftragId: string): Promise<boolean> {
+export async function generateAndDownloadPdf(teilauftragId: string, auftragId: string): Promise<boolean> {
   try {
     const produkteQuery = supabase
       .from('teilauftrag_produkte')
@@ -258,17 +258,17 @@ export async function generiereUndLadePdf(teilauftragId: string, auftragId: stri
 
     if (auftragRes.error || teilRes.error || produkteRes.error || textilRes.error) return false
 
-    const auftrag = auftragRes.data as AuftragPdfRow | null
-    const teil = teilRes.data as TeilauftragRow | null
+    const auftrag = auftragRes.data as OrderPdfRow | null
+    const teil = teilRes.data as SubOrderRow | null
     if (!auftrag || !teil) return false
 
     const produkte = (produkteRes.data ?? []) as Record<string, unknown>[]
-    const textilPositionen = (textilRes.data ?? []) as TextilPositionRow[]
+    const textilPositionen = (textilRes.data ?? []) as TextilePositionRow[]
 
-    const kunde = extrahiereKunde(auftrag.kunden)
+    const kunde = extractCustomer(auftrag.kunden)
     const kundenname = kunde?.name?.trim() ? kunde.name.trim() : 'Unbekannt'
 
-    const dateiname = berechneDateiname(
+    const dateiname = buildFileName(
       kundenname,
       auftrag.termin,
       auftrag.erstellt_am,
@@ -294,40 +294,40 @@ export async function generiereUndLadePdf(teilauftragId: string, auftragId: stri
     doc.line(marginL, y, 210 - marginR, y)
     y += 5
 
-    let yLinks = y
-    let yRechts = y
+    let yLeft = y
+    let yRight = y
 
     doc.setFontSize(8)
     doc.setTextColor(120)
-    yLinks = addText(doc, 'Kunde', marginL, yLinks, 4)
+    yLeft = addText(doc, 'Kunde', marginL, yLeft, 4)
     doc.setTextColor(0)
     doc.setFontSize(11)
     doc.setFont('helvetica', 'bold')
-    yLinks = addText(doc, kundenname, marginL, yLinks, 5)
+    yLeft = addText(doc, kundenname, marginL, yLeft, 5)
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(10)
 
     if (kunde?.strasse || kunde?.hausnummer) {
       const str = [kunde.strasse, kunde.hausnummer].filter(Boolean).join(' ')
-      yLinks = addText(doc, str, marginL, yLinks, 5)
+      yLeft = addText(doc, str, marginL, yLeft, 5)
     }
     if (kunde?.plz || kunde?.ort) {
-      const ortZeile = [kunde.plz, kunde.ort].filter(Boolean).join(' ')
-      if (ortZeile) yLinks = addText(doc, ortZeile, marginL, yLinks, 5)
+      const cityLine = [kunde.plz, kunde.ort].filter(Boolean).join(' ')
+      if (cityLine) yLeft = addText(doc, cityLine, marginL, yLeft, 5)
     }
-    if (kunde?.email) yLinks = addText(doc, kunde.email, marginL, yLinks, 5)
-    if (kunde?.telefon) yLinks = addText(doc, kunde.telefon, marginL, yLinks, 5)
+    if (kunde?.email) yLeft = addText(doc, kunde.email, marginL, yLeft, 5)
+    if (kunde?.telefon) yLeft = addText(doc, kunde.telefon, marginL, yLeft, 5)
 
-    const xRechts = 120
+    const xRight = 120
     doc.setFontSize(10)
     doc.setTextColor(0)
-    yRechts = addText(doc, `Termin    ${formatDateDe(auftrag.termin)}`, xRechts, yRechts, 5)
-    yRechts = addText(doc, `Lieferung    ${formatLieferung(auftrag.lieferung)}`, xRechts, yRechts, 5)
-    yRechts = addText(doc, `Priorität    ${formatPrioritaet(auftrag.prioritaet)}`, xRechts, yRechts, 5)
-    yRechts = addText(doc, `Bereich    ${teil.bereich}`, xRechts, yRechts, 5)
-    yRechts = addText(doc, `Erstellt    ${formatDateDe(auftrag.erstellt_am)}`, xRechts, yRechts, 5)
+    yRight = addText(doc, `Termin    ${formatDateDe(auftrag.termin)}`, xRight, yRight, 5)
+    yRight = addText(doc, `Lieferung    ${formatDelivery(auftrag.lieferung)}`, xRight, yRight, 5)
+    yRight = addText(doc, `Priorität    ${formatPriority(auftrag.prioritaet)}`, xRight, yRight, 5)
+    yRight = addText(doc, `Bereich    ${teil.bereich}`, xRight, yRight, 5)
+    yRight = addText(doc, `Erstellt    ${formatDateDe(auftrag.erstellt_am)}`, xRight, yRight, 5)
 
-    y = Math.max(yLinks, yRechts) + 8
+    y = Math.max(yLeft, yRight) + 8
 
     doc.setDrawColor(60)
     doc.line(marginL, y, 210 - marginR, y)
@@ -342,7 +342,7 @@ export async function generiereUndLadePdf(teilauftragId: string, auftragId: stri
       startY: y,
       margin: { left: marginL, right: marginR },
       head: [],
-      body: detailZeilen(asDetailRecord(teil.detail)).map(z => [z.label, z.wert]),
+      body: detailRows(asDetailRecord(teil.detail)).map(z => [z.label, z.wert]),
       styles: { fontSize: 9, cellPadding: 2 },
       columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 }, 1: { cellWidth: 130 } },
       theme: 'plain',
@@ -356,12 +356,12 @@ export async function generiereUndLadePdf(teilauftragId: string, auftragId: stri
       y = addText(doc, 'Produkte', marginL, y, 6)
       doc.setFont('helvetica', 'normal')
 
-      const detailKeys = produktDetailSchluessel(produkte)
-      const header = ['#', 'Typ', ...detailKeys.map(feldZuLabel)]
+      const detailKeys = productDetailKeys(produkte)
+      const header = ['#', 'Typ', ...detailKeys.map(fieldToLabel)]
       const rows = produkte.map((p, idx) => {
         const detail = asDetailRecord(p.detail)
         const typVal = String(p.typ ?? detail.typ ?? '—')
-        return [String(idx + 1), typVal, ...detailKeys.map(k => zellenWertFuerSchluessel(p, k))]
+        return [String(idx + 1), typVal, ...detailKeys.map(k => cellValueForKey(p, k))]
       })
 
       autoTable(doc, {
