@@ -4,14 +4,14 @@ import { AUFTRAG_STATUS_LIST, type Auftrag, type AuftragStatus } from '../types/
 
 function parseStatusString(raw: string): AuftragStatus {
   if (!(AUFTRAG_STATUS_LIST as readonly string[]).includes(raw)) {
-    throw new Error(`fn_berechne_auftragsstatus: ungültiger Status "${raw}"`)
+    throw new Error(`fn_berechne_auftragsstatus: invalid status "${raw}"`)
   }
   return raw as AuftragStatus
 }
 
 export function parseStatusFromRpc(data: unknown): AuftragStatus {
   if (data == null) {
-    throw new Error('fn_berechne_auftragsstatus: leeres Ergebnis')
+    throw new Error('fn_berechne_auftragsstatus: empty result')
   }
   if (typeof data === 'string') {
     return parseStatusString(data)
@@ -19,18 +19,18 @@ export function parseStatusFromRpc(data: unknown): AuftragStatus {
   if (typeof data === 'object' && 'status' in (data as object)) {
     const s = (data as { status: unknown }).status
     if (typeof s === 'string') return parseStatusString(s)
-    throw new Error('fn_berechne_auftragsstatus: Feld status ist kein String')
+    throw new Error('fn_berechne_auftragsstatus: field status is not a string')
   }
   if (typeof data === 'object' && 'fn_berechne_auftragsstatus' in (data as object)) {
     const s = (data as { fn_berechne_auftragsstatus: unknown }).fn_berechne_auftragsstatus
     if (typeof s === 'string') return parseStatusString(s)
-    throw new Error('fn_berechne_auftragsstatus: Feld fn_berechne_auftragsstatus ist kein String')
+    throw new Error('fn_berechne_auftragsstatus: field fn_berechne_auftragsstatus is not a string')
   }
-  throw new Error('fn_berechne_auftragsstatus: unerwartetes Format')
+  throw new Error('fn_berechne_auftragsstatus: unexpected format')
 }
 
-/** Berechnet den Soll-Status, schreibt auftraege.status und liefert die frische Zeile. */
-export async function synchronisiereAuftragsstatus(auftragId: string): Promise<Auftrag> {
+/** Computes the target status, writes auftraege.status, and returns the fresh row. */
+export async function synchronizeOrderStatus(auftragId: string): Promise<Auftrag> {
   const { data: raw, error: e1 } = await supabase.rpc('fn_berechne_auftragsstatus', {
     p_auftrag_id: auftragId,
   })
@@ -45,7 +45,7 @@ export async function synchronisiereAuftragsstatus(auftragId: string): Promise<A
   if (e2) throw e2
   if (row == null) {
     throw new Error(
-      'synchronisiereAuftragsstatus: Auftrag nach Status-Update nicht geladen (keine Datenzeile).',
+      'synchronizeOrderStatus: order not loaded after status update (no data row).',
     )
   }
   return row as Auftrag

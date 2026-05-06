@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabase'
 import { kundenName } from '../lib/kunde'
-import { synchronisiereAuftragsstatus } from '../lib/auftragsStatus'
+import { synchronizeOrderStatus } from '../lib/orderStatus'
 import { bereichKuerzel } from '../const/bereichKuerzel'
 import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
 import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
@@ -370,7 +370,7 @@ export function WorkArea({
       setAktiverTeilauftragId(data.id)
 
       try {
-        const a = await synchronisiereAuftragsstatus(auftrag.id)
+        const a = await synchronizeOrderStatus(auftrag.id)
         setAuftrag(prev => (prev ? { ...prev, status: a.status } : prev))
         onAuftragAktualisiert({ ...auftrag, status: a.status })
       } catch {

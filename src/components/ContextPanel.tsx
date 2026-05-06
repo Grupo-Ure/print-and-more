@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
 import { schreibeHistorie, type HistorieEreignis } from '../lib/historie'
-import { parseStatusFromRpc } from '../lib/auftragsStatus'
+import { parseStatusFromRpc } from '../lib/orderStatus'
 import { generiereUndLadePdf } from '../lib/pdf/auftragsPdf'
 import {
   teilJsonAlsFeldertabelle,
