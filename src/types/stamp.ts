@@ -11,7 +11,7 @@
  * via additional `typ` values declared inside `validateStampDetail`.
  *
  * The shape of a Stamp sub-order's `detail` JSONB column varies by typ.
- * See `validateStampDetail` in `src/lib/stempel/` for the per-typ field
+ * See `validateStampDetail` in `src/lib/stamp/` for the per-typ field
  * requirements; for `TRODAT_PRINTY` and `HOLZSTEMPEL` the `detail` also
  * carries a `modell_id` selected from the Stamp catalog
  * (`stempel_modelle` table).

@@ -6,7 +6,7 @@ import {
   STAMP_TYPE_LABELS,
   type StampDetailJson,
 } from '../../types/stamp'
-import { validateStampDetail } from '../../lib/stempel/validateStampDetail'
+import { validateStampDetail } from '../../lib/stamp/validateStampDetail'
 import { teilJsonAlsFeldertabelle, type AuftragStatus, type TeilauftragRow } from '../../types/database'
 import type { Database, Json } from '../../types/supabase'
 import { supabase } from '../../supabase'
