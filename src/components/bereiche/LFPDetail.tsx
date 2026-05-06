@@ -68,7 +68,7 @@ export function LFPDetail({
   const [formDateiIds, setFormDateiIds] = useState<string[]>([])
 
   const [typ, setTyp] = useState<string | null>(subOrder.typ)
-  const [detail, setDetail] = useState<LfpDetail>(lfpRoh(teil))
+  const [detail, setDetail] = useState<LfpDetail>(lfpRoh(subOrder))
   const detailR = useRef(detail)
   const typR = useRef(typ)
   useEffect(() => {
@@ -90,7 +90,7 @@ export function LFPDetail({
   useEffect(() => {
     if (editingId !== null) return
     setTyp(subOrder.typ)
-    const d = lfpRoh(teil)
+    const d = lfpRoh(subOrder)
     setDetail(d)
     detailR.current = d
     typR.current = subOrder.typ
@@ -197,11 +197,11 @@ export function LFPDetail({
     setEditingId(null)
     setFormDateiIds([])
     setTyp(subOrder.typ)
-    const d = lfpRoh(teil)
+    const d = lfpRoh(subOrder)
     setDetail(d)
     detailR.current = d
     typR.current = subOrder.typ
-  }, [teil])
+  }, [subOrder])
 
   const lfpFehler = validateLfpDetail(typ, detail, subOrderStatus)
   const pruef = subOrderStatus !== 'ANGEBOT'
@@ -272,7 +272,7 @@ export function LFPDetail({
       await onDetailPatch({
         typ: subOrder.typ,
         detail: {
-          ...lfpRoh(teil),
+          ...lfpRoh(subOrder),
           hat_produkte: list.length > 0,
         } as LfpDetail,
       })
@@ -304,7 +304,7 @@ export function LFPDetail({
     await onDetailPatch({
       typ: subOrder.typ,
       detail: {
-        ...lfpRoh(teil),
+        ...lfpRoh(subOrder),
         hat_produkte: list.length > 0,
       } as LfpDetail,
     })
@@ -335,13 +335,13 @@ export function LFPDetail({
       await onDetailPatch({
         typ: subOrder.typ,
         detail: {
-          ...lfpRoh(teil),
+          ...lfpRoh(subOrder),
           hat_produkte: list.length > 0,
         } as LfpDetail,
       })
       if (editingId === id) resetForm()
     },
-    [fehler, reloadProdukte, editingId, resetForm, onDetailPatch, teil]
+    [fehler, reloadProdukte, editingId, resetForm, onDetailPatch, subOrder]
   )
 
   const handleEdit = useCallback((row: ProduktRow) => {

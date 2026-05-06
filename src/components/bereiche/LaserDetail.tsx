@@ -69,7 +69,7 @@ export function LaserDetail({
   const [formDateiIds, setFormDateiIds] = useState<string[]>([])
 
   const [typ, setTyp] = useState<string | null>(subOrder.typ)
-  const [detail, setDetail] = useState<LaserDetailJson>(laserRoh(teil))
+  const [detail, setDetail] = useState<LaserDetailJson>(laserRoh(subOrder))
   const detailR = useRef(detail)
   const typR = useRef(typ)
   useEffect(() => {
@@ -91,7 +91,7 @@ export function LaserDetail({
   useEffect(() => {
     if (editingId !== null) return
     setTyp(subOrder.typ)
-    const d = laserRoh(teil)
+    const d = laserRoh(subOrder)
     setDetail(d)
     detailR.current = d
     typR.current = subOrder.typ
@@ -198,11 +198,11 @@ export function LaserDetail({
     setEditingId(null)
     setFormDateiIds([])
     setTyp(subOrder.typ)
-    const d = laserRoh(teil)
+    const d = laserRoh(subOrder)
     setDetail(d)
     detailR.current = d
     typR.current = subOrder.typ
-  }, [teil])
+  }, [subOrder])
 
   const laserFehler = validateLaserDetail(typ, detail, subOrderStatus)
   const pruef = subOrderStatus !== 'ANGEBOT'
@@ -284,7 +284,7 @@ export function LaserDetail({
       await onDetailPatch({
         typ: subOrder.typ,
         detail: {
-          ...laserRoh(teil),
+          ...laserRoh(subOrder),
           hat_produkte: list.length > 0,
         } as LaserDetailJson,
       })
@@ -316,7 +316,7 @@ export function LaserDetail({
     await onDetailPatch({
       typ: subOrder.typ,
       detail: {
-        ...laserRoh(teil),
+        ...laserRoh(subOrder),
         hat_produkte: list.length > 0,
       } as LaserDetailJson,
     })
@@ -347,13 +347,13 @@ export function LaserDetail({
       await onDetailPatch({
         typ: subOrder.typ,
         detail: {
-          ...laserRoh(teil),
+          ...laserRoh(subOrder),
           hat_produkte: list.length > 0,
         } as LaserDetailJson,
       })
       if (editingId === id) resetForm()
     },
-    [toastFehler, reloadProdukte, editingId, resetForm, onDetailPatch, teil]
+    [toastFehler, reloadProdukte, editingId, resetForm, onDetailPatch, subOrder]
   )
 
   const handleEdit = useCallback((row: ProduktRow) => {

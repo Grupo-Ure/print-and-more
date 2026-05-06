@@ -61,7 +61,7 @@ export function OtherDetail({
   const [entsperrt, setEntsperrt] = useState(false)
   const [formDateiIds, setFormDateiIds] = useState<string[]>([])
 
-  const [detail, setDetail] = useState<OtherDetailJson>(sonstigeRoh(teil))
+  const [detail, setDetail] = useState<OtherDetailJson>(sonstigeRoh(subOrder))
   const detailR = useRef(detail)
   useEffect(() => {
     detailR.current = detail
@@ -78,7 +78,7 @@ export function OtherDetail({
 
   useEffect(() => {
     if (editingId !== null) return
-    const d = sonstigeRoh(teil)
+    const d = sonstigeRoh(subOrder)
     setDetail(d)
     detailR.current = d
   }, [subOrder, editingId])
@@ -183,10 +183,10 @@ export function OtherDetail({
   const resetForm = useCallback(() => {
     setEditingId(null)
     setFormDateiIds([])
-    const d = sonstigeRoh(teil)
+    const d = sonstigeRoh(subOrder)
     setDetail(d)
     detailR.current = d
-  }, [teil])
+  }, [subOrder])
 
   const sonstigeFehler = validateOtherDetail(detail, subOrderStatus)
   const pruef = subOrderStatus !== 'ANGEBOT'
@@ -258,7 +258,7 @@ export function OtherDetail({
       await onDetailPatch({
         typ: patchTyp,
         detail: {
-          ...sonstigeRoh(teil),
+          ...sonstigeRoh(subOrder),
           hat_produkte: list.length > 0,
         },
       })
@@ -290,7 +290,7 @@ export function OtherDetail({
     await onDetailPatch({
       typ: patchTyp,
       detail: {
-        ...sonstigeRoh(teil),
+        ...sonstigeRoh(subOrder),
         hat_produkte: list.length > 0,
       },
     })
@@ -322,7 +322,7 @@ export function OtherDetail({
       await onDetailPatch({
         typ: patchTyp,
         detail: {
-          ...sonstigeRoh(teil),
+          ...sonstigeRoh(subOrder),
           hat_produkte: list.length > 0,
         },
       })

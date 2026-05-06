@@ -171,13 +171,13 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
         <p className="ber-hinweis" style={{ fontStyle: 'normal', fontSize: 12, margin: '4px 0' }}>
           Lädt Dateien …
         </p>
-      ) : dateien.length === 0 ? (
+      ) : files.length === 0 ? (
         <p className="ber-hinweis" style={{ fontSize: 12, margin: '4px 0' }}>
           Noch keine Dateien.
         </p>
       ) : (
         <ul className="wa-dl-list">
-          {dateien.map(d => (
+          {files.map(d => (
             <li key={d.id} className="wa-dl-item">
               <button
                 type="button"

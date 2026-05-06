@@ -118,7 +118,7 @@ export function CopyShopDetail({
   const [formDateiIds, setFormDateiIds] = useState<string[]>([])
 
   const [typ, setTyp] = useState<string | null>(subOrder.typ)
-  const [detail, setDetail] = useState<CopyShopDetailJson>(copyRoh(teil))
+  const [detail, setDetail] = useState<CopyShopDetailJson>(copyRoh(subOrder))
   const detailR = useRef(detail)
   const typR = useRef(typ)
   useEffect(() => {
@@ -137,7 +137,7 @@ export function CopyShopDetail({
   useEffect(() => {
     if (editingId !== null) return
     setTyp(subOrder.typ)
-    const d = copyRoh(teil)
+    const d = copyRoh(subOrder)
     setDetail(d)
     detailR.current = d
     typR.current = subOrder.typ
@@ -244,11 +244,11 @@ export function CopyShopDetail({
     setEditingId(null)
     setFormDateiIds([])
     setTyp(subOrder.typ)
-    const d = copyRoh(teil)
+    const d = copyRoh(subOrder)
     setDetail(d)
     detailR.current = d
     typR.current = subOrder.typ
-  }, [teil])
+  }, [subOrder])
 
   const copyErr = validateCopyShopDetail(typ, detail, subOrderStatus)
   const pruef = subOrderStatus !== 'ANGEBOT'
@@ -320,7 +320,7 @@ export function CopyShopDetail({
       await onDetailPatch({
         typ: subOrder.typ,
         detail: {
-          ...copyRoh(teil),
+          ...copyRoh(subOrder),
           hat_produkte: list.length > 0,
         } as CopyShopDetailJson,
       })
@@ -352,7 +352,7 @@ export function CopyShopDetail({
     await onDetailPatch({
       typ: subOrder.typ,
       detail: {
-        ...copyRoh(teil),
+        ...copyRoh(subOrder),
         hat_produkte: list.length > 0,
       } as CopyShopDetailJson,
     })
@@ -383,13 +383,13 @@ export function CopyShopDetail({
       await onDetailPatch({
         typ: subOrder.typ,
         detail: {
-          ...copyRoh(teil),
+          ...copyRoh(subOrder),
           hat_produkte: list.length > 0,
         } as CopyShopDetailJson,
       })
       if (editingId === id) resetForm()
     },
-    [toastFehler, reloadProdukte, editingId, resetForm, onDetailPatch, teil]
+    [toastFehler, reloadProdukte, editingId, resetForm, onDetailPatch, subOrder]
   )
 
   const handleEdit = useCallback((row: ProduktRow) => {
