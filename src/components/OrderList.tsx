@@ -21,9 +21,9 @@ type OrderInPlace = { tick: number; id: string; status: AuftragStatus }
 
 type Props = {
   orderInPlace: OrderInPlace
-  aktiverAuftragId: string | null
-  onAuftragWaehlen: (id: string) => void
-  onNeuerAuftrag: () => void
+  activeOrderId: string | null
+  onSelectOrder: (id: string) => void
+  onNewOrder: () => void
 }
 
 const STATUS_ORDER: AuftragStatus[] = [
@@ -138,7 +138,7 @@ function statusLabel(s: AuftragStatus): string {
   return m[s] ?? s
 }
 
-export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, onNeuerAuftrag }: Props) {
+export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrder }: Props) {
   const [filter, setFilter] = useState<FilterState>(() => defaultFilterState())
   const { searchInput, searchDebounced, statusAlle, statusToggles, terminVon, terminBis, annVon, annBis, bereich } =
     filter
@@ -544,7 +544,7 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
         {aktualisiere && !initLaden && <div className="ol-aktual">Aktualisiere…</div>}
         {!initLaden &&
           auftraege.map(a => {
-            const aktiv = a.id === aktiverAuftragId
+            const aktiv = a.id === activeOrderId
             const orderSeen = new Set<string>()
             const uniqueBereiche: string[] = []
             for (const t of a.teilauftraege ?? []) {
@@ -561,11 +561,11 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
               <div
                 key={a.id}
                 className={aktiv ? 'ol-eintrag ol-eintrag--aktiv' : 'ol-eintrag'}
-                onClick={() => onAuftragWaehlen(a.id)}
+                onClick={() => onSelectOrder(a.id)}
                 onKeyDown={e => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
-                    onAuftragWaehlen(a.id)
+                    onSelectOrder(a.id)
                   }
                 }}
                 role="button"
@@ -642,7 +642,7 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
       </div>
 
       <div className="ol-foot">
-        <button type="button" className="ol-btn-neu" onClick={onNeuerAuftrag}>
+        <button type="button" className="ol-btn-neu" onClick={onNewOrder}>
           + Neuer Auftrag
         </button>
       </div>
@@ -657,7 +657,7 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
           onSuccess={neu => {
             setDuplOffen(false)
             void ladeAuftraege().catch(() => fehler('Aufträge konnten nicht aktualisiert werden'))
-            onAuftragWaehlen(neu.id)
+            onSelectOrder(neu.id)
           }}
         />
       )}

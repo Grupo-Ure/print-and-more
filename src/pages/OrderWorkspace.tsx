@@ -151,9 +151,9 @@ export function OrderWorkspace() {
         <OrderList
           key={orderListKey}
           orderInPlace={orderInPlace}
-          aktiverAuftragId={activeOrderId}
-          onAuftragWaehlen={id => setActiveOrderId(id)}
-          onNeuerAuftrag={() => setNewOrderOpen(true)}
+          activeOrderId={activeOrderId}
+          onSelectOrder={id => setActiveOrderId(id)}
+          onNewOrder={() => setNewOrderOpen(true)}
         />
       </div>
       <div className="app-col">
