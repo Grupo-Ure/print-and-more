@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../supabase'
 import { bereichKuerzel } from '../const/bereichKuerzel'
 import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
-import { kundeErfuelltPrepressKontakt } from '../lib/kunde'
+import { customerMeetsPrepressContact } from '../lib/customer'
 import {
   isSubOrderComplete,
   nextSubOrderStatus,
@@ -128,7 +128,7 @@ export function SubOrderDetail({
   )
   const gFe = (k: string) => (pruef && gErr[k] ? ' ber-inp--err' : '')
 
-  const kundePre = kundeErfuelltPrepressKontakt(auftragKunde)
+  const kundePre = customerMeetsPrepressContact(auftragKunde)
 
   const speichere = useCallback(
     async (patch: Partial<TeilauftragRow>) => {
@@ -383,7 +383,7 @@ export function SubOrderDetail({
       </div>
       {pruef &&
         lokal.bereich !== 'SONSTIGE' &&
-        kundeErfuelltPrepressKontakt(auftragKunde) === false &&
+        customerMeetsPrepressContact(auftragKunde) === false &&
         (lokal.bereich === 'LFP' ||
           lokal.bereich === 'COPYSHOP' ||
           (lokal.bereich === 'STEMPEL' && lokal.typ !== 'SONSTIGE_STEMPEL') ||

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabase'
-import { kundenName } from '../lib/kunde'
+import { customerName } from '../lib/customer'
 import { synchronizeOrderStatus } from '../lib/orderStatus'
 import { bereichKuerzel } from '../const/bereichKuerzel'
 import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
@@ -421,7 +421,7 @@ export function WorkArea({
     )
   }
 
-  const kunde = kundenName(auftrag.kunden)
+  const kunde = customerName(auftrag.kunden)
   const aktiverTeil = aktiverTeilFuerKontext
   const termSlice = (t: string | null) => (t && t.length > 10 ? t.slice(0, 10) : t || '')
   const kontaktEineZeile = kundeKontaktEineLinie(auftrag.kunden)

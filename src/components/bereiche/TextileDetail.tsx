@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { supabase } from '../../supabase'
 import { TEILAUFTRAG_SPALTEN } from '../../const/teilauftragSelect'
-import { kundeErfuelltPrepressKontakt } from '../../lib/kunde'
+import { customerMeetsPrepressContact } from '../../lib/customer'
 import { isSubOrderComplete, nextSubOrderStatus } from '../../lib/subOrderShared'
 import {
   buildFreeSizeString,
@@ -201,7 +201,7 @@ export function TextileDetail({
         t.detail && typeof t.detail === 'object' && !Array.isArray(t.detail) ? { ...(t.detail as object) } : {}
       const newDetail = { ...oldD, textil: { voll: vollData } }
       const merged: TeilauftragRow = { ...t, detail: newDetail } as TeilauftragRow
-      const kOk = kundeErfuelltPrepressKontakt(auftragKunde)
+      const kOk = customerMeetsPrepressContact(auftragKunde)
       const voll = isSubOrderComplete(merged, t.status)
       let nSt: AuftragStatus
       if (afterProdMutation && (t.status === 'PRODUKTION_BEREIT' || t.status === 'FERTIG')) {
@@ -1211,7 +1211,7 @@ export function TextileDetail({
   return (
     <div className="ber-lfp" style={{ maxWidth: '100%' }}>
       <h3 className="ber-h3">Textil-Details</h3>
-      {pruef && kundeErfuelltPrepressKontakt(auftragKunde) === false && (
+      {pruef && customerMeetsPrepressContact(auftragKunde) === false && (
         <p className="ber-hinweis">Für Auto-PREPRESS: Kunde braucht Name und E-Mail oder Telefon.</p>
       )}
       {fehler && <p className="ber-err">{fehler}</p>}

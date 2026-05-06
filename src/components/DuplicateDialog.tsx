@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { supabase } from '../supabase'
 import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
-import { kundenName } from '../lib/kunde'
+import { customerName } from '../lib/customer'
 import { teilJsonAlsFeldertabelle, type Auftrag, type TeilauftragRow } from '../types/database'
 import { TEILAUFTRAG_BEREICH_ANZEIGE, teilauftragBereichLabel } from '../types/database'
 import { LFP_TYPE_LABELS } from '../types/lfp'
@@ -70,7 +70,7 @@ export function DuplicateDialog({ auftrag, teilauftraege, onErfolg, onAbbrechen 
   const kundeLabel = (() => {
     const k = auftrag.kunden ?? null
     if (!k) return auftrag.id
-    return kundenName(k)
+    return customerName(k)
   })()
 
   const alleUebernehmen = () => {

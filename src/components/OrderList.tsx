@@ -4,7 +4,7 @@ import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
 import { bereichKuerzel } from '../const/bereichKuerzel'
 import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
 import { formatDateDe } from '../lib/formatDate'
-import { kundenName } from '../lib/kunde'
+import { customerName } from '../lib/customer'
 import {
   TEILAUFTRAG_BEREICHE,
   TEILAUFTRAG_BEREICH_ANZEIGE,
@@ -582,7 +582,7 @@ export function OrderList({ orderInPlace, aktiverAuftragId, onAuftragWaehlen, on
                         gap: 4,
                       }}
                     >
-                      <span className="ol-kunde">{kundenName(a.kunden)}</span>
+                      <span className="ol-kunde">{customerName(a.kunden)}</span>
                       {a.notfall_aktiv && (
                         <span className="ol-alarm" title="Notfall" aria-label="Notfall">
                           !
