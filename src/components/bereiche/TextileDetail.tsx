@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { supabase } from '../../supabase'
-import { TEILAUFTRAG_SPALTEN } from '../../const/teilauftragSelect'
+import { SUB_ORDER_COLUMNS } from '../../const/subOrderSelect'
 import { customerMeetsPrepressContact } from '../../lib/customer'
 import { isSubOrderComplete, nextSubOrderStatus } from '../../lib/subOrderShared'
 import {
@@ -215,7 +215,7 @@ export function TextileDetail({
         detail: newDetail as Json,
       }
       const { data, error } = await supabase.from('teilauftraege').update(teilSyncPatch).eq('id', t.id)
-        .select(TEILAUFTRAG_SPALTEN)
+        .select(SUB_ORDER_COLUMNS)
         .single()
       setSMut(false)
       if (error) {
@@ -346,7 +346,7 @@ export function TextileDetail({
         detail: newDetail as Json,
       }
       const { data, error } = await supabase.from('teilauftraege').update(eigenwarePatch).eq('id', t.id)
-        .select(TEILAUFTRAG_SPALTEN)
+        .select(SUB_ORDER_COLUMNS)
         .single()
       setSMut(false)
       if (error) {

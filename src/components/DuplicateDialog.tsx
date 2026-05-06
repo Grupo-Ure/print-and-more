@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { supabase } from '../supabase'
-import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
+import { ORDER_COLUMNS } from '../const/orderSelect'
 import { customerName } from '../lib/customer'
 import { teilJsonAlsFeldertabelle, type Auftrag, type TeilauftragRow } from '../types/database'
 import { TEILAUFTRAG_BEREICH_ANZEIGE, teilauftragBereichLabel } from '../types/database'
@@ -117,7 +117,7 @@ export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }:
 
       const { data: neuA, error: eLoad } = await supabase
         .from('auftraege')
-        .select(AUFTRAG_SPALTEN)
+        .select(ORDER_COLUMNS)
         .eq('id', neuerAuftragId)
         .single()
       if (eLoad) throw eLoad

@@ -1,5 +1,5 @@
 import { supabase } from '../supabase'
-import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
+import { ORDER_COLUMNS } from '../const/orderSelect'
 import { AUFTRAG_STATUS_LIST, type Auftrag, type AuftragStatus } from '../types/database'
 
 function parseStatusString(raw: string): AuftragStatus {
@@ -40,7 +40,7 @@ export async function synchronizeOrderStatus(auftragId: string): Promise<Auftrag
     .from('auftraege')
     .update({ status })
     .eq('id', auftragId)
-    .select(AUFTRAG_SPALTEN)
+    .select(ORDER_COLUMNS)
     .single()
   if (e2) throw e2
   if (row == null) {

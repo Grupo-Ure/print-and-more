@@ -1245,7 +1245,7 @@ function KarteFlyer(p: BlK) {
           { v: '4_4', t: '4/4' },
         ]}
       />
-      <KfbFormatFeld din={CARD_DIN} order={KARTE_FORMAT_ORDER} blk={p} />
+      <KfbFormatFeld din={CARD_DIN} order={CARD_FORMAT_ORDER} blk={p} />
       {String(r.format) === 'FREI' && <MasseHoeheBreite {...p} />}
       {boolSel({ ...p, k: 'randabfallend', l: 'Randabfallend' })}
       <KfbPwgKarteFalz blk={p} />
@@ -1294,7 +1294,7 @@ function Falzflyer(p: BlK) {
           { v: 'ZICKZACK', t: 'Zick-Zack-Falz' },
         ]}
       />
-      <KfbFormatFeld din={FOLD_DIN as Record<string, { b: number; h: number }>} order={FALZ_FORMAT_ORDER} blk={p} />
+      <KfbFormatFeld din={FOLD_DIN as Record<string, { b: number; h: number }>} order={FOLD_FORMAT_ORDER} blk={p} />
       {String(r.format) === 'FREI' && <MasseHoeheBreite {...p} />}
       <NmbFalzSeite {...p} />
       {boolSel({ ...p, k: 'randabfallend', l: 'Randabfallend' })}

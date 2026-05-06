@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../supabase'
-import { bereichKuerzel } from '../const/bereichKuerzel'
-import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
+import { departmentAbbreviation } from '../const/departmentAbbreviation'
+import { SUB_ORDER_COLUMNS } from '../const/subOrderSelect'
 import { customerMeetsPrepressContact } from '../lib/customer'
 import {
   isSubOrderComplete,
@@ -159,7 +159,7 @@ export function SubOrderDetail({
           : {}),
       }
       const { data, error } = await supabase.from('teilauftraege').update(teilUpdate).eq('id', subOrder.id)
-        .select(TEILAUFTRAG_SPALTEN)
+        .select(SUB_ORDER_COLUMNS)
         .single()
       setSpeichLad(false)
       if (error) {
@@ -272,7 +272,7 @@ export function SubOrderDetail({
             .from('teilauftraege')
             .update(terminPatch)
             .eq('id', subOrder.id)
-            .select(TEILAUFTRAG_SPALTEN)
+            .select(SUB_ORDER_COLUMNS)
             .single()
           if (!alive) return
           if (error) throw error
@@ -310,7 +310,7 @@ export function SubOrderDetail({
             .from('teilauftraege')
             .update(lieferungPatch)
             .eq('id', subOrder.id)
-            .select(TEILAUFTRAG_SPALTEN)
+            .select(SUB_ORDER_COLUMNS)
             .single()
           if (!alive) return
           if (error) throw error
@@ -346,7 +346,7 @@ export function SubOrderDetail({
             .from('teilauftraege')
             .update({ prioritaet: auftragPrio })
             .eq('id', subOrder.id)
-            .select(TEILAUFTRAG_SPALTEN)
+            .select(SUB_ORDER_COLUMNS)
             .single()
           if (!alive) return
           if (error) throw error
@@ -375,7 +375,7 @@ export function SubOrderDetail({
   return (
     <div className="td">
       <div className="td-kopf" aria-label="Teilauftrag">
-        <span className="td-bkz">[{bereichKuerzel(lokal.bereich)}]</span>
+        <span className="td-bkz">[{departmentAbbreviation(lokal.bereich)}]</span>
         <span className={`badge ${tBadge.cls}`}>
           {tBadge.label}
           {speichLad ? ' …' : ''}

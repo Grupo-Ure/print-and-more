@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
-import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
+import { SUB_ORDER_COLUMNS } from '../const/subOrderSelect'
 import { writeHistory, type HistoryEvent } from '../lib/history'
 import { parseStatusFromRpc } from '../lib/orderStatus'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
@@ -408,7 +408,7 @@ export function ContextPanel({
         .from('teilauftraege')
         .update({ status: 'PREPRESS_BEREIT' as AuftragStatus })
         .eq('id', teil.id)
-        .select(TEILAUFTRAG_SPALTEN)
+        .select(SUB_ORDER_COLUMNS)
         .single()
       if (error) throw error
       await writeHistory({
@@ -576,7 +576,7 @@ export function ContextPanel({
         .from('teilauftraege')
         .update({ status: 'PRODUKTION_BEREIT' as AuftragStatus })
         .eq('id', teil.id)
-        .select(TEILAUFTRAG_SPALTEN)
+        .select(SUB_ORDER_COLUMNS)
         .single()
       if (error) throw error
 
@@ -620,7 +620,7 @@ export function ContextPanel({
         .from('teilauftraege')
         .update({ status: 'FERTIG' as AuftragStatus })
         .eq('id', teil.id)
-        .select(TEILAUFTRAG_SPALTEN)
+        .select(SUB_ORDER_COLUMNS)
         .single()
       if (error) throw error
       await writeHistory({
@@ -668,7 +668,7 @@ export function ContextPanel({
         .from('teilauftraege')
         .update(notfallPatch)
         .eq('id', teil.id)
-        .select(TEILAUFTRAG_SPALTEN)
+        .select(SUB_ORDER_COLUMNS)
         .single()
       if (error) throw error
       await writeHistory({
@@ -699,7 +699,7 @@ export function ContextPanel({
         .from('teilauftraege')
         .update(notfallZurueckPatch)
         .eq('id', teil.id)
-        .select(TEILAUFTRAG_SPALTEN)
+        .select(SUB_ORDER_COLUMNS)
         .single()
       if (error) throw error
       await writeHistory({
@@ -730,7 +730,7 @@ export function ContextPanel({
           }
       const { data, error } = await supabase.from('teilauftraege').update(patch)
         .eq('id', teil.id)
-        .select(TEILAUFTRAG_SPALTEN)
+        .select(SUB_ORDER_COLUMNS)
         .single()
       if (error) throw error
       // DB-Enum hat kein KUNDENFREIGABE_DEAKTIVIERT; bei Abschaltung der Anforderung VERFALLEN als nächstliegender Wert.
@@ -768,7 +768,7 @@ export function ContextPanel({
         kundenfreigabe_datei_id: kfDateiId,
       }
       const { data, error } = await supabase.from('teilauftraege').update(kfDateiPatch).eq('id', teil.id)
-        .select(TEILAUFTRAG_SPALTEN)
+        .select(SUB_ORDER_COLUMNS)
         .single()
       if (error) throw error
       await writeHistory({

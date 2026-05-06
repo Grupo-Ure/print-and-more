@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabase'
-import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
-import { bereichKuerzel } from '../const/bereichKuerzel'
-import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
+import { ORDER_COLUMNS } from '../const/orderSelect'
+import { departmentAbbreviation } from '../const/departmentAbbreviation'
+import { SUB_ORDER_COLUMNS } from '../const/subOrderSelect'
 import { formatDateDe } from '../lib/formatDate'
 import { customerName } from '../lib/customer'
 import {
@@ -350,13 +350,13 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
       try {
         const { data: a, error: e1 } = await supabase
           .from('auftraege')
-          .select(AUFTRAG_SPALTEN)
+          .select(ORDER_COLUMNS)
           .eq('id', auftragId)
           .single()
         if (e1) throw e1
         const { data: t, error: e2 } = await supabase
           .from('teilauftraege')
-          .select(TEILAUFTRAG_SPALTEN)
+          .select(SUB_ORDER_COLUMNS)
           .eq('auftrag_id', auftragId)
         if (e2) throw e2
         setDuplAuftrag(a as Auftrag)
@@ -554,7 +554,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
               uniqueBereiche.push(b)
             }
             const maxTag = 4
-            const tagLabels = uniqueBereiche.map(b => bereichKuerzel(b))
+            const tagLabels = uniqueBereiche.map(b => departmentAbbreviation(b))
             const sichtTags = tagLabels.slice(0, maxTag)
             const mehr = tagLabels.length - maxTag
             return (

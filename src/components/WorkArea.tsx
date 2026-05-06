@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabase'
 import { customerName } from '../lib/customer'
 import { synchronizeOrderStatus } from '../lib/orderStatus'
-import { bereichKuerzel } from '../const/bereichKuerzel'
-import { AUFTRAG_SPALTEN } from '../const/auftragSelect'
-import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
+import { departmentAbbreviation } from '../const/departmentAbbreviation'
+import { ORDER_COLUMNS } from '../const/orderSelect'
+import { SUB_ORDER_COLUMNS } from '../const/subOrderSelect'
 import {
   teilauftragBereichLabel,
   type Auftrag,
@@ -141,12 +141,12 @@ export function WorkArea({
         const [aufRes, tRes] = await Promise.all([
           supabase
             .from('auftraege')
-            .select(AUFTRAG_SPALTEN)
+            .select(ORDER_COLUMNS)
             .eq('id', auftragId)
             .single(),
           supabase
             .from('teilauftraege')
-            .select(TEILAUFTRAG_SPALTEN)
+            .select(SUB_ORDER_COLUMNS)
             .eq('auftrag_id', auftragId)
             .order('id', { ascending: true }),
         ])
@@ -225,7 +225,7 @@ export function WorkArea({
         .from('auftraege')
         .update(patch)
         .eq('id', activeOrderId)
-        .select(AUFTRAG_SPALTEN)
+        .select(ORDER_COLUMNS)
         .single()
       if (error) {
         toastFehler('Auftrag konnte nicht gespeichert werden')
@@ -352,7 +352,7 @@ export function WorkArea({
         kundenfreigabe_liegt_vor: false,
         kundenfreigabe_datei_id: null,
       })
-      .select(TEILAUFTRAG_SPALTEN)
+      .select(SUB_ORDER_COLUMNS)
       .single()
 
     setSpeichert(false)
@@ -377,7 +377,7 @@ export function WorkArea({
         toastFehler('Auftragsstatus konnte nicht aktualisiert werden')
         const { data: refreshed } = await supabase
           .from('auftraege')
-          .select(AUFTRAG_SPALTEN)
+          .select(ORDER_COLUMNS)
           .eq('id', auftrag.id)
           .single()
         if (refreshed) {
@@ -550,7 +550,7 @@ export function WorkArea({
       <div className="work-area__tabs" role="tablist" aria-label="Teilaufträge">
         {sichtbareTeile.map(t => {
           const active = t.id === aktiverTeilauftragId
-          const bkz = bereichKuerzel(t.bereich)
+          const bkz = departmentAbbreviation(t.bereich)
           const ttitle = `${teilauftragBereichLabel(t.bereich)} · ${t.status}`
           return (
             <button
