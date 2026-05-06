@@ -1,14 +1,14 @@
 import { supabase } from '../supabase'
 import type { Database, Json } from '../types/supabase'
 
-export type HistorieEreignis = Database['public']['Enums']['historie_ereignis']
+export type HistoryEvent = Database['public']['Enums']['historie_ereignis']
 
-type HistorieInsert = Database['public']['Tables']['historie']['Insert']
+type HistoryInsert = Database['public']['Tables']['historie']['Insert']
 
-export async function schreibeHistorie(params: {
+export async function writeHistory(params: {
   auftrag_id: string
   teilauftrag_id?: string
-  ereignisart: HistorieEreignis
+  ereignisart: HistoryEvent
   begruendung?: string
   meta?: Record<string, unknown>
 }): Promise<void> {
@@ -16,7 +16,7 @@ export async function schreibeHistorie(params: {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const row: HistorieInsert = {
+  const row: HistoryInsert = {
     auftrag_id: params.auftrag_id,
     teilauftrag_id: params.teilauftrag_id ?? null,
     ereignisart: params.ereignisart,

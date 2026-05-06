@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { TEILAUFTRAG_SPALTEN } from '../const/teilauftragSelect'
-import { schreibeHistorie, type HistorieEreignis } from '../lib/historie'
+import { writeHistory, type HistoryEvent } from '../lib/history'
 import { parseStatusFromRpc } from '../lib/orderStatus'
 import { generiereUndLadePdf } from '../lib/pdf/auftragsPdf'
 import {
@@ -272,7 +272,7 @@ export function ContextPanel({
         .update({ status: 'UNVOLLSTAENDIG' as AuftragStatus })
         .eq('id', auftrag.id)
       if (u1) throw u1
-      await schreibeHistorie({
+      await writeHistory({
         auftrag_id: auftrag.id,
         ereignisart: 'IN_BEARBEITUNG_GENOMMEN',
       })
@@ -319,7 +319,7 @@ export function ContextPanel({
         .update({ status: 'ABGERECHNET' as AuftragStatus, archiviert: true })
         .eq('id', auftrag.id)
       if (error) throw error
-      await schreibeHistorie({
+      await writeHistory({
         auftrag_id: auftrag.id,
         ereignisart: 'FERTIG_GEMELDET',
         meta: { abgerechnet_auftrag: true },
@@ -348,7 +348,7 @@ export function ContextPanel({
       const auftragArchivPatch: Database['public']['Tables']['auftraege']['Update'] = { archiviert: true }
       const { error: e2 } = await supabase.from('auftraege').update(auftragArchivPatch).eq('id', auftrag.id)
       if (e2) throw e2
-      await schreibeHistorie({ auftrag_id: auftrag.id, ereignisart: 'STORNIERT' })
+      await writeHistory({ auftrag_id: auftrag.id, ereignisart: 'STORNIERT' })
       onAuftragAktualisiert({ ...auftrag, archiviert: true })
     } catch {
       fehler('Status konnte nicht geändert werden')
@@ -411,7 +411,7 @@ export function ContextPanel({
         .select(TEILAUFTRAG_SPALTEN)
         .single()
       if (error) throw error
-      await schreibeHistorie({
+      await writeHistory({
         auftrag_id: auftrag.id,
         teilauftrag_id: teil.id,
         ereignisart: 'PREPRESS_BEREIT_MANUELL',
@@ -581,7 +581,7 @@ export function ContextPanel({
       if (error) throw error
 
       try {
-        await schreibeHistorie({
+        await writeHistory({
           auftrag_id: auftrag.id,
           teilauftrag_id: teil.id,
           ereignisart: 'PRODUKTION_BEREIT_GESETZT',
@@ -623,7 +623,7 @@ export function ContextPanel({
         .select(TEILAUFTRAG_SPALTEN)
         .single()
       if (error) throw error
-      await schreibeHistorie({
+      await writeHistory({
         auftrag_id: auftrag.id,
         teilauftrag_id: teil.id,
         ereignisart: 'FERTIG_GEMELDET',
@@ -671,7 +671,7 @@ export function ContextPanel({
         .select(TEILAUFTRAG_SPALTEN)
         .single()
       if (error) throw error
-      await schreibeHistorie({
+      await writeHistory({
         auftrag_id: auftrag.id,
         teilauftrag_id: teil.id,
         ereignisart: 'NOTFALL_AUSGELOEST',
@@ -702,7 +702,7 @@ export function ContextPanel({
         .select(TEILAUFTRAG_SPALTEN)
         .single()
       if (error) throw error
-      await schreibeHistorie({
+      await writeHistory({
         auftrag_id: auftrag.id,
         teilauftrag_id: teil.id,
         ereignisart: 'RUECKSPRUNG',
@@ -734,10 +734,10 @@ export function ContextPanel({
         .single()
       if (error) throw error
       // DB-Enum hat kein KUNDENFREIGABE_DEAKTIVIERT; bei Abschaltung der Anforderung VERFALLEN als nächstliegender Wert.
-      const ereignisart: HistorieEreignis = aktiv
+      const ereignisart: HistoryEvent = aktiv
         ? 'KUNDENFREIGABE_AKTIVIERT'
         : 'KUNDENFREIGABE_VERFALLEN'
-      await schreibeHistorie({
+      await writeHistory({
         auftrag_id: auftrag.id,
         teilauftrag_id: teil.id,
         ereignisart,
@@ -771,7 +771,7 @@ export function ContextPanel({
         .select(TEILAUFTRAG_SPALTEN)
         .single()
       if (error) throw error
-      await schreibeHistorie({
+      await writeHistory({
         auftrag_id: auftrag.id,
         teilauftrag_id: teil.id,
         ereignisart: 'KUNDENFREIGABE_ERTEILT',

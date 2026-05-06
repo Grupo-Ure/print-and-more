@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { schreibeHistorie } from '../lib/historie'
+import { writeHistory } from '../lib/history'
 import { supabase } from '../supabase'
 import type { LieferungWahl, AuftragStatus, Prioritaet } from '../types/database'
 import type { Database } from '../types/supabase'
@@ -133,7 +133,7 @@ export function NewOrderDialog({ offen, onSchliessen, onErfolg }: Props) {
     if (data) {
       onErfolg(data as NewOrderInsertRow)
       try {
-        await schreibeHistorie({
+        await writeHistory({
           auftrag_id: (data as NewOrderInsertRow).id,
           ereignisart: 'AUFTRAG_ERSTELLT',
         })
