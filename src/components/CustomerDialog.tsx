@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
-import type { Kunde } from '../lib/kunden'
+import type { Customer } from '../lib/customers'
 import './ContextPanel.css'
 
 type Props = {
-  kunde?: Kunde | null
-  onGespeichert: (k: Kunde) => void
+  kunde?: Customer | null
+  onGespeichert: (k: Customer) => void
   onAbbrechen: () => void
 }
 
-function hatAdressdaten(k: Kunde | null | undefined): boolean {
+function hatAdressdaten(k: Customer | null | undefined): boolean {
   if (k == null) return false
   return [k.strasse, k.hausnummer, k.plz, k.ort].some(s => s != null && String(s).trim() !== '')
 }
@@ -80,7 +80,7 @@ export function CustomerDialog({ kunde, onGespeichert, onAbbrechen }: Props) {
         setFehler(error.message)
         return
       }
-      if (data) onGespeichert(data as Kunde)
+      if (data) onGespeichert(data as Customer)
     } else {
       const { data, error } = await supabase
         .from('kunden')
@@ -93,7 +93,7 @@ export function CustomerDialog({ kunde, onGespeichert, onAbbrechen }: Props) {
         setFehler(error.message)
         return
       }
-      if (data) onGespeichert(data as Kunde)
+      if (data) onGespeichert(data as Customer)
     }
   }
 
@@ -103,10 +103,10 @@ export function CustomerDialog({ kunde, onGespeichert, onAbbrechen }: Props) {
       style={{ zIndex: 110 }}
       role="dialog"
       aria-modal="true"
-      aria-label={istBearbeiten ? 'Kunde bearbeiten' : 'Neuer Kunde'}
+      aria-label={istBearbeiten ? 'Customer bearbeiten' : 'Neuer Customer'}
     >
       <div className="cp-modal" style={{ maxWidth: 420 }}>
-        <h3>{istBearbeiten ? 'Kunde bearbeiten' : 'Neuer Kunde'}</h3>
+        <h3>{istBearbeiten ? 'Customer bearbeiten' : 'Neuer Customer'}</h3>
         {fehler && (
           <p className="cp-hinweis" style={{ color: '#b91c1c' }}>
             {fehler}
@@ -208,7 +208,7 @@ export function CustomerDialog({ kunde, onGespeichert, onAbbrechen }: Props) {
             Abbrechen
           </button>
           <button type="button" className="cp-btn" disabled={speichert} onClick={() => void speichern()}>
-            {istBearbeiten ? 'Änderungen speichern' : 'Kunde anlegen'}
+            {istBearbeiten ? 'Änderungen speichern' : 'Customer anlegen'}
           </button>
         </div>
       </div>

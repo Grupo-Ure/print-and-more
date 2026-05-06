@@ -7,8 +7,8 @@ import { WorkArea } from '../components/WorkArea'
 import { ContextPanel } from '../components/ContextPanel'
 import { NewOrderDialog, type NewOrderInsertRow } from '../components/NewOrderDialog'
 import { CustomerDialog } from '../components/CustomerDialog'
-import { kontaktJoinZuKunde } from '../lib/kunden'
-import type { Kunde } from '../lib/kunden'
+import { contactJoinToCustomer } from '../lib/customers'
+import type { Customer } from '../lib/customers'
 import type { Auftrag, AuftragStatus, KundeKontaktJoin, TeilauftragRow } from '../types/database'
 import type { Datei } from '../components/FileList'
 
@@ -30,7 +30,7 @@ export function OrderWorkspace() {
   const [orderListKey, setOrderListKey] = useState(0)
   const [orderInPlace, setOrderInPlace] = useState(ORDER_LIST_IN_PLACE_INITIAL)
   const [newOrderOpen, setNewOrderOpen] = useState(false)
-  const [customerDialog, setCustomerDialog] = useState<{ open: boolean; customer: Kunde | null }>({
+  const [customerDialog, setCustomerDialog] = useState<{ open: boolean; customer: Customer | null }>({
     open: false,
     customer: null,
   })
@@ -126,7 +126,7 @@ export function OrderWorkspace() {
   }, [])
 
   const openEditCustomer = useCallback(() => {
-    const k = kontaktJoinZuKunde(orderCustomer)
+    const k = contactJoinToCustomer(orderCustomer)
     if (k) setCustomerDialog({ open: true, customer: k })
   }, [orderCustomer])
 

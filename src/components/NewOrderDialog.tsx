@@ -3,7 +3,7 @@ import { writeHistory } from '../lib/history'
 import { supabase } from '../supabase'
 import type { LieferungWahl, AuftragStatus, Prioritaet } from '../types/database'
 import type { Database } from '../types/supabase'
-import type { Kunde } from '../lib/kunden'
+import type { Customer } from '../lib/customers'
 import { CustomerDialog } from './CustomerDialog'
 import { useToast } from './Toast'
 import './ContextPanel.css'
@@ -31,25 +31,25 @@ type Props = {
 
 export function NewOrderDialog({ offen, onSchliessen, onErfolg }: Props) {
   const { fehler: toastFehler } = useToast()
-  const [gewaehlterKunde, setGewaehlterKunde] = useState<Kunde | null>(null)
+  const [gewaehlterCustomer, setGewaehlterCustomer] = useState<Customer | null>(null)
   const [suchBegr, setSuchBegr] = useState('')
-  const [suchTreffer, setSuchTreffer] = useState<Kunde[]>([])
+  const [suchTreffer, setSuchTreffer] = useState<Customer[]>([])
   const [suchLaden, setSuchLaden] = useState(false)
   const [anlegenLaeuft, setAnlegenLaeuft] = useState(false)
   const [fehler, setFehler] = useState<string | null>(null)
-  const [kundeSubDialog, setKundeSubDialog] = useState<'neu' | 'bearbeiten' | null>(null)
-  const [kundeFuerFormular, setKundeFuerFormular] = useState<Kunde | null>(null)
-  const [kundeFuerBearbLaeuft, setKundeFuerBearbLaeuft] = useState(false)
+  const [kundeSubDialog, setCustomerSubDialog] = useState<'neu' | 'bearbeiten' | null>(null)
+  const [kundeFuerFormular, setCustomerFuerFormular] = useState<Customer | null>(null)
+  const [kundeFuerBearbLaeuft, setCustomerFuerBearbLaeuft] = useState(false)
 
   useEffect(() => {
     if (!offen) return
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset beim Öffnen
-    setGewaehlterKunde(null)
+    setGewaehlterCustomer(null)
     setSuchBegr('')
     setSuchTreffer([])
     setFehler(null)
-    setKundeSubDialog(null)
-    setKundeFuerFormular(null)
+    setCustomerSubDialog(null)
+    setCustomerFuerFormular(null)
   }, [offen])
 
   const suche = useCallback(async (q: string) => {
@@ -68,11 +68,11 @@ export function NewOrderDialog({ offen, onSchliessen, onErfolg }: Props) {
       .limit(20)
     setSuchLaden(false)
     if (error) {
-      toastFehler('Kundensuche fehlgeschlagen')
+      toastFehler('Customernsuche fehlgeschlagen')
       setSuchTreffer([])
       return
     }
-    const rows = (data ?? []) as Kunde[]
+    const rows = (data ?? []) as Customer[]
     setSuchTreffer(rows)
   }, [toastFehler])
 
@@ -85,36 +85,36 @@ export function NewOrderDialog({ offen, onSchliessen, onErfolg }: Props) {
   }, [suchBegr, suche, offen])
 
   const oeffneBearbeiten = async () => {
-    if (!gewaehlterKunde) return
-    setKundeFuerBearbLaeuft(true)
+    if (!gewaehlterCustomer) return
+    setCustomerFuerBearbLaeuft(true)
     const { data, error } = await supabase
       .from('kunden')
       .select('id, name, email, telefon, notiz, strasse, hausnummer, plz, ort')
-      .eq('id', gewaehlterKunde.id)
+      .eq('id', gewaehlterCustomer.id)
       .single()
-    setKundeFuerBearbLaeuft(false)
+    setCustomerFuerBearbLaeuft(false)
     if (error) {
-      toastFehler('Kunde konnte nicht geladen werden')
+      toastFehler('Customer konnte nicht geladen werden')
       return
     }
     if (data) {
-      setKundeFuerFormular(data as Kunde)
-      setKundeSubDialog('bearbeiten')
+      setCustomerFuerFormular(data as Customer)
+      setCustomerSubDialog('bearbeiten')
     }
   }
 
-  const handleKundeGespeichert = (k: Kunde) => {
-    setKundeSubDialog(null)
-    setKundeFuerFormular(null)
-    setGewaehlterKunde(k)
+  const handleCustomerGespeichert = (k: Customer) => {
+    setCustomerSubDialog(null)
+    setCustomerFuerFormular(null)
+    setGewaehlterCustomer(k)
   }
 
   const handleAuftragAnlegen = async () => {
-    if (!gewaehlterKunde) return
+    if (!gewaehlterCustomer) return
     setFehler(null)
     setAnlegenLaeuft(true)
     const auftragInsert: Database['public']['Tables']['auftraege']['Insert'] = {
-      kunde_id: gewaehlterKunde.id,
+      kunde_id: gewaehlterCustomer.id,
       status: 'ANGEBOT',
       termin: null,
       lieferung: 'ABHOLUNG',
@@ -158,15 +158,15 @@ export function NewOrderDialog({ offen, onSchliessen, onErfolg }: Props) {
           )}
 
           <h4 className="ber-h3" style={{ marginTop: 0, fontSize: '0.8rem' }}>
-            Kunde
+            Customer
           </h4>
-          {gewaehlterKunde == null && (
+          {gewaehlterCustomer == null && (
             <>
               <input
                 type="search"
                 className="ber-inp"
                 style={{ width: '100%', boxSizing: 'border-box', marginBottom: 8 }}
-                placeholder="Kundensuche …"
+                placeholder="Customernsuche …"
                 value={suchBegr}
                 onChange={e => setSuchBegr(e.target.value)}
               />
@@ -189,7 +189,7 @@ export function NewOrderDialog({ offen, onSchliessen, onErfolg }: Props) {
                   <button
                     key={k.id}
                     type="button"
-                    onClick={() => setGewaehlterKunde(k)}
+                    onClick={() => setGewaehlterCustomer(k)}
                     className="cp-btn"
                     style={{
                       border: 'none',
@@ -204,13 +204,13 @@ export function NewOrderDialog({ offen, onSchliessen, onErfolg }: Props) {
                   </button>
                 ))}
               </div>
-              <button type="button" className="cp-btn" onClick={() => { setKundeFuerFormular(null); setKundeSubDialog('neu') }}>
-                + Neuer Kunde
+              <button type="button" className="cp-btn" onClick={() => { setCustomerFuerFormular(null); setCustomerSubDialog('neu') }}>
+                + Neuer Customer
               </button>
             </>
           )}
 
-          {gewaehlterKunde && (
+          {gewaehlterCustomer && (
             <div
               style={{
                 marginBottom: 12,
@@ -221,9 +221,9 @@ export function NewOrderDialog({ offen, onSchliessen, onErfolg }: Props) {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                 <div>
-                  <div style={{ fontWeight: 600 }}>{gewaehlterKunde.name}</div>
+                  <div style={{ fontWeight: 600 }}>{gewaehlterCustomer.name}</div>
                   <div className="cp-hinweis" style={{ marginTop: 4 }}>
-                    {gewaehlterKunde.email || gewaehlterKunde.telefon || '—'}
+                    {gewaehlterCustomer.email || gewaehlterCustomer.telefon || '—'}
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -240,7 +240,7 @@ export function NewOrderDialog({ offen, onSchliessen, onErfolg }: Props) {
                     type="button"
                     className="cp-btn"
                     style={{ width: 'auto' }}
-                    onClick={() => setGewaehlterKunde(null)}
+                    onClick={() => setGewaehlterCustomer(null)}
                   >
                     Andere wählen
                   </button>
@@ -256,7 +256,7 @@ export function NewOrderDialog({ offen, onSchliessen, onErfolg }: Props) {
             <button
               type="button"
               className="cp-btn"
-              disabled={!gewaehlterKunde || anlegenLaeuft}
+              disabled={!gewaehlterCustomer || anlegenLaeuft}
               onClick={() => void handleAuftragAnlegen()}
             >
               Auftrag anlegen
@@ -266,15 +266,15 @@ export function NewOrderDialog({ offen, onSchliessen, onErfolg }: Props) {
       </div>
 
       {kundeSubDialog === 'neu' && (
-        <CustomerDialog kunde={null} onGespeichert={handleKundeGespeichert} onAbbrechen={() => setKundeSubDialog(null)} />
+        <CustomerDialog kunde={null} onGespeichert={handleCustomerGespeichert} onAbbrechen={() => setCustomerSubDialog(null)} />
       )}
       {kundeSubDialog === 'bearbeiten' && kundeFuerFormular && (
         <CustomerDialog
           kunde={kundeFuerFormular}
-          onGespeichert={handleKundeGespeichert}
+          onGespeichert={handleCustomerGespeichert}
           onAbbrechen={() => {
-            setKundeSubDialog(null)
-            setKundeFuerFormular(null)
+            setCustomerSubDialog(null)
+            setCustomerFuerFormular(null)
           }}
         />
       )}

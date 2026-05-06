@@ -1,7 +1,7 @@
 import type { KundeKontaktJoin, KundeKontaktRow } from '../types/database'
 
-/** Kunde für Dialoge und Suche (Tabelle `kunden`) */
-export type Kunde = {
+/** Local form-type for dialogs and search (table `kunden`) */
+export type Customer = {
   id: string
   name: string
   email: string | null
@@ -13,14 +13,14 @@ export type Kunde = {
   ort: string | null
 }
 
-function zeileKontakt(k: KundeKontaktJoin | null | undefined): KundeKontaktRow | null {
+function contactRow(k: KundeKontaktJoin | null | undefined): KundeKontaktRow | null {
   if (k == null) return null
   return Array.isArray(k) ? (k[0] ?? null) : k
 }
 
-/** Aus Auftrag-Join (kunden) → Formular-`Kunde` */
-export function kontaktJoinZuKunde(k: KundeKontaktJoin | null | undefined): Kunde | null {
-  const z = zeileKontakt(k)
+/** Maps an order join (kunden) to the form-level Customer type. */
+export function contactJoinToCustomer(k: KundeKontaktJoin | null | undefined): Customer | null {
+  const z = contactRow(k)
   if (z == null || !z.id) return null
   return {
     id: z.id,
