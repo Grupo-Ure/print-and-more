@@ -46,19 +46,19 @@ type Props = {
   /** Server join for customer contact (name, email, telefon) */
   orderCustomer: KundeKontaktJoin
   orderFiles: FileRecord[]
-  onUpdated: (t: TeilauftragRow) => void
+  onUpdated: (updatedSubOrder: TeilauftragRow) => void
 }
 
 /** YYYY-MM-DD für Vergleich (Lieferdatum vs. Auftrags-Deadline) */
-function normTeilTermin(v: string | null | undefined): string | null {
-  if (v == null) return null
-  const t = String(v).trim()
-  if (t === '') return null
-  return t.length > 10 ? t.slice(0, 10) : t
+function normalizeSubOrderDeadline(value: string | null | undefined): string | null {
+  if (value == null) return null
+  const trimmed = String(value).trim()
+  if (trimmed === '') return null
+  return trimmed.length > 10 ? trimmed.slice(0, 10) : trimmed
 }
 
-function teilStatusBadgeAuf(s: AuftragStatus): { cls: string; label: string } {
-  const m: Record<AuftragStatus, { cls: string; label: string }> = {
+function subOrderStatusBadge(status: AuftragStatus): { cls: string; label: string } {
+  const statusMap: Record<AuftragStatus, { cls: string; label: string }> = {
     ANGEBOT: { cls: 'badge-grau', label: 'ANGEBOT' },
     UNVOLLSTAENDIG: { cls: 'badge-orange', label: 'UNVOLLSTAENDIG' },
     PREPRESS_BEREIT: { cls: 'badge-blau', label: 'PREPRESS_BEREIT' },
@@ -66,7 +66,7 @@ function teilStatusBadgeAuf(s: AuftragStatus): { cls: string; label: string } {
     FERTIG: { cls: 'badge-gruen', label: 'FERTIG' },
     ABGERECHNET: { cls: 'badge-grau', label: 'Abgerechnet' },
   }
-  return m[s] ?? { cls: 'badge-grau', label: s }
+  return statusMap[status] ?? { cls: 'badge-grau', label: status }
 }
 
 export function SubOrderDetail({
@@ -79,195 +79,195 @@ export function SubOrderDetail({
   orderFiles,
   onUpdated,
 }: Props) {
-  const snapR = useRef(subOrder)
-  const lokalR = useRef(subOrder)
-  const [lokal, setLokal] = useState(subOrder)
-  const [speichLad, setSpeichLad] = useState(false)
+  const serverSnapshotRef = useRef(subOrder)
+  const localRef = useRef(subOrder)
+  const [local, setLocal] = useState(subOrder)
+  const [savePending, setSavePending] = useState(false)
   const { fehler } = useToast()
 
-  const auftragLief = (orderDelivery ?? 'ABHOLUNG') as LieferungWahl
-  const auftragPrio: Prioritaet = orderPriority
+  const orderDeliveryMode = (orderDelivery ?? 'ABHOLUNG') as LieferungWahl
+  const orderPriorityMode: Prioritaet = orderPriority
 
   useEffect(() => {
-    if (subOrder.id !== lokalR.current.id) {
+    if (subOrder.id !== localRef.current.id) {
       // Anderer Teilaufrag — immer neu laden
-      setLokal(subOrder)
-      snapR.current = subOrder
-      lokalR.current = subOrder
+      setLocal(subOrder)
+      serverSnapshotRef.current = subOrder
+      localRef.current = subOrder
       return
     }
     // Gleicher Teilaufrag: Sync bei Status- oder Detail-Änderung vom Server; ID-Wechsel oben.
-    if (subOrder.status !== lokalR.current.status || subOrder.detail !== lokalR.current.detail) {
-      setLokal(prev => ({
+    if (subOrder.status !== localRef.current.status || subOrder.detail !== localRef.current.detail) {
+      setLocal(prev => ({
         ...prev,
         status: subOrder.status,
         detail: subOrder.detail,
       }))
-      snapR.current = subOrder
-      lokalR.current = subOrder
+      serverSnapshotRef.current = subOrder
+      localRef.current = subOrder
     }
   }, [subOrder])
 
   useEffect(() => {
-    lokalR.current = lokal
-  }, [lokal])
+    localRef.current = local
+  }, [local])
 
-  const tStatus = lokal.status
-  const pruef = tStatus !== 'ANGEBOT'
-  const separateLieferung = lokal.lieferung != null && lokal.lieferung !== auftragLief
-  const separatePrioritaet = lokal.prioritaet !== auftragPrio
-  const effLieferung = (separateLieferung ? lokal.lieferung! : auftragLief) as LieferungWahl
-  const effPrioritaet = separatePrioritaet ? lokal.prioritaet : auftragPrio
-  const gErr = validateSubOrderCommonFields(
+  const subOrderStatus = local.status
+  const shouldValidate = subOrderStatus !== 'ANGEBOT'
+  const hasSeparateDelivery = local.lieferung != null && local.lieferung !== orderDeliveryMode
+  const hasSeparatePriority = local.prioritaet !== orderPriorityMode
+  const effectiveDelivery = (hasSeparateDelivery ? local.lieferung! : orderDeliveryMode) as LieferungWahl
+  const effectivePriority = hasSeparatePriority ? local.prioritaet : orderPriorityMode
+  const validationErrors = validateSubOrderCommonFields(
     {
-      ...lokal,
-      lieferung: effLieferung,
-      prioritaet: effPrioritaet,
+      ...local,
+      lieferung: effectiveDelivery,
+      prioritaet: effectivePriority,
     },
-    tStatus
+    subOrderStatus
   )
-  const gFe = (k: string) => (pruef && gErr[k] ? ' ber-inp--err' : '')
+  const fieldErrorClass = (fieldName: string) => (shouldValidate && validationErrors[fieldName] ? ' ber-inp--err' : '')
 
-  const kundePre = customerMeetsPrepressContact(orderCustomer)
+  const customerMeetsPrepressRequirements = customerMeetsPrepressContact(orderCustomer)
 
-  const speichere = useCallback(
+  const save = useCallback(
     async (patch: Partial<TeilauftragRow>) => {
-      const snap = snapR.current
-      const cur = lokalR.current
+      const serverSnapshot = serverSnapshotRef.current
+      const current = localRef.current
       const merged: TeilauftragRow = {
-        ...cur,
+        ...current,
         ...patch,
-        detail: patch.detail !== undefined ? patch.detail : cur.detail,
-        typ: patch.typ !== undefined ? patch.typ : cur.typ,
+        detail: patch.detail !== undefined ? patch.detail : current.detail,
+        typ: patch.typ !== undefined ? patch.typ : current.typ,
       } as TeilauftragRow
-      const mergedNorm: TeilauftragRow = {
+      const mergedWithDefaults: TeilauftragRow = {
         ...merged,
-        lieferung: (merged.lieferung ?? auftragLief) as LieferungWahl,
+        lieferung: (merged.lieferung ?? orderDeliveryMode) as LieferungWahl,
       }
-      const voll = isSubOrderComplete(mergedNorm, snap.status)
-      const nSt = nextSubOrderStatus(snap.status, snap, merged, voll, kundePre, orderStatus)
-      const statusVorher = snapR.current.status
-      setSpeichLad(true)
-      const { bereich: bereichPatch, ...patchOhneBereich } = patch
-      const bereichGueltig =
-        bereichPatch != null && (TEILAUFTRAG_BEREICHE as readonly string[]).includes(bereichPatch)
-      const teilUpdate: Database['public']['Tables']['teilauftraege']['Update'] = {
-        ...patchOhneBereich,
-        status: nSt,
-        ...(bereichGueltig
-          ? { bereich: bereichPatch as Database['public']['Enums']['teilauftrag_bereich'] }
+      const isComplete = isSubOrderComplete(mergedWithDefaults, serverSnapshot.status)
+      const nextStatus = nextSubOrderStatus(serverSnapshot.status, serverSnapshot, merged, isComplete, customerMeetsPrepressRequirements, orderStatus)
+      const previousStatus = serverSnapshotRef.current.status
+      setSavePending(true)
+      const { bereich: areaPatch, ...patchWithoutArea } = patch
+      const isValidArea =
+        areaPatch != null && (TEILAUFTRAG_BEREICHE as readonly string[]).includes(areaPatch)
+      const subOrderUpdate: Database['public']['Tables']['teilauftraege']['Update'] = {
+        ...patchWithoutArea,
+        status: nextStatus,
+        ...(isValidArea
+          ? { bereich: areaPatch as Database['public']['Enums']['teilauftrag_bereich'] }
           : {}),
       }
-      const { data, error } = await supabase.from('teilauftraege').update(teilUpdate).eq('id', subOrder.id)
+      const { data, error } = await supabase.from('teilauftraege').update(subOrderUpdate).eq('id', subOrder.id)
         .select(SUB_ORDER_COLUMNS)
         .single()
-      setSpeichLad(false)
+      setSavePending(false)
       if (error) {
         fehler('Speichern fehlgeschlagen')
         return
       }
       if (data) {
         const row = data as TeilauftragRow
-        snapR.current = row
-        lokalR.current = row
-        setLokal(row)
+        serverSnapshotRef.current = row
+        localRef.current = row
+        setLocal(row)
         onUpdated(row)
-        if (row.status === 'PREPRESS_BEREIT' && statusVorher !== 'PREPRESS_BEREIT') {
+        if (row.status === 'PREPRESS_BEREIT' && previousStatus !== 'PREPRESS_BEREIT') {
           const pdfOk = await generateAndDownloadPdf(subOrder.id, subOrder.auftrag_id)
           if (!pdfOk) fehler('PDF konnte nicht erstellt werden')
         }
       }
     },
-    [auftragLief, subOrder.id, subOrder.auftrag_id, orderStatus, onUpdated, kundePre, fehler]
+    [orderDeliveryMode, subOrder.id, subOrder.auftrag_id, orderStatus, onUpdated, customerMeetsPrepressRequirements, fehler]
   )
 
   const onLfpPatch = useCallback(
-    async (p: { typ?: string | null; detail: LfpDetail | null }) => {
-      await speichere({
-        typ: p.typ,
-        detail: (p.detail ?? {}) as LfpDetail,
+    async (patch: { typ?: string | null; detail: LfpDetail | null }) => {
+      await save({
+        typ: patch.typ,
+        detail: (patch.detail ?? {}) as LfpDetail,
       } as Partial<TeilauftragRow>)
     },
-    [speichere]
+    [save]
   )
 
   const onCopyShopPatch = useCallback(
-    async (p: { typ?: string | null; detail: CopyShopDetailJson | null }) => {
-      await speichere({
-        typ: p.typ,
-        detail: (p.detail ?? {}) as CopyShopDetailJson,
+    async (patch: { typ?: string | null; detail: CopyShopDetailJson | null }) => {
+      await save({
+        typ: patch.typ,
+        detail: (patch.detail ?? {}) as CopyShopDetailJson,
       } as Partial<TeilauftragRow>)
     },
-    [speichere]
+    [save]
   )
 
-  const onStempelPatch = useCallback(
-    async (p: { typ?: string | null; detail: StampDetailJson | null }) => {
-      await speichere({
-        typ: p.typ,
-        detail: (p.detail ?? {}) as StampDetailJson,
+  const onStampPatch = useCallback(
+    async (patch: { typ?: string | null; detail: StampDetailJson | null }) => {
+      await save({
+        typ: patch.typ,
+        detail: (patch.detail ?? {}) as StampDetailJson,
       } as Partial<TeilauftragRow>)
     },
-    [speichere]
+    [save]
   )
 
-  const onSonstigePatch = useCallback(
-    async (p: { typ?: string | null; detail: OtherDetailJson | null }) => {
-      await speichere({
-        typ: p.typ,
-        detail: (p.detail ?? {}) as OtherDetailJson,
+  const onOtherPatch = useCallback(
+    async (patch: { typ?: string | null; detail: OtherDetailJson | null }) => {
+      await save({
+        typ: patch.typ,
+        detail: (patch.detail ?? {}) as OtherDetailJson,
       } as Partial<TeilauftragRow>)
     },
-    [speichere]
+    [save]
   )
 
   const onLaserPatch = useCallback(
-    async (p: { typ?: string | null; detail: LaserDetailJson | null }) => {
-      await speichere({
-        typ: p.typ,
-        detail: (p.detail ?? {}) as LaserDetailJson,
+    async (patch: { typ?: string | null; detail: LaserDetailJson | null }) => {
+      await save({
+        typ: patch.typ,
+        detail: (patch.detail ?? {}) as LaserDetailJson,
       } as Partial<TeilauftragRow>)
     },
-    [speichere]
+    [save]
   )
 
-  const onTextilTeilAktualisiert = useCallback(
+  const onTextileSubOrderUpdated = useCallback(
     (row: TeilauftragRow) => {
-      snapR.current = row
-      lokalR.current = row
-      setLokal(row)
+      serverSnapshotRef.current = row
+      localRef.current = row
+      setLocal(row)
       onUpdated(row)
     },
     [onUpdated]
   )
 
-  const globTermin = lokal.termin ?? orderDeadline
-  const iso = globTermin
-    ? globTermin.length > 10
-      ? globTermin.slice(0, 10)
-      : globTermin
+  const effectiveDeadline = local.termin ?? orderDeadline
+  const deadlineIso = effectiveDeadline
+    ? effectiveDeadline.length > 10
+      ? effectiveDeadline.slice(0, 10)
+      : effectiveDeadline
     : ''
 
-  const auftragIso = orderDeadline ? (orderDeadline.length > 10 ? orderDeadline.slice(0, 10) : orderDeadline) : ''
+  const orderDeadlineIso = orderDeadline ? (orderDeadline.length > 10 ? orderDeadline.slice(0, 10) : orderDeadline) : ''
 
-  const [sepTermin, setSepTermin] = useState(false)
+  const [separateDeadline, setSeparateDeadline] = useState(false)
 
   useEffect(() => {
-    const tNorm = normTeilTermin(subOrder.termin)
-    const aNorm = normTeilTermin(orderDeadline)
-    setSepTermin(tNorm != null && aNorm != null && tNorm !== aNorm)
+    const tNorm = normalizeSubOrderDeadline(subOrder.termin)
+    const aNorm = normalizeSubOrderDeadline(orderDeadline)
+    setSeparateDeadline(tNorm != null && aNorm != null && tNorm !== aNorm)
   }, [subOrder.id, subOrder.termin, orderDeadline])
 
   useEffect(() => {
     // Vererbung beim Laden: wenn Teilauftrag-Termin null und Auftrag hat Termin → im Hintergrund speichern.
     if (!subOrder.id) return
-    if (snapR.current.termin != null) return
-    if (!auftragIso) return
+    if (serverSnapshotRef.current.termin != null) return
+    if (!orderDeadlineIso) return
     let alive = true
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
-          const terminPatch: Database['public']['Tables']['teilauftraege']['Update'] = { termin: auftragIso }
+          const terminPatch: Database['public']['Tables']['teilauftraege']['Update'] = { termin: orderDeadlineIso }
           const { data, error } = await supabase
             .from('teilauftraege')
             .update(terminPatch)
@@ -279,9 +279,9 @@ export function SubOrderDetail({
           if (data) {
             const row = data as TeilauftragRow
             if (!alive) return
-            snapR.current = row
-            lokalR.current = row
-            setLokal(row)
+            serverSnapshotRef.current = row
+            localRef.current = row
+            setLocal(row)
             onUpdated(row)
           }
         } catch {
@@ -294,17 +294,17 @@ export function SubOrderDetail({
       alive = false
       window.clearTimeout(timer)
     }
-  }, [auftragIso, onUpdated, subOrder.id, fehler])
+  }, [orderDeadlineIso, onUpdated, subOrder.id, fehler])
 
   useEffect(() => {
     if (!subOrder.id) return
-    if (lokal.lieferung != null) return
+    if (local.lieferung != null) return
     let alive = true
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
           const lieferungPatch: Database['public']['Tables']['teilauftraege']['Update'] = {
-            lieferung: auftragLief,
+            lieferung: orderDeliveryMode,
           }
           const { data, error } = await supabase
             .from('teilauftraege')
@@ -317,9 +317,9 @@ export function SubOrderDetail({
           if (data) {
             const row = data as TeilauftragRow
             if (!alive) return
-            snapR.current = row
-            lokalR.current = row
-            setLokal(row)
+            serverSnapshotRef.current = row
+            localRef.current = row
+            setLocal(row)
             onUpdated(row)
           }
         } catch {
@@ -332,19 +332,19 @@ export function SubOrderDetail({
       alive = false
       window.clearTimeout(timer)
     }
-  }, [auftragLief, lokal.lieferung, onUpdated, subOrder.id, fehler])
+  }, [orderDeliveryMode, local.lieferung, onUpdated, subOrder.id, fehler])
 
   useEffect(() => {
     if (!subOrder.id) return
-    if (lokal.prioritaet !== 'NORMAL') return
-    if (!auftragPrio || auftragPrio === 'NORMAL') return
+    if (local.prioritaet !== 'NORMAL') return
+    if (!orderPriorityMode || orderPriorityMode === 'NORMAL') return
     let alive = true
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
           const { data, error } = await supabase
             .from('teilauftraege')
-            .update({ prioritaet: auftragPrio })
+            .update({ prioritaet: orderPriorityMode })
             .eq('id', subOrder.id)
             .select(SUB_ORDER_COLUMNS)
             .single()
@@ -353,9 +353,9 @@ export function SubOrderDetail({
           if (data) {
             const row = data as TeilauftragRow
             if (!alive) return
-            snapR.current = row
-            lokalR.current = row
-            setLokal(row)
+            serverSnapshotRef.current = row
+            localRef.current = row
+            setLocal(row)
             onUpdated(row)
           }
         } catch {
@@ -368,26 +368,26 @@ export function SubOrderDetail({
       alive = false
       window.clearTimeout(timer)
     }
-  }, [auftragPrio, lokal.prioritaet, onUpdated, subOrder.id, fehler])
+  }, [orderPriorityMode, local.prioritaet, onUpdated, subOrder.id, fehler])
 
-  const tBadge = teilStatusBadgeAuf(lokal.status)
+  const statusBadge = subOrderStatusBadge(local.status)
 
   return (
     <div className="td">
       <div className="td-kopf" aria-label="Teilauftrag">
-        <span className="td-bkz">[{departmentAbbreviation(lokal.bereich)}]</span>
-        <span className={`badge ${tBadge.cls}`}>
-          {tBadge.label}
-          {speichLad ? ' …' : ''}
+        <span className="td-bkz">[{departmentAbbreviation(local.bereich)}]</span>
+        <span className={`badge ${statusBadge.cls}`}>
+          {statusBadge.label}
+          {savePending ? ' …' : ''}
         </span>
       </div>
-      {pruef &&
-        lokal.bereich !== 'SONSTIGE' &&
+      {shouldValidate &&
+        local.bereich !== 'SONSTIGE' &&
         customerMeetsPrepressContact(orderCustomer) === false &&
-        (lokal.bereich === 'LFP' ||
-          lokal.bereich === 'COPYSHOP' ||
-          (lokal.bereich === 'STEMPEL' && lokal.typ !== 'SONSTIGE_STEMPEL') ||
-          (lokal.bereich === 'LASERGRAVUR' && lokal.typ !== 'SONSTIGE_LASER')) && (
+        (local.bereich === 'LFP' ||
+          local.bereich === 'COPYSHOP' ||
+          (local.bereich === 'STEMPEL' && local.typ !== 'SONSTIGE_STEMPEL') ||
+          (local.bereich === 'LASERGRAVUR' && local.typ !== 'SONSTIGE_LASER')) && (
           <p className="ber-hinweis">Für Auto-PREPRESS: Kunde braucht Name und E-Mail oder Telefon.</p>
         )}
 
@@ -401,50 +401,50 @@ export function SubOrderDetail({
             <label className="cp-toggle" style={{ marginTop: 4 }}>
               <input
                 type="checkbox"
-                checked={sepTermin}
+                checked={separateDeadline}
                 onChange={e => {
-                  const next = e.target.checked
-                  setSepTermin(next)
-                  if (!next) {
-                    const nextIso = auftragIso || ''
-                    const nextTermin = nextIso ? nextIso : null
-                    setLokal(s => ({ ...s, termin: nextTermin }))
-                    void speichere({ termin: nextTermin })
+                  const isChecked = e.target.checked
+                  setSeparateDeadline(isChecked)
+                  if (!isChecked) {
+                    const resetIso = orderDeadlineIso || ''
+                    const resetDeadline = resetIso ? resetIso : null
+                    setLocal(s => ({ ...s, termin: resetDeadline }))
+                    void save({ termin: resetDeadline })
                   } else {
                     // Beim Aktivieren: Eingabefeld soll den aktuellen Wert (Teilauftrag oder Auftrag) zeigen.
-                    const cur = lokalR.current
-                    const curIso = cur.termin
-                      ? cur.termin.length > 10
-                        ? cur.termin.slice(0, 10)
-                        : cur.termin
+                    const currentLocal = localRef.current
+                    const currentIso = currentLocal.termin
+                      ? currentLocal.termin.length > 10
+                        ? currentLocal.termin.slice(0, 10)
+                        : currentLocal.termin
                       : ''
-                    if (!curIso && auftragIso) setLokal(s => ({ ...s, termin: auftragIso }))
+                    if (!currentIso && orderDeadlineIso) setLocal(s => ({ ...s, termin: orderDeadlineIso }))
                   }
                 }}
               />
               <span>Separates Lieferdatum</span>
             </label>
-            {sepTermin && (
+            {separateDeadline && (
               <div style={{ marginTop: 8 }}>
                 <DateInput
-                  className={'ber-inp' + gFe('termin')}
-                  value={lokal.termin ? (lokal.termin.length > 10 ? lokal.termin.slice(0, 10) : lokal.termin) : iso}
+                  className={'ber-inp' + fieldErrorClass('termin')}
+                  value={local.termin ? (local.termin.length > 10 ? local.termin.slice(0, 10) : local.termin) : deadlineIso}
                   onChange={e => {
-                    const v = e.target.value
-                    setLokal(s => ({ ...s, termin: v || null }))
+                    const value = e.target.value
+                    setLocal(s => ({ ...s, termin: value || null }))
                   }}
                   onBlur={e => {
-                    const v = e.target.value || null
-                    const snapIso = snapR.current.termin ? snapR.current.termin.slice(0, 10) : ''
-                    if ((v ?? '') !== (snapIso ?? '')) {
-                      void speichere({ termin: v })
+                    const value = e.target.value || null
+                    const snapshotIso = serverSnapshotRef.current.termin ? serverSnapshotRef.current.termin.slice(0, 10) : ''
+                    if ((value ?? '') !== (snapshotIso ?? '')) {
+                      void save({ termin: value })
                     }
                   }}
                 />
-                {pruef && gErr.termin && <p className="td-feld-err">{gErr.termin}</p>}
+                {shouldValidate && validationErrors.termin && <p className="td-feld-err">{validationErrors.termin}</p>}
               </div>
             )}
-            {!sepTermin && pruef && gErr.termin && <p className="td-feld-err">{gErr.termin}</p>}
+            {!separateDeadline && shouldValidate && validationErrors.termin && <p className="td-feld-err">{validationErrors.termin}</p>}
           </div>
         </div>
         <div className="ber-zeile-stack">
@@ -453,43 +453,43 @@ export function SubOrderDetail({
             <label className="cp-toggle" style={{ marginTop: 4 }}>
               <input
                 type="checkbox"
-                checked={separateLieferung}
+                checked={hasSeparateDelivery}
                 onChange={e => {
-                  const an = e.target.checked
-                  if (!an) {
-                    void speichere({ lieferung: auftragLief })
+                  const isChecked = e.target.checked
+                  if (!isChecked) {
+                    void save({ lieferung: orderDeliveryMode })
                   } else {
-                    const abw = auftragLief === 'ABHOLUNG' ? 'VERSAND' : 'ABHOLUNG'
-                    setLokal(s => ({ ...s, lieferung: abw }))
-                    void speichere({ lieferung: abw })
+                    const alternativeDelivery = orderDeliveryMode === 'ABHOLUNG' ? 'VERSAND' : 'ABHOLUNG'
+                    setLocal(s => ({ ...s, lieferung: alternativeDelivery }))
+                    void save({ lieferung: alternativeDelivery })
                   }
                 }}
               />
               <span>Separate Lieferart</span>
             </label>
-            {separateLieferung ? (
+            {hasSeparateDelivery ? (
               <div style={{ marginTop: 8 }}>
                 <select
-                  className={'ber-inp' + gFe('lieferung')}
-                  value={lokal.lieferung ?? auftragLief}
+                  className={'ber-inp' + fieldErrorClass('lieferung')}
+                  value={local.lieferung ?? orderDeliveryMode}
                   onChange={e => {
-                    const v = e.target.value as 'ABHOLUNG' | 'VERSAND'
-                    setLokal(s => ({ ...s, lieferung: v }))
+                    const value = e.target.value as 'ABHOLUNG' | 'VERSAND'
+                    setLocal(s => ({ ...s, lieferung: value }))
                   }}
                   onBlur={e => {
-                    const v = (e.target.value as 'ABHOLUNG' | 'VERSAND') || auftragLief
-                    if (v !== snapR.current.lieferung) void speichere({ lieferung: v })
+                    const value = (e.target.value as 'ABHOLUNG' | 'VERSAND') || orderDeliveryMode
+                    if (value !== serverSnapshotRef.current.lieferung) void save({ lieferung: value })
                   }}
                 >
                   <option value="ABHOLUNG">Abholung</option>
                   <option value="VERSAND">Versand</option>
                 </select>
-                {pruef && gErr.lieferung && <p className="td-feld-err">{gErr.lieferung}</p>}
+                {shouldValidate && validationErrors.lieferung && <p className="td-feld-err">{validationErrors.lieferung}</p>}
               </div>
             ) : (
               <div className="cp-hinweis" style={{ marginTop: 6, marginBottom: 0 }}>
-                {effLieferung === 'ABHOLUNG' ? 'Abholung' : 'Versand'}
-                {pruef && gErr.lieferung && <p className="td-feld-err">{gErr.lieferung}</p>}
+                {effectiveDelivery === 'ABHOLUNG' ? 'Abholung' : 'Versand'}
+                {shouldValidate && validationErrors.lieferung && <p className="td-feld-err">{validationErrors.lieferung}</p>}
               </div>
             )}
           </div>
@@ -501,44 +501,44 @@ export function SubOrderDetail({
           <label className="cp-toggle" style={{ marginTop: 4 }}>
             <input
               type="checkbox"
-              checked={separatePrioritaet}
+              checked={hasSeparatePriority}
               onChange={e => {
-                const an = e.target.checked
-                if (!an) {
-                  void speichere({ prioritaet: auftragPrio })
+                const isChecked = e.target.checked
+                if (!isChecked) {
+                  void save({ prioritaet: orderPriorityMode })
                 } else {
-                  const alt: Prioritaet = auftragPrio === 'HOCH' ? 'NORMAL' : 'HOCH'
-                  void speichere({ prioritaet: alt })
+                  const alternativePriority: Prioritaet = orderPriorityMode === 'HOCH' ? 'NORMAL' : 'HOCH'
+                  void save({ prioritaet: alternativePriority })
                 }
               }}
             />
             <span>Separate Priorität</span>
           </label>
-          {separatePrioritaet ? (
+          {hasSeparatePriority ? (
             <div style={{ marginTop: 8 }}>
               <select
-                className={'ber-inp' + gFe('prioritaet')}
-                value={lokal.prioritaet}
+                className={'ber-inp' + fieldErrorClass('prioritaet')}
+                value={local.prioritaet}
                 onChange={e => {
-                  const v = e.target.value
-                  if (v === 'NORMAL' || v === 'HOCH') setLokal(s => ({ ...s, prioritaet: v }))
+                  const value = e.target.value
+                  if (value === 'NORMAL' || value === 'HOCH') setLocal(s => ({ ...s, prioritaet: value }))
                 }}
                 onBlur={e => {
-                  const v = e.target.value
-                  if ((v === 'NORMAL' || v === 'HOCH') && v !== snapR.current.prioritaet) {
-                    void speichere({ prioritaet: v })
+                  const value = e.target.value
+                  if ((value === 'NORMAL' || value === 'HOCH') && value !== serverSnapshotRef.current.prioritaet) {
+                    void save({ prioritaet: value })
                   }
                 }}
               >
                 <option value="NORMAL">Normal</option>
                 <option value="HOCH">Hoch</option>
               </select>
-              {pruef && gErr.prioritaet && <p className="td-feld-err">{gErr.prioritaet}</p>}
+              {shouldValidate && validationErrors.prioritaet && <p className="td-feld-err">{validationErrors.prioritaet}</p>}
             </div>
           ) : (
             <div className="cp-hinweis" style={{ marginTop: 6, marginBottom: 0 }}>
-              {effPrioritaet === 'HOCH' ? 'Hoch' : 'Normal'}
-              {pruef && gErr.prioritaet && <p className="td-feld-err">{gErr.prioritaet}</p>}
+              {effectivePriority === 'HOCH' ? 'Hoch' : 'Normal'}
+              {shouldValidate && validationErrors.prioritaet && <p className="td-feld-err">{validationErrors.prioritaet}</p>}
             </div>
           )}
         </div>
@@ -548,71 +548,71 @@ export function SubOrderDetail({
         <div>
           <input
             type="number"
-            className={'ber-inp' + gFe('satzzeit_minuten')}
-            value={lokal.satzzeit_minuten ?? ''}
+            className={'ber-inp' + fieldErrorClass('satzzeit_minuten')}
+            value={local.satzzeit_minuten ?? ''}
             onChange={e => {
-              const raw = e.target.value
-              setLokal(s => ({
+              const rawValue = e.target.value
+              setLocal(s => ({
                 ...s,
-                satzzeit_minuten: raw === '' ? null : parseInt(raw, 10),
+                satzzeit_minuten: rawValue === '' ? null : parseInt(rawValue, 10),
               }))
             }}
             onBlur={e => {
-              const raw = e.target.value
-              const n = raw === '' ? null : parseInt(raw, 10)
-              if (n !== snapR.current.satzzeit_minuten) void speichere({ satzzeit_minuten: n })
+              const rawValue = e.target.value
+              const parsedValue = rawValue === '' ? null : parseInt(rawValue, 10)
+              if (parsedValue !== serverSnapshotRef.current.satzzeit_minuten) void save({ satzzeit_minuten: parsedValue })
             }}
             min={1}
             style={{ maxWidth: '12rem' }}
           />
-          {pruef && gErr.satzzeit_minuten && <p className="td-feld-err">{gErr.satzzeit_minuten}</p>}
+          {shouldValidate && validationErrors.satzzeit_minuten && <p className="td-feld-err">{validationErrors.satzzeit_minuten}</p>}
         </div>
       </div>
 
-      {lokal.bereich === 'LFP' && (
-        <LFPDetail subOrder={lokal} subOrderStatus={lokal.status} onDetailPatch={onLfpPatch} orderFiles={orderFiles} />
+      {local.bereich === 'LFP' && (
+        <LFPDetail subOrder={local} subOrderStatus={local.status} onDetailPatch={onLfpPatch} orderFiles={orderFiles} />
       )}
 
-      {lokal.bereich === 'COPYSHOP' && (
-        <CopyShopDetail subOrder={lokal} subOrderStatus={lokal.status} onDetailPatch={onCopyShopPatch} orderFiles={orderFiles} />
+      {local.bereich === 'COPYSHOP' && (
+        <CopyShopDetail subOrder={local} subOrderStatus={local.status} onDetailPatch={onCopyShopPatch} orderFiles={orderFiles} />
       )}
 
-      {lokal.bereich === 'STEMPEL' && (
-        <StampDetail subOrder={lokal} subOrderStatus={lokal.status} onDetailPatch={onStempelPatch} orderFiles={orderFiles} />
+      {local.bereich === 'STEMPEL' && (
+        <StampDetail subOrder={local} subOrderStatus={local.status} onDetailPatch={onStampPatch} orderFiles={orderFiles} />
       )}
 
-      {lokal.bereich === 'SONSTIGE' && (
-        <OtherDetail subOrder={lokal} subOrderStatus={lokal.status} onDetailPatch={onSonstigePatch} orderFiles={orderFiles} />
+      {local.bereich === 'SONSTIGE' && (
+        <OtherDetail subOrder={local} subOrderStatus={local.status} onDetailPatch={onOtherPatch} orderFiles={orderFiles} />
       )}
 
-      {lokal.bereich === 'LASERGRAVUR' && (
-        <LaserDetail subOrder={lokal} subOrderStatus={lokal.status} onDetailPatch={onLaserPatch} orderFiles={orderFiles} />
+      {local.bereich === 'LASERGRAVUR' && (
+        <LaserDetail subOrder={local} subOrderStatus={local.status} onDetailPatch={onLaserPatch} orderFiles={orderFiles} />
       )}
 
-      {lokal.bereich === 'TEXTIL' && (
+      {local.bereich === 'TEXTIL' && (
         <TextileDetail
-          subOrder={lokal}
-          subOrderStatus={lokal.status}
+          subOrder={local}
+          subOrderStatus={local.status}
           orderStatus={orderStatus}
           orderFiles={orderFiles}
           orderCustomer={orderCustomer}
-          onUpdated={onTextilTeilAktualisiert}
+          onUpdated={onTextileSubOrderUpdated}
         />
       )}
 
-      {lokal.bereich !== 'LFP' &&
-        lokal.bereich !== 'COPYSHOP' &&
-        lokal.bereich !== 'STEMPEL' &&
-        lokal.bereich !== 'SONSTIGE' &&
-        lokal.bereich !== 'LASERGRAVUR' &&
-        lokal.bereich !== 'TEXTIL' && (
+      {local.bereich !== 'LFP' &&
+        local.bereich !== 'COPYSHOP' &&
+        local.bereich !== 'STEMPEL' &&
+        local.bereich !== 'SONSTIGE' &&
+        local.bereich !== 'LASERGRAVUR' &&
+        local.bereich !== 'TEXTIL' && (
         <>
           <div className="td-zeile" style={{ marginTop: 8 }}>
             <p className="td-label">Typ</p>
-            <p className="td-wert td-mono">{lokal.typ?.trim() ? lokal.typ : '—'}</p>
+            <p className="td-wert td-mono">{local.typ?.trim() ? local.typ : '—'}</p>
           </div>
           <p className="wa-hint" style={{ marginTop: 8 }}>
-            Bereich {teilauftragBereichLabel(lokal.bereich)}: Detailmaske folgt (analog LFP).
+            Bereich {teilauftragBereichLabel(local.bereich)}: Detailmaske folgt (analog LFP).
           </p>
         </>
       )}
