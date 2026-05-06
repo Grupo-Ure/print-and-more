@@ -31,103 +31,102 @@ type Props = {
 
 export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
   const { fehler: toastFehler } = useToast()
-  const [gewaehlterCustomer, setGewaehlterCustomer] = useState<Customer | null>(null)
-  const [suchBegr, setSuchBegr] = useState('')
-  const [suchTreffer, setSuchTreffer] = useState<Customer[]>([])
-  const [suchLaden, setSuchLaden] = useState(false)
-  const [anlegenLaeuft, setAnlegenLaeuft] = useState(false)
-  const [fehler, setFehler] = useState<string | null>(null)
-  const [kundeSubDialog, setCustomerSubDialog] = useState<'neu' | 'bearbeiten' | null>(null)
-  const [kundeFuerFormular, setCustomerFuerFormular] = useState<Customer | null>(null)
-  const [kundeFuerBearbLaeuft, setCustomerFuerBearbLaeuft] = useState(false)
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<Customer[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [customerSubDialog, setCustomerSubDialog] = useState<'neu' | 'bearbeiten' | null>(null)
+  const [customerForForm, setCustomerForForm] = useState<Customer | null>(null)
+  const [editingCustomer, setEditingCustomer] = useState(false)
 
   useEffect(() => {
     if (!open) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset beim Öffnen
-    setGewaehlterCustomer(null)
-    setSuchBegr('')
-    setSuchTreffer([])
-    setFehler(null)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset on open
+    setSelectedCustomer(null)
+    setSearchQuery('')
+    setSearchResults([])
+    setError(null)
     setCustomerSubDialog(null)
-    setCustomerFuerFormular(null)
+    setCustomerForForm(null)
   }, [open])
 
-  const suche = useCallback(async (q: string) => {
-    const t = q.trim()
-    if (t.length === 0) {
-      setSuchTreffer([])
+  const runSearch = useCallback(async (query: string) => {
+    const trimmedQuery = query.trim()
+    if (trimmedQuery.length === 0) {
+      setSearchResults([])
       return
     }
-    setSuchLaden(true)
-    const { data, error } = await supabase
+    setSearchLoading(true)
+    const { data, error: searchError } = await supabase
       .from('kunden')
       .select('id, name, email, telefon, notiz, strasse, hausnummer, plz, ort')
-      .ilike('name', `%${t}%`)
+      .ilike('name', `%${trimmedQuery}%`)
       .eq('archiviert', false)
       .order('name')
       .limit(20)
-    setSuchLaden(false)
-    if (error) {
+    setSearchLoading(false)
+    if (searchError) {
       toastFehler('Customernsuche fehlgeschlagen')
-      setSuchTreffer([])
+      setSearchResults([])
       return
     }
-    const rows = (data ?? []) as Customer[]
-    setSuchTreffer(rows)
+    setSearchResults((data ?? []) as Customer[])
   }, [toastFehler])
 
   useEffect(() => {
     if (!open) return
-    const t = setTimeout(() => {
-      void suche(suchBegr)
+    const timer = setTimeout(() => {
+      void runSearch(searchQuery)
     }, 300)
-    return () => clearTimeout(t)
-  }, [suchBegr, suche, open])
+    return () => clearTimeout(timer)
+  }, [searchQuery, runSearch, open])
 
-  const oeffneBearbeiten = async () => {
-    if (!gewaehlterCustomer) return
-    setCustomerFuerBearbLaeuft(true)
-    const { data, error } = await supabase
+  const openEditCustomer = async () => {
+    if (!selectedCustomer) return
+    setEditingCustomer(true)
+    const { data, error: loadError } = await supabase
       .from('kunden')
       .select('id, name, email, telefon, notiz, strasse, hausnummer, plz, ort')
-      .eq('id', gewaehlterCustomer.id)
+      .eq('id', selectedCustomer.id)
       .single()
-    setCustomerFuerBearbLaeuft(false)
-    if (error) {
+    setEditingCustomer(false)
+    if (loadError) {
       toastFehler('Customer konnte nicht geladen werden')
       return
     }
     if (data) {
-      setCustomerFuerFormular(data as Customer)
+      setCustomerForForm(data as Customer)
       setCustomerSubDialog('bearbeiten')
     }
   }
 
-  const handleCustomerGespeichert = (k: Customer) => {
+  const handleCustomerSaved = (customer: Customer) => {
     setCustomerSubDialog(null)
-    setCustomerFuerFormular(null)
-    setGewaehlterCustomer(k)
+    setCustomerForForm(null)
+    setSelectedCustomer(customer)
   }
 
-  const handleAuftragAnlegen = async () => {
-    if (!gewaehlterCustomer) return
-    setFehler(null)
-    setAnlegenLaeuft(true)
+  const handleCreateOrder = async () => {
+    if (!selectedCustomer) return
+    setError(null)
+    setCreating(true)
     const auftragInsert: Database['public']['Tables']['auftraege']['Insert'] = {
-      kunde_id: gewaehlterCustomer.id,
+      kunde_id: selectedCustomer.id,
       status: 'ANGEBOT',
       termin: null,
       lieferung: 'ABHOLUNG',
       prioritaet: 'NORMAL',
     }
-    const { data, error } = await supabase.from('auftraege').insert(auftragInsert)
+    const { data, error: insertError } = await supabase.from('auftraege').insert(auftragInsert)
       .select(
         'id, auftragsnummer, status, erstellt_am, kunde_id, termin, lieferung, prioritaet, notfall_aktiv, archiviert, erp_exportiert'
       )
       .single()
-    setAnlegenLaeuft(false)
-    if (error) {
-      setFehler(error.message)
+    setCreating(false)
+    if (insertError) {
+      setError(insertError.message)
       return
     }
     if (data) {
@@ -151,26 +150,26 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
       <div className="cp-modal-bg" role="dialog" aria-modal="true" aria-label="Neuer Auftrag">
         <div className="cp-modal" style={{ maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}>
           <h3>Neuer Auftrag</h3>
-          {fehler && (
+          {error && (
             <p className="cp-hinweis" style={{ color: '#b91c1c' }}>
-              {fehler}
+              {error}
             </p>
           )}
 
           <h4 className="ber-h3" style={{ marginTop: 0, fontSize: '0.8rem' }}>
             Customer
           </h4>
-          {gewaehlterCustomer == null && (
+          {selectedCustomer == null && (
             <>
               <input
                 type="search"
                 className="ber-inp"
                 style={{ width: '100%', boxSizing: 'border-box', marginBottom: 8 }}
                 placeholder="Customernsuche …"
-                value={suchBegr}
-                onChange={e => setSuchBegr(e.target.value)}
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
               />
-              {suchLaden && <p className="cp-hinweis">Suche…</p>}
+              {searchLoading && <p className="cp-hinweis">Suche…</p>}
               <div
                 style={{
                   border: '1px solid #e5e5e5',
@@ -180,16 +179,16 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
                   marginBottom: 8,
                 }}
               >
-                {suchTreffer.length === 0 && !suchLaden && suchBegr.trim() && (
+                {searchResults.length === 0 && !searchLoading && searchQuery.trim() && (
                   <p className="cp-hinweis" style={{ padding: 8, margin: 0 }}>
                     Keine Treffer
                   </p>
                 )}
-                {suchTreffer.map(k => (
+                {searchResults.map(customer => (
                   <button
-                    key={k.id}
+                    key={customer.id}
                     type="button"
-                    onClick={() => setGewaehlterCustomer(k)}
+                    onClick={() => setSelectedCustomer(customer)}
                     className="cp-btn"
                     style={{
                       border: 'none',
@@ -197,20 +196,20 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
                       borderBottom: '1px solid #eee',
                     }}
                   >
-                    <strong>{k.name}</strong>
+                    <strong>{customer.name}</strong>
                     <div className="cp-hinweis" style={{ margin: '4px 0 0' }}>
-                      {k.email || k.telefon || '—'}
+                      {customer.email || customer.telefon || '—'}
                     </div>
                   </button>
                 ))}
               </div>
-              <button type="button" className="cp-btn" onClick={() => { setCustomerFuerFormular(null); setCustomerSubDialog('neu') }}>
+              <button type="button" className="cp-btn" onClick={() => { setCustomerForForm(null); setCustomerSubDialog('neu') }}>
                 + Neuer Customer
               </button>
             </>
           )}
 
-          {gewaehlterCustomer && (
+          {selectedCustomer && (
             <div
               style={{
                 marginBottom: 12,
@@ -221,9 +220,9 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                 <div>
-                  <div style={{ fontWeight: 600 }}>{gewaehlterCustomer.name}</div>
+                  <div style={{ fontWeight: 600 }}>{selectedCustomer.name}</div>
                   <div className="cp-hinweis" style={{ marginTop: 4 }}>
-                    {gewaehlterCustomer.email || gewaehlterCustomer.telefon || '—'}
+                    {selectedCustomer.email || selectedCustomer.telefon || '—'}
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -231,16 +230,16 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
                     type="button"
                     className="cp-btn"
                     style={{ width: 'auto' }}
-                    disabled={kundeFuerBearbLaeuft}
-                    onClick={() => { void oeffneBearbeiten() }}
+                    disabled={editingCustomer}
+                    onClick={() => { void openEditCustomer() }}
                   >
-                    {kundeFuerBearbLaeuft ? '…' : 'Ändern'}
+                    {editingCustomer ? '…' : 'Ändern'}
                   </button>
                   <button
                     type="button"
                     className="cp-btn"
                     style={{ width: 'auto' }}
-                    onClick={() => setGewaehlterCustomer(null)}
+                    onClick={() => setSelectedCustomer(null)}
                   >
                     Andere wählen
                   </button>
@@ -250,14 +249,14 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
           )}
 
           <div className="cp-modal-bar" style={{ marginTop: 16 }}>
-            <button type="button" className="cp-btn" onClick={onClose} disabled={anlegenLaeuft}>
+            <button type="button" className="cp-btn" onClick={onClose} disabled={creating}>
               Abbrechen
             </button>
             <button
               type="button"
               className="cp-btn"
-              disabled={!gewaehlterCustomer || anlegenLaeuft}
-              onClick={() => void handleAuftragAnlegen()}
+              disabled={!selectedCustomer || creating}
+              onClick={() => void handleCreateOrder()}
             >
               Auftrag anlegen
             </button>
@@ -265,16 +264,16 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
         </div>
       </div>
 
-      {kundeSubDialog === 'neu' && (
-        <CustomerDialog kunde={null} onSaved={handleCustomerGespeichert} onCancel={() => setCustomerSubDialog(null)} />
+      {customerSubDialog === 'neu' && (
+        <CustomerDialog kunde={null} onSaved={handleCustomerSaved} onCancel={() => setCustomerSubDialog(null)} />
       )}
-      {kundeSubDialog === 'bearbeiten' && kundeFuerFormular && (
+      {customerSubDialog === 'bearbeiten' && customerForForm && (
         <CustomerDialog
-          kunde={kundeFuerFormular}
-          onSaved={handleCustomerGespeichert}
+          kunde={customerForForm}
+          onSaved={handleCustomerSaved}
           onCancel={() => {
             setCustomerSubDialog(null)
-            setCustomerFuerFormular(null)
+            setCustomerForForm(null)
           }}
         />
       )}

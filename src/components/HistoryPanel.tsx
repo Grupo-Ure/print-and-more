@@ -10,7 +10,7 @@ type Props = {
   subOrders: { id: string; bereich: string }[]
 }
 
-type HistorieZeile = {
+type HistoryRow = {
   id: string
   ereignisart: string
   begruendung: string | null
@@ -20,7 +20,7 @@ type HistorieZeile = {
   person_id: string | null
 }
 
-const EREIGNIS_LABEL: Record<string, string> = {
+const EVENT_LABELS: Record<string, string> = {
   AUFTRAG_ERSTELLT: 'Auftrag erstellt',
   IN_BEARBEITUNG_GENOMMEN: 'In Bearbeitung genommen',
   PREPRESS_BEREIT_AUTO: 'Prepress — automatisch',
@@ -37,14 +37,14 @@ const EREIGNIS_LABEL: Record<string, string> = {
   STORNIERT: 'Auftrag storniert',
 }
 
-function ereignisLabel(art: string): string {
-  return EREIGNIS_LABEL[art] ?? art.replace(/_/g, ' ')
+function eventLabel(art: string): string {
+  return EVENT_LABELS[art] ?? art.replace(/_/g, ' ')
 }
 
-function formatHistZeit(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleString('de-DE', {
+function formatHistoryTime(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  return date.toLocaleString('de-DE', {
     day: '2-digit',
     month: '2-digit',
     year: '2-digit',
@@ -55,10 +55,10 @@ function formatHistZeit(iso: string): string {
 
 export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: Props) {
   const { fehler: toastFehler } = useToast()
-  const [geoefnet, setGeoefnet] = useState(false)
-  const [eintraege, setEintraege] = useState<HistorieZeile[]>([])
-  const [mitarbeiterById, setMitarbeiterById] = useState<Map<string, string>>(new Map())
-  const [laden, setLaden] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const [entries, setEntries] = useState<HistoryRow[]>([])
+  const [staffById, setStaffById] = useState<Map<string, string>>(new Map())
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -71,11 +71,11 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: P
           toastFehler('Mitarbeiterdaten konnten nicht geladen werden')
           return
         }
-        const m = new Map<string, string>()
-        for (const z of (data ?? []) as { id: string; name: string | null }[]) {
-          m.set(z.id, z.name ?? z.id)
+        const staffMap = new Map<string, string>()
+        for (const staffMember of (data ?? []) as { id: string; name: string | null }[]) {
+          staffMap.set(staffMember.id, staffMember.name ?? staffMember.id)
         }
-        setMitarbeiterById(m)
+        setStaffById(staffMap)
       })
     return () => {
       alive = false
@@ -85,7 +85,7 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: P
   useEffect(() => {
     let alive = true
     void (async () => {
-      setLaden(true)
+      setLoading(true)
       const { data, error } = await supabase
         .from('historie')
         .select('id, ereignisart, begruendung, meta, erstellt_am, teilauftrag_id, person_id')
@@ -95,20 +95,20 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: P
       if (!alive) return
       if (error) {
         toastFehler('Verlauf konnte nicht geladen werden')
-        setEintraege([])
+        setEntries([])
       } else {
-        setEintraege((data ?? []) as HistorieZeile[])
+        setEntries((data ?? []) as HistoryRow[])
       }
-      if (alive) setLaden(false)
+      if (alive) setLoading(false)
     })()
     return () => {
       alive = false
     }
   }, [activeOrderId, contextRefreshTick, toastFehler])
 
-  const teilBereich = (teilId: string | null): string | null => {
-    if (!teilId) return null
-    return subOrders.find(t => t.id === teilId)?.bereich ?? null
+  const subOrderDepartment = (subOrderId: string | null): string | null => {
+    if (!subOrderId) return null
+    return subOrders.find(subOrder => subOrder.id === subOrderId)?.bereich ?? null
   }
 
   return (
@@ -116,33 +116,33 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: P
       <button
         type="button"
         className="cp-hist-btn"
-        onClick={() => setGeoefnet(o => !o)}
-        aria-expanded={geoefnet}
+        onClick={() => setExpanded(previous => !previous)}
+        aria-expanded={expanded}
       >
-        <span>Verlauf {geoefnet ? '▼' : '▶'}</span>
+        <span>Verlauf {expanded ? '▼' : '▶'}</span>
       </button>
 
-      {geoefnet && (
+      {expanded && (
         <div className="cp-hist-body">
-          {laden && <p className="cp-hinweis" style={{ margin: '0.25rem 0' }}>Lädt …</p>}
-          {!laden && eintraege.length === 0 && (
+          {loading && <p className="cp-hinweis" style={{ margin: '0.25rem 0' }}>Lädt …</p>}
+          {!loading && entries.length === 0 && (
             <p className="cp-hinweis" style={{ margin: '0.25rem 0' }}>
               Noch keine Einträge im Verlauf
             </p>
           )}
-          {!laden &&
-            eintraege.map(e => {
-              const anzeigeName = e.person_id ? mitarbeiterById.get(e.person_id) : ''
-              const tb = teilBereich(e.teilauftrag_id)
+          {!loading &&
+            entries.map(entry => {
+              const staffName = entry.person_id ? staffById.get(entry.person_id) : ''
+              const department = subOrderDepartment(entry.teilauftrag_id)
               return (
-                <div key={e.id} className="cp-hist-eintrag">
-                  <div className="cp-hist-zeile" title={ereignisLabel(e.ereignisart)}>
-                    <span className="cp-hist-time">{formatHistZeit(e.erstellt_am)}</span>
-                    <span className="cp-hist-evt">{ereignisLabel(e.ereignisart)}</span>
-                    <span className="cp-hist-who">{anzeigeName || '—'}</span>
+                <div key={entry.id} className="cp-hist-eintrag">
+                  <div className="cp-hist-zeile" title={eventLabel(entry.ereignisart)}>
+                    <span className="cp-hist-time">{formatHistoryTime(entry.erstellt_am)}</span>
+                    <span className="cp-hist-evt">{eventLabel(entry.ereignisart)}</span>
+                    <span className="cp-hist-who">{staffName || '—'}</span>
                   </div>
-                  {e.begruendung && <p className="cp-hist-sub">{e.begruendung}</p>}
-                  {tb && <p className="cp-hist-tl">Teil: {teilauftragBereichLabel(tb)}</p>}
+                  {entry.begruendung && <p className="cp-hist-sub">{entry.begruendung}</p>}
+                  {department && <p className="cp-hist-tl">Teil: {teilauftragBereichLabel(department)}</p>}
                 </div>
               )
             })}

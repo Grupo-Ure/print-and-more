@@ -18,9 +18,9 @@ type Props = {
   onCancel: () => void
 }
 
-type Schritt = 1 | 2
+type Step = 1 | 2
 
-function typLesbar(bereich: string, typ: string | null): string {
+function readableSubOrderType(bereich: string, typ: string | null): string {
   if (!typ) return '—'
   if (bereich === 'LFP' && typ in LFP_TYPE_LABELS) return LFP_TYPE_LABELS[typ as keyof typeof LFP_TYPE_LABELS]
   if (bereich === 'COPYSHOP' && typ in COPY_SHOP_TYPE_LABELS)
@@ -32,102 +32,101 @@ function typLesbar(bereich: string, typ: string | null): string {
   return typ
 }
 
-function formatAusDetail(detail: import('../types/database').TeilauftragRow['detail']): string {
-  const o = teilJsonAlsFeldertabelle(detail)
-  const b = o.format_breite
-  const h = o.format_hoehe
-  const bn = typeof b === 'number' ? b : typeof b === 'string' && b.trim() !== '' ? Number(b) : null
-  const hn = typeof h === 'number' ? h : typeof h === 'string' && h.trim() !== '' ? Number(h) : null
-  const bOk = bn != null && Number.isFinite(bn) && bn > 0
-  const hOk = hn != null && Number.isFinite(hn) && hn > 0
-  const bTxt = bOk ? String(Math.round(bn as number)) : ''
-  const hTxt = hOk ? String(Math.round(hn as number)) : ''
-  if (bOk && hOk) return `${bTxt} × ${hTxt} mm`
-  if (bOk) return `${bTxt} mm Breite`
-  if (hOk) return `${hTxt} mm Höhe`
+function formatDetailDimensions(detail: import('../types/database').TeilauftragRow['detail']): string {
+  const fields = teilJsonAlsFeldertabelle(detail)
+  const widthRaw = fields.format_breite
+  const heightRaw = fields.format_hoehe
+  const width = typeof widthRaw === 'number' ? widthRaw : typeof widthRaw === 'string' && widthRaw.trim() !== '' ? Number(widthRaw) : null
+  const height = typeof heightRaw === 'number' ? heightRaw : typeof heightRaw === 'string' && heightRaw.trim() !== '' ? Number(heightRaw) : null
+  const widthValid = width != null && Number.isFinite(width) && width > 0
+  const heightValid = height != null && Number.isFinite(height) && height > 0
+  const widthText = widthValid ? String(Math.round(width as number)) : ''
+  const heightText = heightValid ? String(Math.round(height as number)) : ''
+  if (widthValid && heightValid) return `${widthText} × ${heightText} mm`
+  if (widthValid) return `${widthText} mm Breite`
+  if (heightValid) return `${heightText} mm Höhe`
   return ''
 }
 
 export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }: Props) {
-  const aktive = useMemo(() => teilauftraege.filter(t => !t.storniert), [teilauftraege])
-  const hatMehrAlsEinen = aktive.length > 1
+  const activeSubOrders = useMemo(() => teilauftraege.filter(subOrder => !subOrder.storniert), [teilauftraege])
+  const hasMultipleSubOrders = activeSubOrders.length > 1
 
-  const [schritt, setSchritt] = useState<Schritt>(hatMehrAlsEinen ? 1 : 2)
-  const [modus, setModus] = useState<'ALLE' | 'AUSWAEHLEN'>(hatMehrAlsEinen ? 'ALLE' : 'ALLE')
-  const [auswahl, setAuswahl] = useState<Record<string, boolean>>(() => {
-    const o: Record<string, boolean> = {}
-    for (const t of aktive) o[t.id] = true
-    return o
+  const [step, setStep] = useState<Step>(hasMultipleSubOrders ? 1 : 2)
+  const [mode, setMode] = useState<'ALL' | 'SELECT'>(hasMultipleSubOrders ? 'ALL' : 'ALL')
+  const [selection, setSelection] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {}
+    for (const subOrder of activeSubOrders) initial[subOrder.id] = true
+    return initial
   })
-  const [terminNeu, setTerminNeu] = useState<string>('')
+  const [newDeadline, setNewDeadline] = useState<string>('')
   const [busy, setBusy] = useState(false)
-  const [fehler, setFehler] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const { fehler: toastFehler, erfolg } = useToast()
 
-  const gewaehlte = useMemo(() => aktive.filter(t => auswahl[t.id]), [aktive, auswahl])
-  const minEins = gewaehlte.length >= 1
+  const selectedSubOrders = useMemo(() => activeSubOrders.filter(subOrder => selection[subOrder.id]), [activeSubOrders, selection])
+  const hasSelection = selectedSubOrders.length >= 1
 
-  const kundeLabel = (() => {
-    const k = auftrag.kunden ?? null
-    if (!k) return auftrag.id
-    return customerName(k)
+  const customerLabel = (() => {
+    const customer = auftrag.kunden ?? null
+    if (!customer) return auftrag.id
+    return customerName(customer)
   })()
 
-  const alleUebernehmen = () => {
-    const o: Record<string, boolean> = {}
-    for (const t of aktive) o[t.id] = true
-    setAuswahl(o)
-    setModus('ALLE')
-    setSchritt(2)
+  const selectAll = () => {
+    const next: Record<string, boolean> = {}
+    for (const subOrder of activeSubOrders) next[subOrder.id] = true
+    setSelection(next)
+    setMode('ALL')
+    setStep(2)
   }
 
-  const startAuswaehlen = () => {
-    setModus('AUSWAEHLEN')
+  const startSelecting = () => {
+    setMode('SELECT')
   }
 
-  const weiter = () => {
-    if (!minEins) return
-    setSchritt(2)
+  const goNext = () => {
+    if (!hasSelection) return
+    setStep(2)
   }
 
   const toggle = (id: string) => {
-    setAuswahl(a => ({ ...a, [id]: !a[id] }))
+    setSelection(previous => ({ ...previous, [id]: !previous[id] }))
   }
 
-  const duplizieren = async () => {
+  const handleDuplicate = async () => {
     if (busy) return
-    if (!minEins) return
+    if (!hasSelection) return
     setBusy(true)
-    setFehler(null)
+    setError(null)
     try {
-      const { data: neuerAuftragId, error } = await supabase.rpc('dupliziere_auftrag', {
+      const { data: newOrderId, error: rpcError } = await supabase.rpc('dupliziere_auftrag', {
         p_auftrag_id: auftrag.id,
         p_prioritaet: auftrag.prioritaet ?? null,
         p_lieferung: auftrag.lieferung ?? null,
-        p_termin: terminNeu ? terminNeu : null,
-        p_teilauftrag_ids: gewaehlte.map(ta => ta.id),
+        p_termin: newDeadline ? newDeadline : null,
+        p_teilauftrag_ids: selectedSubOrders.map(subOrder => subOrder.id),
         p_user_id: (await supabase.auth.getUser()).data.user?.id ?? null,
       })
-      if (error) throw error
+      if (rpcError) throw rpcError
 
-      if (typeof neuerAuftragId !== 'string' || neuerAuftragId.trim() === '') {
+      if (typeof newOrderId !== 'string' || newOrderId.trim() === '') {
         toastFehler('Auftrag konnte nicht dupliziert werden')
         return
       }
 
-      const { data: neuA, error: eLoad } = await supabase
+      const { data: newOrderData, error: loadError } = await supabase
         .from('auftraege')
         .select(ORDER_COLUMNS)
-        .eq('id', neuerAuftragId)
+        .eq('id', newOrderId)
         .single()
-      if (eLoad) throw eLoad
-      const neuerAuftrag = neuA as Auftrag
+      if (loadError) throw loadError
 
       erfolg('Auftrag dupliziert')
-      onSuccess(neuerAuftrag)
+      onSuccess(newOrderData as Auftrag)
     } catch (e) {
       toastFehler('Auftrag konnte nicht dupliziert werden')
-      setFehler(e instanceof Error ? e.message : String(e))
+      setError(e instanceof Error ? e.message : String(e))
     } finally {
       setBusy(false)
     }
@@ -136,45 +135,45 @@ export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }:
   return (
     <div className="cp-modal-bg" role="dialog" aria-modal="true" aria-label="Auftrag duplizieren">
       <div className="cp-modal">
-        {schritt === 1 && (
+        {step === 1 && (
           <>
             <h3>Welche Teilaufträge übernehmen?</h3>
             <p className="cp-hinweis">Nur aktive (nicht stornierte) Teilaufträge.</p>
 
             <div className="cp-modal-bar" style={{ justifyContent: 'flex-start', gap: 10 }}>
-              <button type="button" className="cp-btn" onClick={alleUebernehmen}>
+              <button type="button" className="cp-btn" onClick={selectAll}>
                 Alle übernehmen
               </button>
-              <button type="button" className="cp-btn" onClick={startAuswaehlen}>
+              <button type="button" className="cp-btn" onClick={startSelecting}>
                 Auswählen
               </button>
             </div>
 
-            {modus === 'AUSWAEHLEN' && (
+            {mode === 'SELECT' && (
               <div className="cp-stack" style={{ marginTop: 12 }}>
-                {aktive.map(t => (
-                  <label key={t.id} className="cp-toggle" style={{ alignItems: 'flex-start' }}>
-                    <input type="checkbox" checked={!!auswahl[t.id]} onChange={() => toggle(t.id)} />
+                {activeSubOrders.map(subOrder => (
+                  <label key={subOrder.id} className="cp-toggle" style={{ alignItems: 'flex-start' }}>
+                    <input type="checkbox" checked={!!selection[subOrder.id]} onChange={() => toggle(subOrder.id)} />
                     <span>
-                      {(t.bereich in TEILAUFTRAG_BEREICH_ANZEIGE ? TEILAUFTRAG_BEREICH_ANZEIGE[t.bereich as keyof typeof TEILAUFTRAG_BEREICH_ANZEIGE] : teilauftragBereichLabel(t.bereich))}{' '}
-                      · {typLesbar(t.bereich, t.typ)}{' '}
-                      {formatAusDetail(t.detail) ? `· ${formatAusDetail(t.detail)}` : ''}
+                      {(subOrder.bereich in TEILAUFTRAG_BEREICH_ANZEIGE ? TEILAUFTRAG_BEREICH_ANZEIGE[subOrder.bereich as keyof typeof TEILAUFTRAG_BEREICH_ANZEIGE] : teilauftragBereichLabel(subOrder.bereich))}{' '}
+                      · {readableSubOrderType(subOrder.bereich, subOrder.typ)}{' '}
+                      {formatDetailDimensions(subOrder.detail) ? `· ${formatDetailDimensions(subOrder.detail)}` : ''}
                     </span>
                   </label>
                 ))}
-                {!minEins && <p className="cp-hinweis">Mindestens 1 Teilauftrag wählen.</p>}
+                {!hasSelection && <p className="cp-hinweis">Mindestens 1 Teilauftrag wählen.</p>}
                 <div className="cp-modal-bar">
                   <button type="button" className="cp-btn" onClick={onCancel}>
                     Abbrechen
                   </button>
-                  <button type="button" className="cp-btn" disabled={!minEins} onClick={weiter}>
+                  <button type="button" className="cp-btn" disabled={!hasSelection} onClick={goNext}>
                     Weiter
                   </button>
                 </div>
               </div>
             )}
 
-            {modus === 'ALLE' && (
+            {mode === 'ALL' && (
               <div className="cp-modal-bar">
                 <button type="button" className="cp-btn" onClick={onCancel}>
                   Abbrechen
@@ -184,37 +183,37 @@ export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }:
           </>
         )}
 
-        {schritt === 2 && (
+        {step === 2 && (
           <>
             <h3>Auftrag duplizieren</h3>
             <p className="cp-hinweis" style={{ marginTop: 6 }}>
-              Kunde: <strong>{kundeLabel}</strong>
+              Kunde: <strong>{customerLabel}</strong>
               <br />
-              Teilaufträge: <strong>{gewaehlte.length}</strong>
+              Teilaufträge: <strong>{selectedSubOrders.length}</strong>
             </p>
 
             <div style={{ marginTop: 10 }}>
               <p className="cp-hinweis">Neuer Termin (optional)</p>
               <DateInput
                 className="cp-select"
-                value={terminNeu}
-                onChange={e => setTerminNeu(e.target.value)}
+                value={newDeadline}
+                onChange={e => setNewDeadline(e.target.value)}
                 placeholder="Kein Termin — später setzen"
               />
-              {!terminNeu && (
+              {!newDeadline && (
                 <p className="cp-hinweis" style={{ marginTop: 6 }}>
                   Kein Termin — später setzen
                 </p>
               )}
             </div>
 
-            {fehler && <p className="cp-hinweis" style={{ color: '#b91c1c' }}>{fehler}</p>}
+            {error && <p className="cp-hinweis" style={{ color: '#b91c1c' }}>{error}</p>}
 
             <div className="cp-modal-bar" style={{ marginTop: 12 }}>
               <button type="button" className="cp-btn" disabled={busy} onClick={onCancel}>
                 Abbrechen
               </button>
-              <button type="button" className="cp-btn" disabled={busy || !minEins} onClick={() => void duplizieren()}>
+              <button type="button" className="cp-btn" disabled={busy || !hasSelection} onClick={() => void handleDuplicate()}>
                 Duplizieren
               </button>
             </div>

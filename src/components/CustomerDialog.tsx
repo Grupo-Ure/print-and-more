@@ -9,21 +9,23 @@ type Props = {
   onCancel: () => void
 }
 
-function hatAdressdaten(k: Customer | null | undefined): boolean {
-  if (k == null) return false
-  return [k.strasse, k.hausnummer, k.plz, k.ort].some(s => s != null && String(s).trim() !== '')
+function hasAddressData(customer: Customer | null | undefined): boolean {
+  if (customer == null) return false
+  return [customer.strasse, customer.hausnummer, customer.plz, customer.ort].some(
+    value => value != null && String(value).trim() !== ''
+  )
 }
 
-function validiere(name: string): string | null {
+function validate(name: string): string | null {
   if (!name.trim()) return 'Name ist erforderlich'
   return null
 }
 
-const KUNDEN_SPALTEN =
+const CUSTOMER_COLUMNS =
   'id, name, email, telefon, notiz, strasse, hausnummer, plz, ort' as const
 
 export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
-  const istBearbeiten = kunde != null
+  const isEditing = kunde != null
   const [name, setName] = useState(kunde?.name ?? '')
   const [email, setEmail] = useState(kunde?.email ?? '')
   const [telefon, setTelefon] = useState(kunde?.telefon ?? '')
@@ -32,9 +34,9 @@ export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
   const [hausnummer, setHausnummer] = useState(kunde?.hausnummer ?? '')
   const [plz, setPlz] = useState(kunde?.plz ?? '')
   const [ort, setOrt] = useState(kunde?.ort ?? '')
-  const [adresseAufgeklappt, setAdresseAufgeklappt] = useState(() => hatAdressdaten(kunde))
-  const [fehler, setFehler] = useState<string | null>(null)
-  const [speichert, setSpeichert] = useState(false)
+  const [addressExpanded, setAddressExpanded] = useState(() => hasAddressData(kunde))
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     setName(kunde?.name ?? '')
@@ -45,18 +47,18 @@ export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
     setHausnummer(kunde?.hausnummer ?? '')
     setPlz(kunde?.plz ?? '')
     setOrt(kunde?.ort ?? '')
-    setAdresseAufgeklappt(hatAdressdaten(kunde))
-    setFehler(null)
+    setAddressExpanded(hasAddressData(kunde))
+    setError(null)
   }, [kunde])
 
-  const speichern = async () => {
-    const v = validiere(name)
-    if (v) {
-      setFehler(v)
+  const handleSave = async () => {
+    const validationError = validate(name)
+    if (validationError) {
+      setError(validationError)
       return
     }
-    setFehler(null)
-    setSpeichert(true)
+    setError(null)
+    setSaving(true)
     const payload = {
       name: name.trim(),
       email: email.trim() || null,
@@ -67,30 +69,30 @@ export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
       plz: plz.trim() || null,
       ort: ort.trim() || null,
     }
-    if (istBearbeiten) {
-      const { data, error } = await supabase
+    if (isEditing) {
+      const { data, error: updateError } = await supabase
         .from('kunden')
         .update(payload)
         .eq('id', kunde.id)
-        .select(KUNDEN_SPALTEN)
+        .select(CUSTOMER_COLUMNS)
         .single()
-      setSpeichert(false)
-      if (error) {
-        console.error(error)
-        setFehler(error.message)
+      setSaving(false)
+      if (updateError) {
+        console.error(updateError)
+        setError(updateError.message)
         return
       }
       if (data) onSaved(data as Customer)
     } else {
-      const { data, error } = await supabase
+      const { data, error: insertError } = await supabase
         .from('kunden')
         .insert(payload)
-        .select(KUNDEN_SPALTEN)
+        .select(CUSTOMER_COLUMNS)
         .single()
-      setSpeichert(false)
-      if (error) {
-        console.error(error)
-        setFehler(error.message)
+      setSaving(false)
+      if (insertError) {
+        console.error(insertError)
+        setError(insertError.message)
         return
       }
       if (data) onSaved(data as Customer)
@@ -103,13 +105,13 @@ export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
       style={{ zIndex: 110 }}
       role="dialog"
       aria-modal="true"
-      aria-label={istBearbeiten ? 'Customer bearbeiten' : 'Neuer Customer'}
+      aria-label={isEditing ? 'Customer bearbeiten' : 'Neuer Customer'}
     >
       <div className="cp-modal" style={{ maxWidth: 420 }}>
-        <h3>{istBearbeiten ? 'Customer bearbeiten' : 'Neuer Customer'}</h3>
-        {fehler && (
+        <h3>{isEditing ? 'Customer bearbeiten' : 'Neuer Customer'}</h3>
+        {error && (
           <p className="cp-hinweis" style={{ color: '#b91c1c' }}>
-            {fehler}
+            {error}
           </p>
         )}
         <label className="cp-hinweis" style={{ display: 'block', marginBottom: 4 }}>
@@ -153,12 +155,12 @@ export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
             type="button"
             className="cp-btn cp-btn-grau"
             style={{ width: '100%', textAlign: 'left', fontWeight: 500 }}
-            onClick={() => setAdresseAufgeklappt(o => !o)}
+            onClick={() => setAddressExpanded(previous => !previous)}
           >
-            {adresseAufgeklappt ? 'Adresse ausblenden ▴' : 'Adresse hinzufügen ▾'}
+            {addressExpanded ? 'Adresse ausblenden ▴' : 'Adresse hinzufügen ▾'}
           </button>
         </div>
-        {adresseAufgeklappt && (
+        {addressExpanded && (
           <div style={{ marginBottom: 10 }}>
             <label className="cp-hinweis" style={{ display: 'block', marginBottom: 4 }}>
               Straße
@@ -204,11 +206,11 @@ export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
         )}
 
         <div className="cp-modal-bar" style={{ marginTop: 14 }}>
-          <button type="button" className="cp-btn" onClick={onCancel} disabled={speichert}>
+          <button type="button" className="cp-btn" onClick={onCancel} disabled={saving}>
             Abbrechen
           </button>
-          <button type="button" className="cp-btn" disabled={speichert} onClick={() => void speichern()}>
-            {istBearbeiten ? 'Änderungen speichern' : 'Customer anlegen'}
+          <button type="button" className="cp-btn" disabled={saving} onClick={() => void handleSave()}>
+            {isEditing ? 'Änderungen speichern' : 'Customer anlegen'}
           </button>
         </div>
       </div>
