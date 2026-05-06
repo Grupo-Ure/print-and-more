@@ -7,14 +7,14 @@ import {
   type ReactNode,
 } from 'react'
 
-export type ToastTyp = 'error' | 'success' | 'info'
+export type ToastType = 'error' | 'success' | 'info'
 
-type ToastEintrag = { id: string; typ: ToastTyp; text: string }
+type ToastEintrag = { id: string; typ: ToastType; text: string }
 
 const MAX = 3
 const AUTO_MS = 4000
 
-const BORDER: Record<ToastTyp, string> = {
+const BORDER: Record<ToastType, string> = {
   error: '#dc2626',
   success: '#16a34a',
   info: '#2563eb',
@@ -51,7 +51,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const add = useCallback(
-    (typ: ToastTyp, text: string) => {
+    (typ: ToastType, text: string) => {
       const id = crypto.randomUUID()
       setToasts(p => pushToastGekappt(p, { id, typ, text: text.trim() || '—' }))
       window.setTimeout(() => {
