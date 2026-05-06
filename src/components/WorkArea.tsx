@@ -588,14 +588,14 @@ export function WorkArea({
       <div className="work-area__formular" role="tabpanel">
         {aktiverTeil ? (
           <SubOrderDetail
-            teil={aktiverTeil}
-            auftragStatus={auftrag.status}
-            auftragTermin={auftrag.termin}
-            auftragLieferung={auftrag.lieferung}
-            auftragPrioritaet={auftrag.prioritaet}
-            auftragKunde={auftrag.kunden}
-            auftragDateien={dateien}
-            onAktualisiert={handhabeTeilAktualisiert}
+            subOrder={aktiverTeil}
+            orderStatus={auftrag.status}
+            orderDeadline={auftrag.termin}
+            orderDelivery={auftrag.lieferung}
+            orderPriority={auftrag.prioritaet}
+            orderCustomer={auftrag.kunden}
+            orderFiles={dateien}
+            onUpdated={handhabeTeilAktualisiert}
           />
         ) : (
           <p className="wa-hint">Noch keine Teilaufträge. Nutzen Sie +, um einen Bereich anzulegen.</p>

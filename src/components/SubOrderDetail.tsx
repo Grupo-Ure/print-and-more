@@ -35,18 +35,18 @@ import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import './WorkArea.css'
 
 type Props = {
-  teil: TeilauftragRow
-  auftragStatus: AuftragStatus
-  /** Auftragstermin (fallback/Vererbung) */
-  auftragTermin: string | null
-  /** Auftrags-Lieferung (Vererbung) */
-  auftragLieferung: LieferungWahl | null
-  /** Auftrags-Priorität (Vererbung) */
-  auftragPrioritaet: Prioritaet
-  /** Server-Join für Kundenkontakt (name, email, telefon) */
-  auftragKunde: KundeKontaktJoin
-  auftragDateien: Datei[]
-  onAktualisiert: (t: TeilauftragRow) => void
+  subOrder: TeilauftragRow
+  orderStatus: AuftragStatus
+  /** Order deadline (fallback/inheritance for sub-order) */
+  orderDeadline: string | null
+  /** Order delivery mode (inheritance) */
+  orderDelivery: LieferungWahl | null
+  /** Order priority (inheritance) */
+  orderPriority: Prioritaet
+  /** Server join for customer contact (name, email, telefon) */
+  orderCustomer: KundeKontaktJoin
+  orderFiles: Datei[]
+  onUpdated: (t: TeilauftragRow) => void
 }
 
 /** YYYY-MM-DD für Vergleich (Lieferdatum vs. Auftrags-Deadline) */
@@ -70,43 +70,43 @@ function teilStatusBadgeAuf(s: AuftragStatus): { cls: string; label: string } {
 }
 
 export function SubOrderDetail({
-  teil,
-  auftragStatus,
-  auftragTermin,
-  auftragLieferung,
-  auftragPrioritaet,
-  auftragKunde,
-  auftragDateien,
-  onAktualisiert,
+  subOrder,
+  orderStatus,
+  orderDeadline,
+  orderDelivery,
+  orderPriority,
+  orderCustomer,
+  orderFiles,
+  onUpdated,
 }: Props) {
-  const snapR = useRef(teil)
-  const lokalR = useRef(teil)
-  const [lokal, setLokal] = useState(teil)
+  const snapR = useRef(subOrder)
+  const lokalR = useRef(subOrder)
+  const [lokal, setLokal] = useState(subOrder)
   const [speichLad, setSpeichLad] = useState(false)
   const { fehler } = useToast()
 
-  const auftragLief = (auftragLieferung ?? 'ABHOLUNG') as LieferungWahl
-  const auftragPrio: Prioritaet = auftragPrioritaet
+  const auftragLief = (orderDelivery ?? 'ABHOLUNG') as LieferungWahl
+  const auftragPrio: Prioritaet = orderPriority
 
   useEffect(() => {
-    if (teil.id !== lokalR.current.id) {
+    if (subOrder.id !== lokalR.current.id) {
       // Anderer Teilaufrag — immer neu laden
-      setLokal(teil)
-      snapR.current = teil
-      lokalR.current = teil
+      setLokal(subOrder)
+      snapR.current = subOrder
+      lokalR.current = subOrder
       return
     }
     // Gleicher Teilaufrag: Sync bei Status- oder Detail-Änderung vom Server; ID-Wechsel oben.
-    if (teil.status !== lokalR.current.status || teil.detail !== lokalR.current.detail) {
+    if (subOrder.status !== lokalR.current.status || subOrder.detail !== lokalR.current.detail) {
       setLokal(prev => ({
         ...prev,
-        status: teil.status,
-        detail: teil.detail,
+        status: subOrder.status,
+        detail: subOrder.detail,
       }))
-      snapR.current = teil
-      lokalR.current = teil
+      snapR.current = subOrder
+      lokalR.current = subOrder
     }
-  }, [teil])
+  }, [subOrder])
 
   useEffect(() => {
     lokalR.current = lokal
@@ -128,7 +128,7 @@ export function SubOrderDetail({
   )
   const gFe = (k: string) => (pruef && gErr[k] ? ' ber-inp--err' : '')
 
-  const kundePre = customerMeetsPrepressContact(auftragKunde)
+  const kundePre = customerMeetsPrepressContact(orderCustomer)
 
   const speichere = useCallback(
     async (patch: Partial<TeilauftragRow>) => {
@@ -145,7 +145,7 @@ export function SubOrderDetail({
         lieferung: (merged.lieferung ?? auftragLief) as LieferungWahl,
       }
       const voll = isSubOrderComplete(mergedNorm, snap.status)
-      const nSt = nextSubOrderStatus(snap.status, snap, merged, voll, kundePre, auftragStatus)
+      const nSt = nextSubOrderStatus(snap.status, snap, merged, voll, kundePre, orderStatus)
       const statusVorher = snapR.current.status
       setSpeichLad(true)
       const { bereich: bereichPatch, ...patchOhneBereich } = patch
@@ -158,7 +158,7 @@ export function SubOrderDetail({
           ? { bereich: bereichPatch as Database['public']['Enums']['teilauftrag_bereich'] }
           : {}),
       }
-      const { data, error } = await supabase.from('teilauftraege').update(teilUpdate).eq('id', teil.id)
+      const { data, error } = await supabase.from('teilauftraege').update(teilUpdate).eq('id', subOrder.id)
         .select(TEILAUFTRAG_SPALTEN)
         .single()
       setSpeichLad(false)
@@ -171,14 +171,14 @@ export function SubOrderDetail({
         snapR.current = row
         lokalR.current = row
         setLokal(row)
-        onAktualisiert(row)
+        onUpdated(row)
         if (row.status === 'PREPRESS_BEREIT' && statusVorher !== 'PREPRESS_BEREIT') {
-          const pdfOk = await generateAndDownloadPdf(teil.id, teil.auftrag_id)
+          const pdfOk = await generateAndDownloadPdf(subOrder.id, subOrder.auftrag_id)
           if (!pdfOk) fehler('PDF konnte nicht erstellt werden')
         }
       }
     },
-    [auftragLief, teil.id, teil.auftrag_id, auftragStatus, onAktualisiert, kundePre, fehler]
+    [auftragLief, subOrder.id, subOrder.auftrag_id, orderStatus, onUpdated, kundePre, fehler]
   )
 
   const onLfpPatch = useCallback(
@@ -236,31 +236,31 @@ export function SubOrderDetail({
       snapR.current = row
       lokalR.current = row
       setLokal(row)
-      onAktualisiert(row)
+      onUpdated(row)
     },
-    [onAktualisiert]
+    [onUpdated]
   )
 
-  const globTermin = lokal.termin ?? auftragTermin
+  const globTermin = lokal.termin ?? orderDeadline
   const iso = globTermin
     ? globTermin.length > 10
       ? globTermin.slice(0, 10)
       : globTermin
     : ''
 
-  const auftragIso = auftragTermin ? (auftragTermin.length > 10 ? auftragTermin.slice(0, 10) : auftragTermin) : ''
+  const auftragIso = orderDeadline ? (orderDeadline.length > 10 ? orderDeadline.slice(0, 10) : orderDeadline) : ''
 
   const [sepTermin, setSepTermin] = useState(false)
 
   useEffect(() => {
-    const tNorm = normTeilTermin(teil.termin)
-    const aNorm = normTeilTermin(auftragTermin)
+    const tNorm = normTeilTermin(subOrder.termin)
+    const aNorm = normTeilTermin(orderDeadline)
     setSepTermin(tNorm != null && aNorm != null && tNorm !== aNorm)
-  }, [teil.id, teil.termin, auftragTermin])
+  }, [subOrder.id, subOrder.termin, orderDeadline])
 
   useEffect(() => {
     // Vererbung beim Laden: wenn Teilauftrag-Termin null und Auftrag hat Termin → im Hintergrund speichern.
-    if (!teil.id) return
+    if (!subOrder.id) return
     if (snapR.current.termin != null) return
     if (!auftragIso) return
     let alive = true
@@ -271,7 +271,7 @@ export function SubOrderDetail({
           const { data, error } = await supabase
             .from('teilauftraege')
             .update(terminPatch)
-            .eq('id', teil.id)
+            .eq('id', subOrder.id)
             .select(TEILAUFTRAG_SPALTEN)
             .single()
           if (!alive) return
@@ -282,7 +282,7 @@ export function SubOrderDetail({
             snapR.current = row
             lokalR.current = row
             setLokal(row)
-            onAktualisiert(row)
+            onUpdated(row)
           }
         } catch {
           if (!alive) return
@@ -294,10 +294,10 @@ export function SubOrderDetail({
       alive = false
       window.clearTimeout(timer)
     }
-  }, [auftragIso, onAktualisiert, teil.id, fehler])
+  }, [auftragIso, onUpdated, subOrder.id, fehler])
 
   useEffect(() => {
-    if (!teil.id) return
+    if (!subOrder.id) return
     if (lokal.lieferung != null) return
     let alive = true
     const timer = window.setTimeout(() => {
@@ -309,7 +309,7 @@ export function SubOrderDetail({
           const { data, error } = await supabase
             .from('teilauftraege')
             .update(lieferungPatch)
-            .eq('id', teil.id)
+            .eq('id', subOrder.id)
             .select(TEILAUFTRAG_SPALTEN)
             .single()
           if (!alive) return
@@ -320,7 +320,7 @@ export function SubOrderDetail({
             snapR.current = row
             lokalR.current = row
             setLokal(row)
-            onAktualisiert(row)
+            onUpdated(row)
           }
         } catch {
           if (!alive) return
@@ -332,10 +332,10 @@ export function SubOrderDetail({
       alive = false
       window.clearTimeout(timer)
     }
-  }, [auftragLief, lokal.lieferung, onAktualisiert, teil.id, fehler])
+  }, [auftragLief, lokal.lieferung, onUpdated, subOrder.id, fehler])
 
   useEffect(() => {
-    if (!teil.id) return
+    if (!subOrder.id) return
     if (lokal.prioritaet !== 'NORMAL') return
     if (!auftragPrio || auftragPrio === 'NORMAL') return
     let alive = true
@@ -345,7 +345,7 @@ export function SubOrderDetail({
           const { data, error } = await supabase
             .from('teilauftraege')
             .update({ prioritaet: auftragPrio })
-            .eq('id', teil.id)
+            .eq('id', subOrder.id)
             .select(TEILAUFTRAG_SPALTEN)
             .single()
           if (!alive) return
@@ -356,7 +356,7 @@ export function SubOrderDetail({
             snapR.current = row
             lokalR.current = row
             setLokal(row)
-            onAktualisiert(row)
+            onUpdated(row)
           }
         } catch {
           if (!alive) return
@@ -368,7 +368,7 @@ export function SubOrderDetail({
       alive = false
       window.clearTimeout(timer)
     }
-  }, [auftragPrio, lokal.prioritaet, onAktualisiert, teil.id, fehler])
+  }, [auftragPrio, lokal.prioritaet, onUpdated, subOrder.id, fehler])
 
   const tBadge = teilStatusBadgeAuf(lokal.status)
 
@@ -383,7 +383,7 @@ export function SubOrderDetail({
       </div>
       {pruef &&
         lokal.bereich !== 'SONSTIGE' &&
-        customerMeetsPrepressContact(auftragKunde) === false &&
+        customerMeetsPrepressContact(orderCustomer) === false &&
         (lokal.bereich === 'LFP' ||
           lokal.bereich === 'COPYSHOP' ||
           (lokal.bereich === 'STEMPEL' && lokal.typ !== 'SONSTIGE_STEMPEL') ||
@@ -570,32 +570,32 @@ export function SubOrderDetail({
       </div>
 
       {lokal.bereich === 'LFP' && (
-        <LFPDetail subOrder={lokal} subOrderStatus={lokal.status} onDetailPatch={onLfpPatch} orderFiles={auftragDateien} />
+        <LFPDetail subOrder={lokal} subOrderStatus={lokal.status} onDetailPatch={onLfpPatch} orderFiles={orderFiles} />
       )}
 
       {lokal.bereich === 'COPYSHOP' && (
-        <CopyShopDetail subOrder={lokal} subOrderStatus={lokal.status} onDetailPatch={onCopyShopPatch} orderFiles={auftragDateien} />
+        <CopyShopDetail subOrder={lokal} subOrderStatus={lokal.status} onDetailPatch={onCopyShopPatch} orderFiles={orderFiles} />
       )}
 
       {lokal.bereich === 'STEMPEL' && (
-        <StampDetail subOrder={lokal} subOrderStatus={lokal.status} onDetailPatch={onStempelPatch} orderFiles={auftragDateien} />
+        <StampDetail subOrder={lokal} subOrderStatus={lokal.status} onDetailPatch={onStempelPatch} orderFiles={orderFiles} />
       )}
 
       {lokal.bereich === 'SONSTIGE' && (
-        <OtherDetail subOrder={lokal} subOrderStatus={lokal.status} onDetailPatch={onSonstigePatch} orderFiles={auftragDateien} />
+        <OtherDetail subOrder={lokal} subOrderStatus={lokal.status} onDetailPatch={onSonstigePatch} orderFiles={orderFiles} />
       )}
 
       {lokal.bereich === 'LASERGRAVUR' && (
-        <LaserDetail subOrder={lokal} subOrderStatus={lokal.status} onDetailPatch={onLaserPatch} orderFiles={auftragDateien} />
+        <LaserDetail subOrder={lokal} subOrderStatus={lokal.status} onDetailPatch={onLaserPatch} orderFiles={orderFiles} />
       )}
 
       {lokal.bereich === 'TEXTIL' && (
         <TextileDetail
           subOrder={lokal}
           subOrderStatus={lokal.status}
-          orderStatus={auftragStatus}
-          orderFiles={auftragDateien}
-          orderCustomer={auftragKunde}
+          orderStatus={orderStatus}
+          orderFiles={orderFiles}
+          orderCustomer={orderCustomer}
           onUpdated={onTextilTeilAktualisiert}
         />
       )}
