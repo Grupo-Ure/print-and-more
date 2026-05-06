@@ -27,15 +27,15 @@ export function AddSubOrderOverlay({ open, saving, onBereichSelected, onClose }:
         <h2 id="wa-dialog-title">Neuer Teilauftrag</h2>
         <p className="wa-hint">Bereich wählen:</p>
         <div className="wa-bereich-grid">
-          {TEILAUFTRAG_BEREICHE.map(b => (
+          {TEILAUFTRAG_BEREICHE.map(department => (
             <button
-              key={b}
+              key={department}
               type="button"
               className="wa-bereich-btn"
               disabled={saving}
-              onClick={() => onBereichSelected(b)}
+              onClick={() => onBereichSelected(department)}
             >
-              {TEILAUFTRAG_BEREICH_ANZEIGE[b]}
+              {TEILAUFTRAG_BEREICH_ANZEIGE[department]}
             </button>
           ))}
         </div>

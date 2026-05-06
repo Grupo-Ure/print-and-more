@@ -12,14 +12,14 @@ export type FileRecord = {
   erstellt_am: string
 }
 
-const ROLLEN: { value: FileRole; label: string }[] = [
+const ROLES: { value: FileRole; label: string }[] = [
   { value: 'PRODUKTIONSDATEI', label: 'Produktionsdatei' },
   { value: 'VORSCHAU', label: 'Vorschau / Mockup' },
   { value: 'KUNDENFREIGABE', label: 'Kundenfreigabe' },
   { value: 'REFERENZ', label: 'Referenz / Altstand' },
 ]
 
-const ROLLE_KURZ: Record<FileRole, string> = {
+const ROLE_SHORT_LABELS: Record<FileRole, string> = {
   PRODUKTIONSDATEI: 'Produkt.',
   VORSCHAU: 'Vorschau',
   KUNDENFREIGABE: 'Freigabe',
@@ -34,78 +34,78 @@ type Props = {
 }
 
 export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: Props) {
-  const laden = filesLoading
+  const loading = filesLoading
   const { erfolg } = useToast()
-  const [anzeigename, setAnzeigename] = useState('')
-  const [pfad, setPfad] = useState('')
-  const [rolle, setRolle] = useState<FileRole>('PRODUKTIONSDATEI')
-  const [fehler, setFehler] = useState<string | null>(null)
-  const [speichert, setSpeichert] = useState(false)
-  const [entferntId, setEntferntId] = useState<string | null>(null)
-  const [formOffen, setFormOffen] = useState(false)
+  const [displayName, setDisplayName] = useState('')
+  const [path, setPath] = useState('')
+  const [role, setRole] = useState<FileRole>('PRODUKTIONSDATEI')
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [removingId, setRemovingId] = useState<string | null>(null)
+  const [formOpen, setFormOpen] = useState(false)
 
   const openParentFolder = useCallback(
-    async (rawPfad: string) => {
-      const p = (rawPfad ?? '').trim()
-      if (!p) return
-      const norm = p.replace(/\\/g, '/').replace(/\/+$/g, '')
-      const idx = norm.lastIndexOf('/')
-      const parentPath = idx > 0 ? norm.slice(0, idx) : norm
+    async (rawPath: string) => {
+      const trimmedPath = (rawPath ?? '').trim()
+      if (!trimmedPath) return
+      const normalizedPath = trimmedPath.replace(/\\/g, '/').replace(/\/+$/g, '')
+      const lastSlashIndex = normalizedPath.lastIndexOf('/')
+      const parentPath = lastSlashIndex > 0 ? normalizedPath.slice(0, lastSlashIndex) : normalizedPath
       try {
         window.location.href = 'file://' + parentPath
       } catch {
         try {
-          await navigator.clipboard.writeText(p)
+          await navigator.clipboard.writeText(trimmedPath)
           erfolg('Pfad in Zwischenablage kopiert')
         } catch {
-          // Clipboard kann im Browser blockiert sein
+          // clipboard may be blocked by the browser
         }
       }
     },
     [erfolg],
   )
 
-  const handleHinzufuegen = async (e: FormEvent) => {
+  const handleAdd = async (e: FormEvent) => {
     e.preventDefault()
-    setFehler(null)
-    const n = anzeigename.trim()
-    const p = pfad.trim()
-    if (!n || !p) {
-      setFehler('Anzeigename und Pfad sind erforderlich.')
+    setError(null)
+    const trimmedName = displayName.trim()
+    const trimmedPath = path.trim()
+    if (!trimmedName || !trimmedPath) {
+      setError('Anzeigename und Pfad sind erforderlich.')
       return
     }
-    setSpeichert(true)
-    const { data, error } = await supabase
+    setSaving(true)
+    const { data, error: insertError } = await supabase
       .from('dateien')
       .insert({
         auftrag_id: activeOrderId,
-        anzeigename: n,
-        pfad: p,
-        rolle,
+        anzeigename: trimmedName,
+        pfad: trimmedPath,
+        rolle: role,
       })
       .select('id, anzeigename, pfad, rolle, erstellt_am')
       .single()
-    setSpeichert(false)
-    if (error) {
-      setFehler(error.message)
+    setSaving(false)
+    if (insertError) {
+      setError(insertError.message)
       return
     }
     if (data) {
-      setAnzeigename('')
-      setPfad('')
-      setRolle('PRODUKTIONSDATEI')
-      setFormOffen(false)
+      setDisplayName('')
+      setPath('')
+      setRole('PRODUKTIONSDATEI')
+      setFormOpen(false)
       void onFileChanged(data as FileRecord)
     }
   }
 
-  const handleEntfernen = async (id: string) => {
-    setFehler(null)
-    setEntferntId(id)
-    const { error } = await supabase.from('dateien').delete().eq('id', id)
-    setEntferntId(null)
-    if (error) {
-      setFehler(error.message)
+  const handleRemove = async (id: string) => {
+    setError(null)
+    setRemovingId(id)
+    const { error: deleteError } = await supabase.from('dateien').delete().eq('id', id)
+    setRemovingId(null)
+    if (deleteError) {
+      setError(deleteError.message)
       return
     }
     void onFileChanged()
@@ -118,20 +118,20 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
         <button
           type="button"
           className="wa-dl-add"
-          onClick={() => setFormOffen(o => !o)}
+          onClick={() => setFormOpen(open => !open)}
         >
-          {formOffen ? 'Abbrechen' : '+ Hinzufügen'}
+          {formOpen ? 'Abbrechen' : '+ Hinzufügen'}
         </button>
       </div>
-      {fehler && <p className="wa-dl-err">{fehler}</p>}
+      {error && <p className="wa-dl-err">{error}</p>}
 
-      {formOffen && (
-        <form onSubmit={e => void handleHinzufuegen(e)} className="wa-dl-form">
+      {formOpen && (
+        <form onSubmit={e => void handleAdd(e)} className="wa-dl-form">
           <div className="wa-dl-formzeile">
             <input
               className="ber-inp"
-              value={anzeigename}
-              onChange={e => setAnzeigename(e.target.value)}
+              value={displayName}
+              onChange={e => setDisplayName(e.target.value)}
               placeholder="Anzeigename"
               required
               maxLength={500}
@@ -139,35 +139,35 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
             />
             <input
               className="ber-inp"
-              value={pfad}
-              onChange={e => setPfad(e.target.value)}
+              value={path}
+              onChange={e => setPath(e.target.value)}
               required
               placeholder="Pfad (UNC …)"
               maxLength={2000}
-              title={pfad}
+              title={path}
               aria-label="Pfad"
             />
             <select
               className="ber-inp wa-dl-rolle"
-              value={rolle}
-              onChange={e => setRolle(e.target.value as FileRole)}
+              value={role}
+              onChange={e => setRole(e.target.value as FileRole)}
               required
               aria-label="Rolle"
             >
-              {ROLLEN.map(r => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
+              {ROLES.map(roleOption => (
+                <option key={roleOption.value} value={roleOption.value}>
+                  {roleOption.label}
                 </option>
               ))}
             </select>
-            <button type="submit" className="wa-dl-submit" disabled={speichert} title="Hinzufügen">
-              {speichert ? '…' : '+'}
+            <button type="submit" className="wa-dl-submit" disabled={saving} title="Hinzufügen">
+              {saving ? '…' : '+'}
             </button>
           </div>
         </form>
       )}
 
-      {laden ? (
+      {loading ? (
         <p className="ber-hinweis" style={{ fontStyle: 'normal', fontSize: 12, margin: '4px 0' }}>
           Lädt Dateien …
         </p>
@@ -177,12 +177,12 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
         </p>
       ) : (
         <ul className="wa-dl-list">
-          {files.map(d => (
-            <li key={d.id} className="wa-dl-item">
+          {files.map(file => (
+            <li key={file.id} className="wa-dl-item">
               <button
                 type="button"
                 className="wa-dl-name"
-                title={`${d.anzeigename}\n${d.pfad}`}
+                title={`${file.anzeigename}\n${file.pfad}`}
                 style={{
                   background: 'transparent',
                   border: 'none',
@@ -191,23 +191,23 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
                   padding: 0,
                   textAlign: 'left',
                 }}
-                onClick={() => void openParentFolder(d.pfad)}
+                onClick={() => void openParentFolder(file.pfad)}
               >
-                <span aria-hidden>📄</span> {d.anzeigename}
+                <span aria-hidden>📄</span> {file.anzeigename}
               </button>
-              <span className="badge badge-grau" title={ROLLEN.find(r => r.value === d.rolle)?.label ?? d.rolle}>
-                {ROLLE_KURZ[d.rolle]}
+              <span className="badge badge-grau" title={ROLES.find(roleOption => roleOption.value === file.rolle)?.label ?? file.rolle}>
+                {ROLE_SHORT_LABELS[file.rolle]}
               </span>
-              <span className="wa-dl-pfad" title={d.pfad}>
-                {d.pfad}
+              <span className="wa-dl-pfad" title={file.pfad}>
+                {file.pfad}
               </span>
               <button
                 type="button"
                 className="wa-dl-rm"
-                onClick={() => void handleEntfernen(d.id)}
-                disabled={entferntId === d.id}
+                onClick={() => void handleRemove(file.id)}
+                disabled={removingId === file.id}
                 title="Entfernen"
-                aria-label={`Entfernen: ${d.anzeigename}`}
+                aria-label={`Entfernen: ${file.anzeigename}`}
               >
                 ×
               </button>

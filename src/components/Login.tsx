@@ -3,15 +3,15 @@ import { supabase } from '../supabase'
 
 export function Login() {
   const [email, setEmail] = useState('')
-  const [passwort, setPasswort] = useState('')
-  const [fehler, setFehler] = useState('')
+  const [password, setPassword] = useState('')
+  const [loginError, setLoginError] = useState('')
 
-  async function einloggen() {
+  async function handleLogin() {
     const { error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
-      password: passwort,
+      password,
     })
-    if (error) setFehler(error.message)
+    if (error) setLoginError(error.message)
   }
 
   return (
@@ -27,12 +27,12 @@ export function Login() {
         <input
           placeholder="Passwort"
           type="password"
-          value={passwort}
-          onChange={e => setPasswort(e.target.value)}
+          value={password}
+          onChange={e => setPassword(e.target.value)}
           style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6 }}
         />
-        {fehler && <p style={{ color: 'red', fontSize: 13 }}>{fehler}</p>}
-        <button onClick={einloggen} style={{ padding: 8, background: '#18181b', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+        {loginError && <p style={{ color: 'red', fontSize: 13 }}>{loginError}</p>}
+        <button onClick={handleLogin} style={{ padding: 8, background: '#18181b', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
           Einloggen
         </button>
       </div>

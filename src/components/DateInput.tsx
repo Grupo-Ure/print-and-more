@@ -3,10 +3,7 @@ import type { InputHTMLAttributes } from 'react'
 
 export type DateInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>
 
-/**
- * Nativer Datums-Input: schließt den Kalender nach Auswahl
- * (blur nach onChange, nach Parent-Handler).
- */
+/** Native date input: closes the calendar picker after a date is selected (blur after onChange, after the parent handler). */
 export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function DateInput(
   { onChange, ...rest },
   ref
@@ -19,8 +16,8 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
       onChange={e => {
         onChange?.(e)
         const el = e.currentTarget
-        const v = el.value
-        if (v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v)) {
+        const value = el.value
+        if (value === '' || /^\d{4}-\d{2}-\d{2}$/.test(value)) {
           queueMicrotask(() => {
             el.blur()
           })
