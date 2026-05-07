@@ -21,7 +21,7 @@ type Props = {
   orderFiles?: FileRecord[]
 }
 
-type ProduktRow = {
+type ProductRow = {
   id: string
   teilauftrag_id: string
   bereich: string
@@ -30,44 +30,44 @@ type ProduktRow = {
   erstellt_am: string | null
 }
 
-function stempelRoh(subOrder: TeilauftragRow): StampDetailJson {
+function rawStampDetail(subOrder: TeilauftragRow): StampDetailJson {
   return { ...teilJsonAlsFeldertabelle(subOrder.detail) }
 }
 
-type BlK = {
-  d: StampDetailJson
-  fe: (k: string) => string
-  pruef: boolean
-  f: Record<string, string>
-  patchL: (p: StampDetailJson) => void
-  commit: () => void
-  speichDetail: (d: StampDetailJson) => void
+type StampFormContext = {
+  detail: StampDetailJson
+  fieldErrorClass: (fieldKey: string) => string
+  shouldValidate: boolean
+  errors: Record<string, string>
+  patchLocal: (patch: StampDetailJson) => void
+  commitChanges: () => void
+  saveDetail: (newDetail: StampDetailJson) => void
 }
 
-const EXTRA_TYPEN = ['NACHFUELLFARBE', 'STEMPELKISSEN', 'STEMPELPLATTE', 'TRODAT_KISSEN'] as const
-const EXTRA_TYP_ANZEIGE: Record<(typeof EXTRA_TYPEN)[number], string> = {
+const EXTRA_TYPES = ['NACHFUELLFARBE', 'STEMPELKISSEN', 'STEMPELPLATTE', 'TRODAT_KISSEN'] as const
+const EXTRA_TYPE_LABELS: Record<(typeof EXTRA_TYPES)[number], string> = {
   NACHFUELLFARBE: 'Nachfüllfarbe',
   STEMPELKISSEN: 'Stempelkissen',
   STEMPELPLATTE: 'Stempelplatte',
   TRODAT_KISSEN: 'Trodat Ersatzkissen',
 }
 
-const NACHFUELLFARBE_FARBEN = ['SCHWARZ', 'ROT', 'BLAU', 'GRUEN'] as const
-const NACHFUELLFARBE_TINTE_TYP = ['NORMAL', 'HAUTVERTRAEGLICH', 'TEXTIL'] as const
-const NACHFUELLFARBE_TINTE_TYP_ANZEIGE: Record<(typeof NACHFUELLFARBE_TINTE_TYP)[number], string> = {
+const REFILL_INK_COLORS = ['SCHWARZ', 'ROT', 'BLAU', 'GRUEN'] as const
+const REFILL_INK_TYPES = ['NORMAL', 'HAUTVERTRAEGLICH', 'TEXTIL'] as const
+const REFILL_INK_TYPE_LABELS: Record<(typeof REFILL_INK_TYPES)[number], string> = {
   NORMAL: 'Normal',
   HAUTVERTRAEGLICH: 'Hautverträglich',
   TEXTIL: 'Textil',
 }
 
-const STEMPELKISSEN_GROESSE = ['KLEIN', 'MITTEL', 'GROSS'] as const
-const STEMPELKISSEN_GROESSE_ANZEIGE: Record<(typeof STEMPELKISSEN_GROESSE)[number], string> = {
+const STAMP_PAD_SIZES = ['KLEIN', 'MITTEL', 'GROSS'] as const
+const STAMP_PAD_SIZE_LABELS: Record<(typeof STAMP_PAD_SIZES)[number], string> = {
   KLEIN: 'Klein',
   MITTEL: 'Mittel',
   GROSS: 'Groß',
 }
 
-type StempelModell = {
+type StampModel = {
   id: string
   name: string
   max_breite_mm: number | null
@@ -77,53 +77,53 @@ type StempelModell = {
   ersatzkissen_artikelnummer: string | null
 }
 
-const ERSATZ_KISSEN_FARBEN_REIHE = ['SCHWARZ', 'ROT', 'BLAU', 'GRUEN'] as const
+const REPLACEMENT_PAD_COLOR_SEQUENCE = ['SCHWARZ', 'ROT', 'BLAU', 'GRUEN'] as const
 
-type ErsatzKissenZeile = { farbe: string; label: string; bestand: number }
+type ReplacementCushionRow = { farbe: string; label: string; bestand: number }
 
-type KissenArtikelRow = { artikelnummer: string; name: string }
-type KissenFarbButton = { id: string; farbe: (typeof ERSATZ_KISSEN_FARBEN_REIHE)[number]; bestand: number }
+type CushionArticleRow = { artikelnummer: string; name: string }
+type CushionColorButton = { id: string; farbe: (typeof REPLACEMENT_PAD_COLOR_SEQUENCE)[number]; bestand: number }
 
-function escIlike(s: string): string {
+function escapeIlike(s: string): string {
   return s.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
 }
 
-async function ladeKissenFarbzeilen(artikelnummer: string): Promise<KissenFarbButton[]> {
+async function loadCushionColorRows(articleNumber: string): Promise<CushionColorButton[]> {
   const { data, error } = await supabase
     .from('stempel_modelle')
     .select('id, farbe, bestand')
     .eq('typ', 'TRODAT_KISSEN')
-    .eq('artikelnummer', artikelnummer)
+    .eq('artikelnummer', articleNumber)
     .order('farbe', { ascending: true })
   if (error) {
     console.error(error)
-    return ERSATZ_KISSEN_FARBEN_REIHE.map(farbe => ({ id: '', farbe, bestand: 0 }))
+    return REPLACEMENT_PAD_COLOR_SEQUENCE.map(farbe => ({ id: '', farbe, bestand: 0 }))
   }
-  const list = (data ?? []) as { id: string; farbe: string | null; bestand: number | null }[]
-  const byF = new Map<string, (typeof list)[0]>()
-  for (const r of list) {
-    if (r.farbe) byF.set(r.farbe, r)
+  const colorRows = (data ?? []) as { id: string; farbe: string | null; bestand: number | null }[]
+  const byColor = new Map<string, (typeof colorRows)[0]>()
+  for (const row of colorRows) {
+    if (row.farbe) byColor.set(row.farbe, row)
   }
-  return ERSATZ_KISSEN_FARBEN_REIHE.map(farbe => {
-    const r = byF.get(farbe)
-    return { id: r?.id && String(r.id) ? String(r.id) : '', farbe, bestand: r ? Number(r.bestand) || 0 : 0 }
+  return REPLACEMENT_PAD_COLOR_SEQUENCE.map(farbe => {
+    const colorRow = byColor.get(farbe)
+    return { id: colorRow?.id && String(colorRow.id) ? String(colorRow.id) : '', farbe, bestand: colorRow ? Number(colorRow.bestand) || 0 : 0 }
   })
 }
 
-function toPosIntOrNull(v: unknown): number | null {
+function toPositiveIntOrNull(v: unknown): number | null {
   if (v == null || v === '') return null
-  const n = typeof v === 'number' ? v : parseInt(String(v), 10)
-  if (!Number.isInteger(n) || n <= 0) return null
-  return n
+  const parsed = typeof v === 'number' ? v : parseInt(String(v), 10)
+  if (!Number.isInteger(parsed) || parsed <= 0) return null
+  return parsed
 }
 
-function typLabel(t: string): string {
-  if ((EXTRA_TYPEN as readonly string[]).includes(t)) return EXTRA_TYP_ANZEIGE[t as (typeof EXTRA_TYPEN)[number]]
+function typeLabel(t: string): string {
+  if ((EXTRA_TYPES as readonly string[]).includes(t)) return EXTRA_TYPE_LABELS[t as (typeof EXTRA_TYPES)[number]]
   if ((STAMP_TYPES as readonly string[]).includes(t)) return STAMP_TYPE_LABELS[t as (typeof STAMP_TYPES)[number]]
   return t
 }
 
-type ProduktFileRecordZuordnung = { zuordnungId: string; dateiId: string }
+type ProductFileAssignment = { assignmentId: string; fileId: string }
 
 export function StampDetail({
   subOrder,
@@ -131,27 +131,27 @@ export function StampDetail({
   onDetailPatch,
   orderFiles = [],
 }: Props) {
-  const { fehler: toastFehler } = useToast()
+  const { fehler: showError } = useToast()
 
-  const [produkte, setProdukte] = useState<ProduktRow[]>([])
-  const [productFiles, setProduktDateien] = useState<Record<string, ProduktFileRecordZuordnung[]>>({})
+  const [products, setProducts] = useState<ProductRow[]>([])
+  const [productFiles, setProductFiles] = useState<Record<string, ProductFileAssignment[]>>({})
   const productFilesRef = useRef(productFiles)
   productFilesRef.current = productFiles
-  const [produkteLaden, setProdukteLaden] = useState(false)
+  const [productsLoading, setProductsLoading] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [entsperrt, setEntsperrt] = useState(false)
+  const [unlocked, setUnlocked] = useState(false)
   const [formFileRecordIds, setFormFileRecordIds] = useState<string[]>([])
 
-  const [typ, setTyp] = useState<string | null>(subOrder.typ)
-  const [detail, setDetail] = useState<StampDetailJson>(stempelRoh(subOrder))
-  const detailR = useRef(detail)
-  const typR = useRef(typ)
+  const [stampType, setStampType] = useState<string | null>(subOrder.typ)
+  const [detail, setDetail] = useState<StampDetailJson>(rawStampDetail(subOrder))
+  const detailRef = useRef(detail)
+  const stampTypeRef = useRef(stampType)
   useEffect(() => {
-    detailR.current = detail
+    detailRef.current = detail
   }, [detail])
   useEffect(() => {
-    typR.current = typ
-  }, [typ])
+    stampTypeRef.current = stampType
+  }, [stampType])
 
   useEffect(() => {
     setEditingId(null)
@@ -159,23 +159,23 @@ export function StampDetail({
   }, [subOrder.id])
 
   useEffect(() => {
-    setEntsperrt(false)
+    setUnlocked(false)
   }, [subOrder.id])
 
   useEffect(() => {
     if (editingId !== null) return
-    setTyp(subOrder.typ)
-    const d = stempelRoh(subOrder)
-    setDetail(d)
-    detailR.current = d
-    typR.current = subOrder.typ
+    setStampType(subOrder.typ)
+    const freshDetail = rawStampDetail(subOrder)
+    setDetail(freshDetail)
+    detailRef.current = freshDetail
+    stampTypeRef.current = subOrder.typ
   }, [subOrder, editingId])
 
   const loadFilesForProducts = useCallback(
-    async (produktRows: ProduktRow[]) => {
-      const ids = produktRows.map(p => p.id)
+    async (productRows: ProductRow[]) => {
+      const ids = productRows.map(p => p.id)
       if (ids.length === 0) {
-        setProduktDateien({})
+        setProductFiles({})
         return
       }
       const { data, error } = await supabase
@@ -183,45 +183,45 @@ export function StampDetail({
         .select('id, produkt_id, datei_id')
         .in('produkt_id', ids)
       if (error) {
-        toastFehler('FileRecord-Zuordnungen konnten nicht geladen werden')
-        setProduktDateien({})
+        showError('FileRecord-Zuordnungen konnten nicht geladen werden')
+        setProductFiles({})
         return
       }
       const rows = (data ?? []) as Pick<
         Database['public']['Tables']['produkt_dateien']['Row'],
         'id' | 'produkt_id' | 'datei_id'
       >[]
-      const next: Record<string, ProduktFileRecordZuordnung[]> = {}
+      const fileMap: Record<string, ProductFileAssignment[]> = {}
       for (const row of rows) {
-        const list = next[row.produkt_id] ?? (next[row.produkt_id] = [])
-        list.push({ zuordnungId: row.id, dateiId: row.datei_id })
+        const assignmentList = fileMap[row.produkt_id] ?? (fileMap[row.produkt_id] = [])
+        assignmentList.push({ assignmentId: row.id, fileId: row.datei_id })
       }
-      setProduktDateien(next)
+      setProductFiles(fileMap)
     },
-    [toastFehler],
+    [showError],
   )
 
-  const reloadProdukte = useCallback(async (): Promise<ProduktRow[]> => {
+  const reloadProducts = useCallback(async (): Promise<ProductRow[]> => {
     if (!subOrder.id) {
       await loadFilesForProducts([])
       return []
     }
-    setProdukteLaden(true)
+    setProductsLoading(true)
     const { data, error } = await supabase
       .from('teilauftrag_produkte')
       .select('*')
       .eq('teilauftrag_id', subOrder.id)
       .eq('bereich', 'STEMPEL')
       .order('sort_order')
-    setProdukteLaden(false)
+    setProductsLoading(false)
     if (error) {
-      toastFehler('Produkte konnten nicht geladen werden')
-      setProdukte([])
+      showError('Produkte konnten nicht geladen werden')
+      setProducts([])
       await loadFilesForProducts([])
       return []
     }
     const rows = (data ?? []) as Database['public']['Tables']['teilauftrag_produkte']['Row'][]
-    const mapped: ProduktRow[] = rows.map(r => ({
+    const mapped: ProductRow[] = rows.map(r => ({
       id: r.id,
       teilauftrag_id: r.teilauftrag_id,
       bereich: r.bereich,
@@ -229,227 +229,227 @@ export function StampDetail({
       sort_order: r.sort_order,
       erstellt_am: r.erstellt_am,
     }))
-    setProdukte(mapped)
+    setProducts(mapped)
     await loadFilesForProducts(mapped)
     return mapped
-  }, [subOrder.id, toastFehler, loadFilesForProducts])
+  }, [subOrder.id, showError, loadFilesForProducts])
 
   useEffect(() => {
-    void reloadProdukte()
-  }, [reloadProdukte])
+    void reloadProducts()
+  }, [reloadProducts])
 
-  const dateiZuProduktZuordnen = useCallback(
-    async (produktId: string, dateiId: string, produktRowsForReload?: ProduktRow[]) => {
-      const reloadRows = produktRowsForReload ?? produkte
-      if (productFilesRef.current[produktId]?.some(z => z.dateiId === dateiId)) return
-      const ins: Database['public']['Tables']['produkt_dateien']['Insert'] = {
+  const assignFileToProduct = useCallback(
+    async (produktId: string, dateiId: string, produktRowsForReload?: ProductRow[]) => {
+      const reloadRows = produktRowsForReload ?? products
+      if (productFilesRef.current[produktId]?.some(z => z.fileId === dateiId)) return
+      const insertRow: Database['public']['Tables']['produkt_dateien']['Insert'] = {
         produkt_id: produktId,
         datei_id: dateiId,
       }
-      const { error } = await supabase.from('produkt_dateien').insert(ins)
+      const { error } = await supabase.from('produkt_dateien').insert(insertRow)
       if (error) {
-        toastFehler('FileRecord konnte nicht zugeordnet werden')
+        showError('FileRecord konnte nicht zugeordnet werden')
         return
       }
       await loadFilesForProducts(reloadRows)
     },
-    [toastFehler, produkte, loadFilesForProducts],
+    [showError, products, loadFilesForProducts],
   )
 
-  const dateiVonProduktEntfernen = useCallback(
-    async (zuordnungId: string, produktRowsForReload?: ProduktRow[]) => {
+  const removeFileFromProduct = useCallback(
+    async (zuordnungId: string, produktRowsForReload?: ProductRow[]) => {
       const { error } = await supabase.from('produkt_dateien').delete().eq('id', zuordnungId)
       if (error) {
-        toastFehler('Zuordnung konnte nicht entfernt werden')
+        showError('Zuordnung konnte nicht entfernt werden')
         return
       }
-      await loadFilesForProducts(produktRowsForReload ?? produkte)
+      await loadFilesForProducts(produktRowsForReload ?? products)
     },
-    [toastFehler, produkte, loadFilesForProducts],
+    [showError, products, loadFilesForProducts],
   )
 
   const resetForm = useCallback(() => {
     setEditingId(null)
     setFormFileRecordIds([])
-    setTyp(subOrder.typ)
-    const d = stempelRoh(subOrder)
-    setDetail(d)
-    detailR.current = d
-    typR.current = subOrder.typ
+    setStampType(subOrder.typ)
+    const freshDetail = rawStampDetail(subOrder)
+    setDetail(freshDetail)
+    detailRef.current = freshDetail
+    stampTypeRef.current = subOrder.typ
   }, [subOrder])
 
-  const stempelFehler = validateStampDetail(typ, detail, subOrderStatus)
-  const pruef = subOrderStatus !== 'ANGEBOT'
-  const fe = (k: string) => (pruef && stempelFehler[k] ? ' ber-inp--err' : '')
+  const stampErrors = validateStampDetail(stampType, detail, subOrderStatus)
+  const shouldValidate = subOrderStatus !== 'ANGEBOT'
+  const fieldErrorClass = (fieldKey: string) => (shouldValidate && stampErrors[fieldKey] ? ' ber-inp--err' : '')
 
-  const bVal = toPosIntOrNull(detail.format_breite)
-  const hVal = toPosIntOrNull(detail.format_hoehe)
-  const hatMass = (bVal ?? 0) > 0 || (hVal ?? 0) > 0
+  const widthValue = toPositiveIntOrNull(detail.format_breite)
+  const heightValue = toPositiveIntOrNull(detail.format_hoehe)
+  const hasDimensions = (widthValue ?? 0) > 0 || (heightValue ?? 0) > 0
 
-  const showMass = typ !== 'NACHFUELLFARBE' && typ !== 'STEMPELKISSEN' && typ !== 'TRODAT_KISSEN'
-  const showBeschreibung =
-    typ !== 'NACHFUELLFARBE' &&
-    typ !== 'STEMPELKISSEN' &&
-    typ !== 'TRODAT_KISSEN' &&
-    typ !== 'STEMPELPLATTE' &&
-    !!typ
-  const showFarbe = showBeschreibung // alle "klassischen" Typen
-  const showAnzahl = !!typ
+  const showDimensions = stampType !== 'NACHFUELLFARBE' && stampType !== 'STEMPELKISSEN' && stampType !== 'TRODAT_KISSEN'
+  const showDescription =
+    stampType !== 'NACHFUELLFARBE' &&
+    stampType !== 'STEMPELKISSEN' &&
+    stampType !== 'TRODAT_KISSEN' &&
+    stampType !== 'STEMPELPLATTE' &&
+    !!stampType
+  const showColor = showDescription // alle "klassischen" Typen
+  const showQuantity = !!stampType
 
-  const [modelle, setModelle] = useState<StempelModell[]>([])
-  const [modelleLaden, setModelleLaden] = useState(false)
-  const [modelleFehler, setModelleFehler] = useState<string | null>(null)
+  const [models, setModels] = useState<StampModel[]>([])
+  const [modelsLoading, setModelsLoading] = useState(false)
+  const [modelError, setModelError] = useState<string | null>(null)
 
-  const modellName = String(detail['modell_name'] ?? '')
+  const modelName = String(detail['modell_name'] ?? '')
 
-  const [gewaehltesModellId, setGewaehltesModellId] = useState<string | null>(() => {
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(() => {
     const td = teilJsonAlsFeldertabelle(subOrder.detail)
     return String(td['modell_id'] ?? '') || null
   })
-  const [gewaehltesModellName, setGewaehltesModellName] = useState<string | null>(() => {
+  const [selectedModelName, setSelectedModelName] = useState<string | null>(() => {
     const td = teilJsonAlsFeldertabelle(subOrder.detail)
     return String(td['modell_name'] ?? '') || null
   })
 
-  const [ersatzKissen, setErsatzKissen] = useState<ErsatzKissenZeile[] | null>(null)
+  const [replacementCushions, setReplacementCushions] = useState<ReplacementCushionRow[] | null>(null)
 
-  const [kissenInput, setKissenInput] = useState('')
-  const [kissenQDeb, setKissenQDeb] = useState('')
-  const [kissenTreffer, setKissenTreffer] = useState<KissenArtikelRow[]>([])
-  const [kissenSucheLaden, setKissenSucheLaden] = useState(false)
-  const [kissenSucheFehler, setKissenSucheFehler] = useState<string | null>(null)
-  const [kissenFarbOptionen, setKissenFarbOptionen] = useState<KissenFarbButton[]>([])
+  const [cushionSearchInput, setCushionSearchInput] = useState('')
+  const [cushionSearchDebounced, setCushionSearchDebounced] = useState('')
+  const [cushionSearchResults, setCushionSearchResults] = useState<CushionArticleRow[]>([])
+  const [cushionSearchLoading, setCushionSearchLoading] = useState(false)
+  const [cushionSearchError, setCushionSearchError] = useState<string | null>(null)
+  const [cushionColorOptions, setCushionColorOptions] = useState<CushionColorButton[]>([])
 
   useEffect(() => {
     const td = teilJsonAlsFeldertabelle(subOrder.detail)
-    setGewaehltesModellId(String(td['modell_id'] ?? '') || null)
-    setGewaehltesModellName(String(td['modell_name'] ?? '') || null)
+    setSelectedModelId(String(td['modell_id'] ?? '') || null)
+    setSelectedModelName(String(td['modell_name'] ?? '') || null)
   }, [subOrder])
 
   useEffect(() => {
-    const t = typR.current
-    const d = detailR.current
-    const b = toPosIntOrNull(d.format_breite)
-    const h = toPosIntOrNull(d.format_hoehe)
-    const has = (b ?? 0) > 0 || (h ?? 0) > 0
-    const isVorschlagTyp = t === 'TRODAT_PRINTY' || t === 'HOLZSTEMPEL'
-    if (!isVorschlagTyp || !has) {
-      setModelle([])
-      setModelleFehler(null)
-      setModelleLaden(false)
+    const currentType = stampTypeRef.current
+    const currentDetail = detailRef.current
+    const width = toPositiveIntOrNull(currentDetail.format_breite)
+    const height = toPositiveIntOrNull(currentDetail.format_hoehe)
+    const hasDimensions = (width ?? 0) > 0 || (height ?? 0) > 0
+    const isModelSuggestionType = currentType === 'TRODAT_PRINTY' || currentType === 'HOLZSTEMPEL'
+    if (!isModelSuggestionType || !hasDimensions) {
+      setModels([])
+      setModelError(null)
+      setModelsLoading(false)
       return
     }
 
     let alive = true
-    setModelleLaden(true)
-    setModelleFehler(null)
+    setModelsLoading(true)
+    setModelError(null)
 
-    const q0 = supabase
+    const modelQuery = supabase
       .from('stempel_modelle')
       .select('id, name, max_breite_mm, max_hoehe_mm, druckflaeche, bestand, ersatzkissen_artikelnummer')
-      .eq('typ', t as string)
+      .eq('typ', currentType as string)
       .eq('aktiv', true)
 
     void (async () => {
       try {
-        const { data, error } = await q0
+        const { data, error } = await modelQuery
         if (!alive) return
         if (error) {
-          setModelle([])
-          setModelleFehler(error.message)
+          setModels([])
+          setModelError(error.message)
         } else {
-          const breite = toPosIntOrNull(detailR.current.format_breite)
-          const hoehe = toPosIntOrNull(detailR.current.format_hoehe)
-          const breite0 = breite ?? 0
-          const hoehe0 = hoehe ?? 0
+          const width = toPositiveIntOrNull(detailRef.current.format_breite)
+          const height = toPositiveIntOrNull(detailRef.current.format_hoehe)
+          const baseWidth = width ?? 0
+          const baseHeight = height ?? 0
 
-          const list = ((data ?? []) as StempelModell[]).filter(m => {
-            const mw = m.max_breite_mm ?? 0
-            const mh = m.max_hoehe_mm ?? 0
-            if (breite != null && hoehe != null) return mw >= breite && mh >= hoehe
-            if (breite != null) return mw >= breite
-            if (hoehe != null) return mh >= hoehe
+          const filteredModels = ((data ?? []) as StampModel[]).filter(m => {
+            const modelWidth = m.max_breite_mm ?? 0
+            const modelHeight = m.max_hoehe_mm ?? 0
+            if (width != null && height != null) return modelWidth >= width && modelHeight >= height
+            if (width != null) return modelWidth >= width
+            if (height != null) return modelHeight >= height
             return true
           })
 
-          const sorted = list
+          const sorted = filteredModels
             .slice()
             .sort((a, b) => {
               const distA =
-                Math.abs((a.max_breite_mm ?? 0) - breite0) + Math.abs((a.max_hoehe_mm ?? 0) - hoehe0)
+                Math.abs((a.max_breite_mm ?? 0) - baseWidth) + Math.abs((a.max_hoehe_mm ?? 0) - baseHeight)
               const distB =
-                Math.abs((b.max_breite_mm ?? 0) - breite0) + Math.abs((b.max_hoehe_mm ?? 0) - hoehe0)
+                Math.abs((b.max_breite_mm ?? 0) - baseWidth) + Math.abs((b.max_hoehe_mm ?? 0) - baseHeight)
               return distA - distB
             })
             .slice(0, 8)
 
-          setModelle(sorted)
-          setModelleFehler(null)
+          setModels(sorted)
+          setModelError(null)
         }
       } catch (e) {
         if (!alive) return
-        setModelle([])
-        setModelleFehler(e instanceof Error ? e.message : String(e))
+        setModels([])
+        setModelError(e instanceof Error ? e.message : String(e))
       } finally {
-        if (alive) setModelleLaden(false)
+        if (alive) setModelsLoading(false)
       }
     })()
 
     return () => {
       alive = false
     }
-  }, [typ, bVal, hVal])
+  }, [stampType, widthValue, heightValue])
 
   useEffect(() => {
-    if (!gewaehltesModellId) {
-      setErsatzKissen(null)
+    if (!selectedModelId) {
+      setReplacementCushions(null)
       return
     }
     let alive = true
     void (async () => {
-      const fromList = modelle.find(m => m.id === gewaehltesModellId)
-      let art: string | null = (fromList?.ersatzkissen_artikelnummer && String(fromList.ersatzkissen_artikelnummer).trim()) || null
-      if (!art) {
+      const fromList = models.find(m => m.id === selectedModelId)
+      let articleNumber: string | null = (fromList?.ersatzkissen_artikelnummer && String(fromList.ersatzkissen_artikelnummer).trim()) || null
+      if (!articleNumber) {
         const { data, error } = await supabase
           .from('stempel_modelle')
           .select('ersatzkissen_artikelnummer')
-          .eq('id', gewaehltesModellId)
+          .eq('id', selectedModelId)
           .single()
         if (!alive) return
         if (error || !data) {
-          setErsatzKissen(null)
+          setReplacementCushions(null)
           return
         }
-        const raw = (data as { ersatzkissen_artikelnummer: string | null }).ersatzkissen_artikelnummer
-        art = (raw && String(raw).trim()) || null
+        const rawArticleNumber = (data as { ersatzkissen_artikelnummer: string | null }).ersatzkissen_artikelnummer
+        articleNumber = (rawArticleNumber && String(rawArticleNumber).trim()) || null
       }
-      if (!art) {
-        if (alive) setErsatzKissen(null)
+      if (!articleNumber) {
+        if (alive) setReplacementCushions(null)
         return
       }
       const { data: rows, error: e2 } = await supabase
         .from('stempel_modelle')
         .select('id, name, farbe, bestand')
-        .eq('artikelnummer', art)
+        .eq('artikelnummer', articleNumber)
         .eq('typ', 'TRODAT_KISSEN')
         .order('farbe', { ascending: true })
       if (!alive) return
       if (e2) {
-        setErsatzKissen(null)
+        setReplacementCushions(null)
         return
       }
-      const list = (rows ?? []) as { id: string; name: string; farbe: string | null; bestand: number | null }[]
-      const byFarbe = new Map<string, (typeof list)[0]>()
-      for (const r of list) {
-        if (r.farbe) byFarbe.set(r.farbe, r)
+      const cushionRows = (rows ?? []) as { id: string; name: string; farbe: string | null; bestand: number | null }[]
+      const byColor = new Map<string, (typeof cushionRows)[0]>()
+      for (const row of cushionRows) {
+        if (row.farbe) byColor.set(row.farbe, row)
       }
-      setErsatzKissen(
-        ERSATZ_KISSEN_FARBEN_REIHE.map(farbe => {
-          const r = byFarbe.get(farbe)
+      setReplacementCushions(
+        REPLACEMENT_PAD_COLOR_SEQUENCE.map(farbe => {
+          const colorRow = byColor.get(farbe)
           return {
             farbe,
             label: STAMP_COLOR_LABELS[farbe],
-            bestand: r ? Number(r.bestand) || 0 : 0,
+            bestand: colorRow ? Number(colorRow.bestand) || 0 : 0,
           }
         })
       )
@@ -457,195 +457,194 @@ export function StampDetail({
     return () => {
       alive = false
     }
-  }, [gewaehltesModellId, modelle])
+  }, [selectedModelId, models])
 
   useEffect(() => {
-    if (typ !== 'TRODAT_KISSEN') return
-    const t = setTimeout(() => setKissenQDeb(kissenInput), 350)
-    return () => clearTimeout(t)
-  }, [kissenInput, typ])
+    if (stampType !== 'TRODAT_KISSEN') return
+    const timer = setTimeout(() => setCushionSearchDebounced(cushionSearchInput), 350)
+    return () => clearTimeout(timer)
+  }, [cushionSearchInput, stampType])
 
   useEffect(() => {
-    if (typ !== 'TRODAT_KISSEN') {
-      setKissenTreffer([])
-      setKissenSucheFehler(null)
-      setKissenSucheLaden(false)
+    if (stampType !== 'TRODAT_KISSEN') {
+      setCushionSearchResults([])
+      setCushionSearchError(null)
+      setCushionSearchLoading(false)
       return
     }
-    const q = kissenQDeb.trim()
-    if (q.length < 1) {
-      setKissenTreffer([])
-      setKissenSucheFehler(null)
-      setKissenSucheLaden(false)
+    const searchQuery = cushionSearchDebounced.trim()
+    if (searchQuery.length < 1) {
+      setCushionSearchResults([])
+      setCushionSearchError(null)
+      setCushionSearchLoading(false)
       return
     }
     let alive = true
-    setKissenSucheLaden(true)
-    setKissenSucheFehler(null)
+    setCushionSearchLoading(true)
+    setCushionSearchError(null)
     void (async () => {
-      const esc = escIlike(q)
-      const p = `%${esc}%`
+      const escapedQuery = escapeIlike(searchQuery)
+      const searchPattern = `%${escapedQuery}%`
       const { data, error } = await supabase
         .from('stempel_modelle')
         .select('id, name, artikelnummer, farbe, bestand, vk_preis_netto')
         .eq('typ', 'TRODAT_KISSEN')
         .eq('aktiv', true)
-        .or(`name.ilike.${p},artikelnummer.ilike.${p}`)
+        .or(`name.ilike.${searchPattern},artikelnummer.ilike.${searchPattern}`)
         .order('artikelnummer', { ascending: true })
       if (!alive) return
       if (error) {
-        setKissenTreffer([])
-        setKissenSucheFehler(error.message)
+        setCushionSearchResults([])
+        setCushionSearchError(error.message)
       } else {
-        const m = new Map<string, KissenArtikelRow>()
-        for (const r of (data ?? []) as { id: string; name: string; artikelnummer: string | null }[]) {
-          const aKey = (r.artikelnummer && String(r.artikelnummer).trim()) || r.id
-          if (!m.has(aKey)) m.set(aKey, { artikelnummer: r.artikelnummer ? String(r.artikelnummer) : '', name: r.name })
+        const articlesByKey = new Map<string, CushionArticleRow>()
+        for (const row of (data ?? []) as { id: string; name: string; artikelnummer: string | null }[]) {
+          const aKey = (row.artikelnummer && String(row.artikelnummer).trim()) || row.id
+          if (!articlesByKey.has(aKey)) articlesByKey.set(aKey, { artikelnummer: row.artikelnummer ? String(row.artikelnummer) : '', name: row.name })
         }
-        setKissenTreffer(
-          [...m.values()].sort(
+        setCushionSearchResults(
+          [...articlesByKey.values()].sort(
             (a, b) => a.artikelnummer.localeCompare(b.artikelnummer) || a.name.localeCompare(b.name)
           )
         )
-        setKissenSucheFehler(null)
+        setCushionSearchError(null)
       }
-      setKissenSucheLaden(false)
+      setCushionSearchLoading(false)
     })()
     return () => {
       alive = false
     }
-  }, [kissenQDeb, typ])
+  }, [cushionSearchDebounced, stampType])
 
   useEffect(() => {
-    if (typ !== 'TRODAT_KISSEN') {
-      setKissenInput('')
-      setKissenQDeb('')
-      setKissenTreffer([])
-      setKissenSucheFehler(null)
-      setKissenFarbOptionen([])
+    if (stampType !== 'TRODAT_KISSEN') {
+      setCushionSearchInput('')
+      setCushionSearchDebounced('')
+      setCushionSearchResults([])
+      setCushionSearchError(null)
+      setCushionColorOptions([])
       return
     }
-  }, [typ])
+  }, [stampType])
 
   useEffect(() => {
-    if (typ !== 'TRODAT_KISSEN') {
-      setKissenFarbOptionen([])
+    if (stampType !== 'TRODAT_KISSEN') {
+      setCushionColorOptions([])
       return
     }
-    const d = detail
-    const art = String(d['kissen_artikelnummer'] ?? '').trim()
+    const art = String(detail['kissen_artikelnummer'] ?? '').trim()
     if (!art) {
-      setKissenFarbOptionen([])
+      setCushionColorOptions([])
       return
     }
-    let a = true
-    void ladeKissenFarbzeilen(art).then(rows => {
-      if (a) setKissenFarbOptionen(rows)
+    let alive = true
+    void loadCushionColorRows(art).then(rows => {
+      if (alive) setCushionColorOptions(rows)
     })
     return () => {
-      a = false
+      alive = false
     }
-  }, [typ, detail, subOrder.id])
+  }, [stampType, detail, subOrder.id])
 
-  const speich = useCallback(
-    async (nextTyp: string | null, d: StampDetailJson) => {
-      setDetail(d)
-      detailR.current = d
-      setTyp(nextTyp)
+  const save = useCallback(
+    async (nextTyp: string | null, newDetail: StampDetailJson) => {
+      setDetail(newDetail)
+      detailRef.current = newDetail
+      setStampType(nextTyp)
       if (editingId !== null) return
-      await onDetailPatch({ typ: nextTyp, detail: d })
+      await onDetailPatch({ typ: nextTyp, detail: newDetail })
     },
     [onDetailPatch, editingId]
   )
 
-  const patchL = useCallback((p: StampDetailJson) => {
-    setDetail(d0 => {
-      const n = { ...d0, ...p }
-      detailR.current = n
-      return n
+  const patchLocal = useCallback((patch: StampDetailJson) => {
+    setDetail(current => {
+      const patched = { ...current, ...patch }
+      detailRef.current = patched
+      return patched
     })
   }, [])
 
-  const commit = useCallback(() => {
-    void speich(typR.current, { ...detailR.current })
-  }, [speich])
+  const commitChanges = useCallback(() => {
+    void save(stampTypeRef.current, { ...detailRef.current })
+  }, [save])
 
-  const speichDetail = useCallback(
-    (d: StampDetailJson) => {
-      setDetail(d)
-      detailR.current = d
-      void speich(typR.current, d)
+  const saveDetail = useCallback(
+    (newDetail: StampDetailJson) => {
+      setDetail(newDetail)
+      detailRef.current = newDetail
+      void save(stampTypeRef.current, newDetail)
     },
-    [speich]
+    [save]
   )
 
-  const p: BlK = { d: detail, fe, pruef, f: stempelFehler, patchL, commit, speichDetail }
+  const formContext: StampFormContext = { detail, fieldErrorClass, shouldValidate, errors: stampErrors, patchLocal, commitChanges, saveDetail }
 
-  const formOk = useMemo(() => Object.keys(stempelFehler).length === 0, [stempelFehler])
+  const formValid = useMemo(() => Object.keys(stampErrors).length === 0, [stampErrors])
 
-  const brauchtEntsperr =
-    (subOrderStatus === 'PREPRESS_BEREIT' || subOrderStatus === 'PRODUKTION_BEREIT') && !entsperrt
+  const requiresUnlock =
+    (subOrderStatus === 'PREPRESS_BEREIT' || subOrderStatus === 'PRODUKTION_BEREIT') && !unlocked
 
   const handleAddOrSave = useCallback(async () => {
-    const t = typR.current
-    const d = { ...detailR.current }
-    if (!t) return
-    const errors = validateStampDetail(t, d, subOrderStatus)
+    const currentType = stampTypeRef.current
+    const currentDetail = { ...detailRef.current }
+    if (!currentType) return
+    const errors = validateStampDetail(currentType, currentDetail, subOrderStatus)
     if (Object.keys(errors).length > 0) return
 
     if (editingId) {
       const patch: Database['public']['Tables']['teilauftrag_produkte']['Update'] = {
-        detail: { ...d, typ: t } as Json,
+        detail: { ...currentDetail, typ: currentType } as Json,
       }
       const { error } = await supabase.from('teilauftrag_produkte').update(patch).eq('id', editingId)
       if (error) {
-        toastFehler('Produkt konnte nicht gespeichert werden')
+        showError('Produkt konnte nicht gespeichert werden')
         return
       }
-      for (const z of [...(productFiles[editingId] ?? [])]) {
-        await dateiVonProduktEntfernen(z.zuordnungId)
+      for (const assignment of [...(productFiles[editingId] ?? [])]) {
+        await removeFileFromProduct(assignment.assignmentId)
       }
       for (const fid of formFileRecordIds) {
-        await dateiZuProduktZuordnen(editingId, fid)
+        await assignFileToProduct(editingId, fid)
       }
-      const list = await reloadProdukte()
+      const updatedProducts = await reloadProducts()
       await onDetailPatch({
         typ: subOrder.typ,
         detail: {
-          ...stempelRoh(subOrder),
-          hat_produkte: list.length > 0,
+          ...rawStampDetail(subOrder),
+          hat_products: updatedProducts.length > 0,
         } as StampDetailJson,
       })
       resetForm()
       return
     }
 
-    const ins: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
+    const insertRow: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
       teilauftrag_id: subOrder.id,
       bereich: 'STEMPEL',
-      detail: { ...d, typ: t } as Json,
-      sort_order: produkte.length,
+      detail: { ...currentDetail, typ: currentType } as Json,
+      sort_order: products.length,
     }
-    const { data: insRow, error } = await supabase.from('teilauftrag_produkte').insert(ins).select('id').single()
+    const { data: insRow, error } = await supabase.from('teilauftrag_produkte').insert(insertRow).select('id').single()
     if (error) {
-      toastFehler('Produkt konnte nicht hinzugefügt werden')
+      showError('Produkt konnte nicht hinzugefügt werden')
       return
     }
     const newId = insRow?.id != null ? String(insRow.id) : ''
     if (!newId) {
-      toastFehler('Produkt konnte nicht hinzugefügt werden')
+      showError('Produkt konnte nicht hinzugefügt werden')
       return
     }
-    let list = await reloadProdukte()
+    let updatedProducts = await reloadProducts()
     for (const fid of formFileRecordIds) {
-      await dateiZuProduktZuordnen(newId, fid, list)
+      await assignFileToProduct(newId, fid, updatedProducts)
     }
-    list = await reloadProdukte()
+    updatedProducts = await reloadProducts()
     await onDetailPatch({
       typ: subOrder.typ,
       detail: {
-        ...stempelRoh(subOrder),
-        hat_produkte: list.length > 0,
+        ...rawStampDetail(subOrder),
+        hat_products: updatedProducts.length > 0,
       } as StampDetailJson,
     })
     resetForm()
@@ -653,141 +652,141 @@ export function StampDetail({
     subOrder,
     subOrderStatus,
     editingId,
-    produkte.length,
+    products.length,
     productFiles,
     formFileRecordIds,
-    toastFehler,
-    reloadProdukte,
+    showError,
+    reloadProducts,
     resetForm,
     onDetailPatch,
-    dateiZuProduktZuordnen,
-    dateiVonProduktEntfernen,
+    assignFileToProduct,
+    removeFileFromProduct,
   ])
 
   const handleDelete = useCallback(
     async (id: string) => {
       const { error } = await supabase.from('teilauftrag_produkte').delete().eq('id', id)
       if (error) {
-        toastFehler('Produkt konnte nicht gelöscht werden')
+        showError('Produkt konnte nicht gelöscht werden')
         return
       }
-      const list = await reloadProdukte()
+      const updatedProducts = await reloadProducts()
       await onDetailPatch({
         typ: subOrder.typ,
         detail: {
-          ...stempelRoh(subOrder),
-          hat_produkte: list.length > 0,
+          ...rawStampDetail(subOrder),
+          hat_products: updatedProducts.length > 0,
         } as StampDetailJson,
       })
       if (editingId === id) resetForm()
     },
-    [toastFehler, reloadProdukte, editingId, resetForm, onDetailPatch, subOrder]
+    [showError, reloadProducts, editingId, resetForm, onDetailPatch, subOrder]
   )
 
-  const handleEdit = useCallback((row: ProduktRow) => {
+  const handleEdit = useCallback((row: ProductRow) => {
     setEditingId(row.id)
-    setFormFileRecordIds(productFiles[row.id]?.map(z => z.dateiId) ?? [])
-    const raw = row.detail ?? {}
-    const dr = raw as Record<string, unknown>
-    const tt = typeof dr.typ === 'string' ? dr.typ : null
-    setTyp(tt)
-    const dd = { ...(raw as StampDetailJson) }
-    setDetail(dd)
-    detailR.current = dd
-    typR.current = tt
+    setFormFileRecordIds(productFiles[row.id]?.map(z => z.fileId) ?? [])
+    const rawDetail = row.detail ?? {}
+    const detailRecord = rawDetail as Record<string, unknown>
+    const editType = typeof detailRecord.typ === 'string' ? detailRecord.typ : null
+    setStampType(editType)
+    const editDetail = { ...(rawDetail as StampDetailJson) }
+    setDetail(editDetail)
+    detailRef.current = editDetail
+    stampTypeRef.current = editType
   }, [productFiles])
 
-  const typOptionen = [...STAMP_TYPES, ...EXTRA_TYPEN] as readonly string[]
+  const typeOptions = [...STAMP_TYPES, ...EXTRA_TYPES] as readonly string[]
 
-  const dRec = detail
-  const trodatKissenArt = String(dRec['kissen_artikelnummer'] ?? '').trim()
-  const trodatKissenModellId = String(dRec['kissen_modell_id'] ?? '').trim()
-  const trodatBadgeBestand =
-    (trodatKissenModellId && kissenFarbOptionen.find(f => f.id === trodatKissenModellId)?.bestand) ?? null
-  const trodatFarbeLabel =
-    dRec['farbe'] && typeof dRec['farbe'] === 'string' && dRec['farbe'] in STAMP_COLOR_LABELS
-      ? STAMP_COLOR_LABELS[dRec['farbe'] as keyof typeof STAMP_COLOR_LABELS]
-      : String(dRec['farbe'] ?? '—')
+  const detailRecord = detail
+  const cushionArticleNumber = String(detailRecord['kissen_artikelnummer'] ?? '').trim()
+  const cushionModelId = String(detailRecord['kissen_modell_id'] ?? '').trim()
+  const cushionBadgeStock =
+    (cushionModelId && cushionColorOptions.find(f => f.id === cushionModelId)?.bestand) ?? null
+  const cushionColorLabel =
+    detailRecord['farbe'] && typeof detailRecord['farbe'] === 'string' && detailRecord['farbe'] in STAMP_COLOR_LABELS
+      ? STAMP_COLOR_LABELS[detailRecord['farbe'] as keyof typeof STAMP_COLOR_LABELS]
+      : String(detailRecord['farbe'] ?? '—')
 
   return (
     <div className="ber-lfp">
       <h3 className="ber-h3">Stempel-Details</h3>
-      {typ === 'SONSTIGE_STEMPEL' && (
+      {stampType === 'SONSTIGE_STEMPEL' && (
         <p className="ber-hinweis">
           Bei &apos;Sonstige Stempel&apos; wird PREPRESS_BEREIT nur manuell gesetzt.
         </p>
       )}
 
-      <BerZeile
-        l="Typ"
-        e={pruef && stempelFehler.typ ? stempelFehler.typ : undefined}
-        c={
+      <FormRow
+        label="Typ"
+        error={shouldValidate && stampErrors.typ ? stampErrors.typ : undefined}
+        content={
           <select
-            className={'ber-inp' + fe('typ')}
-            value={typ ?? ''}
+            className={'ber-inp' + fieldErrorClass('typ')}
+            value={stampType ?? ''}
             onChange={e => {
               const v = e.target.value
-              if (v !== (typ ?? '')) {
-                setTyp(v || null)
+              if (v !== (stampType ?? '')) {
+                setStampType(v || null)
                 setDetail({})
-                detailR.current = {}
-                typR.current = v || null
-                if (editingId === null) void speich(v || null, {})
+                detailRef.current = {}
+                stampTypeRef.current = v || null
+                if (editingId === null) void save(v || null, {})
               } else {
-                setTyp(v || null)
-                typR.current = v || null
+                setStampType(v || null)
+                stampTypeRef.current = v || null
               }
             }}
           >
             <option value="">—</option>
-            {typOptionen.map(x => (
+            {typeOptions.map(x => (
               <option key={x} value={x}>
-                {typLabel(x)}
+                {typeLabel(x)}
               </option>
             ))}
           </select>
         }
       />
 
-      {typ === 'TRODAT_KISSEN' && (
+      {stampType === 'TRODAT_KISSEN' && (
         <>
-          <BerZeile
-            l="Suche"
-            e={
-              pruef && (stempelFehler.kissen_artikelnummer || stempelFehler.kissen_modell_id)
-                ? [stempelFehler.kissen_artikelnummer, stempelFehler.kissen_modell_id].filter(Boolean).join(' — ')
+          <FormRow
+            label="Suche"
+            error={
+              shouldValidate && (stampErrors.kissen_artikelnummer || stampErrors.kissen_modell_id)
+                ? [stampErrors.kissen_artikelnummer, stampErrors.kissen_modell_id].filter(Boolean).join(' — ')
                 : undefined
             }
-            c={
+            content={
               <div>
                 <input
                   type="search"
-                  className={'ber-inp' + fe('kissen_artikelnummer')}
+                  className={'ber-inp' + fieldErrorClass('kissen_artikelnummer')}
                   placeholder="Modell oder Artikelnummer…"
-                  value={kissenInput}
-                  onChange={e => setKissenInput(e.target.value)}
+                  value={cushionSearchInput}
+                  onChange={e => setCushionSearchInput(e.target.value)}
                 />
-                {kissenSucheLaden && <p className="ber-hinweis" style={{ marginTop: 6 }}>Suchen…</p>}
-                {kissenSucheFehler && <p className="ber-err" style={{ marginTop: 6 }}>{kissenSucheFehler}</p>}
-                {!kissenSucheLaden && !kissenSucheFehler && kissenQDeb.trim() !== '' && kissenTreffer.length === 0 && (
+                {cushionSearchLoading && <p className="ber-hinweis" style={{ marginTop: 6 }}>Suchen…</p>}
+                {cushionSearchError && <p className="ber-err" style={{ marginTop: 6 }}>{cushionSearchError}</p>}
+                {!cushionSearchLoading && !cushionSearchError && cushionSearchDebounced.trim() !== '' && cushionSearchResults.length === 0 && (
                   <p className="ber-hinweis" style={{ marginTop: 6 }}>
                     Kein Treffer
                   </p>
                 )}
-                {!kissenSucheLaden && kissenTreffer.length > 0 && (
+                {!cushionSearchLoading && cushionSearchResults.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
-                    {kissenTreffer.map(zeile => (
+                    {cushionSearchResults.map(result => (
                       <button
-                        key={zeile.artikelnummer || zeile.name}
+                        key={result.artikelnummer || result.name}
                         type="button"
                         className="wa-btn wa-btn--ghost"
                         onClick={() => {
-                          void ladeKissenFarbzeilen(zeile.artikelnummer).then(rows => {
-                            setKissenFarbOptionen(rows)
-                            speichDetail({
-                              ...detailR.current,
-                              kissen_artikelnummer: zeile.artikelnummer,
-                              kissen_name: zeile.name,
+                          void loadCushionColorRows(result.artikelnummer).then(rows => {
+                            setCushionColorOptions(rows)
+                            saveDetail({
+                              ...detailRef.current,
+                              kissen_artikelnummer: result.artikelnummer,
+                              kissen_name: result.name,
                               farbe: null,
                               kissen_modell_id: null,
                             } as StampDetailJson)
@@ -795,8 +794,8 @@ export function StampDetail({
                         }}
                         style={{ textAlign: 'left', padding: '6px 8px' }}
                       >
-                        <span style={{ fontWeight: 600, marginRight: 8 }}>{zeile.artikelnummer || '—'}</span>
-                        {zeile.name}
+                        <span style={{ fontWeight: 600, marginRight: 8 }}>{result.artikelnummer || '—'}</span>
+                        {result.name}
                       </button>
                     ))}
                   </div>
@@ -804,15 +803,15 @@ export function StampDetail({
               </div>
             }
           />
-          {!!trodatKissenArt && kissenFarbOptionen.length > 0 && (
-            <BerZeile
-              l="Farbe"
-              e={pruef && (stempelFehler.farbe || stempelFehler.kissen_modell_id) ? [stempelFehler.farbe, stempelFehler.kissen_modell_id].filter(Boolean).join(' — ') : undefined}
-              c={
+          {!!cushionArticleNumber && cushionColorOptions.length > 0 && (
+            <FormRow
+              label="Farbe"
+              error={shouldValidate && (stampErrors.farbe || stampErrors.kissen_modell_id) ? [stampErrors.farbe, stampErrors.kissen_modell_id].filter(Boolean).join(' — ') : undefined}
+              content={
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexWrap: 'wrap' }}>
-                  {kissenFarbOptionen.map(fv => {
-                    const waehl = trodatKissenModellId && fv.id && trodatKissenModellId === fv.id
-                    const b0 = fv.bestand <= 0
+                  {cushionColorOptions.map(fv => {
+                    const isSelected = cushionModelId && fv.id && cushionModelId === fv.id
+                    const noStock = fv.bestand <= 0
                     return (
                       <button
                         key={fv.farbe}
@@ -821,18 +820,18 @@ export function StampDetail({
                         disabled={!fv.id}
                         onClick={() => {
                           if (!fv.id) return
-                          speichDetail({
-                            ...detailR.current,
+                          saveDetail({
+                            ...detailRef.current,
                             farbe: fv.farbe,
                             kissen_modell_id: fv.id,
                           } as StampDetailJson)
                         }}
                         style={{
                           textAlign: 'left',
-                          border: waehl ? '1px solid rgba(59, 130, 246, 0.45)' : undefined,
-                          background: waehl ? 'rgba(59, 130, 246, 0.12)' : undefined,
-                          color: b0 ? '#f59e0b' : undefined,
-                          fontWeight: b0 || waehl ? 600 : undefined,
+                          border: isSelected ? '1px solid rgba(59, 130, 246, 0.45)' : undefined,
+                          background: isSelected ? 'rgba(59, 130, 246, 0.12)' : undefined,
+                          color: noStock ? '#f59e0b' : undefined,
+                          fontWeight: noStock || isSelected ? 600 : undefined,
                         }}
                       >
                         {STAMP_COLOR_LABELS[fv.farbe]} (Bestand: {fv.bestand})
@@ -843,9 +842,9 @@ export function StampDetail({
               }
             />
           )}
-          <NmbStueckzahl {...p} label="Stückzahl" />
-          {trodatKissenModellId && (
-            <BerZeile l="Gewählt" e={undefined}>
+          <QuantityInput {...formContext} label="Stückzahl" />
+          {cushionModelId && (
+            <FormRow label="Gewählt" error={undefined}>
               <div
                 className="wa-badge"
                 style={{
@@ -859,16 +858,16 @@ export function StampDetail({
                   fontSize: 12,
                 }}
               >
-                {dRec.kissen_artikelnummer != null && String(dRec.kissen_artikelnummer) !== '' ? String(dRec.kissen_artikelnummer) : '—'} {String(dRec.kissen_name ?? '')} · {trodatFarbeLabel} ·
-                Bestand: {trodatBadgeBestand == null ? '—' : trodatBadgeBestand}
+                {detailRecord.kissen_artikelnummer != null && String(detailRecord.kissen_artikelnummer) !== '' ? String(detailRecord.kissen_artikelnummer) : '—'} {String(detailRecord.kissen_name ?? '')} · {cushionColorLabel} ·
+                Bestand: {cushionBadgeStock == null ? '—' : cushionBadgeStock}
                 <span
                   role="button"
                   tabIndex={0}
                   onClick={() => {
-                    setKissenFarbOptionen([])
-                    setKissenInput('')
-                    speichDetail({
-                      ...detailR.current,
+                    setCushionColorOptions([])
+                    setCushionSearchInput('')
+                    saveDetail({
+                      ...detailRef.current,
                       kissen_artikelnummer: null,
                       kissen_name: null,
                       kissen_modell_id: null,
@@ -877,10 +876,10 @@ export function StampDetail({
                   }}
                   onKeyDown={e => {
                     if (e.key === 'Enter' || e.key === ' ') {
-                      setKissenFarbOptionen([])
-                      setKissenInput('')
-                      speichDetail({
-                        ...detailR.current,
+                      setCushionColorOptions([])
+                      setCushionSearchInput('')
+                      saveDetail({
+                        ...detailRef.current,
                         kissen_artikelnummer: null,
                         kissen_name: null,
                         kissen_modell_id: null,
@@ -894,58 +893,58 @@ export function StampDetail({
                   ×
                 </span>
               </div>
-            </BerZeile>
+            </FormRow>
           )}
         </>
       )}
 
-      {showAnzahl && typ !== 'TRODAT_KISSEN' && (
-        <NmbStueckzahl {...p} label={typ === 'NACHFUELLFARBE' || typ === 'STEMPELKISSEN' ? 'Anzahl' : 'Stückzahl'} />
+      {showQuantity && stampType !== 'TRODAT_KISSEN' && (
+        <QuantityInput {...formContext} label={stampType === 'NACHFUELLFARBE' || stampType === 'STEMPELKISSEN' ? 'Anzahl' : 'Stückzahl'} />
       )}
 
-      {typ === 'STEMPELKISSEN' && (
-        <BerZeile l="Größe" e={pruef && stempelFehler.groesse ? stempelFehler.groesse : undefined}>
+      {stampType === 'STEMPELKISSEN' && (
+        <FormRow label="Größe" error={shouldValidate && stampErrors.groesse ? stampErrors.groesse : undefined}>
           <select
-            className={'ber-inp' + fe('groesse')}
+            className={'ber-inp' + fieldErrorClass('groesse')}
             value={String(detail['groesse'] ?? '')}
             onChange={e =>
-              speichDetail({ ...detail, groesse: e.target.value || null } as StampDetailJson)
+              saveDetail({ ...detail, groesse: e.target.value || null } as StampDetailJson)
             }
           >
             <option value="">—</option>
-            {STEMPELKISSEN_GROESSE.map(g => (
+            {STAMP_PAD_SIZES.map(g => (
               <option key={g} value={g}>
-                {STEMPELKISSEN_GROESSE_ANZEIGE[g]}
+                {STAMP_PAD_SIZE_LABELS[g]}
               </option>
             ))}
           </select>
-        </BerZeile>
+        </FormRow>
       )}
 
-      {(showFarbe || typ === 'NACHFUELLFARBE' || typ === 'STEMPELKISSEN') &&
-        typ !== 'STEMPELPLATTE' &&
-        typ !== 'TRODAT_KISSEN' && (
-        <BerZeile
-          l="Farbe"
-          e={
-            (pruef && stempelFehler.farbe) || (pruef && stempelFehler.farbe_sonstige)
-              ? [stempelFehler.farbe, stempelFehler.farbe_sonstige].filter(Boolean).join(' — ')
+      {(showColor || stampType === 'NACHFUELLFARBE' || stampType === 'STEMPELKISSEN') &&
+        stampType !== 'STEMPELPLATTE' &&
+        stampType !== 'TRODAT_KISSEN' && (
+        <FormRow
+          label="Farbe"
+          error={
+            (shouldValidate && stampErrors.farbe) || (shouldValidate && stampErrors.farbe_sonstige)
+              ? [stampErrors.farbe, stampErrors.farbe_sonstige].filter(Boolean).join(' — ')
               : undefined
           }
-          c={
+          content={
             <div>
               <select
-                className={'ber-inp' + fe('farbe')}
+                className={'ber-inp' + fieldErrorClass('farbe')}
                 value={String(detail['farbe'] ?? '')}
                 onChange={e => {
                   const v = e.target.value
                   const next: StampDetailJson = { ...detail, farbe: v || null }
                   if (v !== 'SONSTIGE') next.farbe_sonstige = null
-                  speichDetail(next)
+                  saveDetail(next)
                 }}
               >
                 <option value="">—</option>
-                {(typ === 'NACHFUELLFARBE' || typ === 'STEMPELKISSEN' ? NACHFUELLFARBE_FARBEN : STAMP_COLORS).map(
+                {(stampType === 'NACHFUELLFARBE' || stampType === 'STEMPELKISSEN' ? REFILL_INK_COLORS : STAMP_COLORS).map(
                   fv => (
                     <option key={fv} value={fv}>
                       {STAMP_COLOR_LABELS[fv as (typeof STAMP_COLORS)[number]]}
@@ -953,15 +952,15 @@ export function StampDetail({
                   )
                 )}
               </select>
-              {String(detail['farbe'] ?? '') === 'SONSTIGE' && typ !== 'NACHFUELLFARBE' && (
+              {String(detail['farbe'] ?? '') === 'SONSTIGE' && stampType !== 'NACHFUELLFARBE' && (
                 <div style={{ marginTop: 8 }}>
                   <input
                     type="text"
-                    className={'ber-inp' + fe('farbe_sonstige')}
+                    className={'ber-inp' + fieldErrorClass('farbe_sonstige')}
                     placeholder="Farbe (Freitext)"
                     value={String(detail['farbe_sonstige'] ?? '')}
-                    onChange={e => patchL({ farbe_sonstige: e.target.value || null } as StampDetailJson)}
-                    onBlur={commit}
+                    onChange={e => patchLocal({ farbe_sonstige: e.target.value || null } as StampDetailJson)}
+                    onBlur={commitChanges}
                   />
                 </div>
               )}
@@ -970,60 +969,60 @@ export function StampDetail({
         />
       )}
 
-      {typ === 'NACHFUELLFARBE' && (
-        <BerZeile l="Typ" e={pruef && stempelFehler.tinte_typ ? stempelFehler.tinte_typ : undefined}>
+      {stampType === 'NACHFUELLFARBE' && (
+        <FormRow label="Typ" error={shouldValidate && stampErrors.tinte_typ ? stampErrors.tinte_typ : undefined}>
           <select
-            className={'ber-inp' + fe('tinte_typ')}
+            className={'ber-inp' + fieldErrorClass('tinte_typ')}
             value={String(detail['tinte_typ'] ?? '')}
             onChange={e =>
-              speichDetail({ ...detail, tinte_typ: e.target.value || null } as StampDetailJson)
+              saveDetail({ ...detail, tinte_typ: e.target.value || null } as StampDetailJson)
             }
           >
             <option value="">—</option>
-            {NACHFUELLFARBE_TINTE_TYP.map(tt => (
+            {REFILL_INK_TYPES.map(tt => (
               <option key={tt} value={tt}>
-                {NACHFUELLFARBE_TINTE_TYP_ANZEIGE[tt]}
+                {REFILL_INK_TYPE_LABELS[tt]}
               </option>
             ))}
           </select>
-        </BerZeile>
+        </FormRow>
       )}
 
-      {showMass && (
-        <BerZeile
-          l="Format (mm)"
-          e={
-            pruef && (stempelFehler.format || stempelFehler.format_breite || stempelFehler.format_hoehe)
-              ? [stempelFehler.format, stempelFehler.format_breite, stempelFehler.format_hoehe].filter(Boolean).join(' — ')
+      {showDimensions && (
+        <FormRow
+          label="Format (mm)"
+          error={
+            shouldValidate && (stampErrors.format || stampErrors.format_breite || stampErrors.format_hoehe)
+              ? [stampErrors.format, stampErrors.format_breite, stampErrors.format_hoehe].filter(Boolean).join(' — ')
               : undefined
           }
-          c={
+          content={
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <div style={{ flex: '1 1 140px', minWidth: 140 }}>
                 <input
                   type="number"
-                  className={'ber-inp' + fe('format_breite')}
+                  className={'ber-inp' + fieldErrorClass('format_breite')}
                   placeholder="Breite"
-                  value={bVal ?? ''}
+                  value={widthValue ?? ''}
                   onChange={e => {
                     const raw = e.target.value
-                    patchL({ format_breite: raw === '' ? null : parseInt(raw, 10) } as StampDetailJson)
+                    patchLocal({ format_breite: raw === '' ? null : parseInt(raw, 10) } as StampDetailJson)
                   }}
-                  onBlur={commit}
+                  onBlur={commitChanges}
                   min={1}
                 />
               </div>
               <div style={{ flex: '1 1 140px', minWidth: 140 }}>
                 <input
                   type="number"
-                  className={'ber-inp' + fe('format_hoehe')}
+                  className={'ber-inp' + fieldErrorClass('format_hoehe')}
                   placeholder="Höhe"
-                  value={hVal ?? ''}
+                  value={heightValue ?? ''}
                   onChange={e => {
                     const raw = e.target.value
-                    patchL({ format_hoehe: raw === '' ? null : parseInt(raw, 10) } as StampDetailJson)
+                    patchLocal({ format_hoehe: raw === '' ? null : parseInt(raw, 10) } as StampDetailJson)
                   }}
-                  onBlur={commit}
+                  onBlur={commitChanges}
                   min={1}
                 />
               </div>
@@ -1032,10 +1031,10 @@ export function StampDetail({
         />
       )}
 
-      {(typ === 'TRODAT_PRINTY' || typ === 'HOLZSTEMPEL') && showMass && hatMass && (
-        <BerZeile l="Modellvorschlag">
+      {(stampType === 'TRODAT_PRINTY' || stampType === 'HOLZSTEMPEL') && showDimensions && hasDimensions && (
+        <FormRow label="Modellvorschlag">
           <div>
-            {gewaehltesModellId && (
+            {selectedModelId && (
               <div style={{ marginBottom: 8 }}>
                 <div
                   className="wa-badge"
@@ -1050,20 +1049,20 @@ export function StampDetail({
                     fontSize: 12,
                   }}
                 >
-                  Gewählt: {gewaehltesModellName || modellName || 'Modell'}
+                  Gewählt: {selectedModelName || modelName || 'Modell'}
                   <span
                     role="button"
                     tabIndex={0}
                     onClick={() => {
-                      setGewaehltesModellId(null)
-                      setGewaehltesModellName(null)
-                      speichDetail({ ...detailR.current, modell_id: null, modell_name: null })
+                      setSelectedModelId(null)
+                      setSelectedModelName(null)
+                      saveDetail({ ...detailRef.current, modell_id: null, modell_name: null })
                     }}
                     onKeyDown={e => {
                       if (e.key === 'Enter' || e.key === ' ') {
-                        setGewaehltesModellId(null)
-                        setGewaehltesModellName(null)
-                        speichDetail({ ...detailR.current, modell_id: null, modell_name: null })
+                        setSelectedModelId(null)
+                        setSelectedModelName(null)
+                        saveDetail({ ...detailRef.current, modell_id: null, modell_name: null })
                       }
                     }}
                     style={{ cursor: 'pointer', padding: '0 6px', userSelect: 'none', fontWeight: 700 }}
@@ -1072,9 +1071,9 @@ export function StampDetail({
                     ×
                   </span>
                 </div>
-                {ersatzKissen && ersatzKissen.length > 0 && (
+                {replacementCushions && replacementCushions.length > 0 && (
                   <div style={{ margin: '6px 0 0 0', fontSize: 12, opacity: 0.92 }}>
-                    {ersatzKissen.map(z => (
+                    {replacementCushions.map(z => (
                       <div
                         key={z.farbe}
                         style={{
@@ -1090,35 +1089,35 @@ export function StampDetail({
               </div>
             )}
 
-            {modelleLaden && <p className="ber-hinweis">Suche passende Modelle…</p>}
-            {!modelleLaden && modelleFehler && <p className="ber-err">{modelleFehler}</p>}
+            {modelsLoading && <p className="ber-hinweis">Suche passende Modelle…</p>}
+            {!modelsLoading && modelError && <p className="ber-err">{modelError}</p>}
 
-            {!modelleLaden && !modelleFehler && modelle.length === 0 && (
+            {!modelsLoading && !modelError && models.length === 0 && (
               <p className="ber-hinweis">
                 Kein passendes Modell gefunden — bitte Maße prüfen oder manuell erfassen
               </p>
             )}
 
-            {!gewaehltesModellId && !modelleLaden && !modelleFehler && modelle.length > 0 && (
+            {!selectedModelId && !modelsLoading && !modelError && models.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {modelle.map(m => {
-                  const keinBestand = (m.bestand ?? 0) <= 0
-                  const isSel = m.id === gewaehltesModellId
+                {models.map(m => {
+                  const noStock = (m.bestand ?? 0) <= 0
+                  const isSelected = m.id === selectedModelId
                   return (
                     <button
                       key={m.id}
                       type="button"
                       className="wa-btn wa-btn--ghost"
                       onClick={() => {
-                        if (isSel) {
-                          setGewaehltesModellId(null)
-                          setGewaehltesModellName(null)
-                          speichDetail({ ...detailR.current, modell_id: null, modell_name: null })
+                        if (isSelected) {
+                          setSelectedModelId(null)
+                          setSelectedModelName(null)
+                          saveDetail({ ...detailRef.current, modell_id: null, modell_name: null })
                           return
                         }
-                        setGewaehltesModellId(m.id)
-                        setGewaehltesModellName(m.name)
-                        speichDetail({ ...detailR.current, modell_id: m.id, modell_name: m.name })
+                        setSelectedModelId(m.id)
+                        setSelectedModelName(m.name)
+                        saveDetail({ ...detailRef.current, modell_id: m.id, modell_name: m.name })
                       }}
                       style={{
                         textAlign: 'left',
@@ -1128,18 +1127,18 @@ export function StampDetail({
                         justifyContent: 'space-between',
                         padding: '6px 10px',
                         cursor: 'pointer',
-                        background: isSel ? 'rgba(59, 130, 246, 0.18)' : undefined,
-                        border: isSel ? '1px solid rgba(59, 130, 246, 0.45)' : undefined,
+                        background: isSelected ? 'rgba(59, 130, 246, 0.18)' : undefined,
+                        border: isSelected ? '1px solid rgba(59, 130, 246, 0.45)' : undefined,
                       }}
                     >
                       <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                        {isSel && <span title="Gewählt">✓</span>}
+                        {isSelected && <span title="Gewählt">✓</span>}
                         {m.name}
                       </span>
                       <span style={{ opacity: 0.8 }}>{m.druckflaeche ?? ''}</span>
                       <span style={{ opacity: 0.9, whiteSpace: 'nowrap' }}>
                         Bestand: {m.bestand ?? 0}
-                        {keinBestand && (
+                        {noStock && (
                           <span style={{ marginLeft: 8, color: '#f59e0b', fontWeight: 600 }}>Kein Bestand vorhanden</span>
                         )}
                       </span>
@@ -1149,21 +1148,21 @@ export function StampDetail({
               </div>
             )}
           </div>
-        </BerZeile>
+        </FormRow>
       )}
 
-      {showBeschreibung && (
-        <BerZeile
-          l="Beschreibung / Inhalt"
-          e={pruef && stempelFehler.beschreibung ? stempelFehler.beschreibung : undefined}
-          c={
+      {showDescription && (
+        <FormRow
+          label="Beschreibung / Inhalt"
+          error={shouldValidate && stampErrors.beschreibung ? stampErrors.beschreibung : undefined}
+          content={
             <div>
               <textarea
-                className={'ber-inp' + fe('beschreibung')}
+                className={'ber-inp' + fieldErrorClass('beschreibung')}
                 rows={6}
                 value={String(detail['beschreibung'] ?? '')}
-                onChange={e => patchL({ beschreibung: e.target.value || null } as StampDetailJson)}
-                onBlur={commit}
+                onChange={e => patchLocal({ beschreibung: e.target.value || null } as StampDetailJson)}
+                onBlur={commitChanges}
               />
               <p className="ber-hinweis" style={{ marginTop: 6, marginBottom: 0 }}>
                 Änderungen nach Produktionsfreigabe setzen den Status zurück (Beschreibung, Breite/Höhe)
@@ -1173,21 +1172,21 @@ export function StampDetail({
         />
       )}
 
-      {(typ === 'NACHFUELLFARBE' || typ === 'STEMPELKISSEN') && (
-        <BerZeile l="Hinweis" e={undefined}>
+      {(stampType === 'NACHFUELLFARBE' || stampType === 'STEMPELKISSEN') && (
+        <FormRow label="Hinweis" error={undefined}>
           <textarea
             className="ber-inp"
             rows={2}
             placeholder="Besonderheiten, Hinweise..."
             value={String(detail['hinweis'] ?? '')}
-            onChange={e => patchL({ hinweis: e.target.value || null } as StampDetailJson)}
-            onBlur={commit}
+            onChange={e => patchLocal({ hinweis: e.target.value || null } as StampDetailJson)}
+            onBlur={commitChanges}
           />
-        </BerZeile>
+        </FormRow>
       )}
 
       {orderFiles.length > 0 && (
-        <BerZeile l="Dateien">
+        <FormRow label="Dateien">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
             {formFileRecordIds.map(fid => (
               <span
@@ -1239,29 +1238,29 @@ export function StampDetail({
                 ))}
             </select>
           </div>
-        </BerZeile>
+        </FormRow>
       )}
 
       <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
         <button
           type="button"
           className="cp-btn"
-          disabled={brauchtEntsperr ? false : !typ || !formOk}
+          disabled={requiresUnlock ? false : !stampType || !formValid}
           onClick={() => {
-            if (brauchtEntsperr) {
+            if (requiresUnlock) {
               if (
                 window.confirm(
                   'Teilauftrag ist bereits freigegeben.\nWirklich Produkte bearbeiten?',
                 )
               ) {
-                setEntsperrt(true)
+                setUnlocked(true)
               }
               return
             }
             void handleAddOrSave()
           }}
         >
-          {brauchtEntsperr
+          {requiresUnlock
             ? 'Bearbeitung entsperren'
             : editingId
               ? 'Speichern'
@@ -1273,9 +1272,9 @@ export function StampDetail({
           </button>
         )}
       </div>
-      {entsperrt && (
+      {unlocked && (
         <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
-          Bearbeitung entsperrt — Änderungen setzen Status zurück
+          Bearbeitung unlocked — Änderungen setzen Status zurück
         </p>
       )}
 
@@ -1283,11 +1282,11 @@ export function StampDetail({
         <h3 className="wa-dl-titel" style={{ margin: 0 }}>
           Produkte
         </h3>
-        {produkteLaden ? (
+        {productsLoading ? (
           <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
             Lädt Produkte …
           </p>
-        ) : produkte.length === 0 ? (
+        ) : products.length === 0 ? (
           <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
             Noch keine Produkte.
           </p>
@@ -1311,25 +1310,25 @@ export function StampDetail({
                 </tr>
               </thead>
               <tbody>
-                {produkte.map(r => {
-                  const pd = (r.detail ?? {}) as Record<string, unknown>
-                  const pt = typeof pd.typ === 'string' ? pd.typ : ''
-                  const st = pd.stueckzahl ?? ''
-                  const kurz =
-                    String(pd.beschreibung ?? '')
+                {products.map(r => {
+                  const productDetail = (r.detail ?? {}) as Record<string, unknown>
+                  const productType = typeof productDetail.typ === 'string' ? productDetail.typ : ''
+                  const quantity = productDetail.stueckzahl ?? ''
+                  const shortDescription =
+                    String(productDetail.beschreibung ?? '')
                       .trim()
                       .slice(0, 60) || '—'
-                  const typAnz = typLabel(pt)
-                  const zuo = productFiles[r.id] ?? []
+                  const typeDisplay = typeLabel(productType)
+                  const fileAssignments = productFiles[r.id] ?? []
                   return (
                     <tr key={r.id}>
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
-                        {typAnz || '—'}
+                        {typeDisplay || '—'}
                       </td>
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
-                        {String(st || '—')}
+                        {String(quantity || '—')}
                       </td>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{kurz}</td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{shortDescription}</td>
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                           <button type="button" className="cp-btn cp-btn-grau" onClick={() => handleEdit(r)}>
@@ -1346,12 +1345,12 @@ export function StampDetail({
                             color: 'var(--color-muted-fg, #6b7280)',
                           }}
                         >
-                          {zuo.length === 0
+                          {fileAssignments.length === 0
                             ? '—'
-                            : zuo
+                            : fileAssignments
                                 .map(
                                   z =>
-                                    orderFiles.find(df => df.id === z.dateiId)?.anzeigename ?? z.dateiId,
+                                    orderFiles.find(df => df.id === z.fileId)?.anzeigename ?? z.fileId,
                                 )
                                 .join(', ')}
                         </div>
@@ -1368,41 +1367,41 @@ export function StampDetail({
   )
 }
 
-function BerZeile({ l, c, e, children }: { l: string; c?: React.ReactNode; e?: string; children?: React.ReactNode }) {
-  const inhalt = c ?? children
+function FormRow({ label, content, error, children }: { label: string; content?: React.ReactNode; error?: string; children?: React.ReactNode }) {
+  const displayContent = content ?? children
   return (
     <div className="ber-zeile">
-      <span className="ber-lbl">{l}</span>
+      <span className="ber-lbl">{label}</span>
       <div>
-        {inhalt}
-        {e && <p className="ber-err">{e}</p>}
+        {displayContent}
+        {error && <p className="ber-err">{error}</p>}
       </div>
     </div>
   )
 }
 
-function NmbStueckzahl(a: BlK & { label: string }) {
-  const { d, fe, f, pruef, patchL, commit, label } = a
-  const raw = d.stueckzahl
+function QuantityInput(context: StampFormContext & { label: string }) {
+  const { detail, fieldErrorClass, errors, shouldValidate, patchLocal, commitChanges, label } = context
+  const rawQuantity = detail.stueckzahl
   let numForInput: number | '' = ''
-  if (typeof raw === 'number' && Number.isInteger(raw) && raw >= 1) numForInput = raw
-  else if (typeof raw === 'string' && raw.trim() !== '') {
-    const n = parseInt(raw, 10)
-    if (Number.isInteger(n) && n >= 1) numForInput = n
+  if (typeof rawQuantity === 'number' && Number.isInteger(rawQuantity) && rawQuantity >= 1) numForInput = rawQuantity
+  else if (typeof rawQuantity === 'string' && rawQuantity.trim() !== '') {
+    const parsed = parseInt(rawQuantity, 10)
+    if (Number.isInteger(parsed) && parsed >= 1) numForInput = parsed
   }
   return (
-    <BerZeile l={label} e={pruef && f.stueckzahl ? f.stueckzahl : undefined}>
+    <FormRow label={label} error={shouldValidate && errors.stueckzahl ? errors.stueckzahl : undefined}>
       <input
         type="number"
-        className={'ber-inp' + fe('stueckzahl')}
+        className={'ber-inp' + fieldErrorClass('stueckzahl')}
         value={numForInput}
         onChange={e => {
           const raw = e.target.value
-          patchL({ stueckzahl: raw === '' ? null : parseInt(raw, 10) } as StampDetailJson)
+          patchLocal({ stueckzahl: raw === '' ? null : parseInt(raw, 10) } as StampDetailJson)
         }}
-        onBlur={commit}
+        onBlur={commitChanges}
         min={1}
       />
-    </BerZeile>
+    </FormRow>
   )
 }
