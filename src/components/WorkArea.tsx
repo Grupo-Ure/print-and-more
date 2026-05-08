@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabase'
 import { authService } from '../services/authService'
 import { fileService } from '../services/fileService'
+import { employeeService } from '../services/employeeService'
 import { customerName } from '../lib/customer'
 import { synchronizeOrderStatus } from '../lib/orderStatus'
 import { departmentAbbreviation } from '../const/departmentAbbreviation'
@@ -261,18 +262,14 @@ export function WorkArea({
     }
     let alive = true
     void (async () => {
-      const { data, error } = await supabase
-        .from('profile')
-        .select('id, name')
-        .eq('id', responsibleId)
-        .single()
-      if (!alive) return
-      if (error) {
-        console.error(error)
-        return
+      try {
+        const profile = await employeeService.getProfile(responsibleId)
+        if (!alive) return
+        setResponsibleName(profile?.name ?? null)
+      } catch (err) {
+        if (!alive) return
+        console.error(err)
       }
-      const profileRow = data as { name: string | null } | null
-      setResponsibleName(profileRow?.name ?? null)
     })()
     return () => {
       alive = false

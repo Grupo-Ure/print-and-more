@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../supabase'
 import { authService } from '../services/authService'
+import { employeeService } from '../services/employeeService'
 import { Login } from '../components/Login'
 import { useToast } from '../components/Toast'
 import { subOrderDetailToFieldMap } from '../types/database'
@@ -221,16 +222,17 @@ export function StampStockPage() {
   useEffect(() => {
     if (!session) return
     let alive = true
-    void Promise.resolve(supabase.from('mitarbeiter').select('id, email')).then(({ data, error }) => {
-      if (!alive) return
-      if (error) {
-        showError('Mitarbeiterdaten konnten nicht geladen werden')
-        return
-      }
-      const emailMap = new Map<string, string>()
-      for (const row of (data ?? []) as { id: string; email: string }[]) emailMap.set(row.id, row.email)
-      setStaffEmailById(emailMap)
-    })
+    employeeService.getEmployees().then(
+      employees => {
+        if (!alive) return
+        const emailMap = new Map<string, string>()
+        for (const row of employees) emailMap.set(row.id, row.email ?? '')
+        setStaffEmailById(emailMap)
+      },
+      () => {
+        if (alive) showError('Mitarbeiterdaten konnten nicht geladen werden')
+      },
+    )
     return () => {
       alive = false
     }
