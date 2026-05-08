@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 .b-dev {
-   @apply border-orange-400 border dashed;
+   @apply border-orange-400 border-8;
 }
 
 html {
