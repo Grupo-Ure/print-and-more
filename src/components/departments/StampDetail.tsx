@@ -10,6 +10,7 @@ import { validateStampDetail } from '../../lib/stamp/validateStampDetail'
 import { subOrderDetailToFieldMap, type OrderStatus, type SubOrderRow } from '../../types/database'
 import type { Database, Json } from '../../types/supabase'
 import { supabase } from '../../supabase'
+import { subOrderProductService, type SubOrderProductRow } from '../../services/subOrderProductService'
 import type { FileRow } from '../../services/fileService'
 import { useToast } from '../Toast'
 import '../WorkArea.css'
@@ -178,19 +179,14 @@ export function StampDetail({
         setProductFiles({})
         return
       }
-      const { data, error } = await supabase
-        .from('produkt_dateien')
-        .select('id, produkt_id, datei_id')
-        .in('produkt_id', ids)
-      if (error) {
+      let rows: Awaited<ReturnType<typeof subOrderProductService.getFilesByProductIds>>
+      try {
+        rows = await subOrderProductService.getFilesByProductIds(ids)
+      } catch {
         showError('FileRecord-Zuordnungen konnten nicht geladen werden')
         setProductFiles({})
         return
       }
-      const rows = (data ?? []) as Pick<
-        Database['public']['Tables']['produkt_dateien']['Row'],
-        'id' | 'produkt_id' | 'datei_id'
-      >[]
       const fileMap: Record<string, ProductFileAssignment[]> = {}
       for (const row of rows) {
         const assignmentList = fileMap[row.produkt_id] ?? (fileMap[row.produkt_id] = [])
@@ -207,20 +203,17 @@ export function StampDetail({
       return []
     }
     setProductsLoading(true)
-    const { data, error } = await supabase
-      .from('teilauftrag_produkte')
-      .select('*')
-      .eq('teilauftrag_id', subOrder.id)
-      .eq('bereich', 'STEMPEL')
-      .order('sort_order')
-    setProductsLoading(false)
-    if (error) {
+    let rows: SubOrderProductRow[]
+    try {
+      rows = await subOrderProductService.getProductsBySubOrderId(subOrder.id)
+    } catch {
+      setProductsLoading(false)
       showError('Produkte konnten nicht geladen werden')
       setProducts([])
       await loadFilesForProducts([])
       return []
     }
-    const rows = (data ?? []) as Database['public']['Tables']['teilauftrag_produkte']['Row'][]
+    setProductsLoading(false)
     const mapped: ProductRow[] = rows.map(r => ({
       id: r.id,
       teilauftrag_id: r.teilauftrag_id,
@@ -242,12 +235,9 @@ export function StampDetail({
     async (produktId: string, dateiId: string, produktRowsForReload?: ProductRow[]) => {
       const reloadRows = produktRowsForReload ?? products
       if (productFilesRef.current[produktId]?.some(z => z.fileId === dateiId)) return
-      const insertRow: Database['public']['Tables']['produkt_dateien']['Insert'] = {
-        produkt_id: produktId,
-        datei_id: dateiId,
-      }
-      const { error } = await supabase.from('produkt_dateien').insert(insertRow)
-      if (error) {
+      try {
+        await subOrderProductService.assignFileToProduct(produktId, dateiId)
+      } catch {
         showError('FileRecord konnte nicht zugeordnet werden')
         return
       }
@@ -258,8 +248,9 @@ export function StampDetail({
 
   const removeFileFromProduct = useCallback(
     async (zuordnungId: string, produktRowsForReload?: ProductRow[]) => {
-      const { error } = await supabase.from('produkt_dateien').delete().eq('id', zuordnungId)
-      if (error) {
+      try {
+        await subOrderProductService.removeFileFromProduct(zuordnungId)
+      } catch {
         showError('Zuordnung konnte nicht entfernt werden')
         return
       }
@@ -596,8 +587,9 @@ export function StampDetail({
       const patch: Database['public']['Tables']['teilauftrag_produkte']['Update'] = {
         detail: { ...currentDetail, typ: currentType } as Json,
       }
-      const { error } = await supabase.from('teilauftrag_produkte').update(patch).eq('id', editingId)
-      if (error) {
+      try {
+        await subOrderProductService.updateProduct(editingId, patch)
+      } catch {
         showError('Produkt konnte nicht gespeichert werden')
         return
       }
@@ -625,16 +617,14 @@ export function StampDetail({
       detail: { ...currentDetail, typ: currentType } as Json,
       sort_order: products.length,
     }
-    const { data: insRow, error } = await supabase.from('teilauftrag_produkte').insert(insertRow).select('id').single()
-    if (error) {
+    let insRow: SubOrderProductRow
+    try {
+      insRow = await subOrderProductService.createProduct(insertRow)
+    } catch {
       showError('Produkt konnte nicht hinzugefügt werden')
       return
     }
-    const newId = insRow?.id != null ? String(insRow.id) : ''
-    if (!newId) {
-      showError('Produkt konnte nicht hinzugefügt werden')
-      return
-    }
+    const newId = insRow.id
     let updatedProducts = await reloadProducts()
     for (const fid of formFileRecordIds) {
       await assignFileToProduct(newId, fid, updatedProducts)
@@ -665,8 +655,9 @@ export function StampDetail({
 
   const handleDelete = useCallback(
     async (id: string) => {
-      const { error } = await supabase.from('teilauftrag_produkte').delete().eq('id', id)
-      if (error) {
+      try {
+        await subOrderProductService.deleteProduct(id)
+      } catch {
         showError('Produkt konnte nicht gelöscht werden')
         return
       }

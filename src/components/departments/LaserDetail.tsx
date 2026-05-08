@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { supabase } from '../../supabase'
+import { subOrderProductService, type SubOrderProductRow } from '../../services/subOrderProductService'
 import {
   LASER_ORIGINS,
   LASER_ORIGIN_LABELS,
@@ -104,19 +104,14 @@ export function LaserDetail({
         setProductFiles({})
         return
       }
-      const { data, error } = await supabase
-        .from('produkt_dateien')
-        .select('id, produkt_id, datei_id')
-        .in('produkt_id', ids)
-      if (error) {
+      let rows: Awaited<ReturnType<typeof subOrderProductService.getFilesByProductIds>>
+      try {
+        rows = await subOrderProductService.getFilesByProductIds(ids)
+      } catch {
         toastError('FileRecord-Zuordnungen konnten nicht geladen werden')
         setProductFiles({})
         return
       }
-      const rows = (data ?? []) as Pick<
-        Database['public']['Tables']['produkt_dateien']['Row'],
-        'id' | 'produkt_id' | 'datei_id'
-      >[]
       const next: Record<string, ProductFileAssignment[]> = {}
       for (const row of rows) {
         const list = next[row.produkt_id] ?? (next[row.produkt_id] = [])
@@ -133,20 +128,17 @@ export function LaserDetail({
       return []
     }
     setProductsLoading(true)
-    const { data, error } = await supabase
-      .from('teilauftrag_produkte')
-      .select('*')
-      .eq('teilauftrag_id', subOrder.id)
-      .eq('bereich', 'LASERGRAVUR')
-      .order('sort_order')
-    setProductsLoading(false)
-    if (error) {
+    let rows: SubOrderProductRow[]
+    try {
+      rows = await subOrderProductService.getProductsBySubOrderId(subOrder.id)
+    } catch {
+      setProductsLoading(false)
       toastError('Produkte konnten nicht geladen werden')
       setProducts([])
       await loadFilesForProducts([])
       return []
     }
-    const rows = (data ?? []) as Database['public']['Tables']['teilauftrag_produkte']['Row'][]
+    setProductsLoading(false)
     const mapped: ProductRow[] = rows.map(row => ({
       id: row.id,
       teilauftrag_id: row.teilauftrag_id,
@@ -168,12 +160,9 @@ export function LaserDetail({
     async (productId: string, fileId: string, productRowsForReload?: ProductRow[]) => {
       const reloadRows = productRowsForReload ?? products
       if (productFilesRef.current[productId]?.some(assignment => assignment.fileId === fileId)) return
-      const fileAssignmentInsert: Database['public']['Tables']['produkt_dateien']['Insert'] = {
-        produkt_id: productId,
-        datei_id: fileId,
-      }
-      const { error } = await supabase.from('produkt_dateien').insert(fileAssignmentInsert)
-      if (error) {
+      try {
+        await subOrderProductService.assignFileToProduct(productId, fileId)
+      } catch {
         toastError('FileRecord konnte nicht zugeordnet werden')
         return
       }
@@ -184,8 +173,9 @@ export function LaserDetail({
 
   const removeFileFromProduct = useCallback(
     async (assignmentId: string, productRowsForReload?: ProductRow[]) => {
-      const { error } = await supabase.from('produkt_dateien').delete().eq('id', assignmentId)
-      if (error) {
+      try {
+        await subOrderProductService.removeFileFromProduct(assignmentId)
+      } catch {
         toastError('Zuordnung konnte nicht entfernt werden')
         return
       }
@@ -269,8 +259,9 @@ export function LaserDetail({
       const patch: Database['public']['Tables']['teilauftrag_produkte']['Update'] = {
         detail: { ...filteredDetail, typ: currentType } as Json,
       }
-      const { error } = await supabase.from('teilauftrag_produkte').update(patch).eq('id', editingId)
-      if (error) {
+      try {
+        await subOrderProductService.updateProduct(editingId, patch)
+      } catch {
         toastError('Produkt konnte nicht gespeichert werden')
         return
       }
@@ -298,16 +289,14 @@ export function LaserDetail({
       detail: { ...filteredDetail, typ: currentType } as Json,
       sort_order: products.length,
     }
-    const { data: insertedRow, error } = await supabase.from('teilauftrag_produkte').insert(productInsert).select('id').single()
-    if (error) {
+    let insertedRow: SubOrderProductRow
+    try {
+      insertedRow = await subOrderProductService.createProduct(productInsert)
+    } catch {
       toastError('Produkt konnte nicht hinzugefügt werden')
       return
     }
-    const newId = insertedRow?.id != null ? String(insertedRow.id) : ''
-    if (!newId) {
-      toastError('Produkt konnte nicht hinzugefügt werden')
-      return
-    }
+    const newId = insertedRow.id
     let list = await reloadProducts()
     for (const fid of formFileRecordIds) {
       await assignFileToProduct(newId, fid, list)
@@ -338,8 +327,9 @@ export function LaserDetail({
 
   const handleDelete = useCallback(
     async (id: string) => {
-      const { error } = await supabase.from('teilauftrag_produkte').delete().eq('id', id)
-      if (error) {
+      try {
+        await subOrderProductService.deleteProduct(id)
+      } catch {
         toastError('Produkt konnte nicht gelöscht werden')
         return
       }

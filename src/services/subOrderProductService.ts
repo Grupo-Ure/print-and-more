@@ -14,6 +14,12 @@ export type SubOrderProductRow = {
   erstellt_am: string
 }
 
+export type ProductFileAssignment = {
+  id: string
+  produkt_id: string
+  datei_id: string
+}
+
 class SubOrderProductService {
   async getProductsBySubOrderId(subOrderId: string): Promise<SubOrderProductRow[]> {
     const { data, error } = await supabase
@@ -46,6 +52,16 @@ class SubOrderProductService {
   async deleteProduct(id: string): Promise<void> {
     const { error } = await supabase.from('teilauftrag_produkte').delete().eq('id', id)
     if (error) throw error
+  }
+
+  async getFilesByProductIds(ids: string[]): Promise<ProductFileAssignment[]> {
+    if (ids.length === 0) return []
+    const { data, error } = await supabase
+      .from('produkt_dateien')
+      .select('id, produkt_id, datei_id')
+      .in('produkt_id', ids)
+    if (error) throw error
+    return (data ?? []) as ProductFileAssignment[]
   }
 
   async assignFileToProduct(produktId: string, dateiId: string): Promise<void> {

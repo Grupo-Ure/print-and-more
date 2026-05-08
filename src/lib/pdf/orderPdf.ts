@@ -4,6 +4,7 @@ import { formatDateDe } from '../formatDate'
 import { supabase } from '../../supabase'
 import { orderService } from '../../services/orderService'
 import { subOrderService } from '../../services/subOrderService'
+import { subOrderProductService } from '../../services/subOrderProductService'
 import type { Database } from '../../types/supabase'
 
 type OrderPdfRow = Pick<
@@ -230,16 +231,10 @@ function cellValueForKey(row: Record<string, unknown>, key: string): string {
 
 export async function generateAndDownloadPdf(subOrderId: string, orderId: string): Promise<boolean> {
   try {
-    const productsQuery = supabase
-      .from('teilauftrag_produkte')
-      .select('*')
-      .eq('teilauftrag_id', subOrderId)
-      .order('sort_order')
-
-    const [order, subOrderResult, productsResult, textilePositionsResult] = await Promise.all([
+    const [order, subOrderResult, rawProducts, textilePositionsResult] = await Promise.all([
       orderService.getOrderById(orderId),
       subOrderService.getSubOrderById(subOrderId),
-      productsQuery,
+      subOrderProductService.getProductsBySubOrderId(subOrderId),
       supabase
         .from('textil_positionen')
         .select('*, textil_varianten(id, textil_produkte(name))')
@@ -247,14 +242,13 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
         .order('id'),
     ])
 
-    if (productsResult.error) console.error(productsResult.error)
     if (textilePositionsResult.error) console.error(textilePositionsResult.error)
 
-    if (!order || !subOrderResult || productsResult.error || textilePositionsResult.error) return false
+    if (!order || !subOrderResult || textilePositionsResult.error) return false
 
     const subOrder = subOrderResult as SubOrderRow
 
-    const products = (productsResult.data ?? []) as Record<string, unknown>[]
+    const products = rawProducts as unknown as Record<string, unknown>[]
     const textilePositions = (textilePositionsResult.data ?? []) as TextilePositionRow[]
 
     const customer = extractCustomer(order.kunden as OrderPdfRow['kunden'])
