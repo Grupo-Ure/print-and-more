@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../supabase'
+import { historyService, type HistoryRow } from '../services/historyService'
+import { employeeService } from '../services/employeeService'
 import { subOrderDepartmentLabel } from '../types/database'
 import { useToast } from './Toast'
 import './ContextPanel.css'
@@ -10,15 +11,6 @@ type Props = {
   subOrders: { id: string; bereich: string }[]
 }
 
-type HistoryRow = {
-  id: string
-  ereignisart: string
-  begruendung: string | null
-  meta: Record<string, unknown> | null
-  erstellt_am: string
-  teilauftrag_id: string | null
-  person_id: string | null
-}
 
 const EVENT_LABELS: Record<string, string> = {
   AUFTRAG_ERSTELLT: 'Auftrag erstellt',
@@ -62,21 +54,19 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: P
 
   useEffect(() => {
     let alive = true
-    supabase
-      .from('profile')
-      .select('id, name')
-      .then(({ data, error }) => {
+    employeeService.getAllProfiles().then(
+      profiles => {
         if (!alive) return
-        if (error) {
-          toastFehler('Mitarbeiterdaten konnten nicht geladen werden')
-          return
-        }
         const staffMap = new Map<string, string>()
-        for (const staffMember of (data ?? []) as { id: string; name: string | null }[]) {
-          staffMap.set(staffMember.id, staffMember.name ?? staffMember.id)
+        for (const profile of profiles) {
+          staffMap.set(profile.id, profile.name ?? profile.id)
         }
         setStaffById(staffMap)
-      })
+      },
+      () => {
+        if (alive) toastFehler('Mitarbeiterdaten konnten nicht geladen werden')
+      },
+    )
     return () => {
       alive = false
     }
@@ -86,18 +76,14 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: P
     let alive = true
     void (async () => {
       setLoading(true)
-      const { data, error } = await supabase
-        .from('historie')
-        .select('id, ereignisart, begruendung, meta, erstellt_am, teilauftrag_id, person_id')
-        .eq('auftrag_id', activeOrderId)
-        .order('erstellt_am', { ascending: false })
-        .limit(50)
-      if (!alive) return
-      if (error) {
+      try {
+        const data = await historyService.getHistoryForOrder(activeOrderId)
+        if (!alive) return
+        setEntries(data)
+      } catch {
+        if (!alive) return
         toastFehler('Verlauf konnte nicht geladen werden')
         setEntries([])
-      } else {
-        setEntries((data ?? []) as HistoryRow[])
       }
       if (alive) setLoading(false)
     })()

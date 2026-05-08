@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { writeHistory } from '../lib/history'
+import { historyService } from '../services/historyService'
 import { supabase } from '../supabase'
 import type { DeliveryChoice, OrderStatus, Priority } from '../types/database'
 import type { Database } from '../types/supabase'
@@ -132,7 +132,7 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
     if (data) {
       onSuccess(data as NewOrderInsertRow)
       try {
-        await writeHistory({
+        await historyService.writeHistory({
           auftrag_id: (data as NewOrderInsertRow).id,
           ereignisart: 'AUFTRAG_ERSTELLT',
         })

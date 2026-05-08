@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { authService } from '../services/authService'
 import { SUB_ORDER_COLUMNS } from '../const/subOrderSelect'
-import { writeHistory, type HistoryEvent } from '../lib/history'
+import { historyService, type HistoryEvent } from '../services/historyService'
 import { parseStatusFromRpc } from '../lib/orderStatus'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import {
@@ -274,7 +274,7 @@ export function ContextPanel({
         .update({ status: 'UNVOLLSTAENDIG' as OrderStatus })
         .eq('id', order.id)
       if (statusUpdateError) throw statusUpdateError
-      await writeHistory({
+      await historyService.writeHistory({
         auftrag_id: order.id,
         ereignisart: 'IN_BEARBEITUNG_GENOMMEN',
       })
@@ -321,7 +321,7 @@ export function ContextPanel({
         .update({ status: 'ABGERECHNET' as OrderStatus, archiviert: true })
         .eq('id', order.id)
       if (error) throw error
-      await writeHistory({
+      await historyService.writeHistory({
         auftrag_id: order.id,
         ereignisart: 'FERTIG_GEMELDET',
         meta: { abgerechnet_auftrag: true },
@@ -350,7 +350,7 @@ export function ContextPanel({
       const orderArchiveUpdate: Database['public']['Tables']['auftraege']['Update'] = { archiviert: true }
       const { error: archiveOrderError } = await supabase.from('auftraege').update(orderArchiveUpdate).eq('id', order.id)
       if (archiveOrderError) throw archiveOrderError
-      await writeHistory({ auftrag_id: order.id, ereignisart: 'STORNIERT' })
+      await historyService.writeHistory({ auftrag_id: order.id, ereignisart: 'STORNIERT' })
       onOrderUpdated({ ...order, archiviert: true })
     } catch {
       fehler('Status konnte nicht geändert werden')
@@ -413,7 +413,7 @@ export function ContextPanel({
         .select(SUB_ORDER_COLUMNS)
         .single()
       if (error) throw error
-      await writeHistory({
+      await historyService.writeHistory({
         auftrag_id: order.id,
         teilauftrag_id: subOrder.id,
         ereignisart: 'PREPRESS_BEREIT_MANUELL',
@@ -579,7 +579,7 @@ export function ContextPanel({
       if (error) throw error
 
       try {
-        await writeHistory({
+        await historyService.writeHistory({
           auftrag_id: order.id,
           teilauftrag_id: subOrder.id,
           ereignisart: 'PRODUKTION_BEREIT_GESETZT',
@@ -621,7 +621,7 @@ export function ContextPanel({
         .select(SUB_ORDER_COLUMNS)
         .single()
       if (error) throw error
-      await writeHistory({
+      await historyService.writeHistory({
         auftrag_id: order.id,
         teilauftrag_id: subOrder.id,
         ereignisart: 'FERTIG_GEMELDET',
@@ -669,7 +669,7 @@ export function ContextPanel({
         .select(SUB_ORDER_COLUMNS)
         .single()
       if (error) throw error
-      await writeHistory({
+      await historyService.writeHistory({
         auftrag_id: order.id,
         teilauftrag_id: subOrder.id,
         ereignisart: 'NOTFALL_AUSGELOEST',
@@ -700,7 +700,7 @@ export function ContextPanel({
         .select(SUB_ORDER_COLUMNS)
         .single()
       if (error) throw error
-      await writeHistory({
+      await historyService.writeHistory({
         auftrag_id: order.id,
         teilauftrag_id: subOrder.id,
         ereignisart: 'RUECKSPRUNG',
@@ -735,7 +735,7 @@ export function ContextPanel({
       const historyEvent: HistoryEvent = enabled
         ? 'KUNDENFREIGABE_AKTIVIERT'
         : 'KUNDENFREIGABE_VERFALLEN'
-      await writeHistory({
+      await historyService.writeHistory({
         auftrag_id: order.id,
         teilauftrag_id: subOrder.id,
         ereignisart: historyEvent,
@@ -769,7 +769,7 @@ export function ContextPanel({
         .select(SUB_ORDER_COLUMNS)
         .single()
       if (error) throw error
-      await writeHistory({
+      await historyService.writeHistory({
         auftrag_id: order.id,
         teilauftrag_id: subOrder.id,
         ereignisart: 'KUNDENFREIGABE_ERTEILT',
