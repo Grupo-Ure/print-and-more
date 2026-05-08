@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { historyService } from '../services/historyService'
 import { customerService } from '../services/customerService'
-import { supabase } from '../supabase'
+import { orderService } from '../services/orderService'
 import type { DeliveryChoice, OrderStatus, Priority } from '../types/database'
 import type { Database } from '../types/supabase'
 import type { Customer } from '../lib/customers'
@@ -111,27 +111,24 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
       lieferung: 'ABHOLUNG',
       prioritaet: 'NORMAL',
     }
-    const { data, error: insertError } = await supabase.from('auftraege').insert(auftragInsert)
-      .select(
-        'id, auftragsnummer, status, erstellt_am, kunde_id, termin, lieferung, prioritaet, notfall_aktiv, archiviert, erp_exportiert'
-      )
-      .single()
-    setCreating(false)
-    if (insertError) {
-      setError(insertError.message)
+    let data: NewOrderInsertRow
+    try {
+      data = await orderService.createOrder(auftragInsert) as unknown as NewOrderInsertRow
+    } catch (err) {
+      setCreating(false)
+      setError(err instanceof Error ? err.message : 'Fehler beim Erstellen')
       return
     }
-    if (data) {
-      onSuccess(data as NewOrderInsertRow)
-      try {
-        await historyService.writeHistory({
-          auftrag_id: (data as NewOrderInsertRow).id,
-          ereignisart: 'AUFTRAG_ERSTELLT',
-        })
-      } catch {
-        console.error('Historie AUFTRAG_ERSTELLT fehlgeschlagen')
-        toastFehler('Auftrag angelegt, aber Verlaufseintrag fehlgeschlagen')
-      }
+    setCreating(false)
+    onSuccess(data)
+    try {
+      await historyService.writeHistory({
+        auftrag_id: data.id,
+        ereignisart: 'AUFTRAG_ERSTELLT',
+      })
+    } catch {
+      console.error('Historie AUFTRAG_ERSTELLT fehlgeschlagen')
+      toastFehler('Auftrag angelegt, aber Verlaufseintrag fehlgeschlagen')
     }
   }
 

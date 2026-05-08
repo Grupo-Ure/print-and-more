@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabase'
 import { customerService } from '../services/customerService'
-import { ORDER_COLUMNS } from '../const/orderSelect'
+import { orderService, type OrderListEntry } from '../services/orderService'
 import { departmentAbbreviation } from '../const/departmentAbbreviation'
 import { SUB_ORDER_COLUMNS } from '../const/subOrderSelect'
 import { formatDateDe } from '../lib/formatDate'
@@ -55,19 +55,6 @@ const STATUS_CHECKBOX_SHORT: Record<OrderStatus, string> = {
   ABGERECHNET: 'Abgerech.',
 }
 
-type SubOrderDepartmentRow = { bereich: string; status: string }
-type OrderListEntry = {
-  id: string
-  auftragsnummer: string
-  status: OrderStatus
-  erstellt_am: string
-  termin: string | null
-  prioritaet: 'NORMAL' | 'HOCH'
-  notfall_aktiv: boolean
-  kunde_id: string
-  kunden: { name: string } | { name: string }[] | null
-  teilauftraege: SubOrderDepartmentRow[] | null
-}
 
 function defaultFilterState() {
   return {
@@ -218,44 +205,37 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
 
       if (isStale()) return
 
-      let query = supabase
-        .from('auftraege')
-        .select(
-          'id, auftragsnummer, status, erstellt_am, termin, prioritaet, notfall_aktiv, kunde_id, kunden(name), teilauftraege(bereich, status)',
-        )
-        .order('erstellt_am', { ascending: false })
-
+      let archiviert: boolean | undefined
       if (statusAll) {
-        query = query.eq('archiviert', false)
+        archiviert = false
       } else {
         const billedSelected = selectedStatuses.includes('ABGERECHNET')
         const otherSelected = selectedStatuses.some(status => status !== 'ABGERECHNET')
         if (billedSelected && otherSelected) {
-          // no archiviert filter — shows both archived and non-archived
+          archiviert = undefined
         } else if (billedSelected) {
-          query = query.eq('archiviert', true)
+          archiviert = true
         } else {
-          query = query.eq('archiviert', false)
+          archiviert = false
         }
       }
 
-      if (customerIds) query = query.in('kunde_id', customerIds)
-      if (!statusAll) {
-        const validStatuses = filterValidOrderStatuses(selectedStatuses)
-        query = query.in('status', validStatuses)
-      }
-      if (deadlineFrom) query = query.gte('termin', deadlineFrom)
-      if (deadlineTo) query = query.lte('termin', deadlineTo)
-      if (intakeFrom) query = query.gte('erstellt_am', `${intakeFrom}T00:00:00`)
-      if (intakeTo) query = query.lte('erstellt_am', `${intakeTo}T23:59:59.999`)
-
-      const { data, error } = await query
-      if (isStale()) return
-      if (error) {
+      try {
+        const data = await orderService.getOrdersForList({
+          archiviert,
+          customerIds: customerIds ?? undefined,
+          statuses: !statusAll ? filterValidOrderStatuses(selectedStatuses) : undefined,
+          deadlineFrom: deadlineFrom || undefined,
+          deadlineTo: deadlineTo || undefined,
+          intakeFrom: intakeFrom || undefined,
+          intakeTo: intakeTo || undefined,
+        })
+        if (isStale()) return
+        setRawOrders(data)
+      } catch {
+        if (isStale()) return
         fehler('Aufträge konnten nicht geladen werden')
         setRawOrders([])
-      } else {
-        setRawOrders((data as OrderListEntry[]) ?? [])
       }
       if (isStale()) return
       hasLoadedOnce.current = true
@@ -347,12 +327,8 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
       setDuplicateBusy(true)
       setDuplicateError(null)
       try {
-        const { data: orderData, error: orderError } = await supabase
-          .from('auftraege')
-          .select(ORDER_COLUMNS)
-          .eq('id', auftragId)
-          .single()
-        if (orderError) throw orderError
+        const orderData = await orderService.getOrderById(auftragId)
+        if (!orderData) throw new Error('Auftrag nicht gefunden')
         const { data: subOrderData, error: subOrderError } = await supabase
           .from('teilauftraege')
           .select(SUB_ORDER_COLUMNS)
@@ -373,7 +349,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
 
   return (
     <div className="ol-root">
-      <div className="ol-head">
+      <div className="ol-head b-dev border-dashed">
         <div className="ol-head-row">
           <h1 className="ol-title">Auftragsliste</h1>
           <div className="ol-head-btns">

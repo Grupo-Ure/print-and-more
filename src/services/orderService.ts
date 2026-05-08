@@ -8,6 +8,32 @@ type OrderUpdate = Database['public']['Tables']['auftraege']['Update']
 type PriorityEnum = Database['public']['Enums']['prioritaet_typ']
 type DeliveryEnum = Database['public']['Enums']['lieferung_typ']
 
+export type OrderListEntry = {
+  id: string
+  auftragsnummer: string
+  status: OrderStatus
+  erstellt_am: string
+  termin: string | null
+  prioritaet: 'NORMAL' | 'HOCH'
+  notfall_aktiv: boolean
+  kunde_id: string
+  kunden: { name: string } | { name: string }[] | null
+  teilauftraege: { bereich: string; status: string }[] | null
+}
+
+const ORDER_LIST_SELECT =
+  'id, auftragsnummer, status, erstellt_am, termin, prioritaet, notfall_aktiv, kunde_id, kunden(name), teilauftraege(bereich, status)'
+
+export type OrderListParams = {
+  archiviert?: boolean
+  customerIds?: string[]
+  statuses?: OrderStatus[]
+  deadlineFrom?: string
+  deadlineTo?: string
+  intakeFrom?: string
+  intakeTo?: string
+}
+
 const ORDER_LIST_COLUMNS = 'id, auftragsnummer, status, erstellt_am, kunden(name)'
 
 function parseStatusString(raw: string): OrderStatus {
@@ -34,6 +60,23 @@ function parseStatusFromRpc(data: unknown): OrderStatus {
 }
 
 class OrderService {
+  async getOrdersForList(params: OrderListParams): Promise<OrderListEntry[]> {
+    let query = supabase
+      .from('auftraege')
+      .select(ORDER_LIST_SELECT)
+      .order('erstellt_am', { ascending: false })
+    if (params.archiviert !== undefined) query = query.eq('archiviert', params.archiviert)
+    if (params.customerIds) query = query.in('kunde_id', params.customerIds)
+    if (params.statuses) query = query.in('status', params.statuses)
+    if (params.deadlineFrom) query = query.gte('termin', params.deadlineFrom)
+    if (params.deadlineTo) query = query.lte('termin', params.deadlineTo)
+    if (params.intakeFrom) query = query.gte('erstellt_am', `${params.intakeFrom}T00:00:00`)
+    if (params.intakeTo) query = query.lte('erstellt_am', `${params.intakeTo}T23:59:59.999`)
+    const { data, error } = await query
+    if (error) throw error
+    return (data ?? []) as unknown as OrderListEntry[]
+  }
+
   async getOrders(): Promise<OrderSummaryRow[]> {
     const { data, error } = await supabase
       .from('auftraege')

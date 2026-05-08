@@ -2,6 +2,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { formatDateDe } from '../formatDate'
 import { supabase } from '../../supabase'
+import { orderService } from '../../services/orderService'
 import type { Database } from '../../types/supabase'
 
 type OrderPdfRow = Pick<
@@ -234,14 +235,8 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
       .eq('teilauftrag_id', subOrderId)
       .order('sort_order')
 
-    const [orderResult, subOrderResult, productsResult, textilePositionsResult] = await Promise.all([
-      supabase
-        .from('auftraege')
-        .select(
-          'auftragsnummer, termin, lieferung, prioritaet, erstellt_am, kunden(name, strasse, hausnummer, plz, ort, email, telefon)',
-        )
-        .eq('id', orderId)
-        .single(),
+    const [order, subOrderResult, productsResult, textilePositionsResult] = await Promise.all([
+      orderService.getOrderById(orderId),
       supabase.from('teilauftraege').select('*').eq('id', subOrderId).single(),
       productsQuery,
       supabase
@@ -251,21 +246,19 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
         .order('id'),
     ])
 
-    if (orderResult.error) console.error(orderResult.error)
     if (subOrderResult.error) console.error(subOrderResult.error)
     if (productsResult.error) console.error(productsResult.error)
     if (textilePositionsResult.error) console.error(textilePositionsResult.error)
 
-    if (orderResult.error || subOrderResult.error || productsResult.error || textilePositionsResult.error) return false
+    if (!order || subOrderResult.error || productsResult.error || textilePositionsResult.error) return false
 
-    const order = orderResult.data as OrderPdfRow | null
     const subOrder = subOrderResult.data as SubOrderRow | null
-    if (!order || !subOrder) return false
+    if (!subOrder) return false
 
     const products = (productsResult.data ?? []) as Record<string, unknown>[]
     const textilePositions = (textilePositionsResult.data ?? []) as TextilePositionRow[]
 
-    const customer = extractCustomer(order.kunden)
+    const customer = extractCustomer(order.kunden as OrderPdfRow['kunden'])
     const customerDisplayName = customer?.name?.trim() ? customer.name.trim() : 'Unbekannt'
 
     const fileName = buildFileName(

@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 import { authService } from '../services/authService'
 import { SUB_ORDER_COLUMNS } from '../const/subOrderSelect'
 import { historyService, type HistoryEvent } from '../services/historyService'
-import { parseStatusFromRpc } from '../lib/orderStatus'
+import { orderService } from '../services/orderService'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import {
   subOrderDetailToFieldMap,
@@ -269,26 +269,13 @@ export function ContextPanel({
     if (busy || order.status !== 'ANGEBOT') return
     setBusy(true)
     try {
-      const { error: statusUpdateError } = await supabase
-        .from('auftraege')
-        .update({ status: 'UNVOLLSTAENDIG' as OrderStatus })
-        .eq('id', order.id)
-      if (statusUpdateError) throw statusUpdateError
+      await orderService.setOrderStatus(order.id, 'UNVOLLSTAENDIG')
       await historyService.writeHistory({
         auftrag_id: order.id,
         ereignisart: 'IN_BEARBEITUNG_GENOMMEN',
       })
-      const { data: rpcResult, error: rpcError } = await supabase.rpc('fn_berechne_auftragsstatus', {
-        p_auftrag_id: order.id,
-      })
-      if (rpcError) throw rpcError
-      const newStatus = parseStatusFromRpc(rpcResult)
-      const { error: writeError } = await supabase
-        .from('auftraege')
-        .update({ status: newStatus })
-        .eq('id', order.id)
-      if (writeError) throw writeError
-      onOrderUpdated({ ...order, status: newStatus })
+      const updated = await orderService.synchronizeOrderStatus(order.id)
+      onOrderUpdated({ ...order, status: updated.status })
     } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
@@ -301,8 +288,7 @@ export function ContextPanel({
     if (!window.confirm('Auftrag archivieren?\nEr wird aus der normalen Liste ausgeblendet.')) return
     setBusy(true)
     try {
-      const { error } = await supabase.from('auftraege').update({ archiviert: true }).eq('id', order.id)
-      if (error) throw error
+      await orderService.archiveOrder(order.id)
       onOrderUpdated({ ...order, archiviert: true })
     } catch {
       fehler('Status konnte nicht geändert werden')
@@ -316,11 +302,7 @@ export function ContextPanel({
     if (!window.confirm('Auftrag als abgerechnet markieren?\nEr wird aus der Liste ausgeblendet.')) return
     setBusy(true)
     try {
-      const { error } = await supabase
-        .from('auftraege')
-        .update({ status: 'ABGERECHNET' as OrderStatus, archiviert: true })
-        .eq('id', order.id)
-      if (error) throw error
+      await orderService.markOrderBilled(order.id)
       await historyService.writeHistory({
         auftrag_id: order.id,
         ereignisart: 'FERTIG_GEMELDET',
@@ -344,12 +326,7 @@ export function ContextPanel({
       return
     setBusy(true)
     try {
-      const subOrderCancelUpdate: Database['public']['Tables']['teilauftraege']['Update'] = { storniert: true }
-      const { error: cancelSubOrdersError } = await supabase.from('teilauftraege').update(subOrderCancelUpdate).eq('auftrag_id', order.id)
-      if (cancelSubOrdersError) throw cancelSubOrdersError
-      const orderArchiveUpdate: Database['public']['Tables']['auftraege']['Update'] = { archiviert: true }
-      const { error: archiveOrderError } = await supabase.from('auftraege').update(orderArchiveUpdate).eq('id', order.id)
-      if (archiveOrderError) throw archiveOrderError
+      await orderService.archiveOrderWithCancelledSubOrders(order.id)
       await historyService.writeHistory({ auftrag_id: order.id, ereignisart: 'STORNIERT' })
       onOrderUpdated({ ...order, archiviert: true })
     } catch {
@@ -369,8 +346,7 @@ export function ContextPanel({
       return
     setBusy(true)
     try {
-      const { error } = await supabase.from('auftraege').delete().eq('id', order.id)
-      if (error) throw error
+      await orderService.deleteOrder(order.id)
       onOrderDeleted(order.id)
     } catch {
       fehler('Status konnte nicht geändert werden')
@@ -380,17 +356,8 @@ export function ContextPanel({
   }
 
   const syncOrderStatusAfterSubOrderAction = async () => {
-    const { data: rpcResult, error: rpcError } = await supabase.rpc('fn_berechne_auftragsstatus', {
-      p_auftrag_id: order.id,
-    })
-    if (rpcError) throw rpcError
-    const newStatus = parseStatusFromRpc(rpcResult)
-    const { error: writeError } = await supabase
-      .from('auftraege')
-      .update({ status: newStatus })
-      .eq('id', order.id)
-    if (writeError) throw writeError
-    onOrderUpdated({ ...order, status: newStatus })
+    const updated = await orderService.synchronizeOrderStatus(order.id)
+    onOrderUpdated({ ...order, status: updated.status })
   }
 
   const handlePrepressFrei = async () => {

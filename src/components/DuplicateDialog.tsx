@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
-import { supabase } from '../supabase'
 import { authService } from '../services/authService'
-import { ORDER_COLUMNS } from '../const/orderSelect'
+import { orderService } from '../services/orderService'
 import { customerName } from '../lib/customer'
 import { subOrderDetailToFieldMap, type Auftrag, type SubOrderRow } from '../types/database'
 import { SUB_ORDER_DEPARTMENT_LABELS, subOrderDepartmentLabel } from '../types/database'
@@ -101,7 +100,7 @@ export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }:
     setBusy(true)
     setError(null)
     try {
-      const { data: newOrderId, error: rpcError } = await supabase.rpc('dupliziere_auftrag', {
+      const newOrderId = await orderService.duplicateOrder({
         p_auftrag_id: auftrag.id,
         p_prioritaet: auftrag.prioritaet ?? null,
         p_lieferung: auftrag.lieferung ?? null,
@@ -109,22 +108,17 @@ export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }:
         p_teilauftrag_ids: selectedSubOrders.map(subOrder => subOrder.id),
         p_user_id: (await authService.getUser())?.id ?? null,
       })
-      if (rpcError) throw rpcError
 
-      if (typeof newOrderId !== 'string' || newOrderId.trim() === '') {
+      if (!newOrderId.trim()) {
         toastFehler('Auftrag konnte nicht dupliziert werden')
         return
       }
 
-      const { data: newOrderData, error: loadError } = await supabase
-        .from('auftraege')
-        .select(ORDER_COLUMNS)
-        .eq('id', newOrderId)
-        .single()
-      if (loadError) throw loadError
+      const newOrderData = await orderService.getOrderById(newOrderId)
+      if (!newOrderData) throw new Error('Duplizierter Auftrag nicht gefunden')
 
       erfolg('Auftrag dupliziert')
-      onSuccess(newOrderData as Auftrag)
+      onSuccess(newOrderData)
     } catch (e) {
       toastFehler('Auftrag konnte nicht dupliziert werden')
       setError(e instanceof Error ? e.message : String(e))

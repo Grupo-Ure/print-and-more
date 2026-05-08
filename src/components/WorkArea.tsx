@@ -3,10 +3,9 @@ import { supabase } from '../supabase'
 import { authService } from '../services/authService'
 import { fileService } from '../services/fileService'
 import { employeeService } from '../services/employeeService'
+import { orderService } from '../services/orderService'
 import { customerName } from '../lib/customer'
-import { synchronizeOrderStatus } from '../lib/orderStatus'
 import { departmentAbbreviation } from '../const/departmentAbbreviation'
-import { ORDER_COLUMNS } from '../const/orderSelect'
 import { SUB_ORDER_COLUMNS } from '../const/subOrderSelect'
 import {
   subOrderDepartmentLabel,
@@ -137,12 +136,8 @@ export function WorkArea({
       setError(null)
       setLoading(true)
       try {
-        const [orderResult, subOrderResult] = await Promise.all([
-          supabase
-            .from('auftraege')
-            .select(ORDER_COLUMNS)
-            .eq('id', orderId)
-            .single(),
+        const [orderData, subOrderResult] = await Promise.all([
+          orderService.getOrderById(orderId),
           supabase
             .from('teilauftraege')
             .select(SUB_ORDER_COLUMNS)
@@ -151,9 +146,8 @@ export function WorkArea({
         ])
         if (isStale()) return
 
-        if (orderResult.error) {
-          if (isStale()) return
-          setError(orderResult.error.message)
+        if (!orderData) {
+          setError('Auftrag nicht gefunden')
           toastFehler('Auftrag konnte nicht geladen werden')
           setOrder(null)
           setSubOrders([])
@@ -164,14 +158,14 @@ export function WorkArea({
           if (isStale()) return
           setError(subOrderResult.error.message)
           toastFehler('Auftrag konnte nicht geladen werden')
-          setOrder(orderResult.data as OrderDetailRow)
+          setOrder(orderData as OrderDetailRow)
           setSubOrders([])
           setActiveSubOrderId(null)
           return
         }
 
         if (isStale()) return
-        setOrder(orderResult.data as OrderDetailRow)
+        setOrder(orderData as OrderDetailRow)
         const subOrderList = subOrderResult.data ?? []
         setSubOrders(subOrderList)
         setActiveSubOrderId(currentId => {
@@ -220,18 +214,8 @@ export function WorkArea({
   const saveOrderHeader = useCallback(
     async (patch: Partial<Pick<OrderDetailRow, 'termin' | 'lieferung' | 'prioritaet'>>) => {
       if (!activeOrderId) return
-      const { data, error } = await supabase
-        .from('auftraege')
-        .update(patch)
-        .eq('id', activeOrderId)
-        .select(ORDER_COLUMNS)
-        .single()
-      if (error) {
-        toastFehler('Auftrag konnte nicht gespeichert werden')
-        return
-      }
-      if (data) {
-        const updatedOrder = data as OrderDetailRow
+      try {
+        const updatedOrder = await orderService.updateOrder(activeOrderId, patch) as OrderDetailRow
         setOrder(updatedOrder)
         onOrderFromWorkArea(updatedOrder)
         onOrderCustomerLoaded(updatedOrder.kunden)
@@ -240,6 +224,8 @@ export function WorkArea({
           lieferung: updatedOrder.lieferung,
           prioritaet: updatedOrder.prioritaet,
         }
+      } catch {
+        toastFehler('Auftrag konnte nicht gespeichert werden')
       }
     },
     [activeOrderId, onOrderFromWorkArea, onOrderCustomerLoaded, toastFehler]
@@ -363,19 +349,15 @@ export function WorkArea({
       setActiveSubOrderId(data.id)
 
       try {
-        const statusResult = await synchronizeOrderStatus(order.id)
+        const statusResult = await orderService.synchronizeOrderStatus(order.id)
         setOrder(current => (current ? { ...current, status: statusResult.status } : current))
         onOrderUpdated({ ...order, status: statusResult.status })
       } catch {
         toastFehler('Auftragsstatus konnte nicht aktualisiert werden')
-        const { data: refreshed } = await supabase
-          .from('auftraege')
-          .select(ORDER_COLUMNS)
-          .eq('id', order.id)
-          .single()
+        const refreshed = await orderService.getOrderById(order.id)
         if (refreshed) {
           setOrder(refreshed as OrderDetailRow)
-          onOrderUpdated(refreshed as Auftrag)
+          onOrderUpdated(refreshed)
         }
       }
     }
