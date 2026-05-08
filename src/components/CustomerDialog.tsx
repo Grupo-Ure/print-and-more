@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../supabase'
+import { customerService } from '../services/customerService'
 import type { Customer } from '../lib/customers'
 import './ContextPanel.css'
 
@@ -21,8 +21,6 @@ function validate(name: string): string | null {
   return null
 }
 
-const CUSTOMER_COLUMNS =
-  'id, name, email, telefon, notiz, strasse, hausnummer, plz, ort' as const
 
 export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
   const isEditing = kunde != null
@@ -69,33 +67,17 @@ export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
       plz: plz.trim() || null,
       ort: ort.trim() || null,
     }
-    if (isEditing) {
-      const { data, error: updateError } = await supabase
-        .from('kunden')
-        .update(payload)
-        .eq('id', kunde.id)
-        .select(CUSTOMER_COLUMNS)
-        .single()
+    try {
+      const saved = isEditing
+        ? await customerService.updateCustomer(kunde.id, payload)
+        : await customerService.createCustomer(payload)
       setSaving(false)
-      if (updateError) {
-        console.error(updateError)
-        setError(updateError.message)
-        return
-      }
-      if (data) onSaved(data as Customer)
-    } else {
-      const { data, error: insertError } = await supabase
-        .from('kunden')
-        .insert(payload)
-        .select(CUSTOMER_COLUMNS)
-        .single()
+      onSaved(saved as Customer)
+    } catch (err) {
       setSaving(false)
-      if (insertError) {
-        console.error(insertError)
-        setError(insertError.message)
-        return
-      }
-      if (data) onSaved(data as Customer)
+      const msg = err instanceof Error ? err.message : 'Fehler beim Speichern'
+      console.error(err)
+      setError(msg)
     }
   }
 

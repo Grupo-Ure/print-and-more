@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { historyService } from '../services/historyService'
+import { customerService } from '../services/customerService'
 import { supabase } from '../supabase'
 import type { DeliveryChoice, OrderStatus, Priority } from '../types/database'
 import type { Database } from '../types/supabase'
@@ -59,20 +60,14 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
       return
     }
     setSearchLoading(true)
-    const { data, error: searchError } = await supabase
-      .from('kunden')
-      .select('id, name, email, telefon, notiz, strasse, hausnummer, plz, ort')
-      .ilike('name', `%${trimmedQuery}%`)
-      .eq('archiviert', false)
-      .order('name')
-      .limit(20)
-    setSearchLoading(false)
-    if (searchError) {
+    try {
+      const data = await customerService.searchCustomers(trimmedQuery)
+      setSearchResults(data as Customer[])
+    } catch {
       toastFehler('Customernsuche fehlgeschlagen')
       setSearchResults([])
-      return
     }
-    setSearchResults((data ?? []) as Customer[])
+    setSearchLoading(false)
   }, [toastFehler])
 
   useEffect(() => {
@@ -86,19 +81,16 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
   const openEditCustomer = async () => {
     if (!selectedCustomer) return
     setEditingCustomer(true)
-    const { data, error: loadError } = await supabase
-      .from('kunden')
-      .select('id, name, email, telefon, notiz, strasse, hausnummer, plz, ort')
-      .eq('id', selectedCustomer.id)
-      .single()
-    setEditingCustomer(false)
-    if (loadError) {
+    try {
+      const data = await customerService.getCustomerById(selectedCustomer.id)
+      setEditingCustomer(false)
+      if (data) {
+        setCustomerForForm(data as Customer)
+        setCustomerSubDialog('bearbeiten')
+      }
+    } catch {
+      setEditingCustomer(false)
       toastFehler('Customer konnte nicht geladen werden')
-      return
-    }
-    if (data) {
-      setCustomerForForm(data as Customer)
-      setCustomerSubDialog('bearbeiten')
     }
   }
 

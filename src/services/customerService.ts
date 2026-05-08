@@ -61,6 +61,16 @@ class CustomerService {
     if (error) throw error
     return data as CustomerRow
   }
+
+  /** Returns IDs of all customers (including archived) whose name matches the query. Used for order list search. */
+  async searchCustomerIds(query: string): Promise<string[]> {
+    const { data, error } = await supabase
+      .from('kunden')
+      .select('id')
+      .ilike('name', `%${query}%`)
+    if (error) throw error
+    return (data ?? []).map(r => r.id)
+  }
 }
 
 export const customerService = new CustomerService()

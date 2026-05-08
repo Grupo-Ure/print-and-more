@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabase'
+import { customerService } from '../services/customerService'
 import { ORDER_COLUMNS } from '../const/orderSelect'
 import { departmentAbbreviation } from '../const/departmentAbbreviation'
 import { SUB_ORDER_COLUMNS } from '../const/subOrderSelect'
@@ -183,12 +184,10 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
       const trimmedSearch = searchDebounced.trim()
       let customerIds: string[] | null = null
       if (trimmedSearch) {
-        const { data: customerData, error: customerError } = await supabase
-          .from('kunden')
-          .select('id')
-          .ilike('name', `%${trimmedSearch}%`)
-        if (isStale()) return
-        if (customerError) {
+        try {
+          customerIds = await customerService.searchCustomerIds(trimmedSearch)
+        } catch {
+          if (isStale()) return
           fehler('Aufträge konnten nicht geladen werden')
           setRawOrders([])
           hasLoadedOnce.current = true
@@ -196,7 +195,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
           setRefreshing(false)
           return
         }
-        customerIds = (customerData ?? []).map(customer => customer.id)
+        if (isStale()) return
         if (customerIds.length === 0) {
           if (isStale()) return
           setRawOrders([])
