@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../supabase'
 import { authService } from '../services/authService'
+import { subOrderService } from '../services/subOrderService'
 import { Login } from '../components/Login'
 import { useToast } from '../components/Toast'
 import type { Database } from '../types/supabase'
@@ -527,14 +528,8 @@ export function TextileStockPage() {
       const activeVariants = (variantData ?? []) as VariantRow[]
       const variantIdSet = new Set(activeVariants.map(v => v.id))
 
-      const { data: subOrderData, error: subOrderLoadError } = await supabase
-        .from('teilauftraege')
-        .select('id')
-        .eq('bereich', 'TEXTIL')
-        .eq('storniert', false)
-        .neq('status', 'FERTIG')
-      if (subOrderLoadError) throw subOrderLoadError
-      const subOrderIds = (subOrderData ?? []).map((row: { id: string }) => row.id)
+      const activeSubOrders = await subOrderService.getActiveSubOrdersByBereich('TEXTIL')
+      const subOrderIds = activeSubOrders.filter(s => !s.storniert && s.status !== 'FERTIG').map(s => s.id)
       const demandByVariantId = new Map<string, number>()
 
       const chunk = 200

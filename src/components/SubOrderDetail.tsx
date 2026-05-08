@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { supabase } from '../supabase'
+import { subOrderService } from '../services/subOrderService'
 import { departmentAbbreviation } from '../const/departmentAbbreviation'
-import { SUB_ORDER_COLUMNS } from '../const/subOrderSelect'
 import { customerMeetsPrepressContact } from '../lib/customer'
 import {
   isSubOrderComplete,
@@ -158,24 +157,22 @@ export function SubOrderDetail({
           ? { bereich: areaPatch as Database['public']['Enums']['teilauftrag_bereich'] }
           : {}),
       }
-      const { data, error } = await supabase.from('teilauftraege').update(subOrderUpdate).eq('id', subOrder.id)
-        .select(SUB_ORDER_COLUMNS)
-        .single()
-      setSavePending(false)
-      if (error) {
+      let row: SubOrderRow
+      try {
+        row = await subOrderService.updateSubOrder(subOrder.id, subOrderUpdate)
+      } catch {
+        setSavePending(false)
         fehler('Speichern fehlgeschlagen')
         return
       }
-      if (data) {
-        const row = data as SubOrderRow
-        serverSnapshotRef.current = row
-        localRef.current = row
-        setLocal(row)
-        onUpdated(row)
-        if (row.status === 'PREPRESS_BEREIT' && previousStatus !== 'PREPRESS_BEREIT') {
-          const pdfOk = await generateAndDownloadPdf(subOrder.id, subOrder.auftrag_id)
-          if (!pdfOk) fehler('PDF konnte nicht erstellt werden')
-        }
+      setSavePending(false)
+      serverSnapshotRef.current = row
+      localRef.current = row
+      setLocal(row)
+      onUpdated(row)
+      if (row.status === 'PREPRESS_BEREIT' && previousStatus !== 'PREPRESS_BEREIT') {
+        const pdfOk = await generateAndDownloadPdf(subOrder.id, subOrder.auftrag_id)
+        if (!pdfOk) fehler('PDF konnte nicht erstellt werden')
       }
     },
     [orderDeliveryMode, subOrder.id, subOrder.auftrag_id, orderStatus, onUpdated, customerMeetsPrepressRequirements, fehler]
@@ -267,23 +264,12 @@ export function SubOrderDetail({
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
-          const terminPatch: Database['public']['Tables']['teilauftraege']['Update'] = { termin: orderDeadlineIso }
-          const { data, error } = await supabase
-            .from('teilauftraege')
-            .update(terminPatch)
-            .eq('id', subOrder.id)
-            .select(SUB_ORDER_COLUMNS)
-            .single()
+          const row = await subOrderService.updateSubOrder(subOrder.id, { termin: orderDeadlineIso })
           if (!alive) return
-          if (error) throw error
-          if (data) {
-            const row = data as SubOrderRow
-            if (!alive) return
-            serverSnapshotRef.current = row
-            localRef.current = row
-            setLocal(row)
-            onUpdated(row)
-          }
+          serverSnapshotRef.current = row
+          localRef.current = row
+          setLocal(row)
+          onUpdated(row)
         } catch {
           if (!alive) return
           fehler('Speichern fehlgeschlagen')
@@ -303,25 +289,12 @@ export function SubOrderDetail({
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
-          const lieferungPatch: Database['public']['Tables']['teilauftraege']['Update'] = {
-            lieferung: orderDeliveryMode,
-          }
-          const { data, error } = await supabase
-            .from('teilauftraege')
-            .update(lieferungPatch)
-            .eq('id', subOrder.id)
-            .select(SUB_ORDER_COLUMNS)
-            .single()
+          const row = await subOrderService.updateSubOrder(subOrder.id, { lieferung: orderDeliveryMode })
           if (!alive) return
-          if (error) throw error
-          if (data) {
-            const row = data as SubOrderRow
-            if (!alive) return
-            serverSnapshotRef.current = row
-            localRef.current = row
-            setLocal(row)
-            onUpdated(row)
-          }
+          serverSnapshotRef.current = row
+          localRef.current = row
+          setLocal(row)
+          onUpdated(row)
         } catch {
           if (!alive) return
           fehler('Speichern fehlgeschlagen')
@@ -342,22 +315,12 @@ export function SubOrderDetail({
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
-          const { data, error } = await supabase
-            .from('teilauftraege')
-            .update({ prioritaet: orderPriorityMode })
-            .eq('id', subOrder.id)
-            .select(SUB_ORDER_COLUMNS)
-            .single()
+          const row = await subOrderService.updateSubOrder(subOrder.id, { prioritaet: orderPriorityMode })
           if (!alive) return
-          if (error) throw error
-          if (data) {
-            const row = data as SubOrderRow
-            if (!alive) return
-            serverSnapshotRef.current = row
-            localRef.current = row
-            setLocal(row)
-            onUpdated(row)
-          }
+          serverSnapshotRef.current = row
+          localRef.current = row
+          setLocal(row)
+          onUpdated(row)
         } catch {
           if (!alive) return
           fehler('Speichern fehlgeschlagen')

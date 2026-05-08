@@ -3,6 +3,7 @@ import autoTable from 'jspdf-autotable'
 import { formatDateDe } from '../formatDate'
 import { supabase } from '../../supabase'
 import { orderService } from '../../services/orderService'
+import { subOrderService } from '../../services/subOrderService'
 import type { Database } from '../../types/supabase'
 
 type OrderPdfRow = Pick<
@@ -237,7 +238,7 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
 
     const [order, subOrderResult, productsResult, textilePositionsResult] = await Promise.all([
       orderService.getOrderById(orderId),
-      supabase.from('teilauftraege').select('*').eq('id', subOrderId).single(),
+      subOrderService.getSubOrderById(subOrderId),
       productsQuery,
       supabase
         .from('textil_positionen')
@@ -246,14 +247,12 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
         .order('id'),
     ])
 
-    if (subOrderResult.error) console.error(subOrderResult.error)
     if (productsResult.error) console.error(productsResult.error)
     if (textilePositionsResult.error) console.error(textilePositionsResult.error)
 
-    if (!order || subOrderResult.error || productsResult.error || textilePositionsResult.error) return false
+    if (!order || !subOrderResult || productsResult.error || textilePositionsResult.error) return false
 
-    const subOrder = subOrderResult.data as SubOrderRow | null
-    if (!subOrder) return false
+    const subOrder = subOrderResult as SubOrderRow
 
     const products = (productsResult.data ?? []) as Record<string, unknown>[]
     const textilePositions = (textilePositionsResult.data ?? []) as TextilePositionRow[]

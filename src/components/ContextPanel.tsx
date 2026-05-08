@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { authService } from '../services/authService'
-import { SUB_ORDER_COLUMNS } from '../const/subOrderSelect'
 import { historyService, type HistoryEvent } from '../services/historyService'
 import { orderService } from '../services/orderService'
+import { subOrderService } from '../services/subOrderService'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import {
   subOrderDetailToFieldMap,
@@ -232,17 +232,14 @@ export function ContextPanel({
     let alive = true
     void (async () => {
       try {
-        const { data, error } = await supabase
-          .from('teilauftraege')
-          .select('id, bereich')
-          .eq('auftrag_id', order.id)
+        const summaries = await subOrderService.getSubOrderSummariesForOrder(order.id).catch(() => null)
         if (!alive) return
-        if (error) {
+        if (!summaries) {
           fehler('Daten konnten nicht geladen werden')
           setSubOrderAreaList([])
           return
         }
-        setSubOrderAreaList((data ?? []) as { id: string; bereich: string }[])
+        setSubOrderAreaList(summaries)
       } catch (err: unknown) {
         if (alive) console.error(err)
       }
@@ -373,13 +370,7 @@ export function ContextPanel({
     }
     setBusy(true)
     try {
-      const { data, error } = await supabase
-        .from('teilauftraege')
-        .update({ status: 'PREPRESS_BEREIT' as OrderStatus })
-        .eq('id', subOrder.id)
-        .select(SUB_ORDER_COLUMNS)
-        .single()
-      if (error) throw error
+      const data = await subOrderService.setSubOrderStatus(subOrder.id, 'PREPRESS_BEREIT')
       await historyService.writeHistory({
         auftrag_id: order.id,
         teilauftrag_id: subOrder.id,
@@ -537,13 +528,7 @@ export function ContextPanel({
         }
       }
 
-      const { data, error } = await supabase
-        .from('teilauftraege')
-        .update({ status: 'PRODUKTION_BEREIT' as OrderStatus })
-        .eq('id', subOrder.id)
-        .select(SUB_ORDER_COLUMNS)
-        .single()
-      if (error) throw error
+      const data = await subOrderService.setSubOrderStatus(subOrder.id, 'PRODUKTION_BEREIT')
 
       try {
         await historyService.writeHistory({
@@ -555,7 +540,7 @@ export function ContextPanel({
         console.error('Historie Produktion fehlgeschlagen')
       }
 
-      onSubOrderUpdated(data as SubOrderRow)
+      onSubOrderUpdated(data)
       await syncOrderStatusAfterSubOrderAction()
     } catch {
       fehler('Status konnte nicht geändert werden')
@@ -581,19 +566,13 @@ export function ContextPanel({
     if (!window.confirm('Teilauftrag als fertig markieren?')) return
     setBusy(true)
     try {
-      const { data, error } = await supabase
-        .from('teilauftraege')
-        .update({ status: 'FERTIG' as OrderStatus })
-        .eq('id', subOrder.id)
-        .select(SUB_ORDER_COLUMNS)
-        .single()
-      if (error) throw error
+      const data = await subOrderService.setSubOrderStatus(subOrder.id, 'FERTIG')
       await historyService.writeHistory({
         auftrag_id: order.id,
         teilauftrag_id: subOrder.id,
         ereignisart: 'FERTIG_GEMELDET',
       })
-      onSubOrderUpdated(data as SubOrderRow)
+      onSubOrderUpdated(data)
       await syncOrderStatusAfterSubOrderAction()
     } catch {
       fehler('Status konnte nicht geändert werden')
@@ -624,25 +603,18 @@ export function ContextPanel({
     setBusy(true)
     setEmergencyDialogOpen(false)
     try {
-      const emergencyPatch: Database['public']['Tables']['teilauftraege']['Update'] = {
+      const data = await subOrderService.setSubOrderEmergency(subOrder.id, {
         status: nextStatus,
         notfall_aktiv: true,
         notfall_begruendung: reason,
-      }
-      const { data, error } = await supabase
-        .from('teilauftraege')
-        .update(emergencyPatch)
-        .eq('id', subOrder.id)
-        .select(SUB_ORDER_COLUMNS)
-        .single()
-      if (error) throw error
+      })
       await historyService.writeHistory({
         auftrag_id: order.id,
         teilauftrag_id: subOrder.id,
         ereignisart: 'NOTFALL_AUSGELOEST',
         begruendung: reason,
       })
-      onSubOrderUpdated(data as SubOrderRow)
+      onSubOrderUpdated(data)
       await syncOrderStatusAfterSubOrderAction()
     } catch {
       fehler('Status konnte nicht geändert werden')
@@ -655,24 +627,17 @@ export function ContextPanel({
     if (busy || !subOrder || !subOrder.notfall_aktiv) return
     setBusy(true)
     try {
-      const emergencyResetPatch: Database['public']['Tables']['teilauftraege']['Update'] = {
-        status: 'UNVOLLSTAENDIG' as OrderStatus,
+      const data = await subOrderService.setSubOrderEmergency(subOrder.id, {
+        status: 'UNVOLLSTAENDIG',
         notfall_aktiv: false,
         notfall_begruendung: null,
-      }
-      const { data, error } = await supabase
-        .from('teilauftraege')
-        .update(emergencyResetPatch)
-        .eq('id', subOrder.id)
-        .select(SUB_ORDER_COLUMNS)
-        .single()
-      if (error) throw error
+      })
       await historyService.writeHistory({
         auftrag_id: order.id,
         teilauftrag_id: subOrder.id,
         ereignisart: 'RUECKSPRUNG',
       })
-      onSubOrderUpdated(data as SubOrderRow)
+      onSubOrderUpdated(data)
       await syncOrderStatusAfterSubOrderAction()
     } catch {
       fehler('Status konnte nicht geändert werden')
@@ -686,29 +651,23 @@ export function ContextPanel({
     if (subOrder.status === 'ANGEBOT') return
     setBusy(true)
     try {
-      const patch: Database['public']['Tables']['teilauftraege']['Update'] = enabled
+      const approvalPatch = enabled
         ? { kundenfreigabe_erforderlich: true }
         : {
             kundenfreigabe_erforderlich: false,
             kundenfreigabe_liegt_vor: false,
             kundenfreigabe_datei_id: null,
           }
-      const { data, error } = await supabase.from('teilauftraege').update(patch)
-        .eq('id', subOrder.id)
-        .select(SUB_ORDER_COLUMNS)
-        .single()
-      if (error) throw error
+      const data = await subOrderService.setCustomerApproval(subOrder.id, approvalPatch)
       // DB-Enum hat kein KUNDENFREIGABE_DEAKTIVIERT; bei Abschaltung der Anforderung VERFALLEN als nächstliegender Wert.
-      const historyEvent: HistoryEvent = enabled
-        ? 'KUNDENFREIGABE_AKTIVIERT'
-        : 'KUNDENFREIGABE_VERFALLEN'
+      const historyEvent: HistoryEvent = enabled ? 'KUNDENFREIGABE_AKTIVIERT' : 'KUNDENFREIGABE_VERFALLEN'
       await historyService.writeHistory({
         auftrag_id: order.id,
         teilauftrag_id: subOrder.id,
         ereignisart: historyEvent,
         meta: { aktiv: enabled } as unknown as Record<string, unknown>,
       })
-      onSubOrderUpdated(data as SubOrderRow)
+      onSubOrderUpdated(data)
       await syncOrderStatusAfterSubOrderAction()
     } catch {
       fehler('Status konnte nicht geändert werden')
@@ -728,21 +687,17 @@ export function ContextPanel({
     setBusy(true)
     setDialogCustomerApprovalFile(false)
     try {
-      const customerApprovalPatch: Database['public']['Tables']['teilauftraege']['Update'] = {
+      const data = await subOrderService.setCustomerApproval(subOrder.id, {
         kundenfreigabe_liegt_vor: true,
         kundenfreigabe_datei_id: customerApprovalFileId,
-      }
-      const { data, error } = await supabase.from('teilauftraege').update(customerApprovalPatch).eq('id', subOrder.id)
-        .select(SUB_ORDER_COLUMNS)
-        .single()
-      if (error) throw error
+      })
       await historyService.writeHistory({
         auftrag_id: order.id,
         teilauftrag_id: subOrder.id,
         ereignisart: 'KUNDENFREIGABE_ERTEILT',
         meta: { datei_id: customerApprovalFileId } as unknown as Record<string, unknown>,
       })
-      onSubOrderUpdated(data as SubOrderRow)
+      onSubOrderUpdated(data)
       await syncOrderStatusAfterSubOrderAction()
       erfolg('Freigabe erteilt')
     } catch {
@@ -757,9 +712,7 @@ export function ContextPanel({
     if (!window.confirm('Teilauftrag stornieren? Er wird ausgeblendet, aber nicht gelöscht.')) return
     setCancelInProgress(true)
     try {
-      const cancelUpdate: Database['public']['Tables']['teilauftraege']['Update'] = { storniert: true }
-      const { error } = await supabase.from('teilauftraege').update(cancelUpdate).eq('id', subOrder.id)
-      if (error) throw error
+      await subOrderService.cancelSubOrder(subOrder.id)
       onSubOrderRemoved(subOrder.id)
       try {
         await syncOrderStatusAfterSubOrderAction()
@@ -778,8 +731,7 @@ export function ContextPanel({
     if (!window.confirm('Teilauftrag endgültig löschen?')) return
     setDeleteInProgress(true)
     try {
-      const { error } = await supabase.from('teilauftraege').delete().eq('id', subOrder.id)
-      if (error) throw error
+      await subOrderService.deleteSubOrder(subOrder.id)
       onSubOrderRemoved(subOrder.id)
       try {
         await syncOrderStatusAfterSubOrderAction()

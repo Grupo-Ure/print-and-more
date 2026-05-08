@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { supabase } from '../../supabase'
-import { SUB_ORDER_COLUMNS } from '../../const/subOrderSelect'
+import { subOrderService } from '../../services/subOrderService'
 import { customerMeetsPrepressContact } from '../../lib/customer'
 import { isSubOrderComplete, nextSubOrderStatus } from '../../lib/subOrderShared'
 import {
@@ -214,19 +214,17 @@ export function TextileDetail({
         status: nextStatus,
         detail: newDetail as Json,
       }
-      const { data, error } = await supabase.from('teilauftraege').update(subOrderSyncPatch).eq('id', currentSubOrder.id)
-        .select(SUB_ORDER_COLUMNS)
-        .single()
-      setIsSaving(false)
-      if (error) {
-        setError(error.message)
+      let row: SubOrderRow
+      try {
+        row = await subOrderService.updateSubOrder(currentSubOrder.id, subOrderSyncPatch)
+      } catch (err) {
+        setIsSaving(false)
+        setError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen')
         return
       }
-      if (data) {
-        const row = data as SubOrderRow
-        subOrderRef.current = row
-        onUpdated(row)
-      }
+      setIsSaving(false)
+      subOrderRef.current = row
+      onUpdated(row)
     },
     [orderCustomer, orderStatus, onUpdated]
   )
@@ -345,19 +343,17 @@ export function TextileDetail({
       const detailPatch: Database['public']['Tables']['teilauftraege']['Update'] = {
         detail: newDetail as Json,
       }
-      const { data, error } = await supabase.from('teilauftraege').update(detailPatch).eq('id', currentSubOrder.id)
-        .select(SUB_ORDER_COLUMNS)
-        .single()
-      setIsSaving(false)
-      if (error) {
-        setError(error.message)
+      let row: SubOrderRow
+      try {
+        row = await subOrderService.updateSubOrder(currentSubOrder.id, detailPatch)
+      } catch (err) {
+        setIsSaving(false)
+        setError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen')
         return
       }
-      if (data) {
-        const row = data as SubOrderRow
-        subOrderRef.current = row
-        onUpdated(row)
-      }
+      setIsSaving(false)
+      subOrderRef.current = row
+      onUpdated(row)
     },
     [onUpdated]
   )

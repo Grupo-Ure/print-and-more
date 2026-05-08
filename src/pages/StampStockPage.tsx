@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../supabase'
 import { authService } from '../services/authService'
 import { employeeService } from '../services/employeeService'
+import { subOrderService } from '../services/subOrderService'
 import { Login } from '../components/Login'
 import { useToast } from '../components/Toast'
 import { subOrderDetailToFieldMap } from '../types/database'
@@ -494,13 +495,8 @@ export function StampStockPage() {
         .eq('aktiv', true)
       if (modelsLoadError) throw modelsLoadError
 
-      const { data: subOrderData, error: subOrdersLoadError } = await supabase
-        .from('teilauftraege')
-        .select('id, status, bereich, detail, storniert')
-        .eq('bereich', 'STEMPEL')
-        .neq('status', 'FERTIG')
-        .eq('storniert', false)
-      if (subOrdersLoadError) throw subOrdersLoadError
+      const allSubOrders = await subOrderService.getActiveSubOrdersByBereich('STEMPEL')
+      const subOrderData = allSubOrders.filter(s => s.status !== 'FERTIG' && !s.storniert)
 
       const activeModels = ((modelsData ?? []) as StampModelOrderRow[]).slice()
       const modelIdSet = new Set(activeModels.map(model => model.id))

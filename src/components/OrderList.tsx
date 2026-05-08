@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabase'
 import { customerService } from '../services/customerService'
 import { orderService, type OrderListEntry } from '../services/orderService'
+import { subOrderService } from '../services/subOrderService'
 import { departmentAbbreviation } from '../const/departmentAbbreviation'
-import { SUB_ORDER_COLUMNS } from '../const/subOrderSelect'
 import { formatDateDe } from '../lib/formatDate'
 import { customerName } from '../lib/customer'
 import {
@@ -329,13 +329,9 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
       try {
         const orderData = await orderService.getOrderById(auftragId)
         if (!orderData) throw new Error('Auftrag nicht gefunden')
-        const { data: subOrderData, error: subOrderError } = await supabase
-          .from('teilauftraege')
-          .select(SUB_ORDER_COLUMNS)
-          .eq('auftrag_id', auftragId)
-        if (subOrderError) throw subOrderError
+        const subOrderData = await subOrderService.getSubOrdersByOrderId(auftragId)
         setDuplicateOrder(orderData as Auftrag)
-        setDuplicateSubOrders((subOrderData ?? []) as SubOrderRow[])
+        setDuplicateSubOrders(subOrderData)
         setDuplicateDialogOpen(true)
       } catch (e) {
         fehler('Aufträge konnten nicht geladen werden')

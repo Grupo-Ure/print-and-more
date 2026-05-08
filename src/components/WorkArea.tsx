@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { supabase } from '../supabase'
 import { authService } from '../services/authService'
 import { fileService } from '../services/fileService'
 import { employeeService } from '../services/employeeService'
 import { orderService } from '../services/orderService'
+import { subOrderService } from '../services/subOrderService'
 import { customerName } from '../lib/customer'
 import { departmentAbbreviation } from '../const/departmentAbbreviation'
-import { SUB_ORDER_COLUMNS } from '../const/subOrderSelect'
 import {
   subOrderDepartmentLabel,
   type Auftrag,
@@ -138,11 +137,7 @@ export function WorkArea({
       try {
         const [orderData, subOrderResult] = await Promise.all([
           orderService.getOrderById(orderId),
-          supabase
-            .from('teilauftraege')
-            .select(SUB_ORDER_COLUMNS)
-            .eq('auftrag_id', orderId)
-            .order('id', { ascending: true }),
+          subOrderService.getSubOrdersByOrderId(orderId),
         ])
         if (isStale()) return
 
@@ -154,19 +149,9 @@ export function WorkArea({
           setActiveSubOrderId(null)
           return
         }
-        if (subOrderResult.error) {
-          if (isStale()) return
-          setError(subOrderResult.error.message)
-          toastFehler('Auftrag konnte nicht geladen werden')
-          setOrder(orderData as OrderDetailRow)
-          setSubOrders([])
-          setActiveSubOrderId(null)
-          return
-        }
-
         if (isStale()) return
         setOrder(orderData as OrderDetailRow)
-        const subOrderList = subOrderResult.data ?? []
+        const subOrderList = subOrderResult
         setSubOrders(subOrderList)
         setActiveSubOrderId(currentId => {
           const visible = subOrderList.filter(subOrder => !subOrder.storniert)
@@ -313,9 +298,9 @@ export function WorkArea({
       : `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
     const priority = order.prioritaet
     const delivery = order.lieferung ?? 'ABHOLUNG'
-    const { data, error } = await supabase
-      .from('teilauftraege')
-      .insert({
+    let data: SubOrderRow
+    try {
+      data = await subOrderService.createSubOrder({
         auftrag_id: activeOrderId,
         bereich,
         status: 'UNVOLLSTAENDIG',
@@ -331,34 +316,30 @@ export function WorkArea({
         kundenfreigabe_liegt_vor: false,
         kundenfreigabe_datei_id: null,
       })
-      .select(SUB_ORDER_COLUMNS)
-      .single()
-
-    setSaving(false)
-    if (error) {
-      setError(error.message)
+    } catch (err) {
+      setSaving(false)
+      setError(err instanceof Error ? err.message : 'Fehler beim Erstellen')
       return
     }
-    if (data) {
-      setSubOrders(previous => {
-        const sorted = [...previous, data as SubOrderRow].sort((a, b) =>
-          a.id < b.id ? -1 : a.id > b.id ? 1 : 0
-        )
-        return sorted
-      })
-      setActiveSubOrderId(data.id)
+    setSaving(false)
+    setSubOrders(previous => {
+      const sorted = [...previous, data].sort((a, b) =>
+        a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+      )
+      return sorted
+    })
+    setActiveSubOrderId(data.id)
 
-      try {
-        const statusResult = await orderService.synchronizeOrderStatus(order.id)
-        setOrder(current => (current ? { ...current, status: statusResult.status } : current))
-        onOrderUpdated({ ...order, status: statusResult.status })
-      } catch {
-        toastFehler('Auftragsstatus konnte nicht aktualisiert werden')
-        const refreshed = await orderService.getOrderById(order.id)
-        if (refreshed) {
-          setOrder(refreshed as OrderDetailRow)
-          onOrderUpdated(refreshed)
-        }
+    try {
+      const statusResult = await orderService.synchronizeOrderStatus(order.id)
+      setOrder(current => (current ? { ...current, status: statusResult.status } : current))
+      onOrderUpdated({ ...order, status: statusResult.status })
+    } catch {
+      toastFehler('Auftragsstatus konnte nicht aktualisiert werden')
+      const refreshed = await orderService.getOrderById(order.id)
+      if (refreshed) {
+        setOrder(refreshed as OrderDetailRow)
+        onOrderUpdated(refreshed)
       }
     }
     setOverlayOpen(false)

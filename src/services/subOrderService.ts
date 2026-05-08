@@ -25,6 +25,7 @@ class SubOrderService {
       .from('teilauftraege')
       .select(SUB_ORDER_COLUMNS)
       .eq('auftrag_id', orderId)
+      .order('id', { ascending: true })
     if (error) throw error
     return (data ?? []) as unknown as SubOrderRow[]
   }
@@ -73,7 +74,7 @@ class SubOrderService {
 
   async setSubOrderEmergency(
     id: string,
-    patch: Pick<SubOrderUpdate, 'notfall_aktiv' | 'notfall_begruendung'>,
+    patch: Pick<SubOrderUpdate, 'notfall_aktiv' | 'notfall_begruendung' | 'status'>,
   ): Promise<SubOrderRow> {
     const { data, error } = await supabase
       .from('teilauftraege')
