@@ -1,4 +1,5 @@
 import { supabase } from '../supabase'
+import { authService } from './authService'
 import type { Database, Json } from '../types/supabase'
 
 export type HistoryEvent = Database['public']['Enums']['historie_ereignis']
@@ -23,9 +24,7 @@ class HistoryService {
     begruendung?: string
     meta?: Record<string, unknown>
   }): Promise<void> {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const user = await authService.getUser()
 
     const row: HistoryInsert = {
       auftrag_id: params.auftrag_id,

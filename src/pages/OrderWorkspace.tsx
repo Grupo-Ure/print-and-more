@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { supabase } from '../supabase'
+import { authService } from '../services/authService'
 import { Login } from '../components/Login'
 import { OrderList } from '../components/OrderList'
 import { WorkArea } from '../components/WorkArea'
@@ -36,16 +36,14 @@ export function OrderWorkspace() {
   })
 
   useEffect(() => {
-    supabase.auth
+    authService
       .getSession()
-      .then(({ data }) => {
-        setSession(data.session)
+      .then(session => {
+        setSession(session)
         setLoading(false)
       })
       .catch(() => setLoading(false))
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { subscription } = authService.onAuthStateChange((_event, session) => {
       setSession(session)
     })
     return () => subscription.unsubscribe()

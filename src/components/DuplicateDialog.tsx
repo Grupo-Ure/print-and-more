@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { supabase } from '../supabase'
+import { authService } from '../services/authService'
 import { ORDER_COLUMNS } from '../const/orderSelect'
 import { customerName } from '../lib/customer'
 import { subOrderDetailToFieldMap, type Auftrag, type SubOrderRow } from '../types/database'
@@ -106,7 +107,7 @@ export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }:
         p_lieferung: auftrag.lieferung ?? null,
         p_termin: newDeadline ? newDeadline : null,
         p_teilauftrag_ids: selectedSubOrders.map(subOrder => subOrder.id),
-        p_user_id: (await supabase.auth.getUser()).data.user?.id ?? null,
+        p_user_id: (await authService.getUser())?.id ?? null,
       })
       if (rpcError) throw rpcError
 

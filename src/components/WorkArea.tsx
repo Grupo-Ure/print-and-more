@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabase'
+import { authService } from '../services/authService'
 import { customerName } from '../lib/customer'
 import { synchronizeOrderStatus } from '../lib/orderStatus'
 import { departmentAbbreviation } from '../const/departmentAbbreviation'
@@ -318,9 +319,7 @@ export function WorkArea({
     if (!activeOrderId || !order) return
     setSaving(true)
     setError(null)
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const user = await authService.getUser()
     if (!user?.id) {
       setError('Nicht angemeldet')
       setSaving(false)

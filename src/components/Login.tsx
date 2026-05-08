@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '../supabase'
+import { authService } from '../services/authService'
 
 export function Login() {
   const [email, setEmail] = useState('')
@@ -7,11 +7,11 @@ export function Login() {
   const [loginError, setLoginError] = useState('')
 
   async function handleLogin() {
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    })
-    if (error) setLoginError(error.message)
+    try {
+      await authService.signIn(email.trim(), password)
+    } catch (err) {
+      setLoginError(err instanceof Error ? err.message : 'Anmeldung fehlgeschlagen')
+    }
   }
 
   return (

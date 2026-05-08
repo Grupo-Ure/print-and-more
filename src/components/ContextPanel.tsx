@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
+import { authService } from '../services/authService'
 import { SUB_ORDER_COLUMNS } from '../const/subOrderSelect'
 import { writeHistory, type HistoryEvent } from '../lib/history'
 import { parseStatusFromRpc } from '../lib/orderStatus'
@@ -462,9 +463,7 @@ export function ContextPanel({
           }
           const { error: updateError } = await supabase.from('stempel_modelle').update(stampModelUpdate).eq('id', modelId)
           if (updateError) throw updateError
-          const {
-            data: { user },
-          } = await supabase.auth.getUser()
+          const user = await authService.getUser()
           const stockMovementInsert: Database['public']['Tables']['lager_bewegungen']['Insert'] = {
             modell_id: modelId,
             menge: quantity,
@@ -520,9 +519,7 @@ export function ContextPanel({
       // Textil: Automatischer Lagerabgang (vor Status-Update).
       if (subOrder.bereich === 'TEXTIL') {
         const textileNote = 'Automatisch bei Produktionsfreigabe ' + (order.auftragsnummer ?? '')
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
+        const user = await authService.getUser()
         const userId = user?.id ?? null
 
         const { data: positionData, error: positionError } = await supabase

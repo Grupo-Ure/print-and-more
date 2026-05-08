@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../supabase'
+import { authService } from '../services/authService'
 import { Login } from '../components/Login'
 import { useToast } from '../components/Toast'
 import { subOrderDetailToFieldMap } from '../types/database'
@@ -194,20 +195,20 @@ export function StampStockPage() {
     let alive = true
     void (async () => {
       try {
-        const { data } = await supabase.auth.getSession()
+        const session = await authService.getSession()
         if (!alive) return
-        setSession(data.session)
+        setSession(session)
       } finally {
         if (alive) setLoading(false)
       }
     })()
-    const { data } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { subscription } = authService.onAuthStateChange((_event, newSession) => {
       if (!alive) return
       setSession(newSession)
     })
     return () => {
       alive = false
-      data.subscription.unsubscribe()
+      subscription.unsubscribe()
     }
   }, [])
 
@@ -571,7 +572,7 @@ export function StampStockPage() {
   }
 
   const logout = async () => {
-    await supabase.auth.signOut()
+    await authService.signOut()
   }
 
   if (loading) return null
