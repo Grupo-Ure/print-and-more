@@ -58,20 +58,20 @@ export function OrderWorkspace() {
     setOrderFiles([])
   }, [activeOrderId])
 
-  const handleOrderFromWorkArea = useCallback((a: Auftrag | null) => {
-    setActiveOrder(a)
+  const handleOrderFromWorkArea = useCallback((order: Auftrag | null) => {
+    setActiveOrder(order)
   }, [])
 
-  const handleOrderCustomerLoaded = useCallback((k: KundeKontaktJoin | null) => {
-    setOrderCustomer(k)
+  const handleOrderCustomerLoaded = useCallback((customer: KundeKontaktJoin | null) => {
+    setOrderCustomer(customer)
   }, [])
 
-  const handleActiveSubOrderChanged = useCallback((t: TeilauftragRow | null) => {
-    setActiveSubOrder(t)
+  const handleActiveSubOrderChanged = useCallback((subOrder: TeilauftragRow | null) => {
+    setActiveSubOrder(subOrder)
   }, [])
 
-  const handleOrderFilesChanged = useCallback((d: FileRecord[]) => {
-    setOrderFiles(d)
+  const handleOrderFilesChanged = useCallback((files: FileRecord[]) => {
+    setOrderFiles(files)
   }, [])
 
   const handleFileChanged = useCallback((newFile?: FileRecord) => {
@@ -81,14 +81,14 @@ export function OrderWorkspace() {
     setContextRefreshTick(x => x + 1)
   }, [])
 
-  const handleOrderUpdated = useCallback((a: Auftrag) => {
-    setActiveOrder(a)
-    if (a.archiviert) {
+  const handleOrderUpdated = useCallback((order: Auftrag) => {
+    setActiveOrder(order)
+    if (order.archiviert) {
       setActiveOrderId(null)
       setOrderListKey(k => k + 1)
       setOrderInPlace(ORDER_LIST_IN_PLACE_INITIAL)
     } else {
-      setOrderInPlace(p => ({ tick: p.tick + 1, id: a.id, status: a.status }))
+      setOrderInPlace(prev => ({ tick: prev.tick + 1, id: order.id, status: order.status }))
     }
     setContextRefreshTick(x => x + 1)
   }, [])
@@ -101,8 +101,8 @@ export function OrderWorkspace() {
     setContextRefreshTick(x => x + 1)
   }, [])
 
-  const handleSubOrderUpdated = useCallback((t: TeilauftragRow) => {
-    setActiveSubOrder(t)
+  const handleSubOrderUpdated = useCallback((subOrder: TeilauftragRow) => {
+    setActiveSubOrder(subOrder)
     setContextRefreshTick(x => x + 1)
   }, [])
 
@@ -126,8 +126,8 @@ export function OrderWorkspace() {
   }, [])
 
   const openEditCustomer = useCallback(() => {
-    const k = contactJoinToCustomer(orderCustomer)
-    if (k) setCustomerDialog({ open: true, customer: k })
+    const customer = contactJoinToCustomer(orderCustomer)
+    if (customer) setCustomerDialog({ open: true, customer })
   }, [orderCustomer])
 
   if (loading) return null
