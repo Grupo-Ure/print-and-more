@@ -32,118 +32,118 @@ import {
 } from '../../types/stamp'
 import type { OrderStatus } from '../../types/database'
 
-function reqStr(v: unknown): string | null {
-  if (v == null) return null
-  if (typeof v !== 'string') return null
-  const t = v.trim()
-  return t ? t : null
+function parseRequiredString(value: unknown): string | null {
+  if (value == null) return null
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
 }
 
-function reqEnum<T extends readonly string[]>(v: unknown, allowed: T): T[number] | null {
-  const s = reqStr(v)
-  if (!s) return null
-  return (allowed as readonly string[]).includes(s) ? (s as T[number]) : null
+function parseEnum<T extends readonly string[]>(value: unknown, allowed: T): T[number] | null {
+  const trimmed = parseRequiredString(value)
+  if (!trimmed) return null
+  return (allowed as readonly string[]).includes(trimmed) ? (trimmed as T[number]) : null
 }
 
-function stueckzahlGueltig(v: unknown): boolean {
-  if (v == null || v === '') return false
-  const n = typeof v === 'number' ? v : parseInt(String(v), 10)
-  return Number.isInteger(n) && n >= 1
+function isValidQuantity(value: unknown): boolean {
+  if (value == null || value === '') return false
+  const parsed = typeof value === 'number' ? value : parseInt(String(value), 10)
+  return Number.isInteger(parsed) && parsed >= 1
 }
 
-function anzahlGueltig(d: StampDetailJson): boolean {
-  // Für neue Artikeltypen wird teils "anzahl" erwartet; legacy bleibt "stueckzahl".
-  return stueckzahlGueltig(d.anzahl) || stueckzahlGueltig(d.stueckzahl)
+function hasValidCount(detail: StampDetailJson): boolean {
+  // Both `anzahl` and `stueckzahl` are accepted depending on the typ.
+  return isValidQuantity(detail.anzahl) || isValidQuantity(detail.stueckzahl)
 }
 
-function positiveGanzzahlOrNull(v: unknown): number | null {
-  if (v == null || v === '') return null
-  const n = typeof v === 'number' ? v : parseInt(String(v), 10)
-  if (!Number.isInteger(n) || n <= 0) return null
-  return n
+function parsePositiveInt(value: unknown): number | null {
+  if (value == null || value === '') return null
+  const parsed = typeof value === 'number' ? value : parseInt(String(value), 10)
+  if (!Number.isInteger(parsed) || parsed <= 0) return null
+  return parsed
 }
 
 type Err = Record<string, string>
-const f = (o: Err, k: string, m: string) => {
-  o[k] = m
+const addError = (errors: Err, field: string, message: string) => {
+  errors[field] = message
 }
 
-const EXTRA_TYPEN = ['NACHFUELLFARBE', 'STEMPELKISSEN', 'STEMPELPLATTE', 'TRODAT_KISSEN'] as const
-type ExtraTyp = (typeof EXTRA_TYPEN)[number]
-type AnyTyp = StampType | ExtraTyp
+const EXTRA_TYPES = ['NACHFUELLFARBE', 'STEMPELKISSEN', 'STEMPELPLATTE', 'TRODAT_KISSEN'] as const
+type ExtraType = (typeof EXTRA_TYPES)[number]
+type AnyType = StampType | ExtraType
 
-const NACHFUELLFARBE_FARBEN = ['SCHWARZ', 'ROT', 'BLAU', 'GRUEN'] as const
-const NACHFUELLFARBE_TINTE_TYP = ['NORMAL', 'HAUTVERTRAEGLICH', 'TEXTIL'] as const
-const STEMPELKISSEN_GROESSE = ['KLEIN', 'MITTEL', 'GROSS'] as const
+const REFILL_INK_COLORS = ['SCHWARZ', 'ROT', 'BLAU', 'GRUEN'] as const
+const REFILL_INK_TYPES = ['NORMAL', 'HAUTVERTRAEGLICH', 'TEXTIL'] as const
+const STAMP_PAD_SIZES = ['KLEIN', 'MITTEL', 'GROSS'] as const
 
 export function validateStampDetail(
   typ: string | null,
-  d: StampDetailJson,
-  teilStatus: OrderStatus
+  detail: StampDetailJson,
+  subOrderStatus: OrderStatus
 ): Record<string, string> {
-  const o: Err = {}
-  if (teilStatus === 'ANGEBOT') return o
+  const errors: Err = {}
+  if (subOrderStatus === 'ANGEBOT') return errors
   const isKnownTyp =
-    !!typ && ((STAMP_TYPES as readonly string[]).includes(typ) || (EXTRA_TYPEN as readonly string[]).includes(typ))
+    !!typ && ((STAMP_TYPES as readonly string[]).includes(typ) || (EXTRA_TYPES as readonly string[]).includes(typ))
   if (!typ || !isKnownTyp) {
-    f(o, 'typ', 'Typ wählen')
-    return o
+    addError(errors, 'typ', 'Typ wählen')
+    return errors
   }
-  const t = typ as AnyTyp
+  const stampType = typ as AnyType
 
   // Anzahl / Stückzahl
-  if (t === 'TRODAT_KISSEN') {
-    if (!stueckzahlGueltig(d.stueckzahl)) f(o, 'stueckzahl', 'Ganze Zahl ≥ 1')
+  if (stampType === 'TRODAT_KISSEN') {
+    if (!isValidQuantity(detail.stueckzahl)) addError(errors, 'stueckzahl', 'Ganze Zahl ≥ 1')
   } else {
-    if (!anzahlGueltig(d)) f(o, 'stueckzahl', 'Ganze Zahl ≥ 1')
+    if (!hasValidCount(detail)) addError(errors, 'stueckzahl', 'Ganze Zahl ≥ 1')
   }
 
   // Maße (OR-Pflicht) für alle außer NACHFUELLFARBE, STEMPELKISSEN, TRODAT_KISSEN, TRODAT_PRINTY, HOLZSTEMPEL
   const needsFormat =
-    t !== 'NACHFUELLFARBE' &&
-    t !== 'STEMPELKISSEN' &&
-    t !== 'TRODAT_KISSEN' &&
-    t !== 'TRODAT_PRINTY' &&
-    t !== 'HOLZSTEMPEL'
+    stampType !== 'NACHFUELLFARBE' &&
+    stampType !== 'STEMPELKISSEN' &&
+    stampType !== 'TRODAT_KISSEN' &&
+    stampType !== 'TRODAT_PRINTY' &&
+    stampType !== 'HOLZSTEMPEL'
   if (needsFormat) {
-    const b = positiveGanzzahlOrNull(d.format_breite)
-    const h = positiveGanzzahlOrNull(d.format_hoehe)
-    const hasOne = (b ?? 0) > 0 || (h ?? 0) > 0
-    if (!hasOne) f(o, 'format', 'Mindestens Breite oder Höhe angeben')
-    if (d.format_breite != null && d.format_breite !== '' && b == null) f(o, 'format_breite', 'Ganze Zahl > 0')
-    if (d.format_hoehe != null && d.format_hoehe !== '' && h == null) f(o, 'format_hoehe', 'Ganze Zahl > 0')
+    const width = parsePositiveInt(detail.format_breite)
+    const height = parsePositiveInt(detail.format_hoehe)
+    const hasOne = (width ?? 0) > 0 || (height ?? 0) > 0
+    if (!hasOne) addError(errors, 'format', 'Mindestens Breite oder Höhe angeben')
+    if (detail.format_breite != null && detail.format_breite !== '' && width == null) addError(errors, 'format_breite', 'Ganze Zahl > 0')
+    if (detail.format_hoehe != null && detail.format_hoehe !== '' && height == null) addError(errors, 'format_hoehe', 'Ganze Zahl > 0')
   }
 
-  if (t === 'TRODAT_PRINTY' || t === 'HOLZSTEMPEL') {
-    if (!reqStr(d?.modell_id)) {
-      f(o, 'modell_id', 'Bitte ein Stempelmodell wählen')
+  if (stampType === 'TRODAT_PRINTY' || stampType === 'HOLZSTEMPEL') {
+    if (!parseRequiredString(detail?.modell_id)) {
+      addError(errors, 'modell_id', 'Bitte ein Stempelmodell wählen')
     }
   }
 
   // Typ-spezifische Pflichtfelder
-  if (t === 'NACHFUELLFARBE') {
-    const fr = reqEnum(d.farbe, NACHFUELLFARBE_FARBEN)
-    if (!fr) f(o, 'farbe', 'Pflichtfeld')
-    const tt = reqEnum(d.tinte_typ, NACHFUELLFARBE_TINTE_TYP)
-    if (!tt) f(o, 'tinte_typ', 'Pflichtfeld')
-  } else if (t === 'STEMPELKISSEN') {
-    const gr = reqEnum(d.groesse, STEMPELKISSEN_GROESSE)
-    if (!gr) f(o, 'groesse', 'Pflichtfeld')
-    const fr = reqEnum(d.farbe, NACHFUELLFARBE_FARBEN)
-    if (!fr) f(o, 'farbe', 'Pflichtfeld')
-  } else if (t === 'TRODAT_KISSEN') {
-    if (!reqStr((d as Record<string, unknown>).kissen_artikelnummer)) f(o, 'kissen_artikelnummer', 'Pflichtfeld')
-    const fr = reqEnum(d.farbe, NACHFUELLFARBE_FARBEN)
-    if (!fr) f(o, 'farbe', 'Pflichtfeld')
-    if (!reqStr((d as Record<string, unknown>).kissen_modell_id)) f(o, 'kissen_modell_id', 'Farb-Variante wählen')
-  } else if (t === 'STEMPELPLATTE') {
+  if (stampType === 'NACHFUELLFARBE') {
+    const inkColor = parseEnum(detail.farbe, REFILL_INK_COLORS)
+    if (!inkColor) addError(errors, 'farbe', 'Pflichtfeld')
+    const inkType = parseEnum(detail.tinte_typ, REFILL_INK_TYPES)
+    if (!inkType) addError(errors, 'tinte_typ', 'Pflichtfeld')
+  } else if (stampType === 'STEMPELKISSEN') {
+    const padSize = parseEnum(detail.groesse, STAMP_PAD_SIZES)
+    if (!padSize) addError(errors, 'groesse', 'Pflichtfeld')
+    const inkColor = parseEnum(detail.farbe, REFILL_INK_COLORS)
+    if (!inkColor) addError(errors, 'farbe', 'Pflichtfeld')
+  } else if (stampType === 'TRODAT_KISSEN') {
+    if (!parseRequiredString((detail as Record<string, unknown>).kissen_artikelnummer)) addError(errors, 'kissen_artikelnummer', 'Pflichtfeld')
+    const inkColor = parseEnum(detail.farbe, REFILL_INK_COLORS)
+    if (!inkColor) addError(errors, 'farbe', 'Pflichtfeld')
+    if (!parseRequiredString((detail as Record<string, unknown>).kissen_modell_id)) addError(errors, 'kissen_modell_id', 'Farb-Variante wählen')
+  } else if (stampType === 'STEMPELPLATTE') {
     // Keine Farbe, keine Beschreibung.
   } else {
     // Standard-Stempel: Farbe + Beschreibung
-    const fr = reqStr(d.farbe) as StampColor | null
-    if (!fr || !STAMP_COLORS.includes(fr as StampColor)) f(o, 'farbe', 'Pflichtfeld')
-    if (fr === 'SONSTIGE' && !reqStr(d.farbe_sonstige)) f(o, 'farbe_sonstige', 'Pflichtfeld')
-    if (!reqStr(d.beschreibung)) f(o, 'beschreibung', 'Pflichtfeld')
+    const color = parseRequiredString(detail.farbe) as StampColor | null
+    if (!color || !STAMP_COLORS.includes(color as StampColor)) addError(errors, 'farbe', 'Pflichtfeld')
+    if (color === 'SONSTIGE' && !parseRequiredString(detail.farbe_sonstige)) addError(errors, 'farbe_sonstige', 'Pflichtfeld')
+    if (!parseRequiredString(detail.beschreibung)) addError(errors, 'beschreibung', 'Pflichtfeld')
   }
-  return o
+  return errors
 }

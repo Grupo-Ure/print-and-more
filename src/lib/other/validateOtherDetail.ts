@@ -10,25 +10,25 @@
 import type { OrderStatus } from '../../types/database'
 
 /** Trim and require non-empty. Returns the trimmed string or `null`. */
-function reqStr(v: unknown): string | null {
-  if (v == null) return null
-  if (typeof v !== 'string') return null
-  const t = v.trim()
-  return t ? t : null
+function parseRequiredString(value: unknown): string | null {
+  if (value == null) return null
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
 }
 
 /** If provided, must be an integer ≥ 1. Empty / null / undefined is valid. */
-function stueckzahlOptional(v: unknown): boolean {
-  if (v == null || v === '') return true
-  if (typeof v === 'number' && Number.isNaN(v)) return false
-  const n = typeof v === 'number' ? v : parseInt(String(v), 10)
-  if (Number.isNaN(n)) return false
-  return Number.isInteger(n) && n >= 1
+function isQuantityValidIfPresent(value: unknown): boolean {
+  if (value == null || value === '') return true
+  if (typeof value === 'number' && Number.isNaN(value)) return false
+  const parsed = typeof value === 'number' ? value : parseInt(String(value), 10)
+  if (Number.isNaN(parsed)) return false
+  return Number.isInteger(parsed) && parsed >= 1
 }
 
 type Err = Record<string, string>
-const f = (o: Err, k: string, m: string) => {
-  o[k] = m
+const addError = (errors: Err, field: string, message: string) => {
+  errors[field] = message
 }
 
 /**
@@ -45,12 +45,12 @@ const f = (o: Err, k: string, m: string) => {
  * integer.
  */
 export function validateOtherDetail(
-  d: Record<string, unknown> | null,
-  teilStatus: OrderStatus
+  detail: Record<string, unknown> | null,
+  subOrderStatus: OrderStatus
 ): Record<string, string> {
-  const o: Err = {}
-  if (teilStatus === 'ANGEBOT') return o
-  if (!reqStr(d?.beschreibung)) f(o, 'beschreibung', 'Pflichtfeld')
-  if (d && !stueckzahlOptional(d.stueckzahl)) f(o, 'stueckzahl', 'Ganze Zahl ≥ 1')
-  return o
+  const errors: Err = {}
+  if (subOrderStatus === 'ANGEBOT') return errors
+  if (!parseRequiredString(detail?.beschreibung)) addError(errors, 'beschreibung', 'Pflichtfeld')
+  if (detail && !isQuantityValidIfPresent(detail.stueckzahl)) addError(errors, 'stueckzahl', 'Ganze Zahl ≥ 1')
+  return errors
 }

@@ -1118,13 +1118,13 @@ function RollupSection(props: DetailBlockProps) {
           { value: 'MOTIVTAUSCH', text: 'Motivtausch' },
         ]}
       />
-      <FieldRow label="Breite" error={p.shouldValidate ? p.validationErrors.breite : undefined}>
+      <FieldRow label="Breite" error={props.shouldValidate ? props.validationErrors.breite : undefined}>
         <select
-          className={'ber-inp' + p.fieldErrorClass('breite')}
+          className={'ber-inp' + props.fieldErrorClass('breite')}
           value={rollupWidth === 85 || rollupWidth === 100 ? String(rollupWidth) : ''}
           onChange={e => {
             const widthValue = e.target.value === '' ? null : parseInt(e.target.value, 10)
-            p.applyDetail({ ...props.detail, breite: widthValue } as LfpDetail)
+            props.applyDetail({ ...props.detail, breite: widthValue } as LfpDetail)
           }}
         >
           <option value="">—</option>

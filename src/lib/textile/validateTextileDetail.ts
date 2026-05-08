@@ -26,7 +26,7 @@ import type {
   TextileAssignmentRow,
 } from '../../types/textile'
 
-const GROESSE_NORM: TextileSize[] = ['KLEIN', 'MITTEL', 'GROSS', 'FREI']
+const STANDARD_SIZES: TextileSize[] = ['KLEIN', 'MITTEL', 'GROSS', 'FREI']
 
 /**
  * Cheap check used by the order-status pipeline: returns true iff the
@@ -35,24 +35,24 @@ const GROESSE_NORM: TextileSize[] = ['KLEIN', 'MITTEL', 'GROSS', 'FREI']
  */
 export function textileDetailMarkedComplete(detail: unknown): boolean {
   if (!detail || typeof detail !== 'object' || Array.isArray(detail)) return false
-  const t = (detail as { textil?: { voll?: boolean } }).textil
-  if (!t || typeof t !== 'object') return false
-  return t.voll === true
+  const textilSection = (detail as { textil?: { voll?: boolean } }).textil
+  if (!textilSection || typeof textilSection !== 'object') return false
+  return textilSection.voll === true
 }
 
-function groesseIstGesetzt(g: string | null | undefined): boolean {
-  if (g == null) return false
-  const s = String(g).trim()
-  if (!s) return false
-  if (GROESSE_NORM.includes(s as TextileSize)) return true
-  if (s.startsWith('FREI:')) {
-    return s.length > 5
+function isSizeSet(size: string | null | undefined): boolean {
+  if (size == null) return false
+  const trimmed = String(size).trim()
+  if (!trimmed) return false
+  if (STANDARD_SIZES.includes(trimmed as TextileSize)) return true
+  if (trimmed.startsWith('FREI:')) {
+    return trimmed.length > 5
   }
   return false
 }
 
-function zuordnungDatensatzVoll(z: { motiv_id: string; position_id: string }): boolean {
-  return Boolean(z.motiv_id?.trim() && z.position_id?.trim())
+function isAssignmentComplete(assignment: { motiv_id: string; position_id: string }): boolean {
+  return Boolean(assignment.motiv_id?.trim() && assignment.position_id?.trim())
 }
 
 /**
@@ -68,38 +68,38 @@ function zuordnungDatensatzVoll(z: { motiv_id: string; position_id: string }): b
  *   color (KUNDENWARE) or brand + model + color + size (EIGENWARE).
  */
 export function textileRecordsAllowPrepress(
-  motive: TextileMotifRow[],
-  positionen: TextilePositionRow[],
-  zuordnungen: Pick<TextileAssignmentRow, 'motiv_id' | 'position_id'>[]
+  motifs: TextileMotifRow[],
+  positions: TextilePositionRow[],
+  assignments: Pick<TextileAssignmentRow, 'motiv_id' | 'position_id'>[]
 ): boolean {
-  if (motive.length < 1 || positionen.length < 1) return false
-  if (zuordnungen.length < 1) return false
-  for (const z of zuordnungen) {
-    if (!zuordnungDatensatzVoll(z)) return false
+  if (motifs.length < 1 || positions.length < 1) return false
+  if (assignments.length < 1) return false
+  for (const assignment of assignments) {
+    if (!isAssignmentComplete(assignment)) return false
   }
-  for (const m of motive) {
-    if (!m.platz?.trim()) return false
-    if (!groesseIstGesetzt(m.groesse)) return false
-    if (m.typ === 'TEXT') {
-      if (!m.inhalt?.trim() || !m.farbe?.trim() || !m.schriftklasse?.trim()) return false
+  for (const motif of motifs) {
+    if (!motif.platz?.trim()) return false
+    if (!isSizeSet(motif.groesse)) return false
+    if (motif.typ === 'TEXT') {
+      if (!motif.inhalt?.trim() || !motif.farbe?.trim() || !motif.schriftklasse?.trim()) return false
     } else {
-      if (!m.datei_id) return false
+      if (!motif.datei_id) return false
     }
   }
-  for (const p of positionen) {
-    if (p.stueckzahl < 1 || !Number.isInteger(p.stueckzahl)) return false
-    if (p.herkunft === 'KUNDENWARE') {
-      if (!p.typ?.trim() || !p.farbe?.trim()) return false
+  for (const position of positions) {
+    if (position.stueckzahl < 1 || !Number.isInteger(position.stueckzahl)) return false
+    if (position.herkunft === 'KUNDENWARE') {
+      if (!position.typ?.trim() || !position.farbe?.trim()) return false
     } else {
-      if (!p.marke?.trim() || !p.modell?.trim() || !p.farbe?.trim() || !p.groesse?.trim()) return false
+      if (!position.marke?.trim() || !position.modell?.trim() || !position.farbe?.trim() || !position.groesse?.trim()) return false
     }
   }
   return true
 }
 
 /** Encode a millimeter free-text size into the `groesse` column format. */
-export function buildFreeSizeString(mm: string): string {
-  return `FREI:${mm.trim()}`
+export function buildFreeSizeString(sizeInMm: string): string {
+  return `FREI:${sizeInMm.trim()}`
 }
 
 /** Detect Postgres unique-constraint errors (SQLSTATE 23505). */

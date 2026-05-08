@@ -15,59 +15,59 @@ import { LFP_TYPES, type LfpDetail, type LfpType } from '../../types/lfp'
 import type { OrderStatus } from '../../types/database'
 
 /** Trim and require non-empty. Returns the trimmed string or `null`. */
-function reqStr(v: unknown): string | null {
-  if (v == null) return null
-  if (typeof v !== 'string') return null
-  const t = v.trim()
-  return t ? t : null
+function parseRequiredString(value: unknown): string | null {
+  if (value == null) return null
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
 }
 
 /** Boolean must be explicitly true or false (not absent). */
-function reqBool(v: unknown): 'ok' | 'missing' {
-  if (v === true || v === false) return 'ok'
+function requireBoolPresent(value: unknown): 'ok' | 'missing' {
+  if (value === true || value === false) return 'ok'
   return 'missing'
 }
 
 /** Parse a positive millimeter dimension; accepts comma or dot decimals. */
-function zahlMm(v: unknown): number | null {
-  if (v === '' || v == null) return null
-  const n = typeof v === 'number' ? v : parseFloat(String(v).replace(',', '.'))
-  if (!Number.isFinite(n) || n <= 0) return null
-  return n
+function parseMmDimension(value: unknown): number | null {
+  if (value === '' || value == null) return null
+  const parsed = typeof value === 'number' ? value : parseFloat(String(value).replace(',', '.'))
+  if (!Number.isFinite(parsed) || parsed <= 0) return null
+  return parsed
 }
 
 /** Validate an ISO date string; returns the YYYY-MM-DD prefix or `null`. */
-function datumIso(v: unknown): string | null {
-  if (v == null) return null
-  if (typeof v !== 'string' || v.trim() === '') return null
-  const d = new Date(v)
-  if (Number.isNaN(d.getTime())) return null
-  return v.slice(0, 10)
+function parseIsoDate(value: unknown): string | null {
+  if (value == null) return null
+  if (typeof value !== 'string' || value.trim() === '') return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return value.slice(0, 10)
 }
 
 /** At least one dimension (width or height) > 0 mm. */
-function masseErfuellt(b: unknown, h: unknown): boolean {
-  return zahlMm(b) != null || zahlMm(h) != null
+function hasDimension(width: unknown, height: unknown): boolean {
+  return parseMmDimension(width) != null || parseMmDimension(height) != null
 }
 
 /** Quantity must be a positive integer (≥ 1). */
-function stueckzahlGueltig(v: unknown): boolean {
-  if (v == null || v === '') return false
-  const n = typeof v === 'number' ? v : parseInt(String(v), 10)
-  return Number.isInteger(n) && n >= 1
+function isValidQuantity(value: unknown): boolean {
+  if (value == null || value === '') return false
+  const parsed = typeof value === 'number' ? value : parseInt(String(value), 10)
+  return Number.isInteger(parsed) && parsed >= 1
 }
 
 /** Positive integer millimeter value, or `null` if invalid/missing. */
-function posIntMm(v: unknown): number | null {
-  if (v == null || v === '') return null
-  const n = typeof v === 'number' ? v : parseInt(String(v), 10)
-  if (!Number.isInteger(n) || n < 1) return null
-  return n
+function parsePositiveIntMm(value: unknown): number | null {
+  if (value == null || value === '') return null
+  const parsed = typeof value === 'number' ? value : parseInt(String(value), 10)
+  if (!Number.isInteger(parsed) || parsed < 1) return null
+  return parsed
 }
 
 type Err = Record<string, string>
-const f = (o: Err, k: string, m: string) => {
-  o[k] = m
+const addError = (errors: Err, field: string, message: string) => {
+  errors[field] = message
 }
 
 const MSG_MASSE = 'Mindestens Breite oder Höhe angeben'
@@ -82,75 +82,75 @@ const MSG_MASSE = 'Mindestens Breite oder Höhe angeben'
  */
 export function validateLfpDetail(
   typ: string | null,
-  d: LfpDetail,
-  teilStatus: OrderStatus
+  detail: LfpDetail,
+  subOrderStatus: OrderStatus
 ): Record<string, string> {
-  const o: Err = {}
-  if (teilStatus === 'ANGEBOT') return o
+  const errors: Err = {}
+  if (subOrderStatus === 'ANGEBOT') return errors
   if (!typ || !LFP_TYPES.includes(typ as LfpType)) {
-    f(o, 'typ', 'Typ wählen')
-    return o
+    addError(errors, 'typ', 'Typ wählen')
+    return errors
   }
-  if (!stueckzahlGueltig(d.stueckzahl)) f(o, 'stueckzahl', 'Ganze Zahl ≥ 1')
+  if (!isValidQuantity(detail.stueckzahl)) addError(errors, 'stueckzahl', 'Ganze Zahl ≥ 1')
 
-  const t = typ as LfpType
-  if (t === 'AUFKLEBER') {
-    if (!['3551', 'ULTRATACK', 'MONSTERTACK', '3162'].includes(reqStr(d.material) ?? '')) f(o, 'material', 'Pflichtfeld')
-    if (!['FREIFORM', 'RECHTECK'].includes(reqStr(d.konturschnitt) ?? '')) f(o, 'konturschnitt', 'Pflichtfeld')
-    if (!['NEIN', 'MATT', 'GLAENZEND'].includes(reqStr(d.laminat) ?? '')) f(o, 'laminat', 'Pflichtfeld')
-    if (!['EINZEL', 'BOGEN'].includes(reqStr(d.ausgabe) ?? '')) f(o, 'ausgabe', 'Pflichtfeld')
-    if (!masseErfuellt(d.format_breite, d.format_hoehe)) f(o, 'format_masse', MSG_MASSE)
-  } else if (t === 'SCHILD_UV') {
-    if (!['ALUVERBUND', 'PVC', 'ACRYLGLAS'].includes(reqStr(d.material) ?? '')) f(o, 'material', 'Pflichtfeld')
-    if (!['EINSEITIG', 'BEIDSEITIG'].includes(reqStr(d.druckseite) ?? '')) f(o, 'druckseite', 'Pflichtfeld')
-    if (d.material === 'ACRYLGLAS') {
-      if (!['VORDERSEITE', 'RUECKSEITE'].includes(reqStr(d.acryl_druckrichtung) ?? '')) f(o, 'acryl_druckrichtung', 'Pflichtfeld')
+  const lfpType = typ as LfpType
+  if (lfpType === 'AUFKLEBER') {
+    if (!['3551', 'ULTRATACK', 'MONSTERTACK', '3162'].includes(parseRequiredString(detail.material) ?? '')) addError(errors, 'material', 'Pflichtfeld')
+    if (!['FREIFORM', 'RECHTECK'].includes(parseRequiredString(detail.konturschnitt) ?? '')) addError(errors, 'konturschnitt', 'Pflichtfeld')
+    if (!['NEIN', 'MATT', 'GLAENZEND'].includes(parseRequiredString(detail.laminat) ?? '')) addError(errors, 'laminat', 'Pflichtfeld')
+    if (!['EINZEL', 'BOGEN'].includes(parseRequiredString(detail.ausgabe) ?? '')) addError(errors, 'ausgabe', 'Pflichtfeld')
+    if (!hasDimension(detail.format_breite, detail.format_hoehe)) addError(errors, 'format_masse', MSG_MASSE)
+  } else if (lfpType === 'SCHILD_UV') {
+    if (!['ALUVERBUND', 'PVC', 'ACRYLGLAS'].includes(parseRequiredString(detail.material) ?? '')) addError(errors, 'material', 'Pflichtfeld')
+    if (!['EINSEITIG', 'BEIDSEITIG'].includes(parseRequiredString(detail.druckseite) ?? '')) addError(errors, 'druckseite', 'Pflichtfeld')
+    if (detail.material === 'ACRYLGLAS') {
+      if (!['VORDERSEITE', 'RUECKSEITE'].includes(parseRequiredString(detail.acryl_druckrichtung) ?? '')) addError(errors, 'acryl_druckrichtung', 'Pflichtfeld')
     }
-    if (reqBool(d.ecken_runden) === 'missing') f(o, 'ecken_runden', 'Pflichtfeld')
-    if (reqBool(d.bohrungen) === 'missing') f(o, 'bohrungen', 'Pflichtfeld')
-    if (d.bohrungen === true) {
-      if (posIntMm(d.bohrungen_durchmesser) == null) f(o, 'bohrungen_durchmesser', 'Ganze Zahl (mm) ≥ 1')
-      if (!reqStr(d.bohrungen_position)) f(o, 'bohrungen_position', 'Pflichtfeld')
+    if (requireBoolPresent(detail.ecken_runden) === 'missing') addError(errors, 'ecken_runden', 'Pflichtfeld')
+    if (requireBoolPresent(detail.bohrungen) === 'missing') addError(errors, 'bohrungen', 'Pflichtfeld')
+    if (detail.bohrungen === true) {
+      if (parsePositiveIntMm(detail.bohrungen_durchmesser) == null) addError(errors, 'bohrungen_durchmesser', 'Ganze Zahl (mm) ≥ 1')
+      if (!parseRequiredString(detail.bohrungen_position)) addError(errors, 'bohrungen_position', 'Pflichtfeld')
     }
-    if (!masseErfuellt(d.format_breite, d.format_hoehe)) f(o, 'format_masse', MSG_MASSE)
-  } else if (t === 'SCHILD_FOLIE') {
-    if (!['ALUVERBUND', 'PVC', 'ACRYLGLAS'].includes(reqStr(d.material) ?? '')) f(o, 'material', 'Pflichtfeld')
-    if (!['EINSEITIG', 'BEIDSEITIG'].includes(reqStr(d.druckseite) ?? '')) f(o, 'druckseite', 'Pflichtfeld')
-    if (!['NEIN', 'MATT', 'GLAENZEND'].includes(reqStr(d.laminat) ?? '')) f(o, 'laminat', 'Pflichtfeld')
-    if (reqBool(d.ecken_runden) === 'missing') f(o, 'ecken_runden', 'Pflichtfeld')
-    if (reqBool(d.bohrungen) === 'missing') f(o, 'bohrungen', 'Pflichtfeld')
-    if (d.bohrungen === true) {
-      if (posIntMm(d.bohrungen_durchmesser) == null) f(o, 'bohrungen_durchmesser', 'Ganze Zahl (mm) ≥ 1')
-      if (!reqStr(d.bohrungen_position)) f(o, 'bohrungen_position', 'Pflichtfeld')
+    if (!hasDimension(detail.format_breite, detail.format_hoehe)) addError(errors, 'format_masse', MSG_MASSE)
+  } else if (lfpType === 'SCHILD_FOLIE') {
+    if (!['ALUVERBUND', 'PVC', 'ACRYLGLAS'].includes(parseRequiredString(detail.material) ?? '')) addError(errors, 'material', 'Pflichtfeld')
+    if (!['EINSEITIG', 'BEIDSEITIG'].includes(parseRequiredString(detail.druckseite) ?? '')) addError(errors, 'druckseite', 'Pflichtfeld')
+    if (!['NEIN', 'MATT', 'GLAENZEND'].includes(parseRequiredString(detail.laminat) ?? '')) addError(errors, 'laminat', 'Pflichtfeld')
+    if (requireBoolPresent(detail.ecken_runden) === 'missing') addError(errors, 'ecken_runden', 'Pflichtfeld')
+    if (requireBoolPresent(detail.bohrungen) === 'missing') addError(errors, 'bohrungen', 'Pflichtfeld')
+    if (detail.bohrungen === true) {
+      if (parsePositiveIntMm(detail.bohrungen_durchmesser) == null) addError(errors, 'bohrungen_durchmesser', 'Ganze Zahl (mm) ≥ 1')
+      if (!parseRequiredString(detail.bohrungen_position)) addError(errors, 'bohrungen_position', 'Pflichtfeld')
     }
-    if (!masseErfuellt(d.format_breite, d.format_hoehe)) f(o, 'format_masse', MSG_MASSE)
-  } else if (t === 'FOLIENPLOTT') {
-    if (!['751C', '631', '8510'].includes(reqStr(d.material) ?? '')) f(o, 'material', 'Pflichtfeld')
-    if (!['EINZEL', 'BOGEN'].includes(reqStr(d.ausgabe) ?? '')) f(o, 'ausgabe', 'Pflichtfeld')
-  } else if (t === 'BANNER') {
-    if (!['PVC_FRONTLIT', 'MESH', 'BAUZAUNBANNER'].includes(reqStr(d.material) ?? '')) f(o, 'material', 'Pflichtfeld')
-    if (!masseErfuellt(d.format_breite, d.format_hoehe)) f(o, 'format_masse', MSG_MASSE)
-    if (reqBool(d.saum) === 'missing') f(o, 'saum', 'Pflichtfeld')
-    if (reqBool(d.oesen) === 'missing') f(o, 'oesen', 'Pflichtfeld')
-    if (d.oesen === true) {
-      if (!reqStr(d.oesen_detail)) f(o, 'oesen_detail', 'Pflichtfeld')
+    if (!hasDimension(detail.format_breite, detail.format_hoehe)) addError(errors, 'format_masse', MSG_MASSE)
+  } else if (lfpType === 'FOLIENPLOTT') {
+    if (!['751C', '631', '8510'].includes(parseRequiredString(detail.material) ?? '')) addError(errors, 'material', 'Pflichtfeld')
+    if (!['EINZEL', 'BOGEN'].includes(parseRequiredString(detail.ausgabe) ?? '')) addError(errors, 'ausgabe', 'Pflichtfeld')
+  } else if (lfpType === 'BANNER') {
+    if (!['PVC_FRONTLIT', 'MESH', 'BAUZAUNBANNER'].includes(parseRequiredString(detail.material) ?? '')) addError(errors, 'material', 'Pflichtfeld')
+    if (!hasDimension(detail.format_breite, detail.format_hoehe)) addError(errors, 'format_masse', MSG_MASSE)
+    if (requireBoolPresent(detail.saum) === 'missing') addError(errors, 'saum', 'Pflichtfeld')
+    if (requireBoolPresent(detail.oesen) === 'missing') addError(errors, 'oesen', 'Pflichtfeld')
+    if (detail.oesen === true) {
+      if (!parseRequiredString(detail.oesen_detail)) addError(errors, 'oesen_detail', 'Pflichtfeld')
     }
-  } else if (t === 'ROLLUP') {
-    if (!['PVC_FRONTLIT', 'ROLLUP_FILM'].includes(reqStr(d.material) ?? '')) f(o, 'material', 'Pflichtfeld')
-    if (!['NEUE_KASSETTE', 'MOTIVTAUSCH'].includes(reqStr(d.system) ?? '')) f(o, 'system', 'Pflichtfeld')
-    const br = Number(d.breite)
-    if (br !== 85 && br !== 100) f(o, 'breite', 'Breite 85 oder 100 cm wählen')
-  } else if (t === 'FAHRZEUGBESCHRIFTUNG') {
-    if (!reqStr(d.marke)) f(o, 'marke', 'Pflichtfeld')
-    if (!reqStr(d.modell)) f(o, 'modell', 'Pflichtfeld')
-    if (reqBool(d.bereiche_seiten) === 'missing') f(o, 'bereiche_seiten', 'Pflichtfeld')
-    if (reqBool(d.bereiche_front) === 'missing') f(o, 'bereiche_front', 'Pflichtfeld')
-    if (reqBool(d.bereiche_heck) === 'missing') f(o, 'bereiche_heck', 'Pflichtfeld')
-    if (!['MIT', 'OHNE'].includes(reqStr(d.montage) ?? '')) f(o, 'montage', 'Pflichtfeld')
-    if (d.montage === 'MIT' && reqBool(d.altbeklebung) === 'missing') f(o, 'altbeklebung', 'Pflichtfeld')
-    if (d.montage === 'MIT' && !datumIso(d.montagetermin)) f(o, 'montagetermin', 'Gültiges Datum')
-  } else if (t === 'SONSTIGE_LFP') {
-    if (!reqStr(d.beschreibung)) f(o, 'beschreibung', 'Pflichtfeld')
+  } else if (lfpType === 'ROLLUP') {
+    if (!['PVC_FRONTLIT', 'ROLLUP_FILM'].includes(parseRequiredString(detail.material) ?? '')) addError(errors, 'material', 'Pflichtfeld')
+    if (!['NEUE_KASSETTE', 'MOTIVTAUSCH'].includes(parseRequiredString(detail.system) ?? '')) addError(errors, 'system', 'Pflichtfeld')
+    const width = Number(detail.breite)
+    if (width !== 85 && width !== 100) addError(errors, 'breite', 'Breite 85 oder 100 cm wählen')
+  } else if (lfpType === 'FAHRZEUGBESCHRIFTUNG') {
+    if (!parseRequiredString(detail.marke)) addError(errors, 'marke', 'Pflichtfeld')
+    if (!parseRequiredString(detail.modell)) addError(errors, 'modell', 'Pflichtfeld')
+    if (requireBoolPresent(detail.bereiche_seiten) === 'missing') addError(errors, 'bereiche_seiten', 'Pflichtfeld')
+    if (requireBoolPresent(detail.bereiche_front) === 'missing') addError(errors, 'bereiche_front', 'Pflichtfeld')
+    if (requireBoolPresent(detail.bereiche_heck) === 'missing') addError(errors, 'bereiche_heck', 'Pflichtfeld')
+    if (!['MIT', 'OHNE'].includes(parseRequiredString(detail.montage) ?? '')) addError(errors, 'montage', 'Pflichtfeld')
+    if (detail.montage === 'MIT' && requireBoolPresent(detail.altbeklebung) === 'missing') addError(errors, 'altbeklebung', 'Pflichtfeld')
+    if (detail.montage === 'MIT' && !parseIsoDate(detail.montagetermin)) addError(errors, 'montagetermin', 'Gültiges Datum')
+  } else if (lfpType === 'SONSTIGE_LFP') {
+    if (!parseRequiredString(detail.beschreibung)) addError(errors, 'beschreibung', 'Pflichtfeld')
   }
-  return o
+  return errors
 }

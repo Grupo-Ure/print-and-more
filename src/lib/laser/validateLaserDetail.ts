@@ -26,42 +26,42 @@ import {
 import type { OrderStatus } from '../../types/database'
 
 /** Trim and require non-empty. Returns the trimmed string or `null`. */
-function reqStr(v: unknown): string | null {
-  if (v == null) return null
-  if (typeof v !== 'string') return null
-  const t = v.trim()
-  return t ? t : null
+function parseRequiredString(value: unknown): string | null {
+  if (value == null) return null
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
 }
 
 /** Boolean must be explicitly true or false (not absent). */
-function reqBool(v: unknown): 'ok' | 'missing' {
-  if (v === true || v === false) return 'ok'
+function requireBoolPresent(value: unknown): 'ok' | 'missing' {
+  if (value === true || value === false) return 'ok'
   return 'missing'
 }
 
 /** Quantity must be a positive integer (≥ 1). */
-function stueckzahlGueltig(v: unknown): boolean {
-  if (v == null || v === '') return false
-  const n = typeof v === 'number' ? v : parseInt(String(v), 10)
-  return Number.isInteger(n) && n >= 1
+function isValidQuantity(value: unknown): boolean {
+  if (value == null || value === '') return false
+  const parsed = typeof value === 'number' ? value : parseInt(String(value), 10)
+  return Number.isInteger(parsed) && parsed >= 1
 }
 
 /** Positive integer millimeter value, or `null` if invalid/missing. */
-function posGanzzahlMm(v: unknown): number | null {
-  if (v == null || v === '') return null
-  const n = typeof v === 'number' ? v : parseInt(String(v), 10)
-  if (!Number.isInteger(n) || n < 1) return null
-  return n
+function parsePositiveIntMm(value: unknown): number | null {
+  if (value == null || value === '') return null
+  const parsed = typeof value === 'number' ? value : parseInt(String(value), 10)
+  if (!Number.isInteger(parsed) || parsed < 1) return null
+  return parsed
 }
 
 /** At least one dimension (width or height) is a positive integer. */
-function formatMindestEins(b: unknown, h: unknown): boolean {
-  return posGanzzahlMm(b) != null || posGanzzahlMm(h) != null
+function hasDimension(width: unknown, height: unknown): boolean {
+  return parsePositiveIntMm(width) != null || parsePositiveIntMm(height) != null
 }
 
 type Err = Record<string, string>
-const f = (o: Err, k: string, m: string) => {
-  o[k] = m
+const addError = (errors: Err, field: string, message: string) => {
+  errors[field] = message
 }
 
 const MSG_FORMAT_MASSE = 'Mindestens Breite oder Höhe angeben'
@@ -77,42 +77,42 @@ const MSG_FORMAT_MASSE = 'Mindestens Breite oder Höhe angeben'
  */
 export function validateLaserDetail(
   typ: string | null,
-  d: Record<string, unknown> | null,
-  teilStatus: OrderStatus
+  detail: Record<string, unknown> | null,
+  subOrderStatus: OrderStatus
 ): Record<string, string> {
-  const o: Err = {}
-  if (teilStatus === 'ANGEBOT') return o
+  const errors: Err = {}
+  if (subOrderStatus === 'ANGEBOT') return errors
   if (!typ || !LASER_TYPES.includes(typ as LaserType)) {
-    f(o, 'typ', 'Typ wählen')
-    return o
+    addError(errors, 'typ', 'Typ wählen')
+    return errors
   }
-  if (!stueckzahlGueltig(d?.stueckzahl)) f(o, 'stueckzahl', 'Ganze Zahl ≥ 1')
+  if (!isValidQuantity(detail?.stueckzahl)) addError(errors, 'stueckzahl', 'Ganze Zahl ≥ 1')
 
-  const t = typ as LaserType
+  const laserType = typ as LaserType
 
-  if (t === 'SCHILD' || t === 'POKALSCHILD' || t === 'NAMENSSCHILD') {
-    const m = reqStr(d?.material) as (typeof LASER_SIGN_MATERIALS)[number] | null
-    if (!m || !LASER_SIGN_MATERIALS.includes(m as (typeof LASER_SIGN_MATERIALS)[number])) {
-      f(o, 'material', 'Pflichtfeld')
+  if (laserType === 'SCHILD' || laserType === 'POKALSCHILD' || laserType === 'NAMENSSCHILD') {
+    const material = parseRequiredString(detail?.material) as (typeof LASER_SIGN_MATERIALS)[number] | null
+    if (!material || !LASER_SIGN_MATERIALS.includes(material as (typeof LASER_SIGN_MATERIALS)[number])) {
+      addError(errors, 'material', 'Pflichtfeld')
     }
-    if (m === 'SONSTIGE' && !reqStr(d?.material_sonstige)) f(o, 'material_sonstige', 'Pflichtfeld')
-    if (!formatMindestEins(d?.format_breite, d?.format_hoehe)) f(o, 'format_masse', MSG_FORMAT_MASSE)
-    if (reqBool(d?.ecken_runden) === 'missing') f(o, 'ecken_runden', 'Pflichtfeld')
-    if ((t === 'SCHILD' || t === 'POKALSCHILD') && reqBool(d?.selbstklebend) === 'missing') {
-      f(o, 'selbstklebend', 'Pflichtfeld')
+    if (material === 'SONSTIGE' && !parseRequiredString(detail?.material_sonstige)) addError(errors, 'material_sonstige', 'Pflichtfeld')
+    if (!hasDimension(detail?.format_breite, detail?.format_hoehe)) addError(errors, 'format_masse', MSG_FORMAT_MASSE)
+    if (requireBoolPresent(detail?.ecken_runden) === 'missing') addError(errors, 'ecken_runden', 'Pflichtfeld')
+    if ((laserType === 'SCHILD' || laserType === 'POKALSCHILD') && requireBoolPresent(detail?.selbstklebend) === 'missing') {
+      addError(errors, 'selbstklebend', 'Pflichtfeld')
     }
-    if (!reqStr(d?.motiv)) f(o, 'motiv', 'Pflichtfeld')
-  } else if (t === 'GESCHENKARTIKEL') {
-    if (!reqStr(d?.material_freitext)) f(o, 'material_freitext', 'Pflichtfeld')
-    const h = reqStr(d?.herkunft)
-    if (!h || !LASER_ORIGINS.includes(h as (typeof LASER_ORIGINS)[number])) f(o, 'herkunft', 'Pflichtfeld')
-    if (!reqStr(d?.motiv)) f(o, 'motiv', 'Pflichtfeld')
-  } else if (t === 'SONSTIGE_LASER') {
-    if (reqBool(d?.selbstklebend) === 'missing') f(o, 'selbstklebend', 'Pflichtfeld')
-    const h = reqStr(d?.herkunft)
-    if (!h || !LASER_ORIGINS.includes(h as (typeof LASER_ORIGINS)[number])) f(o, 'herkunft', 'Pflichtfeld')
-    if (!reqStr(d?.motiv)) f(o, 'motiv', 'Pflichtfeld')
+    if (!parseRequiredString(detail?.motiv)) addError(errors, 'motiv', 'Pflichtfeld')
+  } else if (laserType === 'GESCHENKARTIKEL') {
+    if (!parseRequiredString(detail?.material_freitext)) addError(errors, 'material_freitext', 'Pflichtfeld')
+    const origin = parseRequiredString(detail?.herkunft)
+    if (!origin || !LASER_ORIGINS.includes(origin as (typeof LASER_ORIGINS)[number])) addError(errors, 'herkunft', 'Pflichtfeld')
+    if (!parseRequiredString(detail?.motiv)) addError(errors, 'motiv', 'Pflichtfeld')
+  } else if (laserType === 'SONSTIGE_LASER') {
+    if (requireBoolPresent(detail?.selbstklebend) === 'missing') addError(errors, 'selbstklebend', 'Pflichtfeld')
+    const origin = parseRequiredString(detail?.herkunft)
+    if (!origin || !LASER_ORIGINS.includes(origin as (typeof LASER_ORIGINS)[number])) addError(errors, 'herkunft', 'Pflichtfeld')
+    if (!parseRequiredString(detail?.motiv)) addError(errors, 'motiv', 'Pflichtfeld')
   }
 
-  return o
+  return errors
 }

@@ -69,22 +69,22 @@ function autoPrepressAllowed(merged: SubOrderRow): boolean {
  * valid. In `ANGEBOT` (quote stage) nothing is required.
  */
 export function validateSubOrderCommonFields(
-  t: Pick<SubOrderRow, 'termin' | 'lieferung' | 'prioritaet' | 'verantwortlicher_id' | 'satzzeit_minuten'>,
+  subOrder: Pick<SubOrderRow, 'termin' | 'lieferung' | 'prioritaet' | 'verantwortlicher_id' | 'satzzeit_minuten'>,
   status: OrderStatus
 ): Record<string, string> {
   const errors: Record<string, string> = {}
   if (status === 'ANGEBOT') return errors
-  if (t.lieferung !== 'ABHOLUNG' && t.lieferung !== 'VERSAND') errors.lieferung = 'Pflichtfeld'
-  if (!t.termin) errors.termin = 'Pflichtfeld'
-  if (t.prioritaet !== 'NORMAL' && t.prioritaet !== 'HOCH') {
+  if (subOrder.lieferung !== 'ABHOLUNG' && subOrder.lieferung !== 'VERSAND') errors.lieferung = 'Pflichtfeld'
+  if (!subOrder.termin) errors.termin = 'Pflichtfeld'
+  if (subOrder.prioritaet !== 'NORMAL' && subOrder.prioritaet !== 'HOCH') {
     errors.prioritaet = 'Pflichtfeld'
   }
-  const vIdRaw = t.verantwortlicher_id
-  const vid = typeof vIdRaw === 'string' ? vIdRaw.trim() : ''
-  if (vid && !UUID_LOOSE.test(vid)) errors.verantwortlicher_id = 'Gültige UUID'
-  if (t.satzzeit_minuten != null) {
-    const n = Number(t.satzzeit_minuten)
-    if (!Number.isInteger(n) || n <= 0) errors.satzzeit_minuten = 'Ganze Zahl > 0'
+  const rawAssigneeId = subOrder.verantwortlicher_id
+  const assigneeId = typeof rawAssigneeId === 'string' ? rawAssigneeId.trim() : ''
+  if (assigneeId && !UUID_LOOSE.test(assigneeId)) errors.verantwortlicher_id = 'Gültige UUID'
+  if (subOrder.satzzeit_minuten != null) {
+    const minutes = Number(subOrder.satzzeit_minuten)
+    if (!Number.isInteger(minutes) || minutes <= 0) errors.satzzeit_minuten = 'Ganze Zahl > 0'
   }
   return errors
 }
@@ -155,23 +155,23 @@ function subOrderHasContentChange(snap: SubOrderRow, merged: SubOrderRow): boole
  * set — the JSON `detail.hat_produkte` flag for most Bereiche, or the
  * related-table check for Textile.
  */
-export function isSubOrderComplete(t: SubOrderRow, status: OrderStatus): boolean {
+export function isSubOrderComplete(subOrder: SubOrderRow, status: OrderStatus): boolean {
   if (status === 'ANGEBOT') return true
-  const g = validateSubOrderCommonFields(t, status)
-  if (Object.keys(g).length > 0) return false
+  const errors = validateSubOrderCommonFields(subOrder, status)
+  if (Object.keys(errors).length > 0) return false
   if (
-    t.bereich === 'LFP' ||
-    t.bereich === 'COPYSHOP' ||
-    t.bereich === 'STEMPEL' ||
-    t.bereich === 'LASERGRAVUR' ||
-    t.bereich === 'SONSTIGE'
+    subOrder.bereich === 'LFP' ||
+    subOrder.bereich === 'COPYSHOP' ||
+    subOrder.bereich === 'STEMPEL' ||
+    subOrder.bereich === 'LASERGRAVUR' ||
+    subOrder.bereich === 'SONSTIGE'
   ) {
-    const d = subOrderDetailToFieldMap(t.detail)
-    return d?.hat_produkte === true
+    const detailFields = subOrderDetailToFieldMap(subOrder.detail)
+    return detailFields?.hat_produkte === true
   }
-  if (t.bereich === 'TEXTIL') {
-    if (Object.keys(validateSubOrderCommonFields(t, status)).length > 0) return false
-    return textileDetailMarkedComplete(t.detail)
+  if (subOrder.bereich === 'TEXTIL') {
+    if (Object.keys(validateSubOrderCommonFields(subOrder, status)).length > 0) return false
+    return textileDetailMarkedComplete(subOrder.detail)
   }
   return true
 }
