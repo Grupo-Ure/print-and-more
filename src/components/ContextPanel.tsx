@@ -14,7 +14,8 @@ import {
   type SubOrderRow,
 } from '../types/database'
 import type { Database } from '../types/supabase'
-import { FileList, type FileRecord } from './FileList'
+import { FileList } from './FileList'
+import type { FileRow } from '../services/fileService'
 import { HistoryPanel } from './HistoryPanel'
 import { useToast } from './Toast'
 import { isSubOrderComplete } from '../lib/subOrderShared'
@@ -24,14 +25,14 @@ type Props = {
   order: Auftrag | null
   activeSubOrder: SubOrderRow | null
   orderCustomer: CustomerContactJoin | null
-  orderFiles: FileRecord[]
+  orderFiles: FileRow[]
   onOrderUpdated: (updatedOrder: Auftrag) => void
   onOrderDeleted: (auftragId: string) => void
   onSubOrderUpdated: (updatedSubOrder: SubOrderRow) => void
   onSubOrderRemoved: (id: string) => void
   onEditCustomer: () => void
   contextRefreshTick: number
-  onFileChanged?: (newFileRecord?: FileRecord) => void | Promise<void>
+  onFileChanged?: (newFileRow?: FileRow) => void | Promise<void>
 }
 
 function statusBadgeGlobal(status: OrderStatus): string {
@@ -1197,7 +1198,7 @@ export function ContextPanel({
         >
           <div className="cp-modal">
             <h3>Kundenfreigabe erteilen</h3>
-            <p className="cp-hinweis">FileRecord wählen:</p>
+            <p className="cp-hinweis">FileRow wählen:</p>
             <select
               className="cp-select"
               value={customerApprovalFileId}

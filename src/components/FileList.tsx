@@ -1,16 +1,8 @@
 import { useCallback, useState, type FormEvent } from 'react'
-import { supabase } from '../supabase'
+import { fileService } from '../services/fileService'
+import type { FileRow, FileRole } from '../services/fileService'
 import { useToast } from './Toast'
 
-export type FileRole = 'PRODUKTIONSDATEI' | 'VORSCHAU' | 'KUNDENFREIGABE' | 'REFERENZ'
-
-export type FileRecord = {
-  id: string
-  anzeigename: string
-  pfad: string
-  rolle: FileRole
-  erstellt_am: string
-}
 
 const ROLES: { value: FileRole; label: string }[] = [
   { value: 'PRODUKTIONSDATEI', label: 'Produktionsdatei' },
@@ -28,9 +20,9 @@ const ROLE_SHORT_LABELS: Record<FileRole, string> = {
 
 type Props = {
   activeOrderId: string
-  files: FileRecord[]
+  files: FileRow[]
   filesLoading: boolean
-  onFileChanged: (neueFileRecord?: FileRecord) => void | Promise<void>
+  onFileChanged: (neueFileRecord?: FileRow) => void | Promise<void>
 }
 
 export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: Props) {
@@ -75,39 +67,40 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
       return
     }
     setSaving(true)
-    const { data, error: insertError } = await supabase
-      .from('dateien')
-      .insert({
+    let data: FileRow | null = null
+    try {
+      data = await fileService.createFile({
         auftrag_id: activeOrderId,
         anzeigename: trimmedName,
         pfad: trimmedPath,
         rolle: role,
       })
-      .select('id, anzeigename, pfad, rolle, erstellt_am')
-      .single()
-    setSaving(false)
-    if (insertError) {
-      setError(insertError.message)
+    } catch (err) {
+      setSaving(false)
+      setError(err instanceof Error ? err.message : 'Fehler beim Speichern')
       return
     }
+    setSaving(false)
     if (data) {
       setDisplayName('')
       setPath('')
       setRole('PRODUKTIONSDATEI')
       setFormOpen(false)
-      void onFileChanged(data as FileRecord)
+      void onFileChanged(data as FileRow)
     }
   }
 
   const handleRemove = async (id: string) => {
     setError(null)
     setRemovingId(id)
-    const { error: deleteError } = await supabase.from('dateien').delete().eq('id', id)
-    setRemovingId(null)
-    if (deleteError) {
-      setError(deleteError.message)
+    try {
+      await fileService.deleteFile(id)
+    } catch (err) {
+      setRemovingId(null)
+      setError(err instanceof Error ? err.message : 'Fehler beim Löschen')
       return
     }
+    setRemovingId(null)
     void onFileChanged()
   }
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabase'
 import { authService } from '../services/authService'
+import { fileService } from '../services/fileService'
 import { customerName } from '../lib/customer'
 import { synchronizeOrderStatus } from '../lib/orderStatus'
 import { departmentAbbreviation } from '../const/departmentAbbreviation'
@@ -21,7 +22,7 @@ import {
 import { useToast } from './Toast'
 import { AddSubOrderOverlay } from './AddSubOrderOverlay'
 import { DateInput } from './DateInput'
-import type { FileRecord } from './FileList'
+import type { FileRow } from '../services/fileService'
 import { SubOrderDetail } from './SubOrderDetail'
 import './WorkArea.css'
 
@@ -63,7 +64,7 @@ type Props = {
   onActiveSubOrderChanged: (t: SubOrderRow | null) => void
   onOrderCustomerLoaded: (k: CustomerContactJoin | null) => void
   onOrderFromWorkArea: (a: Auftrag | null) => void
-  onOrderFilesChanged: (d: FileRecord[]) => void
+  onOrderFilesChanged: (d: FileRow[]) => void
   onOrderUpdated: (a: Auftrag) => void
   onEditCustomer: () => void
 }
@@ -85,7 +86,7 @@ export function WorkArea({
   const [error, setError] = useState<string | null>(null)
   const [overlayOpen, setOverlayOpen] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [files, setFiles] = useState<FileRecord[]>([])
+  const [files, setFiles] = useState<FileRow[]>([])
   const [headerDeadline, setHeaderDeadline] = useState('')
   const [headerDelivery, setHeaderDelivery] = useState<DeliveryChoice | ''>('')
   const [headerPriority, setHeaderPriority] = useState<Priority>('NORMAL')
@@ -100,16 +101,12 @@ export function WorkArea({
 
   const reloadFiles = useCallback(async () => {
     if (!activeOrderId) return
-    const { data, error } = await supabase
-      .from('dateien')
-      .select('id, anzeigename, pfad, rolle, erstellt_am')
-      .eq('auftrag_id', activeOrderId)
-      .order('erstellt_am', { ascending: true })
-    if (error) {
+    try {
+      const data = await fileService.getFilesByOrderId(activeOrderId)
+      setFiles(data)
+    } catch {
       setFiles([])
       toastFehler('Dateien konnten nicht geladen werden')
-    } else {
-      setFiles((data ?? []) as FileRecord[])
     }
   }, [activeOrderId, toastFehler])
 

@@ -7,7 +7,7 @@ type ProductInsert = Database['public']['Tables']['textil_produkte']['Insert']
 type ProductUpdate = Database['public']['Tables']['textil_produkte']['Update']
 type VariantInsert = Database['public']['Tables']['textil_varianten']['Insert']
 type VariantUpdate = Database['public']['Tables']['textil_varianten']['Update']
-type StockMovementInsert = Database['public']['Tables']['textil_bewegungen']['Insert']
+type StockMovementInsert = Database['public']['Tables']['textil_lager_bewegungen']['Insert']
 
 export type BrandRow = Database['public']['Tables']['textil_marken']['Row']
 export type ProductRow = Database['public']['Tables']['textil_produkte']['Row']
@@ -183,7 +183,7 @@ class TextileMasterDataService {
   }
 
   async createTextileStockMovement(payload: StockMovementInsert): Promise<void> {
-    const { error } = await supabase.from('textil_bewegungen').insert(payload)
+    const { error } = await supabase.from('textil_lager_bewegungen').insert(payload)
     if (error) throw error
   }
 

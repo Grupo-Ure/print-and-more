@@ -2,7 +2,7 @@ import { supabase } from '../supabase'
 import type { Database } from '../types/supabase'
 
 type FileInsert = Database['public']['Tables']['dateien']['Insert']
-type FileRole = Database['public']['Enums']['datei_rolle']
+export type FileRole = Database['public']['Enums']['datei_rolle']
 
 export type FileRow = {
   id: string
@@ -20,6 +20,7 @@ class FileService {
       .from('dateien')
       .select(FILE_COLUMNS)
       .eq('auftrag_id', orderId)
+      .order('erstellt_am', { ascending: true })
     if (error) throw error
     return (data ?? []) as FileRow[]
   }

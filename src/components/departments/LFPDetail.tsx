@@ -9,7 +9,7 @@ import {
   LFP_AUFKLEBER_MATERIALIEN,
   LFP_FOLIENPLOTT_MATERIALIEN,
 } from '../../config/materialien'
-import type { FileRecord } from '../FileList'
+import type { FileRow } from '../../services/fileService'
 import { DateInput } from '../DateInput'
 import { useToast } from '../Toast'
 import '../WorkArea.css'
@@ -27,7 +27,7 @@ type Props = {
   subOrder: SubOrderRow
   subOrderStatus: OrderStatus
   onDetailPatch: (patch: { typ?: string | null; detail: LfpDetail | null }) => Promise<void>
-  orderFiles?: FileRecord[]
+  orderFiles?: FileRow[]
 }
 
 function extractLfpRaw(subOrder: SubOrderRow): LfpDetail {

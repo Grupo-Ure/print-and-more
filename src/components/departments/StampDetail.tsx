@@ -10,7 +10,7 @@ import { validateStampDetail } from '../../lib/stamp/validateStampDetail'
 import { subOrderDetailToFieldMap, type OrderStatus, type SubOrderRow } from '../../types/database'
 import type { Database, Json } from '../../types/supabase'
 import { supabase } from '../../supabase'
-import type { FileRecord } from '../FileList'
+import type { FileRow } from '../../services/fileService'
 import { useToast } from '../Toast'
 import '../WorkArea.css'
 
@@ -18,7 +18,7 @@ type Props = {
   subOrder: SubOrderRow
   subOrderStatus: OrderStatus
   onDetailPatch: (patch: { typ?: string | null; detail: StampDetailJson | null }) => Promise<void>
-  orderFiles?: FileRecord[]
+  orderFiles?: FileRow[]
 }
 
 type ProductRow = {

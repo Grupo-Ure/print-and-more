@@ -5,7 +5,7 @@ import { BROCHURE_DIN, FOLD_DIN, CARD_DIN, CARD_FORMAT_ORDER, FOLD_FORMAT_ORDER,
 import { validateCopyShopDetail } from '../../lib/copyshop/validateCopyShopDetail'
 import type { OrderStatus, SubOrderRow } from '../../types/database'
 import type { Database, Json } from '../../types/supabase'
-import type { FileRecord } from '../FileList'
+import type { FileRow } from '../../services/fileService'
 import { useToast } from '../Toast'
 import { MaterialCC } from './copyshop/MaterialCC'
 import { MaterialOffset } from './copyshop/MaterialOffset'
@@ -22,7 +22,7 @@ type Props = {
   subOrder: SubOrderRow
   subOrderStatus: OrderStatus
   onDetailPatch: (patch: { typ?: string | null; detail: CopyShopDetailJson | null }) => Promise<void>
-  orderFiles?: FileRecord[]
+  orderFiles?: FileRow[]
 }
 
 type ProductRow = {

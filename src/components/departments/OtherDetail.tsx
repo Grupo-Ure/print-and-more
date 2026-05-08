@@ -3,7 +3,7 @@ import { supabase } from '../../supabase'
 import { validateOtherDetail } from '../../lib/other/validateOtherDetail'
 import type { OrderStatus, SubOrderRow } from '../../types/database'
 import type { Database, Json } from '../../types/supabase'
-import type { FileRecord } from '../FileList'
+import type { FileRow } from '../../services/fileService'
 import { useToast } from '../Toast'
 import '../WorkArea.css'
 
@@ -13,7 +13,7 @@ type Props = {
   subOrder: SubOrderRow
   subOrderStatus: OrderStatus
   onDetailPatch: (patch: { typ?: string | null; detail: OtherDetailJson | null }) => Promise<void>
-  orderFiles?: FileRecord[]
+  orderFiles?: FileRow[]
 }
 
 type ProductRow = {

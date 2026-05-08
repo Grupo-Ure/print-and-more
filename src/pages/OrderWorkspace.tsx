@@ -10,7 +10,7 @@ import { CustomerDialog } from '../components/CustomerDialog'
 import { contactJoinToCustomer } from '../lib/customers'
 import type { Customer } from '../lib/customers'
 import type { Auftrag, OrderStatus, CustomerContactJoin, SubOrderRow } from '../types/database'
-import type { FileRecord } from '../components/FileList'
+import type { FileRow } from '../services/fileService'
 
 const ORDER_LIST_IN_PLACE_INITIAL: { tick: number; id: string; status: OrderStatus } = {
   tick: 0,
@@ -25,7 +25,7 @@ export function OrderWorkspace() {
   const [activeOrder, setActiveOrder] = useState<Auftrag | null>(null)
   const [activeSubOrder, setActiveSubOrder] = useState<SubOrderRow | null>(null)
   const [orderCustomer, setOrderCustomer] = useState<CustomerContactJoin | null>(null)
-  const [orderFiles, setOrderFiles] = useState<FileRecord[]>([])
+  const [orderFiles, setOrderFiles] = useState<FileRow[]>([])
   const [contextRefreshTick, setContextRefreshTick] = useState(0)
   const [orderListKey, setOrderListKey] = useState(0)
   const [orderInPlace, setOrderInPlace] = useState(ORDER_LIST_IN_PLACE_INITIAL)
@@ -68,11 +68,11 @@ export function OrderWorkspace() {
     setActiveSubOrder(subOrder)
   }, [])
 
-  const handleOrderFilesChanged = useCallback((files: FileRecord[]) => {
+  const handleOrderFilesChanged = useCallback((files: FileRow[]) => {
     setOrderFiles(files)
   }, [])
 
-  const handleFileChanged = useCallback((newFile?: FileRecord) => {
+  const handleFileChanged = useCallback((newFile?: FileRow) => {
     if (newFile) {
       setOrderFiles(prev => [...prev, newFile])
     }
@@ -141,9 +141,10 @@ export function OrderWorkspace() {
         fontFamily: 'system-ui, sans-serif',
         fontSize: 14,
       }}
+      className="b-dev"
     >
       <div
-        className="app-col"
+        className="app-col b-dev p-4"
         style={{ borderRight: '1px solid #e5e5e5', background: '#fafafa' }}
       >
         <OrderList
