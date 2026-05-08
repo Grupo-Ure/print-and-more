@@ -25,7 +25,7 @@
  * identifier surface is English here.
  */
 
-import { teilJsonAlsFeldertabelle, type AuftragStatus, type TeilauftragRow } from '../types/database'
+import { subOrderDetailToFieldMap, type OrderStatus, type SubOrderRow } from '../types/database'
 import { textileDetailMarkedComplete } from './textile/validateTextileDetail'
 
 const UUID_LOOSE = /^[0-9a-fA-F-]{30,40}$/
@@ -41,7 +41,7 @@ const UUID_LOOSE = /^[0-9a-fA-F-]{30,40}$/
  *
  * Inside Stamp, only the structured typen are auto-advanced.
  */
-function autoPrepressAllowed(merged: TeilauftragRow): boolean {
+function autoPrepressAllowed(merged: SubOrderRow): boolean {
   if (merged.bereich === 'STEMPEL') {
     if (merged.typ === 'SONSTIGE_STEMPEL') return false
     return (
@@ -69,8 +69,8 @@ function autoPrepressAllowed(merged: TeilauftragRow): boolean {
  * valid. In `ANGEBOT` (quote stage) nothing is required.
  */
 export function validateSubOrderCommonFields(
-  t: Pick<TeilauftragRow, 'termin' | 'lieferung' | 'prioritaet' | 'verantwortlicher_id' | 'satzzeit_minuten'>,
-  status: AuftragStatus
+  t: Pick<SubOrderRow, 'termin' | 'lieferung' | 'prioritaet' | 'verantwortlicher_id' | 'satzzeit_minuten'>,
+  status: OrderStatus
 ): Record<string, string> {
   const errors: Record<string, string> = {}
   if (status === 'ANGEBOT') return errors
@@ -98,7 +98,7 @@ function equalDetail(a: unknown, b: unknown): boolean {
  * counts as a content-changing edit (e.g. quantity changes for misc
  * sub-orders should NOT bounce status back to UNVOLLSTAENDIG).
  */
-function descriptionDetailChangedAfterProduction(snap: TeilauftragRow, merged: TeilauftragRow): boolean {
+function descriptionDetailChangedAfterProduction(snap: SubOrderRow, merged: SubOrderRow): boolean {
   const rowChanged =
     merged.typ !== snap.typ ||
     merged.termin !== snap.termin ||
@@ -107,8 +107,8 @@ function descriptionDetailChangedAfterProduction(snap: TeilauftragRow, merged: T
     merged.verantwortlicher_id !== snap.verantwortlicher_id ||
     merged.satzzeit_minuten !== snap.satzzeit_minuten
   if (rowChanged) return true
-  const sd = teilJsonAlsFeldertabelle(snap.detail)
-  const md = teilJsonAlsFeldertabelle(merged.detail)
+  const sd = subOrderDetailToFieldMap(snap.detail)
+  const md = subOrderDetailToFieldMap(merged.detail)
   return String(sd.beschreibung ?? '') !== String(md.beschreibung ?? '')
 }
 
@@ -116,7 +116,7 @@ function descriptionDetailChangedAfterProduction(snap: TeilauftragRow, merged: T
  * After PROD/FERTIG: for LASERGRAVUR, only `detail.motiv` counts as a
  * content-changing edit.
  */
-function motifDetailChangedAfterProduction(snap: TeilauftragRow, merged: TeilauftragRow): boolean {
+function motifDetailChangedAfterProduction(snap: SubOrderRow, merged: SubOrderRow): boolean {
   const rowChanged =
     merged.typ !== snap.typ ||
     merged.termin !== snap.termin ||
@@ -125,8 +125,8 @@ function motifDetailChangedAfterProduction(snap: TeilauftragRow, merged: Teilauf
     merged.verantwortlicher_id !== snap.verantwortlicher_id ||
     merged.satzzeit_minuten !== snap.satzzeit_minuten
   if (rowChanged) return true
-  const sd = teilJsonAlsFeldertabelle(snap.detail)
-  const md = teilJsonAlsFeldertabelle(merged.detail)
+  const sd = subOrderDetailToFieldMap(snap.detail)
+  const md = subOrderDetailToFieldMap(merged.detail)
   return String(sd.motiv ?? '') !== String(md.motiv ?? '')
 }
 
@@ -136,7 +136,7 @@ function motifDetailChangedAfterProduction(snap: TeilauftragRow, merged: Teilauf
  * Used by {@link nextSubOrderStatus} for general dirty detection
  * (Stamp/Other/Laser have narrower per-Bereich checks above).
  */
-function subOrderHasContentChange(snap: TeilauftragRow, merged: TeilauftragRow): boolean {
+function subOrderHasContentChange(snap: SubOrderRow, merged: SubOrderRow): boolean {
   return (
     merged.typ !== snap.typ ||
     !equalDetail(merged.detail, snap.detail) ||
@@ -155,7 +155,7 @@ function subOrderHasContentChange(snap: TeilauftragRow, merged: TeilauftragRow):
  * set — the JSON `detail.hat_produkte` flag for most Bereiche, or the
  * related-table check for Textile.
  */
-export function isSubOrderComplete(t: TeilauftragRow, status: AuftragStatus): boolean {
+export function isSubOrderComplete(t: SubOrderRow, status: OrderStatus): boolean {
   if (status === 'ANGEBOT') return true
   const g = validateSubOrderCommonFields(t, status)
   if (Object.keys(g).length > 0) return false
@@ -166,7 +166,7 @@ export function isSubOrderComplete(t: TeilauftragRow, status: AuftragStatus): bo
     t.bereich === 'LASERGRAVUR' ||
     t.bereich === 'SONSTIGE'
   ) {
-    const d = teilJsonAlsFeldertabelle(t.detail)
+    const d = subOrderDetailToFieldMap(t.detail)
     return d?.hat_produkte === true
   }
   if (t.bereich === 'TEXTIL') {
@@ -196,14 +196,14 @@ export function isSubOrderComplete(t: TeilauftragRow, status: AuftragStatus): bo
  *   itself has been taken on).
  */
 export function nextSubOrderStatus(
-  before: AuftragStatus,
-  snap: TeilauftragRow,
-  merged: TeilauftragRow,
+  before: OrderStatus,
+  snap: SubOrderRow,
+  merged: SubOrderRow,
   complete: boolean,
   customerPrepressOk: boolean,
-  orderStatus?: AuftragStatus
-): AuftragStatus {
-  function capPrepress(status: AuftragStatus): AuftragStatus {
+  orderStatus?: OrderStatus
+): OrderStatus {
+  function capPrepress(status: OrderStatus): OrderStatus {
     if (orderStatus === 'ANGEBOT' && status === 'PREPRESS_BEREIT') {
       return 'UNVOLLSTAENDIG'
     }

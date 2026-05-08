@@ -3,7 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../supabase'
 import { Login } from '../components/Login'
 import { useToast } from '../components/Toast'
-import { teilJsonAlsFeldertabelle } from '../types/database'
+import { subOrderDetailToFieldMap } from '../types/database'
 import type { Database, Json } from '../types/supabase'
 
 type StampType =
@@ -504,7 +504,7 @@ export function StampStockPage() {
       const demandByModelId = new Map<string, number>()
 
       for (const subOrderItem of (subOrderData ?? []) as { detail: Json }[]) {
-        const fields = teilJsonAlsFeldertabelle(subOrderItem.detail)
+        const fields = subOrderDetailToFieldMap(subOrderItem.detail)
         const quantity = parseSubOrderQuantity(fields.stueckzahl)
         const modelId = fields.modell_id != null && String(fields.modell_id).trim() !== '' ? String(fields.modell_id) : null
         const cushionModelId = fields.kissen_modell_id != null && String(fields.kissen_modell_id).trim() !== '' ? String(fields.kissen_modell_id) : null

@@ -30,7 +30,7 @@ import {
   type StampType,
   STAMP_TYPES,
 } from '../../types/stamp'
-import type { AuftragStatus } from '../../types/database'
+import type { OrderStatus } from '../../types/database'
 
 function reqStr(v: unknown): string | null {
   if (v == null) return null
@@ -79,7 +79,7 @@ const STEMPELKISSEN_GROESSE = ['KLEIN', 'MITTEL', 'GROSS'] as const
 export function validateStampDetail(
   typ: string | null,
   d: StampDetailJson,
-  teilStatus: AuftragStatus
+  teilStatus: OrderStatus
 ): Record<string, string> {
   const o: Err = {}
   if (teilStatus === 'ANGEBOT') return o

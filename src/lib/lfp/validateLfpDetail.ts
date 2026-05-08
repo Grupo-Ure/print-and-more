@@ -12,7 +12,7 @@
  */
 
 import { LFP_TYPES, type LfpDetail, type LfpType } from '../../types/lfp'
-import type { AuftragStatus } from '../../types/database'
+import type { OrderStatus } from '../../types/database'
 
 /** Trim and require non-empty. Returns the trimmed string or `null`. */
 function reqStr(v: unknown): string | null {
@@ -83,7 +83,7 @@ const MSG_MASSE = 'Mindestens Breite oder Höhe angeben'
 export function validateLfpDetail(
   typ: string | null,
   d: LfpDetail,
-  teilStatus: AuftragStatus
+  teilStatus: OrderStatus
 ): Record<string, string> {
   const o: Err = {}
   if (teilStatus === 'ANGEBOT') return o

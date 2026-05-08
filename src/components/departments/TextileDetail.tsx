@@ -8,7 +8,7 @@ import {
   isUniqueViolation,
   textileRecordsAllowPrepress,
 } from '../../lib/textile/validateTextileDetail'
-import type { AuftragStatus, KundeKontaktJoin, TeilauftragRow } from '../../types/database'
+import type { OrderStatus, CustomerContactJoin, SubOrderRow } from '../../types/database'
 import type { FileRecord } from '../FileList'
 import type {
   TextileSize,
@@ -37,12 +37,12 @@ type TextileVariantQueryRow = Pick<
 }
 
 type Props = {
-  subOrder: TeilauftragRow
-  subOrderStatus: AuftragStatus
-  orderStatus?: AuftragStatus
+  subOrder: SubOrderRow
+  subOrderStatus: OrderStatus
+  orderStatus?: OrderStatus
   orderFiles: FileRecord[]
-  orderCustomer: KundeKontaktJoin
-  onUpdated: (t: TeilauftragRow) => void
+  orderCustomer: CustomerContactJoin
+  onUpdated: (t: SubOrderRow) => void
 }
 
 const FONT_CLASS_OPTIONS: { v: TextileFontClass; l: string }[] = [
@@ -200,10 +200,10 @@ export function TextileDetail({
       const existingDetail =
         currentSubOrder.detail && typeof currentSubOrder.detail === 'object' && !Array.isArray(currentSubOrder.detail) ? { ...(currentSubOrder.detail as object) } : {}
       const newDetail = { ...existingDetail, textil: { voll: allowsPrepress } }
-      const merged: TeilauftragRow = { ...currentSubOrder, detail: newDetail } as TeilauftragRow
+      const merged: SubOrderRow = { ...currentSubOrder, detail: newDetail } as SubOrderRow
       const customerContactOk = customerMeetsPrepressContact(orderCustomer)
       const isComplete = isSubOrderComplete(merged, currentSubOrder.status)
-      let nextStatus: AuftragStatus
+      let nextStatus: OrderStatus
       if (afterProdMutation && (currentSubOrder.status === 'PRODUKTION_BEREIT' || currentSubOrder.status === 'FERTIG')) {
         nextStatus = 'UNVOLLSTAENDIG'
       } else {
@@ -223,7 +223,7 @@ export function TextileDetail({
         return
       }
       if (data) {
-        const row = data as TeilauftragRow
+        const row = data as SubOrderRow
         subOrderRef.current = row
         onUpdated(row)
       }
@@ -354,7 +354,7 @@ export function TextileDetail({
         return
       }
       if (data) {
-        const row = data as TeilauftragRow
+        const row = data as SubOrderRow
         subOrderRef.current = row
         onUpdated(row)
       }

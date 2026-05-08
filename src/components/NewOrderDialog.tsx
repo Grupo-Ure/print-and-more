@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { writeHistory } from '../lib/history'
 import { supabase } from '../supabase'
-import type { LieferungWahl, AuftragStatus, Prioritaet } from '../types/database'
+import type { DeliveryChoice, OrderStatus, Priority } from '../types/database'
 import type { Database } from '../types/supabase'
 import type { Customer } from '../lib/customers'
 import { CustomerDialog } from './CustomerDialog'
@@ -12,12 +12,12 @@ import './WorkArea.css'
 export type NewOrderInsertRow = {
   id: string
   auftragsnummer: string
-  status: AuftragStatus
+  status: OrderStatus
   erstellt_am: string
   kunde_id: string
   termin: string | null
-  lieferung: LieferungWahl | null
-  prioritaet: Prioritaet
+  lieferung: DeliveryChoice | null
+  prioritaet: Priority
   notfall_aktiv: boolean
   archiviert: boolean
   erp_exportiert: boolean

@@ -1,7 +1,7 @@
 import type { Json } from './supabase'
 
 /** Gemeinsame Status-Werte (Auftrag: Aggregat; Teilauftrag: ohne ANGEBOT) */
-export type AuftragStatus =
+export type OrderStatus =
   | 'ANGEBOT'
   | 'UNVOLLSTAENDIG'
   | 'PREPRESS_BEREIT'
@@ -9,7 +9,7 @@ export type AuftragStatus =
   | 'FERTIG'
   | 'ABGERECHNET'
 
-export const AUFTRAG_STATUS_LIST: readonly AuftragStatus[] = [
+export const ORDER_STATUS_LIST: readonly OrderStatus[] = [
   'ANGEBOT',
   'UNVOLLSTAENDIG',
   'PREPRESS_BEREIT',
@@ -19,7 +19,7 @@ export const AUFTRAG_STATUS_LIST: readonly AuftragStatus[] = [
 ]
 
 /** Werte = Supabase-Enum `teilauftrag_bereich` (Großbuchstaben, kein Leerzeichen) */
-export const TEILAUFTRAG_BEREICHE = [
+export const SUB_ORDER_DEPARTMENTS = [
   'LFP',
   'COPYSHOP',
   'TEXTIL',
@@ -28,9 +28,9 @@ export const TEILAUFTRAG_BEREICHE = [
   'SONSTIGE',
 ] as const
 
-export type TeilauftragBereich = (typeof TEILAUFTRAG_BEREICHE)[number]
+export type SubOrderDepartment = (typeof SUB_ORDER_DEPARTMENTS)[number]
 
-export const TEILAUFTRAG_BEREICH_ANZEIGE: Record<TeilauftragBereich, string> = {
+export const SUB_ORDER_DEPARTMENT_LABELS: Record<SubOrderDepartment, string> = {
   LFP: 'LFP',
   COPYSHOP: 'CopyShop',
   TEXTIL: 'Textil',
@@ -39,32 +39,32 @@ export const TEILAUFTRAG_BEREICH_ANZEIGE: Record<TeilauftragBereich, string> = {
   SONSTIGE: 'Sonstige',
 }
 
-export type Bereich = TeilauftragBereich
+export type Department = SubOrderDepartment
 
-export function teilauftragBereichLabel(bereich: string): string {
-  if (bereich in TEILAUFTRAG_BEREICH_ANZEIGE) {
-    return TEILAUFTRAG_BEREICH_ANZEIGE[bereich as TeilauftragBereich]
+export function subOrderDepartmentLabel(department: string): string {
+  if (department in SUB_ORDER_DEPARTMENT_LABELS) {
+    return SUB_ORDER_DEPARTMENT_LABELS[department as SubOrderDepartment]
   }
-  return bereich
+  return department
 }
 
 /** Entspricht `prioritaet_typ` in der DB (Auftrag und Teilauftrag). */
-export type Prioritaet = 'NORMAL' | 'HOCH'
+export type Priority = 'NORMAL' | 'HOCH'
 
 /** Flaches Objekt für Validierung von JSONB-Details; Arrays/Primitiv oben = leer. */
-export function teilJsonAlsFeldertabelle(d: Json | null): Record<string, unknown> {
-  if (d === null) return {}
-  if (typeof d === 'object' && !Array.isArray(d)) {
-    return d
+export function subOrderDetailToFieldMap(detail: Json | null): Record<string, unknown> {
+  if (detail === null) return {}
+  if (typeof detail === 'object' && !Array.isArray(detail)) {
+    return detail
   }
   return {}
 }
 
-export type KundeName = {
+export type CustomerName = {
   name: string
 }
 
-export type KundeKontaktRow = {
+export type CustomerContactRow = {
   id: string
   name: string
   email: string | null
@@ -77,48 +77,48 @@ export type KundeKontaktRow = {
 }
 
 /** PostgREST liefert eingebettete FK-Zeile als Objekt oder 1-Element-Array (je nach Client-Inferenz). */
-export type KundeJoin = KundeName | KundeName[] | null
+export type CustomerJoin = CustomerName | CustomerName[] | null
 
-export type KundeKontaktJoin = KundeKontaktRow | KundeKontaktRow[] | null
+export type CustomerContactJoin = CustomerContactRow | CustomerContactRow[] | null
 
 /** SELECT für die Auftragsliste (OrderList) */
-export type AuftragListRow = {
+export type OrderSummaryRow = {
   id: string
   auftragsnummer: string
-  status: AuftragStatus
+  status: OrderStatus
   erstellt_am: string
-  kunden: KundeJoin
+  kunden: CustomerJoin
 }
 
 /** SELECT einzelner Auftrag im Arbeitsbereich */
-export type AuftragDetailRow = {
+export type OrderDetailRow = {
   id: string
   auftragsnummer: string
-  status: AuftragStatus
-  kunden: KundeKontaktJoin
+  status: OrderStatus
+  kunden: CustomerContactJoin
   erp_exportiert: boolean
   archiviert: boolean
   termin: string | null
-  lieferung: LieferungWahl | null
-  prioritaet: Prioritaet
+  lieferung: DeliveryChoice | null
+  prioritaet: Priority
   notfall_aktiv: boolean
   erstellt_am: string
 }
 
 /** Rechte Spalte / Kontext (identisch mit geladenem Auftrag) */
-export type Auftrag = AuftragDetailRow
+export type Auftrag = OrderDetailRow
 
-export type LieferungWahl = 'ABHOLUNG' | 'VERSAND'
+export type DeliveryChoice = 'ABHOLUNG' | 'VERSAND'
 
-export type TeilauftragRow = {
+export type SubOrderRow = {
   id: string
   auftrag_id: string
-  bereich: TeilauftragBereich
+  bereich: SubOrderDepartment
   typ: string | null
-  status: AuftragStatus
+  status: OrderStatus
   termin: string | null
-  lieferung: LieferungWahl | null
-  prioritaet: Prioritaet
+  lieferung: DeliveryChoice | null
+  prioritaet: Priority
   verantwortlicher_id: string | null
   satzzeit_minuten: number | null
   /** Bereichsspezifische Daten (LFP, …) — JSONB */
@@ -131,9 +131,9 @@ export type TeilauftragRow = {
   kundenfreigabe_datei_id: string | null
 }
 
-export type NeuerTeilauftragEintrag = {
+export type NewSubOrderEntry = {
   auftrag_id: string
-  bereich: TeilauftragBereich
+  bereich: SubOrderDepartment
   status: 'UNVOLLSTAENDIG'
   prioritaet: 'NORMAL'
 }

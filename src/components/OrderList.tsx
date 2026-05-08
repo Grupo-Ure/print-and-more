@@ -6,18 +6,18 @@ import { SUB_ORDER_COLUMNS } from '../const/subOrderSelect'
 import { formatDateDe } from '../lib/formatDate'
 import { customerName } from '../lib/customer'
 import {
-  TEILAUFTRAG_BEREICHE,
-  TEILAUFTRAG_BEREICH_ANZEIGE,
+  SUB_ORDER_DEPARTMENTS,
+  SUB_ORDER_DEPARTMENT_LABELS,
   type Auftrag,
-  type AuftragStatus,
-  type TeilauftragRow,
+  type OrderStatus,
+  type SubOrderRow,
 } from '../types/database'
 import { DateInput } from './DateInput'
 import { DuplicateDialog } from './DuplicateDialog'
 import { useToast } from './Toast'
 import './OrderList.css'
 
-type OrderInPlace = { tick: number; id: string; status: AuftragStatus }
+type OrderInPlace = { tick: number; id: string; status: OrderStatus }
 
 type Props = {
   orderInPlace: OrderInPlace
@@ -26,7 +26,7 @@ type Props = {
   onNewOrder: () => void
 }
 
-const STATUS_ORDER: AuftragStatus[] = [
+const STATUS_ORDER: OrderStatus[] = [
   'ANGEBOT',
   'UNVOLLSTAENDIG',
   'PREPRESS_BEREIT',
@@ -35,7 +35,7 @@ const STATUS_ORDER: AuftragStatus[] = [
   'ABGERECHNET',
 ]
 
-const DEFAULT_STATUS_TOGGLES: Record<AuftragStatus, boolean> = {
+const DEFAULT_STATUS_TOGGLES: Record<OrderStatus, boolean> = {
   ANGEBOT: true,
   UNVOLLSTAENDIG: true,
   PREPRESS_BEREIT: true,
@@ -45,7 +45,7 @@ const DEFAULT_STATUS_TOGGLES: Record<AuftragStatus, boolean> = {
 }
 
 /** Short label for the status filter checkboxes. */
-const STATUS_CHECKBOX_SHORT: Record<AuftragStatus, string> = {
+const STATUS_CHECKBOX_SHORT: Record<OrderStatus, string> = {
   ANGEBOT: 'Angebot',
   UNVOLLSTAENDIG: 'Unvollst.',
   PREPRESS_BEREIT: 'PrePress',
@@ -58,7 +58,7 @@ type SubOrderDepartmentRow = { bereich: string; status: string }
 type OrderListEntry = {
   id: string
   auftragsnummer: string
-  status: AuftragStatus
+  status: OrderStatus
   erstellt_am: string
   termin: string | null
   prioritaet: 'NORMAL' | 'HOCH'
@@ -78,14 +78,14 @@ function defaultFilterState() {
     deadlineTo: '',
     intakeFrom: '',
     intakeTo: '',
-    department: 'Alle' as 'Alle' | (typeof TEILAUFTRAG_BEREICHE)[number],
+    department: 'Alle' as 'Alle' | (typeof SUB_ORDER_DEPARTMENTS)[number],
   }
 }
 
 type FilterState = ReturnType<typeof defaultFilterState>
 
-function statusTogglesToIn(toggles: Record<AuftragStatus, boolean>): AuftragStatus[] {
-  return (Object.entries(toggles) as [AuftragStatus, boolean][])
+function statusTogglesToIn(toggles: Record<OrderStatus, boolean>): OrderStatus[] {
+  return (Object.entries(toggles) as [OrderStatus, boolean][])
     .filter(([, enabled]) => enabled)
     .map(([status]) => status)
 }
@@ -93,8 +93,8 @@ function statusTogglesToIn(toggles: Record<AuftragStatus, boolean>): AuftragStat
 const VALID_ORDER_STATUSES = new Set<string>(STATUS_ORDER)
 
 /** Only values from the fixed status list — prevents PostgREST `.in('status', …)` type assertions. */
-function filterValidOrderStatuses(values: readonly AuftragStatus[]): AuftragStatus[] {
-  return values.filter((status): status is AuftragStatus => VALID_ORDER_STATUSES.has(status))
+function filterValidOrderStatuses(values: readonly OrderStatus[]): OrderStatus[] {
+  return values.filter((status): status is OrderStatus => VALID_ORDER_STATUSES.has(status))
 }
 
 function isFilterActive(filterState: FilterState): boolean {
@@ -109,7 +109,7 @@ function isFilterActive(filterState: FilterState): boolean {
   return false
 }
 
-function statusBadgeClass(s: AuftragStatus): string {
+function statusBadgeClass(s: OrderStatus): string {
   switch (s) {
     case 'ANGEBOT':
       return 'badge-grau'
@@ -126,8 +126,8 @@ function statusBadgeClass(s: AuftragStatus): string {
   }
 }
 
-function statusLabel(status: AuftragStatus): string {
-  const labels: Record<AuftragStatus, string> = {
+function statusLabel(status: OrderStatus): string {
+  const labels: Record<OrderStatus, string> = {
     ANGEBOT: 'Angebot',
     UNVOLLSTAENDIG: 'Unvollständig',
     PREPRESS_BEREIT: 'PrePress',
@@ -340,7 +340,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
   const [duplicateBusy, setDuplicateBusy] = useState(false)
   const [duplicateError, setDuplicateError] = useState<string | null>(null)
   const [duplicateOrder, setDuplicateOrder] = useState<Auftrag | null>(null)
-  const [duplicateSubOrders, setDuplicateSubOrders] = useState<TeilauftragRow[]>([])
+  const [duplicateSubOrders, setDuplicateSubOrders] = useState<SubOrderRow[]>([])
 
   const openDuplicateDialog = useCallback(
     async (auftragId: string) => {
@@ -360,7 +360,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
           .eq('auftrag_id', auftragId)
         if (subOrderError) throw subOrderError
         setDuplicateOrder(orderData as Auftrag)
-        setDuplicateSubOrders((subOrderData ?? []) as TeilauftragRow[])
+        setDuplicateSubOrders((subOrderData ?? []) as SubOrderRow[])
         setDuplicateDialogOpen(true)
       } catch (e) {
         fehler('Aufträge konnten nicht geladen werden')
@@ -483,9 +483,9 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
                   style={{ width: '100%', boxSizing: 'border-box' }}
                 >
                   <option value="Alle">Alle</option>
-                  {TEILAUFTRAG_BEREICHE.map(dep => (
+                  {SUB_ORDER_DEPARTMENTS.map(dep => (
                     <option key={dep} value={dep}>
-                      {TEILAUFTRAG_BEREICH_ANZEIGE[dep]}
+                      {SUB_ORDER_DEPARTMENT_LABELS[dep]}
                     </option>
                   ))}
                 </select>

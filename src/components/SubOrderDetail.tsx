@@ -9,13 +9,13 @@ import {
   validateSubOrderCommonFields,
 } from '../lib/subOrderShared'
 import {
-  TEILAUFTRAG_BEREICHE,
-  teilauftragBereichLabel,
-  type AuftragStatus,
-  type KundeKontaktJoin,
-  type LieferungWahl,
-  type Prioritaet,
-  type TeilauftragRow,
+  SUB_ORDER_DEPARTMENTS,
+  subOrderDepartmentLabel,
+  type OrderStatus,
+  type CustomerContactJoin,
+  type DeliveryChoice,
+  type Priority,
+  type SubOrderRow,
 } from '../types/database'
 import type { Database } from '../types/supabase'
 import { DateInput } from './DateInput'
@@ -35,18 +35,18 @@ import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import './WorkArea.css'
 
 type Props = {
-  subOrder: TeilauftragRow
-  orderStatus: AuftragStatus
+  subOrder: SubOrderRow
+  orderStatus: OrderStatus
   /** Order deadline (fallback/inheritance for sub-order) */
   orderDeadline: string | null
   /** Order delivery mode (inheritance) */
-  orderDelivery: LieferungWahl | null
+  orderDelivery: DeliveryChoice | null
   /** Order priority (inheritance) */
-  orderPriority: Prioritaet
+  orderPriority: Priority
   /** Server join for customer contact (name, email, telefon) */
-  orderCustomer: KundeKontaktJoin
+  orderCustomer: CustomerContactJoin
   orderFiles: FileRecord[]
-  onUpdated: (updatedSubOrder: TeilauftragRow) => void
+  onUpdated: (updatedSubOrder: SubOrderRow) => void
 }
 
 /** YYYY-MM-DD für Vergleich (Lieferdatum vs. Auftrags-Deadline) */
@@ -57,8 +57,8 @@ function normalizeSubOrderDeadline(value: string | null | undefined): string | n
   return trimmed.length > 10 ? trimmed.slice(0, 10) : trimmed
 }
 
-function subOrderStatusBadge(status: AuftragStatus): { cls: string; label: string } {
-  const statusMap: Record<AuftragStatus, { cls: string; label: string }> = {
+function subOrderStatusBadge(status: OrderStatus): { cls: string; label: string } {
+  const statusMap: Record<OrderStatus, { cls: string; label: string }> = {
     ANGEBOT: { cls: 'badge-grau', label: 'ANGEBOT' },
     UNVOLLSTAENDIG: { cls: 'badge-orange', label: 'UNVOLLSTAENDIG' },
     PREPRESS_BEREIT: { cls: 'badge-blau', label: 'PREPRESS_BEREIT' },
@@ -85,8 +85,8 @@ export function SubOrderDetail({
   const [savePending, setSavePending] = useState(false)
   const { fehler } = useToast()
 
-  const orderDeliveryMode = (orderDelivery ?? 'ABHOLUNG') as LieferungWahl
-  const orderPriorityMode: Prioritaet = orderPriority
+  const orderDeliveryMode = (orderDelivery ?? 'ABHOLUNG') as DeliveryChoice
+  const orderPriorityMode: Priority = orderPriority
 
   useEffect(() => {
     if (subOrder.id !== localRef.current.id) {
@@ -116,7 +116,7 @@ export function SubOrderDetail({
   const shouldValidate = subOrderStatus !== 'ANGEBOT'
   const hasSeparateDelivery = local.lieferung != null && local.lieferung !== orderDeliveryMode
   const hasSeparatePriority = local.prioritaet !== orderPriorityMode
-  const effectiveDelivery = (hasSeparateDelivery ? local.lieferung! : orderDeliveryMode) as LieferungWahl
+  const effectiveDelivery = (hasSeparateDelivery ? local.lieferung! : orderDeliveryMode) as DeliveryChoice
   const effectivePriority = hasSeparatePriority ? local.prioritaet : orderPriorityMode
   const validationErrors = validateSubOrderCommonFields(
     {
@@ -131,18 +131,18 @@ export function SubOrderDetail({
   const customerMeetsPrepressRequirements = customerMeetsPrepressContact(orderCustomer)
 
   const save = useCallback(
-    async (patch: Partial<TeilauftragRow>) => {
+    async (patch: Partial<SubOrderRow>) => {
       const serverSnapshot = serverSnapshotRef.current
       const current = localRef.current
-      const merged: TeilauftragRow = {
+      const merged: SubOrderRow = {
         ...current,
         ...patch,
         detail: patch.detail !== undefined ? patch.detail : current.detail,
         typ: patch.typ !== undefined ? patch.typ : current.typ,
-      } as TeilauftragRow
-      const mergedWithDefaults: TeilauftragRow = {
+      } as SubOrderRow
+      const mergedWithDefaults: SubOrderRow = {
         ...merged,
-        lieferung: (merged.lieferung ?? orderDeliveryMode) as LieferungWahl,
+        lieferung: (merged.lieferung ?? orderDeliveryMode) as DeliveryChoice,
       }
       const isComplete = isSubOrderComplete(mergedWithDefaults, serverSnapshot.status)
       const nextStatus = nextSubOrderStatus(serverSnapshot.status, serverSnapshot, merged, isComplete, customerMeetsPrepressRequirements, orderStatus)
@@ -150,7 +150,7 @@ export function SubOrderDetail({
       setSavePending(true)
       const { bereich: areaPatch, ...patchWithoutArea } = patch
       const isValidArea =
-        areaPatch != null && (TEILAUFTRAG_BEREICHE as readonly string[]).includes(areaPatch)
+        areaPatch != null && (SUB_ORDER_DEPARTMENTS as readonly string[]).includes(areaPatch)
       const subOrderUpdate: Database['public']['Tables']['teilauftraege']['Update'] = {
         ...patchWithoutArea,
         status: nextStatus,
@@ -167,7 +167,7 @@ export function SubOrderDetail({
         return
       }
       if (data) {
-        const row = data as TeilauftragRow
+        const row = data as SubOrderRow
         serverSnapshotRef.current = row
         localRef.current = row
         setLocal(row)
@@ -186,7 +186,7 @@ export function SubOrderDetail({
       await save({
         typ: patch.typ,
         detail: (patch.detail ?? {}) as LfpDetail,
-      } as Partial<TeilauftragRow>)
+      } as Partial<SubOrderRow>)
     },
     [save]
   )
@@ -196,7 +196,7 @@ export function SubOrderDetail({
       await save({
         typ: patch.typ,
         detail: (patch.detail ?? {}) as CopyShopDetailJson,
-      } as Partial<TeilauftragRow>)
+      } as Partial<SubOrderRow>)
     },
     [save]
   )
@@ -206,7 +206,7 @@ export function SubOrderDetail({
       await save({
         typ: patch.typ,
         detail: (patch.detail ?? {}) as StampDetailJson,
-      } as Partial<TeilauftragRow>)
+      } as Partial<SubOrderRow>)
     },
     [save]
   )
@@ -216,7 +216,7 @@ export function SubOrderDetail({
       await save({
         typ: patch.typ,
         detail: (patch.detail ?? {}) as OtherDetailJson,
-      } as Partial<TeilauftragRow>)
+      } as Partial<SubOrderRow>)
     },
     [save]
   )
@@ -226,13 +226,13 @@ export function SubOrderDetail({
       await save({
         typ: patch.typ,
         detail: (patch.detail ?? {}) as LaserDetailJson,
-      } as Partial<TeilauftragRow>)
+      } as Partial<SubOrderRow>)
     },
     [save]
   )
 
   const onTextileSubOrderUpdated = useCallback(
-    (row: TeilauftragRow) => {
+    (row: SubOrderRow) => {
       serverSnapshotRef.current = row
       localRef.current = row
       setLocal(row)
@@ -277,7 +277,7 @@ export function SubOrderDetail({
           if (!alive) return
           if (error) throw error
           if (data) {
-            const row = data as TeilauftragRow
+            const row = data as SubOrderRow
             if (!alive) return
             serverSnapshotRef.current = row
             localRef.current = row
@@ -315,7 +315,7 @@ export function SubOrderDetail({
           if (!alive) return
           if (error) throw error
           if (data) {
-            const row = data as TeilauftragRow
+            const row = data as SubOrderRow
             if (!alive) return
             serverSnapshotRef.current = row
             localRef.current = row
@@ -351,7 +351,7 @@ export function SubOrderDetail({
           if (!alive) return
           if (error) throw error
           if (data) {
-            const row = data as TeilauftragRow
+            const row = data as SubOrderRow
             if (!alive) return
             serverSnapshotRef.current = row
             localRef.current = row
@@ -507,7 +507,7 @@ export function SubOrderDetail({
                 if (!isChecked) {
                   void save({ prioritaet: orderPriorityMode })
                 } else {
-                  const alternativePriority: Prioritaet = orderPriorityMode === 'HOCH' ? 'NORMAL' : 'HOCH'
+                  const alternativePriority: Priority = orderPriorityMode === 'HOCH' ? 'NORMAL' : 'HOCH'
                   void save({ prioritaet: alternativePriority })
                 }
               }}
@@ -612,7 +612,7 @@ export function SubOrderDetail({
             <p className="td-wert td-mono">{local.typ?.trim() ? local.typ : '—'}</p>
           </div>
           <p className="wa-hint" style={{ marginTop: 8 }}>
-            Bereich {teilauftragBereichLabel(local.bereich)}: Detailmaske folgt (analog LFP).
+            Bereich {subOrderDepartmentLabel(local.bereich)}: Detailmaske folgt (analog LFP).
           </p>
         </>
       )}

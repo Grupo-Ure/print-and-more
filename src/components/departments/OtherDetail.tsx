@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../supabase'
 import { validateOtherDetail } from '../../lib/other/validateOtherDetail'
-import type { AuftragStatus, TeilauftragRow } from '../../types/database'
+import type { OrderStatus, SubOrderRow } from '../../types/database'
 import type { Database, Json } from '../../types/supabase'
 import type { FileRecord } from '../FileList'
 import { useToast } from '../Toast'
@@ -10,8 +10,8 @@ import '../WorkArea.css'
 export type OtherDetailJson = Record<string, unknown>
 
 type Props = {
-  subOrder: TeilauftragRow
-  subOrderStatus: AuftragStatus
+  subOrder: SubOrderRow
+  subOrderStatus: OrderStatus
   onDetailPatch: (patch: { typ?: string | null; detail: OtherDetailJson | null }) => Promise<void>
   orderFiles?: FileRecord[]
 }
@@ -27,7 +27,7 @@ type ProductRow = {
 
 const SONSTIGE_TYPE = 'SONSTIGE' as const
 
-function extractOtherRaw(subOrder: TeilauftragRow): OtherDetailJson {
+function extractOtherRaw(subOrder: SubOrderRow): OtherDetailJson {
   const rawDetail = subOrder.detail
   return rawDetail && typeof rawDetail === 'object' && !Array.isArray(rawDetail) ? { ...rawDetail } : {}
 }

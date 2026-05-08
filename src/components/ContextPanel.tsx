@@ -5,12 +5,12 @@ import { writeHistory, type HistoryEvent } from '../lib/history'
 import { parseStatusFromRpc } from '../lib/orderStatus'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import {
-  teilJsonAlsFeldertabelle,
+  subOrderDetailToFieldMap,
   type Auftrag,
-  type AuftragStatus,
-  type KundeKontaktJoin,
-  type KundeKontaktRow,
-  type TeilauftragRow,
+  type OrderStatus,
+  type CustomerContactJoin,
+  type CustomerContactRow,
+  type SubOrderRow,
 } from '../types/database'
 import type { Database } from '../types/supabase'
 import { FileList, type FileRecord } from './FileList'
@@ -21,19 +21,19 @@ import './ContextPanel.css'
 
 type Props = {
   order: Auftrag | null
-  activeSubOrder: TeilauftragRow | null
-  orderCustomer: KundeKontaktJoin | null
+  activeSubOrder: SubOrderRow | null
+  orderCustomer: CustomerContactJoin | null
   orderFiles: FileRecord[]
   onOrderUpdated: (updatedOrder: Auftrag) => void
   onOrderDeleted: (auftragId: string) => void
-  onSubOrderUpdated: (updatedSubOrder: TeilauftragRow) => void
+  onSubOrderUpdated: (updatedSubOrder: SubOrderRow) => void
   onSubOrderRemoved: (id: string) => void
   onEditCustomer: () => void
   contextRefreshTick: number
   onFileChanged?: (newFileRecord?: FileRecord) => void | Promise<void>
 }
 
-function statusBadgeGlobal(status: AuftragStatus): string {
+function statusBadgeGlobal(status: OrderStatus): string {
   switch (status) {
     case 'ANGEBOT':
       return 'badge-grau'
@@ -52,7 +52,7 @@ function statusBadgeGlobal(status: AuftragStatus): string {
   }
 }
 
-function nextEmergencyStatus(status: AuftragStatus): AuftragStatus {
+function nextEmergencyStatus(status: OrderStatus): OrderStatus {
   if (status === 'ABGERECHNET') return status
   if (status === 'UNVOLLSTAENDIG') return 'PREPRESS_BEREIT'
   if (status === 'PREPRESS_BEREIT') return 'PRODUKTION_BEREIT'
@@ -60,7 +60,7 @@ function nextEmergencyStatus(status: AuftragStatus): AuftragStatus {
   return status
 }
 
-function resolveCustomerContact(contact: KundeKontaktJoin | null): KundeKontaktRow | null {
+function resolveCustomerContact(contact: CustomerContactJoin | null): CustomerContactRow | null {
   if (contact == null) return null
   return Array.isArray(contact) ? (contact[0] ?? null) : contact
 }
@@ -207,7 +207,7 @@ export function ContextPanel({
       setPadStock(null)
       return
     }
-    const stampDetail = teilJsonAlsFeldertabelle(activeSubOrder.detail)
+    const stampDetail = subOrderDetailToFieldMap(activeSubOrder.detail)
     let alive = true
     void loadStampStock(stampDetail)
       .then(stockResult => {
@@ -269,7 +269,7 @@ export function ContextPanel({
     try {
       const { error: statusUpdateError } = await supabase
         .from('auftraege')
-        .update({ status: 'UNVOLLSTAENDIG' as AuftragStatus })
+        .update({ status: 'UNVOLLSTAENDIG' as OrderStatus })
         .eq('id', order.id)
       if (statusUpdateError) throw statusUpdateError
       await writeHistory({
@@ -316,7 +316,7 @@ export function ContextPanel({
     try {
       const { error } = await supabase
         .from('auftraege')
-        .update({ status: 'ABGERECHNET' as AuftragStatus, archiviert: true })
+        .update({ status: 'ABGERECHNET' as OrderStatus, archiviert: true })
         .eq('id', order.id)
       if (error) throw error
       await writeHistory({
@@ -406,7 +406,7 @@ export function ContextPanel({
     try {
       const { data, error } = await supabase
         .from('teilauftraege')
-        .update({ status: 'PREPRESS_BEREIT' as AuftragStatus })
+        .update({ status: 'PREPRESS_BEREIT' as OrderStatus })
         .eq('id', subOrder.id)
         .select(SUB_ORDER_COLUMNS)
         .single()
@@ -416,7 +416,7 @@ export function ContextPanel({
         teilauftrag_id: subOrder.id,
         ereignisart: 'PREPRESS_BEREIT_MANUELL',
       })
-      onSubOrderUpdated(data as TeilauftragRow)
+      onSubOrderUpdated(data as SubOrderRow)
       const pdfOk = await generateAndDownloadPdf(subOrder.id, order.id)
       if (!pdfOk) fehler('PDF konnte nicht erstellt werden')
       await syncOrderStatusAfterSubOrderAction()
@@ -434,7 +434,7 @@ export function ContextPanel({
     try {
       // Stempel: Automatischer Lagerabgang (vor Status-Update).
       if (subOrder.bereich === 'STEMPEL') {
-        const stampDetail = teilJsonAlsFeldertabelle(subOrder.detail)
+        const stampDetail = subOrderDetailToFieldMap(subOrder.detail)
         const rawQuantity = stampDetail.stueckzahl
         const parsedQuantity =
           typeof rawQuantity === 'number'
@@ -574,7 +574,7 @@ export function ContextPanel({
 
       const { data, error } = await supabase
         .from('teilauftraege')
-        .update({ status: 'PRODUKTION_BEREIT' as AuftragStatus })
+        .update({ status: 'PRODUKTION_BEREIT' as OrderStatus })
         .eq('id', subOrder.id)
         .select(SUB_ORDER_COLUMNS)
         .single()
@@ -590,7 +590,7 @@ export function ContextPanel({
         console.error('Historie Produktion fehlgeschlagen')
       }
 
-      onSubOrderUpdated(data as TeilauftragRow)
+      onSubOrderUpdated(data as SubOrderRow)
       await syncOrderStatusAfterSubOrderAction()
     } catch {
       fehler('Status konnte nicht geändert werden')
@@ -618,7 +618,7 @@ export function ContextPanel({
     try {
       const { data, error } = await supabase
         .from('teilauftraege')
-        .update({ status: 'FERTIG' as AuftragStatus })
+        .update({ status: 'FERTIG' as OrderStatus })
         .eq('id', subOrder.id)
         .select(SUB_ORDER_COLUMNS)
         .single()
@@ -628,7 +628,7 @@ export function ContextPanel({
         teilauftrag_id: subOrder.id,
         ereignisart: 'FERTIG_GEMELDET',
       })
-      onSubOrderUpdated(data as TeilauftragRow)
+      onSubOrderUpdated(data as SubOrderRow)
       await syncOrderStatusAfterSubOrderAction()
     } catch {
       fehler('Status konnte nicht geändert werden')
@@ -677,7 +677,7 @@ export function ContextPanel({
         ereignisart: 'NOTFALL_AUSGELOEST',
         begruendung: reason,
       })
-      onSubOrderUpdated(data as TeilauftragRow)
+      onSubOrderUpdated(data as SubOrderRow)
       await syncOrderStatusAfterSubOrderAction()
     } catch {
       fehler('Status konnte nicht geändert werden')
@@ -691,7 +691,7 @@ export function ContextPanel({
     setBusy(true)
     try {
       const emergencyResetPatch: Database['public']['Tables']['teilauftraege']['Update'] = {
-        status: 'UNVOLLSTAENDIG' as AuftragStatus,
+        status: 'UNVOLLSTAENDIG' as OrderStatus,
         notfall_aktiv: false,
         notfall_begruendung: null,
       }
@@ -707,7 +707,7 @@ export function ContextPanel({
         teilauftrag_id: subOrder.id,
         ereignisart: 'RUECKSPRUNG',
       })
-      onSubOrderUpdated(data as TeilauftragRow)
+      onSubOrderUpdated(data as SubOrderRow)
       await syncOrderStatusAfterSubOrderAction()
     } catch {
       fehler('Status konnte nicht geändert werden')
@@ -743,7 +743,7 @@ export function ContextPanel({
         ereignisart: historyEvent,
         meta: { aktiv: enabled } as unknown as Record<string, unknown>,
       })
-      onSubOrderUpdated(data as TeilauftragRow)
+      onSubOrderUpdated(data as SubOrderRow)
       await syncOrderStatusAfterSubOrderAction()
     } catch {
       fehler('Status konnte nicht geändert werden')
@@ -777,7 +777,7 @@ export function ContextPanel({
         ereignisart: 'KUNDENFREIGABE_ERTEILT',
         meta: { datei_id: customerApprovalFileId } as unknown as Record<string, unknown>,
       })
-      onSubOrderUpdated(data as TeilauftragRow)
+      onSubOrderUpdated(data as SubOrderRow)
       await syncOrderStatusAfterSubOrderAction()
       erfolg('Freigabe erteilt')
     } catch {
@@ -830,7 +830,7 @@ export function ContextPanel({
 
   const prodDisabled =
     !!subOrder && subOrder.status === 'PREPRESS_BEREIT' && subOrder.kundenfreigabe_erforderlich && !subOrder.kundenfreigabe_liegt_vor
-  const currentStampDetail = subOrder? teilJsonAlsFeldertabelle(subOrder.detail) : {}
+  const currentStampDetail = subOrder? subOrderDetailToFieldMap(subOrder.detail) : {}
   const completionBlockedByStock =
     !!subOrder &&
     subOrder.bereich === 'STEMPEL' &&

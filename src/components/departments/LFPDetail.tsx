@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { supabase } from '../../supabase'
 import { LFP_TYPE_LABELS, LFP_TYPES, type LfpDetail } from '../../types/lfp'
 import { validateLfpDetail } from '../../lib/lfp/validateLfpDetail'
-import type { AuftragStatus, TeilauftragRow } from '../../types/database'
+import type { OrderStatus, SubOrderRow } from '../../types/database'
 import type { Database, Json } from '../../types/supabase'
 import {
   LFP_3551_VARIANTEN,
@@ -24,13 +24,13 @@ type ProductRow = {
 }
 
 type Props = {
-  subOrder: TeilauftragRow
-  subOrderStatus: AuftragStatus
+  subOrder: SubOrderRow
+  subOrderStatus: OrderStatus
   onDetailPatch: (patch: { typ?: string | null; detail: LfpDetail | null }) => Promise<void>
   orderFiles?: FileRecord[]
 }
 
-function extractLfpRaw(subOrder: TeilauftragRow): LfpDetail {
+function extractLfpRaw(subOrder: SubOrderRow): LfpDetail {
   const rawDetail = subOrder.detail
   return rawDetail && typeof rawDetail === 'object' && !Array.isArray(rawDetail) ? { ...rawDetail } : {}
 }

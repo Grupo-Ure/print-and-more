@@ -7,7 +7,7 @@ import {
   type StampDetailJson,
 } from '../../types/stamp'
 import { validateStampDetail } from '../../lib/stamp/validateStampDetail'
-import { teilJsonAlsFeldertabelle, type AuftragStatus, type TeilauftragRow } from '../../types/database'
+import { subOrderDetailToFieldMap, type OrderStatus, type SubOrderRow } from '../../types/database'
 import type { Database, Json } from '../../types/supabase'
 import { supabase } from '../../supabase'
 import type { FileRecord } from '../FileList'
@@ -15,8 +15,8 @@ import { useToast } from '../Toast'
 import '../WorkArea.css'
 
 type Props = {
-  subOrder: TeilauftragRow
-  subOrderStatus: AuftragStatus
+  subOrder: SubOrderRow
+  subOrderStatus: OrderStatus
   onDetailPatch: (patch: { typ?: string | null; detail: StampDetailJson | null }) => Promise<void>
   orderFiles?: FileRecord[]
 }
@@ -30,8 +30,8 @@ type ProductRow = {
   erstellt_am: string | null
 }
 
-function rawStampDetail(subOrder: TeilauftragRow): StampDetailJson {
-  return { ...teilJsonAlsFeldertabelle(subOrder.detail) }
+function rawStampDetail(subOrder: SubOrderRow): StampDetailJson {
+  return { ...subOrderDetailToFieldMap(subOrder.detail) }
 }
 
 type StampFormContext = {
@@ -303,11 +303,11 @@ export function StampDetail({
   const modelName = String(detail['modell_name'] ?? '')
 
   const [selectedModelId, setSelectedModelId] = useState<string | null>(() => {
-    const td = teilJsonAlsFeldertabelle(subOrder.detail)
+    const td = subOrderDetailToFieldMap(subOrder.detail)
     return String(td['modell_id'] ?? '') || null
   })
   const [selectedModelName, setSelectedModelName] = useState<string | null>(() => {
-    const td = teilJsonAlsFeldertabelle(subOrder.detail)
+    const td = subOrderDetailToFieldMap(subOrder.detail)
     return String(td['modell_name'] ?? '') || null
   })
 
@@ -321,7 +321,7 @@ export function StampDetail({
   const [cushionColorOptions, setCushionColorOptions] = useState<CushionColorButton[]>([])
 
   useEffect(() => {
-    const td = teilJsonAlsFeldertabelle(subOrder.detail)
+    const td = subOrderDetailToFieldMap(subOrder.detail)
     setSelectedModelId(String(td['modell_id'] ?? '') || null)
     setSelectedModelName(String(td['modell_name'] ?? '') || null)
   }, [subOrder])

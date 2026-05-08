@@ -23,7 +23,7 @@ import {
   type LaserType,
   LASER_TYPES,
 } from '../../types/laser'
-import type { AuftragStatus } from '../../types/database'
+import type { OrderStatus } from '../../types/database'
 
 /** Trim and require non-empty. Returns the trimmed string or `null`. */
 function reqStr(v: unknown): string | null {
@@ -78,7 +78,7 @@ const MSG_FORMAT_MASSE = 'Mindestens Breite oder Höhe angeben'
 export function validateLaserDetail(
   typ: string | null,
   d: Record<string, unknown> | null,
-  teilStatus: AuftragStatus
+  teilStatus: OrderStatus
 ): Record<string, string> {
   const o: Err = {}
   if (teilStatus === 'ANGEBOT') return o

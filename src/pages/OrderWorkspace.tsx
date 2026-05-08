@@ -9,10 +9,10 @@ import { NewOrderDialog, type NewOrderInsertRow } from '../components/NewOrderDi
 import { CustomerDialog } from '../components/CustomerDialog'
 import { contactJoinToCustomer } from '../lib/customers'
 import type { Customer } from '../lib/customers'
-import type { Auftrag, AuftragStatus, KundeKontaktJoin, TeilauftragRow } from '../types/database'
+import type { Auftrag, OrderStatus, CustomerContactJoin, SubOrderRow } from '../types/database'
 import type { FileRecord } from '../components/FileList'
 
-const ORDER_LIST_IN_PLACE_INITIAL: { tick: number; id: string; status: AuftragStatus } = {
+const ORDER_LIST_IN_PLACE_INITIAL: { tick: number; id: string; status: OrderStatus } = {
   tick: 0,
   id: '',
   status: 'ANGEBOT',
@@ -23,8 +23,8 @@ export function OrderWorkspace() {
   const [loading, setLoading] = useState(true)
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null)
   const [activeOrder, setActiveOrder] = useState<Auftrag | null>(null)
-  const [activeSubOrder, setActiveSubOrder] = useState<TeilauftragRow | null>(null)
-  const [orderCustomer, setOrderCustomer] = useState<KundeKontaktJoin | null>(null)
+  const [activeSubOrder, setActiveSubOrder] = useState<SubOrderRow | null>(null)
+  const [orderCustomer, setOrderCustomer] = useState<CustomerContactJoin | null>(null)
   const [orderFiles, setOrderFiles] = useState<FileRecord[]>([])
   const [contextRefreshTick, setContextRefreshTick] = useState(0)
   const [orderListKey, setOrderListKey] = useState(0)
@@ -62,11 +62,11 @@ export function OrderWorkspace() {
     setActiveOrder(order)
   }, [])
 
-  const handleOrderCustomerLoaded = useCallback((customer: KundeKontaktJoin | null) => {
+  const handleOrderCustomerLoaded = useCallback((customer: CustomerContactJoin | null) => {
     setOrderCustomer(customer)
   }, [])
 
-  const handleActiveSubOrderChanged = useCallback((subOrder: TeilauftragRow | null) => {
+  const handleActiveSubOrderChanged = useCallback((subOrder: SubOrderRow | null) => {
     setActiveSubOrder(subOrder)
   }, [])
 
@@ -101,7 +101,7 @@ export function OrderWorkspace() {
     setContextRefreshTick(x => x + 1)
   }, [])
 
-  const handleSubOrderUpdated = useCallback((subOrder: TeilauftragRow) => {
+  const handleSubOrderUpdated = useCallback((subOrder: SubOrderRow) => {
     setActiveSubOrder(subOrder)
     setContextRefreshTick(x => x + 1)
   }, [])

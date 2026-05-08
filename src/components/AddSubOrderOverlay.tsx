@@ -1,18 +1,18 @@
 import {
-  TEILAUFTRAG_BEREICHE,
-  TEILAUFTRAG_BEREICH_ANZEIGE,
-  type Bereich,
+  SUB_ORDER_DEPARTMENTS,
+  SUB_ORDER_DEPARTMENT_LABELS,
+  type Department,
 } from '../types/database'
 import './WorkArea.css'
 
 type Props = {
   open: boolean
   saving: boolean
-  onBereichSelected: (b: Bereich) => void
+  onDepartmentSelected: (b: Department) => void
   onClose: () => void
 }
 
-export function AddSubOrderOverlay({ open, saving, onBereichSelected, onClose }: Props) {
+export function AddSubOrderOverlay({ open, saving, onDepartmentSelected, onClose }: Props) {
   if (!open) return null
 
   return (
@@ -25,17 +25,17 @@ export function AddSubOrderOverlay({ open, saving, onBereichSelected, onClose }:
     >
       <div className="wa-dialog" onClick={e => e.stopPropagation()}>
         <h2 id="wa-dialog-title">Neuer Teilauftrag</h2>
-        <p className="wa-hint">Bereich wählen:</p>
+        <p className="wa-hint">Department wählen:</p>
         <div className="wa-bereich-grid">
-          {TEILAUFTRAG_BEREICHE.map(department => (
+          {SUB_ORDER_DEPARTMENTS.map(department => (
             <button
               key={department}
               type="button"
               className="wa-bereich-btn"
               disabled={saving}
-              onClick={() => onBereichSelected(department)}
+              onClick={() => onDepartmentSelected(department)}
             >
-              {TEILAUFTRAG_BEREICH_ANZEIGE[department]}
+              {SUB_ORDER_DEPARTMENT_LABELS[department]}
             </button>
           ))}
         </div>

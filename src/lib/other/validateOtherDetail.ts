@@ -7,7 +7,7 @@
  * description and an optional integer quantity.
  */
 
-import type { AuftragStatus } from '../../types/database'
+import type { OrderStatus } from '../../types/database'
 
 /** Trim and require non-empty. Returns the trimmed string or `null`. */
 function reqStr(v: unknown): string | null {
@@ -46,7 +46,7 @@ const f = (o: Err, k: string, m: string) => {
  */
 export function validateOtherDetail(
   d: Record<string, unknown> | null,
-  teilStatus: AuftragStatus
+  teilStatus: OrderStatus
 ): Record<string, string> {
   const o: Err = {}
   if (teilStatus === 'ANGEBOT') return o

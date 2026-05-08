@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react'
 import { supabase } from '../supabase'
 import { ORDER_COLUMNS } from '../const/orderSelect'
 import { customerName } from '../lib/customer'
-import { teilJsonAlsFeldertabelle, type Auftrag, type TeilauftragRow } from '../types/database'
-import { TEILAUFTRAG_BEREICH_ANZEIGE, teilauftragBereichLabel } from '../types/database'
+import { subOrderDetailToFieldMap, type Auftrag, type SubOrderRow } from '../types/database'
+import { SUB_ORDER_DEPARTMENT_LABELS, subOrderDepartmentLabel } from '../types/database'
 import { LFP_TYPE_LABELS } from '../types/lfp'
 import { COPY_SHOP_TYPE_LABELS } from '../types/copyshop'
 import { STAMP_TYPE_LABELS } from '../types/stamp'
@@ -13,7 +13,7 @@ import { useToast } from './Toast'
 
 type Props = {
   auftrag: Auftrag
-  teilauftraege: TeilauftragRow[]
+  teilauftraege: SubOrderRow[]
   onSuccess: (neuerAuftrag: Auftrag) => void
   onCancel: () => void
 }
@@ -32,8 +32,8 @@ function readableSubOrderType(bereich: string, typ: string | null): string {
   return typ
 }
 
-function formatDetailDimensions(detail: import('../types/database').TeilauftragRow['detail']): string {
-  const fields = teilJsonAlsFeldertabelle(detail)
+function formatDetailDimensions(detail: import('../types/database').SubOrderRow['detail']): string {
+  const fields = subOrderDetailToFieldMap(detail)
   const widthRaw = fields.format_breite
   const heightRaw = fields.format_hoehe
   const width = typeof widthRaw === 'number' ? widthRaw : typeof widthRaw === 'string' && widthRaw.trim() !== '' ? Number(widthRaw) : null
@@ -155,7 +155,7 @@ export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }:
                   <label key={subOrder.id} className="cp-toggle" style={{ alignItems: 'flex-start' }}>
                     <input type="checkbox" checked={!!selection[subOrder.id]} onChange={() => toggle(subOrder.id)} />
                     <span>
-                      {(subOrder.bereich in TEILAUFTRAG_BEREICH_ANZEIGE ? TEILAUFTRAG_BEREICH_ANZEIGE[subOrder.bereich as keyof typeof TEILAUFTRAG_BEREICH_ANZEIGE] : teilauftragBereichLabel(subOrder.bereich))}{' '}
+                      {(subOrder.bereich in SUB_ORDER_DEPARTMENT_LABELS ? SUB_ORDER_DEPARTMENT_LABELS[subOrder.bereich as keyof typeof SUB_ORDER_DEPARTMENT_LABELS] : subOrderDepartmentLabel(subOrder.bereich))}{' '}
                       · {readableSubOrderType(subOrder.bereich, subOrder.typ)}{' '}
                       {formatDetailDimensions(subOrder.detail) ? `· ${formatDetailDimensions(subOrder.detail)}` : ''}
                     </span>

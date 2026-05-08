@@ -6,16 +6,16 @@ import { departmentAbbreviation } from '../const/departmentAbbreviation'
 import { ORDER_COLUMNS } from '../const/orderSelect'
 import { SUB_ORDER_COLUMNS } from '../const/subOrderSelect'
 import {
-  teilauftragBereichLabel,
+  subOrderDepartmentLabel,
   type Auftrag,
-  type AuftragDetailRow,
-  type AuftragStatus,
-  type Bereich,
-  type KundeKontaktJoin,
-  type KundeKontaktRow,
-  type LieferungWahl,
-  type Prioritaet,
-  type TeilauftragRow,
+  type OrderDetailRow,
+  type OrderStatus,
+  type Department,
+  type CustomerContactJoin,
+  type CustomerContactRow,
+  type DeliveryChoice,
+  type Priority,
+  type SubOrderRow,
 } from '../types/database'
 import { useToast } from './Toast'
 import { AddSubOrderOverlay } from './AddSubOrderOverlay'
@@ -24,14 +24,14 @@ import type { FileRecord } from './FileList'
 import { SubOrderDetail } from './SubOrderDetail'
 import './WorkArea.css'
 
-function firstContactRow(contact: KundeKontaktJoin | null): KundeKontaktRow | null {
+function firstContactRow(contact: CustomerContactJoin | null): CustomerContactRow | null {
   if (contact == null) return null
   const row = Array.isArray(contact) ? (contact[0] ?? null) : contact
   return row ?? null
 }
 
 /** One line for the header: email preferred, phone as fallback. */
-function customerContactOneLine(contact: KundeKontaktJoin | null): string {
+function customerContactOneLine(contact: CustomerContactJoin | null): string {
   const row = firstContactRow(contact)
   if (!row) return ''
   const email = row.email?.trim() ?? ''
@@ -39,7 +39,7 @@ function customerContactOneLine(contact: KundeKontaktJoin | null): string {
   return row.telefon?.trim() ?? ''
 }
 
-function subOrderStatusDotClass(status: AuftragStatus): string {
+function subOrderStatusDotClass(status: OrderStatus): string {
   switch (status) {
     case 'ANGEBOT':
       return 'td-dot td-dot--grau'
@@ -59,8 +59,8 @@ function subOrderStatusDotClass(status: AuftragStatus): string {
 type Props = {
   activeOrderId: string | null
   contextRefreshTick: number
-  onActiveSubOrderChanged: (t: TeilauftragRow | null) => void
-  onOrderCustomerLoaded: (k: KundeKontaktJoin | null) => void
+  onActiveSubOrderChanged: (t: SubOrderRow | null) => void
+  onOrderCustomerLoaded: (k: CustomerContactJoin | null) => void
   onOrderFromWorkArea: (a: Auftrag | null) => void
   onOrderFilesChanged: (d: FileRecord[]) => void
   onOrderUpdated: (a: Auftrag) => void
@@ -77,8 +77,8 @@ export function WorkArea({
   onOrderUpdated,
   onEditCustomer,
 }: Props) {
-  const [order, setOrder] = useState<AuftragDetailRow | null>(null)
-  const [subOrders, setSubOrders] = useState<TeilauftragRow[]>([])
+  const [order, setOrder] = useState<OrderDetailRow | null>(null)
+  const [subOrders, setSubOrders] = useState<SubOrderRow[]>([])
   const [activeSubOrderId, setActiveSubOrderId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -86,13 +86,13 @@ export function WorkArea({
   const [saving, setSaving] = useState(false)
   const [files, setFiles] = useState<FileRecord[]>([])
   const [headerDeadline, setHeaderDeadline] = useState('')
-  const [headerDelivery, setHeaderDelivery] = useState<LieferungWahl | ''>('')
-  const [headerPriority, setHeaderPriority] = useState<Prioritaet>('NORMAL')
+  const [headerDelivery, setHeaderDelivery] = useState<DeliveryChoice | ''>('')
+  const [headerPriority, setHeaderPriority] = useState<Priority>('NORMAL')
   const [responsibleName, setResponsibleName] = useState<string | null>(null)
   const headerSnapshot = useRef<{
     termin: string | null
-    lieferung: LieferungWahl | null
-    prioritaet: Prioritaet
+    lieferung: DeliveryChoice | null
+    prioritaet: Priority
   }>({ termin: null, lieferung: null, prioritaet: 'NORMAL' })
   const { fehler: toastFehler } = useToast()
   const loadOrderRequestIdRef = useRef(0)
@@ -165,14 +165,14 @@ export function WorkArea({
           if (isStale()) return
           setError(subOrderResult.error.message)
           toastFehler('Auftrag konnte nicht geladen werden')
-          setOrder(orderResult.data as AuftragDetailRow)
+          setOrder(orderResult.data as OrderDetailRow)
           setSubOrders([])
           setActiveSubOrderId(null)
           return
         }
 
         if (isStale()) return
-        setOrder(orderResult.data as AuftragDetailRow)
+        setOrder(orderResult.data as OrderDetailRow)
         const subOrderList = subOrderResult.data ?? []
         setSubOrders(subOrderList)
         setActiveSubOrderId(currentId => {
@@ -219,7 +219,7 @@ export function WorkArea({
   }, [order])
 
   const saveOrderHeader = useCallback(
-    async (patch: Partial<Pick<AuftragDetailRow, 'termin' | 'lieferung' | 'prioritaet'>>) => {
+    async (patch: Partial<Pick<OrderDetailRow, 'termin' | 'lieferung' | 'prioritaet'>>) => {
       if (!activeOrderId) return
       const { data, error } = await supabase
         .from('auftraege')
@@ -232,7 +232,7 @@ export function WorkArea({
         return
       }
       if (data) {
-        const updatedOrder = data as AuftragDetailRow
+        const updatedOrder = data as OrderDetailRow
         setOrder(updatedOrder)
         onOrderFromWorkArea(updatedOrder)
         onOrderCustomerLoaded(updatedOrder.kunden)
@@ -250,7 +250,7 @@ export function WorkArea({
     () => subOrders.filter(subOrder => !subOrder.storniert),
     [subOrders]
   )
-  const activeSubOrder = useMemo((): TeilauftragRow | null => {
+  const activeSubOrder = useMemo((): SubOrderRow | null => {
     if (activeSubOrderId == null) return null
     return visibleSubOrders.find(subOrder => subOrder.id === activeSubOrderId) ?? null
   }, [visibleSubOrders, activeSubOrderId])
@@ -282,7 +282,7 @@ export function WorkArea({
   }, [activeSubOrder?.verantwortlicher_id])
 
   const handleSubOrderUpdated = useCallback(
-    (updatedSubOrder: TeilauftragRow) => {
+    (updatedSubOrder: SubOrderRow) => {
       setSubOrders(previous => previous.map(subOrder => (subOrder.id === updatedSubOrder.id ? updatedSubOrder : subOrder)))
       onActiveSubOrderChanged(updatedSubOrder)
     },
@@ -314,7 +314,7 @@ export function WorkArea({
     onOrderFilesChanged,
   ])
 
-  const handleAddSubOrder = async (bereich: Bereich) => {
+  const handleAddSubOrder = async (bereich: Department) => {
     if (!activeOrderId || !order) return
     setSaving(true)
     setError(null)
@@ -362,7 +362,7 @@ export function WorkArea({
     }
     if (data) {
       setSubOrders(previous => {
-        const sorted = [...previous, data as TeilauftragRow].sort((a, b) =>
+        const sorted = [...previous, data as SubOrderRow].sort((a, b) =>
           a.id < b.id ? -1 : a.id > b.id ? 1 : 0
         )
         return sorted
@@ -381,7 +381,7 @@ export function WorkArea({
           .eq('id', order.id)
           .single()
         if (refreshed) {
-          setOrder(refreshed as AuftragDetailRow)
+          setOrder(refreshed as OrderDetailRow)
           onOrderUpdated(refreshed as Auftrag)
         }
       }
@@ -425,7 +425,7 @@ export function WorkArea({
   const trimDeadline = (dateString: string | null) => (dateString && dateString.length > 10 ? dateString.slice(0, 10) : dateString || '')
   const contactOneLine = customerContactOneLine(order.kunden)
 
-  const priorityGlyph = (priority: Prioritaet) => (priority === 'HOCH' ? '▲' : '●')
+  const priorityGlyph = (priority: Priority) => (priority === 'HOCH' ? '▲' : '●')
 
   return (
     <div className="work-area">
@@ -512,7 +512,7 @@ export function WorkArea({
             value={headerDelivery}
             onChange={e => {
               const value = e.target.value
-              const deliveryValue: LieferungWahl | null = value === 'ABHOLUNG' || value === 'VERSAND' ? value : null
+              const deliveryValue: DeliveryChoice | null = value === 'ABHOLUNG' || value === 'VERSAND' ? value : null
               setHeaderDelivery(deliveryValue ?? '')
               if (deliveryValue !== headerSnapshot.current.lieferung) {
                 void saveOrderHeader({ lieferung: deliveryValue })
@@ -550,7 +550,7 @@ export function WorkArea({
         {visibleSubOrders.map(subOrder => {
           const isActive = subOrder.id === activeSubOrderId
           const abbreviation = departmentAbbreviation(subOrder.bereich)
-          const tabTitle = `${teilauftragBereichLabel(subOrder.bereich)} · ${subOrder.status}`
+          const tabTitle = `${subOrderDepartmentLabel(subOrder.bereich)} · ${subOrder.status}`
           return (
             <button
               key={subOrder.id}
@@ -597,14 +597,14 @@ export function WorkArea({
             onUpdated={handleSubOrderUpdated}
           />
         ) : (
-          <p className="wa-hint">Noch keine Teilaufträge. Nutzen Sie +, um einen Bereich anzulegen.</p>
+          <p className="wa-hint">Noch keine Teilaufträge. Nutzen Sie +, um einen Department anzulegen.</p>
         )}
       </div>
 
       <AddSubOrderOverlay
         open={overlayOpen}
         saving={saving}
-        onBereichSelected={handleAddSubOrder}
+        onDepartmentSelected={handleAddSubOrder}
         onClose={() => !saving && setOverlayOpen(false)}
       />
     </div>

@@ -1,15 +1,15 @@
 import { supabase } from '../supabase'
 import { ORDER_COLUMNS } from '../const/orderSelect'
-import { AUFTRAG_STATUS_LIST, type Auftrag, type AuftragStatus } from '../types/database'
+import { ORDER_STATUS_LIST, type Auftrag, type OrderStatus } from '../types/database'
 
-function parseStatusString(raw: string): AuftragStatus {
-  if (!(AUFTRAG_STATUS_LIST as readonly string[]).includes(raw)) {
+function parseStatusString(raw: string): OrderStatus {
+  if (!(ORDER_STATUS_LIST as readonly string[]).includes(raw)) {
     throw new Error(`fn_berechne_auftragsstatus: invalid status "${raw}"`)
   }
-  return raw as AuftragStatus
+  return raw as OrderStatus
 }
 
-export function parseStatusFromRpc(data: unknown): AuftragStatus {
+export function parseStatusFromRpc(data: unknown): OrderStatus {
   if (data == null) {
     throw new Error('fn_berechne_auftragsstatus: empty result')
   }

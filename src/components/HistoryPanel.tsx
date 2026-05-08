@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
-import { teilauftragBereichLabel } from '../types/database'
+import { subOrderDepartmentLabel } from '../types/database'
 import { useToast } from './Toast'
 import './ContextPanel.css'
 
@@ -142,7 +142,7 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: P
                     <span className="cp-hist-who">{staffName || '—'}</span>
                   </div>
                   {entry.begruendung && <p className="cp-hist-sub">{entry.begruendung}</p>}
-                  {department && <p className="cp-hist-tl">Teil: {teilauftragBereichLabel(department)}</p>}
+                  {department && <p className="cp-hist-tl">Teil: {subOrderDepartmentLabel(department)}</p>}
                 </div>
               )
             })}

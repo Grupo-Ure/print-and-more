@@ -10,15 +10,15 @@ import {
   type LaserDetailJson,
 } from '../../types/laser'
 import { validateLaserDetail } from '../../lib/laser/validateLaserDetail'
-import type { AuftragStatus, TeilauftragRow } from '../../types/database'
+import type { OrderStatus, SubOrderRow } from '../../types/database'
 import type { Database, Json } from '../../types/supabase'
 import type { FileRecord } from '../FileList'
 import { useToast } from '../Toast'
 import '../WorkArea.css'
 
 type Props = {
-  subOrder: TeilauftragRow
-  subOrderStatus: AuftragStatus
+  subOrder: SubOrderRow
+  subOrderStatus: OrderStatus
   onDetailPatch: (patch: { typ?: string | null; detail: LaserDetailJson | null }) => Promise<void>
   orderFiles?: FileRecord[]
 }
@@ -32,7 +32,7 @@ type ProductRow = {
   erstellt_am: string | null
 }
 
-function extractLaserRaw(subOrder: TeilauftragRow): LaserDetailJson {
+function extractLaserRaw(subOrder: SubOrderRow): LaserDetailJson {
   const rawDetail = subOrder.detail
   return rawDetail && typeof rawDetail === 'object' && !Array.isArray(rawDetail) ? { ...rawDetail } : {}
 }

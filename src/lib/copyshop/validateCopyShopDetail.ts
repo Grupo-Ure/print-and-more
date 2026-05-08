@@ -13,7 +13,7 @@
  */
 
 import { COPY_SHOP_TYPES, type CopyShopDetailJson, type CopyShopType } from '../../types/copyshop'
-import type { AuftragStatus } from '../../types/database'
+import type { OrderStatus } from '../../types/database'
 
 function reqStr(v: unknown): string | null {
   if (v == null) return null
@@ -186,7 +186,7 @@ function farbePassendZuBindung(ba: string | null, col: string | null): boolean {
 export function validateCopyShopDetail(
   typ: string | null,
   d: CopyShopDetailJson,
-  teilStatus: AuftragStatus,
+  teilStatus: OrderStatus,
 ): Record<string, string> {
   const o: Err = {}
   if (teilStatus === 'ANGEBOT') return o

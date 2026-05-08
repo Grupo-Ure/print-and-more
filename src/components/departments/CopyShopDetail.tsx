@@ -3,7 +3,7 @@ import { supabase } from '../../supabase'
 import { COPY_SHOP_TYPES, COPY_SHOP_TYPE_LABELS, type CopyShopDetailJson } from '../../types/copyshop'
 import { BROCHURE_DIN, FOLD_DIN, CARD_DIN, CARD_FORMAT_ORDER, FOLD_FORMAT_ORDER, BROCHURE_FORMAT_ORDER } from '../../lib/copyshop/dinCfbFormats'
 import { validateCopyShopDetail } from '../../lib/copyshop/validateCopyShopDetail'
-import type { AuftragStatus, TeilauftragRow } from '../../types/database'
+import type { OrderStatus, SubOrderRow } from '../../types/database'
 import type { Database, Json } from '../../types/supabase'
 import type { FileRecord } from '../FileList'
 import { useToast } from '../Toast'
@@ -19,8 +19,8 @@ import {
 import '../WorkArea.css'
 
 type Props = {
-  subOrder: TeilauftragRow
-  subOrderStatus: AuftragStatus
+  subOrder: SubOrderRow
+  subOrderStatus: OrderStatus
   onDetailPatch: (patch: { typ?: string | null; detail: CopyShopDetailJson | null }) => Promise<void>
   orderFiles?: FileRecord[]
 }
@@ -40,7 +40,7 @@ function stripFileRecordId(json: CopyShopDetailJson): CopyShopDetailJson {
   return copy as CopyShopDetailJson
 }
 
-function extractCopyShopRaw(subOrder: TeilauftragRow): CopyShopDetailJson {
+function extractCopyShopRaw(subOrder: SubOrderRow): CopyShopDetailJson {
   const rawDetail = subOrder.detail
   const base = rawDetail && typeof rawDetail === 'object' && !Array.isArray(rawDetail) ? { ...rawDetail } : {}
   return stripFileRecordId(base)
