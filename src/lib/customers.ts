@@ -13,24 +13,24 @@ export type Customer = {
   ort: string | null
 }
 
-function contactRow(k: CustomerContactJoin | null | undefined): CustomerContactRow | null {
-  if (k == null) return null
-  return Array.isArray(k) ? (k[0] ?? null) : k
+function contactRow(join: CustomerContactJoin | null | undefined): CustomerContactRow | null {
+  if (join == null) return null
+  return Array.isArray(join) ? (join[0] ?? null) : join
 }
 
 /** Maps an order join (kunden) to the form-level Customer type. */
-export function contactJoinToCustomer(k: CustomerContactJoin | null | undefined): Customer | null {
-  const z = contactRow(k)
-  if (z == null || !z.id) return null
+export function contactJoinToCustomer(join: CustomerContactJoin | null | undefined): Customer | null {
+  const contact = contactRow(join)
+  if (contact == null || !contact.id) return null
   return {
-    id: z.id,
-    name: z.name,
-    email: z.email,
-    telefon: z.telefon,
-    notiz: z.notiz,
-    strasse: z.strasse ?? null,
-    hausnummer: z.hausnummer ?? null,
-    plz: z.plz ?? null,
-    ort: z.ort ?? null,
+    id: contact.id,
+    name: contact.name,
+    email: contact.email,
+    telefon: contact.telefon,
+    notiz: contact.notiz,
+    strasse: contact.strasse ?? null,
+    hausnummer: contact.hausnummer ?? null,
+    plz: contact.plz ?? null,
+    ort: contact.ort ?? null,
   }
 }

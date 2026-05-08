@@ -42,21 +42,21 @@ function asDetailRecord(detail: unknown): Record<string, unknown> {
   return {}
 }
 
-function detailRows(detail: Record<string, unknown>): { label: string; wert: string }[] {
-  const d = asDetailRecord(detail)
-  const keys = Object.keys(d).filter(k => k !== 'hat_produkte' && k !== 'datei_id')
+function detailRows(detail: Record<string, unknown>): { label: string; value: string }[] {
+  const detailRecord = asDetailRecord(detail)
+  const keys = Object.keys(detailRecord).filter(key => key !== 'hat_produkte' && key !== 'datei_id')
   const ordered = [
-    ...KNOWN_DETAIL_KEYS.filter(k => keys.includes(k)),
-    ...keys.filter(k => !KNOWN_DETAIL_KEYS.includes(k)).sort(),
+    ...KNOWN_DETAIL_KEYS.filter(key => keys.includes(key)),
+    ...keys.filter(key => !KNOWN_DETAIL_KEYS.includes(key)).sort(),
   ]
 
-  const out: { label: string; wert: string }[] = []
+  const entries: { label: string; value: string }[] = []
   for (const key of ordered) {
-    const val = d[key]
-    const pair = detailEntry(key, val)
-    if (pair) out.push(pair)
+    const fieldValue = detailRecord[key]
+    const entry = detailEntry(key, fieldValue)
+    if (entry) entries.push(entry)
   }
-  return out
+  return entries
 }
 
 function fieldToLabel(key: string): string {
@@ -91,28 +91,28 @@ function fieldToLabel(key: string): string {
   }
 }
 
-function isEmpty(val: unknown): boolean {
-  return val === null || val === undefined || val === ''
+function isEmpty(value: unknown): boolean {
+  return value === null || value === undefined || value === ''
 }
 
-function valueAsString(val: unknown): string {
-  if (val === null || val === undefined) return ''
-  if (typeof val === 'boolean') return val ? 'Ja' : 'Nein'
-  if (typeof val === 'object') return JSON.stringify(val)
-  return String(val)
+function valueAsString(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'boolean') return value ? 'Ja' : 'Nein'
+  if (typeof value === 'object') return JSON.stringify(value)
+  return String(value)
 }
 
-function detailEntry(key: string, val: unknown): { label: string; wert: string } | null {
+function detailEntry(key: string, value: unknown): { label: string; value: string } | null {
   if (key === 'hat_produkte' || key === 'datei_id') return null
-  if (isEmpty(val)) return null
+  if (isEmpty(value)) return null
 
   if (key === 'ecken_runden' || key === 'selbstklebend') {
-    if (val === true) return { label: fieldToLabel(key), wert: 'Ja' }
-    if (val === false) return { label: fieldToLabel(key), wert: 'Nein' }
-    return { label: fieldToLabel(key), wert: String(val) }
+    if (value === true) return { label: fieldToLabel(key), value: 'Ja' }
+    if (value === false) return { label: fieldToLabel(key), value: 'Nein' }
+    return { label: fieldToLabel(key), value: String(value) }
   }
 
-  return { label: fieldToLabel(key), wert: valueAsString(val) }
+  return { label: fieldToLabel(key), value: valueAsString(value) }
 }
 
 function extractCustomer(raw: OrderPdfRow['kunden']): Database['public']['Tables']['kunden']['Row'] | null {
@@ -121,9 +121,9 @@ function extractCustomer(raw: OrderPdfRow['kunden']): Database['public']['Tables
   return raw as Database['public']['Tables']['kunden']['Row']
 }
 
-function normalizeFileNameSegment(s: string): string {
-  let t = s.trim()
-  const uml = [
+function normalizeFileNameSegment(input: string): string {
+  let result = input.trim()
+  const umlautReplacements = [
     ['ä', 'ae'],
     ['ö', 'oe'],
     ['ü', 'ue'],
@@ -132,83 +132,83 @@ function normalizeFileNameSegment(s: string): string {
     ['Ö', 'oe'],
     ['Ü', 'ue'],
   ] as const
-  for (const [a, b] of uml) {
-    t = t.split(a).join(b)
+  for (const [from, to] of umlautReplacements) {
+    result = result.split(from).join(to)
   }
-  t = t.toLowerCase()
-  t = t.replace(/\s+/g, '_')
-  t = t.replace(/[^a-z0-9_-]/g, '')
-  return t || 'kunde'
+  result = result.toLowerCase()
+  result = result.replace(/\s+/g, '_')
+  result = result.replace(/[^a-z0-9_-]/g, '')
+  return result || 'kunde'
 }
 
-function yearMonth(iso: string | null | undefined): string {
-  if (!iso) return '0000-00'
-  const m = iso.match(/^(\d{4})-(\d{2})/)
-  if (m) return `${m[1]}-${m[2]}`
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '0000-00'
-  const y = d.getFullYear()
-  const mo = String(d.getMonth() + 1).padStart(2, '0')
-  return `${y}-${mo}`
+function yearMonth(isoDate: string | null | undefined): string {
+  if (!isoDate) return '0000-00'
+  const match = isoDate.match(/^(\d{4})-(\d{2})/)
+  if (match) return `${match[1]}-${match[2]}`
+  const date = new Date(isoDate)
+  if (Number.isNaN(date.getTime())) return '0000-00'
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  return `${year}-${month}`
 }
 
 function buildFileName(
   customerName: string,
-  termin: string | null | undefined,
-  erstelltAm: string,
-  bereich: string,
-  auftragsnummer: string,
+  deadline: string | null | undefined,
+  createdAt: string,
+  department: string,
+  orderNumber: string,
 ): string {
-  const kn = normalizeFileNameSegment(customerName)
-  const ym = yearMonth(termin || erstelltAm)
-  const typ = bereich.toLowerCase()
-  const nr = normalizeFileNameSegment(auftragsnummer) || auftragsnummer.toLowerCase().replace(/\s+/g, '_')
-  return `${kn}_${ym}_${typ}_${nr}.pdf`
+  const normalizedCustomer = normalizeFileNameSegment(customerName)
+  const yearMonthStr = yearMonth(deadline || createdAt)
+  const departmentStr = department.toLowerCase()
+  const orderNumberStr = normalizeFileNameSegment(orderNumber) || orderNumber.toLowerCase().replace(/\s+/g, '_')
+  return `${normalizedCustomer}_${yearMonthStr}_${departmentStr}_${orderNumberStr}.pdf`
 }
 
-function formatDelivery(v: Database['public']['Enums']['lieferung_typ'] | null | undefined): string {
-  if (v === 'ABHOLUNG') return 'Abholung'
-  if (v === 'VERSAND') return 'Versand'
+function formatDelivery(deliveryType: Database['public']['Enums']['lieferung_typ'] | null | undefined): string {
+  if (deliveryType === 'ABHOLUNG') return 'Abholung'
+  if (deliveryType === 'VERSAND') return 'Versand'
   return '—'
 }
 
-function formatPriority(v: Database['public']['Enums']['prioritaet_typ']): string {
-  if (v === 'HOCH') return '⚡ HOCH'
+function formatPriority(priorityType: Database['public']['Enums']['prioritaet_typ']): string {
+  if (priorityType === 'HOCH') return '⚡ HOCH'
   return 'Normal'
 }
 
 function addText(
   doc: jsPDF,
   text: string,
-  x: number,
+  xPos: number,
   yPos: number,
   lineHeightMm: number,
   opts?: { align?: 'left' | 'center' | 'right' | 'justify'; maxWidth?: number },
 ): number {
-  doc.text(text, x, yPos, opts)
+  doc.text(text, xPos, yPos, opts)
   return yPos + lineHeightMm
 }
 
-function checkNewPage(doc: jsPDF, y: number, benoetigt = 20): number {
-  if (y + benoetigt > 277) {
+function checkNewPage(doc: jsPDF, cursorY: number, required = 20): number {
+  if (cursorY + required > 277) {
     doc.addPage()
     return 15
   }
-  return y
+  return cursorY
 }
 
-function productDetailKeys(produkte: Record<string, unknown>[]): string[] {
+function productDetailKeys(products: Record<string, unknown>[]): string[] {
   const seen = new Set<string>()
   const order: string[] = []
   const skip = new Set(['typ', 'hat_produkte', 'datei_id'])
 
-  for (const row of produkte) {
+  for (const row of products) {
     const detail = asDetailRecord(row.detail)
-    for (const k of Object.keys(detail)) {
-      if (skip.has(k)) continue
-      if (!seen.has(k)) {
-        seen.add(k)
-        order.push(k)
+    for (const key of Object.keys(detail)) {
+      if (skip.has(key)) continue
+      if (!seen.has(key)) {
+        seen.add(key)
+        order.push(key)
       }
     }
   }
@@ -217,197 +217,197 @@ function productDetailKeys(produkte: Record<string, unknown>[]): string[] {
 
 function cellValueForKey(row: Record<string, unknown>, key: string): string {
   const detail = asDetailRecord(row.detail)
-  const val = detail[key]
-  if (isEmpty(val)) return ''
+  const fieldValue = detail[key]
+  if (isEmpty(fieldValue)) return ''
   if (key === 'ecken_runden' || key === 'selbstklebend') {
-    if (val === true) return 'Ja'
-    if (val === false) return 'Nein'
+    if (fieldValue === true) return 'Ja'
+    if (fieldValue === false) return 'Nein'
   }
-  return valueAsString(val)
+  return valueAsString(fieldValue)
 }
 
-export async function generateAndDownloadPdf(teilauftragId: string, auftragId: string): Promise<boolean> {
+export async function generateAndDownloadPdf(subOrderId: string, orderId: string): Promise<boolean> {
   try {
-    const produkteQuery = supabase
+    const productsQuery = supabase
       .from('teilauftrag_produkte')
       .select('*')
-      .eq('teilauftrag_id', teilauftragId)
+      .eq('teilauftrag_id', subOrderId)
       .order('sort_order')
 
-    const [auftragRes, teilRes, produkteRes, textilRes] = await Promise.all([
+    const [orderResult, subOrderResult, productsResult, textilePositionsResult] = await Promise.all([
       supabase
         .from('auftraege')
         .select(
           'auftragsnummer, termin, lieferung, prioritaet, erstellt_am, kunden(name, strasse, hausnummer, plz, ort, email, telefon)',
         )
-        .eq('id', auftragId)
+        .eq('id', orderId)
         .single(),
-      supabase.from('teilauftraege').select('*').eq('id', teilauftragId).single(),
-      produkteQuery,
+      supabase.from('teilauftraege').select('*').eq('id', subOrderId).single(),
+      productsQuery,
       supabase
         .from('textil_positionen')
         .select('*, textil_varianten(id, textil_produkte(name))')
-        .eq('teilauftrag_id', teilauftragId)
+        .eq('teilauftrag_id', subOrderId)
         .order('id'),
     ])
 
-    if (auftragRes.error) console.error(auftragRes.error)
-    if (teilRes.error) console.error(teilRes.error)
-    if (produkteRes.error) console.error(produkteRes.error)
-    if (textilRes.error) console.error(textilRes.error)
+    if (orderResult.error) console.error(orderResult.error)
+    if (subOrderResult.error) console.error(subOrderResult.error)
+    if (productsResult.error) console.error(productsResult.error)
+    if (textilePositionsResult.error) console.error(textilePositionsResult.error)
 
-    if (auftragRes.error || teilRes.error || produkteRes.error || textilRes.error) return false
+    if (orderResult.error || subOrderResult.error || productsResult.error || textilePositionsResult.error) return false
 
-    const auftrag = auftragRes.data as OrderPdfRow | null
-    const teil = teilRes.data as SubOrderRow | null
-    if (!auftrag || !teil) return false
+    const order = orderResult.data as OrderPdfRow | null
+    const subOrder = subOrderResult.data as SubOrderRow | null
+    if (!order || !subOrder) return false
 
-    const produkte = (produkteRes.data ?? []) as Record<string, unknown>[]
-    const textilPositionen = (textilRes.data ?? []) as TextilePositionRow[]
+    const products = (productsResult.data ?? []) as Record<string, unknown>[]
+    const textilePositions = (textilePositionsResult.data ?? []) as TextilePositionRow[]
 
-    const kunde = extractCustomer(auftrag.kunden)
-    const kundenname = kunde?.name?.trim() ? kunde.name.trim() : 'Unbekannt'
+    const customer = extractCustomer(order.kunden)
+    const customerDisplayName = customer?.name?.trim() ? customer.name.trim() : 'Unbekannt'
 
-    const dateiname = buildFileName(
-      kundenname,
-      auftrag.termin,
-      auftrag.erstellt_am,
-      teil.bereich,
-      auftrag.auftragsnummer,
+    const fileName = buildFileName(
+      customerDisplayName,
+      order.termin,
+      order.erstellt_am,
+      subOrder.bereich,
+      order.auftragsnummer,
     )
 
-    const marginL = 15
-    const marginR = 15
-    const marginT = 15
+    const marginLeft = 15
+    const marginRight = 15
+    const marginTop = 15
 
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 
-    let y = marginT
+    let cursorY = marginTop
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(16)
     doc.setTextColor(0)
-    y = addText(doc, `AUFTRAG ${auftrag.auftragsnummer}`, marginL, y, 8)
+    cursorY = addText(doc, `AUFTRAG ${order.auftragsnummer}`, marginLeft, cursorY, 8)
     doc.setFont('helvetica', 'normal')
 
     doc.setDrawColor(60)
-    doc.line(marginL, y, 210 - marginR, y)
-    y += 5
+    doc.line(marginLeft, cursorY, 210 - marginRight, cursorY)
+    cursorY += 5
 
-    let yLeft = y
-    let yRight = y
+    let leftColumnY = cursorY
+    let rightColumnY = cursorY
 
     doc.setFontSize(8)
     doc.setTextColor(120)
-    yLeft = addText(doc, 'Kunde', marginL, yLeft, 4)
+    leftColumnY = addText(doc, 'Kunde', marginLeft, leftColumnY, 4)
     doc.setTextColor(0)
     doc.setFontSize(11)
     doc.setFont('helvetica', 'bold')
-    yLeft = addText(doc, kundenname, marginL, yLeft, 5)
+    leftColumnY = addText(doc, customerDisplayName, marginLeft, leftColumnY, 5)
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(10)
 
-    if (kunde?.strasse || kunde?.hausnummer) {
-      const str = [kunde.strasse, kunde.hausnummer].filter(Boolean).join(' ')
-      yLeft = addText(doc, str, marginL, yLeft, 5)
+    if (customer?.strasse || customer?.hausnummer) {
+      const streetLine = [customer.strasse, customer.hausnummer].filter(Boolean).join(' ')
+      leftColumnY = addText(doc, streetLine, marginLeft, leftColumnY, 5)
     }
-    if (kunde?.plz || kunde?.ort) {
-      const cityLine = [kunde.plz, kunde.ort].filter(Boolean).join(' ')
-      if (cityLine) yLeft = addText(doc, cityLine, marginL, yLeft, 5)
+    if (customer?.plz || customer?.ort) {
+      const cityLine = [customer.plz, customer.ort].filter(Boolean).join(' ')
+      if (cityLine) leftColumnY = addText(doc, cityLine, marginLeft, leftColumnY, 5)
     }
-    if (kunde?.email) yLeft = addText(doc, kunde.email, marginL, yLeft, 5)
-    if (kunde?.telefon) yLeft = addText(doc, kunde.telefon, marginL, yLeft, 5)
+    if (customer?.email) leftColumnY = addText(doc, customer.email, marginLeft, leftColumnY, 5)
+    if (customer?.telefon) leftColumnY = addText(doc, customer.telefon, marginLeft, leftColumnY, 5)
 
-    const xRight = 120
+    const rightColumnX = 120
     doc.setFontSize(10)
     doc.setTextColor(0)
-    yRight = addText(doc, `Termin    ${formatDateDe(auftrag.termin)}`, xRight, yRight, 5)
-    yRight = addText(doc, `Lieferung    ${formatDelivery(auftrag.lieferung)}`, xRight, yRight, 5)
-    yRight = addText(doc, `Priorität    ${formatPriority(auftrag.prioritaet)}`, xRight, yRight, 5)
-    yRight = addText(doc, `Bereich    ${teil.bereich}`, xRight, yRight, 5)
-    yRight = addText(doc, `Erstellt    ${formatDateDe(auftrag.erstellt_am)}`, xRight, yRight, 5)
+    rightColumnY = addText(doc, `Termin    ${formatDateDe(order.termin)}`, rightColumnX, rightColumnY, 5)
+    rightColumnY = addText(doc, `Lieferung    ${formatDelivery(order.lieferung)}`, rightColumnX, rightColumnY, 5)
+    rightColumnY = addText(doc, `Priorität    ${formatPriority(order.prioritaet)}`, rightColumnX, rightColumnY, 5)
+    rightColumnY = addText(doc, `Bereich    ${subOrder.bereich}`, rightColumnX, rightColumnY, 5)
+    rightColumnY = addText(doc, `Erstellt    ${formatDateDe(order.erstellt_am)}`, rightColumnX, rightColumnY, 5)
 
-    y = Math.max(yLeft, yRight) + 8
+    cursorY = Math.max(leftColumnY, rightColumnY) + 8
 
     doc.setDrawColor(60)
-    doc.line(marginL, y, 210 - marginR, y)
-    y += 5
+    doc.line(marginLeft, cursorY, 210 - marginRight, cursorY)
+    cursorY += 5
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(10)
-    y = addText(doc, 'Details', marginL, y, 6)
+    cursorY = addText(doc, 'Details', marginLeft, cursorY, 6)
     doc.setFont('helvetica', 'normal')
 
     autoTable(doc, {
-      startY: y,
-      margin: { left: marginL, right: marginR },
+      startY: cursorY,
+      margin: { left: marginLeft, right: marginRight },
       head: [],
-      body: detailRows(asDetailRecord(teil.detail)).map(z => [z.label, z.wert]),
+      body: detailRows(asDetailRecord(subOrder.detail)).map(entry => [entry.label, entry.value]),
       styles: { fontSize: 9, cellPadding: 2 },
       columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 }, 1: { cellWidth: 130 } },
       theme: 'plain',
     })
-    y = ((doc as PdfDoc).lastAutoTable?.finalY ?? y) + 8
+    cursorY = ((doc as PdfDoc).lastAutoTable?.finalY ?? cursorY) + 8
 
-    if (produkte.length > 0 && teil.bereich !== 'TEXTIL') {
-      y = checkNewPage(doc, y, 30)
+    if (products.length > 0 && subOrder.bereich !== 'TEXTIL') {
+      cursorY = checkNewPage(doc, cursorY, 30)
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(10)
-      y = addText(doc, 'Produkte', marginL, y, 6)
+      cursorY = addText(doc, 'Produkte', marginLeft, cursorY, 6)
       doc.setFont('helvetica', 'normal')
 
-      const detailKeys = productDetailKeys(produkte)
+      const detailKeys = productDetailKeys(products)
       const header = ['#', 'Typ', ...detailKeys.map(fieldToLabel)]
-      const rows = produkte.map((p, idx) => {
-        const detail = asDetailRecord(p.detail)
-        const typVal = String(p.typ ?? detail.typ ?? '—')
-        return [String(idx + 1), typVal, ...detailKeys.map(k => cellValueForKey(p, k))]
+      const rows = products.map((product, idx) => {
+        const detail = asDetailRecord(product.detail)
+        const typeValue = String(product.typ ?? detail.typ ?? '—')
+        return [String(idx + 1), typeValue, ...detailKeys.map(key => cellValueForKey(product, key))]
       })
 
       autoTable(doc, {
-        startY: y,
-        margin: { left: marginL, right: marginR },
+        startY: cursorY,
+        margin: { left: marginLeft, right: marginRight },
         head: [header],
         body: rows,
         styles: { fontSize: 8, cellPadding: 2 },
         headStyles: { fillColor: [60, 60, 60], textColor: 255, fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [245, 245, 245] },
       })
-      y = ((doc as PdfDoc).lastAutoTable?.finalY ?? y) + 8
+      cursorY = ((doc as PdfDoc).lastAutoTable?.finalY ?? cursorY) + 8
     }
 
-    if (teil.bereich === 'TEXTIL' && textilPositionen.length > 0) {
-      y = checkNewPage(doc, y, 30)
+    if (subOrder.bereich === 'TEXTIL' && textilePositions.length > 0) {
+      cursorY = checkNewPage(doc, cursorY, 30)
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(10)
-      y = addText(doc, 'Positionen', marginL, y, 6)
+      cursorY = addText(doc, 'Positionen', marginLeft, cursorY, 6)
       doc.setFont('helvetica', 'normal')
 
       autoTable(doc, {
-        startY: y,
-        margin: { left: marginL, right: marginR },
+        startY: cursorY,
+        margin: { left: marginLeft, right: marginRight },
         head: [['Produkt', 'Farbe', 'Größe', 'Stückzahl', 'Herkunft', 'Notiz']],
-        body: textilPositionen.map(p => {
-          const pr = p as Record<string, unknown>
-          const varianteEmbed = pr.textil_varianten as {
+        body: textilePositions.map(position => {
+          const positionRecord = position as Record<string, unknown>
+          const variantEmbed = positionRecord.textil_varianten as {
             textil_produkte: { name: string | null } | null
           } | null
-          const produktName =
-            varianteEmbed?.textil_produkte?.name ?? String(pr.modell ?? pr.produkt_id ?? '—')
+          const productName =
+            variantEmbed?.textil_produkte?.name ?? String(positionRecord.modell ?? positionRecord.produkt_id ?? '—')
           return [
-            produktName,
-            String(p.farbe ?? '—'),
-            String(p.groesse ?? '—'),
-            String(p.stueckzahl ?? '—'),
-            String(p.herkunft ?? '—'),
-            String(pr.notiz ?? ''),
+            productName,
+            String(position.farbe ?? '—'),
+            String(position.groesse ?? '—'),
+            String(position.stueckzahl ?? '—'),
+            String(position.herkunft ?? '—'),
+            String(positionRecord.notiz ?? ''),
           ]
         }),
         styles: { fontSize: 8, cellPadding: 2 },
         headStyles: { fillColor: [60, 60, 60], textColor: 255, fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [245, 245, 245] },
       })
-      y = ((doc as PdfDoc).lastAutoTable?.finalY ?? y) + 8
+      cursorY = ((doc as PdfDoc).lastAutoTable?.finalY ?? cursorY) + 8
     }
 
     const totalPages = doc.getNumberOfPages()
@@ -415,10 +415,10 @@ export async function generateAndDownloadPdf(teilauftragId: string, auftragId: s
       doc.setPage(i)
       doc.setFontSize(8)
       doc.setTextColor(150)
-      doc.text(`Seite ${i} / ${totalPages}`, 210 - marginR, 290, { align: 'right' })
+      doc.text(`Seite ${i} / ${totalPages}`, 210 - marginRight, 290, { align: 'right' })
     }
 
-    doc.save(dateiname)
+    doc.save(fileName)
     return true
   } catch (e) {
     console.error(e)
