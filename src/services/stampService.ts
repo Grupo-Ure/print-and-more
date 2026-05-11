@@ -91,6 +91,48 @@ class StampService {
     return (data ?? []) as StampModelSuggestion[]
   }
 
+  /** All active models for a type — client filters by dimensions. */
+  async getStampModelsByType(typ: string): Promise<(StampModelSuggestion & { ersatzkissen_artikelnummer: string | null })[]> {
+    const { data, error } = await supabase
+      .from('stempel_modelle')
+      .select('id, name, bestand, max_breite_mm, max_hoehe_mm, druckflaeche, ersatzkissen_artikelnummer')
+      .eq('typ', typ)
+      .eq('aktiv', true)
+    if (error) throw error
+    return (data ?? []) as (StampModelSuggestion & { ersatzkissen_artikelnummer: string | null })[]
+  }
+
+  /** Cushion rows for a given replacement-part article number. */
+  async getCushionsByArticleNumber(
+    artikelnummer: string,
+  ): Promise<{ id: string; name: string; farbe: string | null; bestand: number | null }[]> {
+    const { data, error } = await supabase
+      .from('stempel_modelle')
+      .select('id, name, farbe, bestand')
+      .eq('typ', 'TRODAT_KISSEN')
+      .eq('artikelnummer', artikelnummer)
+      .order('farbe', { ascending: true })
+    if (error) throw error
+    return (data ?? []) as { id: string; name: string; farbe: string | null; bestand: number | null }[]
+  }
+
+  /** Full-text search across cushion name and article number. */
+  async searchCushions(
+    query: string,
+  ): Promise<{ id: string; name: string; artikelnummer: string | null; farbe: string | null; bestand: number; vk_preis_netto: number | null }[]> {
+    const escaped = query.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
+    const pattern = `%${escaped}%`
+    const { data, error } = await supabase
+      .from('stempel_modelle')
+      .select('id, name, artikelnummer, farbe, bestand, vk_preis_netto')
+      .eq('typ', 'TRODAT_KISSEN')
+      .eq('aktiv', true)
+      .or(`name.ilike.${pattern},artikelnummer.ilike.${pattern}`)
+      .order('artikelnummer', { ascending: true })
+    if (error) throw error
+    return (data ?? []) as { id: string; name: string; artikelnummer: string | null; farbe: string | null; bestand: number; vk_preis_netto: number | null }[]
+  }
+
   async getReorderReport(): Promise<ReorderItem[]> {
     const { data, error } = await supabase
       .from('stempel_modelle')

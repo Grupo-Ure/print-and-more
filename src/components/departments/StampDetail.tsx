@@ -11,6 +11,7 @@ import { subOrderDetailToFieldMap, type OrderStatus, type SubOrderRow } from '..
 import type { Database, Json } from '../../types/supabase'
 import { supabase } from '../../supabase'
 import { subOrderProductService, type SubOrderProductRow } from '../../services/subOrderProductService'
+import { stampService } from '../../services/stampService'
 import type { FileRow } from '../../services/fileService'
 import { useToast } from '../Toast'
 import '../WorkArea.css'
@@ -90,14 +91,11 @@ function escapeIlike(s: string): string {
 }
 
 async function loadCushionColorRows(articleNumber: string): Promise<CushionColorButton[]> {
-  const { data, error } = await supabase
-    .from('stempel_modelle')
-    .select('id, farbe, bestand')
-    .eq('typ', 'TRODAT_KISSEN')
-    .eq('artikelnummer', articleNumber)
-    .order('farbe', { ascending: true })
-  if (error) {
-    console.error(error)
+  let data: { id: string; name: string; farbe: string | null; bestand: number | null }[]
+  try {
+    data = await stampService.getCushionsByArticleNumber(articleNumber)
+  } catch (err) {
+    console.error(err)
     return REPLACEMENT_PAD_COLOR_SEQUENCE.map(farbe => ({ id: '', farbe, bestand: 0 }))
   }
   const colorRows = (data ?? []) as { id: string; farbe: string | null; bestand: number | null }[]
@@ -335,26 +333,17 @@ export function StampDetail({
     setModelsLoading(true)
     setModelError(null)
 
-    const modelQuery = supabase
-      .from('stempel_modelle')
-      .select('id, name, max_breite_mm, max_hoehe_mm, druckflaeche, bestand, ersatzkissen_artikelnummer')
-      .eq('typ', currentType as string)
-      .eq('aktiv', true)
-
     void (async () => {
       try {
-        const { data, error } = await modelQuery
+        const data = await stampService.getStampModelsByType(currentType as string)
         if (!alive) return
-        if (error) {
-          setModels([])
-          setModelError(error.message)
-        } else {
+        {
           const width = toPositiveIntOrNull(detailRef.current.format_breite)
           const height = toPositiveIntOrNull(detailRef.current.format_hoehe)
           const baseWidth = width ?? 0
           const baseHeight = height ?? 0
 
-          const filteredModels = ((data ?? []) as StampModel[]).filter(m => {
+          const filteredModels = (data as unknown as StampModel[]).filter(m => {
             const modelWidth = m.max_breite_mm ?? 0
             const modelHeight = m.max_hoehe_mm ?? 0
             if (width != null && height != null) return modelWidth >= width && modelHeight >= height

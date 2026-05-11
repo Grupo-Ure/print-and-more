@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { supabase } from '../supabase'
 import { authService } from '../services/authService'
 import { employeeService } from '../services/employeeService'
 import { subOrderService } from '../services/subOrderService'
+import { stampService } from '../services/stampService'
 import { Login } from '../components/Login'
 import { useToast } from '../components/Toast'
 import { subOrderDetailToFieldMap } from '../types/database'
-import type { Database, Json } from '../types/supabase'
+import type { Json } from '../types/supabase'
 
 type StampType =
   | 'TRODAT_PRINTY'
@@ -266,12 +266,7 @@ export function StampStockPage() {
     setModelsLoading(true)
     setModelsError(null)
     try {
-      const { data, error } = await supabase
-        .from('stempel_modelle')
-        .select('*')
-        .eq('aktiv', true)
-      if (error) throw error
-      const modelList = ((data ?? []) as StampModelRow[]).slice()
+      const modelList = (await stampService.getStampModels() as unknown as StampModelRow[]).slice()
       // Standardsorting genau 1× beim ersten Laden anwenden (danach stabil).
       modelList.sort((a, b) => {
         const statusA = statusInfo(a)
@@ -390,20 +385,13 @@ export function StampStockPage() {
     }
     setBookingBusyId(model.id)
     try {
-      const stockPatch: Database['public']['Tables']['stempel_modelle']['Update'] = {
-        bestand: nextStock,
-      }
-      const { error: stockError } = await supabase.from('stempel_modelle').update(stockPatch).eq('id', model.id)
-      if (stockError) throw stockError
-
-      const movementInsert: Database['public']['Tables']['lager_bewegungen']['Insert'] = {
+      await stampService.updateStampModelStock(model.id, nextStock)
+      await stampService.createStockMovement({
         modell_id: model.id,
         menge: quantity,
         typ: movementType,
         person_id: session.user.id,
-      }
-      const { error: movementInsertError } = await supabase.from('lager_bewegungen').insert(movementInsert)
-      if (movementInsertError) throw movementInsertError
+      })
 
       setModels(list => list.map(stampModel => (stampModel.id === model.id ? { ...stampModel, bestand: nextStock } : stampModel)))
       setBookingQuantity(prev => ({ ...prev, [model.id]: '' }))
@@ -421,9 +409,9 @@ export function StampStockPage() {
     const minimumValue = rawValue === '' ? 0 : parseInt(rawValue, 10)
     if (!Number.isInteger(minimumValue) || minimumValue < 0) return
     if (minimumValue === (model.mindestbestand ?? 0)) return
-    const minimumPatch: Database['public']['Tables']['stempel_modelle']['Update'] = { mindestbestand: minimumValue }
-    const { error } = await supabase.from('stempel_modelle').update(minimumPatch).eq('id', model.id)
-    if (error) {
+    try {
+      await stampService.updateStampModelMinimumStock(model.id, minimumValue)
+    } catch {
       showError('Bestand konnte nicht aktualisiert werden')
       return
     }
@@ -443,13 +431,8 @@ export function StampStockPage() {
     setMovementsLoading(true)
     setMovementsError(null)
     try {
-      const { data, error } = await supabase
-        .from('lager_bewegungen')
-        .select('*, stempel_modelle(name)')
-        .order('erstellt_am', { ascending: false })
-        .limit(200)
-      if (error) throw error
-      setMovements((data ?? []) as StockMovementRow[])
+      const data = await stampService.getStockMovements()
+      setMovements(data as unknown as StockMovementRow[])
     } catch (e) {
       showError('Daten konnten nicht geladen werden')
       setMovements([])
@@ -489,16 +472,11 @@ export function StampStockPage() {
     setOrderListLoading(true)
     setOrderListError(null)
     try {
-      const { data: modelsData, error: modelsLoadError } = await supabase
-        .from('stempel_modelle')
-        .select('id, name, artikelnummer, typ, farbe, bestand, mindestbestand')
-        .eq('aktiv', true)
-      if (modelsLoadError) throw modelsLoadError
-
+      const modelsData = await stampService.getStampModels()
       const allSubOrders = await subOrderService.getActiveSubOrdersByBereich('STEMPEL')
       const subOrderData = allSubOrders.filter(s => s.status !== 'FERTIG' && !s.storniert)
 
-      const activeModels = ((modelsData ?? []) as StampModelOrderRow[]).slice()
+      const activeModels = (modelsData as unknown as StampModelOrderRow[]).slice()
       const modelIdSet = new Set(activeModels.map(model => model.id))
       const demandByModelId = new Map<string, number>()
 

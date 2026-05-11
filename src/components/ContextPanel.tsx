@@ -4,6 +4,7 @@ import { authService } from '../services/authService'
 import { historyService, type HistoryEvent } from '../services/historyService'
 import { orderService } from '../services/orderService'
 import { subOrderService } from '../services/subOrderService'
+import { stampService } from '../services/stampService'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import {
   subOrderDetailToFieldMap,
@@ -126,13 +127,9 @@ async function loadStampStock(detail: Record<string, unknown>): Promise<StampPad
   const colorSet = colorValue != null && String(colorValue).trim() !== ''
 
   async function fetchStockById(id: string): Promise<number | null> {
-    const { data, error } = await supabase
-      .from('stempel_modelle')
-      .select('bestand')
-      .eq('id', id)
-      .single()
-    if (error || !data) return null
-    return (data as { bestand: number | null }).bestand ?? 0
+    const row = await stampService.getStampModelById(id).catch(() => null)
+    if (!row) return null
+    return row.bestand ?? 0
   }
 
   if (hasPadModel && !hasStampModel) {
@@ -146,29 +143,12 @@ async function loadStampStock(detail: Record<string, unknown>): Promise<StampPad
   if (hasStampModel) {
     stampStockValue = await fetchStockById(String(detail.modell_id))
     if (colorSet) {
-      const { data: stampModelRow, error: modelError } = await supabase
-        .from('stempel_modelle')
-        .select('ersatzkissen_artikelnummer')
-        .eq('id', String(detail.modell_id))
-        .single()
-      if (!modelError && stampModelRow) {
-        const replacementPart = (stampModelRow as { ersatzkissen_artikelnummer: string | null }).ersatzkissen_artikelnummer
-        const articleNumber = replacementPart && String(replacementPart).trim()
+      const stampModelRow = await stampService.getStampModelForOrder(String(detail.modell_id)).catch(() => null)
+      if (stampModelRow) {
+        const articleNumber = stampModelRow.ersatzkissen_artikelnummer?.trim() || null
         if (articleNumber) {
-          const { data: padRow, error: padError } = await supabase
-            .from('stempel_modelle')
-            .select('bestand')
-            .eq('typ', 'TRODAT_KISSEN')
-            .eq('artikelnummer', articleNumber)
-            .eq('farbe', String(colorValue))
-            .maybeSingle()
-          if (padError) {
-            padStockValue = null
-          } else if (padRow) {
-            padStockValue = (padRow as { bestand: number | null }).bestand ?? 0
-          } else {
-            padStockValue = 0
-          }
+          const padRow = await stampService.findReplacementPad(articleNumber, String(colorValue)).catch(() => null)
+          padStockValue = padRow ? (padRow.bestand ?? 0) : 0
         }
       }
     }
@@ -407,31 +387,20 @@ export function ContextPanel({
         const stampNote = 'Automatisch bei Produktionsfreigabe ' + (order.auftragsnummer ?? '')
 
         const bookStampStockDeduction = async (modelId: string, quantity: number, note: string) => {
-          const { data: modelRow, error: modelError } = await supabase
-            .from('stempel_modelle')
-            .select('bestand')
-            .eq('id', modelId)
-            .single()
-          if (modelError) throw modelError
+          const modelRow = await stampService.getStampModelById(modelId)
           if (!modelRow) return
-          const currentStock = (modelRow as { bestand: number | null }).bestand ?? 0
+          const currentStock = modelRow.bestand ?? 0
           if (currentStock <= 0) return
           const newStock = Math.max(0, currentStock - quantity)
-          const stampModelUpdate: Database['public']['Tables']['stempel_modelle']['Update'] = {
-            bestand: newStock,
-          }
-          const { error: updateError } = await supabase.from('stempel_modelle').update(stampModelUpdate).eq('id', modelId)
-          if (updateError) throw updateError
+          await stampService.updateStampModelStock(modelId, newStock)
           const user = await authService.getUser()
-          const stockMovementInsert: Database['public']['Tables']['lager_bewegungen']['Insert'] = {
+          await stampService.createStockMovement({
             modell_id: modelId,
             menge: quantity,
             typ: 'AUTOABGANG',
             notiz: note,
             person_id: user?.id ?? null,
-          }
-          const { error: insertError } = await supabase.from('lager_bewegungen').insert(stockMovementInsert)
-          if (insertError) throw insertError
+          })
         }
 
         if (subOrder.typ === 'TRODAT_KISSEN' && stampDetail.kissen_modell_id) {
@@ -442,31 +411,15 @@ export function ContextPanel({
 
           const stampColor = stampDetail.farbe
           if (stampColor != null && String(stampColor).trim() !== '') {
-            const { data: stampModelRow, error: replacementError } = await supabase
-              .from('stempel_modelle')
-              .select('ersatzkissen_artikelnummer')
-              .eq('id', stampId)
-              .single()
-            if (replacementError) {
-              throw replacementError
-            } else if (stampModelRow) {
-              const replacementPart = (stampModelRow as { ersatzkissen_artikelnummer: string | null }).ersatzkissen_artikelnummer
-              const articleNumber = replacementPart && String(replacementPart).trim()
+            const stampModelRow = await stampService.getStampModelForOrder(stampId)
+            if (stampModelRow) {
+              const articleNumber = stampModelRow.ersatzkissen_artikelnummer?.trim() || null
               if (articleNumber) {
-                const { data: padRow, error: padError } = await supabase
-                  .from('stempel_modelle')
-                  .select('id, bestand')
-                  .eq('typ', 'TRODAT_KISSEN')
-                  .eq('artikelnummer', articleNumber)
-                  .eq('farbe', String(stampColor))
-                  .maybeSingle()
-                if (padError) {
-                  throw padError
-                } else if (padRow) {
-                  const padCurrentStock = (padRow as { bestand: number | null; id: string }).bestand ?? 0
+                const padRow = await stampService.findReplacementPad(articleNumber, String(stampColor))
+                if (padRow) {
+                  const padCurrentStock = padRow.bestand ?? 0
                   if (padCurrentStock > 0) {
-                    const padId = String((padRow as { id: string }).id)
-                    await bookStampStockDeduction(padId, quantity, stampNote + ' (Kissen zu Stempel)')
+                    await bookStampStockDeduction(padRow.id, quantity, stampNote + ' (Kissen zu Stempel)')
                   }
                 }
               }
