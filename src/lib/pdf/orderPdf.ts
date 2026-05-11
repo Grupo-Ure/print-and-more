@@ -1,10 +1,10 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { formatDateDe } from '../formatDate'
-import { supabase } from '../../supabase'
 import { orderService } from '../../services/orderService'
 import { subOrderService } from '../../services/subOrderService'
 import { subOrderProductService } from '../../services/subOrderProductService'
+import { textileService } from '../../services/textileService'
 import type { Database } from '../../types/supabase'
 
 type OrderPdfRow = Pick<
@@ -18,7 +18,6 @@ type OrderPdfRow = Pick<
 }
 
 type SubOrderRow = Database['public']['Tables']['teilauftraege']['Row']
-type TextilePositionRow = Database['public']['Tables']['textil_positionen']['Row']
 
 type PdfDoc = jsPDF & { lastAutoTable?: { finalY: number } }
 
@@ -231,25 +230,18 @@ function cellValueForKey(row: Record<string, unknown>, key: string): string {
 
 export async function generateAndDownloadPdf(subOrderId: string, orderId: string): Promise<boolean> {
   try {
-    const [order, subOrderResult, rawProducts, textilePositionsResult] = await Promise.all([
+    const [order, subOrderResult, rawProducts, textilePositions] = await Promise.all([
       orderService.getOrderById(orderId),
       subOrderService.getSubOrderById(subOrderId),
       subOrderProductService.getProductsBySubOrderId(subOrderId),
-      supabase
-        .from('textil_positionen')
-        .select('*, textil_varianten(id, textil_produkte(name))')
-        .eq('teilauftrag_id', subOrderId)
-        .order('id'),
+      textileService.getPositionsWithVariants(subOrderId),
     ])
 
-    if (textilePositionsResult.error) console.error(textilePositionsResult.error)
-
-    if (!order || !subOrderResult || textilePositionsResult.error) return false
+    if (!order || !subOrderResult) return false
 
     const subOrder = subOrderResult as SubOrderRow
 
     const products = rawProducts as unknown as Record<string, unknown>[]
-    const textilePositions = (textilePositionsResult.data ?? []) as TextilePositionRow[]
 
     const customer = extractCustomer(order.kunden as OrderPdfRow['kunden'])
     const customerDisplayName = customer?.name?.trim() ? customer.name.trim() : 'Unbekannt'

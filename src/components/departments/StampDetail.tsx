@@ -9,7 +9,6 @@ import {
 import { validateStampDetail } from '../../lib/stamp/validateStampDetail'
 import { subOrderDetailToFieldMap, type OrderStatus, type SubOrderRow } from '../../types/database'
 import type { Database, Json } from '../../types/supabase'
-import { supabase } from '../../supabase'
 import { subOrderProductService, type SubOrderProductRow } from '../../services/subOrderProductService'
 import { stampService } from '../../services/stampService'
 import type { FileRow } from '../../services/fileService'
@@ -86,9 +85,6 @@ type ReplacementCushionRow = { farbe: string; label: string; bestand: number }
 type CushionArticleRow = { artikelnummer: string; name: string }
 type CushionColorButton = { id: string; farbe: (typeof REPLACEMENT_PAD_COLOR_SEQUENCE)[number]; bestand: number }
 
-function escapeIlike(s: string): string {
-  return s.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
-}
 
 async function loadCushionColorRows(articleNumber: string): Promise<CushionColorButton[]> {
   let data: { id: string; name: string; farbe: string | null; bestand: number | null }[]
@@ -390,35 +386,24 @@ export function StampDetail({
       const fromList = models.find(m => m.id === selectedModelId)
       let articleNumber: string | null = (fromList?.ersatzkissen_artikelnummer && String(fromList.ersatzkissen_artikelnummer).trim()) || null
       if (!articleNumber) {
-        const { data, error } = await supabase
-          .from('stempel_modelle')
-          .select('ersatzkissen_artikelnummer')
-          .eq('id', selectedModelId)
-          .single()
+        const stampModel = await stampService.getStampModelForOrder(selectedModelId).catch(() => null)
         if (!alive) return
-        if (error || !data) {
+        if (!stampModel) {
           setReplacementCushions(null)
           return
         }
-        const rawArticleNumber = (data as { ersatzkissen_artikelnummer: string | null }).ersatzkissen_artikelnummer
-        articleNumber = (rawArticleNumber && String(rawArticleNumber).trim()) || null
+        articleNumber = stampModel.ersatzkissen_artikelnummer?.trim() || null
       }
       if (!articleNumber) {
         if (alive) setReplacementCushions(null)
         return
       }
-      const { data: rows, error: e2 } = await supabase
-        .from('stempel_modelle')
-        .select('id, name, farbe, bestand')
-        .eq('artikelnummer', articleNumber)
-        .eq('typ', 'TRODAT_KISSEN')
-        .order('farbe', { ascending: true })
+      const cushionRows = await stampService.getCushionsByArticleNumber(articleNumber).catch(() => null)
       if (!alive) return
-      if (e2) {
+      if (!cushionRows) {
         setReplacementCushions(null)
         return
       }
-      const cushionRows = (rows ?? []) as { id: string; name: string; farbe: string | null; bestand: number | null }[]
       const byColor = new Map<string, (typeof cushionRows)[0]>()
       for (const row of cushionRows) {
         if (row.farbe) byColor.set(row.farbe, row)
@@ -463,32 +448,30 @@ export function StampDetail({
     setCushionSearchLoading(true)
     setCushionSearchError(null)
     void (async () => {
-      const escapedQuery = escapeIlike(searchQuery)
-      const searchPattern = `%${escapedQuery}%`
-      const { data, error } = await supabase
-        .from('stempel_modelle')
-        .select('id, name, artikelnummer, farbe, bestand, vk_preis_netto')
-        .eq('typ', 'TRODAT_KISSEN')
-        .eq('aktiv', true)
-        .or(`name.ilike.${searchPattern},artikelnummer.ilike.${searchPattern}`)
-        .order('artikelnummer', { ascending: true })
-      if (!alive) return
-      if (error) {
+      let searchRows: Awaited<ReturnType<typeof stampService.searchCushions>>
+      try {
+        searchRows = await stampService.searchCushions(searchQuery)
+      } catch (err) {
+        if (!alive) return
         setCushionSearchResults([])
-        setCushionSearchError(error.message)
-      } else {
-        const articlesByKey = new Map<string, CushionArticleRow>()
-        for (const row of (data ?? []) as { id: string; name: string; artikelnummer: string | null }[]) {
-          const aKey = (row.artikelnummer && String(row.artikelnummer).trim()) || row.id
-          if (!articlesByKey.has(aKey)) articlesByKey.set(aKey, { artikelnummer: row.artikelnummer ? String(row.artikelnummer) : '', name: row.name })
-        }
-        setCushionSearchResults(
-          [...articlesByKey.values()].sort(
-            (a, b) => a.artikelnummer.localeCompare(b.artikelnummer) || a.name.localeCompare(b.name)
-          )
-        )
-        setCushionSearchError(null)
+        setCushionSearchError(err instanceof Error ? err.message : 'Suche fehlgeschlagen')
+        setCushionSearchLoading(false)
+        return
       }
+      if (!alive) return
+      const articlesByKey = new Map<string, CushionArticleRow>()
+      for (const row of searchRows) {
+        const articleKey = (row.artikelnummer && String(row.artikelnummer).trim()) || row.id
+        if (!articlesByKey.has(articleKey)) {
+          articlesByKey.set(articleKey, { artikelnummer: row.artikelnummer ? String(row.artikelnummer) : '', name: row.name })
+        }
+      }
+      setCushionSearchResults(
+        [...articlesByKey.values()].sort(
+          (a, b) => a.artikelnummer.localeCompare(b.artikelnummer) || a.name.localeCompare(b.name)
+        )
+      )
+      setCushionSearchError(null)
       setCushionSearchLoading(false)
     })()
     return () => {
