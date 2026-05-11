@@ -34,11 +34,11 @@ type Props = {
   onUpdated: (t: SubOrderRow) => void
 }
 
-const FONT_CLASS_OPTIONS: { v: TextileFontClass; l: string }[] = [
-  { v: 'SERIFENLOS', l: 'Serifenlos' },
-  { v: 'SERIFEN', l: 'Serifen' },
-  { v: 'ELEGANT', l: 'Elegant' },
-  { v: 'VERSPIELT', l: 'Verspielt' },
+const FONT_CLASS_OPTIONS: { value: TextileFontClass; label: string }[] = [
+  { value: 'SERIFENLOS', label: 'Serifenlos' },
+  { value: 'SERIFEN', label: 'Serifen' },
+  { value: 'ELEGANT', label: 'Elegant' },
+  { value: 'VERSPIELT', label: 'Verspielt' },
 ]
 
 const ORIGIN_LABELS: Record<TextileOrigin, string> = {
@@ -46,24 +46,24 @@ const ORIGIN_LABELS: Record<TextileOrigin, string> = {
   EIGENWARE: 'Eigenware',
 }
 
-const GARMENT_TYPE_OPTIONS: { v: TextileCustomerGarmentType; l: string }[] = [
-  { v: 'T_SHIRT', l: 'T-Shirt' },
-  { v: 'POLO', l: 'Polo' },
-  { v: 'SWEATSHIRT', l: 'Sweatshirt' },
-  { v: 'HOODIE', l: 'Hoodie' },
-  { v: 'ZIP_HOODIE', l: 'Zip-Hoodie' },
-  { v: 'JACKE', l: 'Jacke' },
-  { v: 'SONSTIGES', l: 'Sonstiges' },
+const GARMENT_TYPE_OPTIONS: { value: TextileCustomerGarmentType; label: string }[] = [
+  { value: 'T_SHIRT', label: 'T-Shirt' },
+  { value: 'POLO', label: 'Polo' },
+  { value: 'SWEATSHIRT', label: 'Sweatshirt' },
+  { value: 'HOODIE', label: 'Hoodie' },
+  { value: 'ZIP_HOODIE', label: 'Zip-Hoodie' },
+  { value: 'JACKE', label: 'Jacke' },
+  { value: 'SONSTIGES', label: 'Sonstiges' },
 ]
 
-const PLACEMENT_OPTIONS: { v: TextilePlacement; l: string }[] = [
-  { v: 'BRUST_LINKS', l: 'Brust links' },
-  { v: 'BRUST_MITTE', l: 'Brust mitte' },
-  { v: 'BRUST_RECHTS', l: 'Brust rechts' },
-  { v: 'RUECKEN', l: 'Rücken' },
-  { v: 'ARM_LINKS', l: 'Arm links' },
-  { v: 'ARM_RECHTS', l: 'Arm rechts' },
-  { v: 'SONSTIGE', l: 'Sonstige' },
+const PLACEMENT_OPTIONS: { value: TextilePlacement; label: string }[] = [
+  { value: 'BRUST_LINKS', label: 'Brust links' },
+  { value: 'BRUST_MITTE', label: 'Brust mitte' },
+  { value: 'BRUST_RECHTS', label: 'Brust rechts' },
+  { value: 'RUECKEN', label: 'Rücken' },
+  { value: 'ARM_LINKS', label: 'Arm links' },
+  { value: 'ARM_RECHTS', label: 'Arm rechts' },
+  { value: 'SONSTIGE', label: 'Sonstige' },
 ]
 
 const SIZE_LABELS: Record<Exclude<TextileSize, 'FREI'>, string> = {
@@ -76,40 +76,40 @@ const SIZE_OPTIONS: TextileSize[] = ['KLEIN', 'MITTEL', 'GROSS', 'FREI']
 
 type OwnGoodsMode = 'STAMMDATEN' | 'FREITEXT'
 
-function one<T>(x: T | T[] | null | undefined): T | null {
-  if (x == null) return null
-  return Array.isArray(x) ? (x[0] ?? null) : x
+function one<T>(value: T | T[] | null | undefined): T | null {
+  if (value == null) return null
+  return Array.isArray(value) ? (value[0] ?? null) : value
 }
 
-function garmentTypeLabel(v: string | null | undefined): string {
-  if (!v) return '—'
-  const s = GARMENT_TYPE_OPTIONS.find(x => x.v === v)
-  return s?.l ?? v
+function garmentTypeLabel(garmentTypeValue: string | null | undefined): string {
+  if (!garmentTypeValue) return '—'
+  const option = GARMENT_TYPE_OPTIONS.find(o => o.value === garmentTypeValue)
+  return option?.label ?? garmentTypeValue
 }
 
-function placementLabel(p: string): string {
-  const s = PLACEMENT_OPTIONS.find(x => x.v === p)
-  return s?.l ?? p
+function placementLabel(placementValue: string): string {
+  const option = PLACEMENT_OPTIONS.find(o => o.value === placementValue)
+  return option?.label ?? placementValue
 }
 
-function sizeShortLabel(g: string): string {
-  if (SIZE_OPTIONS.slice(0, 3).includes(g as 'KLEIN' | 'MITTEL' | 'GROSS')) {
-    return SIZE_LABELS[g as 'KLEIN' | 'MITTEL' | 'GROSS']
+function sizeShortLabel(groesse: string): string {
+  if (SIZE_OPTIONS.slice(0, 3).includes(groesse as 'KLEIN' | 'MITTEL' | 'GROSS')) {
+    return SIZE_LABELS[groesse as 'KLEIN' | 'MITTEL' | 'GROSS']
   }
-  if (g === 'FREI' || (typeof g === 'string' && g.startsWith('FREI:'))) {
-    if (g === 'FREI') return 'Frei (mm)'
-    if (g.startsWith('FREI:')) return `Frei: ${g.slice(5)}`
+  if (groesse === 'FREI' || (typeof groesse === 'string' && groesse.startsWith('FREI:'))) {
+    if (groesse === 'FREI') return 'Frei (mm)'
+    if (groesse.startsWith('FREI:')) return `Frei: ${groesse.slice(5)}`
   }
-  return g
+  return groesse
 }
 
 /** DB-Wert `groesse` am Motiv → Formular Größenwahl + Freitext */
-function parseSizeFromDb(g: string | null | undefined): { sizeType: TextileSize; freeText: string } {
-  if (!g || g === 'KLEIN' || g === 'MITTEL' || g === 'GROSS') {
-    return { sizeType: (g as TextileSize) || 'MITTEL', freeText: '' }
+function parseSizeFromDb(groesse: string | null | undefined): { sizeType: TextileSize; freeText: string } {
+  if (!groesse || groesse === 'KLEIN' || groesse === 'MITTEL' || groesse === 'GROSS') {
+    return { sizeType: (groesse as TextileSize) || 'MITTEL', freeText: '' }
   }
-  if (g === 'FREI') return { sizeType: 'FREI', freeText: '' }
-  if (g.startsWith('FREI:')) return { sizeType: 'FREI', freeText: g.slice(5) }
+  if (groesse === 'FREI') return { sizeType: 'FREI', freeText: '' }
+  if (groesse.startsWith('FREI:')) return { sizeType: 'FREI', freeText: groesse.slice(5) }
   return { sizeType: 'MITTEL', freeText: '' }
 }
 
@@ -200,17 +200,17 @@ export function TextileDetail({
         status: nextStatus,
         detail: newDetail as Json,
       }
-      let row: SubOrderRow
+      let updatedSubOrder: SubOrderRow
       try {
-        row = await subOrderService.updateSubOrder(currentSubOrder.id, subOrderSyncPatch)
+        updatedSubOrder = await subOrderService.updateSubOrder(currentSubOrder.id, subOrderSyncPatch)
       } catch (err) {
         setIsSaving(false)
         setError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen')
         return
       }
       setIsSaving(false)
-      subOrderRef.current = row
-      onUpdated(row)
+      subOrderRef.current = updatedSubOrder
+      onUpdated(updatedSubOrder)
     },
     [orderCustomer, orderStatus, onUpdated]
   )
@@ -281,13 +281,13 @@ export function TextileDetail({
     // Guard: Beim reinen Laden nur dann DB-Sync auslösen, wenn sich der "voll"-Wert tatsächlich ändert.
     // Sonst kann das (je nach Parent-Update-Strategie) unnötige Updates/Reloads auslösen.
     const allowsPrepress = textileRecordsAllowPrepress(loadedMotifs, loadedPositions, loadedAssignments)
-    const det = subOrderRef.current.detail
-    const detObj = det && typeof det === 'object' && !Array.isArray(det) ? (det as Record<string, unknown>) : null
-    const textilObj =
-      detObj && detObj.textil && typeof detObj.textil === 'object' && !Array.isArray(detObj.textil)
-        ? (detObj.textil as Record<string, unknown>)
+    const detail = subOrderRef.current.detail
+    const detailObject = detail && typeof detail === 'object' && !Array.isArray(detail) ? (detail as Record<string, unknown>) : null
+    const textilDetail =
+      detailObject && detailObject.textil && typeof detailObject.textil === 'object' && !Array.isArray(detailObject.textil)
+        ? (detailObject.textil as Record<string, unknown>)
         : null
-    const previousAllowsPrepress = textilObj && typeof textilObj.voll === 'boolean' ? (textilObj.voll as boolean) : null
+    const previousAllowsPrepress = textilDetail && typeof textilDetail.voll === 'boolean' ? (textilDetail.voll as boolean) : null
     if (previousAllowsPrepress !== allowsPrepress) {
       await syncSubOrderRef.current(loadedMotifs, loadedPositions, loadedAssignments, false)
     }
@@ -327,17 +327,17 @@ export function TextileDetail({
       const detailPatch: Database['public']['Tables']['teilauftraege']['Update'] = {
         detail: newDetail as Json,
       }
-      let row: SubOrderRow
+      let updatedSubOrder: SubOrderRow
       try {
-        row = await subOrderService.updateSubOrder(currentSubOrder.id, detailPatch)
+        updatedSubOrder = await subOrderService.updateSubOrder(currentSubOrder.id, detailPatch)
       } catch (err) {
         setIsSaving(false)
         setError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen')
         return
       }
       setIsSaving(false)
-      subOrderRef.current = row
-      onUpdated(row)
+      subOrderRef.current = updatedSubOrder
+      onUpdated(updatedSubOrder)
     },
     [onUpdated]
   )
@@ -470,50 +470,50 @@ export function TextileDetail({
     resetMotifForm()
   }
   const cancelPositionForm = () => {
-    const pid = positionEditId
+    const positionIdBeingCancelled = positionEditId
     setPositionEditId(null)
-    if (pid) {
+    if (positionIdBeingCancelled) {
       setPositionMotifIds(prev => {
         const updated = { ...prev }
-        delete updated[pid]
+        delete updated[positionIdBeingCancelled]
         return updated
       })
     }
     resetPositionForm()
   }
 
-  const editMotif = (m: TextileMotifRow) => {
+  const editMotif = (motif: TextileMotifRow) => {
     setError(null)
-    setMotifEditId(m.id)
-    setMotifType(m.typ)
-    setMotifContent(m.inhalt ?? '')
-    setMotifColor(m.farbe ?? '')
-    setMotifFontClass((m.schriftklasse as TextileFontClass) || 'SERIFENLOS')
-    setMotifFontStyle(m.schriftart ?? '')
-    setMotifFileId(m.datei_id ?? '')
-    const pl = String(m.platz ?? 'BRUST_LINKS')
-    setMotifPlacement((PLACEMENT_OPTIONS.some(o => o.v === pl) ? pl : 'BRUST_LINKS') as TextilePlacement)
-    const { sizeType, freeText } = parseSizeFromDb(m.groesse)
+    setMotifEditId(motif.id)
+    setMotifType(motif.typ)
+    setMotifContent(motif.inhalt ?? '')
+    setMotifColor(motif.farbe ?? '')
+    setMotifFontClass((motif.schriftklasse as TextileFontClass) || 'SERIFENLOS')
+    setMotifFontStyle(motif.schriftart ?? '')
+    setMotifFileId(motif.datei_id ?? '')
+    const placement = String(motif.platz ?? 'BRUST_LINKS')
+    setMotifPlacement((PLACEMENT_OPTIONS.some(o => o.value === placement) ? placement : 'BRUST_LINKS') as TextilePlacement)
+    const { sizeType, freeText } = parseSizeFromDb(motif.groesse)
     setMotifSizeType(sizeType)
     setMotifSizeFree(freeText)
-    setMotifPrintMethod(m.druckart ?? '')
+    setMotifPrintMethod(motif.druckart ?? '')
   }
 
-  const editPosition = async (p: TextilePositionRow) => {
+  const editPosition = async (position: TextilePositionRow) => {
     setError(null)
-    setPositionEditId(p.id)
-    setPositionOrigin(p.herkunft)
-    setPositionQuantity(p.stueckzahl)
-    setPositionBrand(p.marke ?? '')
-    setPositionModel(p.modell ?? '')
-    setPositionColor(p.farbe ?? '')
-    setPositionSize(p.groesse ?? '')
-    if (p.herkunft === 'KUNDENWARE') {
-      setPositionGarmentType((p.typ as TextileCustomerGarmentType) || 'T_SHIRT')
+    setPositionEditId(position.id)
+    setPositionOrigin(position.herkunft)
+    setPositionQuantity(position.stueckzahl)
+    setPositionBrand(position.marke ?? '')
+    setPositionModel(position.modell ?? '')
+    setPositionColor(position.farbe ?? '')
+    setPositionSize(position.groesse ?? '')
+    if (position.herkunft === 'KUNDENWARE') {
+      setPositionGarmentType((position.typ as TextileCustomerGarmentType) || 'T_SHIRT')
     } else {
-      if (p.variante_id) {
+      if (position.variante_id) {
         setOwnGoodsMode('STAMMDATEN')
-        const variant = await textileService.getVariantById(p.variante_id).catch(() => null)
+        const variant = await textileService.getVariantById(position.variante_id).catch(() => null)
         if (!variant) {
           setOwnGoodsMode('FREITEXT')
           setSelectedBrandId('')
@@ -543,39 +543,39 @@ export function TextileDetail({
         setSelectedVariantId('')
       }
     }
-    const mids = assignments.filter(z => z.position_id === p.id).map(z => z.motiv_id)
-    setPositionMotifIds(prev => ({ ...prev, [p.id]: mids.length > 0 ? mids : [''] }))
+    const currentMotifIds = assignments.filter(a => a.position_id === position.id).map(a => a.motiv_id)
+    setPositionMotifIds(prev => ({ ...prev, [position.id]: currentMotifIds.length > 0 ? currentMotifIds : [''] }))
   }
 
   async function syncAssignmentsForPosition(
-    posId: string,
+    positionId: string,
     desiredMotifIds: string[],
     startAssignments: TextileAssignmentRow[]
   ): Promise<{ ok: true; updatedAssignments: TextileAssignmentRow[] } | { ok: false; message: string }> {
-    const wantedSet = new Set(desiredMotifIds.map(id => String(id).trim()).filter(Boolean))
-    const wantedList = [...wantedSet]
+    const wantedMotifIdSet = new Set(desiredMotifIds.map(id => String(id).trim()).filter(Boolean))
+    const wantedMotifIds = [...wantedMotifIdSet]
     let currentAssignments = startAssignments
-    const existingAssignments = currentAssignments.filter(z => z.position_id === posId)
+    const existingAssignments = currentAssignments.filter(a => a.position_id === positionId)
     for (const assignment of existingAssignments) {
-      if (!wantedSet.has(assignment.motiv_id)) {
+      if (!wantedMotifIdSet.has(assignment.motiv_id)) {
         try {
           await textileService.deleteAssignment(assignment.id)
         } catch (err) {
           return { ok: false, message: err instanceof Error ? err.message : String(err) }
         }
-        currentAssignments = currentAssignments.filter(x => x.id !== assignment.id)
+        currentAssignments = currentAssignments.filter(a => a.id !== assignment.id)
       }
     }
-    const existingMotifIds = new Set(currentAssignments.filter(x => x.position_id === posId).map(x => x.motiv_id))
-    for (const mid of wantedList) {
-      if (existingMotifIds.has(mid)) continue
+    const existingMotifIds = new Set(currentAssignments.filter(a => a.position_id === positionId).map(a => a.motiv_id))
+    for (const motifId of wantedMotifIds) {
+      if (existingMotifIds.has(motifId)) continue
       try {
-        const assignmentData = await textileService.createAssignment({
+        const newAssignment = await textileService.createAssignment({
           teilauftrag_id: subOrder.id,
-          motiv_id: mid,
-          position_id: posId,
+          motiv_id: motifId,
+          position_id: positionId,
         })
-        currentAssignments = [...currentAssignments, assignmentData]
+        currentAssignments = [...currentAssignments, newAssignment]
       } catch (err) {
         return { ok: false, message: assignmentInsertErrorMessage(err as { message?: string; code?: string }) }
       }
@@ -1153,9 +1153,9 @@ export function TextileDetail({
                       value={motifFontClass}
                       onChange={e => setMotifFontClass(e.target.value as TextileFontClass)}
                     >
-                      {FONT_CLASS_OPTIONS.map(s => (
-                        <option key={s.v} value={s.v}>
-                          {s.l}
+                      {FONT_CLASS_OPTIONS.map(option => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
                         </option>
                       ))}
                     </select>
@@ -1198,9 +1198,9 @@ export function TextileDetail({
               <div className="ber-zeile">
                 <span className="ber-lbl">Platz</span>
                 <select className="ber-inp" value={motifPlacement} onChange={e => setMotifPlacement(e.target.value as TextilePlacement)}>
-                  {PLACEMENT_OPTIONS.map(p => (
-                    <option key={p.v} value={p.v}>
-                      {p.l}
+                  {PLACEMENT_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
@@ -1273,9 +1273,9 @@ export function TextileDetail({
               Noch kein Motiv angelegt.
             </div>
           )}
-          {motifs.map((m, idx) => (
+          {motifs.map((motif, index) => (
             <div
-              key={m.id}
+              key={motif.id}
               style={{
                 marginBottom: '0.5rem',
                 border: '1px solid var(--border)',
@@ -1292,19 +1292,19 @@ export function TextileDetail({
                   fontSize: '0.88rem',
                 }}
               >
-                <strong>Motiv {idx + 1}</strong>
+                <strong>Motiv {index + 1}</strong>
                 <span style={{ opacity: 0.75 }}>|</span>
-                <span>{m.typ}</span>
+                <span>{motif.typ}</span>
                 <span style={{ opacity: 0.75 }}>|</span>
-                <span>{placementLabel(String(m.platz ?? '')) || '—'}</span>
+                <span>{placementLabel(String(motif.platz ?? '')) || '—'}</span>
                 <span style={{ opacity: 0.75 }}>|</span>
-                <span>{sizeShortLabel(m.groesse ?? '—')}</span>
+                <span>{sizeShortLabel(motif.groesse ?? '—')}</span>
                 <span style={{ opacity: 0.75 }}>|</span>
-                <span>{m.druckart?.trim() ? m.druckart : '—'}</span>
-                <button type="button" className="wa-ghost-btn" onClick={() => editMotif(m)} disabled={isSaving}>
+                <span>{motif.druckart?.trim() ? motif.druckart : '—'}</span>
+                <button type="button" className="wa-ghost-btn" onClick={() => editMotif(motif)} disabled={isSaving}>
                   Bearbeiten
                 </button>
-                <button type="button" className="wa-ghost-btn" onClick={() => void deleteMotif(m.id)} disabled={isSaving}>
+                <button type="button" className="wa-ghost-btn" onClick={() => void deleteMotif(motif.id)} disabled={isSaving}>
                   Entfernen
                 </button>
               </div>
@@ -1351,9 +1351,9 @@ export function TextileDetail({
                   <div className="ber-zeile">
                     <span className="ber-lbl">Typ</span>
                     <select className="ber-inp" value={positionGarmentType} onChange={e => setPositionGarmentType(e.target.value as TextileCustomerGarmentType)}>
-                      {GARMENT_TYPE_OPTIONS.map(x => (
-                        <option key={x.v} value={x.v}>
-                          {x.l}
+                      {GARMENT_TYPE_OPTIONS.map(option => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
                         </option>
                       ))}
                     </select>
@@ -1463,15 +1463,15 @@ export function TextileDetail({
                               className="ber-inp"
                               value={selectedColor}
                               onChange={e => {
-                                const f = e.target.value
-                                setSelectedColor(f)
+                                const colorValue = e.target.value
+                                setSelectedColor(colorValue)
                                 setSelectedVariantId('')
-                                if (f) {
+                                if (colorValue) {
                                   const brandName = masterBrands.find(x => x.id === selectedBrandId)?.name ?? ''
                                   const productName = masterProducts.find(x => x.id === selectedProductId)?.name ?? ''
                                   setPositionBrand(brandName)
                                   setPositionModel(productName)
-                                  setPositionColor(f)
+                                  setPositionColor(colorValue)
                                   setPositionSize('')
                                 } else {
                                   setPositionColor('')
@@ -1627,11 +1627,11 @@ export function TextileDetail({
                       className="ber-inp"
                       value={slotVal}
                       onChange={e => {
-                        const v = e.target.value
+                        const selectedMotifId = e.target.value
                         setPositionMotifIds(prev => {
-                          const row = [...(prev[currentPositionSlotKey] ?? [''])]
-                          row[slotIx] = v
-                          return { ...prev, [currentPositionSlotKey]: row }
+                          const slots = [...(prev[currentPositionSlotKey] ?? [''])]
+                          slots[slotIx] = selectedMotifId
+                          return { ...prev, [currentPositionSlotKey]: slots }
                         })
                       }}
                     >
@@ -1683,9 +1683,9 @@ export function TextileDetail({
               </div>
             </form>
         <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-          {positions.map(p => (
+          {positions.map(position => (
             <li
-              key={p.id}
+              key={position.id}
               style={{
                 display: 'flex',
                 flexWrap: 'wrap',
@@ -1705,9 +1705,9 @@ export function TextileDetail({
                   borderRadius: 4,
                 }}
               >
-                {p.herkunft === 'KUNDENWARE' ? 'KUNDE' : 'EIGEN'}
+                {position.herkunft === 'KUNDENWARE' ? 'KUNDE' : 'EIGEN'}
               </span>
-              {p.herkunft === 'EIGENWARE' && (
+              {position.herkunft === 'EIGENWARE' && (
                 <span
                   style={{
                     fontSize: '0.68rem',
@@ -1715,45 +1715,45 @@ export function TextileDetail({
                     padding: '0.12rem 0.4rem',
                     border: '1px solid var(--border)',
                     borderRadius: 4,
-                    background: p.variante_id ? '#dcfce7' : '#f1f5f9',
-                    color: p.variante_id ? '#166534' : '#475569',
+                    background: position.variante_id ? '#dcfce7' : '#f1f5f9',
+                    color: position.variante_id ? '#166534' : '#475569',
                   }}
                 >
-                  {p.variante_id ? 'Stammdaten' : 'Freitext'}
+                  {position.variante_id ? 'Stammdaten' : 'Freitext'}
                 </span>
               )}
               <span>
-                {p.herkunft === 'KUNDENWARE' ? (
-                  `${garmentTypeLabel(p.typ)} · ${p.farbe} · Stückzahl: ${p.stueckzahl}`
-                ) : p.variante_id ? (
+                {position.herkunft === 'KUNDENWARE' ? (
+                  `${garmentTypeLabel(position.typ)} · ${position.farbe} · Stückzahl: ${position.stueckzahl}`
+                ) : position.variante_id ? (
                   (() => {
-                    const variantId = String(p.variante_id)
+                    const variantId = String(position.variante_id)
                     const variantInfo = variantInfoById.get(variantId)
-                    const brand = variantInfo?.marke || (p.marke ?? '')
-                    const productName = variantInfo?.produkt || (p.modell ?? '')
-                    const color = variantInfo?.farbe || (p.farbe ?? '')
-                    const size = variantInfo?.groesse || (p.groesse ?? '')
+                    const brand = variantInfo?.marke || (position.marke ?? '')
+                    const productName = variantInfo?.produkt || (position.modell ?? '')
+                    const color = variantInfo?.farbe || (position.farbe ?? '')
+                    const size = variantInfo?.groesse || (position.groesse ?? '')
                     const stock = variantInfo ? variantInfo.bestand : null
-                    return `${brand} ${productName} ${color} / ${size} · Bestand: ${stock == null ? '—' : stock} · Stückzahl: ${p.stueckzahl}`
+                    return `${brand} ${productName} ${color} / ${size} · Bestand: ${stock == null ? '—' : stock} · Stückzahl: ${position.stueckzahl}`
                   })()
                 ) : (
-                  `${p.marke} ${p.modell} ${p.farbe} / ${p.groesse} · Stückzahl: ${p.stueckzahl}`
+                  `${position.marke} ${position.modell} ${position.farbe} / ${position.groesse} · Stückzahl: ${position.stueckzahl}`
                 )}
               </span>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
                 {assignments
-                  .filter(z => z.position_id === p.id)
-                  .map(z => {
-                    const mo = motifs.find(m => m.id === z.motiv_id)
-                    const lab =
-                      mo?.typ === 'TEXT'
-                        ? (mo.inhalt ?? 'Text-Motiv')
-                        : mo
-                          ? `FileRecord-Motiv ${motifs.indexOf(mo) + 1}`
-                          : z.motiv_id
+                  .filter(assignment => assignment.position_id === position.id)
+                  .map(assignment => {
+                    const matchedMotif = motifs.find(motif => motif.id === assignment.motiv_id)
+                    const motifLabel =
+                      matchedMotif?.typ === 'TEXT'
+                        ? (matchedMotif.inhalt ?? 'Text-Motiv')
+                        : matchedMotif
+                          ? `FileRecord-Motiv ${motifs.indexOf(matchedMotif) + 1}`
+                          : assignment.motiv_id
                     return (
                       <span
-                        key={z.id}
+                        key={assignment.id}
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -1766,11 +1766,11 @@ export function TextileDetail({
                           background: 'var(--accent-bg, rgba(170, 59, 255, 0.08))',
                         }}
                       >
-                        <span>{lab}</span>
+                        <span>{motifLabel}</span>
                         <button
                           type="button"
                           title="Zuordnung entfernen"
-                          onClick={() => void deleteAssignment(z.id)}
+                          onClick={() => void deleteAssignment(assignment.id)}
                           disabled={isSaving}
                           style={{
                             font: 'inherit',
@@ -1789,10 +1789,10 @@ export function TextileDetail({
                     )
                   })}
               </div>
-              <button type="button" className="wa-ghost-btn" onClick={() => void editPosition(p)} disabled={isSaving}>
+              <button type="button" className="wa-ghost-btn" onClick={() => void editPosition(position)} disabled={isSaving}>
                 Bearbeiten
               </button>
-              <button type="button" className="wa-ghost-btn" onClick={() => void deletePosition(p.id)} disabled={isSaving}>
+              <button type="button" className="wa-ghost-btn" onClick={() => void deletePosition(position.id)} disabled={isSaving}>
                 Entfernen
               </button>
             </li>
