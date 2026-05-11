@@ -1,19 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { supabase } from '../supabase'
 import { authService } from '../services/authService'
 import { subOrderService } from '../services/subOrderService'
+import { textileMasterDataService, type BrandRow, type VariantWithDetails } from '../services/textileMasterDataService'
 import { Login } from '../components/Login'
 import { useToast } from '../components/Toast'
 import type { Database } from '../types/supabase'
 
-type BrandRow = Database['public']['Tables']['textil_marken']['Row']
 type ProductRow = Database['public']['Tables']['textil_produkte']['Row'] & {
   textil_marken?: { name: string } | { name: string }[] | null
 }
-type VariantRow = Database['public']['Tables']['textil_varianten']['Row'] & {
-  textil_produkte?: unknown
-}
+type VariantRow = VariantWithDetails
 type Tab = 'PRODUCTS' | 'STOCK' | 'ORDER_LIST'
 
 const SIZE_RUNS = {
@@ -169,13 +166,16 @@ export function TextileStockPage() {
 
   const loadBrands = useCallback(async () => {
     setBrandsLoading(true)
-    const { data, error: loadError } = await supabase.from('textil_marken').select('*').order('name')
-    setBrandsLoading(false)
-    if (loadError) {
+    let brands: BrandRow[]
+    try {
+      brands = await textileMasterDataService.getBrands()
+    } catch {
+      setBrandsLoading(false)
       showError('Marken konnten nicht geladen werden')
       return
     }
-    setBrands((data ?? []) as BrandRow[])
+    setBrandsLoading(false)
+    setBrands(brands)
   }, [showError])
 
   useEffect(() => {
@@ -196,17 +196,16 @@ export function TextileStockPage() {
         return
       }
       setProductsLoading(true)
-      const { data, error: loadError } = await supabase
-        .from('textil_produkte')
-        .select('*, textil_marken(name)')
-        .eq('marke_id', brandId)
-        .order('name')
-      setProductsLoading(false)
-      if (loadError) {
+      let products: ProductRow[]
+      try {
+        products = (await textileMasterDataService.getProductsByBrand(brandId)) as unknown as ProductRow[]
+      } catch {
+        setProductsLoading(false)
         showError('Produkte konnten nicht geladen werden')
         return
       }
-      setProducts((data ?? []) as ProductRow[])
+      setProductsLoading(false)
+      setProducts(products)
     },
     [showError]
   )
@@ -239,19 +238,16 @@ export function TextileStockPage() {
         return
       }
       setVariantsLoading(true)
-      const { data, error: loadError } = await supabase
-        .from('textil_varianten')
-        .select(
-          '*, textil_produkte(name, artikelnummer, textil_marken(name))'
-        )
-        .eq('produkt_id', productId)
-        .order('sort_order')
-      setVariantsLoading(false)
-      if (loadError) {
+      let variants: VariantRow[]
+      try {
+        variants = await textileMasterDataService.getVariantsByProduct(productId)
+      } catch {
+        setVariantsLoading(false)
         showError('Varianten konnten nicht geladen werden')
         return
       }
-      setVarianten((data ?? []) as VariantRow[])
+      setVariantsLoading(false)
+      setVarianten(variants)
     },
     [showError]
   )
@@ -323,19 +319,13 @@ export function TextileStockPage() {
     }
     setBookingBusyId(variant.id)
     try {
-      const { error: stockUpdateError } = await supabase
-        .from('textil_varianten')
-        .update({ bestand: nextStock })
-        .eq('id', variant.id)
-      if (stockUpdateError) throw stockUpdateError
-
-      const { error: movementInsertError } = await supabase.from('textil_lager_bewegungen').insert({
+      await textileMasterDataService.updateVariantStock(variant.id, nextStock)
+      await textileMasterDataService.createTextileStockMovement({
         variante_id: variant.id,
         menge: quantity,
         typ: movementType,
         person_id: session.user.id,
       })
-      if (movementInsertError) throw movementInsertError
 
       if (onSuccess) {
         onSuccess(nextStock)
@@ -362,11 +352,9 @@ export function TextileStockPage() {
     const minimumValue = rawValue === '' ? 0 : parseInt(rawValue, 10)
     if (!Number.isInteger(minimumValue) || minimumValue < 0) return
     if (minimumValue === (variant.mindestbestand ?? 0)) return
-    const { error: updateError } = await supabase
-      .from('textil_varianten')
-      .update({ mindestbestand: minimumValue })
-      .eq('id', variant.id)
-    if (updateError) {
+    try {
+      await textileMasterDataService.updateVariantMinimumStock(variant.id, minimumValue)
+    } catch {
       showError('Mindestbestand konnte nicht gespeichert werden')
       return
     }
@@ -402,17 +390,16 @@ export function TextileStockPage() {
 
   const loadAllVariants = useCallback(async () => {
     setAllVariantsLoading(true)
-    const { data, error: loadError } = await supabase
-      .from('textil_varianten')
-      .select('*, textil_produkte(name, artikelnummer, textil_marken(name))')
-      .eq('aktiv', true)
-      .order('sort_order')
-    setAllVariantsLoading(false)
-    if (loadError) {
+    let variants: VariantRow[]
+    try {
+      variants = await textileMasterDataService.getVariantsWithDetails()
+    } catch {
+      setAllVariantsLoading(false)
       showError('Bestand konnte nicht geladen werden')
       return
     }
-    setAllVariants((data ?? []) as VariantRow[])
+    setAllVariantsLoading(false)
+    setAllVariants(variants)
   }, [showError])
 
   useEffect(() => {
@@ -519,13 +506,7 @@ export function TextileStockPage() {
     setOrderLoading(true)
     setOrderError(null)
     try {
-      const { data: variantData, error: variantLoadError } = await supabase
-        .from('textil_varianten')
-        .select('*, textil_produkte(name, artikelnummer, textil_marken(name))')
-        .eq('aktiv', true)
-        .order('sort_order')
-      if (variantLoadError) throw variantLoadError
-      const activeVariants = (variantData ?? []) as VariantRow[]
+      const activeVariants = await textileMasterDataService.getVariantsWithDetails()
       const variantIdSet = new Set(activeVariants.map(v => v.id))
 
       const activeSubOrders = await subOrderService.getActiveSubOrdersByBereich('TEXTIL')
@@ -536,14 +517,8 @@ export function TextileStockPage() {
       for (let i = 0; i < subOrderIds.length; i += chunk) {
         const subOrderSlice = subOrderIds.slice(i, i + chunk)
         if (subOrderSlice.length === 0) continue
-        const { data: positionData, error: positionLoadError } = await supabase
-          .from('textil_positionen')
-          .select('variante_id, stueckzahl')
-          .eq('herkunft', 'EIGENWARE')
-          .not('variante_id', 'is', null)
-          .in('teilauftrag_id', subOrderSlice)
-        if (positionLoadError) throw positionLoadError
-        for (const row of (positionData ?? []) as { variante_id: string | null; stueckzahl: number }[]) {
+        const positionData = await textileMasterDataService.getEigenwarePositionsBySubOrders(subOrderSlice)
+        for (const row of positionData) {
           const variantId = row.variante_id
           if (!variantId || !variantIdSet.has(variantId)) continue
           const demandQuantity = toInteger(row.stueckzahl)
@@ -613,8 +588,9 @@ export function TextileStockPage() {
   const saveBrand = async () => {
     const trimmedName = newBrandName.trim()
     if (!trimmedName) return
-    const { error: insertError } = await supabase.from('textil_marken').insert({ name: trimmedName, aktiv: true })
-    if (insertError) {
+    try {
+      await textileMasterDataService.createBrand(trimmedName)
+    } catch {
       showError('Marke konnte nicht angelegt werden')
       return
     }
@@ -628,11 +604,9 @@ export function TextileStockPage() {
     const trimmedName = editBrandName.trim()
     if (!trimmedName) return
     const previousBrandId = editingBrandId
-    const { error: updateError } = await supabase
-      .from('textil_marken')
-      .update({ name: trimmedName, aktiv: editBrandActive })
-      .eq('id', editingBrandId)
-    if (updateError) {
+    try {
+      await textileMasterDataService.updateBrand(editingBrandId, { name: trimmedName, aktiv: editBrandActive })
+    } catch {
       showError('Marke konnte nicht gespeichert werden')
       return
     }
@@ -648,14 +622,15 @@ export function TextileStockPage() {
       showError('Marke und Name sind Pflicht')
       return
     }
-    const { error: insertError } = await supabase.from('textil_produkte').insert({
-      marke_id: brandId,
-      name: trimmedName,
-      artikelnummer: newProduct.artikelnummer.trim() || null,
-      beschreibung: newProduct.beschreibung.trim() || null,
-      aktiv: true,
-    })
-    if (insertError) {
+    try {
+      await textileMasterDataService.createProduct({
+        marke_id: brandId,
+        name: trimmedName,
+        artikelnummer: newProduct.artikelnummer.trim() || null,
+        beschreibung: newProduct.beschreibung.trim() || null,
+        aktiv: true,
+      })
+    } catch {
       showError('Produkt konnte nicht angelegt werden')
       return
     }
@@ -668,16 +643,14 @@ export function TextileStockPage() {
     if (!editProduct) return
     const trimmedName = editProductName.trim()
     if (!trimmedName) return
-    const { error: updateError } = await supabase
-      .from('textil_produkte')
-      .update({
+    try {
+      await textileMasterDataService.updateProduct(editProduct.id, {
         name: trimmedName,
         artikelnummer: editProductArticleNumber.trim() || null,
         beschreibung: editProductDescription.trim() || null,
         aktiv: editProductActive,
       })
-      .eq('id', editProduct.id)
-    if (updateError) {
+    } catch {
       showError('Produkt konnte nicht gespeichert werden')
       return
     }
@@ -703,26 +676,21 @@ export function TextileStockPage() {
       showError('Mindestbestand ungültig')
       return
     }
-    const { data: maxRow } = await supabase
-      .from('textil_varianten')
-      .select('sort_order')
-      .eq('produkt_id', productIdForVariants)
-      .order('sort_order', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    const nextSortOrder = toInteger((maxRow as { sort_order: number } | null)?.sort_order) + 1
-    const { error: insertError } = await supabase.from('textil_varianten').insert({
-      produkt_id: productIdForVariants,
-      farbe: colorValue,
-      farbe_hex: newVariant.farbe_hex.trim() || null,
-      groesse: sizeValue,
-      ist_muster: newVariant.ist_muster,
-      mindestbestand: minimumValue,
-      bestand: 0,
-      sort_order: nextSortOrder,
-      aktiv: true,
-    })
-    if (insertError) {
+    const maxSortOrder = await textileMasterDataService.getMaxSortOrderForProduct(productIdForVariants)
+    const nextSortOrder = (maxSortOrder ?? 0) + 1
+    try {
+      await textileMasterDataService.createVariant({
+        produkt_id: productIdForVariants,
+        farbe: colorValue,
+        farbe_hex: newVariant.farbe_hex.trim() || null,
+        groesse: sizeValue,
+        ist_muster: newVariant.ist_muster,
+        mindestbestand: minimumValue,
+        bestand: 0,
+        sort_order: nextSortOrder,
+        aktiv: true,
+      })
+    } catch {
       showError('Variante konnte nicht angelegt werden')
       return
     }
@@ -837,16 +805,14 @@ export function TextileStockPage() {
 
     setMatrixBusy(true)
     try {
-      const { data: existingVariants, error: existingError } = await supabase
-        .from('textil_varianten')
-        .select('farbe, groesse')
-        .eq('produkt_id', productIdForVariants)
-        .in('farbe', allColorNames)
-        .in('groesse', allSizesList)
-      if (existingError) throw existingError
+      const existingVariants = await textileMasterDataService.getExistingVariantCombinations(
+        productIdForVariants,
+        allColorNames,
+        allSizesList,
+      )
 
       const existingCombinationSet = new Set<string>()
-      for (const existingRow of (existingVariants ?? []) as { farbe: string; groesse: string }[]) {
+      for (const existingRow of existingVariants) {
         existingCombinationSet.add(`${existingRow.farbe}|||${existingRow.groesse}`)
       }
 
@@ -876,8 +842,7 @@ export function TextileStockPage() {
         return
       }
 
-      const { error: insertError } = await supabase.from('textil_varianten').insert(variantInserts)
-      if (insertError) throw insertError
+      await textileMasterDataService.createVariantsBatch(variantInserts)
 
       showSuccess(`${variantInserts.length} Varianten angelegt`)
       resetMatrix()
@@ -901,9 +866,8 @@ export function TextileStockPage() {
     const minimumRaw = editVariantMinimum.trim()
     const minimumValue = minimumRaw === '' ? 0 : parseInt(minimumRaw, 10)
     if (!Number.isInteger(minimumValue) || minimumValue < 0) return
-    const { error: updateError } = await supabase
-      .from('textil_varianten')
-      .update({
+    try {
+      await textileMasterDataService.updateVariant(editVariant.id, {
         farbe: colorValue,
         farbe_hex: editVariantColorHex.trim() || null,
         groesse: sizeValue,
@@ -911,8 +875,7 @@ export function TextileStockPage() {
         mindestbestand: minimumValue,
         aktiv: editVariantActive,
       })
-      .eq('id', editVariant.id)
-    if (updateError) {
+    } catch {
       showError('Variante konnte nicht gespeichert werden')
       return
     }

@@ -75,6 +75,8 @@ class TextileService {
       .from('textil_produkte')
       .select('id, name, artikelnummer')
       .eq('marke_id', markeId)
+      .eq('aktiv', true)
+      .order('name')
     if (error) throw error
     return (data ?? []) as { id: string; name: string; artikelnummer: string | null }[]
   }
@@ -84,6 +86,8 @@ class TextileService {
       .from('textil_varianten')
       .select('farbe, farbe_hex')
       .eq('produkt_id', produktId)
+      .eq('aktiv', true)
+      .order('farbe')
     if (error) throw error
     return (data ?? []) as ColorOption[]
   }
@@ -94,6 +98,8 @@ class TextileService {
       .select('id, groesse, bestand, ist_muster')
       .eq('produkt_id', produktId)
       .eq('farbe', farbe)
+      .eq('aktiv', true)
+      .order('sort_order')
     if (error) throw error
     return (data ?? []) as SizeOption[]
   }
@@ -103,7 +109,7 @@ class TextileService {
       .from('textil_varianten')
       .select('id, produkt_id, farbe, groesse')
       .eq('id', id)
-      .single()
+      .maybeSingle()
     if (error) throw error
     return data as { id: string; produkt_id: string; farbe: string; groesse: string } | null
   }
@@ -113,9 +119,22 @@ class TextileService {
       .from('textil_produkte')
       .select('id, marke_id')
       .eq('id', id)
-      .single()
+      .maybeSingle()
     if (error) throw error
     return data as { id: string; marke_id: string } | null
+  }
+
+  async getEigenwarePositionsBySubOrder(
+    subOrderId: string,
+  ): Promise<{ id: string; variante_id: string | null; stueckzahl: number; herkunft: string }[]> {
+    const { data, error } = await supabase
+      .from('textil_positionen')
+      .select('id, variante_id, stueckzahl, herkunft')
+      .eq('teilauftrag_id', subOrderId)
+      .eq('herkunft', 'EIGENWARE')
+      .not('variante_id', 'is', null)
+    if (error) throw error
+    return (data ?? []) as { id: string; variante_id: string | null; stueckzahl: number; herkunft: string }[]
   }
 
   async createAssignment(payload: AssignmentInsert): Promise<TextileAssignmentRow> {

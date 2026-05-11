@@ -72,6 +72,7 @@ class TextileMasterDataService {
       .from('textil_produkte')
       .select('*, textil_marken(name)')
       .eq('marke_id', markeId)
+      .order('name')
     if (error) throw error
     return (data ?? []) as unknown as ProductWithBrand[]
   }
@@ -102,6 +103,7 @@ class TextileMasterDataService {
       .from('textil_varianten')
       .select('*, textil_produkte(name, artikelnummer, textil_marken(name))')
       .eq('produkt_id', produktId)
+      .order('sort_order')
     if (error) throw error
     return (data ?? []) as unknown as VariantWithDetails[]
   }
@@ -110,8 +112,39 @@ class TextileMasterDataService {
     const { data, error } = await supabase
       .from('textil_varianten')
       .select('*, textil_produkte(name, artikelnummer, textil_marken(name))')
+      .eq('aktiv', true)
+      .order('sort_order')
     if (error) throw error
     return (data ?? []) as unknown as VariantWithDetails[]
+  }
+
+  async getExistingVariantCombinations(
+    produktId: string,
+    colors: string[],
+    sizes: string[],
+  ): Promise<{ farbe: string; groesse: string }[]> {
+    const { data, error } = await supabase
+      .from('textil_varianten')
+      .select('farbe, groesse')
+      .eq('produkt_id', produktId)
+      .in('farbe', colors)
+      .in('groesse', sizes)
+    if (error) throw error
+    return (data ?? []) as { farbe: string; groesse: string }[]
+  }
+
+  async getEigenwarePositionsBySubOrders(
+    subOrderIds: string[],
+  ): Promise<{ variante_id: string | null; stueckzahl: number }[]> {
+    if (subOrderIds.length === 0) return []
+    const { data, error } = await supabase
+      .from('textil_positionen')
+      .select('variante_id, stueckzahl')
+      .eq('herkunft', 'EIGENWARE')
+      .not('variante_id', 'is', null)
+      .in('teilauftrag_id', subOrderIds)
+    if (error) throw error
+    return (data ?? []) as { variante_id: string | null; stueckzahl: number }[]
   }
 
   async getMaxSortOrderForProduct(produktId: string): Promise<number | null> {

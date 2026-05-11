@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../supabase'
 import { authService } from '../services/authService'
 import { historyService, type HistoryEvent } from '../services/historyService'
 import { orderService } from '../services/orderService'
 import { subOrderService } from '../services/subOrderService'
 import { stampService } from '../services/stampService'
+import { textileService } from '../services/textileService'
+import { textileMasterDataService } from '../services/textileMasterDataService'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import {
   subOrderDetailToFieldMap,
@@ -14,7 +15,6 @@ import {
   type CustomerContactRow,
   type SubOrderRow,
 } from '../types/database'
-import type { Database } from '../types/supabase'
 import { FileList } from './FileList'
 import type { FileRow } from '../services/fileService'
 import { HistoryPanel } from './HistoryPanel'
@@ -434,50 +434,26 @@ export function ContextPanel({
         const user = await authService.getUser()
         const userId = user?.id ?? null
 
-        const { data: positionData, error: positionError } = await supabase
-          .from('textil_positionen')
-          .select('id, variante_id, stueckzahl, herkunft')
-          .eq('teilauftrag_id', subOrder.id)
-          .eq('herkunft', 'EIGENWARE')
-          .not('variante_id', 'is', null)
-        if (positionError) throw positionError
-
-        const positionList = (positionData ?? []) as {
-          id: string
-          variante_id: string | null
-          stueckzahl: number
-          herkunft: string
-        }[]
+        const positionList = await textileService.getEigenwarePositionsBySubOrder(subOrder.id)
 
         for (const position of positionList) {
           const variantId = position.variante_id ? String(position.variante_id) : ''
           if (!variantId) continue
           const quantity = Number.isFinite(position.stueckzahl) && position.stueckzahl >= 1 ? Math.floor(position.stueckzahl) : 1
 
-          const { data: variantRow, error: variantError } = await supabase
-            .from('textil_varianten')
-            .select('bestand')
-            .eq('id', variantId)
-            .single()
-          if (variantError) throw variantError
-          const currentStock = (variantRow as { bestand: number | null } | null)?.bestand ?? 0
+          const variantRow = await textileMasterDataService.getVariantStockById(variantId)
+          const currentStock = variantRow?.bestand ?? 0
           if (currentStock <= 0) continue
 
           const newStock = Math.max(0, currentStock - quantity)
-          const { error: updateError } = await supabase.from('textil_varianten').update({ bestand: newStock }).eq('id', variantId)
-          if (updateError) throw updateError
-
-          const textileStockMovementInsert: Database['public']['Tables']['textil_lager_bewegungen']['Insert'] = {
+          await textileMasterDataService.updateVariantStock(variantId, newStock)
+          await textileMasterDataService.createTextileStockMovement({
             variante_id: variantId,
             menge: quantity,
             typ: 'AUTOABGANG',
             notiz: textileNote,
             person_id: userId,
-          }
-          const { error: insertError } = await supabase
-            .from('textil_lager_bewegungen')
-            .insert(textileStockMovementInsert)
-          if (insertError) throw insertError
+          })
         }
       }
 

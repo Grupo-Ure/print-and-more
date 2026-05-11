@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { supabase } from '../../supabase'
 import { subOrderService } from '../../services/subOrderService'
+import { textileService } from '../../services/textileService'
+import { textileMasterDataService } from '../../services/textileMasterDataService'
 import { customerMeetsPrepressContact } from '../../lib/customer'
 import { isSubOrderComplete, nextSubOrderStatus } from '../../lib/subOrderShared'
 import {
@@ -23,18 +24,6 @@ import type {
 } from '../../types/textile'
 import type { Database, Json } from '../../types/supabase'
 import '../WorkArea.css'
-
-type TextileProductWithBrandEmbed = {
-  name: string | null
-  textil_marken?: { name: string | null } | { name: string | null }[] | null
-}
-
-type TextileVariantQueryRow = Pick<
-  Database['public']['Tables']['textil_varianten']['Row'],
-  'id' | 'bestand' | 'farbe' | 'groesse' | 'ist_muster'
-> & {
-  textil_produkte?: TextileProductWithBrandEmbed | TextileProductWithBrandEmbed[] | null
-}
 
 type Props = {
   subOrder: SubOrderRow
@@ -134,9 +123,6 @@ function assignmentInsertErrorMessage(err: { message?: string; code?: string }):
   }
   return err.message ?? ''
 }
-
-const ASSIGNMENT_EMBED_SELECT =
-  'id, teilauftrag_id, motiv_id, position_id, textil_motive(typ, inhalt, datei_id, platz, groesse, druckart), textil_positionen(herkunft, typ, farbe, marke, modell, groesse)'
 
 const NEW_POSITION_SLOT = 'neu'
 
@@ -240,17 +226,19 @@ export function TextileDetail({
     setLoading(true)
     setError(null)
     const subOrderId = subOrderRef.current.id
-    const [motifResult, positionResult, assignmentResult] = await Promise.all([
-      supabase.from('textil_motive').select('*').eq('teilauftrag_id', subOrderId),
-      supabase.from('textil_positionen').select('*').eq('teilauftrag_id', subOrderId),
-      supabase.from('textil_zuordnungen').select(ASSIGNMENT_EMBED_SELECT).eq('teilauftrag_id', subOrderId),
-    ])
-    if (motifResult.error) setError(motifResult.error.message)
-    if (positionResult.error) setError(positionResult.error.message)
-    if (assignmentResult.error) setError(assignmentResult.error.message)
-    const loadedMotifs = (motifResult.data ?? []) as TextileMotifRow[]
-    const loadedPositions = (positionResult.data ?? []) as TextilePositionRow[]
-    const loadedAssignments = (assignmentResult.data ?? []) as unknown as TextileAssignmentRow[]
+    let loadedMotifs: TextileMotifRow[] = []
+    let loadedPositions: TextilePositionRow[] = []
+    let loadedAssignments: TextileAssignmentRow[] = []
+    try {
+      const textile = await textileService.getTextileDataForSubOrder(subOrderId)
+      loadedMotifs = textile.motifs
+      loadedPositions = textile.positions
+      loadedAssignments = textile.assignments
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Laden fehlgeschlagen')
+      setLoading(false)
+      return
+    }
     setMotifs(loadedMotifs)
     setPositions(loadedPositions)
     setAssignments(loadedAssignments)
@@ -265,16 +253,12 @@ export function TextileDetail({
       if (ids.length === 0) {
         setVariantInfoById(new Map())
       } else {
-        const { data: vData, error: vErr } = await supabase
-          .from('textil_varianten')
-          .select('id, bestand, farbe, groesse, ist_muster, textil_produkte(name, textil_marken(name))')
-          .in('id', ids)
-        if (vErr) throw vErr
+        const variantRows = await textileService.getVariantsByIds(ids)
         const variantMap = new Map<
           string,
           { bestand: number; farbe: string; groesse: string; ist_muster: boolean; produkt: string; marke: string }
         >()
-        for (const variantRow of (vData ?? []) as unknown as TextileVariantQueryRow[]) {
+        for (const variantRow of variantRows) {
           const product = one(variantRow.textil_produkte)
           const brand = product ? one(product.textil_marken) : null
           variantMap.set(String(variantRow.id), {
@@ -373,13 +357,9 @@ export function TextileDetail({
     if (positionOrigin !== 'EIGENWARE') return
     if (ownGoodsMode !== 'STAMMDATEN') return
     setMasterDataLoading(true)
-    void Promise.resolve(
-      supabase.from('textil_marken').select('id, name').eq('aktiv', true).order('name'),
-    )
-      .then(({ data, error }) => {
-        if (error) return
-        setMasterBrands((data ?? []) as { id: string; name: string }[])
-      })
+    textileMasterDataService.getBrandNames()
+      .then(data => setMasterBrands(data))
+      .catch(() => {})
       .finally(() => setMasterDataLoading(false))
   }, [ownGoodsMode, positionOrigin])
 
@@ -396,18 +376,9 @@ export function TextileDetail({
       return
     }
     setMasterDataLoading(true)
-    void Promise.resolve(
-      supabase
-        .from('textil_produkte')
-        .select('id, name, artikelnummer')
-        .eq('marke_id', selectedBrandId)
-        .eq('aktiv', true)
-        .order('name'),
-    )
-      .then(({ data, error }) => {
-        if (error) return
-        setMasterProducts((data ?? []) as { id: string; name: string; artikelnummer: string | null }[])
-      })
+    textileService.getProductsByBrandId(selectedBrandId)
+      .then(data => setMasterProducts(data))
+      .catch(() => {})
       .finally(() => setMasterDataLoading(false))
   }, [ownGoodsMode, positionOrigin, selectedBrandId])
 
@@ -422,18 +393,8 @@ export function TextileDetail({
       return
     }
     setMasterDataLoading(true)
-    void Promise.resolve(
-      supabase
-        .from('textil_varianten')
-        .select('farbe, farbe_hex')
-        .eq('produkt_id', selectedProductId)
-        .eq('aktiv', true)
-        .order('farbe'),
-    )
-      .then(res => {
-        const { data, error } = res
-        if (error) return
-        const rows = (data ?? []) as { farbe: string | null; farbe_hex: string | null }[]
+    textileService.getVariantColorsByProduct(selectedProductId)
+      .then(rows => {
         const seen = new Set<string>()
         const uniqueColors: { farbe: string; farbe_hex: string | null }[] = []
         for (const colorRow of rows) {
@@ -446,6 +407,7 @@ export function TextileDetail({
         }
         setMasterColors(uniqueColors)
       })
+      .catch(() => {})
       .finally(() => setMasterDataLoading(false))
   }, [ownGoodsMode, positionOrigin, selectedProductId])
 
@@ -458,18 +420,8 @@ export function TextileDetail({
       return
     }
     setMasterDataLoading(true)
-    void Promise.resolve(
-      supabase
-        .from('textil_varianten')
-        .select('id, groesse, bestand, ist_muster')
-        .eq('produkt_id', selectedProductId)
-        .eq('farbe', selectedColor)
-        .eq('aktiv', true)
-        .order('sort_order'),
-    )
-      .then(({ data, error }) => {
-        if (error) return
-        const rows = (data ?? []) as { id: string; groesse: string | null; bestand: number | null; ist_muster: boolean | null }[]
+    textileService.getVariantSizesByProductAndColor(selectedProductId, selectedColor)
+      .then(rows =>
         setMasterSizes(
           rows.map(r => ({
             id: String(r.id),
@@ -478,7 +430,8 @@ export function TextileDetail({
             ist_muster: Boolean(r.ist_muster),
           }))
         )
-      })
+      )
+      .catch(() => {})
       .finally(() => setMasterDataLoading(false))
   }, [ownGoodsMode, positionOrigin, selectedColor, selectedProductId])
 
@@ -560,28 +513,20 @@ export function TextileDetail({
     } else {
       if (p.variante_id) {
         setOwnGoodsMode('STAMMDATEN')
-        const { data: vr, error: ve } = await supabase
-          .from('textil_varianten')
-          .select('id, produkt_id, farbe, groesse')
-          .eq('id', p.variante_id)
-          .maybeSingle()
-        if (ve || !vr) {
+        const variant = await textileService.getVariantById(p.variante_id).catch(() => null)
+        if (!variant) {
           setOwnGoodsMode('FREITEXT')
           setSelectedBrandId('')
           setSelectedProductId('')
           setSelectedColor('')
           setSelectedVariantId('')
         } else {
-          const { data: pr } = await supabase
-            .from('textil_produkte')
-            .select('id, marke_id')
-            .eq('id', vr.produkt_id)
-            .maybeSingle()
-          if (pr?.marke_id) {
-            setSelectedBrandId(String(pr.marke_id))
-            setSelectedProductId(String(pr.id))
-            setSelectedColor(String(vr.farbe ?? ''))
-            setSelectedVariantId(String(vr.id))
+          const product = await textileService.getProductById(variant.produkt_id).catch(() => null)
+          if (product?.marke_id) {
+            setSelectedBrandId(String(product.marke_id))
+            setSelectedProductId(String(product.id))
+            setSelectedColor(String(variant.farbe ?? ''))
+            setSelectedVariantId(String(variant.id))
           } else {
             setOwnGoodsMode('FREITEXT')
             setSelectedBrandId('')
@@ -613,25 +558,27 @@ export function TextileDetail({
     const existingAssignments = currentAssignments.filter(z => z.position_id === posId)
     for (const assignment of existingAssignments) {
       if (!wantedSet.has(assignment.motiv_id)) {
-        const { error } = await supabase.from('textil_zuordnungen').delete().eq('id', assignment.id)
-        if (error) return { ok: false, message: error.message }
+        try {
+          await textileService.deleteAssignment(assignment.id)
+        } catch (err) {
+          return { ok: false, message: err instanceof Error ? err.message : String(err) }
+        }
         currentAssignments = currentAssignments.filter(x => x.id !== assignment.id)
       }
     }
     const existingMotifIds = new Set(currentAssignments.filter(x => x.position_id === posId).map(x => x.motiv_id))
     for (const mid of wantedList) {
       if (existingMotifIds.has(mid)) continue
-      const { data: assignmentData, error: assignmentError } = await supabase
-        .from('textil_zuordnungen')
-        .insert({
+      try {
+        const assignmentData = await textileService.createAssignment({
           teilauftrag_id: subOrder.id,
           motiv_id: mid,
           position_id: posId,
         })
-        .select(ASSIGNMENT_EMBED_SELECT)
-        .single()
-      if (assignmentError) return { ok: false, message: assignmentInsertErrorMessage(assignmentError) }
-      if (assignmentData) currentAssignments = [...currentAssignments, assignmentData as unknown as TextileAssignmentRow]
+        currentAssignments = [...currentAssignments, assignmentData]
+      } catch (err) {
+        return { ok: false, message: assignmentInsertErrorMessage(err as { message?: string; code?: string }) }
+      }
     }
     return { ok: true, updatedAssignments: currentAssignments }
   }
@@ -656,47 +603,29 @@ export function TextileDetail({
         return
       }
       setIsSaving(true)
-      const motifQuery = editId
-        ? supabase
-            .from('textil_motive')
-            .update({
-              typ: 'TEXT',
-              platz: motifPlacement,
-              groesse: sizeValue,
-              druckart: motifPrintMethod.trim() || null,
-              inhalt: motifContent.trim(),
-              farbe: motifColor.trim(),
-              schriftklasse: motifFontClass,
-              schriftart: motifFontStyle.trim() || null,
-              datei_id: null,
-            })
-            .eq('id', editId)
-            .select('*')
-            .single()
-        : supabase
-            .from('textil_motive')
-            .insert({
-              teilauftrag_id: subOrderId,
-              typ: 'TEXT',
-              platz: motifPlacement,
-              groesse: sizeValue,
-              druckart: motifPrintMethod.trim() || null,
-              inhalt: motifContent.trim(),
-              farbe: motifColor.trim(),
-              schriftklasse: motifFontClass,
-              schriftart: motifFontStyle.trim() || null,
-              datei_id: null,
-            })
-            .select('*')
-            .single()
-      const { data, error } = await motifQuery
-      setIsSaving(false)
-      if (error) {
-        setError(error.message)
+      let motifRow: TextileMotifRow
+      try {
+        const textPatch = {
+          typ: 'TEXT' as const,
+          platz: motifPlacement,
+          groesse: sizeValue,
+          druckart: motifPrintMethod.trim() || null,
+          inhalt: motifContent.trim(),
+          farbe: motifColor.trim(),
+          schriftklasse: motifFontClass,
+          schriftart: motifFontStyle.trim() || null,
+          datei_id: null,
+        }
+        motifRow = editId
+          ? await textileService.updateMotif(editId, textPatch)
+          : await textileService.createMotif({ teilauftrag_id: subOrderId, ...textPatch })
+      } catch (err) {
+        setIsSaving(false)
+        setError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen')
         return
       }
-      if (data) {
-        const motifRow = data as TextileMotifRow
+      setIsSaving(false)
+      {
         const nextMotifs = editId ? motifs.map(x => (x.id === editId ? motifRow : x)) : [...motifs, motifRow]
         setMotifs(nextMotifs)
         setMotifEditId(null)
@@ -710,47 +639,29 @@ export function TextileDetail({
         return
       }
       setIsSaving(true)
-      const motifFileQuery = editId
-        ? supabase
-            .from('textil_motive')
-            .update({
-              typ: 'DATEI',
-              platz: motifPlacement,
-              groesse: sizeValue,
-              druckart: motifPrintMethod.trim() || null,
-              inhalt: null,
-              farbe: null,
-              schriftklasse: null,
-              schriftart: null,
-              datei_id: motifFileId,
-            })
-            .eq('id', editId)
-            .select('*')
-            .single()
-        : supabase
-            .from('textil_motive')
-            .insert({
-              teilauftrag_id: subOrderId,
-              typ: 'DATEI',
-              platz: motifPlacement,
-              groesse: sizeValue,
-              druckart: motifPrintMethod.trim() || null,
-              inhalt: null,
-              farbe: null,
-              schriftklasse: null,
-              schriftart: null,
-              datei_id: motifFileId,
-            })
-            .select('*')
-            .single()
-      const { data, error } = await motifFileQuery
-      setIsSaving(false)
-      if (error) {
-        setError(error.message)
+      let motifRow: TextileMotifRow
+      try {
+        const filePatch = {
+          typ: 'DATEI' as const,
+          platz: motifPlacement,
+          groesse: sizeValue,
+          druckart: motifPrintMethod.trim() || null,
+          inhalt: null,
+          farbe: null,
+          schriftklasse: null,
+          schriftart: null,
+          datei_id: motifFileId,
+        }
+        motifRow = editId
+          ? await textileService.updateMotif(editId, filePatch)
+          : await textileService.createMotif({ teilauftrag_id: subOrderId, ...filePatch })
+      } catch (err) {
+        setIsSaving(false)
+        setError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen')
         return
       }
-      if (data) {
-        const motifRow = data as TextileMotifRow
+      setIsSaving(false)
+      {
         const nextMotifs = editId ? motifs.map(x => (x.id === editId ? motifRow : x)) : [...motifs, motifRow]
         setMotifs(nextMotifs)
         setMotifEditId(null)
@@ -793,9 +704,8 @@ export function TextileDetail({
           return
         }
         setIsSaving(true)
-        const { error: updateError } = await supabase
-          .from('textil_positionen')
-          .update({
+        try {
+          await textileService.updatePosition(editId, {
             herkunft: 'KUNDENWARE',
             typ: positionGarmentType,
             farbe: positionColor.trim(),
@@ -805,10 +715,9 @@ export function TextileDetail({
             groesse: null,
             variante_id: null,
           })
-          .eq('id', editId)
-        if (updateError) {
+        } catch (err) {
           setIsSaving(false)
-          setError(updateError.message)
+          setError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen')
           return
         }
         const assignmentSyncResult = await syncAssignmentsForPosition(editId, desiredMotifIds, assignments)
@@ -866,9 +775,8 @@ export function TextileDetail({
         }
       }
       setIsSaving(true)
-      const { error: ownGoodsUpdateError } = await supabase
-        .from('textil_positionen')
-        .update({
+      try {
+        await textileService.updatePosition(editId, {
           herkunft: 'EIGENWARE',
           typ: null,
           farbe: positionColor.trim(),
@@ -878,10 +786,9 @@ export function TextileDetail({
           groesse: positionSize.trim(),
           variante_id: ownGoodsMode === 'STAMMDATEN' ? (selectedVariantId || null) : null,
         })
-        .eq('id', editId)
-      if (ownGoodsUpdateError) {
+      } catch (err) {
         setIsSaving(false)
-        setError(ownGoodsUpdateError.message)
+        setError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen')
         return
       }
       const ownGoodsSyncResult = await syncAssignmentsForPosition(editId, desiredMotifIds, assignments)
@@ -941,9 +848,9 @@ export function TextileDetail({
         return
       }
       setIsSaving(true)
-      const { data, error } = await supabase
-        .from('textil_positionen')
-        .insert({
+      let positionRow: TextilePositionRow
+      try {
+        positionRow = await textileService.createPosition({
           teilauftrag_id: subOrderId,
           herkunft: 'KUNDENWARE',
           typ: positionGarmentType,
@@ -953,15 +860,13 @@ export function TextileDetail({
           modell: null,
           groesse: null,
         })
-        .select('*')
-        .single()
-      setIsSaving(false)
-      if (error) {
-        setError(error.message)
+      } catch (err) {
+        setIsSaving(false)
+        setError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen')
         return
       }
-      if (data) {
-        const positionRow = data as TextilePositionRow
+      setIsSaving(false)
+      {
         const nextPositions = [...positions, positionRow]
         setPositions(nextPositions)
 
@@ -971,28 +876,25 @@ export function TextileDetail({
           setIsSaving(true)
           try {
             for (const mid of newMotifIds) {
-              const { data: assignmentData, error: assignmentError } = await supabase
-                .from('textil_zuordnungen')
-                .insert({
+              try {
+                const assignmentData = await textileService.createAssignment({
                   teilauftrag_id: subOrder.id,
                   motiv_id: mid,
                   position_id: positionRow.id,
                 })
-                .select(ASSIGNMENT_EMBED_SELECT)
-                .single()
-              if (assignmentError) {
-                await supabase.from('textil_zuordnungen').delete().eq('position_id', positionRow.id)
-                await supabase.from('textil_positionen').delete().eq('id', positionRow.id)
+                assignmentAccumulator = [...assignmentAccumulator, assignmentData]
+              } catch (assignmentError) {
+                await textileService.deleteAssignmentsByPosition(positionRow.id).catch(() => {})
+                await textileService.deletePosition(positionRow.id).catch(() => {})
                 setPositions(positions)
                 setAssignments(assignments)
-                setError(assignmentInsertErrorMessage(assignmentError))
+                setError(assignmentInsertErrorMessage(assignmentError as { message?: string; code?: string }))
                 resetPositionForm()
                 setPositionMotifIds(prev => ({ ...prev, [NEW_POSITION_SLOT]: [] }))
                 const isProductionStatus = subOrderRef.current.status === 'PRODUKTION_BEREIT' || subOrderRef.current.status === 'FERTIG'
                 void syncSubOrder(motifs, positions, assignments, isProductionStatus)
                 return
               }
-              if (assignmentData) assignmentAccumulator = [...assignmentAccumulator, assignmentData as unknown as TextileAssignmentRow]
             }
             setAssignments(assignmentAccumulator)
           } finally {
@@ -1029,9 +931,9 @@ export function TextileDetail({
         }
       }
       setIsSaving(true)
-      const { data, error } = await supabase
-        .from('textil_positionen')
-        .insert({
+      let positionRow: TextilePositionRow
+      try {
+        positionRow = await textileService.createPosition({
           teilauftrag_id: subOrderId,
           herkunft: 'EIGENWARE',
           typ: null,
@@ -1042,15 +944,13 @@ export function TextileDetail({
           groesse: positionSize.trim(),
           variante_id: ownGoodsMode === 'STAMMDATEN' ? (selectedVariantId || null) : null,
         })
-        .select('*')
-        .single()
-      setIsSaving(false)
-      if (error) {
-        setError(error.message)
+      } catch (err) {
+        setIsSaving(false)
+        setError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen')
         return
       }
-      if (data) {
-        const positionRow = data as TextilePositionRow
+      setIsSaving(false)
+      {
         const nextPositions = [...positions, positionRow]
         setPositions(nextPositions)
         if (ownGoodsMode === 'STAMMDATEN' && selectedVariantId) {
@@ -1079,28 +979,25 @@ export function TextileDetail({
           setIsSaving(true)
           try {
             for (const mid of ownGoodsMotifIds) {
-              const { data: assignmentData, error: assignmentError } = await supabase
-                .from('textil_zuordnungen')
-                .insert({
+              try {
+                const assignmentData = await textileService.createAssignment({
                   teilauftrag_id: subOrder.id,
                   motiv_id: mid,
                   position_id: positionRow.id,
                 })
-                .select(ASSIGNMENT_EMBED_SELECT)
-                .single()
-              if (assignmentError) {
-                await supabase.from('textil_zuordnungen').delete().eq('position_id', positionRow.id)
-                await supabase.from('textil_positionen').delete().eq('id', positionRow.id)
+                assignmentAccumulator = [...assignmentAccumulator, assignmentData]
+              } catch (assignmentError) {
+                await textileService.deleteAssignmentsByPosition(positionRow.id).catch(() => {})
+                await textileService.deletePosition(positionRow.id).catch(() => {})
                 setPositions(positions)
                 setAssignments(assignments)
-                setError(assignmentInsertErrorMessage(assignmentError))
+                setError(assignmentInsertErrorMessage(assignmentError as { message?: string; code?: string }))
                 resetPositionForm()
                 setPositionMotifIds(prev => ({ ...prev, [NEW_POSITION_SLOT]: [] }))
                 const isProductionStatus = subOrderRef.current.status === 'PRODUKTION_BEREIT' || subOrderRef.current.status === 'FERTIG'
                 void syncSubOrder(motifs, positions, assignments, isProductionStatus)
                 return
               }
-              if (assignmentData) assignmentAccumulator = [...assignmentAccumulator, assignmentData as unknown as TextileAssignmentRow]
             }
             setAssignments(assignmentAccumulator)
           } finally {
@@ -1119,26 +1016,26 @@ export function TextileDetail({
   const deleteMotif = async (id: string) => {
     if (motifEditId === id) cancelMotifForm()
     setError(null)
-    const { data: inUse, error: cErr } = await supabase
-      .from('textil_zuordnungen')
-      .select('id')
-      .eq('motiv_id', id)
-      .limit(1)
-    if (cErr) {
-      setError(cErr.message)
+    let inUse: boolean
+    try {
+      inUse = await textileService.getAssignmentIdsByMotif(id).then(ids => ids.length > 0)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Fehler beim Prüfen')
       return
     }
-    if (inUse && inUse.length > 0) {
+    if (inUse) {
       setError('Motiv wird noch in einer Zuordnung verwendet.')
       return
     }
     setIsSaving(true)
-    const { error } = await supabase.from('textil_motive').delete().eq('id', id)
-    setIsSaving(false)
-    if (error) {
-      setError(error.message)
+    try {
+      await textileService.deleteMotif(id)
+    } catch (err) {
+      setIsSaving(false)
+      setError(err instanceof Error ? err.message : 'Löschen fehlgeschlagen')
       return
     }
+    setIsSaving(false)
     const remainingMotifs = motifs.filter(m => m.id !== id)
     setMotifs(remainingMotifs)
     const filteredAssignments = assignments.filter(z => z.motiv_id !== id)
@@ -1150,26 +1047,26 @@ export function TextileDetail({
   const deletePosition = async (id: string) => {
     if (positionEditId === id) cancelPositionForm()
     setError(null)
-    const { data: inUse, error: cErr } = await supabase
-      .from('textil_zuordnungen')
-      .select('id')
-      .eq('position_id', id)
-      .limit(1)
-    if (cErr) {
-      setError(cErr.message)
+    let inUse: boolean
+    try {
+      inUse = await textileService.getAssignmentIdsByPosition(id).then(ids => ids.length > 0)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Fehler beim Prüfen')
       return
     }
-    if (inUse && inUse.length > 0) {
+    if (inUse) {
       setError('Position wird noch in einer Zuordnung verwendet.')
       return
     }
     setIsSaving(true)
-    const { error } = await supabase.from('textil_positionen').delete().eq('id', id)
-    setIsSaving(false)
-    if (error) {
-      setError(error.message)
+    try {
+      await textileService.deletePosition(id)
+    } catch (err) {
+      setIsSaving(false)
+      setError(err instanceof Error ? err.message : 'Löschen fehlgeschlagen')
       return
     }
+    setIsSaving(false)
     const remainingPositions = positions.filter(p => p.id !== id)
     setPositions(remainingPositions)
     const filteredAssignments = assignments.filter(z => z.position_id !== id)
@@ -1181,12 +1078,14 @@ export function TextileDetail({
   const deleteAssignment = async (id: string) => {
     setError(null)
     setIsSaving(true)
-    const { error } = await supabase.from('textil_zuordnungen').delete().eq('id', id)
-    setIsSaving(false)
-    if (error) {
-      setError(error.message)
+    try {
+      await textileService.deleteAssignment(id)
+    } catch (err) {
+      setIsSaving(false)
+      setError(err instanceof Error ? err.message : 'Löschen fehlgeschlagen')
       return
     }
+    setIsSaving(false)
     const remainingAssignments = assignments.filter(z => z.id !== id)
     setAssignments(remainingAssignments)
     const isProductionStatus = subOrderRef.current.status === 'PRODUKTION_BEREIT' || subOrderRef.current.status === 'FERTIG'
