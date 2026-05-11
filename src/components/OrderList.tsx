@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { supabase } from '../supabase'
 import { customerService } from '../services/customerService'
 import { orderService, type OrderListEntry } from '../services/orderService'
 import { subOrderService } from '../services/subOrderService'
@@ -261,45 +260,11 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
   }, [orderInPlace])
 
   useEffect(() => {
-    const channel = supabase
-      .channel('orderlist-kunden-refresh')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'kunden' },
-        payload => {
-          const customerId = (payload.new as { id?: string } | null)?.id
-          if (!customerId) return
-          const affected = rawOrdersRef.current.some(order => order.kunde_id === customerId)
-          if (!affected) return
-          void loadOrders()
-        },
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'kunden' },
-        payload => {
-          const customerId = (payload.new as { id?: string } | null)?.id
-          if (!customerId) return
-          const affected = rawOrdersRef.current.some(order => order.kunde_id === customerId)
-          if (!affected) return
-          void loadOrders()
-        },
-      )
-      .on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'kunden' },
-        payload => {
-          const customerId = (payload.old as { id?: string } | null)?.id
-          if (!customerId) return
-          const affected = rawOrdersRef.current.some(order => order.kunde_id === customerId)
-          if (!affected) return
-          void loadOrders()
-        },
-      )
-      .subscribe()
-    return () => {
-      void supabase.removeChannel(channel)
-    }
+    return orderService.subscribeToCustomerChanges(customerId => {
+      if (rawOrdersRef.current.some(order => order.kunde_id === customerId)) {
+        void loadOrders()
+      }
+    })
   }, [loadOrders])
 
   const orders = useMemo(() => {

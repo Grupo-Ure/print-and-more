@@ -193,6 +193,25 @@ class OrderService {
     if (error) throw error
     return data as string
   }
+
+  subscribeToCustomerChanges(onChanged: (customerId: string) => void): () => void {
+    const channel = supabase
+      .channel('orderlist-kunden-refresh')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'kunden' }, payload => {
+        const customerId = (payload.new as { id?: string } | null)?.id
+        if (customerId) onChanged(customerId)
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'kunden' }, payload => {
+        const customerId = (payload.new as { id?: string } | null)?.id
+        if (customerId) onChanged(customerId)
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'kunden' }, payload => {
+        const customerId = (payload.old as { id?: string } | null)?.id
+        if (customerId) onChanged(customerId)
+      })
+      .subscribe()
+    return () => { void supabase.removeChannel(channel) }
+  }
 }
 
 export const orderService = new OrderService()
