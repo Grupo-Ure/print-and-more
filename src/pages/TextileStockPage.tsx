@@ -509,7 +509,7 @@ export function TextileStockPage() {
       const activeVariants = await textileMasterDataService.getVariantsWithDetails()
       const variantIdSet = new Set(activeVariants.map(v => v.id))
 
-      const activeSubOrders = await subOrderService.getActiveSubOrdersByBereich('TEXTIL')
+      const activeSubOrders = await subOrderService.getActiveSubOrdersByBereich('TEXTILE')
       const subOrderIds = activeSubOrders.filter(s => !s.storniert && s.status !== 'DONE').map(s => s.id)
       const demandByVariantId = new Map<string, number>()
 

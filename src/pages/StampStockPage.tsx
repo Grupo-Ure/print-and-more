@@ -473,7 +473,7 @@ export function StampStockPage() {
     setOrderListError(null)
     try {
       const modelsData = await stampService.getStampModels()
-      const allSubOrders = await subOrderService.getActiveSubOrdersByBereich('STEMPEL')
+      const allSubOrders = await subOrderService.getActiveSubOrdersByBereich('STAMP')
       const subOrderData = allSubOrders.filter(s => s.status !== 'DONE' && !s.storniert)
 
       const activeModels = (modelsData as unknown as StampModelOrderRow[]).slice()

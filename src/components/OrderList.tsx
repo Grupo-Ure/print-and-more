@@ -7,11 +7,11 @@ import { formatDateDe } from '../lib/formatDate'
 import { customerName } from '../lib/customer'
 import {
   SUB_ORDER_DEPARTMENTS,
-  SUB_ORDER_DEPARTMENT_LABELS,
   type Auftrag,
   type OrderStatus,
   type SubOrderRow,
 } from '../types/database'
+import { SUB_ORDER_DEPARTMENT_LABELS } from '../const/departmentAbbreviation'
 import { DateInput } from './DateInput'
 import { DuplicateDialog } from './DuplicateDialog'
 import { useToast } from './Toast'

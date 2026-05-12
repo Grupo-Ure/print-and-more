@@ -184,7 +184,7 @@ export function ContextPanel({
   const { fehler, erfolg } = useToast()
 
   useEffect(() => {
-    if (!activeSubOrder || activeSubOrder.bereich !== 'STEMPEL') {
+    if (!activeSubOrder || activeSubOrder.bereich !== 'STAMP') {
       setStampStock(null)
       setPadStock(null)
       return
@@ -373,7 +373,7 @@ export function ContextPanel({
     setBusy(true)
     try {
       // Stempel: Automatischer Lagerabgang (vor Status-Update).
-      if (subOrder.bereich === 'STEMPEL') {
+      if (subOrder.bereich === 'STAMP') {
         const stampDetail = subOrderDetailToFieldMap(subOrder.detail)
         const rawQuantity = stampDetail.stueckzahl
         const parsedQuantity =
@@ -429,7 +429,7 @@ export function ContextPanel({
       }
 
       // Textil: Automatischer Lagerabgang (vor Status-Update).
-      if (subOrder.bereich === 'TEXTIL') {
+      if (subOrder.bereich === 'TEXTILE') {
         const textileNote = 'Automatisch bei Produktionsfreigabe ' + (order.auftragsnummer ?? '')
         const user = await authService.getUser()
         const userId = user?.id ?? null
@@ -481,7 +481,7 @@ export function ContextPanel({
   const handleProduktionFrei = () => {
     if (busy || !subOrder || subOrder.status !== 'PREPRESS_READY') return
     if (subOrder.kundenfreigabe_erforderlich && !subOrder.kundenfreigabe_liegt_vor) return
-    if (subOrder.bereich === 'STEMPEL') {
+    if (subOrder.bereich === 'STAMP') {
       if (isStampStockCritical(stampStock, padStock)) {
         setProductionStockZeroDialogOpen(true)
         return
@@ -679,7 +679,7 @@ export function ContextPanel({
   const currentStampDetail = subOrder? subOrderDetailToFieldMap(subOrder.detail) : {}
   const completionBlockedByStock =
     !!subOrder &&
-    subOrder.bereich === 'STEMPEL' &&
+    subOrder.bereich === 'STAMP' &&
     subOrder.status === 'PRODUCTION_READY' &&
     hasStampModelLinked(currentStampDetail) &&
     isStampStockCritical(stampStock, padStock)
@@ -723,7 +723,7 @@ export function ContextPanel({
               )}
             </div>
           )}
-          {subOrder?.bereich === 'STEMPEL' && hasStampModelLinked(currentStampDetail) && (
+          {subOrder?.bereich === 'STAMP' && hasStampModelLinked(currentStampDetail) && (
             <p className="cp-hinweis cp-hinweis--komp" style={{ marginTop: 6 }}>
               Lager: Stempel {stockDisplayValue(stampStock)} · Kissen {stockDisplayValue(padStock)}
             </p>

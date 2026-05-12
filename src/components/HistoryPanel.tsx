@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { historyService, type HistoryRow } from '../services/historyService'
 import { employeeService } from '../services/employeeService'
-import { subOrderDepartmentLabel } from '../types/database'
+import { subOrderDepartmentLabel } from '../const/departmentAbbreviation'
 import { useToast } from './Toast'
 import './ContextPanel.css'
 

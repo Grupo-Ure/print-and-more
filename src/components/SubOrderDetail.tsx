@@ -9,13 +9,13 @@ import {
 } from '../lib/subOrderShared'
 import {
   SUB_ORDER_DEPARTMENTS,
-  subOrderDepartmentLabel,
   type OrderStatus,
   type CustomerContactJoin,
   type DeliveryChoice,
   type Priority,
   type SubOrderRow,
 } from '../types/database'
+import { subOrderDepartmentLabel } from '../const/departmentAbbreviation'
 import type { Database } from '../types/supabase'
 import { DateInput } from './DateInput'
 import { useToast } from './Toast'
@@ -345,12 +345,12 @@ export function SubOrderDetail({
         </span>
       </div>
       {shouldValidate &&
-        local.bereich !== 'SONSTIGE' &&
+        local.bereich !== 'OTHER' &&
         customerMeetsPrepressContact(orderCustomer) === false &&
         (local.bereich === 'LFP' ||
           local.bereich === 'COPYSHOP' ||
-          (local.bereich === 'STEMPEL' && local.typ !== 'SONSTIGE_STEMPEL') ||
-          (local.bereich === 'LASERGRAVUR' && local.typ !== 'SONSTIGE_LASER')) && (
+          (local.bereich === 'STAMP' && local.typ !== 'SONSTIGE_STEMPEL') ||
+          (local.bereich === 'LASER_ENGRAVING' && local.typ !== 'SONSTIGE_LASER')) && (
           <p className="ber-hinweis">Für Auto-PREPRESS: Kunde braucht Name und E-Mail oder Telefon.</p>
         )}
 
@@ -540,19 +540,19 @@ export function SubOrderDetail({
         <CopyShopDetail subOrder={local} subOrderStatus={local.status} onDetailPatch={onCopyShopPatch} orderFiles={orderFiles} />
       )}
 
-      {local.bereich === 'STEMPEL' && (
+      {local.bereich === 'STAMP' && (
         <StampDetail subOrder={local} subOrderStatus={local.status} onDetailPatch={onStampPatch} orderFiles={orderFiles} />
       )}
 
-      {local.bereich === 'SONSTIGE' && (
+      {local.bereich === 'OTHER' && (
         <OtherDetail subOrder={local} subOrderStatus={local.status} onDetailPatch={onOtherPatch} orderFiles={orderFiles} />
       )}
 
-      {local.bereich === 'LASERGRAVUR' && (
+      {local.bereich === 'LASER_ENGRAVING' && (
         <LaserDetail subOrder={local} subOrderStatus={local.status} onDetailPatch={onLaserPatch} orderFiles={orderFiles} />
       )}
 
-      {local.bereich === 'TEXTIL' && (
+      {local.bereich === 'TEXTILE' && (
         <TextileDetail
           subOrder={local}
           subOrderStatus={local.status}
@@ -565,10 +565,10 @@ export function SubOrderDetail({
 
       {local.bereich !== 'LFP' &&
         local.bereich !== 'COPYSHOP' &&
-        local.bereich !== 'STEMPEL' &&
-        local.bereich !== 'SONSTIGE' &&
-        local.bereich !== 'LASERGRAVUR' &&
-        local.bereich !== 'TEXTIL' && (
+        local.bereich !== 'STAMP' &&
+        local.bereich !== 'OTHER' &&
+        local.bereich !== 'LASER_ENGRAVING' &&
+        local.bereich !== 'TEXTILE' && (
         <>
           <div className="td-zeile" style={{ marginTop: 8 }}>
             <p className="td-label">Typ</p>

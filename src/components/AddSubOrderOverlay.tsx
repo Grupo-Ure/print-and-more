@@ -1,8 +1,5 @@
-import {
-  SUB_ORDER_DEPARTMENTS,
-  SUB_ORDER_DEPARTMENT_LABELS,
-  type Department,
-} from '../types/database'
+import { type Department, SUB_ORDER_DEPARTMENTS } from '../types/database'
+import { SUB_ORDER_DEPARTMENT_LABELS } from '../const/departmentAbbreviation'
 import './WorkArea.css'
 
 type Props = {

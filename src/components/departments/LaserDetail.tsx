@@ -285,7 +285,7 @@ export function LaserDetail({
 
     const productInsert: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
       teilauftrag_id: subOrder.id,
-      bereich: 'LASERGRAVUR',
+      bereich: 'LASER_ENGRAVING',
       detail: { ...filteredDetail, typ: currentType } as Json,
       sort_order: products.length,
     }

@@ -25,7 +25,7 @@ type ProductRow = {
   erstellt_am: string | null
 }
 
-const SONSTIGE_TYPE = 'SONSTIGE' as const
+const SONSTIGE_TYPE = 'OTHER' as const
 
 function extractOtherRaw(subOrder: SubOrderRow): OtherDetailJson {
   const rawDetail = subOrder.detail
@@ -259,7 +259,7 @@ export function OtherDetail({
 
     const productInsert: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
       teilauftrag_id: subOrder.id,
-      bereich: 'SONSTIGE',
+      bereich: 'OTHER',
       detail: detailWithType as Json,
       sort_order: products.length,
     }

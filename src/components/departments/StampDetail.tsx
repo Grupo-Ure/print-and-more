@@ -585,7 +585,7 @@ export function StampDetail({
 
     const insertRow: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
       teilauftrag_id: subOrder.id,
-      bereich: 'STEMPEL',
+      bereich: 'STAMP',
       detail: { ...currentDetail, typ: currentType } as Json,
       sort_order: products.length,
     }

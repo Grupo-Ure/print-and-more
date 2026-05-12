@@ -7,7 +7,6 @@ import { subOrderService } from '../services/subOrderService'
 import { customerName } from '../lib/customer'
 import { departmentAbbreviation } from '../const/departmentAbbreviation'
 import {
-  subOrderDepartmentLabel,
   type Auftrag,
   type OrderDetailRow,
   type OrderStatus,
@@ -18,6 +17,7 @@ import {
   type Priority,
   type SubOrderRow,
 } from '../types/database'
+import { subOrderDepartmentLabel } from '../const/departmentAbbreviation'
 import { useToast } from './Toast'
 import { AddSubOrderOverlay } from './AddSubOrderOverlay'
 import { DateInput } from './DateInput'

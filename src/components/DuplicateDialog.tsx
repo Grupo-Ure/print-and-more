@@ -3,7 +3,7 @@ import { authService } from '../services/authService'
 import { orderService } from '../services/orderService'
 import { customerName } from '../lib/customer'
 import { subOrderDetailToFieldMap, type Auftrag, type SubOrderRow } from '../types/database'
-import { SUB_ORDER_DEPARTMENT_LABELS, subOrderDepartmentLabel } from '../types/database'
+import { SUB_ORDER_DEPARTMENT_LABELS, subOrderDepartmentLabel } from '../const/departmentAbbreviation'
 import { LFP_TYPE_LABELS } from '../types/lfp'
 import { COPY_SHOP_TYPE_LABELS } from '../types/copyshop'
 import { STAMP_TYPE_LABELS } from '../types/stamp'
@@ -25,9 +25,9 @@ function readableSubOrderType(bereich: string, typ: string | null): string {
   if (bereich === 'LFP' && typ in LFP_TYPE_LABELS) return LFP_TYPE_LABELS[typ as keyof typeof LFP_TYPE_LABELS]
   if (bereich === 'COPYSHOP' && typ in COPY_SHOP_TYPE_LABELS)
     return COPY_SHOP_TYPE_LABELS[typ as keyof typeof COPY_SHOP_TYPE_LABELS]
-  if (bereich === 'STEMPEL' && typ in STAMP_TYPE_LABELS)
+  if (bereich === 'STAMP' && typ in STAMP_TYPE_LABELS)
     return STAMP_TYPE_LABELS[typ as keyof typeof STAMP_TYPE_LABELS]
-  if (bereich === 'LASERGRAVUR' && typ in LASER_TYPE_LABELS)
+  if (bereich === 'LASER_ENGRAVING' && typ in LASER_TYPE_LABELS)
     return LASER_TYPE_LABELS[typ as keyof typeof LASER_TYPE_LABELS]
   return typ
 }

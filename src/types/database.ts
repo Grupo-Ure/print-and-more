@@ -5,35 +5,11 @@ export type OrderStatus = Enums<'order_status'>
 
 export const ORDER_STATUS_LIST: readonly OrderStatus[] = Constants.public.Enums.order_status
 
-/** Werte = Supabase-Enum `teilauftrag_bereich` (Großbuchstaben, kein Leerzeichen) */
-export const SUB_ORDER_DEPARTMENTS = [
-  'LFP',
-  'COPYSHOP',
-  'TEXTIL',
-  'STEMPEL',
-  'LASERGRAVUR',
-  'SONSTIGE',
-] as const
+export type SubOrderDepartment = Enums<'sub_order_department'>
 
-export type SubOrderDepartment = (typeof SUB_ORDER_DEPARTMENTS)[number]
-
-export const SUB_ORDER_DEPARTMENT_LABELS: Record<SubOrderDepartment, string> = {
-  LFP: 'LFP',
-  COPYSHOP: 'CopyShop',
-  TEXTIL: 'Textil',
-  STEMPEL: 'Stempel',
-  LASERGRAVUR: 'Lasergravur',
-  SONSTIGE: 'Sonstige',
-}
+export const SUB_ORDER_DEPARTMENTS: readonly SubOrderDepartment[] = Constants.public.Enums.sub_order_department
 
 export type Department = SubOrderDepartment
-
-export function subOrderDepartmentLabel(department: string): string {
-  if (department in SUB_ORDER_DEPARTMENT_LABELS) {
-    return SUB_ORDER_DEPARTMENT_LABELS[department as SubOrderDepartment]
-  }
-  return department
-}
 
 /** Entspricht `prioritaet_typ` in der DB (Auftrag und Teilauftrag). */
 export type Priority = 'NORMAL' | 'HOCH'

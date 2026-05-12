@@ -20,7 +20,7 @@
  *   applies dirty-detection rules and per-Bereich auto-prepress
  *   eligibility, and returns the status the sub-order should land in.
  *
- * String values like `'STEMPEL'`, `'SONSTIGE_STEMPEL'`, status enums,
+ * String values like `'STAMP'`, `'SONSTIGE_STEMPEL'`, status enums,
  * etc. mirror the Postgres enums and stay German; only the TypeScript
  * identifier surface is English here.
  */
@@ -42,7 +42,7 @@ const UUID_LOOSE = /^[0-9a-fA-F-]{30,40}$/
  * Inside Stamp, only the structured typen are auto-advanced.
  */
 function autoPrepressAllowed(merged: SubOrderRow): boolean {
-  if (merged.bereich === 'STEMPEL') {
+  if (merged.bereich === 'STAMP') {
     if (merged.typ === 'SONSTIGE_STEMPEL') return false
     return (
       merged.typ === 'TRODAT_PRINTY' ||
@@ -55,8 +55,8 @@ function autoPrepressAllowed(merged: SubOrderRow): boolean {
       merged.typ === 'STEMPELPLATTE'
     )
   }
-  if (merged.bereich === 'SONSTIGE') return false
-  if (merged.bereich === 'LASERGRAVUR' && merged.typ === 'SONSTIGE_LASER') return false
+  if (merged.bereich === 'OTHER') return false
+  if (merged.bereich === 'LASER_ENGRAVING' && merged.typ === 'SONSTIGE_LASER') return false
   if (merged.bereich === 'LFP' && merged.typ === 'SONSTIGE_LFP') return false
   return true
 }
@@ -162,14 +162,14 @@ export function isSubOrderComplete(subOrder: SubOrderRow, status: OrderStatus): 
   if (
     subOrder.bereich === 'LFP' ||
     subOrder.bereich === 'COPYSHOP' ||
-    subOrder.bereich === 'STEMPEL' ||
-    subOrder.bereich === 'LASERGRAVUR' ||
-    subOrder.bereich === 'SONSTIGE'
+    subOrder.bereich === 'STAMP' ||
+    subOrder.bereich === 'LASER_ENGRAVING' ||
+    subOrder.bereich === 'OTHER'
   ) {
     const detailFields = subOrderDetailToFieldMap(subOrder.detail)
     return detailFields?.hat_produkte === true
   }
-  if (subOrder.bereich === 'TEXTIL') {
+  if (subOrder.bereich === 'TEXTILE') {
     if (Object.keys(validateSubOrderCommonFields(subOrder, status)).length > 0) return false
     return textileDetailMarkedComplete(subOrder.detail)
   }
@@ -212,11 +212,11 @@ export function nextSubOrderStatus(
 
   if (before === 'QUOTE') return 'QUOTE'
   if (before === 'PRODUCTION_READY' || before === 'DONE') {
-    if (merged.bereich === 'STEMPEL' || merged.bereich === 'SONSTIGE') {
+    if (merged.bereich === 'STAMP' || merged.bereich === 'OTHER') {
       if (descriptionDetailChangedAfterProduction(snap, merged)) return 'INCOMPLETE'
       return before
     }
-    if (merged.bereich === 'LASERGRAVUR') {
+    if (merged.bereich === 'LASER_ENGRAVING') {
       if (motifDetailChangedAfterProduction(snap, merged)) return 'INCOMPLETE'
       return before
     }
@@ -225,10 +225,10 @@ export function nextSubOrderStatus(
   }
   const lfp = merged.bereich === 'LFP'
   const copyShop = merged.bereich === 'COPYSHOP'
-  const stamp = merged.bereich === 'STEMPEL'
-  const other = merged.bereich === 'SONSTIGE'
-  const laser = merged.bereich === 'LASERGRAVUR'
-  const textile = merged.bereich === 'TEXTIL'
+  const stamp = merged.bereich === 'STAMP'
+  const other = merged.bereich === 'OTHER'
+  const laser = merged.bereich === 'LASER_ENGRAVING'
+  const textile = merged.bereich === 'TEXTILE'
   if (textile) {
     if (!complete) return 'INCOMPLETE'
     if (customerPrepressOk) return capPrepress('PREPRESS_READY')

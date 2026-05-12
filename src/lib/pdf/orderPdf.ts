@@ -327,7 +327,7 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
     })
     cursorY = ((doc as PdfDoc).lastAutoTable?.finalY ?? cursorY) + 8
 
-    if (products.length > 0 && subOrder.bereich !== 'TEXTIL') {
+    if (products.length > 0 && subOrder.bereich !== 'TEXTILE') {
       cursorY = checkNewPage(doc, cursorY, 30)
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(10)
@@ -354,7 +354,7 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
       cursorY = ((doc as PdfDoc).lastAutoTable?.finalY ?? cursorY) + 8
     }
 
-    if (subOrder.bereich === 'TEXTIL' && textilePositions.length > 0) {
+    if (subOrder.bereich === 'TEXTILE' && textilePositions.length > 0) {
       cursorY = checkNewPage(doc, cursorY, 30)
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(10)
