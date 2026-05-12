@@ -74,7 +74,7 @@ export function validateSubOrderCommonFields(
 ): Record<string, string> {
   const errors: Record<string, string> = {}
   if (status === 'QUOTE') return errors
-  if (subOrder.lieferung !== 'ABHOLUNG' && subOrder.lieferung !== 'VERSAND') errors.lieferung = 'Pflichtfeld'
+  if (subOrder.lieferung !== 'PICKUP' && subOrder.lieferung !== 'SHIPPING') errors.lieferung = 'Pflichtfeld'
   if (!subOrder.termin) errors.termin = 'Pflichtfeld'
   if (subOrder.prioritaet !== 'NORMAL' && subOrder.prioritaet !== 'HIGH') {
     errors.prioritaet = 'Pflichtfeld'

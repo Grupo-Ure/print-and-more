@@ -84,7 +84,7 @@ export function SubOrderDetail({
   const [savePending, setSavePending] = useState(false)
   const { fehler } = useToast()
 
-  const orderDeliveryMode = (orderDelivery ?? 'ABHOLUNG') as DeliveryChoice
+  const orderDeliveryMode = (orderDelivery ?? 'PICKUP') as DeliveryChoice
   const orderPriorityMode: Priority = orderPriority
 
   useEffect(() => {
@@ -422,7 +422,7 @@ export function SubOrderDetail({
                   if (!isChecked) {
                     void save({ lieferung: orderDeliveryMode })
                   } else {
-                    const alternativeDelivery = orderDeliveryMode === 'ABHOLUNG' ? 'VERSAND' : 'ABHOLUNG'
+                    const alternativeDelivery = orderDeliveryMode === 'PICKUP' ? 'SHIPPING' : 'PICKUP'
                     setLocal(s => ({ ...s, lieferung: alternativeDelivery }))
                     void save({ lieferung: alternativeDelivery })
                   }
@@ -436,22 +436,22 @@ export function SubOrderDetail({
                   className={'ber-inp' + fieldErrorClass('lieferung')}
                   value={local.lieferung ?? orderDeliveryMode}
                   onChange={e => {
-                    const value = e.target.value as 'ABHOLUNG' | 'VERSAND'
+                    const value = e.target.value as 'PICKUP' | 'SHIPPING'
                     setLocal(s => ({ ...s, lieferung: value }))
                   }}
                   onBlur={e => {
-                    const value = (e.target.value as 'ABHOLUNG' | 'VERSAND') || orderDeliveryMode
+                    const value = (e.target.value as 'PICKUP' | 'SHIPPING') || orderDeliveryMode
                     if (value !== serverSnapshotRef.current.lieferung) void save({ lieferung: value })
                   }}
                 >
-                  <option value="ABHOLUNG">Abholung</option>
-                  <option value="VERSAND">Versand</option>
+                  <option value="PICKUP">Abholung</option>
+                  <option value="SHIPPING">Versand</option>
                 </select>
                 {shouldValidate && validationErrors.lieferung && <p className="td-feld-err">{validationErrors.lieferung}</p>}
               </div>
             ) : (
               <div className="cp-hinweis" style={{ marginTop: 6, marginBottom: 0 }}>
-                {effectiveDelivery === 'ABHOLUNG' ? 'Abholung' : 'Versand'}
+                {effectiveDelivery === 'PICKUP' ? 'Abholung' : 'Versand'}
                 {shouldValidate && validationErrors.lieferung && <p className="td-feld-err">{validationErrors.lieferung}</p>}
               </div>
             )}
@@ -494,7 +494,7 @@ export function SubOrderDetail({
                 }}
               >
                 <option value="NORMAL">Normal</option>
-                <option value="HOCH">Hoch</option>
+                <option value="HIGH">Hoch</option>
               </select>
               {shouldValidate && validationErrors.prioritaet && <p className="td-feld-err">{validationErrors.prioritaet}</p>}
             </div>

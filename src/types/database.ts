@@ -71,7 +71,7 @@ export type OrderDetailRow = {
 /** Rechte Spalte / Kontext (identisch mit geladenem Auftrag) */
 export type Auftrag = OrderDetailRow
 
-export type DeliveryChoice = 'ABHOLUNG' | 'VERSAND'
+export type DeliveryChoice = Enums<'delivery_type'>
 
 export type SubOrderRow = {
   id: string

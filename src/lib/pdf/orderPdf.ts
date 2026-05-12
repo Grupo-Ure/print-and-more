@@ -6,7 +6,7 @@ import { subOrderService } from '../../services/subOrderService'
 import { subOrderProductService } from '../../services/subOrderProductService'
 import { textileService } from '../../services/textileService'
 import type { Database } from '../../types/supabase'
-import type { Priority } from '../../types/database'
+import type { DeliveryChoice, Priority } from '../../types/database'
 
 type OrderPdfRow = Pick<
   Database['public']['Tables']['auftraege']['Row'],
@@ -169,9 +169,9 @@ function buildFileName(
   return `${normalizedCustomer}_${yearMonthStr}_${departmentStr}_${orderNumberStr}.pdf`
 }
 
-function formatDelivery(deliveryType: Database['public']['Enums']['lieferung_typ'] | null | undefined): string {
-  if (deliveryType === 'ABHOLUNG') return 'Abholung'
-  if (deliveryType === 'VERSAND') return 'Versand'
+function formatDelivery(deliveryType: DeliveryChoice | null | undefined): string {
+  if (deliveryType === 'PICKUP') return 'Abholung'
+  if (deliveryType === 'SHIPPING') return 'Versand'
   return '—'
 }
 

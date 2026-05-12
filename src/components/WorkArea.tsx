@@ -297,7 +297,7 @@ export function WorkArea({
         : order.termin
       : `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
     const priority = order.prioritaet
-    const delivery = order.lieferung ?? 'ABHOLUNG'
+    const delivery = order.lieferung ?? 'PICKUP'
     let data: SubOrderRow
     try {
       data = await subOrderService.createSubOrder({
@@ -468,7 +468,7 @@ export function WorkArea({
             value={headerDelivery}
             onChange={e => {
               const value = e.target.value
-              const deliveryValue: DeliveryChoice | null = value === 'ABHOLUNG' || value === 'VERSAND' ? value : null
+              const deliveryValue: DeliveryChoice | null = value === 'PICKUP' || value === 'SHIPPING' ? value : null
               setHeaderDelivery(deliveryValue ?? '')
               if (deliveryValue !== headerSnapshot.current.lieferung) {
                 void saveOrderHeader({ lieferung: deliveryValue })
@@ -476,8 +476,8 @@ export function WorkArea({
             }}
           >
             <option value="">—</option>
-            <option value="ABHOLUNG">Abholung</option>
-            <option value="VERSAND">Versand</option>
+            <option value="PICKUP">Abholung</option>
+            <option value="SHIPPING">Versand</option>
           </select>
         </label>
         <label className="meta-pill" title="Priorität">
@@ -497,7 +497,7 @@ export function WorkArea({
             }}
           >
             <option value="NORMAL">Normal</option>
-            <option value="HOCH">Hoch</option>
+            <option value="HIGH">Hoch</option>
           </select>
         </label>
       </section>

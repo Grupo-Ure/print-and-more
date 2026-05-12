@@ -108,7 +108,7 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
       kunde_id: selectedCustomer.id,
       status: 'QUOTE',
       termin: null,
-      lieferung: 'ABHOLUNG',
+      lieferung: 'PICKUP',
       prioritaet: 'NORMAL',
     }
     let data: NewOrderInsertRow
