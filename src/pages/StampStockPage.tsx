@@ -87,13 +87,13 @@ type MovementType = 'ZUGANG' | 'ABGANG' | 'AUTOABGANG'
 
 type StockMovementRow = {
   id: string
-  modell_id: string
-  menge: number
-  typ: MovementType
-  notiz: string | null
-  person_id: string | null
-  erstellt_am: string
-  stempel_modelle?: { name: string } | { name: string }[] | null
+  model_id: string
+  quantity: number
+  type: MovementType
+  note: string | null
+  user_id: string | null
+  created_at: string
+  stamp_models?: { name: string } | { name: string }[] | null
 }
 
 type Tab = 'OVERVIEW' | 'MOVEMENTS' | 'ORDER_LIST'
@@ -387,10 +387,10 @@ export function StampStockPage() {
     try {
       await stampService.updateStampModelStock(model.id, nextStock)
       await stampService.createStockMovement({
-        modell_id: model.id,
-        menge: quantity,
-        typ: movementType,
-        person_id: session.user.id,
+        model_id: model.id,
+        quantity,
+        type: movementType,
+        user_id: session.user.id,
       })
 
       setModels(list => list.map(stampModel => (stampModel.id === model.id ? { ...stampModel, bestand: nextStock } : stampModel)))
@@ -452,11 +452,11 @@ export function StampStockPage() {
   const filteredMovements = useMemo(() => {
     const searchQuery = movementSearch.trim().toLowerCase()
     return movements.filter(movement => {
-      if (movementTypeFilter !== 'ALL' && movement.typ !== movementTypeFilter) return false
+      if (movementTypeFilter !== 'ALL' && movement.type !== movementTypeFilter) return false
       if (!searchQuery) return true
-      const name = joinName(movement.stempel_modelle).toLowerCase()
-      const notiz = String(movement.notiz ?? '').toLowerCase()
-      return name.includes(searchQuery) || notiz.includes(searchQuery)
+      const name = joinName(movement.stamp_models).toLowerCase()
+      const note = String(movement.note ?? '').toLowerCase()
+      return name.includes(searchQuery) || note.includes(searchQuery)
     })
   }, [movements, movementSearch, movementTypeFilter])
 
@@ -846,21 +846,21 @@ export function StampStockPage() {
               <tbody>
                 {filteredMovements.map(movement => {
                   const movementBadge =
-                    movement.typ === 'ZUGANG'
+                    movement.type === 'ZUGANG'
                       ? { cls: 'badge-gruen', label: 'Zugang' }
-                      : movement.typ === 'ABGANG'
+                      : movement.type === 'ABGANG'
                       ? { cls: 'badge-grau', label: 'Abgang' }
                       : { cls: 'badge-blau', label: 'Auto-Abgang' }
-                  const personEmail = movement.person_id ? staffEmailById.get(movement.person_id) ?? movement.person_id : ''
+                  const personEmail = movement.user_id ? staffEmailById.get(movement.user_id) ?? movement.user_id : ''
                   return (
                     <tr key={movement.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '8px 6px' }}>{formatDateTime(movement.erstellt_am)}</td>
-                      <td style={{ padding: '8px 6px', fontWeight: 600 }}>{joinName(movement.stempel_modelle)}</td>
+                      <td style={{ padding: '8px 6px' }}>{formatDateTime(movement.created_at)}</td>
+                      <td style={{ padding: '8px 6px', fontWeight: 600 }}>{joinName(movement.stamp_models)}</td>
                       <td style={{ padding: '8px 6px' }}>
                         <span className={`badge ${movementBadge.cls}`}>{movementBadge.label}</span>
                       </td>
-                      <td style={{ padding: '8px 6px' }}>{movement.menge}</td>
-                      <td style={{ padding: '8px 6px', opacity: 0.9 }}>{movement.notiz ?? ''}</td>
+                      <td style={{ padding: '8px 6px' }}>{movement.quantity}</td>
+                      <td style={{ padding: '8px 6px', opacity: 0.9 }}>{movement.note ?? ''}</td>
                       <td style={{ padding: '8px 6px', opacity: 0.85 }}>{personEmail}</td>
                     </tr>
                   )

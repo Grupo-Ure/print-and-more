@@ -110,8 +110,8 @@ export function LFPDetail({
       }
       const next: Record<string, ProductFileAssignment[]> = {}
       for (const row of rows) {
-        const list = next[row.produkt_id] ?? (next[row.produkt_id] = [])
-        list.push({ assignmentId: row.id, fileId: row.datei_id })
+        const list = next[row.product_id] ?? (next[row.product_id] = [])
+        list.push({ assignmentId: row.id, fileId: row.file_id })
       }
       setProductFiles(next)
     },
@@ -418,7 +418,7 @@ export function LFPDetail({
                 }}
               >
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {orderFiles.find(file => file.id === fid)?.anzeigename ?? fid}
+                  {orderFiles.find(file => file.id === fid)?.display_name ?? fid}
                 </span>
                 <button
                   type="button"
@@ -448,7 +448,7 @@ export function LFPDetail({
                 .filter(file => !formFileRecordIds.includes(file.id))
                 .map(file => (
                   <option key={file.id} value={file.id}>
-                    {file.anzeigename}
+                    {file.display_name}
                   </option>
                 ))}
             </select>
@@ -577,7 +577,7 @@ export function LFPDetail({
                             : fileAssignments
                                 .map(
                                   assignment =>
-                                    orderFiles.find(file => file.id === assignment.fileId)?.anzeigename ?? assignment.fileId,
+                                    orderFiles.find(file => file.id === assignment.fileId)?.display_name ?? assignment.fileId,
                                 )
                                 .join(', ')}
                         </div>

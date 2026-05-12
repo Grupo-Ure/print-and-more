@@ -118,8 +118,8 @@ export type TextileAssignmentRow = {
 /** Compact reference to an order file; used inside Textile composites where only display name and role matter. */
 export type FileRef = {
   id: string
-  anzeigename: string
-  rolle: string
+  display_name: string
+  role: string
 }
 
 /**

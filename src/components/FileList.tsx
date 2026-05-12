@@ -5,17 +5,17 @@ import { useToast } from './Toast'
 
 
 const ROLES: { value: FileRole; label: string }[] = [
-  { value: 'PRODUKTIONSDATEI', label: 'Produktionsdatei' },
-  { value: 'VORSCHAU', label: 'Vorschau / Mockup' },
-  { value: 'KUNDENFREIGABE', label: 'Kundenfreigabe' },
-  { value: 'REFERENZ', label: 'Referenz / Altstand' },
+  { value: 'PRODUCTION_FILE', label: 'Produktionsdatei' },
+  { value: 'PREVIEW', label: 'Vorschau / Mockup' },
+  { value: 'CUSTOMER_APPROVAL', label: 'Kundenfreigabe' },
+  { value: 'REFERENCE', label: 'Referenz / Altstand' },
 ]
 
 const ROLE_SHORT_LABELS: Record<FileRole, string> = {
-  PRODUKTIONSDATEI: 'Produkt.',
-  VORSCHAU: 'Vorschau',
-  KUNDENFREIGABE: 'Freigabe',
-  REFERENZ: 'Referenz',
+  PRODUCTION_FILE: 'Produkt.',
+  PREVIEW: 'Vorschau',
+  CUSTOMER_APPROVAL: 'Freigabe',
+  REFERENCE: 'Referenz',
 }
 
 type Props = {
@@ -30,7 +30,7 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
   const { erfolg } = useToast()
   const [displayName, setDisplayName] = useState('')
   const [path, setPath] = useState('')
-  const [role, setRole] = useState<FileRole>('PRODUKTIONSDATEI')
+  const [role, setRole] = useState<FileRole>('PRODUCTION_FILE')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [removingId, setRemovingId] = useState<string | null>(null)
@@ -70,10 +70,10 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
     let data: FileRow | null = null
     try {
       data = await fileService.createFile({
-        auftrag_id: activeOrderId,
-        anzeigename: trimmedName,
-        pfad: trimmedPath,
-        rolle: role,
+        order_id: activeOrderId,
+        display_name: trimmedName,
+        path: trimmedPath,
+        role: role,
       })
     } catch (err) {
       setSaving(false)
@@ -84,7 +84,7 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
     if (data) {
       setDisplayName('')
       setPath('')
-      setRole('PRODUKTIONSDATEI')
+      setRole('PRODUCTION_FILE')
       setFormOpen(false)
       void onFileChanged(data as FileRow)
     }
@@ -175,7 +175,7 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
               <button
                 type="button"
                 className="wa-dl-name"
-                title={`${file.anzeigename}\n${file.pfad}`}
+                title={`${file.display_name}\n${file.path}`}
                 style={{
                   background: 'transparent',
                   border: 'none',
@@ -184,15 +184,15 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
                   padding: 0,
                   textAlign: 'left',
                 }}
-                onClick={() => void openParentFolder(file.pfad)}
+                onClick={() => void openParentFolder(file.path)}
               >
-                <span aria-hidden>📄</span> {file.anzeigename}
+                <span aria-hidden>📄</span> {file.display_name}
               </button>
-              <span className="badge badge-grau" title={ROLES.find(roleOption => roleOption.value === file.rolle)?.label ?? file.rolle}>
-                {ROLE_SHORT_LABELS[file.rolle]}
+              <span className="badge badge-grau" title={ROLES.find(roleOption => roleOption.value === file.role)?.label ?? file.role}>
+                {ROLE_SHORT_LABELS[file.role]}
               </span>
-              <span className="wa-dl-pfad" title={file.pfad}>
-                {file.pfad}
+              <span className="wa-dl-pfad" title={file.path}>
+                {file.path}
               </span>
               <button
                 type="button"
@@ -200,7 +200,7 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
                 onClick={() => void handleRemove(file.id)}
                 disabled={removingId === file.id}
                 title="Entfernen"
-                aria-label={`Entfernen: ${file.anzeigename}`}
+                aria-label={`Entfernen: ${file.display_name}`}
               >
                 ×
               </button>

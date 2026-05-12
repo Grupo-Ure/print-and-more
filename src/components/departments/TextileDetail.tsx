@@ -1187,7 +1187,7 @@ export function TextileDetail({
                         <option value="">—</option>
                         {orderFiles.map(d => (
                           <option key={d.id} value={d.id}>
-                            {d.anzeigename}
+                            {d.display_name}
                           </option>
                         ))}
                       </select>

@@ -184,8 +184,8 @@ export function StampDetail({
       }
       const fileMap: Record<string, ProductFileAssignment[]> = {}
       for (const row of rows) {
-        const assignmentList = fileMap[row.produkt_id] ?? (fileMap[row.produkt_id] = [])
-        assignmentList.push({ assignmentId: row.id, fileId: row.datei_id })
+        const assignmentList = fileMap[row.product_id] ?? (fileMap[row.product_id] = [])
+        assignmentList.push({ assignmentId: row.id, fileId: row.file_id })
       }
       setProductFiles(fileMap)
     },
@@ -1167,7 +1167,7 @@ export function StampDetail({
                 }}
               >
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {orderFiles.find(df => df.id === fid)?.anzeigename ?? fid}
+                  {orderFiles.find(df => df.id === fid)?.display_name ?? fid}
                 </span>
                 <button
                   type="button"
@@ -1197,7 +1197,7 @@ export function StampDetail({
                 .filter(df => !formFileRecordIds.includes(df.id))
                 .map(df => (
                   <option key={df.id} value={df.id}>
-                    {df.anzeigename}
+                    {df.display_name}
                   </option>
                 ))}
             </select>
@@ -1314,7 +1314,7 @@ export function StampDetail({
                             : fileAssignments
                                 .map(
                                   z =>
-                                    orderFiles.find(df => df.id === z.fileId)?.anzeigename ?? z.fileId,
+                                    orderFiles.find(df => df.id === z.fileId)?.display_name ?? z.fileId,
                                 )
                                 .join(', ')}
                         </div>
