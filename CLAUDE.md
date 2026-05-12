@@ -29,6 +29,12 @@ authoritative source for UI dimensions is the relevant CSS file.
 - Existing files written in German may be left as-is; switch to English only
   when creating or substantially rewriting something.
 
+**Issue tracking**
+
+Work for this project is tracked in **Jira**, in the project/space called
+**Markus**. When asked to check tasks, tickets, or work items, look there
+first — no further disambiguation is needed.
+
 **Where things go**
 
 - **README.md** (this file) — stable architecture, domain model, workflows.
