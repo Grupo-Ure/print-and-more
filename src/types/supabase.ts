@@ -7,862 +7,1118 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
-      auftraege: {
+      blueprint_customers: {
         Row: {
-          archiviert: boolean
-          auftragsnummer: string
-          erp_exportiert: boolean
-          erstellt_am: string
-          erstellt_von: string | null
+          created_at: string
           id: string
-          kaufmaennische_notiz: string | null
-          kunde_id: string
-          lieferung: Database["public"]["Enums"]["lieferung_typ"] | null
-          notfall_aktiv: boolean
-          prioritaet: Database["public"]["Enums"]["prioritaet_typ"]
-          status: Database["public"]["Enums"]["auftrag_status"]
-          termin: string | null
+          is_active: boolean
+          name: string
+          short_code: string | null
         }
         Insert: {
-          archiviert?: boolean
-          auftragsnummer?: string
-          erp_exportiert?: boolean
-          erstellt_am?: string
-          erstellt_von?: string | null
+          created_at?: string
           id?: string
-          kaufmaennische_notiz?: string | null
-          kunde_id: string
-          lieferung?: Database["public"]["Enums"]["lieferung_typ"] | null
-          notfall_aktiv?: boolean
-          prioritaet?: Database["public"]["Enums"]["prioritaet_typ"]
-          status?: Database["public"]["Enums"]["auftrag_status"]
-          termin?: string | null
+          is_active?: boolean
+          name: string
+          short_code?: string | null
         }
         Update: {
-          archiviert?: boolean
-          auftragsnummer?: string
-          erp_exportiert?: boolean
-          erstellt_am?: string
-          erstellt_von?: string | null
+          created_at?: string
           id?: string
-          kaufmaennische_notiz?: string | null
-          kunde_id?: string
-          lieferung?: Database["public"]["Enums"]["lieferung_typ"] | null
-          notfall_aktiv?: boolean
-          prioritaet?: Database["public"]["Enums"]["prioritaet_typ"]
-          status?: Database["public"]["Enums"]["auftrag_status"]
-          termin?: string | null
+          is_active?: boolean
+          name?: string
+          short_code?: string | null
+        }
+        Relationships: []
+      }
+      blueprint_job_items: {
+        Row: {
+          copies: number
+          created_at: string
+          filename: string | null
+          format: string
+          height_mm: number | null
+          id: string
+          is_color: boolean
+          job_id: string
+          page_count: number
+          width_mm: number | null
+        }
+        Insert: {
+          copies?: number
+          created_at?: string
+          filename?: string | null
+          format: string
+          height_mm?: number | null
+          id?: string
+          is_color: boolean
+          job_id: string
+          page_count?: number
+          width_mm?: number | null
+        }
+        Update: {
+          copies?: number
+          created_at?: string
+          filename?: string | null
+          format?: string
+          height_mm?: number | null
+          id?: string
+          is_color?: boolean
+          job_id?: string
+          page_count?: number
+          width_mm?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "auftraege_erstellt_von_fkey"
-            columns: ["erstellt_von"]
+            foreignKeyName: "blueprint_job_items_job_id_fkey"
+            columns: ["job_id"]
             isOneToOne: false
-            referencedRelation: "mitarbeiter"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "auftraege_kunde_id_fkey"
-            columns: ["kunde_id"]
-            isOneToOne: false
-            referencedRelation: "kunden"
+            referencedRelation: "blueprint_jobs"
             referencedColumns: ["id"]
           },
         ]
       }
-      auftragsnummer_counter: {
+      blueprint_jobs: {
         Row: {
-          jahr: number
-          letzter: number
-          monat: number
+          created_at: string
+          customer_id: string
+          id: string
+          job_date: string
+          notes: string | null
+          project_id: string | null
         }
         Insert: {
-          jahr: number
-          letzter?: number
-          monat: number
+          created_at?: string
+          customer_id: string
+          id?: string
+          job_date?: string
+          notes?: string | null
+          project_id?: string | null
         }
         Update: {
-          jahr?: number
-          letzter?: number
-          monat?: number
+          created_at?: string
+          customer_id?: string
+          id?: string
+          job_date?: string
+          notes?: string | null
+          project_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blueprint_jobs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "blueprint_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blueprint_jobs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "blueprint_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      blueprint_projects: {
+        Row: {
+          created_at: string
+          customer_id: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blueprint_projects_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "blueprint_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          city: string | null
+          created_at: string
+          email: string | null
+          house_number: string | null
+          id: string
+          is_archived: boolean
+          name: string
+          note: string | null
+          phone: string | null
+          postal_code: string | null
+          street: string | null
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          house_number?: string | null
+          id?: string
+          is_archived?: boolean
+          name: string
+          note?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          street?: string | null
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          house_number?: string | null
+          id?: string
+          is_archived?: boolean
+          name?: string
+          note?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          street?: string | null
         }
         Relationships: []
       }
-      dateien: {
+      erp_exports: {
         Row: {
-          anzeigename: string
-          auftrag_id: string
-          ersetzt_datei_id: string | null
-          erstellt_am: string
-          erstellt_von: string | null
+          export_data: Json
+          exported_at: string
+          exported_by: string | null
           id: string
-          pfad: string
-          rolle: Database["public"]["Enums"]["datei_rolle"]
-          thumbnail_pfad: string | null
+          mode: string
+          order_id: string
+        }
+        Insert: {
+          export_data: Json
+          exported_at?: string
+          exported_by?: string | null
+          id?: string
+          mode: string
+          order_id: string
+        }
+        Update: {
+          export_data?: Json
+          exported_at?: string
+          exported_by?: string | null
+          id?: string
+          mode?: string
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_exports_exported_by_fkey"
+            columns: ["exported_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_exports_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      errors: {
+        Row: {
+          created_at: string
+          id: string
+          order_id: string
+          sub_order_id: string | null
+          text: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_id: string
+          sub_order_id?: string | null
+          text: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_id?: string
+          sub_order_id?: string | null
+          text?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "errors_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "errors_person_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "errors_sub_order_id_fkey"
+            columns: ["sub_order_id"]
+            isOneToOne: false
+            referencedRelation: "sub_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      files: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          display_name: string
+          id: string
+          order_id: string
+          path: string
+          replaces_file_id: string | null
+          role: Database["public"]["Enums"]["file_role"]
+          thumbnail_path: string | null
           version: number
         }
         Insert: {
-          anzeigename: string
-          auftrag_id: string
-          ersetzt_datei_id?: string | null
-          erstellt_am?: string
-          erstellt_von?: string | null
+          created_at?: string
+          created_by?: string | null
+          display_name: string
           id?: string
-          pfad: string
-          rolle?: Database["public"]["Enums"]["datei_rolle"]
-          thumbnail_pfad?: string | null
+          order_id: string
+          path: string
+          replaces_file_id?: string | null
+          role?: Database["public"]["Enums"]["file_role"]
+          thumbnail_path?: string | null
           version?: number
         }
         Update: {
-          anzeigename?: string
-          auftrag_id?: string
-          ersetzt_datei_id?: string | null
-          erstellt_am?: string
-          erstellt_von?: string | null
+          created_at?: string
+          created_by?: string | null
+          display_name?: string
           id?: string
-          pfad?: string
-          rolle?: Database["public"]["Enums"]["datei_rolle"]
-          thumbnail_pfad?: string | null
+          order_id?: string
+          path?: string
+          replaces_file_id?: string | null
+          role?: Database["public"]["Enums"]["file_role"]
+          thumbnail_path?: string | null
           version?: number
         }
         Relationships: [
           {
-            foreignKeyName: "dateien_auftrag_id_fkey"
-            columns: ["auftrag_id"]
+            foreignKeyName: "files_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
-            referencedRelation: "auftraege"
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "dateien_ersetzt_datei_id_fkey"
-            columns: ["ersetzt_datei_id"]
+            foreignKeyName: "files_order_id_fkey"
+            columns: ["order_id"]
             isOneToOne: false
-            referencedRelation: "dateien"
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "dateien_erstellt_von_fkey"
-            columns: ["erstellt_von"]
+            foreignKeyName: "files_replaces_file_id_fkey"
+            columns: ["replaces_file_id"]
             isOneToOne: false
-            referencedRelation: "mitarbeiter"
+            referencedRelation: "files"
             referencedColumns: ["id"]
           },
         ]
       }
-      erp_exporte: {
+      history: {
         Row: {
-          auftrag_id: string
-          exportdaten: Json
-          exportiert_am: string
-          exportiert_von: string | null
-          id: string
-          modus: string
-        }
-        Insert: {
-          auftrag_id: string
-          exportdaten: Json
-          exportiert_am?: string
-          exportiert_von?: string | null
-          id?: string
-          modus: string
-        }
-        Update: {
-          auftrag_id?: string
-          exportdaten?: Json
-          exportiert_am?: string
-          exportiert_von?: string | null
-          id?: string
-          modus?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "erp_exporte_auftrag_id_fkey"
-            columns: ["auftrag_id"]
-            isOneToOne: false
-            referencedRelation: "auftraege"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "erp_exporte_exportiert_von_fkey"
-            columns: ["exportiert_von"]
-            isOneToOne: false
-            referencedRelation: "mitarbeiter"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fehler: {
-        Row: {
-          auftrag_id: string
-          erstellt_am: string
-          id: string
-          person_id: string | null
-          teilauftrag_id: string | null
-          text: string
-        }
-        Insert: {
-          auftrag_id: string
-          erstellt_am?: string
-          id?: string
-          person_id?: string | null
-          teilauftrag_id?: string | null
-          text: string
-        }
-        Update: {
-          auftrag_id?: string
-          erstellt_am?: string
-          id?: string
-          person_id?: string | null
-          teilauftrag_id?: string | null
-          text?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fehler_auftrag_id_fkey"
-            columns: ["auftrag_id"]
-            isOneToOne: false
-            referencedRelation: "auftraege"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fehler_person_id_fkey"
-            columns: ["person_id"]
-            isOneToOne: false
-            referencedRelation: "mitarbeiter"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fehler_teilauftrag_id_fkey"
-            columns: ["teilauftrag_id"]
-            isOneToOne: false
-            referencedRelation: "teilauftraege"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      historie: {
-        Row: {
-          auftrag_id: string
-          begruendung: string | null
-          ereignisart: Database["public"]["Enums"]["historie_ereignis"]
-          erstellt_am: string
+          created_at: string
+          event_type: Database["public"]["Enums"]["history_event"]
           id: string
           meta: Json | null
-          person_id: string | null
-          teilauftrag_id: string | null
+          order_id: string
+          reason: string | null
+          sub_order_id: string | null
+          user_id: string | null
         }
         Insert: {
-          auftrag_id: string
-          begruendung?: string | null
-          ereignisart: Database["public"]["Enums"]["historie_ereignis"]
-          erstellt_am?: string
+          created_at?: string
+          event_type: Database["public"]["Enums"]["history_event"]
           id?: string
           meta?: Json | null
-          person_id?: string | null
-          teilauftrag_id?: string | null
+          order_id: string
+          reason?: string | null
+          sub_order_id?: string | null
+          user_id?: string | null
         }
         Update: {
-          auftrag_id?: string
-          begruendung?: string | null
-          ereignisart?: Database["public"]["Enums"]["historie_ereignis"]
-          erstellt_am?: string
+          created_at?: string
+          event_type?: Database["public"]["Enums"]["history_event"]
           id?: string
           meta?: Json | null
-          person_id?: string | null
-          teilauftrag_id?: string | null
+          order_id?: string
+          reason?: string | null
+          sub_order_id?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "historie_auftrag_id_fkey"
-            columns: ["auftrag_id"]
+            foreignKeyName: "history_order_id_fkey"
+            columns: ["order_id"]
             isOneToOne: false
-            referencedRelation: "auftraege"
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "historie_person_id_fkey"
-            columns: ["person_id"]
+            foreignKeyName: "history_person_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "mitarbeiter"
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "historie_teilauftrag_id_fkey"
-            columns: ["teilauftrag_id"]
+            foreignKeyName: "history_sub_order_id_fkey"
+            columns: ["sub_order_id"]
             isOneToOne: false
-            referencedRelation: "teilauftraege"
+            referencedRelation: "sub_orders"
             referencedColumns: ["id"]
           },
         ]
       }
-      kunden: {
+      order_number_counter: {
         Row: {
-          archiviert: boolean
-          email: string | null
-          erstellt_am: string
-          hausnummer: string | null
-          id: string
-          name: string
-          notiz: string | null
-          ort: string | null
-          plz: string | null
-          strasse: string | null
-          telefon: string | null
+          last_value: number
+          month: number
+          year: number
         }
         Insert: {
-          archiviert?: boolean
-          email?: string | null
-          erstellt_am?: string
-          hausnummer?: string | null
-          id?: string
-          name: string
-          notiz?: string | null
-          ort?: string | null
-          plz?: string | null
-          strasse?: string | null
-          telefon?: string | null
+          last_value?: number
+          month: number
+          year: number
         }
         Update: {
-          archiviert?: boolean
-          email?: string | null
-          erstellt_am?: string
-          hausnummer?: string | null
-          id?: string
-          name?: string
-          notiz?: string | null
-          ort?: string | null
-          plz?: string | null
-          strasse?: string | null
-          telefon?: string | null
+          last_value?: number
+          month?: number
+          year?: number
         }
         Relationships: []
       }
-      lager_bewegungen: {
+      orders: {
         Row: {
-          erstellt_am: string
+          billing_note: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          deadline: string | null
+          delivery: Database["public"]["Enums"]["delivery_type"] | null
           id: string
-          menge: number
-          modell_id: string
-          notiz: string | null
-          person_id: string | null
-          typ: string
+          is_archived: boolean
+          is_emergency: boolean
+          is_erp_exported: boolean
+          order_number: string
+          priority: Database["public"]["Enums"]["priority_type"]
+          status: Database["public"]["Enums"]["order_status"]
         }
         Insert: {
-          erstellt_am?: string
+          billing_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          deadline?: string | null
+          delivery?: Database["public"]["Enums"]["delivery_type"] | null
           id?: string
-          menge: number
-          modell_id: string
-          notiz?: string | null
-          person_id?: string | null
-          typ: string
+          is_archived?: boolean
+          is_emergency?: boolean
+          is_erp_exported?: boolean
+          order_number: string
+          priority?: Database["public"]["Enums"]["priority_type"]
+          status?: Database["public"]["Enums"]["order_status"]
         }
         Update: {
-          erstellt_am?: string
+          billing_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          deadline?: string | null
+          delivery?: Database["public"]["Enums"]["delivery_type"] | null
           id?: string
-          menge?: number
-          modell_id?: string
-          notiz?: string | null
-          person_id?: string | null
-          typ?: string
+          is_archived?: boolean
+          is_emergency?: boolean
+          is_erp_exported?: boolean
+          order_number?: string
+          priority?: Database["public"]["Enums"]["priority_type"]
+          status?: Database["public"]["Enums"]["order_status"]
         }
         Relationships: [
           {
-            foreignKeyName: "lager_bewegungen_modell_id_fkey"
-            columns: ["modell_id"]
+            foreignKeyName: "orders_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
-            referencedRelation: "stempel_modelle"
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "lager_bewegungen_person_id_fkey"
-            columns: ["person_id"]
+            foreignKeyName: "orders_customer_id_fkey"
+            columns: ["customer_id"]
             isOneToOne: false
-            referencedRelation: "mitarbeiter"
+            referencedRelation: "customers"
             referencedColumns: ["id"]
           },
         ]
       }
-      stempel_modelle: {
+      product_files: {
         Row: {
-          aktiv: boolean
-          artikelnummer: string | null
-          bestand: number
-          druckflaeche: string | null
-          ersatzkissen_artikelnummer: string | null
-          erstellt_am: string
-          farbe: string | null
-          groesse: string | null
+          created_at: string
+          file_id: string
           id: string
-          max_breite_mm: number | null
-          max_hoehe_mm: number | null
-          mindestbestand: number
-          name: string
-          notiz: string | null
-          typ: string
-          vk_preis_netto: number | null
+          product_id: string
         }
         Insert: {
-          aktiv?: boolean
-          artikelnummer?: string | null
-          bestand?: number
-          druckflaeche?: string | null
-          ersatzkissen_artikelnummer?: string | null
-          erstellt_am?: string
-          farbe?: string | null
-          groesse?: string | null
+          created_at?: string
+          file_id: string
           id?: string
-          max_breite_mm?: number | null
-          max_hoehe_mm?: number | null
-          mindestbestand?: number
-          name: string
-          notiz?: string | null
-          typ: string
-          vk_preis_netto?: number | null
+          product_id: string
         }
         Update: {
-          aktiv?: boolean
-          artikelnummer?: string | null
-          bestand?: number
-          druckflaeche?: string | null
-          ersatzkissen_artikelnummer?: string | null
-          erstellt_am?: string
-          farbe?: string | null
-          groesse?: string | null
+          created_at?: string
+          file_id?: string
           id?: string
-          max_breite_mm?: number | null
-          max_hoehe_mm?: number | null
-          mindestbestand?: number
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_files_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_files_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "sub_order_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          id: string
+          name: string
+        }
+        Insert: {
+          id: string
+          name: string
+        }
+        Update: {
+          id?: string
           name?: string
-          notiz?: string | null
-          typ?: string
-          vk_preis_netto?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stamp_models: {
+        Row: {
+          article_number: string | null
+          color: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          max_height_mm: number | null
+          max_width_mm: number | null
+          min_stock: number
+          name: string
+          net_price: number | null
+          note: string | null
+          print_area: string | null
+          replacement_pad_article_number: string | null
+          size: string | null
+          stock: number
+          type: string
+        }
+        Insert: {
+          article_number?: string | null
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_height_mm?: number | null
+          max_width_mm?: number | null
+          min_stock?: number
+          name: string
+          net_price?: number | null
+          note?: string | null
+          print_area?: string | null
+          replacement_pad_article_number?: string | null
+          size?: string | null
+          stock?: number
+          type: string
+        }
+        Update: {
+          article_number?: string | null
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_height_mm?: number | null
+          max_width_mm?: number | null
+          min_stock?: number
+          name?: string
+          net_price?: number | null
+          note?: string | null
+          print_area?: string | null
+          replacement_pad_article_number?: string | null
+          size?: string | null
+          stock?: number
+          type?: string
         }
         Relationships: []
       }
-      teilauftraege: {
+      stamp_stock_movements: {
         Row: {
-          auftrag_id: string
-          bereich: Database["public"]["Enums"]["teilauftrag_bereich"]
-          datenstatus: string | null
+          created_at: string
+          id: string
+          model_id: string
+          note: string | null
+          quantity: number
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          model_id: string
+          note?: string | null
+          quantity: number
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          model_id?: string
+          note?: string | null
+          quantity?: number
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stamp_stock_movements_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "stamp_models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stamp_stock_movements_person_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sub_order_products: {
+        Row: {
+          created_at: string
+          department: string
           detail: Json
-          erstellt_am: string
           id: string
-          kundenfreigabe_datei_id: string | null
-          kundenfreigabe_erforderlich: boolean
-          kundenfreigabe_liegt_vor: boolean
-          lieferung: Database["public"]["Enums"]["lieferung_typ"] | null
-          notfall_aktiv: boolean
-          notfall_begruendung: string | null
-          prioritaet: Database["public"]["Enums"]["prioritaet_typ"]
-          satzzeit_minuten: number | null
-          sortierung: number
-          status: Database["public"]["Enums"]["auftrag_status"]
-          storniert: boolean
-          termin: string | null
-          typ: string | null
-          verantwortlicher_id: string | null
-        }
-        Insert: {
-          auftrag_id: string
-          bereich: Database["public"]["Enums"]["teilauftrag_bereich"]
-          datenstatus?: string | null
-          detail?: Json
-          erstellt_am?: string
-          id?: string
-          kundenfreigabe_datei_id?: string | null
-          kundenfreigabe_erforderlich?: boolean
-          kundenfreigabe_liegt_vor?: boolean
-          lieferung?: Database["public"]["Enums"]["lieferung_typ"] | null
-          notfall_aktiv?: boolean
-          notfall_begruendung?: string | null
-          prioritaet?: Database["public"]["Enums"]["prioritaet_typ"]
-          satzzeit_minuten?: number | null
-          sortierung?: number
-          status?: Database["public"]["Enums"]["auftrag_status"]
-          storniert?: boolean
-          termin?: string | null
-          typ?: string | null
-          verantwortlicher_id?: string | null
-        }
-        Update: {
-          auftrag_id?: string
-          bereich?: Database["public"]["Enums"]["teilauftrag_bereich"]
-          datenstatus?: string | null
-          detail?: Json
-          erstellt_am?: string
-          id?: string
-          kundenfreigabe_datei_id?: string | null
-          kundenfreigabe_erforderlich?: boolean
-          kundenfreigabe_liegt_vor?: boolean
-          lieferung?: Database["public"]["Enums"]["lieferung_typ"] | null
-          notfall_aktiv?: boolean
-          notfall_begruendung?: string | null
-          prioritaet?: Database["public"]["Enums"]["prioritaet_typ"]
-          satzzeit_minuten?: number | null
-          sortierung?: number
-          status?: Database["public"]["Enums"]["auftrag_status"]
-          storniert?: boolean
-          termin?: string | null
-          typ?: string | null
-          verantwortlicher_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_kundenfreigabe_datei"
-            columns: ["kundenfreigabe_datei_id"]
-            isOneToOne: false
-            referencedRelation: "dateien"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "teilauftraege_auftrag_id_fkey"
-            columns: ["auftrag_id"]
-            isOneToOne: false
-            referencedRelation: "auftraege"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "teilauftraege_verantwortlicher_id_fkey"
-            columns: ["verantwortlicher_id"]
-            isOneToOne: false
-            referencedRelation: "mitarbeiter"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      textil_lager_bewegungen: {
-        Row: {
-          erstellt_am: string
-          id: string
-          menge: number
-          notiz: string | null
-          person_id: string | null
-          typ: string
-          variante_id: string
-        }
-        Insert: {
-          erstellt_am?: string
-          id?: string
-          menge: number
-          notiz?: string | null
-          person_id?: string | null
-          typ: string
-          variante_id: string
-        }
-        Update: {
-          erstellt_am?: string
-          id?: string
-          menge?: number
-          notiz?: string | null
-          person_id?: string | null
-          typ?: string
-          variante_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "textil_lager_bewegungen_person_id_fkey"
-            columns: ["person_id"]
-            isOneToOne: false
-            referencedRelation: "mitarbeiter"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "textil_lager_bewegungen_variante_id_fkey"
-            columns: ["variante_id"]
-            isOneToOne: false
-            referencedRelation: "textil_varianten"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      textil_marken: {
-        Row: {
-          aktiv: boolean
-          erstellt_am: string
-          id: string
-          name: string
-        }
-        Insert: {
-          aktiv?: boolean
-          erstellt_am?: string
-          id?: string
-          name: string
-        }
-        Update: {
-          aktiv?: boolean
-          erstellt_am?: string
-          id?: string
-          name?: string
-        }
-        Relationships: []
-      }
-      textil_motive: {
-        Row: {
-          datei_id: string | null
-          druckart: string | null
-          erstellt_am: string
-          farbe: string | null
-          groesse: string
-          id: string
-          inhalt: string | null
-          platz: string
-          schriftart: string | null
-          schriftklasse: string | null
-          teilauftrag_id: string
-          typ: string
-        }
-        Insert: {
-          datei_id?: string | null
-          druckart?: string | null
-          erstellt_am?: string
-          farbe?: string | null
-          groesse?: string
-          id?: string
-          inhalt?: string | null
-          platz?: string
-          schriftart?: string | null
-          schriftklasse?: string | null
-          teilauftrag_id: string
-          typ: string
-        }
-        Update: {
-          datei_id?: string | null
-          druckart?: string | null
-          erstellt_am?: string
-          farbe?: string | null
-          groesse?: string
-          id?: string
-          inhalt?: string | null
-          platz?: string
-          schriftart?: string | null
-          schriftklasse?: string | null
-          teilauftrag_id?: string
-          typ?: string
-        }
-        Relationships: []
-      }
-      textil_positionen: {
-        Row: {
-          erstellt_am: string
-          farbe: string | null
-          groesse: string | null
-          herkunft: string
-          id: string
-          marke: string | null
-          modell: string | null
-          stueckzahl: number
-          teilauftrag_id: string
-          typ: string | null
-          variante_id: string | null
-        }
-        Insert: {
-          erstellt_am?: string
-          farbe?: string | null
-          groesse?: string | null
-          herkunft: string
-          id?: string
-          marke?: string | null
-          modell?: string | null
-          stueckzahl: number
-          teilauftrag_id: string
-          typ?: string | null
-          variante_id?: string | null
-        }
-        Update: {
-          erstellt_am?: string
-          farbe?: string | null
-          groesse?: string | null
-          herkunft?: string
-          id?: string
-          marke?: string | null
-          modell?: string | null
-          stueckzahl?: number
-          teilauftrag_id?: string
-          typ?: string | null
-          variante_id?: string | null
-        }
-        Relationships: []
-      }
-      textil_produkte: {
-        Row: {
-          aktiv: boolean
-          artikelnummer: string | null
-          beschreibung: string | null
-          erstellt_am: string
-          id: string
-          marke_id: string
-          name: string
-        }
-        Insert: {
-          aktiv?: boolean
-          artikelnummer?: string | null
-          beschreibung?: string | null
-          erstellt_am?: string
-          id?: string
-          marke_id: string
-          name: string
-        }
-        Update: {
-          aktiv?: boolean
-          artikelnummer?: string | null
-          beschreibung?: string | null
-          erstellt_am?: string
-          id?: string
-          marke_id?: string
-          name?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "textil_produkte_marke_id_fkey"
-            columns: ["marke_id"]
-            isOneToOne: false
-            referencedRelation: "textil_marken"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      textil_varianten: {
-        Row: {
-          aktiv: boolean
-          bestand: number
-          erstellt_am: string
-          farbe: string
-          farbe_hex: string | null
-          groesse: string
-          id: string
-          ist_muster: boolean
-          material: string | null
-          mindestbestand: number
-          produkt_id: string
           sort_order: number
+          sub_order_id: string
         }
         Insert: {
-          aktiv?: boolean
-          bestand?: number
-          erstellt_am?: string
-          farbe: string
-          farbe_hex?: string | null
-          groesse: string
+          created_at?: string
+          department: string
+          detail?: Json
           id?: string
-          ist_muster?: boolean
-          material?: string | null
-          mindestbestand?: number
-          produkt_id: string
           sort_order?: number
+          sub_order_id: string
         }
         Update: {
-          aktiv?: boolean
-          bestand?: number
-          erstellt_am?: string
-          farbe?: string
-          farbe_hex?: string | null
-          groesse?: string
+          created_at?: string
+          department?: string
+          detail?: Json
           id?: string
-          ist_muster?: boolean
-          material?: string | null
-          mindestbestand?: number
-          produkt_id?: string
           sort_order?: number
+          sub_order_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sub_order_products_sub_order_id_fkey"
+            columns: ["sub_order_id"]
+            isOneToOne: false
+            referencedRelation: "sub_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      textil_zuordnungen: {
+      sub_orders: {
         Row: {
-          erstellt_am: string
+          assignee_id: string | null
+          created_at: string
+          customer_approval_file_id: string | null
+          customer_approval_granted: boolean
+          customer_approval_required: boolean
+          data_status: string | null
+          deadline: string | null
+          delivery: Database["public"]["Enums"]["delivery_type"] | null
+          department: Database["public"]["Enums"]["sub_order_department"]
+          detail: Json
+          emergency_reason: string | null
           id: string
-          motiv_id: string
-          position_id: string
-          teilauftrag_id: string
+          is_cancelled: boolean
+          is_emergency: boolean
+          order_id: string
+          priority: Database["public"]["Enums"]["priority_type"]
+          sort_order: number
+          status: Database["public"]["Enums"]["order_status"]
+          type: string | null
+          typesetting_minutes: number | null
         }
         Insert: {
-          erstellt_am?: string
+          assignee_id?: string | null
+          created_at?: string
+          customer_approval_file_id?: string | null
+          customer_approval_granted?: boolean
+          customer_approval_required?: boolean
+          data_status?: string | null
+          deadline?: string | null
+          delivery?: Database["public"]["Enums"]["delivery_type"] | null
+          department: Database["public"]["Enums"]["sub_order_department"]
+          detail?: Json
+          emergency_reason?: string | null
           id?: string
-          motiv_id: string
-          position_id: string
-          teilauftrag_id: string
+          is_cancelled?: boolean
+          is_emergency?: boolean
+          order_id: string
+          priority?: Database["public"]["Enums"]["priority_type"]
+          sort_order?: number
+          status?: Database["public"]["Enums"]["order_status"]
+          type?: string | null
+          typesetting_minutes?: number | null
         }
         Update: {
-          erstellt_am?: string
+          assignee_id?: string | null
+          created_at?: string
+          customer_approval_file_id?: string | null
+          customer_approval_granted?: boolean
+          customer_approval_required?: boolean
+          data_status?: string | null
+          deadline?: string | null
+          delivery?: Database["public"]["Enums"]["delivery_type"] | null
+          department?: Database["public"]["Enums"]["sub_order_department"]
+          detail?: Json
+          emergency_reason?: string | null
           id?: string
-          motiv_id?: string
+          is_cancelled?: boolean
+          is_emergency?: boolean
+          order_id?: string
+          priority?: Database["public"]["Enums"]["priority_type"]
+          sort_order?: number
+          status?: Database["public"]["Enums"]["order_status"]
+          type?: string | null
+          typesetting_minutes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_approval_file"
+            columns: ["customer_approval_file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sub_orders_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sub_orders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      textile_assignments: {
+        Row: {
+          created_at: string
+          id: string
+          motif_id: string
+          position_id: string
+          sub_order_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          motif_id: string
+          position_id: string
+          sub_order_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          motif_id?: string
           position_id?: string
-          teilauftrag_id?: string
+          sub_order_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "textile_assignments_motif_id_fkey"
+            columns: ["motif_id"]
+            isOneToOne: false
+            referencedRelation: "textile_motifs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "textile_assignments_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "textile_positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "textile_assignments_sub_order_id_fkey"
+            columns: ["sub_order_id"]
+            isOneToOne: false
+            referencedRelation: "sub_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      profile: {
+      textile_brands: {
         Row: {
+          created_at: string
           id: string
+          is_active: boolean
           name: string
         }
         Insert: {
+          created_at?: string
           id?: string
+          is_active?: boolean
           name: string
         }
         Update: {
+          created_at?: string
           id?: string
+          is_active?: boolean
           name?: string
         }
         Relationships: []
       }
-      produkt_dateien: {
+      textile_motifs: {
         Row: {
+          color: string | null
+          content: string | null
+          created_at: string
+          file_id: string | null
+          font_class: Database["public"]["Enums"]["textile_font_class"] | null
+          font_name: string | null
           id: string
-          produkt_id: string
-          datei_id: string
-          erstellt_am: string
+          placement: string
+          print_method: string | null
+          size: string
+          sub_order_id: string
+          type: Database["public"]["Enums"]["textile_motif_type"]
         }
         Insert: {
+          color?: string | null
+          content?: string | null
+          created_at?: string
+          file_id?: string | null
+          font_class?: Database["public"]["Enums"]["textile_font_class"] | null
+          font_name?: string | null
           id?: string
-          produkt_id: string
-          datei_id: string
-          erstellt_am?: string
+          placement?: string
+          print_method?: string | null
+          size?: string
+          sub_order_id: string
+          type: Database["public"]["Enums"]["textile_motif_type"]
         }
         Update: {
+          color?: string | null
+          content?: string | null
+          created_at?: string
+          file_id?: string | null
+          font_class?: Database["public"]["Enums"]["textile_font_class"] | null
+          font_name?: string | null
           id?: string
-          produkt_id?: string
-          datei_id?: string
-          erstellt_am?: string
+          placement?: string
+          print_method?: string | null
+          size?: string
+          sub_order_id?: string
+          type?: Database["public"]["Enums"]["textile_motif_type"]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "textile_motifs_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "textile_motifs_sub_order_id_fkey"
+            columns: ["sub_order_id"]
+            isOneToOne: false
+            referencedRelation: "sub_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      teilauftrag_produkte: {
+      textile_positions: {
         Row: {
+          brand: string | null
+          color: string | null
+          created_at: string
           id: string
-          teilauftrag_id: string
-          bereich: string
-          detail: Json
-          sort_order: number
-          erstellt_am: string
+          model: string | null
+          origin: Database["public"]["Enums"]["textile_origin"]
+          quantity: number
+          size: string | null
+          sub_order_id: string
+          type: string | null
+          variant_id: string | null
         }
         Insert: {
+          brand?: string | null
+          color?: string | null
+          created_at?: string
           id?: string
-          teilauftrag_id: string
-          bereich: string
-          detail: Json
-          sort_order: number
-          erstellt_am?: string
+          model?: string | null
+          origin: Database["public"]["Enums"]["textile_origin"]
+          quantity: number
+          size?: string | null
+          sub_order_id: string
+          type?: string | null
+          variant_id?: string | null
         }
         Update: {
+          brand?: string | null
+          color?: string | null
+          created_at?: string
           id?: string
-          teilauftrag_id?: string
-          bereich?: string
-          detail?: Json
-          sort_order?: number
-          erstellt_am?: string
+          model?: string | null
+          origin?: Database["public"]["Enums"]["textile_origin"]
+          quantity?: number
+          size?: string | null
+          sub_order_id?: string
+          type?: string | null
+          variant_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "textile_positions_sub_order_id_fkey"
+            columns: ["sub_order_id"]
+            isOneToOne: false
+            referencedRelation: "sub_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "textile_positions_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "textile_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      textile_products: {
+        Row: {
+          article_number: string | null
+          brand_id: string
+          created_at: string
+          description: string | null
+          finishing_options: string[] | null
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          article_number?: string | null
+          brand_id: string
+          created_at?: string
+          description?: string | null
+          finishing_options?: string[] | null
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          article_number?: string | null
+          brand_id?: string
+          created_at?: string
+          description?: string | null
+          finishing_options?: string[] | null
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "textile_products_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "textile_brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      textile_stock_movements: {
+        Row: {
+          created_at: string
+          id: string
+          note: string | null
+          quantity: number
+          type: string
+          user_id: string | null
+          variant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          quantity: number
+          type: string
+          user_id?: string | null
+          variant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          quantity?: number
+          type?: string
+          user_id?: string | null
+          variant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "textile_stock_movements_person_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "textile_stock_movements_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "textile_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      textile_variants: {
+        Row: {
+          color: string
+          color_hex: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          is_sample: boolean
+          material: string | null
+          min_stock: number
+          product_id: string
+          size: string
+          sort_order: number
+          stock: number
+        }
+        Insert: {
+          color: string
+          color_hex?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_sample?: boolean
+          material?: string | null
+          min_stock?: number
+          product_id: string
+          size: string
+          sort_order?: number
+          stock?: number
+        }
+        Update: {
+          color?: string
+          color_hex?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_sample?: boolean
+          material?: string | null
+          min_stock?: number
+          product_id?: string
+          size?: string
+          sort_order?: number
+          stock?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "textile_variants_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "textile_products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
-      mitarbeiter: {
+      employees: {
         Row: {
           email: string | null
           id: string | null
@@ -879,62 +1135,62 @@ export type Database = {
       }
     }
     Functions: {
-      dupliziere_auftrag: {
+      duplicate_order: {
         Args: {
-          p_auftrag_id: string
-          p_prioritaet: Database["public"]["Enums"]["prioritaet_typ"] | null
-          p_lieferung: Database["public"]["Enums"]["lieferung_typ"] | null
-          p_termin: string | null
-          p_teilauftrag_ids: string[]
-          p_user_id: string | null
+          created_by_user_id: string
+          new_deadline: string
+          new_delivery: string
+          new_priority: string
+          selected_sub_order_ids: string[]
+          source_order_id: string
         }
         Returns: string
       }
-      fn_berechne_auftragsstatus: {
-        Args: { p_auftrag_id: string }
-        Returns: Database["public"]["Enums"]["auftrag_status"]
+      fn_calculate_order_status: {
+        Args: { target_order_id: string }
+        Returns: Database["public"]["Enums"]["order_status"]
       }
     }
     Enums: {
-      auftrag_status:
-        | "ANGEBOT"
-        | "UNVOLLSTAENDIG"
-        | "PREPRESS_BEREIT"
-        | "PRODUKTION_BEREIT"
-        | "FERTIG"
-        | "ABGERECHNET"
-      datei_rolle:
-        | "PRODUKTIONSDATEI"
-        | "VORSCHAU"
-        | "KUNDENFREIGABE"
-        | "REFERENZ"
-      historie_ereignis:
-        | "AUFTRAG_ERSTELLT"
-        | "IN_BEARBEITUNG_GENOMMEN"
-        | "PREPRESS_BEREIT_AUTO"
-        | "PREPRESS_BEREIT_MANUELL"
-        | "PRODUKTION_BEREIT_GESETZT"
-        | "FERTIG_GEMELDET"
-        | "NOTFALL_AUSGELOEST"
-        | "KUNDENFREIGABE_AKTIVIERT"
-        | "KUNDENFREIGABE_ERTEILT"
-        | "KUNDENFREIGABE_VERFALLEN"
-        | "KUNDENFREIGABE_UEBERGANGEN"
-        | "RUECKSPRUNG"
-        | "STORNIERT"
-        | "ERP_EXPORTIERT"
-      lieferung_typ: "ABHOLUNG" | "VERSAND"
-      prioritaet_typ: "NORMAL" | "HOCH"
-      teilauftrag_bereich:
+      delivery_type: "PICKUP" | "SHIPPING"
+      file_role:
+        | "PRODUCTION_FILE"
+        | "PREVIEW"
+        | "CUSTOMER_APPROVAL"
+        | "REFERENCE"
+      history_event:
+        | "ORDER_CREATED"
+        | "PROCESSING_STARTED"
+        | "PREPRESS_READY_AUTO"
+        | "PREPRESS_READY_MANUAL"
+        | "PRODUCTION_READY_SET"
+        | "MARKED_DONE"
+        | "EMERGENCY_TRIGGERED"
+        | "CUSTOMER_APPROVAL_ACTIVATED"
+        | "CUSTOMER_APPROVAL_GRANTED"
+        | "CUSTOMER_APPROVAL_EXPIRED"
+        | "CUSTOMER_APPROVAL_BYPASSED"
+        | "ROLLED_BACK"
+        | "CANCELLED"
+        | "ERP_EXPORTED"
+      order_status:
+        | "QUOTE"
+        | "INCOMPLETE"
+        | "PREPRESS_READY"
+        | "PRODUCTION_READY"
+        | "DONE"
+        | "INVOICED"
+      priority_type: "NORMAL" | "HIGH"
+      sub_order_department:
         | "LFP"
         | "COPYSHOP"
-        | "TEXTIL"
-        | "STEMPEL"
-        | "LASERGRAVUR"
-        | "SONSTIGE"
-      textil_herkunft: "KUNDENWARE" | "EIGENWARE"
-      textil_motiv_typ: "TEXT" | "DATEI"
-      textil_schriftklasse: "SERIFENLOS" | "SERIFEN" | "ELEGANT" | "VERSPIELT"
+        | "TEXTILE"
+        | "STAMP"
+        | "LASER_ENGRAVING"
+        | "OTHER"
+      textile_font_class: "SANS_SERIF" | "SERIF" | "ELEGANT" | "PLAYFUL"
+      textile_motif_type: "TEXT" | "FILE"
+      textile_origin: "CUSTOMER_STOCK" | "OWN_STOCK"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1060,51 +1316,55 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
-      auftrag_status: [
-        "ANGEBOT",
-        "UNVOLLSTAENDIG",
-        "PREPRESS_BEREIT",
-        "PRODUKTION_BEREIT",
-        "FERTIG",
-        "ABGERECHNET",
+      delivery_type: ["PICKUP", "SHIPPING"],
+      file_role: [
+        "PRODUCTION_FILE",
+        "PREVIEW",
+        "CUSTOMER_APPROVAL",
+        "REFERENCE",
       ],
-      datei_rolle: [
-        "PRODUKTIONSDATEI",
-        "VORSCHAU",
-        "KUNDENFREIGABE",
-        "REFERENZ",
+      history_event: [
+        "ORDER_CREATED",
+        "PROCESSING_STARTED",
+        "PREPRESS_READY_AUTO",
+        "PREPRESS_READY_MANUAL",
+        "PRODUCTION_READY_SET",
+        "MARKED_DONE",
+        "EMERGENCY_TRIGGERED",
+        "CUSTOMER_APPROVAL_ACTIVATED",
+        "CUSTOMER_APPROVAL_GRANTED",
+        "CUSTOMER_APPROVAL_EXPIRED",
+        "CUSTOMER_APPROVAL_BYPASSED",
+        "ROLLED_BACK",
+        "CANCELLED",
+        "ERP_EXPORTED",
       ],
-      historie_ereignis: [
-        "AUFTRAG_ERSTELLT",
-        "IN_BEARBEITUNG_GENOMMEN",
-        "PREPRESS_BEREIT_AUTO",
-        "PREPRESS_BEREIT_MANUELL",
-        "PRODUKTION_BEREIT_GESETZT",
-        "FERTIG_GEMELDET",
-        "NOTFALL_AUSGELOEST",
-        "KUNDENFREIGABE_AKTIVIERT",
-        "KUNDENFREIGABE_ERTEILT",
-        "KUNDENFREIGABE_VERFALLEN",
-        "KUNDENFREIGABE_UEBERGANGEN",
-        "RUECKSPRUNG",
-        "STORNIERT",
-        "ERP_EXPORTIERT",
+      order_status: [
+        "QUOTE",
+        "INCOMPLETE",
+        "PREPRESS_READY",
+        "PRODUCTION_READY",
+        "DONE",
+        "INVOICED",
       ],
-      lieferung_typ: ["ABHOLUNG", "VERSAND"],
-      prioritaet_typ: ["NORMAL", "HOCH"],
-      teilauftrag_bereich: [
+      priority_type: ["NORMAL", "HIGH"],
+      sub_order_department: [
         "LFP",
         "COPYSHOP",
-        "TEXTIL",
-        "STEMPEL",
-        "LASERGRAVUR",
-        "SONSTIGE",
+        "TEXTILE",
+        "STAMP",
+        "LASER_ENGRAVING",
+        "OTHER",
       ],
-      textil_herkunft: ["KUNDENWARE", "EIGENWARE"],
-      textil_motiv_typ: ["TEXT", "DATEI"],
-      textil_schriftklasse: ["SERIFENLOS", "SERIFEN", "ELEGANT", "VERSPIELT"],
+      textile_font_class: ["SANS_SERIF", "SERIF", "ELEGANT", "PLAYFUL"],
+      textile_motif_type: ["TEXT", "FILE"],
+      textile_origin: ["CUSTOMER_STOCK", "OWN_STOCK"],
     },
   },
 } as const
+
