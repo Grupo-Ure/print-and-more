@@ -395,11 +395,11 @@ export function ContextPanel({
           await stampService.updateStampModelStock(modelId, newStock)
           const user = await authService.getUser()
           await stampService.createStockMovement({
-            modell_id: modelId,
-            menge: quantity,
-            typ: 'AUTOABGANG',
-            notiz: note,
-            person_id: user?.id ?? null,
+            model_id: modelId,
+            quantity,
+            type: 'AUTOABGANG',
+            note,
+            user_id: user?.id ?? null,
           })
         }
 
