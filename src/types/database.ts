@@ -35,12 +35,8 @@ export type CustomerJoin = CustomerName | CustomerName[] | null
 export type CustomerContactJoin = CustomerContactRow | CustomerContactRow[] | null
 
 /** SELECT für die Auftragsliste (OrderList) */
-export type OrderSummaryRow = {
-  id: string
-  auftragsnummer: string
-  status: OrderStatus
-  erstellt_am: string
-  kunden: CustomerJoin
+export type OrderSummaryRow = Pick<Tables<'orders'>, 'id' | 'order_number' | 'status' | 'created_at'> & {
+  customers: CustomerName | CustomerName[] | null
 }
 
 /** SELECT einzelner Auftrag im Arbeitsbereich */

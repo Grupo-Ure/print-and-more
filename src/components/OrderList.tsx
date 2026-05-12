@@ -204,24 +204,24 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
 
       if (isStale()) return
 
-      let archiviert: boolean | undefined
+      let is_archived: boolean | undefined
       if (statusAll) {
-        archiviert = false
+        is_archived = false
       } else {
         const billedSelected = selectedStatuses.includes('INVOICED')
         const otherSelected = selectedStatuses.some(status => status !== 'INVOICED')
         if (billedSelected && otherSelected) {
-          archiviert = undefined
+          is_archived = undefined
         } else if (billedSelected) {
-          archiviert = true
+          is_archived = true
         } else {
-          archiviert = false
+          is_archived = false
         }
       }
 
       try {
         const data = await orderService.getOrdersForList({
-          archiviert,
+          is_archived,
           customerIds: customerIds ?? undefined,
           statuses: !statusAll ? filterValidOrderStatuses(selectedStatuses) : undefined,
           deadlineFrom: deadlineFrom || undefined,
@@ -261,7 +261,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
 
   useEffect(() => {
     return orderService.subscribeToCustomerChanges(customerId => {
-      if (rawOrdersRef.current.some(order => order.kunde_id === customerId)) {
+      if (rawOrdersRef.current.some(order => order.customer_id === customerId)) {
         void loadOrders()
       }
     })
@@ -270,7 +270,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
   const orders = useMemo(() => {
     if (department === 'Alle') return rawOrders
     return rawOrders.filter(
-      order => order.teilauftraege?.some(subOrder => subOrder.bereich === department) ?? false,
+      order => order.sub_orders?.some(subOrder => subOrder.department === department) ?? false,
     )
   }, [rawOrders, department])
 
@@ -483,8 +483,8 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
             const isActive = order.id === activeOrderId
             const seenDepartments = new Set<string>()
             const uniqueDepartments: string[] = []
-            for (const subOrder of order.teilauftraege ?? []) {
-              const dep = subOrder.bereich
+            for (const subOrder of order.sub_orders ?? []) {
+              const dep = subOrder.department
               if (!dep || seenDepartments.has(dep)) continue
               seenDepartments.add(dep)
               uniqueDepartments.push(dep)
@@ -518,19 +518,19 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
                         gap: 4,
                       }}
                     >
-                      <span className="ol-kunde">{customerName(order.kunden)}</span>
-                      {order.notfall_aktiv && (
+                      <span className="ol-kunde">{customerName(order.customers)}</span>
+                      {order.is_emergency && (
                         <span className="ol-alarm" title="Notfall" aria-label="Notfall">
                           !
                         </span>
                       )}
-                      {order.prioritaet === 'HIGH' && (
+                      {order.priority === 'HIGH' && (
                         <span className="ol-prio" title="Priorität hoch" aria-label="Priorität hoch">
                           ↑
                         </span>
                       )}
                     </div>
-                    <span className="ol-datum">{formatDateDe(order.erstellt_am)}</span>
+                    <span className="ol-datum">{formatDateDe(order.created_at)}</span>
                   </div>
                   <div className="ol-ze2">
                     <span className={`badge ${statusBadgeClass(order.status)}`}>{statusLabel(order.status)}</span>
