@@ -82,7 +82,7 @@ export function validateStampDetail(
   subOrderStatus: OrderStatus
 ): Record<string, string> {
   const errors: Err = {}
-  if (subOrderStatus === 'ANGEBOT') return errors
+  if (subOrderStatus === 'QUOTE') return errors
   const isKnownTyp =
     !!typ && ((STAMP_TYPES as readonly string[]).includes(typ) || (EXTRA_TYPES as readonly string[]).includes(typ))
   if (!typ || !isKnownTyp) {

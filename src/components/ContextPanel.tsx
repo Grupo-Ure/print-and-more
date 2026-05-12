@@ -38,17 +38,17 @@ type Props = {
 
 function statusBadgeGlobal(status: OrderStatus): string {
   switch (status) {
-    case 'ANGEBOT':
+    case 'QUOTE':
       return 'badge-grau'
-    case 'UNVOLLSTAENDIG':
+    case 'INCOMPLETE':
       return 'badge-orange'
-    case 'PREPRESS_BEREIT':
+    case 'PREPRESS_READY':
       return 'badge-blau'
-    case 'PRODUKTION_BEREIT':
+    case 'PRODUCTION_READY':
       return 'badge-lila'
-    case 'FERTIG':
+    case 'DONE':
       return 'badge-gruen'
-    case 'ABGERECHNET':
+    case 'INVOICED':
       return 'badge-grau'
     default:
       return 'badge-grau'
@@ -56,10 +56,10 @@ function statusBadgeGlobal(status: OrderStatus): string {
 }
 
 function nextEmergencyStatus(status: OrderStatus): OrderStatus {
-  if (status === 'ABGERECHNET') return status
-  if (status === 'UNVOLLSTAENDIG') return 'PREPRESS_BEREIT'
-  if (status === 'PREPRESS_BEREIT') return 'PRODUKTION_BEREIT'
-  if (status === 'PRODUKTION_BEREIT') return 'FERTIG'
+  if (status === 'INVOICED') return status
+  if (status === 'INCOMPLETE') return 'PREPRESS_READY'
+  if (status === 'PREPRESS_READY') return 'PRODUCTION_READY'
+  if (status === 'PRODUCTION_READY') return 'DONE'
   return status
 }
 
@@ -239,14 +239,14 @@ export function ContextPanel({
 
   const subOrder = activeSubOrder
   const subOrderActive = subOrder && !subOrder.storniert
-  const canDeleteOrder = order.status === 'ANGEBOT' || order.status === 'UNVOLLSTAENDIG'
-  const canCancelOrder = order.status !== 'ANGEBOT' && order.status !== 'UNVOLLSTAENDIG'
+  const canDeleteOrder = order.status === 'QUOTE' || order.status === 'INCOMPLETE'
+  const canCancelOrder = order.status !== 'QUOTE' && order.status !== 'INCOMPLETE'
 
   const handleInBearbeitung = async () => {
-    if (busy || order.status !== 'ANGEBOT') return
+    if (busy || order.status !== 'QUOTE') return
     setBusy(true)
     try {
-      await orderService.setOrderStatus(order.id, 'UNVOLLSTAENDIG')
+      await orderService.setOrderStatus(order.id, 'INCOMPLETE')
       await historyService.writeHistory({
         auftrag_id: order.id,
         ereignisart: 'IN_BEARBEITUNG_GENOMMEN',
@@ -285,7 +285,7 @@ export function ContextPanel({
         ereignisart: 'FERTIG_GEMELDET',
         meta: { abgerechnet_auftrag: true },
       })
-      onOrderUpdated({ ...order, status: 'ABGERECHNET', archiviert: true })
+      onOrderUpdated({ ...order, status: 'INVOICED', archiviert: true })
     } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
@@ -338,8 +338,8 @@ export function ContextPanel({
   }
 
   const handlePrepressFrei = async () => {
-    if (busy || !subOrder || subOrder.status !== 'UNVOLLSTAENDIG') return
-    if (order.status === 'ANGEBOT') {
+    if (busy || !subOrder || subOrder.status !== 'INCOMPLETE') return
+    if (order.status === 'QUOTE') {
       fehler('Auftrag muss zuerst in Bearbeitung genommen werden')
       return
     }
@@ -350,7 +350,7 @@ export function ContextPanel({
     }
     setBusy(true)
     try {
-      const data = await subOrderService.setSubOrderStatus(subOrder.id, 'PREPRESS_BEREIT')
+      const data = await subOrderService.setSubOrderStatus(subOrder.id, 'PREPRESS_READY')
       await historyService.writeHistory({
         auftrag_id: order.id,
         teilauftrag_id: subOrder.id,
@@ -368,7 +368,7 @@ export function ContextPanel({
   }
 
   const executeProductionRelease = async () => {
-    if (busy || !subOrder || subOrder.status !== 'PREPRESS_BEREIT') return
+    if (busy || !subOrder || subOrder.status !== 'PREPRESS_READY') return
     if (subOrder.kundenfreigabe_erforderlich && !subOrder.kundenfreigabe_liegt_vor) return
     setBusy(true)
     try {
@@ -457,7 +457,7 @@ export function ContextPanel({
         }
       }
 
-      const data = await subOrderService.setSubOrderStatus(subOrder.id, 'PRODUKTION_BEREIT')
+      const data = await subOrderService.setSubOrderStatus(subOrder.id, 'PRODUCTION_READY')
 
       try {
         await historyService.writeHistory({
@@ -479,7 +479,7 @@ export function ContextPanel({
   }
 
   const handleProduktionFrei = () => {
-    if (busy || !subOrder || subOrder.status !== 'PREPRESS_BEREIT') return
+    if (busy || !subOrder || subOrder.status !== 'PREPRESS_READY') return
     if (subOrder.kundenfreigabe_erforderlich && !subOrder.kundenfreigabe_liegt_vor) return
     if (subOrder.bereich === 'STEMPEL') {
       if (isStampStockCritical(stampStock, padStock)) {
@@ -491,11 +491,11 @@ export function ContextPanel({
   }
 
   const handleFertigMelden = async () => {
-    if (busy || !subOrder || subOrder.status !== 'PRODUKTION_BEREIT') return
+    if (busy || !subOrder || subOrder.status !== 'PRODUCTION_READY') return
     if (!window.confirm('Teilauftrag als fertig markieren?')) return
     setBusy(true)
     try {
-      const data = await subOrderService.setSubOrderStatus(subOrder.id, 'FERTIG')
+      const data = await subOrderService.setSubOrderStatus(subOrder.id, 'DONE')
       await historyService.writeHistory({
         auftrag_id: order.id,
         teilauftrag_id: subOrder.id,
@@ -512,7 +512,7 @@ export function ContextPanel({
 
   const handleNotfallOeffnen = () => {
     if (busy || !subOrder) return
-    if (subOrder.status === 'ANGEBOT' || subOrder.status === 'FERTIG') return
+    if (subOrder.status === 'QUOTE' || subOrder.status === 'DONE') return
     setEmergencyReason('')
     setEmergencyDialogOpen(true)
   }
@@ -557,7 +557,7 @@ export function ContextPanel({
     setBusy(true)
     try {
       const data = await subOrderService.setSubOrderEmergency(subOrder.id, {
-        status: 'UNVOLLSTAENDIG',
+        status: 'INCOMPLETE',
         notfall_aktiv: false,
         notfall_begruendung: null,
       })
@@ -577,7 +577,7 @@ export function ContextPanel({
 
   const handleCustomerApprovalToggle = async (enabled: boolean) => {
     if (busy || !subOrder) return
-    if (subOrder.status === 'ANGEBOT') return
+    if (subOrder.status === 'QUOTE') return
     setBusy(true)
     try {
       const approvalPatch = enabled
@@ -656,7 +656,7 @@ export function ContextPanel({
   }
 
   const handleLoeschen = async () => {
-    if (!subOrder || deleteInProgress || subOrder.status !== 'UNVOLLSTAENDIG') return
+    if (!subOrder || deleteInProgress || subOrder.status !== 'INCOMPLETE') return
     if (!window.confirm('Teilauftrag endgültig löschen?')) return
     setDeleteInProgress(true)
     try {
@@ -675,16 +675,16 @@ export function ContextPanel({
   }
 
   const prodDisabled =
-    !!subOrder && subOrder.status === 'PREPRESS_BEREIT' && subOrder.kundenfreigabe_erforderlich && !subOrder.kundenfreigabe_liegt_vor
+    !!subOrder && subOrder.status === 'PREPRESS_READY' && subOrder.kundenfreigabe_erforderlich && !subOrder.kundenfreigabe_liegt_vor
   const currentStampDetail = subOrder? subOrderDetailToFieldMap(subOrder.detail) : {}
   const completionBlockedByStock =
     !!subOrder &&
     subOrder.bereich === 'STEMPEL' &&
-    subOrder.status === 'PRODUKTION_BEREIT' &&
+    subOrder.status === 'PRODUCTION_READY' &&
     hasStampModelLinked(currentStampDetail) &&
     isStampStockCritical(stampStock, padStock)
   const emergencyVisible =
-    subOrder && subOrder.status !== 'ANGEBOT' && subOrder.status !== 'FERTIG' && nextEmergencyStatus(subOrder.status) !== subOrder.status
+    subOrder && subOrder.status !== 'QUOTE' && subOrder.status !== 'DONE' && nextEmergencyStatus(subOrder.status) !== subOrder.status
   const customerApprovalGrantVisible =
     !!subOrder &&
     subOrder.kundenfreigabe_erforderlich &&
@@ -698,10 +698,10 @@ export function ContextPanel({
   if (subOrder?.notfall_aktiv) {
     hints.push(`Notfall aktiv: ${subOrder.notfall_begruendung ?? '—'}`)
   }
-  if (subOrder && subOrder.status === 'PREPRESS_BEREIT' && !subOrder.kundenfreigabe_erforderlich) {
+  if (subOrder && subOrder.status === 'PREPRESS_READY' && !subOrder.kundenfreigabe_erforderlich) {
     hints.push('Bereit zur Produktionsfreigabe')
   }
-  if (order.status === 'FERTIG') {
+  if (order.status === 'DONE') {
     hints.push('Auftrag abgeschlossen')
   }
 
@@ -755,7 +755,7 @@ export function ContextPanel({
       <div className="cp-sektion">
         <h2>Aktionen</h2>
         <div className="cp-gruppe">
-          {order.status === 'ANGEBOT' && (
+          {order.status === 'QUOTE' && (
             <button
               type="button"
               className="cp-btn"
@@ -765,17 +765,17 @@ export function ContextPanel({
               In Bearbeitung nehmen
             </button>
           )}
-          {order.status === 'ANGEBOT' && (
+          {order.status === 'QUOTE' && (
             <button type="button" className="cp-btn" disabled={busy} onClick={onEditCustomer}>
               Kunde bearbeiten
             </button>
           )}
-          {order.status === 'FERTIG' && (
+          {order.status === 'DONE' && (
             <button type="button" className="cp-btn" disabled={busy} onClick={() => void handleAbrechnen()}>
               Abrechnen
             </button>
           )}
-          {order.status !== 'ABGERECHNET' && (
+          {order.status !== 'INVOICED' && (
             <button type="button" className="cp-btn" disabled={busy} onClick={() => void handleArchiv()}>
               Archivieren
             </button>
@@ -806,7 +806,7 @@ export function ContextPanel({
           <>
             <div className="cp-gruppe-trenn" />
             <div className="cp-gruppe">
-              {subOrder.status === 'UNVOLLSTAENDIG' && order.status !== 'ANGEBOT' && (
+              {subOrder.status === 'INCOMPLETE' && order.status !== 'QUOTE' && (
                 <button
                   type="button"
                   className="cp-btn"
@@ -816,7 +816,7 @@ export function ContextPanel({
                   Prepress freigeben
                 </button>
               )}
-              {subOrder.status === 'PREPRESS_BEREIT' && (
+              {subOrder.status === 'PREPRESS_READY' && (
                 <>
                   <button
                     type="button"
@@ -829,7 +829,7 @@ export function ContextPanel({
                   {prodDisabled && <p className="cp-sublabel">Kundenfreigabe fehlt</p>}
                 </>
               )}
-              {subOrder.status === 'PRODUKTION_BEREIT' && (
+              {subOrder.status === 'PRODUCTION_READY' && (
                 <>
                   <button
                     type="button"
@@ -846,7 +846,7 @@ export function ContextPanel({
                   )}
                 </>
               )}
-              {subOrderActive && subOrder.status !== 'ANGEBOT' && (
+              {subOrderActive && subOrder.status !== 'QUOTE' && (
                 <button
                   type="button"
                   className="cp-btn cp-btn-grau"
@@ -884,7 +884,7 @@ export function ContextPanel({
                   Notfall zurücknehmen
                 </button>
               )}
-              {subOrder.status !== 'ANGEBOT' && (
+              {subOrder.status !== 'QUOTE' && (
                 <label className="cp-toggle">
                   <input
                     type="checkbox"
@@ -914,12 +914,12 @@ export function ContextPanel({
               <button
                 type="button"
                 className="cp-btn cp-btn-rot"
-                disabled={subOrder.status !== 'UNVOLLSTAENDIG' || deleteInProgress}
+                disabled={subOrder.status !== 'INCOMPLETE' || deleteInProgress}
                 onClick={() => void handleLoeschen()}
               >
                 Teilauftrag löschen
               </button>
-              {subOrder.status !== 'UNVOLLSTAENDIG' && (
+              {subOrder.status !== 'INCOMPLETE' && (
                 <p className="cp-sublabel">Nur löschbar im Status Unvollständig</p>
               )}
             </div>

@@ -81,7 +81,7 @@ export function validateLaserDetail(
   subOrderStatus: OrderStatus
 ): Record<string, string> {
   const errors: Err = {}
-  if (subOrderStatus === 'ANGEBOT') return errors
+  if (subOrderStatus === 'QUOTE') return errors
   if (!typ || !LASER_TYPES.includes(typ as LaserType)) {
     addError(errors, 'typ', 'Typ wählen')
     return errors

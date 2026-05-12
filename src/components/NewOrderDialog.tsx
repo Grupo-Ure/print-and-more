@@ -106,7 +106,7 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
     setCreating(true)
     const auftragInsert: Database['public']['Tables']['auftraege']['Insert'] = {
       kunde_id: selectedCustomer.id,
-      status: 'ANGEBOT',
+      status: 'QUOTE',
       termin: null,
       lieferung: 'ABHOLUNG',
       prioritaet: 'NORMAL',

@@ -73,7 +73,7 @@ export function validateSubOrderCommonFields(
   status: OrderStatus
 ): Record<string, string> {
   const errors: Record<string, string> = {}
-  if (status === 'ANGEBOT') return errors
+  if (status === 'QUOTE') return errors
   if (subOrder.lieferung !== 'ABHOLUNG' && subOrder.lieferung !== 'VERSAND') errors.lieferung = 'Pflichtfeld'
   if (!subOrder.termin) errors.termin = 'Pflichtfeld'
   if (subOrder.prioritaet !== 'NORMAL' && subOrder.prioritaet !== 'HOCH') {
@@ -156,7 +156,7 @@ function subOrderHasContentChange(snap: SubOrderRow, merged: SubOrderRow): boole
  * related-table check for Textile.
  */
 export function isSubOrderComplete(subOrder: SubOrderRow, status: OrderStatus): boolean {
-  if (status === 'ANGEBOT') return true
+  if (status === 'QUOTE') return true
   const errors = validateSubOrderCommonFields(subOrder, status)
   if (Object.keys(errors).length > 0) return false
   if (
@@ -204,23 +204,23 @@ export function nextSubOrderStatus(
   orderStatus?: OrderStatus
 ): OrderStatus {
   function capPrepress(status: OrderStatus): OrderStatus {
-    if (orderStatus === 'ANGEBOT' && status === 'PREPRESS_BEREIT') {
-      return 'UNVOLLSTAENDIG'
+    if (orderStatus === 'QUOTE' && status === 'PREPRESS_READY') {
+      return 'INCOMPLETE'
     }
     return status
   }
 
-  if (before === 'ANGEBOT') return 'ANGEBOT'
-  if (before === 'PRODUKTION_BEREIT' || before === 'FERTIG') {
+  if (before === 'QUOTE') return 'QUOTE'
+  if (before === 'PRODUCTION_READY' || before === 'DONE') {
     if (merged.bereich === 'STEMPEL' || merged.bereich === 'SONSTIGE') {
-      if (descriptionDetailChangedAfterProduction(snap, merged)) return 'UNVOLLSTAENDIG'
+      if (descriptionDetailChangedAfterProduction(snap, merged)) return 'INCOMPLETE'
       return before
     }
     if (merged.bereich === 'LASERGRAVUR') {
-      if (motifDetailChangedAfterProduction(snap, merged)) return 'UNVOLLSTAENDIG'
+      if (motifDetailChangedAfterProduction(snap, merged)) return 'INCOMPLETE'
       return before
     }
-    if (subOrderHasContentChange(snap, merged)) return 'UNVOLLSTAENDIG'
+    if (subOrderHasContentChange(snap, merged)) return 'INCOMPLETE'
     return before
   }
   const lfp = merged.bereich === 'LFP'
@@ -230,41 +230,41 @@ export function nextSubOrderStatus(
   const laser = merged.bereich === 'LASERGRAVUR'
   const textile = merged.bereich === 'TEXTIL'
   if (textile) {
-    if (!complete) return 'UNVOLLSTAENDIG'
-    if (customerPrepressOk) return capPrepress('PREPRESS_BEREIT')
-    return 'UNVOLLSTAENDIG'
+    if (!complete) return 'INCOMPLETE'
+    if (customerPrepressOk) return capPrepress('PREPRESS_READY')
+    return 'INCOMPLETE'
   }
-  // Unknown Bereich → always UNVOLLSTAENDIG.
+  // Unknown Bereich → always INCOMPLETE.
   if (!lfp && !copyShop && !stamp && !other && !laser) {
-    if (!complete) return 'UNVOLLSTAENDIG'
-    return 'UNVOLLSTAENDIG'
+    if (!complete) return 'INCOMPLETE'
+    return 'INCOMPLETE'
   }
   if (other) {
-    if (!complete) return 'UNVOLLSTAENDIG'
-    if (before === 'PREPRESS_BEREIT') return capPrepress('PREPRESS_BEREIT')
-    return 'UNVOLLSTAENDIG'
+    if (!complete) return 'INCOMPLETE'
+    if (before === 'PREPRESS_READY') return capPrepress('PREPRESS_READY')
+    return 'INCOMPLETE'
   }
   if (laser && merged.typ === 'SONSTIGE_LASER') {
-    if (!complete) return 'UNVOLLSTAENDIG'
-    if (before === 'PREPRESS_BEREIT') return capPrepress('PREPRESS_BEREIT')
-    return 'UNVOLLSTAENDIG'
+    if (!complete) return 'INCOMPLETE'
+    if (before === 'PREPRESS_READY') return capPrepress('PREPRESS_READY')
+    return 'INCOMPLETE'
   }
   if (lfp && merged.typ === 'SONSTIGE_LFP') {
-    if (!complete) return 'UNVOLLSTAENDIG'
-    if (before === 'PREPRESS_BEREIT') return capPrepress('PREPRESS_BEREIT')
-    return 'UNVOLLSTAENDIG'
+    if (!complete) return 'INCOMPLETE'
+    if (before === 'PREPRESS_READY') return capPrepress('PREPRESS_READY')
+    return 'INCOMPLETE'
   }
   if (stamp && merged.typ === 'SONSTIGE_STEMPEL') {
-    if (!complete) return 'UNVOLLSTAENDIG'
-    if (before === 'PREPRESS_BEREIT') return capPrepress('PREPRESS_BEREIT')
-    return 'UNVOLLSTAENDIG'
+    if (!complete) return 'INCOMPLETE'
+    if (before === 'PREPRESS_READY') return capPrepress('PREPRESS_READY')
+    return 'INCOMPLETE'
   }
   if (complete && customerPrepressOk && autoPrepressAllowed(merged))
-    return capPrepress('PREPRESS_BEREIT')
-  if (before === 'PREPRESS_BEREIT' && (!complete || !customerPrepressOk)) {
-    return 'UNVOLLSTAENDIG'
+    return capPrepress('PREPRESS_READY')
+  if (before === 'PREPRESS_READY' && (!complete || !customerPrepressOk)) {
+    return 'INCOMPLETE'
   }
-  if (!complete) return 'UNVOLLSTAENDIG'
-  if (!customerPrepressOk) return 'UNVOLLSTAENDIG'
-  return 'UNVOLLSTAENDIG'
+  if (!complete) return 'INCOMPLETE'
+  if (!customerPrepressOk) return 'INCOMPLETE'
+  return 'INCOMPLETE'
 }

@@ -474,7 +474,7 @@ export function StampStockPage() {
     try {
       const modelsData = await stampService.getStampModels()
       const allSubOrders = await subOrderService.getActiveSubOrdersByBereich('STEMPEL')
-      const subOrderData = allSubOrders.filter(s => s.status !== 'FERTIG' && !s.storniert)
+      const subOrderData = allSubOrders.filter(s => s.status !== 'DONE' && !s.storniert)
 
       const activeModels = (modelsData as unknown as StampModelOrderRow[]).slice()
       const modelIdSet = new Set(activeModels.map(model => model.id))

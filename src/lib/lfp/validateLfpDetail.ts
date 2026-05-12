@@ -86,7 +86,7 @@ export function validateLfpDetail(
   subOrderStatus: OrderStatus
 ): Record<string, string> {
   const errors: Err = {}
-  if (subOrderStatus === 'ANGEBOT') return errors
+  if (subOrderStatus === 'QUOTE') return errors
   if (!typ || !LFP_TYPES.includes(typ as LfpType)) {
     addError(errors, 'typ', 'Typ wählen')
     return errors

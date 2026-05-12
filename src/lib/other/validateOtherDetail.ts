@@ -49,7 +49,7 @@ export function validateOtherDetail(
   subOrderStatus: OrderStatus
 ): Record<string, string> {
   const errors: Err = {}
-  if (subOrderStatus === 'ANGEBOT') return errors
+  if (subOrderStatus === 'QUOTE') return errors
   if (!parseRequiredString(detail?.beschreibung)) addError(errors, 'beschreibung', 'Pflichtfeld')
   if (detail && !isQuantityValidIfPresent(detail.stueckzahl)) addError(errors, 'stueckzahl', 'Ganze Zahl ≥ 1')
   return errors

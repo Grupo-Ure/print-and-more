@@ -58,12 +58,12 @@ function normalizeSubOrderDeadline(value: string | null | undefined): string | n
 
 function subOrderStatusBadge(status: OrderStatus): { cls: string; label: string } {
   const statusMap: Record<OrderStatus, { cls: string; label: string }> = {
-    ANGEBOT: { cls: 'badge-grau', label: 'ANGEBOT' },
-    UNVOLLSTAENDIG: { cls: 'badge-orange', label: 'UNVOLLSTAENDIG' },
-    PREPRESS_BEREIT: { cls: 'badge-blau', label: 'PREPRESS_BEREIT' },
-    PRODUKTION_BEREIT: { cls: 'badge-lila', label: 'PRODUKTION_BEREIT' },
-    FERTIG: { cls: 'badge-gruen', label: 'FERTIG' },
-    ABGERECHNET: { cls: 'badge-grau', label: 'Abgerechnet' },
+    QUOTE: { cls: 'badge-grau', label: 'ANGEBOT' },
+    INCOMPLETE: { cls: 'badge-orange', label: 'UNVOLLSTAENDIG' },
+    PREPRESS_READY: { cls: 'badge-blau', label: 'PREPRESS_BEREIT' },
+    PRODUCTION_READY: { cls: 'badge-lila', label: 'PRODUKTION_BEREIT' },
+    DONE: { cls: 'badge-gruen', label: 'FERTIG' },
+    INVOICED: { cls: 'badge-grau', label: 'Abgerechnet' },
   }
   return statusMap[status] ?? { cls: 'badge-grau', label: status }
 }
@@ -112,7 +112,7 @@ export function SubOrderDetail({
   }, [local])
 
   const subOrderStatus = local.status
-  const shouldValidate = subOrderStatus !== 'ANGEBOT'
+  const shouldValidate = subOrderStatus !== 'QUOTE'
   const hasSeparateDelivery = local.lieferung != null && local.lieferung !== orderDeliveryMode
   const hasSeparatePriority = local.prioritaet !== orderPriorityMode
   const effectiveDelivery = (hasSeparateDelivery ? local.lieferung! : orderDeliveryMode) as DeliveryChoice
@@ -170,7 +170,7 @@ export function SubOrderDetail({
       localRef.current = row
       setLocal(row)
       onUpdated(row)
-      if (row.status === 'PREPRESS_BEREIT' && previousStatus !== 'PREPRESS_BEREIT') {
+      if (row.status === 'PREPRESS_READY' && previousStatus !== 'PREPRESS_READY') {
         const pdfOk = await generateAndDownloadPdf(subOrder.id, subOrder.auftrag_id)
         if (!pdfOk) fehler('PDF konnte nicht erstellt werden')
       }

@@ -1,22 +1,9 @@
-import type { Json } from './supabase'
+import type { Enums, Json } from './supabase'
+import { Constants } from './supabase'
 
-/** Gemeinsame Status-Werte (Auftrag: Aggregat; Teilauftrag: ohne ANGEBOT) */
-export type OrderStatus =
-  | 'ANGEBOT'
-  | 'UNVOLLSTAENDIG'
-  | 'PREPRESS_BEREIT'
-  | 'PRODUKTION_BEREIT'
-  | 'FERTIG'
-  | 'ABGERECHNET'
+export type OrderStatus = Enums<'order_status'>
 
-export const ORDER_STATUS_LIST: readonly OrderStatus[] = [
-  'ANGEBOT',
-  'UNVOLLSTAENDIG',
-  'PREPRESS_BEREIT',
-  'PRODUKTION_BEREIT',
-  'FERTIG',
-  'ABGERECHNET',
-]
+export const ORDER_STATUS_LIST: readonly OrderStatus[] = Constants.public.Enums.order_status
 
 /** Werte = Supabase-Enum `teilauftrag_bereich` (Großbuchstaben, kein Leerzeichen) */
 export const SUB_ORDER_DEPARTMENTS = [
@@ -134,6 +121,6 @@ export type SubOrderRow = {
 export type NewSubOrderEntry = {
   auftrag_id: string
   bereich: SubOrderDepartment
-  status: 'UNVOLLSTAENDIG'
+  status: 'INCOMPLETE'
   prioritaet: 'NORMAL'
 }

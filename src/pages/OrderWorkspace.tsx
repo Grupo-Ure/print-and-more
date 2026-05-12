@@ -15,7 +15,7 @@ import type { FileRow } from '../services/fileService'
 const ORDER_LIST_IN_PLACE_INITIAL: { tick: number; id: string; status: OrderStatus } = {
   tick: 0,
   id: '',
-  status: 'ANGEBOT',
+  status: 'QUOTE',
 }
 
 export function OrderWorkspace() {

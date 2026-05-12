@@ -27,31 +27,31 @@ type Props = {
 }
 
 const STATUS_ORDER: OrderStatus[] = [
-  'ANGEBOT',
-  'UNVOLLSTAENDIG',
-  'PREPRESS_BEREIT',
-  'PRODUKTION_BEREIT',
-  'FERTIG',
-  'ABGERECHNET',
+  'QUOTE',
+  'INCOMPLETE',
+  'PREPRESS_READY',
+  'PRODUCTION_READY',
+  'DONE',
+  'INVOICED',
 ]
 
 const DEFAULT_STATUS_TOGGLES: Record<OrderStatus, boolean> = {
-  ANGEBOT: true,
-  UNVOLLSTAENDIG: true,
-  PREPRESS_BEREIT: true,
-  PRODUKTION_BEREIT: true,
-  FERTIG: false,
-  ABGERECHNET: false,
+  QUOTE: true,
+  INCOMPLETE: true,
+  PREPRESS_READY: true,
+  PRODUCTION_READY: true,
+  DONE: false,
+  INVOICED: false,
 }
 
 /** Short label for the status filter checkboxes. */
 const STATUS_CHECKBOX_SHORT: Record<OrderStatus, string> = {
-  ANGEBOT: 'Angebot',
-  UNVOLLSTAENDIG: 'Unvollst.',
-  PREPRESS_BEREIT: 'PrePress',
-  PRODUKTION_BEREIT: 'Produkt.',
-  FERTIG: 'Fertig',
-  ABGERECHNET: 'Abgerech.',
+  QUOTE: 'Angebot',
+  INCOMPLETE: 'Unvollst.',
+  PREPRESS_READY: 'PrePress',
+  PRODUCTION_READY: 'Produkt.',
+  DONE: 'Fertig',
+  INVOICED: 'Abgerech.',
 }
 
 
@@ -98,15 +98,15 @@ function isFilterActive(filterState: FilterState): boolean {
 
 function statusBadgeClass(s: OrderStatus): string {
   switch (s) {
-    case 'ANGEBOT':
+    case 'QUOTE':
       return 'badge-grau'
-    case 'UNVOLLSTAENDIG':
+    case 'INCOMPLETE':
       return 'badge-orange'
-    case 'PREPRESS_BEREIT':
+    case 'PREPRESS_READY':
       return 'badge-blau'
-    case 'PRODUKTION_BEREIT':
+    case 'PRODUCTION_READY':
       return 'badge-lila'
-    case 'FERTIG':
+    case 'DONE':
       return 'badge-gruen'
     default:
       return 'badge-grau'
@@ -115,12 +115,12 @@ function statusBadgeClass(s: OrderStatus): string {
 
 function statusLabel(status: OrderStatus): string {
   const labels: Record<OrderStatus, string> = {
-    ANGEBOT: 'Angebot',
-    UNVOLLSTAENDIG: 'Unvollständig',
-    PREPRESS_BEREIT: 'PrePress',
-    PRODUKTION_BEREIT: 'Produktion',
-    FERTIG: 'Fertig',
-    ABGERECHNET: 'Abgerechnet',
+    QUOTE: 'Angebot',
+    INCOMPLETE: 'Unvollständig',
+    PREPRESS_READY: 'PrePress',
+    PRODUCTION_READY: 'Produktion',
+    DONE: 'Fertig',
+    INVOICED: 'Abgerechnet',
   }
   return labels[status] ?? status
 }
@@ -208,8 +208,8 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
       if (statusAll) {
         archiviert = false
       } else {
-        const billedSelected = selectedStatuses.includes('ABGERECHNET')
-        const otherSelected = selectedStatuses.some(status => status !== 'ABGERECHNET')
+        const billedSelected = selectedStatuses.includes('INVOICED')
+        const otherSelected = selectedStatuses.some(status => status !== 'INVOICED')
         if (billedSelected && otherSelected) {
           archiviert = undefined
         } else if (billedSelected) {

@@ -264,7 +264,7 @@ export function StampDetail({
   }, [subOrder])
 
   const stampErrors = validateStampDetail(stampType, detail, subOrderStatus)
-  const shouldValidate = subOrderStatus !== 'ANGEBOT'
+  const shouldValidate = subOrderStatus !== 'QUOTE'
   const fieldErrorClass = (fieldKey: string) => (shouldValidate && stampErrors[fieldKey] ? ' ber-inp--err' : '')
 
   const widthValue = toPositiveIntOrNull(detail.format_breite)
@@ -546,7 +546,7 @@ export function StampDetail({
   const formValid = useMemo(() => Object.keys(stampErrors).length === 0, [stampErrors])
 
   const requiresUnlock =
-    (subOrderStatus === 'PREPRESS_BEREIT' || subOrderStatus === 'PRODUKTION_BEREIT') && !unlocked
+    (subOrderStatus === 'PREPRESS_READY' || subOrderStatus === 'PRODUCTION_READY') && !unlocked
 
   const handleAddOrSave = useCallback(async () => {
     const currentType = stampTypeRef.current

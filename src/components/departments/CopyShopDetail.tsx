@@ -239,7 +239,7 @@ export function CopyShopDetail({
   }, [subOrder])
 
   const validationErrors = validateCopyShopDetail(selectedType, detail, subOrderStatus)
-  const shouldValidate = subOrderStatus !== 'ANGEBOT'
+  const shouldValidate = subOrderStatus !== 'QUOTE'
   const fieldErrorClass = (fieldKey: string) => (shouldValidate && validationErrors[fieldKey] ? ' ber-inp--err' : '')
 
   const saveDetail = useCallback(
@@ -280,7 +280,7 @@ export function CopyShopDetail({
   const formOk = useMemo(() => Object.keys(validationErrors).length === 0, [validationErrors])
 
   const requiresUnlock =
-    (subOrderStatus === 'PREPRESS_BEREIT' || subOrderStatus === 'PRODUKTION_BEREIT') && !unlocked
+    (subOrderStatus === 'PREPRESS_READY' || subOrderStatus === 'PRODUCTION_READY') && !unlocked
 
   const handleAddOrSave = useCallback(async () => {
     const currentType = typeRef.current

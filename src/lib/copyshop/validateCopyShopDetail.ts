@@ -189,7 +189,7 @@ export function validateCopyShopDetail(
   subOrderStatus: OrderStatus,
 ): Record<string, string> {
   const errors: Err = {}
-  if (subOrderStatus === 'ANGEBOT') return errors
+  if (subOrderStatus === 'QUOTE') return errors
   if (!typ || !COPY_SHOP_TYPES.includes(typ as CopyShopType)) {
     addError(errors, 'typ', 'Typ wählen')
     return errors

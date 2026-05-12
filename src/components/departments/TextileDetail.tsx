@@ -190,8 +190,8 @@ export function TextileDetail({
       const customerContactOk = customerMeetsPrepressContact(orderCustomer)
       const isComplete = isSubOrderComplete(merged, currentSubOrder.status)
       let nextStatus: OrderStatus
-      if (afterProdMutation && (currentSubOrder.status === 'PRODUKTION_BEREIT' || currentSubOrder.status === 'FERTIG')) {
-        nextStatus = 'UNVOLLSTAENDIG'
+      if (afterProdMutation && (currentSubOrder.status === 'PRODUCTION_READY' || currentSubOrder.status === 'DONE')) {
+        nextStatus = 'INCOMPLETE'
       } else {
         nextStatus = nextSubOrderStatus(currentSubOrder.status, currentSubOrder, merged, isComplete, customerContactOk, orderStatus)
       }
@@ -630,7 +630,7 @@ export function TextileDetail({
         setMotifs(nextMotifs)
         setMotifEditId(null)
         resetMotifForm()
-        const isProductionStatus = subOrderRef.current.status === 'PRODUKTION_BEREIT' || subOrderRef.current.status === 'FERTIG'
+        const isProductionStatus = subOrderRef.current.status === 'PRODUCTION_READY' || subOrderRef.current.status === 'DONE'
         void syncSubOrder(nextMotifs, positions, assignments, isProductionStatus)
       }
     } else {
@@ -666,7 +666,7 @@ export function TextileDetail({
         setMotifs(nextMotifs)
         setMotifEditId(null)
         resetMotifForm()
-        const isProductionStatus = subOrderRef.current.status === 'PRODUKTION_BEREIT' || subOrderRef.current.status === 'FERTIG'
+        const isProductionStatus = subOrderRef.current.status === 'PRODUCTION_READY' || subOrderRef.current.status === 'DONE'
         void syncSubOrder(nextMotifs, positions, assignments, isProductionStatus)
       }
     }
@@ -693,7 +693,7 @@ export function TextileDetail({
         delete updated[currentSlotKey]
         return updated
       })
-      const isProductionStatus = subOrderRef.current.status === 'PRODUKTION_BEREIT' || subOrderRef.current.status === 'FERTIG'
+      const isProductionStatus = subOrderRef.current.status === 'PRODUCTION_READY' || subOrderRef.current.status === 'DONE'
       void syncSubOrder(motifs, nextPositions, updatedAssignments, isProductionStatus)
     }
 
@@ -891,7 +891,7 @@ export function TextileDetail({
                 setError(assignmentInsertErrorMessage(assignmentError as { message?: string; code?: string }))
                 resetPositionForm()
                 setPositionMotifIds(prev => ({ ...prev, [NEW_POSITION_SLOT]: [] }))
-                const isProductionStatus = subOrderRef.current.status === 'PRODUKTION_BEREIT' || subOrderRef.current.status === 'FERTIG'
+                const isProductionStatus = subOrderRef.current.status === 'PRODUCTION_READY' || subOrderRef.current.status === 'DONE'
                 void syncSubOrder(motifs, positions, assignments, isProductionStatus)
                 return
               }
@@ -904,7 +904,7 @@ export function TextileDetail({
 
         setPositionMotifIds(prev => ({ ...prev, [NEW_POSITION_SLOT]: [] }))
         resetPositionForm()
-        const isProductionStatus = subOrderRef.current.status === 'PRODUKTION_BEREIT' || subOrderRef.current.status === 'FERTIG'
+        const isProductionStatus = subOrderRef.current.status === 'PRODUCTION_READY' || subOrderRef.current.status === 'DONE'
         void syncSubOrder(motifs, nextPositions, assignmentAccumulator, isProductionStatus)
       }
     } else {
@@ -994,7 +994,7 @@ export function TextileDetail({
                 setError(assignmentInsertErrorMessage(assignmentError as { message?: string; code?: string }))
                 resetPositionForm()
                 setPositionMotifIds(prev => ({ ...prev, [NEW_POSITION_SLOT]: [] }))
-                const isProductionStatus = subOrderRef.current.status === 'PRODUKTION_BEREIT' || subOrderRef.current.status === 'FERTIG'
+                const isProductionStatus = subOrderRef.current.status === 'PRODUCTION_READY' || subOrderRef.current.status === 'DONE'
                 void syncSubOrder(motifs, positions, assignments, isProductionStatus)
                 return
               }
@@ -1007,7 +1007,7 @@ export function TextileDetail({
 
         setPositionMotifIds(prev => ({ ...prev, [NEW_POSITION_SLOT]: [] }))
         resetPositionForm()
-        const isProductionStatus = subOrderRef.current.status === 'PRODUKTION_BEREIT' || subOrderRef.current.status === 'FERTIG'
+        const isProductionStatus = subOrderRef.current.status === 'PRODUCTION_READY' || subOrderRef.current.status === 'DONE'
         void syncSubOrder(motifs, nextPositions, assignmentAccumulator, isProductionStatus)
       }
     }
@@ -1040,7 +1040,7 @@ export function TextileDetail({
     setMotifs(remainingMotifs)
     const filteredAssignments = assignments.filter(z => z.motiv_id !== id)
     setAssignments(filteredAssignments)
-    const isProductionStatus = subOrderRef.current.status === 'PRODUKTION_BEREIT' || subOrderRef.current.status === 'FERTIG'
+    const isProductionStatus = subOrderRef.current.status === 'PRODUCTION_READY' || subOrderRef.current.status === 'DONE'
     void syncSubOrder(remainingMotifs, positions, filteredAssignments, isProductionStatus)
   }
 
@@ -1071,7 +1071,7 @@ export function TextileDetail({
     setPositions(remainingPositions)
     const filteredAssignments = assignments.filter(z => z.position_id !== id)
     setAssignments(filteredAssignments)
-    const isProductionStatus = subOrderRef.current.status === 'PRODUKTION_BEREIT' || subOrderRef.current.status === 'FERTIG'
+    const isProductionStatus = subOrderRef.current.status === 'PRODUCTION_READY' || subOrderRef.current.status === 'DONE'
     void syncSubOrder(motifs, remainingPositions, filteredAssignments, isProductionStatus)
   }
 
@@ -1088,7 +1088,7 @@ export function TextileDetail({
     setIsSaving(false)
     const remainingAssignments = assignments.filter(z => z.id !== id)
     setAssignments(remainingAssignments)
-    const isProductionStatus = subOrderRef.current.status === 'PRODUKTION_BEREIT' || subOrderRef.current.status === 'FERTIG'
+    const isProductionStatus = subOrderRef.current.status === 'PRODUCTION_READY' || subOrderRef.current.status === 'DONE'
     void syncSubOrder(motifs, positions, remainingAssignments, isProductionStatus)
   }
 
@@ -1101,7 +1101,7 @@ export function TextileDetail({
     })
   }, [positionEditId])
 
-  const shouldValidate = subOrderStatus !== 'ANGEBOT'
+  const shouldValidate = subOrderStatus !== 'QUOTE'
 
   return (
     <div className="ber-lfp" style={{ maxWidth: '100%' }}>

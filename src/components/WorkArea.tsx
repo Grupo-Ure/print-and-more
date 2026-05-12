@@ -42,15 +42,15 @@ function customerContactOneLine(contact: CustomerContactJoin | null): string {
 
 function subOrderStatusDotClass(status: OrderStatus): string {
   switch (status) {
-    case 'ANGEBOT':
+    case 'QUOTE':
       return 'td-dot td-dot--grau'
-    case 'UNVOLLSTAENDIG':
+    case 'INCOMPLETE':
       return 'td-dot td-dot--orange'
-    case 'PREPRESS_BEREIT':
+    case 'PREPRESS_READY':
       return 'td-dot td-dot--blau'
-    case 'PRODUKTION_BEREIT':
+    case 'PRODUCTION_READY':
       return 'td-dot td-dot--lila'
-    case 'FERTIG':
+    case 'DONE':
       return 'td-dot td-dot--gruen'
     default:
       return 'td-dot td-dot--grau'
@@ -303,7 +303,7 @@ export function WorkArea({
       data = await subOrderService.createSubOrder({
         auftrag_id: activeOrderId,
         bereich,
-        status: 'UNVOLLSTAENDIG',
+        status: 'INCOMPLETE',
         prioritaet: priority,
         detail: {},
         termin: deadlineIso,
