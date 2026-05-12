@@ -13,7 +13,7 @@ export type ProfileRow = {
 class EmployeeService {
   async getEmployees(): Promise<EmployeeRow[]> {
     const { data, error } = await supabase
-      .from('mitarbeiter')
+      .from('employees')
       .select('id, email')
     if (error) throw error
     return (data ?? []) as EmployeeRow[]
@@ -21,7 +21,7 @@ class EmployeeService {
 
   async getProfile(userId: string): Promise<ProfileRow | null> {
     const { data, error } = await supabase
-      .from('profile')
+      .from('profiles')
       .select('id, name')
       .eq('id', userId)
       .single()
@@ -30,7 +30,7 @@ class EmployeeService {
   }
 
   async getAllProfiles(): Promise<ProfileRow[]> {
-    const { data, error } = await supabase.from('profile').select('id, name')
+    const { data, error } = await supabase.from('profiles').select('id, name')
     if (error) throw error
     return (data ?? []) as ProfileRow[]
   }

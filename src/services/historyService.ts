@@ -2,49 +2,49 @@ import { supabase } from '../supabase'
 import { authService } from './authService'
 import type { Database, Json } from '../types/supabase'
 
-export type HistoryEvent = Database['public']['Enums']['historie_ereignis']
+export type HistoryEvent = Database['public']['Enums']['history_event']
 
-type HistoryInsert = Database['public']['Tables']['historie']['Insert']
+type HistoryInsert = Database['public']['Tables']['history']['Insert']
 
 export type HistoryRow = {
   id: string
-  ereignisart: HistoryEvent
-  begruendung: string | null
+  event_type: HistoryEvent
+  reason: string | null
   meta: Json | null
-  erstellt_am: string
-  teilauftrag_id: string | null
-  person_id: string | null
+  created_at: string
+  sub_order_id: string | null
+  user_id: string | null
 }
 
 class HistoryService {
   async writeHistory(params: {
-    auftrag_id: string
-    teilauftrag_id?: string
-    ereignisart: HistoryEvent
-    begruendung?: string
+    order_id: string
+    sub_order_id?: string
+    event_type: HistoryEvent
+    reason?: string
     meta?: Record<string, unknown>
   }): Promise<void> {
     const user = await authService.getUser()
 
     const row: HistoryInsert = {
-      auftrag_id: params.auftrag_id,
-      teilauftrag_id: params.teilauftrag_id ?? null,
-      ereignisart: params.ereignisart,
-      begruendung: params.begruendung ?? null,
+      order_id: params.order_id,
+      sub_order_id: params.sub_order_id ?? null,
+      event_type: params.event_type,
+      reason: params.reason ?? null,
       meta: params.meta !== undefined ? (params.meta as Json) : null,
-      person_id: user?.id ?? null,
+      user_id: user?.id ?? null,
     }
 
-    const { error } = await supabase.from('historie').insert(row)
+    const { error } = await supabase.from('history').insert(row)
     if (error) throw error
   }
 
   async getHistoryForOrder(orderId: string): Promise<HistoryRow[]> {
     const { data, error } = await supabase
-      .from('historie')
-      .select('id, ereignisart, begruendung, meta, erstellt_am, teilauftrag_id, person_id')
-      .eq('auftrag_id', orderId)
-      .order('erstellt_am', { ascending: false })
+      .from('history')
+      .select('id, event_type, reason, meta, created_at, sub_order_id, user_id')
+      .eq('order_id', orderId)
+      .order('created_at', { ascending: false })
       .limit(50)
     if (error) throw error
     return (data ?? []) as HistoryRow[]

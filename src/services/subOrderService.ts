@@ -3,28 +3,28 @@ import type { Database } from '../types/supabase'
 import { SUB_ORDER_COLUMNS } from '../const/subOrderSelect'
 import type { SubOrderRow, OrderStatus, SubOrderDepartment } from '../types/database'
 
-type SubOrderInsert = Database['public']['Tables']['teilauftraege']['Insert']
-type SubOrderUpdate = Database['public']['Tables']['teilauftraege']['Update']
+type SubOrderInsert = Database['public']['Tables']['sub_orders']['Insert']
+type SubOrderUpdate = Database['public']['Tables']['sub_orders']['Update']
 
 export type SubOrderSummary = {
   id: string
-  bereich: SubOrderDepartment
+  department: SubOrderDepartment
 }
 
 export type ActiveSubOrderSlim = {
   id: string
   status: OrderStatus
-  bereich: SubOrderDepartment
-  detail: Database['public']['Tables']['teilauftraege']['Row']['detail']
-  storniert: boolean
+  department: SubOrderDepartment
+  detail: Database['public']['Tables']['sub_orders']['Row']['detail']
+  is_cancelled: boolean
 }
 
 class SubOrderService {
   async getSubOrdersByOrderId(orderId: string): Promise<SubOrderRow[]> {
     const { data, error } = await supabase
-      .from('teilauftraege')
+      .from('sub_orders')
       .select(SUB_ORDER_COLUMNS)
-      .eq('auftrag_id', orderId)
+      .eq('order_id', orderId)
       .order('id', { ascending: true })
     if (error) throw error
     return (data ?? []) as unknown as SubOrderRow[]
@@ -32,7 +32,7 @@ class SubOrderService {
 
   async getSubOrderById(id: string): Promise<SubOrderRow | null> {
     const { data, error } = await supabase
-      .from('teilauftraege')
+      .from('sub_orders')
       .select(SUB_ORDER_COLUMNS)
       .eq('id', id)
       .single()
@@ -42,7 +42,7 @@ class SubOrderService {
 
   async createSubOrder(payload: SubOrderInsert): Promise<SubOrderRow> {
     const { data, error } = await supabase
-      .from('teilauftraege')
+      .from('sub_orders')
       .insert(payload)
       .select(SUB_ORDER_COLUMNS)
       .single()
@@ -52,7 +52,7 @@ class SubOrderService {
 
   async updateSubOrder(id: string, patch: SubOrderUpdate): Promise<SubOrderRow> {
     const { data, error } = await supabase
-      .from('teilauftraege')
+      .from('sub_orders')
       .update(patch)
       .eq('id', id)
       .select(SUB_ORDER_COLUMNS)
@@ -63,7 +63,7 @@ class SubOrderService {
 
   async setSubOrderStatus(id: string, status: OrderStatus): Promise<SubOrderRow> {
     const { data, error } = await supabase
-      .from('teilauftraege')
+      .from('sub_orders')
       .update({ status })
       .eq('id', id)
       .select(SUB_ORDER_COLUMNS)
@@ -74,10 +74,10 @@ class SubOrderService {
 
   async setSubOrderEmergency(
     id: string,
-    patch: Pick<SubOrderUpdate, 'notfall_aktiv' | 'notfall_begruendung' | 'status'>,
+    patch: Pick<SubOrderUpdate, 'is_emergency' | 'emergency_reason' | 'status'>,
   ): Promise<SubOrderRow> {
     const { data, error } = await supabase
-      .from('teilauftraege')
+      .from('sub_orders')
       .update(patch)
       .eq('id', id)
       .select(SUB_ORDER_COLUMNS)
@@ -90,11 +90,11 @@ class SubOrderService {
     id: string,
     patch: Pick<
       SubOrderUpdate,
-      'kundenfreigabe_erforderlich' | 'kundenfreigabe_liegt_vor' | 'kundenfreigabe_datei_id'
+      'customer_approval_required' | 'customer_approval_granted' | 'customer_approval_file_id'
     >,
   ): Promise<SubOrderRow> {
     const { data, error } = await supabase
-      .from('teilauftraege')
+      .from('sub_orders')
       .update(patch)
       .eq('id', id)
       .select(SUB_ORDER_COLUMNS)
@@ -105,39 +105,39 @@ class SubOrderService {
 
   async cancelSubOrder(id: string): Promise<void> {
     const { error } = await supabase
-      .from('teilauftraege')
-      .update({ storniert: true })
+      .from('sub_orders')
+      .update({ is_cancelled: true })
       .eq('id', id)
     if (error) throw error
   }
 
   async cancelAllSubOrdersForOrder(orderId: string): Promise<void> {
     const { error } = await supabase
-      .from('teilauftraege')
-      .update({ storniert: true })
-      .eq('auftrag_id', orderId)
+      .from('sub_orders')
+      .update({ is_cancelled: true })
+      .eq('order_id', orderId)
     if (error) throw error
   }
 
   async deleteSubOrder(id: string): Promise<void> {
-    const { error } = await supabase.from('teilauftraege').delete().eq('id', id)
+    const { error } = await supabase.from('sub_orders').delete().eq('id', id)
     if (error) throw error
   }
 
   async getSubOrderSummariesForOrder(orderId: string): Promise<SubOrderSummary[]> {
     const { data, error } = await supabase
-      .from('teilauftraege')
-      .select('id, bereich')
-      .eq('auftrag_id', orderId)
+      .from('sub_orders')
+      .select('id, department')
+      .eq('order_id', orderId)
     if (error) throw error
     return (data ?? []) as unknown as SubOrderSummary[]
   }
 
-  async getActiveSubOrdersByBereich(bereich: SubOrderDepartment): Promise<ActiveSubOrderSlim[]> {
+  async getActiveSubOrdersByBereich(department: SubOrderDepartment): Promise<ActiveSubOrderSlim[]> {
     const { data, error } = await supabase
-      .from('teilauftraege')
-      .select('id, status, bereich, detail, storniert')
-      .eq('bereich', bereich)
+      .from('sub_orders')
+      .select('id, status, department, detail, is_cancelled')
+      .eq('department', department)
     if (error) throw error
     return (data ?? []) as unknown as ActiveSubOrderSlim[]
   }

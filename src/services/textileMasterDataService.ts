@@ -1,34 +1,34 @@
 import { supabase } from '../supabase'
 import type { Database } from '../types/supabase'
 
-type BrandInsert = Database['public']['Tables']['textil_marken']['Insert']
-type BrandUpdate = Database['public']['Tables']['textil_marken']['Update']
-type ProductInsert = Database['public']['Tables']['textil_produkte']['Insert']
-type ProductUpdate = Database['public']['Tables']['textil_produkte']['Update']
-type VariantInsert = Database['public']['Tables']['textil_varianten']['Insert']
-type VariantUpdate = Database['public']['Tables']['textil_varianten']['Update']
-type StockMovementInsert = Database['public']['Tables']['textil_lager_bewegungen']['Insert']
+type BrandInsert = Database['public']['Tables']['textile_brands']['Insert']
+type BrandUpdate = Database['public']['Tables']['textile_brands']['Update']
+type ProductInsert = Database['public']['Tables']['textile_products']['Insert']
+type ProductUpdate = Database['public']['Tables']['textile_products']['Update']
+type VariantInsert = Database['public']['Tables']['textile_variants']['Insert']
+type VariantUpdate = Database['public']['Tables']['textile_variants']['Update']
+type StockMovementInsert = Database['public']['Tables']['textile_stock_movements']['Insert']
 
-export type BrandRow = Database['public']['Tables']['textil_marken']['Row']
-export type ProductRow = Database['public']['Tables']['textil_produkte']['Row']
-export type VariantRow = Database['public']['Tables']['textil_varianten']['Row']
+export type BrandRow = Database['public']['Tables']['textile_brands']['Row']
+export type ProductRow = Database['public']['Tables']['textile_products']['Row']
+export type VariantRow = Database['public']['Tables']['textile_variants']['Row']
 
 export type ProductWithBrand = ProductRow & {
-  textil_marken: { name: string } | null
+  textile_brands: { name: string } | null
 }
 
 export type VariantWithDetails = VariantRow & {
-  textil_produkte: {
+  textile_products: {
     name: string
-    artikelnummer: string | null
-    textil_marken: { name: string } | null
+    article_number: string | null
+    textile_brands: { name: string } | null
   } | null
 }
 
 class TextileMasterDataService {
   async getBrands(): Promise<BrandRow[]> {
     const { data, error } = await supabase
-      .from('textil_marken')
+      .from('textile_brands')
       .select('*')
       .order('name')
     if (error) throw error
@@ -37,18 +37,18 @@ class TextileMasterDataService {
 
   async getBrandNames(): Promise<{ id: string; name: string }[]> {
     const { data, error } = await supabase
-      .from('textil_marken')
+      .from('textile_brands')
       .select('id, name')
-      .eq('aktiv', true)
+      .eq('is_active', true)
       .order('name')
     if (error) throw error
     return (data ?? []) as { id: string; name: string }[]
   }
 
   async createBrand(name: string): Promise<BrandRow> {
-    const payload: BrandInsert = { name, aktiv: true }
+    const payload: BrandInsert = { name, is_active: true }
     const { data, error } = await supabase
-      .from('textil_marken')
+      .from('textile_brands')
       .insert(payload)
       .select('*')
       .single()
@@ -58,7 +58,7 @@ class TextileMasterDataService {
 
   async updateBrand(id: string, patch: BrandUpdate): Promise<BrandRow> {
     const { data, error } = await supabase
-      .from('textil_marken')
+      .from('textile_brands')
       .update(patch)
       .eq('id', id)
       .select('*')
@@ -69,9 +69,9 @@ class TextileMasterDataService {
 
   async getProductsByBrand(markeId: string): Promise<ProductWithBrand[]> {
     const { data, error } = await supabase
-      .from('textil_produkte')
-      .select('*, textil_marken(name)')
-      .eq('marke_id', markeId)
+      .from('textile_products')
+      .select('*, textile_brands(name)')
+      .eq('brand_id', markeId)
       .order('name')
     if (error) throw error
     return (data ?? []) as unknown as ProductWithBrand[]
@@ -79,7 +79,7 @@ class TextileMasterDataService {
 
   async createProduct(payload: ProductInsert): Promise<ProductRow> {
     const { data, error } = await supabase
-      .from('textil_produkte')
+      .from('textile_products')
       .insert(payload)
       .select('*')
       .single()
@@ -89,7 +89,7 @@ class TextileMasterDataService {
 
   async updateProduct(id: string, patch: ProductUpdate): Promise<ProductRow> {
     const { data, error } = await supabase
-      .from('textil_produkte')
+      .from('textile_products')
       .update(patch)
       .eq('id', id)
       .select('*')
@@ -100,9 +100,9 @@ class TextileMasterDataService {
 
   async getVariantsByProduct(produktId: string): Promise<VariantWithDetails[]> {
     const { data, error } = await supabase
-      .from('textil_varianten')
-      .select('*, textil_produkte(name, artikelnummer, textil_marken(name))')
-      .eq('produkt_id', produktId)
+      .from('textile_variants')
+      .select('*, textile_products(name, article_number, textile_brands(name))')
+      .eq('product_id', produktId)
       .order('sort_order')
     if (error) throw error
     return (data ?? []) as unknown as VariantWithDetails[]
@@ -110,9 +110,9 @@ class TextileMasterDataService {
 
   async getVariantsWithDetails(): Promise<VariantWithDetails[]> {
     const { data, error } = await supabase
-      .from('textil_varianten')
-      .select('*, textil_produkte(name, artikelnummer, textil_marken(name))')
-      .eq('aktiv', true)
+      .from('textile_variants')
+      .select('*, textile_products(name, article_number, textile_brands(name))')
+      .eq('is_active', true)
       .order('sort_order')
     if (error) throw error
     return (data ?? []) as unknown as VariantWithDetails[]
@@ -122,36 +122,36 @@ class TextileMasterDataService {
     produktId: string,
     colors: string[],
     sizes: string[],
-  ): Promise<{ farbe: string; groesse: string }[]> {
+  ): Promise<{ color: string; size: string }[]> {
     const { data, error } = await supabase
-      .from('textil_varianten')
-      .select('farbe, groesse')
-      .eq('produkt_id', produktId)
-      .in('farbe', colors)
-      .in('groesse', sizes)
+      .from('textile_variants')
+      .select('color, size')
+      .eq('product_id', produktId)
+      .in('color', colors)
+      .in('size', sizes)
     if (error) throw error
-    return (data ?? []) as { farbe: string; groesse: string }[]
+    return (data ?? []) as { color: string; size: string }[]
   }
 
   async getEigenwarePositionsBySubOrders(
     subOrderIds: string[],
-  ): Promise<{ variante_id: string | null; stueckzahl: number }[]> {
+  ): Promise<{ variant_id: string | null; quantity: number }[]> {
     if (subOrderIds.length === 0) return []
     const { data, error } = await supabase
-      .from('textil_positionen')
-      .select('variante_id, stueckzahl')
-      .eq('herkunft', 'EIGENWARE')
-      .not('variante_id', 'is', null)
-      .in('teilauftrag_id', subOrderIds)
+      .from('textile_positions')
+      .select('variant_id, quantity')
+      .eq('origin', 'OWN_STOCK')
+      .not('variant_id', 'is', null)
+      .in('sub_order_id', subOrderIds)
     if (error) throw error
-    return (data ?? []) as { variante_id: string | null; stueckzahl: number }[]
+    return (data ?? []) as { variant_id: string | null; quantity: number }[]
   }
 
   async getMaxSortOrderForProduct(produktId: string): Promise<number | null> {
     const { data, error } = await supabase
-      .from('textil_varianten')
+      .from('textile_variants')
       .select('sort_order')
-      .eq('produkt_id', produktId)
+      .eq('product_id', produktId)
       .order('sort_order', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -161,7 +161,7 @@ class TextileMasterDataService {
 
   async createVariant(payload: VariantInsert): Promise<VariantRow> {
     const { data, error } = await supabase
-      .from('textil_varianten')
+      .from('textile_variants')
       .insert(payload)
       .select('*')
       .single()
@@ -171,32 +171,32 @@ class TextileMasterDataService {
 
   async createVariantsBatch(payloads: VariantInsert[]): Promise<VariantRow[]> {
     const { data, error } = await supabase
-      .from('textil_varianten')
+      .from('textile_variants')
       .insert(payloads)
       .select('*')
     if (error) throw error
     return (data ?? []) as VariantRow[]
   }
 
-  async updateVariantStock(id: string, bestand: number): Promise<void> {
+  async updateVariantStock(id: string, stock: number): Promise<void> {
     const { error } = await supabase
-      .from('textil_varianten')
-      .update({ bestand } as VariantUpdate)
+      .from('textile_variants')
+      .update({ stock } as VariantUpdate)
       .eq('id', id)
     if (error) throw error
   }
 
-  async updateVariantMinimumStock(id: string, mindestbestand: number): Promise<void> {
+  async updateVariantMinimumStock(id: string, min_stock: number): Promise<void> {
     const { error } = await supabase
-      .from('textil_varianten')
-      .update({ mindestbestand } as VariantUpdate)
+      .from('textile_variants')
+      .update({ min_stock } as VariantUpdate)
       .eq('id', id)
     if (error) throw error
   }
 
   async updateVariant(id: string, patch: VariantUpdate): Promise<VariantRow> {
     const { data, error } = await supabase
-      .from('textil_varianten')
+      .from('textile_variants')
       .update(patch)
       .eq('id', id)
       .select('*')
@@ -205,39 +205,39 @@ class TextileMasterDataService {
     return data as VariantRow
   }
 
-  async getVariantStockById(id: string): Promise<{ bestand: number } | null> {
+  async getVariantStockById(id: string): Promise<{ stock: number } | null> {
     const { data, error } = await supabase
-      .from('textil_varianten')
-      .select('bestand')
+      .from('textile_variants')
+      .select('stock')
       .eq('id', id)
       .single()
     if (error) throw error
-    return data as { bestand: number } | null
+    return data as { stock: number } | null
   }
 
   async createTextileStockMovement(payload: StockMovementInsert): Promise<void> {
-    const { error } = await supabase.from('textil_lager_bewegungen').insert(payload)
+    const { error } = await supabase.from('textile_stock_movements').insert(payload)
     if (error) throw error
   }
 
   async getSubOrdersUsingVariant(varianteId: string): Promise<string[]> {
     const { data, error } = await supabase
-      .from('textil_positionen')
-      .select('teilauftrag_id')
-      .eq('variante_id', varianteId)
+      .from('textile_positions')
+      .select('sub_order_id')
+      .eq('variant_id', varianteId)
     if (error) throw error
-    return [...new Set((data ?? []).map(r => r.teilauftrag_id))]
+    return [...new Set((data ?? []).map(r => r.sub_order_id))]
   }
 
   async getVariantUsageBySubOrder(
     subOrderId: string,
-  ): Promise<{ variante_id: string | null; stueckzahl: number }[]> {
+  ): Promise<{ variant_id: string | null; quantity: number }[]> {
     const { data, error } = await supabase
-      .from('textil_positionen')
-      .select('variante_id, stueckzahl')
-      .eq('teilauftrag_id', subOrderId)
+      .from('textile_positions')
+      .select('variant_id, quantity')
+      .eq('sub_order_id', subOrderId)
     if (error) throw error
-    return (data ?? []) as { variante_id: string | null; stueckzahl: number }[]
+    return (data ?? []) as { variant_id: string | null; quantity: number }[]
   }
 }
 

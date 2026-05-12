@@ -3,29 +3,29 @@ import type { Database } from '../types/supabase'
 import { ORDER_COLUMNS } from '../const/orderSelect'
 import { ORDER_STATUS_LIST, type Auftrag, type OrderStatus, type OrderSummaryRow } from '../types/database'
 
-type OrderInsert = Database['public']['Tables']['auftraege']['Insert']
-type OrderUpdate = Database['public']['Tables']['auftraege']['Update']
-type PriorityEnum = Database['public']['Enums']['prioritaet_typ']
-type DeliveryEnum = Database['public']['Enums']['lieferung_typ']
+type OrderInsert = Database['public']['Tables']['orders']['Insert']
+type OrderUpdate = Database['public']['Tables']['orders']['Update']
+type PriorityEnum = Database['public']['Enums']['priority_type']
+type DeliveryEnum = Database['public']['Enums']['delivery_type']
 
 export type OrderListEntry = {
   id: string
-  auftragsnummer: string
+  order_number: string
   status: OrderStatus
-  erstellt_am: string
-  termin: string | null
-  prioritaet: 'NORMAL' | 'HOCH'
-  notfall_aktiv: boolean
-  kunde_id: string
-  kunden: { name: string } | { name: string }[] | null
-  teilauftraege: { bereich: string; status: string }[] | null
+  created_at: string
+  deadline: string | null
+  priority: 'NORMAL' | 'HIGH'
+  is_emergency: boolean
+  customer_id: string
+  customers: { name: string } | { name: string }[] | null
+  sub_orders: { department: string; status: string }[] | null
 }
 
 const ORDER_LIST_SELECT =
-  'id, auftragsnummer, status, erstellt_am, termin, prioritaet, notfall_aktiv, kunde_id, kunden(name), teilauftraege(bereich, status)'
+  'id, order_number, status, created_at, deadline, priority, is_emergency, customer_id, customers(name), sub_orders(department, status)'
 
 export type OrderListParams = {
-  archiviert?: boolean
+  is_archived?: boolean
   customerIds?: string[]
   statuses?: OrderStatus[]
   deadlineFrom?: string
@@ -34,44 +34,44 @@ export type OrderListParams = {
   intakeTo?: string
 }
 
-const ORDER_LIST_COLUMNS = 'id, auftragsnummer, status, erstellt_am, kunden(name)'
+const ORDER_LIST_COLUMNS = 'id, order_number, status, created_at, customers(name)'
 
 function parseStatusString(raw: string): OrderStatus {
   if (!(ORDER_STATUS_LIST as readonly string[]).includes(raw)) {
-    throw new Error(`fn_berechne_auftragsstatus: invalid status "${raw}"`)
+    throw new Error(`fn_calculate_order_status: invalid status "${raw}"`)
   }
   return raw as OrderStatus
 }
 
 function parseStatusFromRpc(data: unknown): OrderStatus {
-  if (data == null) throw new Error('fn_berechne_auftragsstatus: empty result')
+  if (data == null) throw new Error('fn_calculate_order_status: empty result')
   if (typeof data === 'string') return parseStatusString(data)
   if (typeof data === 'object' && 'status' in (data as object)) {
     const v = (data as { status: unknown }).status
     if (typeof v === 'string') return parseStatusString(v)
-    throw new Error('fn_berechne_auftragsstatus: field status is not a string')
+    throw new Error('fn_calculate_order_status: field status is not a string')
   }
-  if (typeof data === 'object' && 'fn_berechne_auftragsstatus' in (data as object)) {
-    const v = (data as { fn_berechne_auftragsstatus: unknown }).fn_berechne_auftragsstatus
+  if (typeof data === 'object' && 'fn_calculate_order_status' in (data as object)) {
+    const v = (data as { fn_calculate_order_status: unknown }).fn_calculate_order_status
     if (typeof v === 'string') return parseStatusString(v)
-    throw new Error('fn_berechne_auftragsstatus: field fn_berechne_auftragsstatus is not a string')
+    throw new Error('fn_calculate_order_status: field fn_calculate_order_status is not a string')
   }
-  throw new Error('fn_berechne_auftragsstatus: unexpected format')
+  throw new Error('fn_calculate_order_status: unexpected format')
 }
 
 class OrderService {
   async getOrdersForList(params: OrderListParams): Promise<OrderListEntry[]> {
     let query = supabase
-      .from('auftraege')
+      .from('orders')
       .select(ORDER_LIST_SELECT)
-      .order('erstellt_am', { ascending: false })
-    if (params.archiviert !== undefined) query = query.eq('archiviert', params.archiviert)
-    if (params.customerIds) query = query.in('kunde_id', params.customerIds)
+      .order('created_at', { ascending: false })
+    if (params.is_archived !== undefined) query = query.eq('is_archived', params.is_archived)
+    if (params.customerIds) query = query.in('customer_id', params.customerIds)
     if (params.statuses) query = query.in('status', params.statuses)
-    if (params.deadlineFrom) query = query.gte('termin', params.deadlineFrom)
-    if (params.deadlineTo) query = query.lte('termin', params.deadlineTo)
-    if (params.intakeFrom) query = query.gte('erstellt_am', `${params.intakeFrom}T00:00:00`)
-    if (params.intakeTo) query = query.lte('erstellt_am', `${params.intakeTo}T23:59:59.999`)
+    if (params.deadlineFrom) query = query.gte('deadline', params.deadlineFrom)
+    if (params.deadlineTo) query = query.lte('deadline', params.deadlineTo)
+    if (params.intakeFrom) query = query.gte('created_at', `${params.intakeFrom}T00:00:00`)
+    if (params.intakeTo) query = query.lte('created_at', `${params.intakeTo}T23:59:59.999`)
     const { data, error } = await query
     if (error) throw error
     return (data ?? []) as unknown as OrderListEntry[]
@@ -79,17 +79,17 @@ class OrderService {
 
   async getOrders(): Promise<OrderSummaryRow[]> {
     const { data, error } = await supabase
-      .from('auftraege')
+      .from('orders')
       .select(ORDER_LIST_COLUMNS)
-      .eq('archiviert', false)
-      .order('erstellt_am', { ascending: false })
+      .eq('is_archived', false)
+      .order('created_at', { ascending: false })
     if (error) throw error
     return (data ?? []) as unknown as OrderSummaryRow[]
   }
 
   async getOrderById(id: string): Promise<Auftrag | null> {
     const { data, error } = await supabase
-      .from('auftraege')
+      .from('orders')
       .select(ORDER_COLUMNS)
       .eq('id', id)
       .single()
@@ -99,7 +99,7 @@ class OrderService {
 
   async createOrder(payload: OrderInsert): Promise<Auftrag> {
     const { data, error } = await supabase
-      .from('auftraege')
+      .from('orders')
       .insert(payload)
       .select(ORDER_COLUMNS)
       .single()
@@ -109,7 +109,7 @@ class OrderService {
 
   async updateOrder(id: string, patch: OrderUpdate): Promise<Auftrag> {
     const { data, error } = await supabase
-      .from('auftraege')
+      .from('orders')
       .update(patch)
       .eq('id', id)
       .select(ORDER_COLUMNS)
@@ -120,7 +120,7 @@ class OrderService {
 
   async setOrderStatus(id: string, status: OrderStatus): Promise<Auftrag> {
     const { data, error } = await supabase
-      .from('auftraege')
+      .from('orders')
       .update({ status })
       .eq('id', id)
       .select(ORDER_COLUMNS)
@@ -131,47 +131,47 @@ class OrderService {
 
   async archiveOrder(id: string): Promise<void> {
     const { error } = await supabase
-      .from('auftraege')
-      .update({ archiviert: true })
+      .from('orders')
+      .update({ is_archived: true })
       .eq('id', id)
     if (error) throw error
   }
 
   async archiveOrderWithCancelledSubOrders(orderId: string): Promise<void> {
     const { error: subError } = await supabase
-      .from('teilauftraege')
-      .update({ storniert: true })
-      .eq('auftrag_id', orderId)
-      .neq('storniert', true)
+      .from('sub_orders')
+      .update({ is_cancelled: true })
+      .eq('order_id', orderId)
+      .neq('is_cancelled', true)
     if (subError) throw subError
     const { error } = await supabase
-      .from('auftraege')
-      .update({ archiviert: true })
+      .from('orders')
+      .update({ is_archived: true })
       .eq('id', orderId)
     if (error) throw error
   }
 
   async markOrderBilled(id: string): Promise<void> {
     const { error } = await supabase
-      .from('auftraege')
-      .update({ status: 'ABGERECHNET', archiviert: true })
+      .from('orders')
+      .update({ status: 'INVOICED', is_archived: true })
       .eq('id', id)
     if (error) throw error
   }
 
   async deleteOrder(id: string): Promise<void> {
-    const { error } = await supabase.from('auftraege').delete().eq('id', id)
+    const { error } = await supabase.from('orders').delete().eq('id', id)
     if (error) throw error
   }
 
   async synchronizeOrderStatus(auftragId: string): Promise<Auftrag> {
-    const { data: raw, error: rpcError } = await supabase.rpc('fn_berechne_auftragsstatus', {
-      p_auftrag_id: auftragId,
+    const { data: raw, error: rpcError } = await supabase.rpc('fn_calculate_order_status', {
+      target_order_id: auftragId,
     })
     if (rpcError) throw rpcError
     const status = parseStatusFromRpc(raw)
     const { data, error } = await supabase
-      .from('auftraege')
+      .from('orders')
       .update({ status })
       .eq('id', auftragId)
       .select(ORDER_COLUMNS)
@@ -182,14 +182,14 @@ class OrderService {
   }
 
   async duplicateOrder(params: {
-    p_auftrag_id: string
-    p_prioritaet: PriorityEnum | null
-    p_lieferung: DeliveryEnum | null
-    p_termin: string | null
-    p_teilauftrag_ids: string[]
-    p_user_id: string | null
+    source_order_id: string
+    new_priority: PriorityEnum | null
+    new_delivery: DeliveryEnum | null
+    new_deadline: string | null
+    selected_sub_order_ids: string[]
+    created_by_user_id: string | null
   }): Promise<string> {
-    const { data, error } = await supabase.rpc('dupliziere_auftrag', params)
+    const { data, error } = await supabase.rpc('duplicate_order', params)
     if (error) throw error
     return data as string
   }
@@ -197,15 +197,15 @@ class OrderService {
   subscribeToCustomerChanges(onChanged: (customerId: string) => void): () => void {
     const channel = supabase
       .channel('orderlist-kunden-refresh')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'kunden' }, payload => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'customers' }, payload => {
         const customerId = (payload.new as { id?: string } | null)?.id
         if (customerId) onChanged(customerId)
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'kunden' }, payload => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'customers' }, payload => {
         const customerId = (payload.new as { id?: string } | null)?.id
         if (customerId) onChanged(customerId)
       })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'kunden' }, payload => {
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'customers' }, payload => {
         const customerId = (payload.old as { id?: string } | null)?.id
         if (customerId) onChanged(customerId)
       })

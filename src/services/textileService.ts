@@ -6,38 +6,38 @@ import type {
   TextileAssignmentRow,
 } from '../types/textile'
 
-type MotifInsert = Database['public']['Tables']['textil_motive']['Insert']
-type MotifUpdate = Database['public']['Tables']['textil_motive']['Update']
-type PositionInsert = Database['public']['Tables']['textil_positionen']['Insert']
-type PositionUpdate = Database['public']['Tables']['textil_positionen']['Update']
-type AssignmentInsert = Database['public']['Tables']['textil_zuordnungen']['Insert']
+type MotifInsert = Database['public']['Tables']['textile_motifs']['Insert']
+type MotifUpdate = Database['public']['Tables']['textile_motifs']['Update']
+type PositionInsert = Database['public']['Tables']['textile_positions']['Insert']
+type PositionUpdate = Database['public']['Tables']['textile_positions']['Update']
+type AssignmentInsert = Database['public']['Tables']['textile_assignments']['Insert']
 
 const ASSIGNMENT_EMBED_SELECT =
-  'id, teilauftrag_id, motiv_id, position_id, textil_motive(typ, inhalt, datei_id, platz, groesse, druckart), textil_positionen(herkunft, typ, farbe, marke, modell, groesse)'
+  'id, sub_order_id, motif_id, position_id, textile_motifs(type, content, file_id, placement, size, print_method), textile_positions(origin, type, color, brand, model, size)'
 
 export type VariantWithProduct = {
   id: string
-  bestand: number
-  farbe: string
-  groesse: string
-  ist_muster: boolean
-  textil_produkte: { name: string; textil_marken: { name: string } } | null
+  stock: number
+  color: string
+  size: string
+  is_sample: boolean
+  textile_products: { name: string; textile_brands: { name: string } } | null
 }
 
 export type ColorOption = {
-  farbe: string
-  farbe_hex: string | null
+  color: string
+  color_hex: string | null
 }
 
 export type SizeOption = {
   id: string
-  groesse: string
-  bestand: number
-  ist_muster: boolean
+  size: string
+  stock: number
+  is_sample: boolean
 }
 
-export type PositionWithVariant = Database['public']['Tables']['textil_positionen']['Row'] & {
-  textil_varianten: { id: string; textil_produkte: { name: string } | null } | null
+export type PositionWithVariant = Database['public']['Tables']['textile_positions']['Row'] & {
+  textile_variants: { id: string; textile_products: { name: string } | null } | null
 }
 
 class TextileService {
@@ -47,9 +47,9 @@ class TextileService {
     assignments: TextileAssignmentRow[]
   }> {
     const [motifResult, positionResult, assignmentResult] = await Promise.all([
-      supabase.from('textil_motive').select('*').eq('teilauftrag_id', subOrderId),
-      supabase.from('textil_positionen').select('*').eq('teilauftrag_id', subOrderId),
-      supabase.from('textil_zuordnungen').select(ASSIGNMENT_EMBED_SELECT).eq('teilauftrag_id', subOrderId),
+      supabase.from('textile_motifs').select('*').eq('sub_order_id', subOrderId),
+      supabase.from('textile_positions').select('*').eq('sub_order_id', subOrderId),
+      supabase.from('textile_assignments').select(ASSIGNMENT_EMBED_SELECT).eq('sub_order_id', subOrderId),
     ])
     if (motifResult.error) throw motifResult.error
     if (positionResult.error) throw positionResult.error
@@ -63,83 +63,83 @@ class TextileService {
 
   async getVariantsByIds(ids: string[]): Promise<VariantWithProduct[]> {
     const { data, error } = await supabase
-      .from('textil_varianten')
-      .select('id, bestand, farbe, groesse, ist_muster, textil_produkte(name, textil_marken(name))')
+      .from('textile_variants')
+      .select('id, stock, color, size, is_sample, textile_products(name, textile_brands(name))')
       .in('id', ids)
     if (error) throw error
     return (data ?? []) as unknown as VariantWithProduct[]
   }
 
-  async getProductsByBrandId(markeId: string): Promise<{ id: string; name: string; artikelnummer: string | null }[]> {
+  async getProductsByBrandId(markeId: string): Promise<{ id: string; name: string; article_number: string | null }[]> {
     const { data, error } = await supabase
-      .from('textil_produkte')
-      .select('id, name, artikelnummer')
-      .eq('marke_id', markeId)
-      .eq('aktiv', true)
+      .from('textile_products')
+      .select('id, name, article_number')
+      .eq('brand_id', markeId)
+      .eq('is_active', true)
       .order('name')
     if (error) throw error
-    return (data ?? []) as { id: string; name: string; artikelnummer: string | null }[]
+    return (data ?? []) as { id: string; name: string; article_number: string | null }[]
   }
 
   async getVariantColorsByProduct(produktId: string): Promise<ColorOption[]> {
     const { data, error } = await supabase
-      .from('textil_varianten')
-      .select('farbe, farbe_hex')
-      .eq('produkt_id', produktId)
-      .eq('aktiv', true)
-      .order('farbe')
+      .from('textile_variants')
+      .select('color, color_hex')
+      .eq('product_id', produktId)
+      .eq('is_active', true)
+      .order('color')
     if (error) throw error
     return (data ?? []) as ColorOption[]
   }
 
-  async getVariantSizesByProductAndColor(produktId: string, farbe: string): Promise<SizeOption[]> {
+  async getVariantSizesByProductAndColor(produktId: string, color: string): Promise<SizeOption[]> {
     const { data, error } = await supabase
-      .from('textil_varianten')
-      .select('id, groesse, bestand, ist_muster')
-      .eq('produkt_id', produktId)
-      .eq('farbe', farbe)
-      .eq('aktiv', true)
+      .from('textile_variants')
+      .select('id, size, stock, is_sample')
+      .eq('product_id', produktId)
+      .eq('color', color)
+      .eq('is_active', true)
       .order('sort_order')
     if (error) throw error
     return (data ?? []) as SizeOption[]
   }
 
-  async getVariantById(id: string): Promise<{ id: string; produkt_id: string; farbe: string; groesse: string } | null> {
+  async getVariantById(id: string): Promise<{ id: string; product_id: string; color: string; size: string } | null> {
     const { data, error } = await supabase
-      .from('textil_varianten')
-      .select('id, produkt_id, farbe, groesse')
+      .from('textile_variants')
+      .select('id, product_id, color, size')
       .eq('id', id)
       .maybeSingle()
     if (error) throw error
-    return data as { id: string; produkt_id: string; farbe: string; groesse: string } | null
+    return data as { id: string; product_id: string; color: string; size: string } | null
   }
 
-  async getProductById(id: string): Promise<{ id: string; marke_id: string } | null> {
+  async getProductById(id: string): Promise<{ id: string; brand_id: string } | null> {
     const { data, error } = await supabase
-      .from('textil_produkte')
-      .select('id, marke_id')
+      .from('textile_products')
+      .select('id, brand_id')
       .eq('id', id)
       .maybeSingle()
     if (error) throw error
-    return data as { id: string; marke_id: string } | null
+    return data as { id: string; brand_id: string } | null
   }
 
   async getEigenwarePositionsBySubOrder(
     subOrderId: string,
-  ): Promise<{ id: string; variante_id: string | null; stueckzahl: number; herkunft: string }[]> {
+  ): Promise<{ id: string; variant_id: string | null; quantity: number; origin: string }[]> {
     const { data, error } = await supabase
-      .from('textil_positionen')
-      .select('id, variante_id, stueckzahl, herkunft')
-      .eq('teilauftrag_id', subOrderId)
-      .eq('herkunft', 'EIGENWARE')
-      .not('variante_id', 'is', null)
+      .from('textile_positions')
+      .select('id, variant_id, quantity, origin')
+      .eq('sub_order_id', subOrderId)
+      .eq('origin', 'OWN_STOCK')
+      .not('variant_id', 'is', null)
     if (error) throw error
-    return (data ?? []) as { id: string; variante_id: string | null; stueckzahl: number; herkunft: string }[]
+    return (data ?? []) as { id: string; variant_id: string | null; quantity: number; origin: string }[]
   }
 
   async createAssignment(payload: AssignmentInsert): Promise<TextileAssignmentRow> {
     const { data, error } = await supabase
-      .from('textil_zuordnungen')
+      .from('textile_assignments')
       .insert(payload)
       .select(ASSIGNMENT_EMBED_SELECT)
       .single()
@@ -148,13 +148,13 @@ class TextileService {
   }
 
   async deleteAssignment(id: string): Promise<void> {
-    const { error } = await supabase.from('textil_zuordnungen').delete().eq('id', id)
+    const { error } = await supabase.from('textile_assignments').delete().eq('id', id)
     if (error) throw error
   }
 
   async deleteAssignmentsByPosition(positionId: string): Promise<void> {
     const { error } = await supabase
-      .from('textil_zuordnungen')
+      .from('textile_assignments')
       .delete()
       .eq('position_id', positionId)
     if (error) throw error
@@ -162,16 +162,16 @@ class TextileService {
 
   async getAssignmentIdsByMotif(motivId: string): Promise<string[]> {
     const { data, error } = await supabase
-      .from('textil_zuordnungen')
+      .from('textile_assignments')
       .select('id')
-      .eq('motiv_id', motivId)
+      .eq('motif_id', motivId)
     if (error) throw error
     return (data ?? []).map(r => r.id)
   }
 
   async getAssignmentIdsByPosition(positionId: string): Promise<string[]> {
     const { data, error } = await supabase
-      .from('textil_zuordnungen')
+      .from('textile_assignments')
       .select('id')
       .eq('position_id', positionId)
     if (error) throw error
@@ -180,7 +180,7 @@ class TextileService {
 
   async updateMotif(id: string, patch: MotifUpdate): Promise<TextileMotifRow> {
     const { data, error } = await supabase
-      .from('textil_motive')
+      .from('textile_motifs')
       .update(patch)
       .eq('id', id)
       .select('*')
@@ -191,7 +191,7 @@ class TextileService {
 
   async createMotif(payload: MotifInsert): Promise<TextileMotifRow> {
     const { data, error } = await supabase
-      .from('textil_motive')
+      .from('textile_motifs')
       .insert(payload)
       .select('*')
       .single()
@@ -200,13 +200,13 @@ class TextileService {
   }
 
   async deleteMotif(id: string): Promise<void> {
-    const { error } = await supabase.from('textil_motive').delete().eq('id', id)
+    const { error } = await supabase.from('textile_motifs').delete().eq('id', id)
     if (error) throw error
   }
 
   async updatePosition(id: string, patch: PositionUpdate): Promise<TextilePositionRow> {
     const { data, error } = await supabase
-      .from('textil_positionen')
+      .from('textile_positions')
       .update(patch)
       .eq('id', id)
       .select('*')
@@ -217,7 +217,7 @@ class TextileService {
 
   async createPosition(payload: PositionInsert): Promise<TextilePositionRow> {
     const { data, error } = await supabase
-      .from('textil_positionen')
+      .from('textile_positions')
       .insert(payload)
       .select('*')
       .single()
@@ -226,15 +226,15 @@ class TextileService {
   }
 
   async deletePosition(id: string): Promise<void> {
-    const { error } = await supabase.from('textil_positionen').delete().eq('id', id)
+    const { error } = await supabase.from('textile_positions').delete().eq('id', id)
     if (error) throw error
   }
 
   async getPositionsWithVariants(subOrderId: string): Promise<PositionWithVariant[]> {
     const { data, error } = await supabase
-      .from('textil_positionen')
-      .select('*, textil_varianten(id, textil_produkte(name))')
-      .eq('teilauftrag_id', subOrderId)
+      .from('textile_positions')
+      .select('*, textile_variants(id, textile_products(name))')
+      .eq('sub_order_id', subOrderId)
       .order('id')
     if (error) throw error
     return (data ?? []) as unknown as PositionWithVariant[]

@@ -1,168 +1,168 @@
 import { supabase } from '../supabase'
 import type { Database } from '../types/supabase'
 
-type StampModelRow = Database['public']['Tables']['stempel_modelle']['Row']
-type StampModelUpdate = Database['public']['Tables']['stempel_modelle']['Update']
-type StockMovementInsert = Database['public']['Tables']['lager_bewegungen']['Insert']
+type StampModelRow = Database['public']['Tables']['stamp_models']['Row']
+type StampModelUpdate = Database['public']['Tables']['stamp_models']['Update']
+type StockMovementInsert = Database['public']['Tables']['stamp_stock_movements']['Insert']
 
 export type StampModelSuggestion = Pick<
   StampModelRow,
-  'id' | 'name' | 'bestand' | 'max_breite_mm' | 'max_hoehe_mm' | 'druckflaeche'
+  'id' | 'name' | 'stock' | 'max_width_mm' | 'max_height_mm' | 'print_area'
 >
 
-export type StockMovementRow = Database['public']['Tables']['lager_bewegungen']['Row'] & {
-  stempel_modelle: { name: string } | null
+export type StockMovementRow = Database['public']['Tables']['stamp_stock_movements']['Row'] & {
+  stamp_models: { name: string } | null
 }
 
 export type ReorderItem = Pick<
   StampModelRow,
-  'id' | 'name' | 'artikelnummer' | 'typ' | 'farbe' | 'bestand' | 'mindestbestand'
+  'id' | 'name' | 'article_number' | 'type' | 'color' | 'stock' | 'min_stock'
 >
 
 class StampService {
   async getStampModels(): Promise<StampModelRow[]> {
     const { data, error } = await supabase
-      .from('stempel_modelle')
+      .from('stamp_models')
       .select('*')
-      .eq('aktiv', true)
+      .eq('is_active', true)
     if (error) throw error
     return (data ?? []) as StampModelRow[]
   }
 
-  async getStampModelById(id: string): Promise<{ bestand: number } | null> {
+  async getStampModelById(id: string): Promise<{ stock: number } | null> {
     const { data, error } = await supabase
-      .from('stempel_modelle')
-      .select('bestand')
+      .from('stamp_models')
+      .select('stock')
       .eq('id', id)
       .single()
     if (error) throw error
-    return data as { bestand: number } | null
+    return data as { stock: number } | null
   }
 
-  async getStampModelForOrder(id: string): Promise<{ ersatzkissen_artikelnummer: string | null } | null> {
+  async getStampModelForOrder(id: string): Promise<{ replacement_pad_article_number: string | null } | null> {
     const { data, error } = await supabase
-      .from('stempel_modelle')
-      .select('ersatzkissen_artikelnummer')
+      .from('stamp_models')
+      .select('replacement_pad_article_number')
       .eq('id', id)
       .single()
     if (error) throw error
-    return data as { ersatzkissen_artikelnummer: string | null } | null
+    return data as { replacement_pad_article_number: string | null } | null
   }
 
   async findReplacementPad(
-    artikelnummer: string,
-    farbe: string,
-  ): Promise<{ id: string; bestand: number } | null> {
+    article_number: string,
+    color: string,
+  ): Promise<{ id: string; stock: number } | null> {
     const { data, error } = await supabase
-      .from('stempel_modelle')
-      .select('id, bestand')
-      .eq('typ', 'TRODAT_KISSEN')
-      .eq('artikelnummer', artikelnummer)
-      .eq('farbe', farbe)
+      .from('stamp_models')
+      .select('id, stock')
+      .eq('type', 'TRODAT_PAD')
+      .eq('article_number', article_number)
+      .eq('color', color)
       .maybeSingle()
     if (error) throw error
-    return data as { id: string; bestand: number } | null
+    return data as { id: string; stock: number } | null
   }
 
-  async findPadBySize(groesse: string): Promise<{ bestand: number } | null> {
+  async findPadBySize(size: string): Promise<{ stock: number } | null> {
     const { data, error } = await supabase
-      .from('stempel_modelle')
-      .select('bestand')
-      .eq('typ', 'STEMPELKISSEN_PRODUKT')
-      .eq('groesse', groesse)
+      .from('stamp_models')
+      .select('stock')
+      .eq('type', 'INK_PAD_PRODUCT')
+      .eq('size', size)
       .maybeSingle()
     if (error) throw error
-    return data as { bestand: number } | null
+    return data as { stock: number } | null
   }
 
   async getStampModelsForSuggestion(
-    typ: string,
-    breite: number,
-    hoehe: number,
+    type: string,
+    width: number,
+    height: number,
   ): Promise<StampModelSuggestion[]> {
     const { data, error } = await supabase
-      .from('stempel_modelle')
-      .select('id, name, bestand, max_breite_mm, max_hoehe_mm, druckflaeche')
-      .eq('typ', typ)
-      .eq('aktiv', true)
-      .gte('max_breite_mm', breite)
-      .gte('max_hoehe_mm', hoehe)
+      .from('stamp_models')
+      .select('id, name, stock, max_width_mm, max_height_mm, print_area')
+      .eq('type', type)
+      .eq('is_active', true)
+      .gte('max_width_mm', width)
+      .gte('max_height_mm', height)
     if (error) throw error
     return (data ?? []) as StampModelSuggestion[]
   }
 
   /** All active models for a type — client filters by dimensions. */
-  async getStampModelsByType(typ: string): Promise<(StampModelSuggestion & { ersatzkissen_artikelnummer: string | null })[]> {
+  async getStampModelsByType(type: string): Promise<(StampModelSuggestion & { replacement_pad_article_number: string | null })[]> {
     const { data, error } = await supabase
-      .from('stempel_modelle')
-      .select('id, name, bestand, max_breite_mm, max_hoehe_mm, druckflaeche, ersatzkissen_artikelnummer')
-      .eq('typ', typ)
-      .eq('aktiv', true)
+      .from('stamp_models')
+      .select('id, name, stock, max_width_mm, max_height_mm, print_area, replacement_pad_article_number')
+      .eq('type', type)
+      .eq('is_active', true)
     if (error) throw error
-    return (data ?? []) as (StampModelSuggestion & { ersatzkissen_artikelnummer: string | null })[]
+    return (data ?? []) as (StampModelSuggestion & { replacement_pad_article_number: string | null })[]
   }
 
   /** Cushion rows for a given replacement-part article number. */
   async getCushionsByArticleNumber(
-    artikelnummer: string,
-  ): Promise<{ id: string; name: string; farbe: string | null; bestand: number | null }[]> {
+    article_number: string,
+  ): Promise<{ id: string; name: string; color: string | null; stock: number | null }[]> {
     const { data, error } = await supabase
-      .from('stempel_modelle')
-      .select('id, name, farbe, bestand')
-      .eq('typ', 'TRODAT_KISSEN')
-      .eq('artikelnummer', artikelnummer)
-      .order('farbe', { ascending: true })
+      .from('stamp_models')
+      .select('id, name, color, stock')
+      .eq('type', 'TRODAT_PAD')
+      .eq('article_number', article_number)
+      .order('color', { ascending: true })
     if (error) throw error
-    return (data ?? []) as { id: string; name: string; farbe: string | null; bestand: number | null }[]
+    return (data ?? []) as { id: string; name: string; color: string | null; stock: number | null }[]
   }
 
   /** Full-text search across cushion name and article number. */
   async searchCushions(
     query: string,
-  ): Promise<{ id: string; name: string; artikelnummer: string | null; farbe: string | null; bestand: number; vk_preis_netto: number | null }[]> {
+  ): Promise<{ id: string; name: string; article_number: string | null; color: string | null; stock: number; net_price: number | null }[]> {
     const escaped = query.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
     const pattern = `%${escaped}%`
     const { data, error } = await supabase
-      .from('stempel_modelle')
-      .select('id, name, artikelnummer, farbe, bestand, vk_preis_netto')
-      .eq('typ', 'TRODAT_KISSEN')
-      .eq('aktiv', true)
-      .or(`name.ilike.${pattern},artikelnummer.ilike.${pattern}`)
-      .order('artikelnummer', { ascending: true })
+      .from('stamp_models')
+      .select('id, name, article_number, color, stock, net_price')
+      .eq('type', 'TRODAT_PAD')
+      .eq('is_active', true)
+      .or(`name.ilike.${pattern},article_number.ilike.${pattern}`)
+      .order('article_number', { ascending: true })
     if (error) throw error
-    return (data ?? []) as { id: string; name: string; artikelnummer: string | null; farbe: string | null; bestand: number; vk_preis_netto: number | null }[]
+    return (data ?? []) as { id: string; name: string; article_number: string | null; color: string | null; stock: number; net_price: number | null }[]
   }
 
   async getReorderReport(): Promise<ReorderItem[]> {
     const { data, error } = await supabase
-      .from('stempel_modelle')
-      .select('id, name, artikelnummer, typ, farbe, bestand, mindestbestand')
+      .from('stamp_models')
+      .select('id, name, article_number, type, color, stock, min_stock')
     if (error) throw error
-    return (data ?? []).filter(r => r.bestand <= r.mindestbestand) as ReorderItem[]
+    return (data ?? []).filter(r => r.stock <= r.min_stock) as ReorderItem[]
   }
 
-  async updateStampModelStock(id: string, bestand: number): Promise<void> {
-    const patch: StampModelUpdate = { bestand }
-    const { error } = await supabase.from('stempel_modelle').update(patch).eq('id', id)
+  async updateStampModelStock(id: string, stock: number): Promise<void> {
+    const patch: StampModelUpdate = { stock }
+    const { error } = await supabase.from('stamp_models').update(patch).eq('id', id)
     if (error) throw error
   }
 
-  async updateStampModelMinimumStock(id: string, mindestbestand: number): Promise<void> {
-    const patch: StampModelUpdate = { mindestbestand }
-    const { error } = await supabase.from('stempel_modelle').update(patch).eq('id', id)
+  async updateStampModelMinimumStock(id: string, min_stock: number): Promise<void> {
+    const patch: StampModelUpdate = { min_stock }
+    const { error } = await supabase.from('stamp_models').update(patch).eq('id', id)
     if (error) throw error
   }
 
   async createStockMovement(payload: StockMovementInsert): Promise<void> {
-    const { error } = await supabase.from('lager_bewegungen').insert(payload)
+    const { error } = await supabase.from('stamp_stock_movements').insert(payload)
     if (error) throw error
   }
 
   async getStockMovements(): Promise<StockMovementRow[]> {
     const { data, error } = await supabase
-      .from('lager_bewegungen')
-      .select('*, stempel_modelle(name)')
-      .order('erstellt_am', { ascending: false })
+      .from('stamp_stock_movements')
+      .select('*, stamp_models(name)')
+      .order('created_at', { ascending: false })
       .limit(200)
     if (error) throw error
     return (data ?? []) as unknown as StockMovementRow[]

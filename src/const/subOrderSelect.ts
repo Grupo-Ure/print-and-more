@@ -1,2 +1,2 @@
 export const SUB_ORDER_COLUMNS =
-  'id, auftrag_id, bereich, typ, status, termin, lieferung, prioritaet, verantwortlicher_id, satzzeit_minuten, detail, notfall_aktiv, notfall_begruendung, storniert, kundenfreigabe_erforderlich, kundenfreigabe_liegt_vor, kundenfreigabe_datei_id' as const
+  'id, order_id, department, type, status, deadline, delivery, priority, assignee_id, typesetting_minutes, detail, is_emergency, emergency_reason, is_cancelled, customer_approval_required, customer_approval_granted, customer_approval_file_id' as const

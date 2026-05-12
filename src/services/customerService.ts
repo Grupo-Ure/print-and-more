@@ -1,30 +1,30 @@
 import { supabase } from '../supabase'
 import type { Database } from '../types/supabase'
 
-type CustomerInsert = Database['public']['Tables']['kunden']['Insert']
-type CustomerUpdate = Database['public']['Tables']['kunden']['Update']
+type CustomerInsert = Database['public']['Tables']['customers']['Insert']
+type CustomerUpdate = Database['public']['Tables']['customers']['Update']
 
 export type CustomerRow = {
   id: string
   name: string
   email: string | null
-  telefon: string | null
-  notiz: string | null
-  strasse: string | null
-  hausnummer: string | null
-  plz: string | null
-  ort: string | null
+  phone: string | null
+  note: string | null
+  street: string | null
+  house_number: string | null
+  postal_code: string | null
+  city: string | null
 }
 
-const CUSTOMER_COLUMNS = 'id, name, email, telefon, notiz, strasse, hausnummer, plz, ort'
+const CUSTOMER_COLUMNS = 'id, name, email, phone, note, street, house_number, postal_code, city'
 
 class CustomerService {
   async searchCustomers(query: string): Promise<CustomerRow[]> {
     const { data, error } = await supabase
-      .from('kunden')
+      .from('customers')
       .select(CUSTOMER_COLUMNS)
       .ilike('name', `%${query}%`)
-      .eq('archiviert', false)
+      .eq('is_archived', false)
       .order('name')
       .limit(20)
     if (error) throw error
@@ -33,7 +33,7 @@ class CustomerService {
 
   async getCustomerById(id: string): Promise<CustomerRow | null> {
     const { data, error } = await supabase
-      .from('kunden')
+      .from('customers')
       .select(CUSTOMER_COLUMNS)
       .eq('id', id)
       .single()
@@ -43,7 +43,7 @@ class CustomerService {
 
   async createCustomer(payload: CustomerInsert): Promise<CustomerRow> {
     const { data, error } = await supabase
-      .from('kunden')
+      .from('customers')
       .insert(payload)
       .select(CUSTOMER_COLUMNS)
       .single()
@@ -53,7 +53,7 @@ class CustomerService {
 
   async updateCustomer(id: string, payload: CustomerUpdate): Promise<CustomerRow> {
     const { data, error } = await supabase
-      .from('kunden')
+      .from('customers')
       .update(payload)
       .eq('id', id)
       .select(CUSTOMER_COLUMNS)
@@ -65,7 +65,7 @@ class CustomerService {
   /** Returns IDs of all customers (including archived) whose name matches the query. Used for order list search. */
   async searchCustomerIds(query: string): Promise<string[]> {
     const { data, error } = await supabase
-      .from('kunden')
+      .from('customers')
       .select('id')
       .ilike('name', `%${query}%`)
     if (error) throw error
