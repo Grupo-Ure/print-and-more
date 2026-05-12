@@ -8,13 +8,13 @@ import { textileService } from '../services/textileService'
 import { textileMasterDataService } from '../services/textileMasterDataService'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import {
-  subOrderDetailToFieldMap,
   type Auftrag,
   type OrderStatus,
   type CustomerContactJoin,
   type CustomerContactRow,
   type SubOrderRow,
 } from '../types/database'
+import { subOrderDetailToFieldMap } from '../lib/utils'
 import { FileList } from './FileList'
 import type { FileRow } from '../services/fileService'
 import { HistoryPanel } from './HistoryPanel'

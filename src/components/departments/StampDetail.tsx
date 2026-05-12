@@ -7,7 +7,8 @@ import {
   type StampDetailJson,
 } from '../../types/stamp'
 import { validateStampDetail } from '../../lib/stamp/validateStampDetail'
-import { subOrderDetailToFieldMap, type OrderStatus, type SubOrderRow } from '../../types/database'
+import { type OrderStatus, type SubOrderRow } from '../../types/database'
+import { subOrderDetailToFieldMap } from '../../lib/utils'
 import type { Database, Json } from '../../types/supabase'
 import { subOrderProductService, type SubOrderProductRow } from '../../services/subOrderProductService'
 import { stampService } from '../../services/stampService'

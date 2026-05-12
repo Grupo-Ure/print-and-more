@@ -6,7 +6,7 @@ import { subOrderService } from '../services/subOrderService'
 import { stampService } from '../services/stampService'
 import { Login } from '../components/Login'
 import { useToast } from '../components/Toast'
-import { subOrderDetailToFieldMap } from '../types/database'
+import { subOrderDetailToFieldMap } from '../lib/utils'
 import type { Json } from '../types/supabase'
 
 type StampType =

@@ -25,7 +25,8 @@
  * identifier surface is English here.
  */
 
-import { subOrderDetailToFieldMap, type OrderStatus, type SubOrderRow } from '../types/database'
+import { type OrderStatus, type SubOrderRow } from '../types/database'
+import { subOrderDetailToFieldMap } from './utils'
 import { textileDetailMarkedComplete } from './textile/validateTextileDetail'
 
 const UUID_LOOSE = /^[0-9a-fA-F-]{30,40}$/

@@ -1,4 +1,4 @@
-import type { Enums, Tables, TablesInsert, TablesUpdate, Json } from './supabase'
+import type { Enums, Tables, TablesInsert, TablesUpdate } from './supabase'
 import { Constants } from './supabase'
 
 export type OrderStatus = Enums<'order_status'>
@@ -13,15 +13,6 @@ export type Department = SubOrderDepartment
 
 /** Entspricht `prioritaet_typ` in der DB (Auftrag und Teilauftrag). */
 export type Priority = Enums<'priority_type'>
-
-/** Flaches Objekt für Validierung von JSONB-Details; Arrays/Primitiv oben = leer. */
-export function subOrderDetailToFieldMap(detail: Json | null): Record<string, unknown> {
-  if (detail === null) return {}
-  if (typeof detail === 'object' && !Array.isArray(detail)) {
-    return detail
-  }
-  return {}
-}
 
 export type CustomerName = {
   name: string
