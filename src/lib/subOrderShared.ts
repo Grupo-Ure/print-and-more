@@ -76,7 +76,7 @@ export function validateSubOrderCommonFields(
   if (status === 'QUOTE') return errors
   if (subOrder.lieferung !== 'ABHOLUNG' && subOrder.lieferung !== 'VERSAND') errors.lieferung = 'Pflichtfeld'
   if (!subOrder.termin) errors.termin = 'Pflichtfeld'
-  if (subOrder.prioritaet !== 'NORMAL' && subOrder.prioritaet !== 'HOCH') {
+  if (subOrder.prioritaet !== 'NORMAL' && subOrder.prioritaet !== 'HIGH') {
     errors.prioritaet = 'Pflichtfeld'
   }
   const rawAssigneeId = subOrder.verantwortlicher_id

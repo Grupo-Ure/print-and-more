@@ -470,7 +470,7 @@ export function SubOrderDetail({
                 if (!isChecked) {
                   void save({ prioritaet: orderPriorityMode })
                 } else {
-                  const alternativePriority: Priority = orderPriorityMode === 'HOCH' ? 'NORMAL' : 'HOCH'
+                  const alternativePriority: Priority = orderPriorityMode === 'HIGH' ? 'NORMAL' : 'HIGH'
                   void save({ prioritaet: alternativePriority })
                 }
               }}
@@ -484,11 +484,11 @@ export function SubOrderDetail({
                 value={local.prioritaet}
                 onChange={e => {
                   const value = e.target.value
-                  if (value === 'NORMAL' || value === 'HOCH') setLocal(s => ({ ...s, prioritaet: value }))
+                  if (value === 'NORMAL' || value === 'HIGH') setLocal(s => ({ ...s, prioritaet: value }))
                 }}
                 onBlur={e => {
                   const value = e.target.value
-                  if ((value === 'NORMAL' || value === 'HOCH') && value !== serverSnapshotRef.current.prioritaet) {
+                  if ((value === 'NORMAL' || value === 'HIGH') && value !== serverSnapshotRef.current.prioritaet) {
                     void save({ prioritaet: value })
                   }
                 }}
@@ -500,7 +500,7 @@ export function SubOrderDetail({
             </div>
           ) : (
             <div className="cp-hinweis" style={{ marginTop: 6, marginBottom: 0 }}>
-              {effectivePriority === 'HOCH' ? 'Hoch' : 'Normal'}
+              {effectivePriority === 'HIGH' ? 'Hoch' : 'Normal'}
               {shouldValidate && validationErrors.prioritaet && <p className="td-feld-err">{validationErrors.prioritaet}</p>}
             </div>
           )}

@@ -381,7 +381,7 @@ export function WorkArea({
   const trimDeadline = (dateString: string | null) => (dateString && dateString.length > 10 ? dateString.slice(0, 10) : dateString || '')
   const contactOneLine = customerContactOneLine(order.kunden)
 
-  const priorityGlyph = (priority: Priority) => (priority === 'HOCH' ? '▲' : '●')
+  const priorityGlyph = (priority: Priority) => (priority === 'HIGH' ? '▲' : '●')
 
   return (
     <div className="work-area">
@@ -488,7 +488,7 @@ export function WorkArea({
             value={headerPriority}
             onChange={e => {
               const value = e.target.value
-              if (value === 'NORMAL' || value === 'HOCH') {
+              if (value === 'NORMAL' || value === 'HIGH') {
                 setHeaderPriority(value)
                 if (value !== headerSnapshot.current.prioritaet) {
                   void saveOrderHeader({ prioritaet: value })

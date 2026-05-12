@@ -524,7 +524,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
                           !
                         </span>
                       )}
-                      {order.prioritaet === 'HOCH' && (
+                      {order.prioritaet === 'HIGH' && (
                         <span className="ol-prio" title="Priorität hoch" aria-label="Priorität hoch">
                           ↑
                         </span>

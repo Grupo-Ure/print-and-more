@@ -12,7 +12,7 @@ export const SUB_ORDER_DEPARTMENTS: readonly SubOrderDepartment[] = Constants.pu
 export type Department = SubOrderDepartment
 
 /** Entspricht `prioritaet_typ` in der DB (Auftrag und Teilauftrag). */
-export type Priority = 'NORMAL' | 'HOCH'
+export type Priority = Enums<'priority_type'>
 
 /** Flaches Objekt für Validierung von JSONB-Details; Arrays/Primitiv oben = leer. */
 export function subOrderDetailToFieldMap(detail: Json | null): Record<string, unknown> {

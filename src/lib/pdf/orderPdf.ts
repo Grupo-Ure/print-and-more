@@ -6,6 +6,7 @@ import { subOrderService } from '../../services/subOrderService'
 import { subOrderProductService } from '../../services/subOrderProductService'
 import { textileService } from '../../services/textileService'
 import type { Database } from '../../types/supabase'
+import type { Priority } from '../../types/database'
 
 type OrderPdfRow = Pick<
   Database['public']['Tables']['auftraege']['Row'],
@@ -174,8 +175,8 @@ function formatDelivery(deliveryType: Database['public']['Enums']['lieferung_typ
   return '—'
 }
 
-function formatPriority(priorityType: Database['public']['Enums']['prioritaet_typ']): string {
-  if (priorityType === 'HOCH') return '⚡ HOCH'
+function formatPriority(priorityType: Priority): string {
+  if (priorityType === 'HIGH') return '⚡ HOCH'
   return 'Normal'
 }
 
