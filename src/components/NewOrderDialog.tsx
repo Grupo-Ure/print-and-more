@@ -123,8 +123,8 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
     onSuccess(data)
     try {
       await historyService.writeHistory({
-        auftrag_id: data.id,
-        ereignisart: 'AUFTRAG_ERSTELLT',
+        order_id: data.id,
+        event_type: 'ORDER_CREATED',
       })
     } catch {
       console.error('Historie AUFTRAG_ERSTELLT fehlgeschlagen')

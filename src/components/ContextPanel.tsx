@@ -248,8 +248,8 @@ export function ContextPanel({
     try {
       await orderService.setOrderStatus(order.id, 'INCOMPLETE')
       await historyService.writeHistory({
-        auftrag_id: order.id,
-        ereignisart: 'IN_BEARBEITUNG_GENOMMEN',
+        order_id: order.id,
+        event_type: 'PROCESSING_STARTED',
       })
       const updated = await orderService.synchronizeOrderStatus(order.id)
       onOrderUpdated({ ...order, status: updated.status })
@@ -281,8 +281,8 @@ export function ContextPanel({
     try {
       await orderService.markOrderBilled(order.id)
       await historyService.writeHistory({
-        auftrag_id: order.id,
-        ereignisart: 'FERTIG_GEMELDET',
+        order_id: order.id,
+        event_type: 'MARKED_DONE',
         meta: { abgerechnet_auftrag: true },
       })
       onOrderUpdated({ ...order, status: 'INVOICED', is_archived: true })
@@ -304,7 +304,7 @@ export function ContextPanel({
     setBusy(true)
     try {
       await orderService.archiveOrderWithCancelledSubOrders(order.id)
-      await historyService.writeHistory({ auftrag_id: order.id, ereignisart: 'STORNIERT' })
+      await historyService.writeHistory({ order_id: order.id, event_type: 'CANCELLED' })
       onOrderUpdated({ ...order, is_archived: true })
     } catch {
       fehler('Status konnte nicht geändert werden')
@@ -352,9 +352,9 @@ export function ContextPanel({
     try {
       const data = await subOrderService.setSubOrderStatus(subOrder.id, 'PREPRESS_READY')
       await historyService.writeHistory({
-        auftrag_id: order.id,
-        teilauftrag_id: subOrder.id,
-        ereignisart: 'PREPRESS_BEREIT_MANUELL',
+        order_id: order.id,
+        sub_order_id: subOrder.id,
+        event_type: 'PREPRESS_READY_MANUAL',
       })
       onSubOrderUpdated(data as SubOrderRow)
       const pdfOk = await generateAndDownloadPdf(subOrder.id, order.id)
@@ -461,9 +461,9 @@ export function ContextPanel({
 
       try {
         await historyService.writeHistory({
-          auftrag_id: order.id,
-          teilauftrag_id: subOrder.id,
-          ereignisart: 'PRODUKTION_BEREIT_GESETZT',
+          order_id: order.id,
+          sub_order_id: subOrder.id,
+          event_type: 'PRODUCTION_READY_SET',
         })
       } catch {
         console.error('Historie Produktion fehlgeschlagen')
@@ -497,9 +497,9 @@ export function ContextPanel({
     try {
       const data = await subOrderService.setSubOrderStatus(subOrder.id, 'DONE')
       await historyService.writeHistory({
-        auftrag_id: order.id,
-        teilauftrag_id: subOrder.id,
-        ereignisart: 'FERTIG_GEMELDET',
+        order_id: order.id,
+        sub_order_id: subOrder.id,
+        event_type: 'MARKED_DONE',
       })
       onSubOrderUpdated(data)
       await syncOrderStatusAfterSubOrderAction()
@@ -538,10 +538,10 @@ export function ContextPanel({
         emergency_reason: reason,
       })
       await historyService.writeHistory({
-        auftrag_id: order.id,
-        teilauftrag_id: subOrder.id,
-        ereignisart: 'NOTFALL_AUSGELOEST',
-        begruendung: reason,
+        order_id: order.id,
+        sub_order_id: subOrder.id,
+        event_type: 'EMERGENCY_TRIGGERED',
+        reason: reason,
       })
       onSubOrderUpdated(data)
       await syncOrderStatusAfterSubOrderAction()
@@ -562,9 +562,9 @@ export function ContextPanel({
         emergency_reason: null,
       })
       await historyService.writeHistory({
-        auftrag_id: order.id,
-        teilauftrag_id: subOrder.id,
-        ereignisart: 'RUECKSPRUNG',
+        order_id: order.id,
+        sub_order_id: subOrder.id,
+        event_type: 'ROLLED_BACK',
       })
       onSubOrderUpdated(data)
       await syncOrderStatusAfterSubOrderAction()
@@ -589,11 +589,11 @@ export function ContextPanel({
           }
       const data = await subOrderService.setCustomerApproval(subOrder.id, approvalPatch)
       // DB-Enum hat kein KUNDENFREIGABE_DEAKTIVIERT; bei Abschaltung der Anforderung VERFALLEN als nächstliegender Wert.
-      const historyEvent: HistoryEvent = enabled ? 'KUNDENFREIGABE_AKTIVIERT' : 'KUNDENFREIGABE_VERFALLEN'
+      const historyEvent: HistoryEvent = enabled ? 'CUSTOMER_APPROVAL_ACTIVATED' : 'CUSTOMER_APPROVAL_EXPIRED'
       await historyService.writeHistory({
-        auftrag_id: order.id,
-        teilauftrag_id: subOrder.id,
-        ereignisart: historyEvent,
+        order_id: order.id,
+        sub_order_id: subOrder.id,
+        event_type: historyEvent,
         meta: { aktiv: enabled } as unknown as Record<string, unknown>,
       })
       onSubOrderUpdated(data)
@@ -621,9 +621,9 @@ export function ContextPanel({
         customer_approval_file_id: customerApprovalFileId,
       })
       await historyService.writeHistory({
-        auftrag_id: order.id,
-        teilauftrag_id: subOrder.id,
-        ereignisart: 'KUNDENFREIGABE_ERTEILT',
+        order_id: order.id,
+        sub_order_id: subOrder.id,
+        event_type: 'CUSTOMER_APPROVAL_GRANTED',
         meta: { datei_id: customerApprovalFileId } as unknown as Record<string, unknown>,
       })
       onSubOrderUpdated(data)

@@ -13,20 +13,20 @@ type Props = {
 
 
 const EVENT_LABELS: Record<string, string> = {
-  AUFTRAG_ERSTELLT: 'Auftrag erstellt',
-  IN_BEARBEITUNG_GENOMMEN: 'In Bearbeitung genommen',
-  PREPRESS_BEREIT_AUTO: 'Prepress — automatisch',
-  PREPRESS_BEREIT_MANUELL: 'Prepress — manuell',
-  PRODUKTION_BEREIT_GESETZT: 'Produktion freigegeben',
-  FERTIG_GEMELDET: 'Als fertig gemeldet',
-  NOTFALL_AUSGELOEST: 'Notfall ausgelöst',
-  KUNDENFREIGABE_AKTIVIERT: 'Kundenfreigabe aktiviert',
-  KUNDENFREIGABE_ERTEILT: 'Kundenfreigabe erteilt',
-  KUNDENFREIGABE_VERFALLEN: 'Kundenfreigabe verfallen',
-  KUNDENFREIGABE_UEBERGANGEN: 'Kundenfreigabe übergangen',
-  RUECKSPRUNG: 'Rücksprung',
-  ERP_EXPORTIERT: 'ERP exportiert',
-  STORNIERT: 'Auftrag storniert',
+  ORDER_CREATED: 'Auftrag erstellt',
+  PROCESSING_STARTED: 'In Bearbeitung genommen',
+  PREPRESS_READY_AUTO: 'Prepress — automatisch',
+  PREPRESS_READY_MANUAL: 'Prepress — manuell',
+  PRODUCTION_READY_SET: 'Produktion freigegeben',
+  MARKED_DONE: 'Als fertig gemeldet',
+  EMERGENCY_TRIGGERED: 'Notfall ausgelöst',
+  CUSTOMER_APPROVAL_ACTIVATED: 'Kundenfreigabe aktiviert',
+  CUSTOMER_APPROVAL_GRANTED: 'Kundenfreigabe erteilt',
+  CUSTOMER_APPROVAL_EXPIRED: 'Kundenfreigabe verfallen',
+  CUSTOMER_APPROVAL_BYPASSED: 'Kundenfreigabe übergangen',
+  ROLLED_BACK: 'Rücksprung',
+  ERP_EXPORTED: 'ERP exportiert',
+  CANCELLED: 'Auftrag storniert',
 }
 
 function eventLabel(art: string): string {
@@ -118,16 +118,16 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: P
           )}
           {!loading &&
             entries.map(entry => {
-              const staffName = entry.person_id ? staffById.get(entry.person_id) : ''
-              const department = subOrderDepartment(entry.teilauftrag_id)
+              const staffName = entry.user_id ? staffById.get(entry.user_id) : ''
+              const department = subOrderDepartment(entry.sub_order_id)
               return (
                 <div key={entry.id} className="cp-hist-eintrag">
-                  <div className="cp-hist-zeile" title={eventLabel(entry.ereignisart)}>
-                    <span className="cp-hist-time">{formatHistoryTime(entry.erstellt_am)}</span>
-                    <span className="cp-hist-evt">{eventLabel(entry.ereignisart)}</span>
+                  <div className="cp-hist-zeile" title={eventLabel(entry.event_type)}>
+                    <span className="cp-hist-time">{formatHistoryTime(entry.created_at)}</span>
+                    <span className="cp-hist-evt">{eventLabel(entry.event_type)}</span>
                     <span className="cp-hist-who">{staffName || '—'}</span>
                   </div>
-                  {entry.begruendung && <p className="cp-hist-sub">{entry.begruendung}</p>}
+                  {entry.reason && <p className="cp-hist-sub">{entry.reason}</p>}
                   {department && <p className="cp-hist-tl">Teil: {subOrderDepartmentLabel(department)}</p>}
                 </div>
               )
