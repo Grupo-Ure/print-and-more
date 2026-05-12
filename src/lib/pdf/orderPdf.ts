@@ -355,18 +355,18 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
         head: [['Produkt', 'Farbe', 'Größe', 'Stückzahl', 'Herkunft', 'Notiz']],
         body: textilePositions.map(position => {
           const positionRecord = position as Record<string, unknown>
-          const variantEmbed = positionRecord.textil_varianten as {
-            textil_produkte: { name: string | null } | null
+          const variantEmbed = positionRecord.textile_variants as {
+            textile_products: { name: string | null } | null
           } | null
           const productName =
-            variantEmbed?.textil_produkte?.name ?? String(positionRecord.modell ?? positionRecord.produkt_id ?? '—')
+            variantEmbed?.textile_products?.name ?? String(positionRecord.model ?? positionRecord.variant_id ?? '—')
           return [
             productName,
-            String(position.farbe ?? '—'),
-            String(position.groesse ?? '—'),
-            String(position.stueckzahl ?? '—'),
-            String(position.herkunft ?? '—'),
-            String(positionRecord.notiz ?? ''),
+            String(position.color ?? '—'),
+            String(position.size ?? '—'),
+            String(position.quantity ?? '—'),
+            String(position.origin ?? '—'),
+            String(positionRecord.note ?? ''),
           ]
         }),
         styles: { fontSize: 8, cellPadding: 2 },

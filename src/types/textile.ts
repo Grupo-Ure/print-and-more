@@ -11,22 +11,22 @@
  * carries the (motif × placement) assignment with embedded copies of
  * both sides for display.
  *
- * Inline DB tables `textil_motive`, `textil_positionen`, `textil_zuordnungen`,
- * and `textil_varianten` mirror these row types, joined via PostgREST
- * embeds (the `textil_motive`/`textil_positionen` keys on the
+ * Inline DB tables `textile_motifs`, `textile_positions`, `textile_assignments`,
+ * and `textile_variants` mirror these row types, joined via PostgREST
+ * embeds (the `textile_motifs`/`textile_positions` keys on the
  * assignment row).
  */
 
 /** Discriminator: motif is free text vs an uploaded file. */
-export type TextileMotifType = 'TEXT' | 'DATEI'
+export type TextileMotifType = 'TEXT' | 'FILE'
 
 /** Coarse font classification for text motifs. */
-export type TextileFontClass = 'SERIFENLOS' | 'SERIFEN' | 'ELEGANT' | 'VERSPIELT'
+export type TextileFontClass = 'SANS_SERIF' | 'SERIF' | 'ELEGANT' | 'PLAYFUL'
 
 /** Whether the garment was supplied by the customer or pulled from in-house stock. */
-export type TextileOrigin = 'KUNDENWARE' | 'EIGENWARE'
+export type TextileOrigin = 'CUSTOMER_STOCK' | 'OWN_STOCK'
 
-/** Garment kinds for customer-supplied items (KUNDENWARE). In-house stock
+/** Garment kinds for customer-supplied items (CUSTOMER_STOCK). In-house stock
  * doesn't use this; it derives garment info from the variant catalog. */
 export type TextileCustomerGarmentType =
   | 'T_SHIRT'
@@ -50,69 +50,69 @@ export type TextilePlacement =
 /** Motif size — discrete buckets plus a free-text fallback. */
 export type TextileSize = 'KLEIN' | 'MITTEL' | 'GROSS' | 'FREI'
 
-/** Row from `textil_motive`: the artwork to be applied. */
+/** Row from `textile_motifs`: the artwork to be applied. */
 export type TextileMotifRow = {
   id: string
-  teilauftrag_id: string
-  typ: TextileMotifType
-  platz: TextilePlacement
-  groesse: string
-  druckart: string | null
-  inhalt: string | null
-  farbe: string | null
-  schriftklasse: string | null
-  schriftart: string | null
-  datei_id: string | null
+  sub_order_id: string
+  type: TextileMotifType
+  placement: TextilePlacement
+  size: string
+  print_method: string | null
+  content: string | null
+  color: string | null
+  font_class: string | null
+  font_name: string | null
+  file_id: string | null
 }
 
-/** Row from `textil_positionen`: one garment configuration with quantity. */
+/** Row from `textile_positions`: one garment configuration with quantity. */
 export type TextilePositionRow = {
   id: string
-  teilauftrag_id: string
-  herkunft: TextileOrigin
-  typ: string | null
-  farbe: string | null
-  stueckzahl: number
-  marke: string | null
-  modell: string | null
-  groesse: string | null
-  /** Catalog reference (DB `textil_positionen.variante_id`) for in-house stock. */
-  variante_id: string | null
+  sub_order_id: string
+  origin: TextileOrigin
+  type: string | null
+  color: string | null
+  quantity: number
+  brand: string | null
+  model: string | null
+  size: string | null
+  /** Catalog reference (DB `textile_positions.variant_id`) for in-house stock. */
+  variant_id: string | null
 }
 
 /** Embedded motif shape inside a {@link TextileAssignmentRow}. */
 export type TextileNestedMotif = {
-  typ: TextileMotifType
-  platz: string
-  groesse: string
-  druckart: string | null
-  inhalt: string | null
-  datei_id: string | null
+  type: TextileMotifType
+  placement: string
+  size: string
+  print_method: string | null
+  content: string | null
+  file_id: string | null
 }
 
 /** Embedded position shape inside a {@link TextileAssignmentRow}. */
 export type TextileNestedPosition = {
-  herkunft: TextileOrigin
-  typ: string | null
-  farbe: string | null
-  marke: string | null
-  modell: string | null
-  groesse: string | null
+  origin: TextileOrigin
+  type: string | null
+  color: string | null
+  brand: string | null
+  model: string | null
+  size: string | null
 }
 
 /**
- * Row from `textil_zuordnungen`: links a motif to a position. PostgREST
+ * Row from `textile_assignments`: links a motif to a position. PostgREST
  * embeds expand the related motif and position rows; the embed shape may
  * be an object or a single-element array depending on the query.
  */
 export type TextileAssignmentRow = {
   id: string
-  teilauftrag_id: string
-  motiv_id: string
+  sub_order_id: string
+  motif_id: string
   position_id: string
   /** PostgREST embed; may be an object or a single-element array. */
-  textil_motive?: TextileNestedMotif | TextileNestedMotif[] | null
-  textil_positionen?: TextileNestedPosition | TextileNestedPosition[] | null
+  textile_motifs?: TextileNestedMotif | TextileNestedMotif[] | null
+  textile_positions?: TextileNestedPosition | TextileNestedPosition[] | null
 }
 
 /** Compact reference to an order file; used inside Textile composites where only display name and role matter. */
@@ -127,7 +127,7 @@ export type FileRef = {
  *
  * The validator only uses one inner flag (`detail.textil.voll`) to gate
  * prepress release; the rest of Textile data lives in the related
- * `textil_motive`, `textil_positionen`, `textil_zuordnungen` tables.
+ * `textile_motifs`, `textile_positions`, `textile_assignments` tables.
  */
 export type TextileSubOrderDetail = {
   textil?: { voll?: boolean }

@@ -51,8 +51,8 @@ function isSizeSet(size: string | null | undefined): boolean {
   return false
 }
 
-function isAssignmentComplete(assignment: { motiv_id: string; position_id: string }): boolean {
-  return Boolean(assignment.motiv_id?.trim() && assignment.position_id?.trim())
+function isAssignmentComplete(assignment: { motif_id: string; position_id: string }): boolean {
+  return Boolean(assignment.motif_id?.trim() && assignment.position_id?.trim())
 }
 
 /**
@@ -70,7 +70,7 @@ function isAssignmentComplete(assignment: { motiv_id: string; position_id: strin
 export function textileRecordsAllowPrepress(
   motifs: TextileMotifRow[],
   positions: TextilePositionRow[],
-  assignments: Pick<TextileAssignmentRow, 'motiv_id' | 'position_id'>[]
+  assignments: Pick<TextileAssignmentRow, 'motif_id' | 'position_id'>[]
 ): boolean {
   if (motifs.length < 1 || positions.length < 1) return false
   if (assignments.length < 1) return false
@@ -78,20 +78,20 @@ export function textileRecordsAllowPrepress(
     if (!isAssignmentComplete(assignment)) return false
   }
   for (const motif of motifs) {
-    if (!motif.platz?.trim()) return false
-    if (!isSizeSet(motif.groesse)) return false
-    if (motif.typ === 'TEXT') {
-      if (!motif.inhalt?.trim() || !motif.farbe?.trim() || !motif.schriftklasse?.trim()) return false
+    if (!motif.placement?.trim()) return false
+    if (!isSizeSet(motif.size)) return false
+    if (motif.type === 'TEXT') {
+      if (!motif.content?.trim() || !motif.color?.trim() || !motif.font_class?.trim()) return false
     } else {
-      if (!motif.datei_id) return false
+      if (!motif.file_id) return false
     }
   }
   for (const position of positions) {
-    if (position.stueckzahl < 1 || !Number.isInteger(position.stueckzahl)) return false
-    if (position.herkunft === 'KUNDENWARE') {
-      if (!position.typ?.trim() || !position.farbe?.trim()) return false
+    if (position.quantity < 1 || !Number.isInteger(position.quantity)) return false
+    if (position.origin === 'CUSTOMER_STOCK') {
+      if (!position.type?.trim() || !position.color?.trim()) return false
     } else {
-      if (!position.marke?.trim() || !position.modell?.trim() || !position.farbe?.trim() || !position.groesse?.trim()) return false
+      if (!position.brand?.trim() || !position.model?.trim() || !position.color?.trim() || !position.size?.trim()) return false
     }
   }
   return true

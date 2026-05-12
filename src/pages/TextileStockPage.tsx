@@ -519,9 +519,9 @@ export function TextileStockPage() {
         if (subOrderSlice.length === 0) continue
         const positionData = await textileMasterDataService.getEigenwarePositionsBySubOrders(subOrderSlice)
         for (const row of positionData) {
-          const variantId = row.variante_id
+          const variantId = row.variant_id
           if (!variantId || !variantIdSet.has(variantId)) continue
-          const demandQuantity = toInteger(row.stueckzahl)
+          const demandQuantity = toInteger(row.quantity)
           demandByVariantId.set(variantId, (demandByVariantId.get(variantId) ?? 0) + demandQuantity)
         }
       }

@@ -437,22 +437,22 @@ export function ContextPanel({
         const positionList = await textileService.getEigenwarePositionsBySubOrder(subOrder.id)
 
         for (const position of positionList) {
-          const variantId = position.variante_id ? String(position.variante_id) : ''
+          const variantId = position.variant_id ? String(position.variant_id) : ''
           if (!variantId) continue
-          const quantity = Number.isFinite(position.stueckzahl) && position.stueckzahl >= 1 ? Math.floor(position.stueckzahl) : 1
+          const quantity = Number.isFinite(position.quantity) && position.quantity >= 1 ? Math.floor(position.quantity) : 1
 
           const variantRow = await textileMasterDataService.getVariantStockById(variantId)
-          const currentStock = variantRow?.bestand ?? 0
+          const currentStock = variantRow?.stock ?? 0
           if (currentStock <= 0) continue
 
           const newStock = Math.max(0, currentStock - quantity)
           await textileMasterDataService.updateVariantStock(variantId, newStock)
           await textileMasterDataService.createTextileStockMovement({
-            variante_id: variantId,
-            menge: quantity,
-            typ: 'AUTOABGANG',
-            notiz: textileNote,
-            person_id: userId,
+            variant_id: variantId,
+            quantity: quantity,
+            type: 'AUTOABGANG',
+            note: textileNote,
+            user_id: userId,
           })
         }
       }
