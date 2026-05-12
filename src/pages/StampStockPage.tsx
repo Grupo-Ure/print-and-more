@@ -69,18 +69,18 @@ function colorLabel(colorCode: string | null | undefined): string {
 type StampModelRow = {
   id: string
   name: string
-  typ: StampType
-  max_breite_mm: number | null
-  max_hoehe_mm: number | null
-  druckflaeche: string | null
-  artikelnummer: string | null
-  bestand: number
-  mindestbestand: number
-  farbe: string | null
-  vk_preis_netto: number | null
-  aktiv: boolean
-  notiz: string | null
-  erstellt_am: string
+  type: StampType
+  max_width_mm: number | null
+  max_height_mm: number | null
+  print_area: string | null
+  article_number: string | null
+  stock: number
+  min_stock: number
+  color: string | null
+  net_price: number | null
+  is_active: boolean
+  note: string | null
+  created_at: string
 }
 
 type MovementType = 'ZUGANG' | 'ABGANG' | 'AUTOABGANG'
@@ -101,11 +101,11 @@ type Tab = 'OVERVIEW' | 'MOVEMENTS' | 'ORDER_LIST'
 type StampModelOrderRow = {
   id: string
   name: string
-  artikelnummer: string | null
-  typ: StampType
-  farbe: string | null
-  bestand: number
-  mindestbestand: number
+  article_number: string | null
+  type: StampType
+  color: string | null
+  stock: number
+  min_stock: number
 }
 
 type OrderListRow = StampModelOrderRow & {
@@ -180,8 +180,8 @@ function joinName(rawValue: unknown): string {
 }
 
 function statusInfo(model: StampModelRow): { cls: string; label: string; rank: number } {
-  const stock = model.bestand ?? 0
-  const minimumStock = model.mindestbestand ?? 0
+  const stock = model.stock ?? 0
+  const minimumStock = model.min_stock ?? 0
   if (stock <= 0) return { cls: 'badge-rot', label: 'Leer', rank: 0 }
   if (stock < minimumStock) return { cls: 'badge-rot', label: 'Nachbestellen', rank: 0 }
   if (stock === minimumStock) return { cls: 'badge-orange', label: 'Minimum', rank: 1 }
@@ -251,7 +251,7 @@ export function StampStockPage() {
   const [filterColor, setFilterColor] = useState<string>('ALL')
   const [overviewSearch, setOverviewSearch] = useState('')
 
-  type SortKey = 'name' | 'farbe' | 'druckflaeche' | 'typ' | 'bestand' | 'mindestbestand' | 'status'
+  type SortKey = 'name' | 'color' | 'print_area' | 'type' | 'stock' | 'min_stock' | 'status'
   const [sorting, setSorting] = useState<{ key: SortKey; dir: 'asc' | 'desc' } | null>(null)
 
   const toggleSort = (key: SortKey) => {
@@ -293,17 +293,17 @@ export function StampStockPage() {
 
   const filteredModels = useMemo(() => {
     let list = models.slice()
-    if (filterType !== 'ALL') list = list.filter(model => model.typ === filterType)
+    if (filterType !== 'ALL') list = list.filter(model => model.type === filterType)
     if (
       filterColor !== 'ALL' &&
       (filterType === 'TRODAT_KISSEN' || filterType === 'STEMPELKISSEN_PRODUKT')
     ) {
-      list = list.filter(model => model.farbe === filterColor)
+      list = list.filter(model => model.color === filterColor)
     }
     if (filterReorderOnly) {
       list = list.filter(model => {
-        const stock = model.bestand ?? 0
-        const minimumStock = model.mindestbestand ?? 0
+        const stock = model.stock ?? 0
+        const minimumStock = model.min_stock ?? 0
         return stock <= minimumStock
       })
     }
@@ -311,7 +311,7 @@ export function StampStockPage() {
     if (searchQuery) {
       list = list.filter(model => {
         const name = String(model.name ?? '').toLowerCase()
-        const art = String(model.artikelnummer ?? '').toLowerCase()
+        const art = String(model.article_number ?? '').toLowerCase()
         return name.includes(searchQuery) || art.includes(searchQuery)
       })
     }
@@ -322,30 +322,30 @@ export function StampStockPage() {
         const aValue =
           key === 'name'
             ? a.name
-            : key === 'farbe'
-              ? (a.farbe ?? '')
-              : key === 'druckflaeche'
-              ? (a.druckflaeche ?? '')
-              : key === 'typ'
-                ? a.typ
-                : key === 'bestand'
-                  ? a.bestand ?? 0
-                  : key === 'mindestbestand'
-                    ? a.mindestbestand ?? 0
+            : key === 'color'
+              ? (a.color ?? '')
+              : key === 'print_area'
+              ? (a.print_area ?? '')
+              : key === 'type'
+                ? a.type
+                : key === 'stock'
+                  ? a.stock ?? 0
+                  : key === 'min_stock'
+                    ? a.min_stock ?? 0
                     : statusInfo(a).rank
         const bValue =
           key === 'name'
             ? b.name
-            : key === 'farbe'
-              ? (b.farbe ?? '')
-              : key === 'druckflaeche'
-              ? (b.druckflaeche ?? '')
-              : key === 'typ'
-                ? b.typ
-                : key === 'bestand'
-                  ? b.bestand ?? 0
-                  : key === 'mindestbestand'
-                    ? b.mindestbestand ?? 0
+            : key === 'color'
+              ? (b.color ?? '')
+              : key === 'print_area'
+              ? (b.print_area ?? '')
+              : key === 'type'
+                ? b.type
+                : key === 'stock'
+                  ? b.stock ?? 0
+                  : key === 'min_stock'
+                    ? b.min_stock ?? 0
                     : statusInfo(b).rank
 
         if (typeof aValue === 'number' && typeof bValue === 'number') {
@@ -378,7 +378,7 @@ export function StampStockPage() {
       return
     }
     const stockDelta = movementType === 'ZUGANG' ? quantity : -quantity
-    const nextStock = (model.bestand ?? 0) + stockDelta
+    const nextStock = (model.stock ?? 0) + stockDelta
     if (nextStock < 0) {
       setBookingErrors(prev => ({ ...prev, [model.id]: 'Menge überschreitet aktuellen Bestand' }))
       return
@@ -393,7 +393,7 @@ export function StampStockPage() {
         user_id: session.user.id,
       })
 
-      setModels(list => list.map(stampModel => (stampModel.id === model.id ? { ...stampModel, bestand: nextStock } : stampModel)))
+      setModels(list => list.map(stampModel => (stampModel.id === model.id ? { ...stampModel, stock: nextStock } : stampModel)))
       setBookingQuantity(prev => ({ ...prev, [model.id]: '' }))
     } catch (e) {
       showError('Buchung fehlgeschlagen')
@@ -405,17 +405,17 @@ export function StampStockPage() {
 
   const [minimumEdit, setMinimumEdit] = useState<Record<string, string>>({})
   const saveMinimumStock = async (model: StampModelRow) => {
-    const rawValue = (minimumEdit[model.id] ?? String(model.mindestbestand ?? 0)).trim()
+    const rawValue = (minimumEdit[model.id] ?? String(model.min_stock ?? 0)).trim()
     const minimumValue = rawValue === '' ? 0 : parseInt(rawValue, 10)
     if (!Number.isInteger(minimumValue) || minimumValue < 0) return
-    if (minimumValue === (model.mindestbestand ?? 0)) return
+    if (minimumValue === (model.min_stock ?? 0)) return
     try {
       await stampService.updateStampModelMinimumStock(model.id, minimumValue)
     } catch {
       showError('Bestand konnte nicht aktualisiert werden')
       return
     }
-    setModels(list => list.map(stampModel => (stampModel.id === model.id ? { ...stampModel, mindestbestand: minimumValue } : stampModel)))
+    setModels(list => list.map(stampModel => (stampModel.id === model.id ? { ...stampModel, min_stock: minimumValue } : stampModel)))
   }
 
   // ------------------------------------------------------------
@@ -496,8 +496,8 @@ export function StampStockPage() {
       const orderRows: OrderListRow[] = []
       for (const model of activeModels) {
         const offene_menge = toInteger(demandByModelId.get(model.id))
-        const stockLevel = toInteger(model.bestand)
-        const minimumStock = toInteger(model.mindestbestand)
+        const stockLevel = toInteger(model.stock)
+        const minimumStock = toInteger(model.min_stock)
         const bestellmenge = Math.max(0, minimumStock + offene_menge - stockLevel)
         if (bestellmenge <= 0) continue
         orderRows.push({
@@ -528,9 +528,9 @@ export function StampStockPage() {
     const header = 'Artikelnummer | Name | Farbe | Menge'
     const body = orderListRows
       .map(orderRow => {
-        const art = orderListCell(orderRow.artikelnummer, '—')
+        const art = orderListCell(orderRow.article_number, '—')
         const name = orderListCell(orderRow.name, '—')
-        const colorValue = typeof orderRow.farbe === 'string' ? orderRow.farbe : null
+        const colorValue = typeof orderRow.color === 'string' ? orderRow.color : null
         return `${art} | ${name} | ${colorLabel(colorValue)} | ${orderListNumber(orderRow.bestellmenge)}`
       })
       .join('\n')
@@ -664,39 +664,39 @@ export function StampStockPage() {
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer', userSelect: 'none' }}
-                    onClick={() => toggleSort('farbe')}
+                    onClick={() => toggleSort('color')}
                     title="Sortieren"
                   >
-                    Farbe{sorting?.key === 'farbe' ? (sorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
+                    Farbe{sorting?.key === 'color' ? (sorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer', userSelect: 'none' }}
-                    onClick={() => toggleSort('druckflaeche')}
+                    onClick={() => toggleSort('print_area')}
                     title="Sortieren"
                   >
-                    Druckfläche{sorting?.key === 'druckflaeche' ? (sorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
+                    Druckfläche{sorting?.key === 'print_area' ? (sorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer', userSelect: 'none' }}
-                    onClick={() => toggleSort('typ')}
+                    onClick={() => toggleSort('type')}
                     title="Sortieren"
                   >
-                    Typ{sorting?.key === 'typ' ? (sorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
+                    Typ{sorting?.key === 'type' ? (sorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer', userSelect: 'none' }}
-                    onClick={() => toggleSort('bestand')}
+                    onClick={() => toggleSort('stock')}
                     title="Sortieren"
                   >
-                    Bestand{sorting?.key === 'bestand' ? (sorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
+                    Bestand{sorting?.key === 'stock' ? (sorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer', userSelect: 'none' }}
-                    onClick={() => toggleSort('mindestbestand')}
+                    onClick={() => toggleSort('min_stock')}
                     title="Sortieren"
                   >
                     Mindestbestand
-                    {sorting?.key === 'mindestbestand' ? (sorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
+                    {sorting?.key === 'min_stock' ? (sorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th style={{ padding: '8px 6px' }}>VK-Preis</th>
                   <th
@@ -712,19 +712,19 @@ export function StampStockPage() {
                 {filteredModels.map(model => {
                   const status = statusInfo(model)
                   const minEditValue = minimumEdit[model.id]
-                  const minimumDisplay = minEditValue != null ? minEditValue : String(model.mindestbestand ?? 0)
+                  const minimumDisplay = minEditValue != null ? minEditValue : String(model.min_stock ?? 0)
                   const quantityStr = (bookingQuantity[model.id] ?? '').slice(0, 3)
                   const quantity = quantityStr.trim() === '' ? null : parseInt(quantityStr, 10)
                   const quantityValid = quantity != null && Number.isInteger(quantity) && quantity >= 1
                   const inboundDisabled = !quantityValid || bookingBusyId != null
-                  const outboundDisabled = !quantityValid || bookingBusyId != null || (quantityValid && (quantity as number) > (model.bestand ?? 0))
+                  const outboundDisabled = !quantityValid || bookingBusyId != null || (quantityValid && (quantity as number) > (model.stock ?? 0))
                   return (
                     <tr key={model.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                       <td style={{ padding: '8px 6px', fontWeight: 600 }}>{model.name}</td>
-                      <td style={{ padding: '8px 6px', opacity: 0.9 }}>{colorLabel(model.farbe)}</td>
-                      <td style={{ padding: '8px 6px', opacity: 0.85 }}>{model.druckflaeche ?? ''}</td>
-                      <td style={{ padding: '8px 6px', opacity: 0.9 }}>{typeLabel(model.typ)}</td>
-                      <td style={{ padding: '8px 6px' }}>{model.bestand ?? 0}</td>
+                      <td style={{ padding: '8px 6px', opacity: 0.9 }}>{colorLabel(model.color)}</td>
+                      <td style={{ padding: '8px 6px', opacity: 0.85 }}>{model.print_area ?? ''}</td>
+                      <td style={{ padding: '8px 6px', opacity: 0.9 }}>{typeLabel(model.type)}</td>
+                      <td style={{ padding: '8px 6px' }}>{model.stock ?? 0}</td>
                       <td style={{ padding: '8px 6px' }}>
                         <input
                           type="number"
@@ -737,7 +737,7 @@ export function StampStockPage() {
                           style={{ maxWidth: 110 }}
                         />
                       </td>
-                      <td style={{ padding: '8px 6px' }}>{formatNetRetailPrice(model.vk_preis_netto)}</td>
+                      <td style={{ padding: '8px 6px' }}>{formatNetRetailPrice(model.net_price)}</td>
                       <td style={{ padding: '8px 6px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                           <span className={`badge ${status.cls}`}>{status.label}</span>
@@ -921,17 +921,17 @@ export function StampStockPage() {
                 </thead>
                 <tbody>
                   {orderListRows.map(orderRow => {
-                    const typeStr = typeof orderRow.typ === 'string' ? orderRow.typ : orderListCell(orderRow.typ, '')
-                    const colorValue = typeof orderRow.farbe === 'string' ? orderRow.farbe : null
+                    const typeStr = typeof orderRow.type === 'string' ? orderRow.type : orderListCell(orderRow.type, '')
+                    const colorValue = typeof orderRow.color === 'string' ? orderRow.color : null
                     return (
                     <tr key={String(orderRow.id)} style={{ borderBottom: '1px solid #f1f5f9' }}>
                       <td style={{ padding: '8px 6px', fontWeight: 600 }}>{orderListCell(orderRow.name, '—')}</td>
-                      <td style={{ padding: '8px 6px' }}>{orderListCell(orderRow.artikelnummer, '—')}</td>
+                      <td style={{ padding: '8px 6px' }}>{orderListCell(orderRow.article_number, '—')}</td>
                       <td style={{ padding: '8px 6px', opacity: 0.9 }}>{typeLabel(typeStr)}</td>
                       <td style={{ padding: '8px 6px', opacity: 0.9 }}>{colorLabel(colorValue)}</td>
-                      <td style={{ padding: '8px 6px' }}>{orderListNumber(orderRow.bestand)}</td>
+                      <td style={{ padding: '8px 6px' }}>{orderListNumber(orderRow.stock)}</td>
                       <td style={{ padding: '8px 6px' }}>{orderListNumber(orderRow.offene_menge)}</td>
-                      <td style={{ padding: '8px 6px' }}>{orderListNumber(orderRow.mindestbestand)}</td>
+                      <td style={{ padding: '8px 6px' }}>{orderListNumber(orderRow.min_stock)}</td>
                       <td
                         style={{
                           padding: '8px 6px',

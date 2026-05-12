@@ -129,7 +129,7 @@ async function loadStampStock(detail: Record<string, unknown>): Promise<StampPad
   async function fetchStockById(id: string): Promise<number | null> {
     const row = await stampService.getStampModelById(id).catch(() => null)
     if (!row) return null
-    return row.bestand ?? 0
+    return row.stock ?? 0
   }
 
   if (hasPadModel && !hasStampModel) {
@@ -145,10 +145,10 @@ async function loadStampStock(detail: Record<string, unknown>): Promise<StampPad
     if (colorSet) {
       const stampModelRow = await stampService.getStampModelForOrder(String(detail.modell_id)).catch(() => null)
       if (stampModelRow) {
-        const articleNumber = stampModelRow.ersatzkissen_artikelnummer?.trim() || null
+        const articleNumber = stampModelRow.replacement_pad_article_number?.trim() || null
         if (articleNumber) {
           const padRow = await stampService.findReplacementPad(articleNumber, String(colorValue)).catch(() => null)
-          padStockValue = padRow ? (padRow.bestand ?? 0) : 0
+          padStockValue = padRow ? (padRow.stock ?? 0) : 0
         }
       }
     }
@@ -389,7 +389,7 @@ export function ContextPanel({
         const bookStampStockDeduction = async (modelId: string, quantity: number, note: string) => {
           const modelRow = await stampService.getStampModelById(modelId)
           if (!modelRow) return
-          const currentStock = modelRow.bestand ?? 0
+          const currentStock = modelRow.stock ?? 0
           if (currentStock <= 0) return
           const newStock = Math.max(0, currentStock - quantity)
           await stampService.updateStampModelStock(modelId, newStock)
@@ -413,11 +413,11 @@ export function ContextPanel({
           if (stampColor != null && String(stampColor).trim() !== '') {
             const stampModelRow = await stampService.getStampModelForOrder(stampId)
             if (stampModelRow) {
-              const articleNumber = stampModelRow.ersatzkissen_artikelnummer?.trim() || null
+              const articleNumber = stampModelRow.replacement_pad_article_number?.trim() || null
               if (articleNumber) {
                 const padRow = await stampService.findReplacementPad(articleNumber, String(stampColor))
                 if (padRow) {
-                  const padCurrentStock = padRow.bestand ?? 0
+                  const padCurrentStock = padRow.stock ?? 0
                   if (padCurrentStock > 0) {
                     await bookStampStockDeduction(padRow.id, quantity, stampNote + ' (Kissen zu Stempel)')
                   }
