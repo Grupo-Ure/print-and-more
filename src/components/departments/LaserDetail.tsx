@@ -25,11 +25,11 @@ type Props = {
 
 type ProductRow = {
   id: string
-  teilauftrag_id: string
-  bereich: string
+  sub_order_id: string
+  department: string
   detail: LaserDetailJson
   sort_order: number | null
-  erstellt_am: string | null
+  created_at: string | null
 }
 
 function extractLaserRaw(subOrder: SubOrderRow): LaserDetailJson {
@@ -68,7 +68,7 @@ export function LaserDetail({
   const [unlocked, setUnlocked] = useState(false)
   const [formFileRecordIds, setFormFileRecordIds] = useState<string[]>([])
 
-  const [selectedType, setSelectedType] = useState<string | null>(subOrder.typ)
+  const [selectedType, setSelectedType] = useState<string | null>(subOrder.type)
   const [detail, setDetail] = useState<LaserDetailJson>(extractLaserRaw(subOrder))
   const detailRef = useRef(detail)
   const typeRef = useRef(selectedType)
@@ -90,11 +90,11 @@ export function LaserDetail({
 
   useEffect(() => {
     if (editingId !== null) return
-    setSelectedType(subOrder.typ)
+    setSelectedType(subOrder.type)
     const extracted = extractLaserRaw(subOrder)
     setDetail(extracted)
     detailRef.current = extracted
-    typeRef.current = subOrder.typ
+    typeRef.current = subOrder.type
   }, [subOrder, editingId])
 
   const loadFilesForProducts = useCallback(
@@ -141,11 +141,11 @@ export function LaserDetail({
     setProductsLoading(false)
     const mapped: ProductRow[] = rows.map(row => ({
       id: row.id,
-      teilauftrag_id: row.teilauftrag_id,
-      bereich: row.bereich,
+      sub_order_id: row.sub_order_id,
+      department: row.department,
       detail: (row.detail ?? {}) as LaserDetailJson,
       sort_order: row.sort_order,
-      erstellt_am: row.erstellt_am,
+      created_at: row.created_at,
     }))
     setProducts(mapped)
     await loadFilesForProducts(mapped)
@@ -187,11 +187,11 @@ export function LaserDetail({
   const resetForm = useCallback(() => {
     setEditingId(null)
     setFormFileRecordIds([])
-    setSelectedType(subOrder.typ)
+    setSelectedType(subOrder.type)
     const extracted = extractLaserRaw(subOrder)
     setDetail(extracted)
     detailRef.current = extracted
-    typeRef.current = subOrder.typ
+    typeRef.current = subOrder.type
   }, [subOrder])
 
   const validationErrors = validateLaserDetail(selectedType, detail, subOrderStatus)
@@ -273,7 +273,7 @@ export function LaserDetail({
       }
       const list = await reloadProducts()
       await onDetailPatch({
-        typ: subOrder.typ,
+        typ: subOrder.type,
         detail: {
           ...extractLaserRaw(subOrder),
           hat_produkte: list.length > 0,
@@ -283,9 +283,9 @@ export function LaserDetail({
       return
     }
 
-    const productInsert: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
-      teilauftrag_id: subOrder.id,
-      bereich: 'LASER_ENGRAVING',
+    const productInsert: Database['public']['Tables']['sub_order_products']['Insert'] = {
+      sub_order_id: subOrder.id,
+      department: 'LASER_ENGRAVING',
       detail: { ...filteredDetail, typ: currentType } as Json,
       sort_order: products.length,
     }
@@ -303,7 +303,7 @@ export function LaserDetail({
     }
     list = await reloadProducts()
     await onDetailPatch({
-      typ: subOrder.typ,
+      typ: subOrder.type,
       detail: {
         ...extractLaserRaw(subOrder),
         hat_produkte: list.length > 0,
@@ -335,7 +335,7 @@ export function LaserDetail({
       }
       const list = await reloadProducts()
       await onDetailPatch({
-        typ: subOrder.typ,
+        typ: subOrder.type,
         detail: {
           ...extractLaserRaw(subOrder),
           hat_produkte: list.length > 0,

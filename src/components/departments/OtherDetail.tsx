@@ -18,11 +18,11 @@ type Props = {
 
 type ProductRow = {
   id: string
-  teilauftrag_id: string
-  bereich: string
+  sub_order_id: string
+  department: string
   detail: OtherDetailJson
   sort_order: number | null
-  erstellt_am: string | null
+  created_at: string | null
 }
 
 const SONSTIGE_TYPE = 'OTHER' as const
@@ -127,11 +127,11 @@ export function OtherDetail({
     setProductsLoading(false)
     const mapped: ProductRow[] = rows.map(row => ({
       id: row.id,
-      teilauftrag_id: row.teilauftrag_id,
-      bereich: row.bereich,
+      sub_order_id: row.sub_order_id,
+      department: row.department,
       detail: (row.detail ?? {}) as OtherDetailJson,
       sort_order: row.sort_order,
-      erstellt_am: row.erstellt_am,
+      created_at: row.created_at,
     }))
     setProducts(mapped)
     await loadFilesForProducts(mapped)
@@ -187,9 +187,9 @@ export function OtherDetail({
       setDetail(json)
       detailRef.current = json
       if (editingId !== null) return
-      await onDetailPatch({ typ: subOrder.typ?.trim() ? subOrder.typ : SONSTIGE_TYPE, detail: json })
+      await onDetailPatch({ typ: subOrder.type?.trim() ? subOrder.type : SONSTIGE_TYPE, detail: json })
     },
-    [onDetailPatch, subOrder.typ, editingId]
+    [onDetailPatch, subOrder.type, editingId]
   )
 
   const patchLocal = useCallback((patch: OtherDetailJson) => {
@@ -220,7 +220,7 @@ export function OtherDetail({
   const requiresUnlock =
     (subOrderStatus === 'PREPRESS_READY' || subOrderStatus === 'PRODUCTION_READY') && !unlocked
 
-  const patchType = subOrder.typ?.trim() ? subOrder.typ : SONSTIGE_TYPE
+  const patchType = subOrder.type?.trim() ? subOrder.type : SONSTIGE_TYPE
 
   const handleAddOrSave = useCallback(async () => {
     const currentDetail = { ...detailRef.current }
@@ -257,9 +257,9 @@ export function OtherDetail({
       return
     }
 
-    const productInsert: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
-      teilauftrag_id: subOrder.id,
-      bereich: 'OTHER',
+    const productInsert: Database['public']['Tables']['sub_order_products']['Insert'] = {
+      sub_order_id: subOrder.id,
+      department: 'OTHER',
       detail: detailWithType as Json,
       sort_order: products.length,
     }

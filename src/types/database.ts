@@ -1,4 +1,4 @@
-import type { Enums, Tables, Json } from './supabase'
+import type { Enums, Tables, TablesInsert, TablesUpdate, Json } from './supabase'
 import { Constants } from './supabase'
 
 export type OrderStatus = Enums<'order_status'>
@@ -57,30 +57,8 @@ export type OrderPdfRow = Pick<Tables<'orders'>, 'order_number' | 'deadline' | '
 
 export type DeliveryChoice = Enums<'delivery_type'>
 
-export type SubOrderRow = {
-  id: string
-  auftrag_id: string
-  bereich: SubOrderDepartment
-  typ: string | null
-  status: OrderStatus
-  termin: string | null
-  lieferung: DeliveryChoice | null
-  prioritaet: Priority
-  verantwortlicher_id: string | null
-  satzzeit_minuten: number | null
-  /** Bereichsspezifische Daten (LFP, …) — JSONB */
-  detail: Json | null
-  notfall_aktiv: boolean
-  notfall_begruendung: string | null
-  storniert: boolean
-  kundenfreigabe_erforderlich: boolean
-  kundenfreigabe_liegt_vor: boolean
-  kundenfreigabe_datei_id: string | null
-}
+export type SubOrderRow = Tables<'sub_orders'>
 
-export type NewSubOrderEntry = {
-  auftrag_id: string
-  bereich: SubOrderDepartment
-  status: 'INCOMPLETE'
-  prioritaet: 'NORMAL'
-}
+export type SubOrderUpdate = TablesUpdate<'sub_orders'>
+
+export type NewSubOrderEntry = Pick<TablesInsert<'sub_orders'>, 'order_id' | 'department' | 'status' | 'priority'>

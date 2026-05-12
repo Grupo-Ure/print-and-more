@@ -5,10 +5,7 @@ import { orderService } from '../../services/orderService'
 import { subOrderService } from '../../services/subOrderService'
 import { subOrderProductService } from '../../services/subOrderProductService'
 import { textileService } from '../../services/textileService'
-import type { Database } from '../../types/supabase'
-import type { CustomerContactRow, DeliveryChoice, OrderPdfRow, Priority } from '../../types/database'
-
-type SubOrderRow = Database['public']['Tables']['teilauftraege']['Row']
+import type { CustomerContactRow, DeliveryChoice, OrderPdfRow, Priority, SubOrderRow } from '../../types/database'
 
 type PdfDoc = jsPDF & { lastAutoTable?: { finalY: number } }
 
@@ -241,7 +238,7 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
       customerDisplayName,
       order.deadline,
       order.created_at,
-      subOrder.bereich,
+      subOrder.department,
       order.order_number,
     )
 
@@ -293,7 +290,7 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
     rightColumnY = addText(doc, `Termin    ${formatDateDe(order.deadline)}`, rightColumnX, rightColumnY, 5)
     rightColumnY = addText(doc, `Lieferung    ${formatDelivery(order.delivery)}`, rightColumnX, rightColumnY, 5)
     rightColumnY = addText(doc, `Priorität    ${formatPriority(order.priority)}`, rightColumnX, rightColumnY, 5)
-    rightColumnY = addText(doc, `Bereich    ${subOrder.bereich}`, rightColumnX, rightColumnY, 5)
+    rightColumnY = addText(doc, `Bereich    ${subOrder.department}`, rightColumnX, rightColumnY, 5)
     rightColumnY = addText(doc, `Erstellt    ${formatDateDe(order.created_at)}`, rightColumnX, rightColumnY, 5)
 
     cursorY = Math.max(leftColumnY, rightColumnY) + 8
@@ -318,7 +315,7 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
     })
     cursorY = ((doc as PdfDoc).lastAutoTable?.finalY ?? cursorY) + 8
 
-    if (products.length > 0 && subOrder.bereich !== 'TEXTILE') {
+    if (products.length > 0 && subOrder.department !== 'TEXTILE') {
       cursorY = checkNewPage(doc, cursorY, 30)
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(10)
@@ -345,7 +342,7 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
       cursorY = ((doc as PdfDoc).lastAutoTable?.finalY ?? cursorY) + 8
     }
 
-    if (subOrder.bereich === 'TEXTILE' && textilePositions.length > 0) {
+    if (subOrder.department === 'TEXTILE' && textilePositions.length > 0) {
       cursorY = checkNewPage(doc, cursorY, 30)
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(10)

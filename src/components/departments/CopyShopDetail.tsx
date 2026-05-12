@@ -27,11 +27,11 @@ type Props = {
 
 type ProductRow = {
   id: string
-  teilauftrag_id: string
-  bereich: string
+  sub_order_id: string
+  department: string
   detail: CopyShopDetailJson
   sort_order: number | null
-  erstellt_am: string | null
+  created_at: string | null
 }
 
 function stripFileRecordId(json: CopyShopDetailJson): CopyShopDetailJson {
@@ -115,7 +115,7 @@ export function CopyShopDetail({
   const [unlocked, setUnlocked] = useState(false)
   const [formFileRecordIds, setFormFileRecordIds] = useState<string[]>([])
 
-  const [selectedType, setSelectedType] = useState<string | null>(subOrder.typ)
+  const [selectedType, setSelectedType] = useState<string | null>(subOrder.type)
   const [detail, setDetail] = useState<CopyShopDetailJson>(extractCopyShopRaw(subOrder))
   const detailRef = useRef(detail)
   const typeRef = useRef(selectedType)
@@ -134,11 +134,11 @@ export function CopyShopDetail({
 
   useEffect(() => {
     if (editingId !== null) return
-    setSelectedType(subOrder.typ)
+    setSelectedType(subOrder.type)
     const extracted = extractCopyShopRaw(subOrder)
     setDetail(extracted)
     detailRef.current = extracted
-    typeRef.current = subOrder.typ
+    typeRef.current = subOrder.type
   }, [subOrder, editingId])
 
   const loadFilesForProducts = useCallback(
@@ -185,11 +185,11 @@ export function CopyShopDetail({
     setProductsLoading(false)
     const mapped: ProductRow[] = rows.map(row => ({
       id: row.id,
-      teilauftrag_id: row.teilauftrag_id,
-      bereich: row.bereich,
+      sub_order_id: row.sub_order_id,
+      department: row.department,
       detail: stripFileRecordId((row.detail ?? {}) as CopyShopDetailJson),
       sort_order: row.sort_order,
-      erstellt_am: row.erstellt_am,
+      created_at: row.created_at,
     }))
     setProducts(mapped)
     await loadFilesForProducts(mapped)
@@ -231,11 +231,11 @@ export function CopyShopDetail({
   const resetForm = useCallback(() => {
     setEditingId(null)
     setFormFileRecordIds([])
-    setSelectedType(subOrder.typ)
+    setSelectedType(subOrder.type)
     const extracted = extractCopyShopRaw(subOrder)
     setDetail(extracted)
     detailRef.current = extracted
-    typeRef.current = subOrder.typ
+    typeRef.current = subOrder.type
   }, [subOrder])
 
   const validationErrors = validateCopyShopDetail(selectedType, detail, subOrderStatus)
@@ -307,7 +307,7 @@ export function CopyShopDetail({
       }
       const list = await reloadProducts()
       await onDetailPatch({
-        typ: subOrder.typ,
+        typ: subOrder.type,
         detail: {
           ...extractCopyShopRaw(subOrder),
           hat_produkte: list.length > 0,
@@ -317,9 +317,9 @@ export function CopyShopDetail({
       return
     }
 
-    const productInsert: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
-      teilauftrag_id: subOrder.id,
-      bereich: 'COPYSHOP',
+    const productInsert: Database['public']['Tables']['sub_order_products']['Insert'] = {
+      sub_order_id: subOrder.id,
+      department: 'COPYSHOP',
       detail: { ...currentDetail, typ: currentType } as Json,
       sort_order: products.length,
     }
@@ -337,7 +337,7 @@ export function CopyShopDetail({
     }
     list = await reloadProducts()
     await onDetailPatch({
-      typ: subOrder.typ,
+      typ: subOrder.type,
       detail: {
         ...extractCopyShopRaw(subOrder),
         hat_produkte: list.length > 0,
@@ -369,7 +369,7 @@ export function CopyShopDetail({
       }
       const list = await reloadProducts()
       await onDetailPatch({
-        typ: subOrder.typ,
+        typ: subOrder.type,
         detail: {
           ...extractCopyShopRaw(subOrder),
           hat_produkte: list.length > 0,

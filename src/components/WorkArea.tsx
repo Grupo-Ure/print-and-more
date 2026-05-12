@@ -155,7 +155,7 @@ export function WorkArea({
         const subOrderList = subOrderResult
         setSubOrders(subOrderList)
         setActiveSubOrderId(currentId => {
-          const visible = subOrderList.filter(subOrder => !subOrder.storniert)
+          const visible = subOrderList.filter(subOrder => !subOrder.is_cancelled)
           if (currentId && visible.some(subOrder => subOrder.id === currentId)) return currentId
           return visible[0]?.id ?? null
         })
@@ -218,7 +218,7 @@ export function WorkArea({
   )
 
   const visibleSubOrders = useMemo(
-    () => subOrders.filter(subOrder => !subOrder.storniert),
+    () => subOrders.filter(subOrder => !subOrder.is_cancelled),
     [subOrders]
   )
   const activeSubOrder = useMemo((): SubOrderRow | null => {
@@ -227,7 +227,7 @@ export function WorkArea({
   }, [visibleSubOrders, activeSubOrderId])
 
   useEffect(() => {
-    const responsibleId = activeSubOrder?.verantwortlicher_id ?? null
+    const responsibleId = activeSubOrder?.assignee_id ?? null
     if (!responsibleId) {
       setResponsibleName(null)
       return
@@ -246,7 +246,7 @@ export function WorkArea({
     return () => {
       alive = false
     }
-  }, [activeSubOrder?.verantwortlicher_id])
+  }, [activeSubOrder?.assignee_id])
 
   const handleSubOrderUpdated = useCallback(
     (updatedSubOrder: SubOrderRow) => {
@@ -302,20 +302,20 @@ export function WorkArea({
     let data: SubOrderRow
     try {
       data = await subOrderService.createSubOrder({
-        auftrag_id: activeOrderId,
-        bereich,
+        order_id: activeOrderId,
+        department: bereich,
         status: 'INCOMPLETE',
-        prioritaet: priority,
+        priority: priority,
         detail: {},
-        termin: deadlineIso,
-        lieferung: delivery,
-        verantwortlicher_id: user.id,
-        notfall_aktiv: false,
-        notfall_begruendung: null,
-        storniert: false,
-        kundenfreigabe_erforderlich: false,
-        kundenfreigabe_liegt_vor: false,
-        kundenfreigabe_datei_id: null,
+        deadline: deadlineIso,
+        delivery: delivery,
+        assignee_id: user.id,
+        is_emergency: false,
+        emergency_reason: null,
+        is_cancelled: false,
+        customer_approval_required: false,
+        customer_approval_granted: false,
+        customer_approval_file_id: null,
       })
     } catch (err) {
       setSaving(false)
@@ -506,8 +506,8 @@ export function WorkArea({
       <div className="work-area__tabs" role="tablist" aria-label="Teilaufträge">
         {visibleSubOrders.map(subOrder => {
           const isActive = subOrder.id === activeSubOrderId
-          const abbreviation = departmentAbbreviation(subOrder.bereich)
-          const tabTitle = `${subOrderDepartmentLabel(subOrder.bereich)} · ${subOrder.status}`
+          const abbreviation = departmentAbbreviation(subOrder.department)
+          const tabTitle = `${subOrderDepartmentLabel(subOrder.department)} · ${subOrder.status}`
           return (
             <button
               key={subOrder.id}

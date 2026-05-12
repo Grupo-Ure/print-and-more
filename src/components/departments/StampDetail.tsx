@@ -24,11 +24,11 @@ type Props = {
 
 type ProductRow = {
   id: string
-  teilauftrag_id: string
-  bereich: string
+  sub_order_id: string
+  department: string
   detail: StampDetailJson
   sort_order: number | null
-  erstellt_am: string | null
+  created_at: string | null
 }
 
 function rawStampDetail(subOrder: SubOrderRow): StampDetailJson {
@@ -137,7 +137,7 @@ export function StampDetail({
   const [unlocked, setUnlocked] = useState(false)
   const [formFileRecordIds, setFormFileRecordIds] = useState<string[]>([])
 
-  const [stampType, setStampType] = useState<string | null>(subOrder.typ)
+  const [stampType, setStampType] = useState<string | null>(subOrder.type)
   const [detail, setDetail] = useState<StampDetailJson>(rawStampDetail(subOrder))
   const detailRef = useRef(detail)
   const stampTypeRef = useRef(stampType)
@@ -159,11 +159,11 @@ export function StampDetail({
 
   useEffect(() => {
     if (editingId !== null) return
-    setStampType(subOrder.typ)
+    setStampType(subOrder.type)
     const freshDetail = rawStampDetail(subOrder)
     setDetail(freshDetail)
     detailRef.current = freshDetail
-    stampTypeRef.current = subOrder.typ
+    stampTypeRef.current = subOrder.type
   }, [subOrder, editingId])
 
   const loadFilesForProducts = useCallback(
@@ -210,11 +210,11 @@ export function StampDetail({
     setProductsLoading(false)
     const mapped: ProductRow[] = rows.map(r => ({
       id: r.id,
-      teilauftrag_id: r.teilauftrag_id,
-      bereich: r.bereich,
+      sub_order_id: r.sub_order_id,
+      department: r.department,
       detail: (r.detail ?? {}) as StampDetailJson,
       sort_order: r.sort_order,
-      erstellt_am: r.erstellt_am,
+      created_at: r.created_at,
     }))
     setProducts(mapped)
     await loadFilesForProducts(mapped)
@@ -256,11 +256,11 @@ export function StampDetail({
   const resetForm = useCallback(() => {
     setEditingId(null)
     setFormFileRecordIds([])
-    setStampType(subOrder.typ)
+    setStampType(subOrder.type)
     const freshDetail = rawStampDetail(subOrder)
     setDetail(freshDetail)
     detailRef.current = freshDetail
-    stampTypeRef.current = subOrder.typ
+    stampTypeRef.current = subOrder.type
   }, [subOrder])
 
   const stampErrors = validateStampDetail(stampType, detail, subOrderStatus)
@@ -573,7 +573,7 @@ export function StampDetail({
       }
       const updatedProducts = await reloadProducts()
       await onDetailPatch({
-        typ: subOrder.typ,
+        typ: subOrder.type,
         detail: {
           ...rawStampDetail(subOrder),
           hat_products: updatedProducts.length > 0,
@@ -583,9 +583,9 @@ export function StampDetail({
       return
     }
 
-    const insertRow: Database['public']['Tables']['teilauftrag_produkte']['Insert'] = {
-      teilauftrag_id: subOrder.id,
-      bereich: 'STAMP',
+    const insertRow: Database['public']['Tables']['sub_order_products']['Insert'] = {
+      sub_order_id: subOrder.id,
+      department: 'STAMP',
       detail: { ...currentDetail, typ: currentType } as Json,
       sort_order: products.length,
     }
@@ -603,7 +603,7 @@ export function StampDetail({
     }
     updatedProducts = await reloadProducts()
     await onDetailPatch({
-      typ: subOrder.typ,
+      typ: subOrder.type,
       detail: {
         ...rawStampDetail(subOrder),
         hat_products: updatedProducts.length > 0,
@@ -635,7 +635,7 @@ export function StampDetail({
       }
       const updatedProducts = await reloadProducts()
       await onDetailPatch({
-        typ: subOrder.typ,
+        typ: subOrder.type,
         detail: {
           ...rawStampDetail(subOrder),
           hat_products: updatedProducts.length > 0,

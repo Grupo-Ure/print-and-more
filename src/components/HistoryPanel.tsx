@@ -8,7 +8,7 @@ import './ContextPanel.css'
 type Props = {
   activeOrderId: string
   contextRefreshTick: number
-  subOrders: { id: string; bereich: string }[]
+  subOrders: { id: string; department: string }[]
 }
 
 
@@ -94,7 +94,7 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: P
 
   const subOrderDepartment = (subOrderId: string | null): string | null => {
     if (!subOrderId) return null
-    return subOrders.find(subOrder => subOrder.id === subOrderId)?.bereich ?? null
+    return subOrders.find(subOrder => subOrder.id === subOrderId)?.department ?? null
   }
 
   return (

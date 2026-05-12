@@ -171,7 +171,7 @@ export function ContextPanel({
   onFileChanged = async () => {},
 }: Props) {
   const [busy, setBusy] = useState(false)
-  const [subOrderAreaList, setSubOrderAreaList] = useState<{ id: string; bereich: string }[]>([])
+  const [subOrderAreaList, setSubOrderAreaList] = useState<{ id: string; department: string }[]>([])
   const [cancelInProgress, setCancelInProgress] = useState(false)
   const [deleteInProgress, setDeleteInProgress] = useState(false)
   const [emergencyDialogOpen, setEmergencyDialogOpen] = useState(false)
@@ -184,7 +184,7 @@ export function ContextPanel({
   const { fehler, erfolg } = useToast()
 
   useEffect(() => {
-    if (!activeSubOrder || activeSubOrder.bereich !== 'STAMP') {
+    if (!activeSubOrder || activeSubOrder.department !== 'STAMP') {
       setStampStock(null)
       setPadStock(null)
       return
@@ -238,7 +238,7 @@ export function ContextPanel({
   }
 
   const subOrder = activeSubOrder
-  const subOrderActive = subOrder && !subOrder.storniert
+  const subOrderActive = subOrder && !subOrder.is_cancelled
   const canDeleteOrder = order.status === 'QUOTE' || order.status === 'INCOMPLETE'
   const canCancelOrder = order.status !== 'QUOTE' && order.status !== 'INCOMPLETE'
 
@@ -369,11 +369,11 @@ export function ContextPanel({
 
   const executeProductionRelease = async () => {
     if (busy || !subOrder || subOrder.status !== 'PREPRESS_READY') return
-    if (subOrder.kundenfreigabe_erforderlich && !subOrder.kundenfreigabe_liegt_vor) return
+    if (subOrder.customer_approval_required && !subOrder.customer_approval_granted) return
     setBusy(true)
     try {
       // Stempel: Automatischer Lagerabgang (vor Status-Update).
-      if (subOrder.bereich === 'STAMP') {
+      if (subOrder.department === 'STAMP') {
         const stampDetail = subOrderDetailToFieldMap(subOrder.detail)
         const rawQuantity = stampDetail.stueckzahl
         const parsedQuantity =
@@ -403,7 +403,7 @@ export function ContextPanel({
           })
         }
 
-        if (subOrder.typ === 'TRODAT_KISSEN' && stampDetail.kissen_modell_id) {
+        if (subOrder.type === 'TRODAT_KISSEN' && stampDetail.kissen_modell_id) {
           await bookStampStockDeduction(String(stampDetail.kissen_modell_id), quantity, stampNote)
         } else if (stampDetail.modell_id) {
           const stampId = String(stampDetail.modell_id)
@@ -429,7 +429,7 @@ export function ContextPanel({
       }
 
       // Textil: Automatischer Lagerabgang (vor Status-Update).
-      if (subOrder.bereich === 'TEXTILE') {
+      if (subOrder.department === 'TEXTILE') {
         const textileNote = 'Automatisch bei Produktionsfreigabe ' + (order.order_number ?? '')
         const user = await authService.getUser()
         const userId = user?.id ?? null
@@ -480,8 +480,8 @@ export function ContextPanel({
 
   const handleProduktionFrei = () => {
     if (busy || !subOrder || subOrder.status !== 'PREPRESS_READY') return
-    if (subOrder.kundenfreigabe_erforderlich && !subOrder.kundenfreigabe_liegt_vor) return
-    if (subOrder.bereich === 'STAMP') {
+    if (subOrder.customer_approval_required && !subOrder.customer_approval_granted) return
+    if (subOrder.department === 'STAMP') {
       if (isStampStockCritical(stampStock, padStock)) {
         setProductionStockZeroDialogOpen(true)
         return
@@ -534,8 +534,8 @@ export function ContextPanel({
     try {
       const data = await subOrderService.setSubOrderEmergency(subOrder.id, {
         status: nextStatus,
-        notfall_aktiv: true,
-        notfall_begruendung: reason,
+        is_emergency: true,
+        emergency_reason: reason,
       })
       await historyService.writeHistory({
         auftrag_id: order.id,
@@ -553,13 +553,13 @@ export function ContextPanel({
   }
 
   const handleNotfallZurueck = async () => {
-    if (busy || !subOrder || !subOrder.notfall_aktiv) return
+    if (busy || !subOrder || !subOrder.is_emergency) return
     setBusy(true)
     try {
       const data = await subOrderService.setSubOrderEmergency(subOrder.id, {
         status: 'INCOMPLETE',
-        notfall_aktiv: false,
-        notfall_begruendung: null,
+        is_emergency: false,
+        emergency_reason: null,
       })
       await historyService.writeHistory({
         auftrag_id: order.id,
@@ -581,11 +581,11 @@ export function ContextPanel({
     setBusy(true)
     try {
       const approvalPatch = enabled
-        ? { kundenfreigabe_erforderlich: true }
+        ? { customer_approval_required: true }
         : {
-            kundenfreigabe_erforderlich: false,
-            kundenfreigabe_liegt_vor: false,
-            kundenfreigabe_datei_id: null,
+            customer_approval_required: false,
+            customer_approval_granted: false,
+            customer_approval_file_id: null,
           }
       const data = await subOrderService.setCustomerApproval(subOrder.id, approvalPatch)
       // DB-Enum hat kein KUNDENFREIGABE_DEAKTIVIERT; bei Abschaltung der Anforderung VERFALLEN als nächstliegender Wert.
@@ -617,8 +617,8 @@ export function ContextPanel({
     setDialogCustomerApprovalFile(false)
     try {
       const data = await subOrderService.setCustomerApproval(subOrder.id, {
-        kundenfreigabe_liegt_vor: true,
-        kundenfreigabe_datei_id: customerApprovalFileId,
+        customer_approval_granted: true,
+        customer_approval_file_id: customerApprovalFileId,
       })
       await historyService.writeHistory({
         auftrag_id: order.id,
@@ -675,11 +675,11 @@ export function ContextPanel({
   }
 
   const prodDisabled =
-    !!subOrder && subOrder.status === 'PREPRESS_READY' && subOrder.kundenfreigabe_erforderlich && !subOrder.kundenfreigabe_liegt_vor
+    !!subOrder && subOrder.status === 'PREPRESS_READY' && subOrder.customer_approval_required && !subOrder.customer_approval_granted
   const currentStampDetail = subOrder? subOrderDetailToFieldMap(subOrder.detail) : {}
   const completionBlockedByStock =
     !!subOrder &&
-    subOrder.bereich === 'STAMP' &&
+    subOrder.department === 'STAMP' &&
     subOrder.status === 'PRODUCTION_READY' &&
     hasStampModelLinked(currentStampDetail) &&
     isStampStockCritical(stampStock, padStock)
@@ -687,18 +687,18 @@ export function ContextPanel({
     subOrder && subOrder.status !== 'QUOTE' && subOrder.status !== 'DONE' && nextEmergencyStatus(subOrder.status) !== subOrder.status
   const customerApprovalGrantVisible =
     !!subOrder &&
-    subOrder.kundenfreigabe_erforderlich &&
-    !subOrder.kundenfreigabe_liegt_vor &&
+    subOrder.customer_approval_required &&
+    !subOrder.customer_approval_granted &&
     orderFiles.length > 0
 
   const hints: string[] = []
-  if (subOrder && subOrder.kundenfreigabe_erforderlich && !subOrder.kundenfreigabe_liegt_vor) {
+  if (subOrder && subOrder.customer_approval_required && !subOrder.customer_approval_granted) {
     hints.push('Kundenfreigabe fehlt — Produktion blockiert')
   }
-  if (subOrder?.notfall_aktiv) {
-    hints.push(`Notfall aktiv: ${subOrder.notfall_begruendung ?? '—'}`)
+  if (subOrder?.is_emergency) {
+    hints.push(`Notfall aktiv: ${subOrder.emergency_reason ?? '—'}`)
   }
-  if (subOrder && subOrder.status === 'PREPRESS_READY' && !subOrder.kundenfreigabe_erforderlich) {
+  if (subOrder && subOrder.status === 'PREPRESS_READY' && !subOrder.customer_approval_required) {
     hints.push('Bereit zur Produktionsfreigabe')
   }
   if (order.status === 'DONE') {
@@ -715,15 +715,15 @@ export function ContextPanel({
               <span className={`badge ${statusBadgeGlobal(subOrder.status)} cp-badge-lg`}>{subOrder.status}</span>
             </div>
           )}
-          {subOrder?.notfall_aktiv && (
+          {subOrder?.is_emergency && (
             <div className="cp-st-notfall">
               <span className="badge badge-rot cp-badge-lg">!! NOTFALL !!</span>
-              {subOrder.notfall_begruendung && (
-                <p className="cp-hinweis cp-hinweis--komp">{subOrder.notfall_begruendung}</p>
+              {subOrder.emergency_reason && (
+                <p className="cp-hinweis cp-hinweis--komp">{subOrder.emergency_reason}</p>
               )}
             </div>
           )}
-          {subOrder?.bereich === 'STAMP' && hasStampModelLinked(currentStampDetail) && (
+          {subOrder?.department === 'STAMP' && hasStampModelLinked(currentStampDetail) && (
             <p className="cp-hinweis cp-hinweis--komp" style={{ marginTop: 6 }}>
               Lager: Stempel {stockDisplayValue(stampStock)} · Kissen {stockDisplayValue(padStock)}
             </p>
@@ -874,7 +874,7 @@ export function ContextPanel({
                   Notfall
                 </button>
               )}
-              {subOrder.notfall_aktiv && (
+              {subOrder.is_emergency && (
                 <button
                   type="button"
                   className="cp-btn"
@@ -888,7 +888,7 @@ export function ContextPanel({
                 <label className="cp-toggle">
                   <input
                     type="checkbox"
-                    checked={subOrder.kundenfreigabe_erforderlich}
+                    checked={subOrder.customer_approval_required}
                     disabled={busy}
                     onChange={e => void handleCustomerApprovalToggle(e.target.checked)}
                   />

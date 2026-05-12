@@ -16,11 +16,11 @@ import '../WorkArea.css'
 
 type ProductRow = {
   id: string
-  teilauftrag_id: string
-  bereich: string
+  sub_order_id: string
+  department: string
   detail: LfpDetail
   sort_order: number | null
-  erstellt_am: string | null
+  created_at: string | null
 }
 
 type Props = {
@@ -64,7 +64,7 @@ export function LFPDetail({
   const [unlocked, setUnlocked] = useState(false)
   const [formFileRecordIds, setFormFileRecordIds] = useState<string[]>([])
 
-  const [selectedType, setSelectedType] = useState<string | null>(subOrder.typ)
+  const [selectedType, setSelectedType] = useState<string | null>(subOrder.type)
   const [detail, setDetail] = useState<LfpDetail>(extractLfpRaw(subOrder))
   const detailRef = useRef(detail)
   const typeRef = useRef(selectedType)
@@ -86,11 +86,11 @@ export function LFPDetail({
 
   useEffect(() => {
     if (editingId !== null) return
-    setSelectedType(subOrder.typ)
+    setSelectedType(subOrder.type)
     const extracted = extractLfpRaw(subOrder)
     setDetail(extracted)
     detailRef.current = extracted
-    typeRef.current = subOrder.typ
+    typeRef.current = subOrder.type
   }, [subOrder, editingId])
 
   const loadFilesForProducts = useCallback(
@@ -137,11 +137,11 @@ export function LFPDetail({
     setProductsLoading(false)
     const mapped: ProductRow[] = rows.map(row => ({
       id: row.id,
-      teilauftrag_id: row.teilauftrag_id,
-      bereich: row.bereich,
+      sub_order_id: row.sub_order_id,
+      department: row.department,
       detail: (row.detail ?? {}) as LfpDetail,
       sort_order: row.sort_order,
-      erstellt_am: row.erstellt_am,
+      created_at: row.created_at,
     }))
     setProducts(mapped)
     await loadFilesForProducts(mapped)
@@ -183,11 +183,11 @@ export function LFPDetail({
   const resetForm = useCallback(() => {
     setEditingId(null)
     setFormFileRecordIds([])
-    setSelectedType(subOrder.typ)
+    setSelectedType(subOrder.type)
     const extracted = extractLfpRaw(subOrder)
     setDetail(extracted)
     detailRef.current = extracted
-    typeRef.current = subOrder.typ
+    typeRef.current = subOrder.type
   }, [subOrder])
 
   const validationErrors = validateLfpDetail(selectedType, detail, subOrderStatus)
@@ -258,7 +258,7 @@ export function LFPDetail({
       }
       const list = await reloadProducts()
       await onDetailPatch({
-        typ: subOrder.typ,
+        typ: subOrder.type,
         detail: {
           ...extractLfpRaw(subOrder),
           hat_produkte: list.length > 0,
@@ -269,8 +269,8 @@ export function LFPDetail({
     }
 
     const productInsert = {
-      teilauftrag_id: subOrder.id,
-      bereich: 'LFP',
+      sub_order_id: subOrder.id,
+      department: 'LFP',
       detail: { ...currentDetail, typ: currentType } as Json,
       sort_order: products.length,
     }
@@ -288,7 +288,7 @@ export function LFPDetail({
     }
     list = await reloadProducts()
     await onDetailPatch({
-      typ: subOrder.typ,
+      typ: subOrder.type,
       detail: {
         ...extractLfpRaw(subOrder),
         hat_produkte: list.length > 0,
@@ -320,7 +320,7 @@ export function LFPDetail({
       }
       const list = await reloadProducts()
       await onDetailPatch({
-        typ: subOrder.typ,
+        typ: subOrder.type,
         detail: {
           ...extractLfpRaw(subOrder),
           hat_produkte: list.length > 0,

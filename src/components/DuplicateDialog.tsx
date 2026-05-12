@@ -49,7 +49,7 @@ function formatDetailDimensions(detail: import('../types/database').SubOrderRow[
 }
 
 export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }: Props) {
-  const activeSubOrders = useMemo(() => teilauftraege.filter(subOrder => !subOrder.storniert), [teilauftraege])
+  const activeSubOrders = useMemo(() => teilauftraege.filter(subOrder => !subOrder.is_cancelled), [teilauftraege])
   const hasMultipleSubOrders = activeSubOrders.length > 1
 
   const [step, setStep] = useState<Step>(hasMultipleSubOrders ? 1 : 2)
@@ -150,8 +150,8 @@ export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }:
                   <label key={subOrder.id} className="cp-toggle" style={{ alignItems: 'flex-start' }}>
                     <input type="checkbox" checked={!!selection[subOrder.id]} onChange={() => toggle(subOrder.id)} />
                     <span>
-                      {(subOrder.bereich in SUB_ORDER_DEPARTMENT_LABELS ? SUB_ORDER_DEPARTMENT_LABELS[subOrder.bereich as keyof typeof SUB_ORDER_DEPARTMENT_LABELS] : subOrderDepartmentLabel(subOrder.bereich))}{' '}
-                      · {readableSubOrderType(subOrder.bereich, subOrder.typ)}{' '}
+                      {(subOrder.department in SUB_ORDER_DEPARTMENT_LABELS ? SUB_ORDER_DEPARTMENT_LABELS[subOrder.department as keyof typeof SUB_ORDER_DEPARTMENT_LABELS] : subOrderDepartmentLabel(subOrder.department))}{' '}
+                      · {readableSubOrderType(subOrder.department, subOrder.type)}{' '}
                       {formatDetailDimensions(subOrder.detail) ? `· ${formatDetailDimensions(subOrder.detail)}` : ''}
                     </span>
                   </label>

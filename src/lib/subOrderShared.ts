@@ -42,22 +42,22 @@ const UUID_LOOSE = /^[0-9a-fA-F-]{30,40}$/
  * Inside Stamp, only the structured typen are auto-advanced.
  */
 function autoPrepressAllowed(merged: SubOrderRow): boolean {
-  if (merged.bereich === 'STAMP') {
-    if (merged.typ === 'SONSTIGE_STEMPEL') return false
+  if (merged.department === 'STAMP') {
+    if (merged.type === 'SONSTIGE_STEMPEL') return false
     return (
-      merged.typ === 'TRODAT_PRINTY' ||
-      merged.typ === 'HOLZSTEMPEL' ||
-      merged.typ === 'STATIVSTEMPEL' ||
-      merged.typ === 'DATUMSSTEMPEL' ||
-      merged.typ === 'NACHFUELLFARBE' ||
-      merged.typ === 'STEMPELKISSEN' ||
-      merged.typ === 'TRODAT_KISSEN' ||
-      merged.typ === 'STEMPELPLATTE'
+      merged.type === 'TRODAT_PRINTY' ||
+      merged.type === 'HOLZSTEMPEL' ||
+      merged.type === 'STATIVSTEMPEL' ||
+      merged.type === 'DATUMSSTEMPEL' ||
+      merged.type === 'NACHFUELLFARBE' ||
+      merged.type === 'STEMPELKISSEN' ||
+      merged.type === 'TRODAT_KISSEN' ||
+      merged.type === 'STEMPELPLATTE'
     )
   }
-  if (merged.bereich === 'OTHER') return false
-  if (merged.bereich === 'LASER_ENGRAVING' && merged.typ === 'SONSTIGE_LASER') return false
-  if (merged.bereich === 'LFP' && merged.typ === 'SONSTIGE_LFP') return false
+  if (merged.department === 'OTHER') return false
+  if (merged.department === 'LASER_ENGRAVING' && merged.type === 'SONSTIGE_LASER') return false
+  if (merged.department === 'LFP' && merged.type === 'SONSTIGE_LFP') return false
   return true
 }
 
@@ -69,21 +69,21 @@ function autoPrepressAllowed(merged: SubOrderRow): boolean {
  * valid. In `ANGEBOT` (quote stage) nothing is required.
  */
 export function validateSubOrderCommonFields(
-  subOrder: Pick<SubOrderRow, 'termin' | 'lieferung' | 'prioritaet' | 'verantwortlicher_id' | 'satzzeit_minuten'>,
+  subOrder: Pick<SubOrderRow, 'deadline' | 'delivery' | 'priority' | 'assignee_id' | 'typesetting_minutes'>,
   status: OrderStatus
 ): Record<string, string> {
   const errors: Record<string, string> = {}
   if (status === 'QUOTE') return errors
-  if (subOrder.lieferung !== 'PICKUP' && subOrder.lieferung !== 'SHIPPING') errors.lieferung = 'Pflichtfeld'
-  if (!subOrder.termin) errors.termin = 'Pflichtfeld'
-  if (subOrder.prioritaet !== 'NORMAL' && subOrder.prioritaet !== 'HIGH') {
+  if (subOrder.delivery !== 'PICKUP' && subOrder.delivery !== 'SHIPPING') errors.lieferung = 'Pflichtfeld'
+  if (!subOrder.deadline) errors.termin = 'Pflichtfeld'
+  if (subOrder.priority !== 'NORMAL' && subOrder.priority !== 'HIGH') {
     errors.prioritaet = 'Pflichtfeld'
   }
-  const rawAssigneeId = subOrder.verantwortlicher_id
+  const rawAssigneeId = subOrder.assignee_id
   const assigneeId = typeof rawAssigneeId === 'string' ? rawAssigneeId.trim() : ''
   if (assigneeId && !UUID_LOOSE.test(assigneeId)) errors.verantwortlicher_id = 'Gültige UUID'
-  if (subOrder.satzzeit_minuten != null) {
-    const minutes = Number(subOrder.satzzeit_minuten)
+  if (subOrder.typesetting_minutes != null) {
+    const minutes = Number(subOrder.typesetting_minutes)
     if (!Number.isInteger(minutes) || minutes <= 0) errors.satzzeit_minuten = 'Ganze Zahl > 0'
   }
   return errors
@@ -100,12 +100,12 @@ function equalDetail(a: unknown, b: unknown): boolean {
  */
 function descriptionDetailChangedAfterProduction(snap: SubOrderRow, merged: SubOrderRow): boolean {
   const rowChanged =
-    merged.typ !== snap.typ ||
-    merged.termin !== snap.termin ||
-    merged.lieferung !== snap.lieferung ||
-    merged.prioritaet !== snap.prioritaet ||
-    merged.verantwortlicher_id !== snap.verantwortlicher_id ||
-    merged.satzzeit_minuten !== snap.satzzeit_minuten
+    merged.type !== snap.type ||
+    merged.deadline !== snap.deadline ||
+    merged.delivery !== snap.delivery ||
+    merged.priority !== snap.priority ||
+    merged.assignee_id !== snap.assignee_id ||
+    merged.typesetting_minutes !== snap.typesetting_minutes
   if (rowChanged) return true
   const sd = subOrderDetailToFieldMap(snap.detail)
   const md = subOrderDetailToFieldMap(merged.detail)
@@ -118,12 +118,12 @@ function descriptionDetailChangedAfterProduction(snap: SubOrderRow, merged: SubO
  */
 function motifDetailChangedAfterProduction(snap: SubOrderRow, merged: SubOrderRow): boolean {
   const rowChanged =
-    merged.typ !== snap.typ ||
-    merged.termin !== snap.termin ||
-    merged.lieferung !== snap.lieferung ||
-    merged.prioritaet !== snap.prioritaet ||
-    merged.verantwortlicher_id !== snap.verantwortlicher_id ||
-    merged.satzzeit_minuten !== snap.satzzeit_minuten
+    merged.type !== snap.type ||
+    merged.deadline !== snap.deadline ||
+    merged.delivery !== snap.delivery ||
+    merged.priority !== snap.priority ||
+    merged.assignee_id !== snap.assignee_id ||
+    merged.typesetting_minutes !== snap.typesetting_minutes
   if (rowChanged) return true
   const sd = subOrderDetailToFieldMap(snap.detail)
   const md = subOrderDetailToFieldMap(merged.detail)
@@ -138,13 +138,13 @@ function motifDetailChangedAfterProduction(snap: SubOrderRow, merged: SubOrderRo
  */
 function subOrderHasContentChange(snap: SubOrderRow, merged: SubOrderRow): boolean {
   return (
-    merged.typ !== snap.typ ||
+    merged.type !== snap.type ||
     !equalDetail(merged.detail, snap.detail) ||
-    merged.termin !== snap.termin ||
-    merged.lieferung !== snap.lieferung ||
-    merged.prioritaet !== snap.prioritaet ||
-    merged.verantwortlicher_id !== snap.verantwortlicher_id ||
-    merged.satzzeit_minuten !== snap.satzzeit_minuten
+    merged.deadline !== snap.deadline ||
+    merged.delivery !== snap.delivery ||
+    merged.priority !== snap.priority ||
+    merged.assignee_id !== snap.assignee_id ||
+    merged.typesetting_minutes !== snap.typesetting_minutes
   )
 }
 
@@ -160,16 +160,16 @@ export function isSubOrderComplete(subOrder: SubOrderRow, status: OrderStatus): 
   const errors = validateSubOrderCommonFields(subOrder, status)
   if (Object.keys(errors).length > 0) return false
   if (
-    subOrder.bereich === 'LFP' ||
-    subOrder.bereich === 'COPYSHOP' ||
-    subOrder.bereich === 'STAMP' ||
-    subOrder.bereich === 'LASER_ENGRAVING' ||
-    subOrder.bereich === 'OTHER'
+    subOrder.department === 'LFP' ||
+    subOrder.department === 'COPYSHOP' ||
+    subOrder.department === 'STAMP' ||
+    subOrder.department === 'LASER_ENGRAVING' ||
+    subOrder.department === 'OTHER'
   ) {
     const detailFields = subOrderDetailToFieldMap(subOrder.detail)
     return detailFields?.hat_produkte === true
   }
-  if (subOrder.bereich === 'TEXTILE') {
+  if (subOrder.department === 'TEXTILE') {
     if (Object.keys(validateSubOrderCommonFields(subOrder, status)).length > 0) return false
     return textileDetailMarkedComplete(subOrder.detail)
   }
@@ -212,29 +212,29 @@ export function nextSubOrderStatus(
 
   if (before === 'QUOTE') return 'QUOTE'
   if (before === 'PRODUCTION_READY' || before === 'DONE') {
-    if (merged.bereich === 'STAMP' || merged.bereich === 'OTHER') {
+    if (merged.department === 'STAMP' || merged.department === 'OTHER') {
       if (descriptionDetailChangedAfterProduction(snap, merged)) return 'INCOMPLETE'
       return before
     }
-    if (merged.bereich === 'LASER_ENGRAVING') {
+    if (merged.department === 'LASER_ENGRAVING') {
       if (motifDetailChangedAfterProduction(snap, merged)) return 'INCOMPLETE'
       return before
     }
     if (subOrderHasContentChange(snap, merged)) return 'INCOMPLETE'
     return before
   }
-  const lfp = merged.bereich === 'LFP'
-  const copyShop = merged.bereich === 'COPYSHOP'
-  const stamp = merged.bereich === 'STAMP'
-  const other = merged.bereich === 'OTHER'
-  const laser = merged.bereich === 'LASER_ENGRAVING'
-  const textile = merged.bereich === 'TEXTILE'
+  const lfp = merged.department === 'LFP'
+  const copyShop = merged.department === 'COPYSHOP'
+  const stamp = merged.department === 'STAMP'
+  const other = merged.department === 'OTHER'
+  const laser = merged.department === 'LASER_ENGRAVING'
+  const textile = merged.department === 'TEXTILE'
   if (textile) {
     if (!complete) return 'INCOMPLETE'
     if (customerPrepressOk) return capPrepress('PREPRESS_READY')
     return 'INCOMPLETE'
   }
-  // Unknown Bereich → always INCOMPLETE.
+  // Unknown department → always INCOMPLETE.
   if (!lfp && !copyShop && !stamp && !other && !laser) {
     if (!complete) return 'INCOMPLETE'
     return 'INCOMPLETE'
@@ -244,17 +244,17 @@ export function nextSubOrderStatus(
     if (before === 'PREPRESS_READY') return capPrepress('PREPRESS_READY')
     return 'INCOMPLETE'
   }
-  if (laser && merged.typ === 'SONSTIGE_LASER') {
+  if (laser && merged.type === 'SONSTIGE_LASER') {
     if (!complete) return 'INCOMPLETE'
     if (before === 'PREPRESS_READY') return capPrepress('PREPRESS_READY')
     return 'INCOMPLETE'
   }
-  if (lfp && merged.typ === 'SONSTIGE_LFP') {
+  if (lfp && merged.type === 'SONSTIGE_LFP') {
     if (!complete) return 'INCOMPLETE'
     if (before === 'PREPRESS_READY') return capPrepress('PREPRESS_READY')
     return 'INCOMPLETE'
   }
-  if (stamp && merged.typ === 'SONSTIGE_STEMPEL') {
+  if (stamp && merged.type === 'SONSTIGE_STEMPEL') {
     if (!complete) return 'INCOMPLETE'
     if (before === 'PREPRESS_READY') return capPrepress('PREPRESS_READY')
     return 'INCOMPLETE'
