@@ -9,6 +9,7 @@ import { departmentAbbreviation } from '../const/departmentAbbreviation'
 import {
   type Auftrag,
   type OrderDetailRow,
+  type OrderHeaderPatch,
   type OrderStatus,
   type Department,
   type CustomerContactJoin,
@@ -91,10 +92,10 @@ export function WorkArea({
   const [headerPriority, setHeaderPriority] = useState<Priority>('NORMAL')
   const [responsibleName, setResponsibleName] = useState<string | null>(null)
   const headerSnapshot = useRef<{
-    termin: string | null
-    lieferung: DeliveryChoice | null
-    prioritaet: Priority
-  }>({ termin: null, lieferung: null, prioritaet: 'NORMAL' })
+    deadline: string | null
+    delivery: DeliveryChoice | null
+    priority: Priority
+  }>({ deadline: null, delivery: null, priority: 'NORMAL' })
   const { fehler: toastFehler } = useToast()
   const loadOrderRequestIdRef = useRef(0)
 
@@ -178,7 +179,7 @@ export function WorkArea({
 
   useEffect(() => {
     if (!order) return
-    const rawDeadline = order.termin
+    const rawDeadline = order.deadline
     const isoDate =
       rawDeadline && rawDeadline.length > 0
         ? rawDeadline.length > 10
@@ -187,27 +188,27 @@ export function WorkArea({
         : ''
     // eslint-disable-next-line react-hooks/set-state-in-effect -- form mirrors server row
     setHeaderDeadline(isoDate)
-    setHeaderDelivery(order.lieferung ?? '')
-    setHeaderPriority(order.prioritaet)
+    setHeaderDelivery(order.delivery ?? '')
+    setHeaderPriority(order.priority)
     headerSnapshot.current = {
-      termin: rawDeadline,
-      lieferung: order.lieferung,
-      prioritaet: order.prioritaet,
+      deadline: rawDeadline,
+      delivery: order.delivery,
+      priority: order.priority,
     }
   }, [order])
 
   const saveOrderHeader = useCallback(
-    async (patch: Partial<Pick<OrderDetailRow, 'termin' | 'lieferung' | 'prioritaet'>>) => {
+    async (patch: OrderHeaderPatch) => {
       if (!activeOrderId) return
       try {
         const updatedOrder = await orderService.updateOrder(activeOrderId, patch) as OrderDetailRow
         setOrder(updatedOrder)
         onOrderFromWorkArea(updatedOrder)
-        onOrderCustomerLoaded(updatedOrder.kunden)
+        onOrderCustomerLoaded(updatedOrder.customers)
         headerSnapshot.current = {
-          termin: updatedOrder.termin,
-          lieferung: updatedOrder.lieferung,
-          prioritaet: updatedOrder.prioritaet,
+          deadline: updatedOrder.deadline,
+          delivery: updatedOrder.delivery,
+          priority: updatedOrder.priority,
         }
       } catch {
         toastFehler('Auftrag konnte nicht gespeichert werden')
@@ -265,7 +266,7 @@ export function WorkArea({
     }
     if (loading || !order || order.id !== activeOrderId) return
     onOrderFromWorkArea(order)
-    onOrderCustomerLoaded(order.kunden)
+    onOrderCustomerLoaded(order.customers)
     onActiveSubOrderChanged(activeSubOrder)
     onOrderFilesChanged(files)
   }, [
@@ -291,13 +292,13 @@ export function WorkArea({
       return
     }
     const today = new Date()
-    const deadlineIso = order.termin
-      ? order.termin.length > 10
-        ? order.termin.slice(0, 10)
-        : order.termin
+    const deadlineIso = order.deadline
+      ? order.deadline.length > 10
+        ? order.deadline.slice(0, 10)
+        : order.deadline
       : `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-    const priority = order.prioritaet
-    const delivery = order.lieferung ?? 'PICKUP'
+    const priority = order.priority
+    const delivery = order.delivery ?? 'PICKUP'
     let data: SubOrderRow
     try {
       data = await subOrderService.createSubOrder({
@@ -377,9 +378,9 @@ export function WorkArea({
     )
   }
 
-  const customerDisplayName = customerName(order.kunden)
+  const customerDisplayName = customerName(order.customers)
   const trimDeadline = (dateString: string | null) => (dateString && dateString.length > 10 ? dateString.slice(0, 10) : dateString || '')
-  const contactOneLine = customerContactOneLine(order.kunden)
+  const contactOneLine = customerContactOneLine(order.customers)
 
   const priorityGlyph = (priority: Priority) => (priority === 'HIGH' ? '▲' : '●')
 
@@ -411,7 +412,7 @@ export function WorkArea({
             <h1 className="work-area__kunde" style={{ margin: 0 }}>
               {customerDisplayName}
             </h1>
-            <span className="work-area__ordersnummer">{order.auftragsnummer}</span>
+            <span className="work-area__ordersnummer">{order.order_number}</span>
             <button
               type="button"
               className="wa-gear"
@@ -455,9 +456,9 @@ export function WorkArea({
             onChange={e => setHeaderDeadline(e.target.value)}
             onBlur={e => {
               const value = e.target.value || null
-              const snapshotDeadline = trimDeadline(headerSnapshot.current.termin)
+              const snapshotDeadline = trimDeadline(headerSnapshot.current.deadline)
               if ((value || '') !== (snapshotDeadline || '')) {
-                void saveOrderHeader({ termin: value })
+                void saveOrderHeader({ deadline: value })
               }
             }}
           />
@@ -470,8 +471,8 @@ export function WorkArea({
               const value = e.target.value
               const deliveryValue: DeliveryChoice | null = value === 'PICKUP' || value === 'SHIPPING' ? value : null
               setHeaderDelivery(deliveryValue ?? '')
-              if (deliveryValue !== headerSnapshot.current.lieferung) {
-                void saveOrderHeader({ lieferung: deliveryValue })
+              if (deliveryValue !== headerSnapshot.current.delivery) {
+                void saveOrderHeader({ delivery: deliveryValue })
               }
             }}
           >
@@ -490,8 +491,8 @@ export function WorkArea({
               const value = e.target.value
               if (value === 'NORMAL' || value === 'HIGH') {
                 setHeaderPriority(value)
-                if (value !== headerSnapshot.current.prioritaet) {
-                  void saveOrderHeader({ prioritaet: value })
+                if (value !== headerSnapshot.current.priority) {
+                  void saveOrderHeader({ priority: value })
                 }
               }
             }}
@@ -545,10 +546,10 @@ export function WorkArea({
           <SubOrderDetail
             subOrder={activeSubOrder}
             orderStatus={order.status}
-            orderDeadline={order.termin}
-            orderDelivery={order.lieferung}
-            orderPriority={order.prioritaet}
-            orderCustomer={order.kunden}
+            orderDeadline={order.deadline}
+            orderDelivery={order.delivery}
+            orderPriority={order.priority}
+            orderCustomer={order.customers}
             orderFiles={files}
             onUpdated={handleSubOrderUpdated}
           />

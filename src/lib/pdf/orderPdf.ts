@@ -6,14 +6,7 @@ import { subOrderService } from '../../services/subOrderService'
 import { subOrderProductService } from '../../services/subOrderProductService'
 import { textileService } from '../../services/textileService'
 import type { Database } from '../../types/supabase'
-import type { CustomerContactRow, DeliveryChoice, Priority } from '../../types/database'
-
-type OrderPdfRow = Pick<
-  Database['public']['Tables']['auftraege']['Row'],
-  'auftragsnummer' | 'termin' | 'lieferung' | 'prioritaet' | 'erstellt_am'
-> & {
-  kunden: CustomerContactRow | CustomerContactRow[] | null
-}
+import type { CustomerContactRow, DeliveryChoice, OrderPdfRow, Priority } from '../../types/database'
 
 type SubOrderRow = Database['public']['Tables']['teilauftraege']['Row']
 
@@ -241,15 +234,15 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
 
     const products = rawProducts as unknown as Record<string, unknown>[]
 
-    const customer = extractCustomer(order.kunden as OrderPdfRow['kunden'])
+    const customer = extractCustomer(order.customers as OrderPdfRow['customers'])
     const customerDisplayName = customer?.name?.trim() ? customer.name.trim() : 'Unbekannt'
 
     const fileName = buildFileName(
       customerDisplayName,
-      order.termin,
-      order.erstellt_am,
+      order.deadline,
+      order.created_at,
       subOrder.bereich,
-      order.auftragsnummer,
+      order.order_number,
     )
 
     const marginLeft = 15
@@ -263,7 +256,7 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(16)
     doc.setTextColor(0)
-    cursorY = addText(doc, `AUFTRAG ${order.auftragsnummer}`, marginLeft, cursorY, 8)
+    cursorY = addText(doc, `AUFTRAG ${order.order_number}`, marginLeft, cursorY, 8)
     doc.setFont('helvetica', 'normal')
 
     doc.setDrawColor(60)
@@ -297,11 +290,11 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
     const rightColumnX = 120
     doc.setFontSize(10)
     doc.setTextColor(0)
-    rightColumnY = addText(doc, `Termin    ${formatDateDe(order.termin)}`, rightColumnX, rightColumnY, 5)
-    rightColumnY = addText(doc, `Lieferung    ${formatDelivery(order.lieferung)}`, rightColumnX, rightColumnY, 5)
-    rightColumnY = addText(doc, `Priorität    ${formatPriority(order.prioritaet)}`, rightColumnX, rightColumnY, 5)
+    rightColumnY = addText(doc, `Termin    ${formatDateDe(order.deadline)}`, rightColumnX, rightColumnY, 5)
+    rightColumnY = addText(doc, `Lieferung    ${formatDelivery(order.delivery)}`, rightColumnX, rightColumnY, 5)
+    rightColumnY = addText(doc, `Priorität    ${formatPriority(order.priority)}`, rightColumnX, rightColumnY, 5)
     rightColumnY = addText(doc, `Bereich    ${subOrder.bereich}`, rightColumnX, rightColumnY, 5)
-    rightColumnY = addText(doc, `Erstellt    ${formatDateDe(order.erstellt_am)}`, rightColumnX, rightColumnY, 5)
+    rightColumnY = addText(doc, `Erstellt    ${formatDateDe(order.created_at)}`, rightColumnX, rightColumnY, 5)
 
     cursorY = Math.max(leftColumnY, rightColumnY) + 8
 

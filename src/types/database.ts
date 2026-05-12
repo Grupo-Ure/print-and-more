@@ -40,22 +40,20 @@ export type OrderSummaryRow = Pick<Tables<'orders'>, 'id' | 'order_number' | 'st
 }
 
 /** SELECT einzelner Auftrag im Arbeitsbereich */
-export type OrderDetailRow = {
-  id: string
-  auftragsnummer: string
-  status: OrderStatus
-  kunden: CustomerContactJoin
-  erp_exportiert: boolean
-  archiviert: boolean
-  termin: string | null
-  lieferung: DeliveryChoice | null
-  prioritaet: Priority
-  notfall_aktiv: boolean
-  erstellt_am: string
+export type OrderDetailRow = Tables<'orders'> & {
+  customers: CustomerContactJoin
 }
 
 /** Rechte Spalte / Kontext (identisch mit geladenem Auftrag) */
 export type Auftrag = OrderDetailRow
+
+/** Patch for the order header fields editable in WorkArea. */
+export type OrderHeaderPatch = Partial<Pick<Tables<'orders'>, 'deadline' | 'delivery' | 'priority'>>
+
+/** Shape of order data needed for PDF generation. */
+export type OrderPdfRow = Pick<Tables<'orders'>, 'order_number' | 'deadline' | 'delivery' | 'priority' | 'created_at'> & {
+  customers: CustomerContactJoin
+}
 
 export type DeliveryChoice = Enums<'delivery_type'>
 

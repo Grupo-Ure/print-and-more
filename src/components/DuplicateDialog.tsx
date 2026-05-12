@@ -68,7 +68,7 @@ export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }:
   const hasSelection = selectedSubOrders.length >= 1
 
   const customerLabel = (() => {
-    const customer = auftrag.kunden ?? null
+    const customer = auftrag.customers ?? null
     if (!customer) return auftrag.id
     return customerName(customer)
   })()
@@ -101,12 +101,12 @@ export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }:
     setError(null)
     try {
       const newOrderId = await orderService.duplicateOrder({
-        p_auftrag_id: auftrag.id,
-        p_prioritaet: auftrag.prioritaet ?? null,
-        p_lieferung: auftrag.lieferung ?? null,
-        p_termin: newDeadline ? newDeadline : null,
-        p_teilauftrag_ids: selectedSubOrders.map(subOrder => subOrder.id),
-        p_user_id: (await authService.getUser())?.id ?? null,
+        source_order_id: auftrag.id,
+        new_priority: auftrag.priority ?? null,
+        new_delivery: auftrag.delivery ?? null,
+        new_deadline: newDeadline ? newDeadline : null,
+        selected_sub_order_ids: selectedSubOrders.map(subOrder => subOrder.id),
+        created_by_user_id: (await authService.getUser())?.id ?? null,
       })
 
       if (!newOrderId.trim()) {

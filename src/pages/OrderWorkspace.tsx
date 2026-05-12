@@ -81,7 +81,7 @@ export function OrderWorkspace() {
 
   const handleOrderUpdated = useCallback((order: Auftrag) => {
     setActiveOrder(order)
-    if (order.archiviert) {
+    if (order.is_archived) {
       setActiveOrderId(null)
       setOrderListKey(k => k + 1)
       setOrderInPlace(ORDER_LIST_IN_PLACE_INITIAL)

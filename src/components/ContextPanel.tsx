@@ -266,7 +266,7 @@ export function ContextPanel({
     setBusy(true)
     try {
       await orderService.archiveOrder(order.id)
-      onOrderUpdated({ ...order, archiviert: true })
+      onOrderUpdated({ ...order, is_archived: true })
     } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
@@ -285,7 +285,7 @@ export function ContextPanel({
         ereignisart: 'FERTIG_GEMELDET',
         meta: { abgerechnet_auftrag: true },
       })
-      onOrderUpdated({ ...order, status: 'INVOICED', archiviert: true })
+      onOrderUpdated({ ...order, status: 'INVOICED', is_archived: true })
     } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
@@ -305,7 +305,7 @@ export function ContextPanel({
     try {
       await orderService.archiveOrderWithCancelledSubOrders(order.id)
       await historyService.writeHistory({ auftrag_id: order.id, ereignisart: 'STORNIERT' })
-      onOrderUpdated({ ...order, archiviert: true })
+      onOrderUpdated({ ...order, is_archived: true })
     } catch {
       fehler('Status konnte nicht geändert werden')
     } finally {
@@ -384,7 +384,7 @@ export function ContextPanel({
               : 1
         const quantity = Number.isFinite(parsedQuantity) && parsedQuantity >= 1 ? Math.floor(parsedQuantity) : 1
 
-        const stampNote = 'Automatisch bei Produktionsfreigabe ' + (order.auftragsnummer ?? '')
+        const stampNote = 'Automatisch bei Produktionsfreigabe ' + (order.order_number ?? '')
 
         const bookStampStockDeduction = async (modelId: string, quantity: number, note: string) => {
           const modelRow = await stampService.getStampModelById(modelId)
@@ -430,7 +430,7 @@ export function ContextPanel({
 
       // Textil: Automatischer Lagerabgang (vor Status-Update).
       if (subOrder.bereich === 'TEXTILE') {
-        const textileNote = 'Automatisch bei Produktionsfreigabe ' + (order.auftragsnummer ?? '')
+        const textileNote = 'Automatisch bei Produktionsfreigabe ' + (order.order_number ?? '')
         const user = await authService.getUser()
         const userId = user?.id ?? null
 
