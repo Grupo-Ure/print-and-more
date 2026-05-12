@@ -733,10 +733,10 @@ export function ContextPanel({
       {(() => {
         const customerContact = resolveCustomerContact(orderCustomer)
         if (!customerContact) return null
-        const street = customerContact.strasse?.trim()
-        const houseNumber = customerContact.hausnummer?.trim()
-        const postalCode = customerContact.plz?.trim()
-        const city = customerContact.ort?.trim()
+        const street = customerContact.street?.trim()
+        const houseNumber = customerContact.house_number?.trim()
+        const postalCode = customerContact.postal_code?.trim()
+        const city = customerContact.city?.trim()
         const addressLine1 = [street, houseNumber].filter(Boolean).join(' ')
         const addressLine2 = [postalCode, city].filter(Boolean).join(' ')
         if (!addressLine1 && !addressLine2) return null

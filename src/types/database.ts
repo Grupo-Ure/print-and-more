@@ -1,4 +1,4 @@
-import type { Enums, Json } from './supabase'
+import type { Enums, Tables, Json } from './supabase'
 import { Constants } from './supabase'
 
 export type OrderStatus = Enums<'order_status'>
@@ -27,17 +27,7 @@ export type CustomerName = {
   name: string
 }
 
-export type CustomerContactRow = {
-  id: string
-  name: string
-  email: string | null
-  telefon: string | null
-  notiz: string | null
-  strasse: string | null
-  hausnummer: string | null
-  plz: string | null
-  ort: string | null
-}
+export type CustomerContactRow = Tables<'customers'>
 
 /** PostgREST liefert eingebettete FK-Zeile als Objekt oder 1-Element-Array (je nach Client-Inferenz). */
 export type CustomerJoin = CustomerName | CustomerName[] | null

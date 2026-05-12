@@ -6,16 +6,13 @@ import { subOrderService } from '../../services/subOrderService'
 import { subOrderProductService } from '../../services/subOrderProductService'
 import { textileService } from '../../services/textileService'
 import type { Database } from '../../types/supabase'
-import type { DeliveryChoice, Priority } from '../../types/database'
+import type { CustomerContactRow, DeliveryChoice, Priority } from '../../types/database'
 
 type OrderPdfRow = Pick<
   Database['public']['Tables']['auftraege']['Row'],
   'auftragsnummer' | 'termin' | 'lieferung' | 'prioritaet' | 'erstellt_am'
 > & {
-  kunden:
-    | Database['public']['Tables']['kunden']['Row']
-    | Database['public']['Tables']['kunden']['Row'][]
-    | null
+  kunden: CustomerContactRow | CustomerContactRow[] | null
 }
 
 type SubOrderRow = Database['public']['Tables']['teilauftraege']['Row']
@@ -118,10 +115,10 @@ function detailEntry(key: string, value: unknown): { label: string; value: strin
   return { label: fieldToLabel(key), value: valueAsString(value) }
 }
 
-function extractCustomer(raw: OrderPdfRow['kunden']): Database['public']['Tables']['kunden']['Row'] | null {
+function extractCustomer(raw: OrderPdfRow['kunden']): CustomerContactRow | null {
   if (!raw) return null
-  if (Array.isArray(raw)) return raw.length ? (raw[0] as Database['public']['Tables']['kunden']['Row']) : null
-  return raw as Database['public']['Tables']['kunden']['Row']
+  if (Array.isArray(raw)) return raw.length ? raw[0] : null
+  return raw
 }
 
 function normalizeFileNameSegment(input: string): string {
@@ -286,16 +283,16 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(10)
 
-    if (customer?.strasse || customer?.hausnummer) {
-      const streetLine = [customer.strasse, customer.hausnummer].filter(Boolean).join(' ')
+    if (customer?.street || customer?.house_number) {
+      const streetLine = [customer.street, customer.house_number].filter(Boolean).join(' ')
       leftColumnY = addText(doc, streetLine, marginLeft, leftColumnY, 5)
     }
-    if (customer?.plz || customer?.ort) {
-      const cityLine = [customer.plz, customer.ort].filter(Boolean).join(' ')
+    if (customer?.postal_code || customer?.city) {
+      const cityLine = [customer.postal_code, customer.city].filter(Boolean).join(' ')
       if (cityLine) leftColumnY = addText(doc, cityLine, marginLeft, leftColumnY, 5)
     }
     if (customer?.email) leftColumnY = addText(doc, customer.email, marginLeft, leftColumnY, 5)
-    if (customer?.telefon) leftColumnY = addText(doc, customer.telefon, marginLeft, leftColumnY, 5)
+    if (customer?.phone) leftColumnY = addText(doc, customer.phone, marginLeft, leftColumnY, 5)
 
     const rightColumnX = 120
     doc.setFontSize(10)

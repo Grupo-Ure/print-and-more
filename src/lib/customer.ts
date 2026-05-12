@@ -16,6 +16,6 @@ export function customerMeetsPrepressContact(join: CustomerContactJoin | null | 
   const contact = contactRow(join)
   if (contact == null) return false
   if (!contact.name?.trim()) return false
-  if (contact.email?.trim() || contact.telefon?.trim()) return true
+  if (contact.email?.trim() || contact.phone?.trim()) return true
   return false
 }

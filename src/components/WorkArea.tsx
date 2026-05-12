@@ -37,7 +37,7 @@ function customerContactOneLine(contact: CustomerContactJoin | null): string {
   if (!row) return ''
   const email = row.email?.trim() ?? ''
   if (email !== '') return email
-  return row.telefon?.trim() ?? ''
+  return row.phone?.trim() ?? ''
 }
 
 function subOrderStatusDotClass(status: OrderStatus): string {

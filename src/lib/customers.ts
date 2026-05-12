@@ -26,11 +26,11 @@ export function contactJoinToCustomer(join: CustomerContactJoin | null | undefin
     id: contact.id,
     name: contact.name,
     email: contact.email,
-    telefon: contact.telefon,
-    notiz: contact.notiz,
-    strasse: contact.strasse ?? null,
-    hausnummer: contact.hausnummer ?? null,
-    plz: contact.plz ?? null,
-    ort: contact.ort ?? null,
+    telefon: contact.phone,
+    notiz: contact.note,
+    strasse: contact.street ?? null,
+    hausnummer: contact.house_number ?? null,
+    plz: contact.postal_code ?? null,
+    ort: contact.city ?? null,
   }
 }
