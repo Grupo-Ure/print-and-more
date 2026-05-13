@@ -1,7 +1,7 @@
 import { supabase } from '../supabase'
 import type { Database } from '../types/supabase'
 import { ORDER_COLUMNS } from '../const/orderSelect'
-import { ORDER_STATUS_LIST, type Auftrag, type OrderStatus, type OrderSummaryRow } from '../types/database'
+import { ORDER_STATUS_LIST, type Auftrag, type DuplicateOrderArgs, type OrderStatus, type OrderSummaryRow } from '../types/database'
 
 type OrderInsert = Database['public']['Tables']['orders']['Insert']
 type OrderUpdate = Database['public']['Tables']['orders']['Update']
@@ -189,7 +189,7 @@ class OrderService {
     selected_sub_order_ids: string[]
     created_by_user_id: string | null
   }): Promise<string> {
-    const { data, error } = await supabase.rpc('duplicate_order', params)
+    const { data, error } = await supabase.rpc('duplicate_order', params as unknown as DuplicateOrderArgs)
     if (error) throw error
     return data as string
   }

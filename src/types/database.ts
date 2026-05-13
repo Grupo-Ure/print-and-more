@@ -1,4 +1,4 @@
-import type { Enums, Tables, TablesInsert, TablesUpdate } from './supabase'
+import type { Database, Enums, Tables, TablesInsert, TablesUpdate } from './supabase'
 import { Constants } from './supabase'
 
 export type OrderStatus = Enums<'order_status'>
@@ -53,3 +53,5 @@ export type SubOrderRow = Tables<'sub_orders'>
 export type SubOrderUpdate = TablesUpdate<'sub_orders'>
 
 export type NewSubOrderEntry = Pick<TablesInsert<'sub_orders'>, 'order_id' | 'department' | 'status' | 'priority'>
+
+export type DuplicateOrderArgs = Database['public']['Functions']['duplicate_order']['Args']

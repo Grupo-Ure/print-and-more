@@ -5,12 +5,12 @@ export type Customer = {
   id: string
   name: string
   email: string | null
-  telefon: string | null
-  notiz: string | null
-  strasse: string | null
-  hausnummer: string | null
-  plz: string | null
-  ort: string | null
+  phone: string | null
+  note: string | null
+  street: string | null
+  house_number: string | null
+  postal_code: string | null
+  city: string | null
 }
 
 function contactRow(join: CustomerContactJoin | null | undefined): CustomerContactRow | null {
@@ -26,11 +26,11 @@ export function contactJoinToCustomer(join: CustomerContactJoin | null | undefin
     id: contact.id,
     name: contact.name,
     email: contact.email,
-    telefon: contact.phone,
-    notiz: contact.note,
-    strasse: contact.street ?? null,
-    hausnummer: contact.house_number ?? null,
-    plz: contact.postal_code ?? null,
-    ort: contact.city ?? null,
+    phone: contact.phone,
+    note: contact.note,
+    street: contact.street ?? null,
+    house_number: contact.house_number ?? null,
+    postal_code: contact.postal_code ?? null,
+    city: contact.city ?? null,
   }
 }

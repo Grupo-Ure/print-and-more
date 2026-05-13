@@ -11,7 +11,7 @@ type Props = {
 
 function hasAddressData(customer: Customer | null | undefined): boolean {
   if (customer == null) return false
-  return [customer.strasse, customer.hausnummer, customer.plz, customer.ort].some(
+  return [customer.street, customer.house_number, customer.postal_code, customer.city].some(
     value => value != null && String(value).trim() !== ''
   )
 }
@@ -26,12 +26,12 @@ export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
   const isEditing = kunde != null
   const [name, setName] = useState(kunde?.name ?? '')
   const [email, setEmail] = useState(kunde?.email ?? '')
-  const [telefon, setTelefon] = useState(kunde?.telefon ?? '')
-  const [notiz, setNotiz] = useState(kunde?.notiz ?? '')
-  const [strasse, setStrasse] = useState(kunde?.strasse ?? '')
-  const [hausnummer, setHausnummer] = useState(kunde?.hausnummer ?? '')
-  const [plz, setPlz] = useState(kunde?.plz ?? '')
-  const [ort, setOrt] = useState(kunde?.ort ?? '')
+  const [telefon, setTelefon] = useState(kunde?.phone ?? '')
+  const [notiz, setNotiz] = useState(kunde?.note ?? '')
+  const [strasse, setStrasse] = useState(kunde?.street ?? '')
+  const [hausnummer, setHausnummer] = useState(kunde?.house_number ?? '')
+  const [plz, setPlz] = useState(kunde?.postal_code ?? '')
+  const [ort, setOrt] = useState(kunde?.city ?? '')
   const [addressExpanded, setAddressExpanded] = useState(() => hasAddressData(kunde))
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -39,12 +39,12 @@ export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
   useEffect(() => {
     setName(kunde?.name ?? '')
     setEmail(kunde?.email ?? '')
-    setTelefon(kunde?.telefon ?? '')
-    setNotiz(kunde?.notiz ?? '')
-    setStrasse(kunde?.strasse ?? '')
-    setHausnummer(kunde?.hausnummer ?? '')
-    setPlz(kunde?.plz ?? '')
-    setOrt(kunde?.ort ?? '')
+    setTelefon(kunde?.phone ?? '')
+    setNotiz(kunde?.note ?? '')
+    setStrasse(kunde?.street ?? '')
+    setHausnummer(kunde?.house_number ?? '')
+    setPlz(kunde?.postal_code ?? '')
+    setOrt(kunde?.city ?? '')
     setAddressExpanded(hasAddressData(kunde))
     setError(null)
   }, [kunde])
@@ -60,12 +60,12 @@ export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
     const payload = {
       name: name.trim(),
       email: email.trim() || null,
-      telefon: telefon.trim() || null,
-      notiz: notiz.trim() || null,
-      strasse: strasse.trim() || null,
-      hausnummer: hausnummer.trim() || null,
-      plz: plz.trim() || null,
-      ort: ort.trim() || null,
+      phone: telefon.trim() || null,
+      note: notiz.trim() || null,
+      street: strasse.trim() || null,
+      house_number: hausnummer.trim() || null,
+      postal_code: plz.trim() || null,
+      city: ort.trim() || null,
     }
     try {
       const saved = isEditing

@@ -3,7 +3,6 @@ import { historyService } from '../services/historyService'
 import { customerService } from '../services/customerService'
 import { orderService } from '../services/orderService'
 import type { DeliveryChoice, OrderStatus, Priority } from '../types/database'
-import type { Database } from '../types/supabase'
 import type { Customer } from '../lib/customers'
 import { CustomerDialog } from './CustomerDialog'
 import { useToast } from './Toast'
@@ -104,16 +103,16 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
     if (!selectedCustomer) return
     setError(null)
     setCreating(true)
-    const auftragInsert: Database['public']['Tables']['auftraege']['Insert'] = {
-      kunde_id: selectedCustomer.id,
+    const auftragInsert = {
+      customer_id: selectedCustomer.id,
       status: 'QUOTE',
-      termin: null,
-      lieferung: 'PICKUP',
-      prioritaet: 'NORMAL',
+      deadline: null,
+      delivery: 'PICKUP',
+      priority: 'NORMAL',
     }
     let data: NewOrderInsertRow
     try {
-      data = await orderService.createOrder(auftragInsert) as unknown as NewOrderInsertRow
+      data = await orderService.createOrder(auftragInsert as Parameters<typeof orderService.createOrder>[0]) as unknown as NewOrderInsertRow
     } catch (err) {
       setCreating(false)
       setError(err instanceof Error ? err.message : 'Fehler beim Erstellen')
@@ -187,7 +186,7 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
                   >
                     <strong>{customer.name}</strong>
                     <div className="cp-hinweis" style={{ margin: '4px 0 0' }}>
-                      {customer.email || customer.telefon || '—'}
+                      {customer.email || customer.phone || '—'}
                     </div>
                   </button>
                 ))}
@@ -211,7 +210,7 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
                 <div>
                   <div style={{ fontWeight: 600 }}>{selectedCustomer.name}</div>
                   <div className="cp-hinweis" style={{ marginTop: 4 }}>
-                    {selectedCustomer.email || selectedCustomer.telefon || '—'}
+                    {selectedCustomer.email || selectedCustomer.phone || '—'}
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>

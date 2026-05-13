@@ -230,7 +230,7 @@ export function OtherDetail({
     const detailWithType = { ...currentDetail, typ: SONSTIGE_TYPE }
 
     if (editingId) {
-      const patch: Database['public']['Tables']['teilauftrag_produkte']['Update'] = {
+      const patch: Database['public']['Tables']['sub_order_products']['Update'] = {
         detail: detailWithType as Json,
       }
       try {

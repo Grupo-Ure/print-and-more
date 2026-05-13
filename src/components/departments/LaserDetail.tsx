@@ -256,7 +256,7 @@ export function LaserDetail({
     }
 
     if (editingId) {
-      const patch: Database['public']['Tables']['teilauftrag_produkte']['Update'] = {
+      const patch: Database['public']['Tables']['sub_order_products']['Update'] = {
         detail: { ...filteredDetail, typ: currentType } as Json,
       }
       try {

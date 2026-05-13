@@ -290,7 +290,7 @@ export function CopyShopDetail({
     if (Object.keys(errors).length > 0) return
 
     if (editingId) {
-      const patch: Database['public']['Tables']['teilauftrag_produkte']['Update'] = {
+      const patch: Database['public']['Tables']['sub_order_products']['Update'] = {
         detail: { ...currentDetail, typ: currentType } as Json,
       }
       try {

@@ -105,7 +105,7 @@ function detailEntry(key: string, value: unknown): { label: string; value: strin
   return { label: fieldToLabel(key), value: valueAsString(value) }
 }
 
-function extractCustomer(raw: OrderPdfRow['kunden']): CustomerContactRow | null {
+function extractCustomer(raw: OrderPdfRow['customers']): CustomerContactRow | null {
   if (!raw) return null
   if (Array.isArray(raw)) return raw.length ? raw[0] : null
   return raw

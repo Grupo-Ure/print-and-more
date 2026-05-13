@@ -72,37 +72,37 @@ const STAMP_PAD_SIZE_LABELS: Record<(typeof STAMP_PAD_SIZES)[number], string> = 
 type StampModel = {
   id: string
   name: string
-  max_breite_mm: number | null
-  max_hoehe_mm: number | null
-  druckflaeche: string | null
-  bestand: number | null
-  ersatzkissen_artikelnummer: string | null
+  max_width_mm: number | null
+  max_height_mm: number | null
+  print_area: string | null
+  stock: number | null
+  replacement_pad_article_number: string | null
 }
 
 const REPLACEMENT_PAD_COLOR_SEQUENCE = ['SCHWARZ', 'ROT', 'BLAU', 'GRUEN'] as const
 
 type ReplacementCushionRow = { farbe: string; label: string; bestand: number }
 
-type CushionArticleRow = { artikelnummer: string; name: string }
-type CushionColorButton = { id: string; farbe: (typeof REPLACEMENT_PAD_COLOR_SEQUENCE)[number]; bestand: number }
+type CushionArticleRow = { article_number: string; name: string }
+type CushionColorButton = { id: string; color: (typeof REPLACEMENT_PAD_COLOR_SEQUENCE)[number]; stock: number }
 
 
 async function loadCushionColorRows(articleNumber: string): Promise<CushionColorButton[]> {
-  let data: { id: string; name: string; farbe: string | null; bestand: number | null }[]
+  let data: { id: string; name: string; color: string | null; stock: number | null }[]
   try {
     data = await stampService.getCushionsByArticleNumber(articleNumber)
   } catch (err) {
     console.error(err)
-    return REPLACEMENT_PAD_COLOR_SEQUENCE.map(farbe => ({ id: '', farbe, bestand: 0 }))
+    return REPLACEMENT_PAD_COLOR_SEQUENCE.map(farbe => ({ id: '', color: farbe, stock: 0 }))
   }
-  const colorRows = (data ?? []) as { id: string; farbe: string | null; bestand: number | null }[]
+  const colorRows = (data ?? []) as { id: string; color: string | null; stock: number | null }[]
   const byColor = new Map<string, (typeof colorRows)[0]>()
   for (const row of colorRows) {
-    if (row.farbe) byColor.set(row.farbe, row)
+    if (row.color) byColor.set(row.color, row)
   }
   return REPLACEMENT_PAD_COLOR_SEQUENCE.map(farbe => {
     const colorRow = byColor.get(farbe)
-    return { id: colorRow?.id && String(colorRow.id) ? String(colorRow.id) : '', farbe, bestand: colorRow ? Number(colorRow.bestand) || 0 : 0 }
+    return { id: colorRow?.id && String(colorRow.id) ? String(colorRow.id) : '', color: farbe, stock: colorRow ? Number(colorRow.stock) || 0 : 0 }
   })
 }
 
@@ -341,8 +341,8 @@ export function StampDetail({
           const baseHeight = height ?? 0
 
           const filteredModels = (data as unknown as StampModel[]).filter(m => {
-            const modelWidth = m.max_breite_mm ?? 0
-            const modelHeight = m.max_hoehe_mm ?? 0
+            const modelWidth = m.max_width_mm ?? 0
+            const modelHeight = m.max_height_mm ?? 0
             if (width != null && height != null) return modelWidth >= width && modelHeight >= height
             if (width != null) return modelWidth >= width
             if (height != null) return modelHeight >= height
@@ -353,9 +353,9 @@ export function StampDetail({
             .slice()
             .sort((a, b) => {
               const distA =
-                Math.abs((a.max_breite_mm ?? 0) - baseWidth) + Math.abs((a.max_hoehe_mm ?? 0) - baseHeight)
+                Math.abs((a.max_width_mm ?? 0) - baseWidth) + Math.abs((a.max_height_mm ?? 0) - baseHeight)
               const distB =
-                Math.abs((b.max_breite_mm ?? 0) - baseWidth) + Math.abs((b.max_hoehe_mm ?? 0) - baseHeight)
+                Math.abs((b.max_width_mm ?? 0) - baseWidth) + Math.abs((b.max_height_mm ?? 0) - baseHeight)
               return distA - distB
             })
             .slice(0, 8)
@@ -385,7 +385,7 @@ export function StampDetail({
     let alive = true
     void (async () => {
       const fromList = models.find(m => m.id === selectedModelId)
-      let articleNumber: string | null = (fromList?.ersatzkissen_artikelnummer && String(fromList.ersatzkissen_artikelnummer).trim()) || null
+      let articleNumber: string | null = (fromList?.replacement_pad_article_number && String(fromList.replacement_pad_article_number).trim()) || null
       if (!articleNumber) {
         const stampModel = await stampService.getStampModelForOrder(selectedModelId).catch(() => null)
         if (!alive) return
@@ -393,7 +393,7 @@ export function StampDetail({
           setReplacementCushions(null)
           return
         }
-        articleNumber = stampModel.ersatzkissen_artikelnummer?.trim() || null
+        articleNumber = stampModel.replacement_pad_article_number?.trim() || null
       }
       if (!articleNumber) {
         if (alive) setReplacementCushions(null)
@@ -407,7 +407,7 @@ export function StampDetail({
       }
       const byColor = new Map<string, (typeof cushionRows)[0]>()
       for (const row of cushionRows) {
-        if (row.farbe) byColor.set(row.farbe, row)
+        if (row.color) byColor.set(row.color, row)
       }
       setReplacementCushions(
         REPLACEMENT_PAD_COLOR_SEQUENCE.map(farbe => {
@@ -415,7 +415,7 @@ export function StampDetail({
           return {
             farbe,
             label: STAMP_COLOR_LABELS[farbe],
-            bestand: colorRow ? Number(colorRow.bestand) || 0 : 0,
+            bestand: colorRow ? Number(colorRow.stock) || 0 : 0,
           }
         })
       )
@@ -462,14 +462,14 @@ export function StampDetail({
       if (!alive) return
       const articlesByKey = new Map<string, CushionArticleRow>()
       for (const row of searchRows) {
-        const articleKey = (row.artikelnummer && String(row.artikelnummer).trim()) || row.id
+        const articleKey = (row.article_number && String(row.article_number).trim()) || row.id
         if (!articlesByKey.has(articleKey)) {
-          articlesByKey.set(articleKey, { artikelnummer: row.artikelnummer ? String(row.artikelnummer) : '', name: row.name })
+          articlesByKey.set(articleKey, { article_number: row.article_number ? String(row.article_number) : '', name: row.name })
         }
       }
       setCushionSearchResults(
         [...articlesByKey.values()].sort(
-          (a, b) => a.artikelnummer.localeCompare(b.artikelnummer) || a.name.localeCompare(b.name)
+          (a, b) => a.article_number.localeCompare(b.article_number) || a.name.localeCompare(b.name)
         )
       )
       setCushionSearchError(null)
@@ -557,7 +557,7 @@ export function StampDetail({
     if (Object.keys(errors).length > 0) return
 
     if (editingId) {
-      const patch: Database['public']['Tables']['teilauftrag_produkte']['Update'] = {
+      const patch: Database['public']['Tables']['sub_order_products']['Update'] = {
         detail: { ...currentDetail, typ: currentType } as Json,
       }
       try {
@@ -666,7 +666,7 @@ export function StampDetail({
   const cushionArticleNumber = String(detailRecord['kissen_artikelnummer'] ?? '').trim()
   const cushionModelId = String(detailRecord['kissen_modell_id'] ?? '').trim()
   const cushionBadgeStock =
-    (cushionModelId && cushionColorOptions.find(f => f.id === cushionModelId)?.bestand) ?? null
+    (cushionModelId && cushionColorOptions.find(f => f.id === cushionModelId)?.stock) ?? null
   const cushionColorLabel =
     detailRecord['farbe'] && typeof detailRecord['farbe'] === 'string' && detailRecord['farbe'] in STAMP_COLOR_LABELS
       ? STAMP_COLOR_LABELS[detailRecord['farbe'] as keyof typeof STAMP_COLOR_LABELS]
@@ -741,15 +741,15 @@ export function StampDetail({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
                     {cushionSearchResults.map(result => (
                       <button
-                        key={result.artikelnummer || result.name}
+                        key={result.article_number || result.name}
                         type="button"
                         className="wa-btn wa-btn--ghost"
                         onClick={() => {
-                          void loadCushionColorRows(result.artikelnummer).then(rows => {
+                          void loadCushionColorRows(result.article_number).then(rows => {
                             setCushionColorOptions(rows)
                             saveDetail({
                               ...detailRef.current,
-                              kissen_artikelnummer: result.artikelnummer,
+                              kissen_artikelnummer: result.article_number,
                               kissen_name: result.name,
                               farbe: null,
                               kissen_modell_id: null,
@@ -758,7 +758,7 @@ export function StampDetail({
                         }}
                         style={{ textAlign: 'left', padding: '6px 8px' }}
                       >
-                        <span style={{ fontWeight: 600, marginRight: 8 }}>{result.artikelnummer || '—'}</span>
+                        <span style={{ fontWeight: 600, marginRight: 8 }}>{result.article_number || '—'}</span>
                         {result.name}
                       </button>
                     ))}
@@ -775,10 +775,10 @@ export function StampDetail({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexWrap: 'wrap' }}>
                   {cushionColorOptions.map(fv => {
                     const isSelected = cushionModelId && fv.id && cushionModelId === fv.id
-                    const noStock = fv.bestand <= 0
+                    const noStock = fv.stock <= 0
                     return (
                       <button
-                        key={fv.farbe}
+                        key={fv.color}
                         type="button"
                         className="wa-btn wa-btn--ghost"
                         disabled={!fv.id}
@@ -786,7 +786,7 @@ export function StampDetail({
                           if (!fv.id) return
                           saveDetail({
                             ...detailRef.current,
-                            farbe: fv.farbe,
+                            farbe: fv.color,
                             kissen_modell_id: fv.id,
                           } as StampDetailJson)
                         }}
@@ -798,7 +798,7 @@ export function StampDetail({
                           fontWeight: noStock || isSelected ? 600 : undefined,
                         }}
                       >
-                        {STAMP_COLOR_LABELS[fv.farbe]} (Bestand: {fv.bestand})
+                        {STAMP_COLOR_LABELS[fv.color as keyof typeof STAMP_COLOR_LABELS]} (Bestand: {fv.stock})
                       </button>
                     )
                   })}
@@ -1065,7 +1065,7 @@ export function StampDetail({
             {!selectedModelId && !modelsLoading && !modelError && models.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {models.map(m => {
-                  const noStock = (m.bestand ?? 0) <= 0
+                  const noStock = (m.stock ?? 0) <= 0
                   const isSelected = m.id === selectedModelId
                   return (
                     <button
@@ -1099,9 +1099,9 @@ export function StampDetail({
                         {isSelected && <span title="Gewählt">✓</span>}
                         {m.name}
                       </span>
-                      <span style={{ opacity: 0.8 }}>{m.druckflaeche ?? ''}</span>
+                      <span style={{ opacity: 0.8 }}>{m.print_area ?? ''}</span>
                       <span style={{ opacity: 0.9, whiteSpace: 'nowrap' }}>
-                        Bestand: {m.bestand ?? 0}
+                        Bestand: {m.stock ?? 0}
                         {noStock && (
                           <span style={{ marginLeft: 8, color: '#f59e0b', fontWeight: 600 }}>Kein Bestand vorhanden</span>
                         )}

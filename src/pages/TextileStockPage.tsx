@@ -7,8 +7,8 @@ import { Login } from '../components/Login'
 import { useToast } from '../components/Toast'
 import type { Database } from '../types/supabase'
 
-type ProductRow = Database['public']['Tables']['textil_produkte']['Row'] & {
-  textil_marken?: { name: string } | { name: string }[] | null
+type ProductRow = Database['public']['Tables']['textile_products']['Row'] & {
+  textile_brands?: { name: string } | { name: string }[] | null
 }
 type VariantRow = VariantWithDetails
 type Tab = 'PRODUCTS' | 'STOCK' | 'ORDER_LIST'
@@ -55,19 +55,19 @@ function oneNested<T>(value: T | T[] | null | undefined): T | null {
 
 type ProductNested = {
   name: string
-  artikelnummer: string | null
-  textil_marken?: unknown
+  article_number: string | null
+  textile_brands?: unknown
 }
 
 function productNested(variant: VariantRow): ProductNested | null {
-  const nested = oneNested(variant.textil_produkte as ProductNested | ProductNested[] | null)
+  const nested = oneNested(variant.textile_products as ProductNested | ProductNested[] | null)
   return nested
 }
 
 function brandFromVariant(variant: VariantRow): string {
   const product = productNested(variant)
   if (!product) return ''
-  return joinName(product.textil_marken)
+  return joinName(product.textile_brands)
 }
 
 function productNameFromVariant(variant: VariantRow): string {
@@ -115,9 +115,9 @@ function orderListCell(value: unknown, fallback: string = '—'): string {
 function variantStatus(
   variant: VariantRow
 ): { cls: string; label: string; rank: number } {
-  if (variant.ist_muster) return { cls: 'badge-grau', label: 'Muster', rank: -1 }
-  const stock = variant.bestand ?? 0
-  const minimum = variant.mindestbestand ?? 0
+  if (variant.is_sample) return { cls: 'badge-grau', label: 'Muster', rank: -1 }
+  const stock = variant.stock ?? 0
+  const minimum = variant.min_stock ?? 0
   if (stock <= 0) return { cls: 'badge-rot', label: 'Leer', rank: 0 }
   if (stock < minimum) return { cls: 'badge-rot', label: 'Nachbestellen', rank: 1 }
   if (stock === minimum) return { cls: 'badge-orange', label: 'Minimum', rank: 2 }
@@ -216,10 +216,10 @@ export function TextileStockPage() {
   }, [tab, brandIdForProducts, loadProductsForBrand])
 
   const [newProduct, setNewProduct] = useState({
-    marke_id: '',
+    brand_id: '',
     name: '',
-    artikelnummer: '',
-    beschreibung: '',
+    article_number: '',
+    description: '',
   })
   const [productFormOpen, setProductFormOpen] = useState(false)
   const [editProduct, setEditProduct] = useState<ProductRow | null>(null)
@@ -258,11 +258,11 @@ export function TextileStockPage() {
   }, [tab, productIdForVariants, loadVariantsForProduct])
 
   const [newVariant, setNewVariant] = useState({
-    farbe: '',
-    farbe_hex: '' as string,
-    groesse: '',
-    ist_muster: false,
-    mindestbestand: '0',
+    color: '',
+    color_hex: '' as string,
+    size: '',
+    is_sample: false,
+    min_stock: '0',
   })
   const [variantFormOpen, setVariantFormOpen] = useState(false)
   const [editVariant, setEditVariant] = useState<VariantRow | null>(null)
@@ -312,7 +312,7 @@ export function TextileStockPage() {
       return
     }
     const stockDelta = movementType === 'ZUGANG' ? quantity : -quantity
-    const nextStock = (variant.bestand ?? 0) + stockDelta
+    const nextStock = (variant.stock ?? 0) + stockDelta
     if (nextStock < 0) {
       setBookingErrors(m => ({ ...m, [variant.id]: 'Menge überschreitet aktuellen Bestand' }))
       return
@@ -321,16 +321,16 @@ export function TextileStockPage() {
     try {
       await textileMasterDataService.updateVariantStock(variant.id, nextStock)
       await textileMasterDataService.createTextileStockMovement({
-        variante_id: variant.id,
-        menge: quantity,
-        typ: movementType,
-        person_id: session.user.id,
+        variant_id: variant.id,
+        quantity,
+        type: movementType,
+        user_id: session.user.id,
       })
 
       if (onSuccess) {
         onSuccess(nextStock)
       } else {
-        setVarianten(list => list.map(x => (x.id === variant.id ? { ...x, bestand: nextStock } : x)))
+        setVarianten(list => list.map(x => (x.id === variant.id ? { ...x, stock: nextStock } : x)))
       }
       setBookingQuantity(m => ({ ...m, [variant.id]: '' }))
     } catch (e) {
@@ -343,23 +343,23 @@ export function TextileStockPage() {
 
   const bookMovementStockTab = async (variant: VariantRow, movementType: 'ZUGANG' | 'ABGANG') => {
     await bookMovement(variant, movementType, nextStock => {
-      setAllVariants(list => list.map(x => (x.id === variant.id ? { ...x, bestand: nextStock } : x)))
+      setAllVariants(list => list.map(x => (x.id === variant.id ? { ...x, stock: nextStock } : x)))
     })
   }
 
   const saveMinimumStock = async (variant: VariantRow) => {
-    const rawValue = (minimumEdit[variant.id] ?? String(variant.mindestbestand ?? 0)).trim()
+    const rawValue = (minimumEdit[variant.id] ?? String(variant.min_stock ?? 0)).trim()
     const minimumValue = rawValue === '' ? 0 : parseInt(rawValue, 10)
     if (!Number.isInteger(minimumValue) || minimumValue < 0) return
-    if (minimumValue === (variant.mindestbestand ?? 0)) return
+    if (minimumValue === (variant.min_stock ?? 0)) return
     try {
       await textileMasterDataService.updateVariantMinimumStock(variant.id, minimumValue)
     } catch {
       showError('Mindestbestand konnte nicht gespeichert werden')
       return
     }
-    setVarianten(list => list.map(x => (x.id === variant.id ? { ...x, mindestbestand: minimumValue } : x)))
-    setAllVariants(list => list.map(x => (x.id === variant.id ? { ...x, mindestbestand: minimumValue } : x)))
+    setVarianten(list => list.map(x => (x.id === variant.id ? { ...x, min_stock: minimumValue } : x)))
+    setAllVariants(list => list.map(x => (x.id === variant.id ? { ...x, min_stock: minimumValue } : x)))
   }
 
   // ——— Bestand-Tab: alle Varianten ———
@@ -372,11 +372,11 @@ export function TextileStockPage() {
   type StockSortKey =
     | 'marke'
     | 'produkt'
-    | 'farbe'
-    | 'groesse'
+    | 'color'
+    | 'size'
     | 'muster'
-    | 'bestand'
-    | 'mindestbestand'
+    | 'stock'
+    | 'min_stock'
     | 'status'
   const [stockSorting, setStockSorting] = useState<{ key: StockSortKey; dir: 'asc' | 'desc' } | null>(null)
 
@@ -422,12 +422,12 @@ export function TextileStockPage() {
     if (stockBrandFilter !== 'ALL') {
       list = list.filter(v => brandFromVariant(v) === stockBrandFilter)
     }
-    if (filterSamplesOnly) list = list.filter(v => v.ist_muster)
+    if (filterSamplesOnly) list = list.filter(v => v.is_sample)
     if (filterReorderOnly) {
       list = list.filter(v => {
-        if (v.ist_muster) return false
-        const stock = v.bestand ?? 0
-        const minimumStock = v.mindestbestand ?? 0
+        if (v.is_sample) return false
+        const stock = v.stock ?? 0
+        const minimumStock = v.min_stock ?? 0
         return stock < minimumStock
       })
     }
@@ -436,8 +436,8 @@ export function TextileStockPage() {
       list = list.filter(v => {
         const brandName = brandFromVariant(v).toLowerCase()
         const productName = productNameFromVariant(v).toLowerCase()
-        const colorStr = String(v.farbe ?? '').toLowerCase()
-        const sizeStr = String(v.groesse ?? '').toLowerCase()
+        const colorStr = String(v.color ?? '').toLowerCase()
+        const sizeStr = String(v.size ?? '').toLowerCase()
         return brandName.includes(q) || productName.includes(q) || colorStr.includes(q) || sizeStr.includes(q)
       })
     }
@@ -450,32 +450,32 @@ export function TextileStockPage() {
             ? brandFromVariant(a)
             : key === 'produkt'
               ? productNameFromVariant(a)
-              : key === 'farbe'
-                ? a.farbe
-                : key === 'groesse'
-                  ? a.groesse
+              : key === 'color'
+                ? a.color
+                : key === 'size'
+                  ? a.size
                   : key === 'muster'
-                    ? (a.ist_muster ? 1 : 0)
-                    : key === 'bestand'
-                      ? a.bestand ?? 0
-                      : key === 'mindestbestand'
-                        ? a.mindestbestand ?? 0
+                    ? (a.is_sample ? 1 : 0)
+                    : key === 'stock'
+                      ? a.stock ?? 0
+                      : key === 'min_stock'
+                        ? a.min_stock ?? 0
                         : variantStatus(a).rank
         const bValue =
           key === 'marke'
             ? brandFromVariant(b)
             : key === 'produkt'
               ? productNameFromVariant(b)
-              : key === 'farbe'
-                ? b.farbe
-                : key === 'groesse'
-                  ? b.groesse
+              : key === 'color'
+                ? b.color
+                : key === 'size'
+                  ? b.size
                   : key === 'muster'
-                    ? (b.ist_muster ? 1 : 0)
-                    : key === 'bestand'
-                      ? b.bestand ?? 0
-                      : key === 'mindestbestand'
-                        ? b.mindestbestand ?? 0
+                    ? (b.is_sample ? 1 : 0)
+                    : key === 'stock'
+                      ? b.stock ?? 0
+                      : key === 'min_stock'
+                        ? b.min_stock ?? 0
                         : variantStatus(b).rank
         if (typeof aValue === 'number' && typeof bValue === 'number') {
           if (aValue !== bValue) return (aValue - bValue) * dir
@@ -529,8 +529,8 @@ export function TextileStockPage() {
       const reorderRows: ReorderRow[] = []
       for (const v of activeVariants) {
         const openDemand = toInteger(demandByVariantId.get(v.id))
-        const currentStock = toInteger(v.bestand)
-        const minimumStock = toInteger(v.mindestbestand)
+        const currentStock = toInteger(v.stock)
+        const minimumStock = toInteger(v.min_stock)
         const bestellmenge = Math.max(0, minimumStock + openDemand - currentStock)
         if (bestellmenge <= 0) continue
         reorderRows.push({ ...v, offene_menge: openDemand, bestellmenge: toInteger(bestellmenge) })
@@ -559,11 +559,11 @@ export function TextileStockPage() {
         return [
           orderListCell(brandFromVariant(orderRow), ''),
           orderListCell(productNameFromVariant(orderRow), ''),
-          orderListCell(orderRow.farbe, ''),
-          orderListCell(orderRow.groesse, ''),
-          orderListNumber(orderRow.bestand),
+          orderListCell(orderRow.color, ''),
+          orderListCell(orderRow.size, ''),
+          orderListNumber(orderRow.stock),
           orderListNumber(orderRow.offene_menge),
-          orderListNumber(orderRow.mindestbestand),
+          orderListNumber(orderRow.min_stock),
           orderListNumber(orderRow.bestellmenge),
         ].join(' | ')
       })
@@ -605,7 +605,7 @@ export function TextileStockPage() {
     if (!trimmedName) return
     const previousBrandId = editingBrandId
     try {
-      await textileMasterDataService.updateBrand(editingBrandId, { name: trimmedName, aktiv: editBrandActive })
+      await textileMasterDataService.updateBrand(editingBrandId, { name: trimmedName, is_active: editBrandActive })
     } catch {
       showError('Marke konnte nicht gespeichert werden')
       return
@@ -616,7 +616,7 @@ export function TextileStockPage() {
   }
 
   const saveProduct = async () => {
-    const brandId = newProduct.marke_id || brandIdForProducts
+    const brandId = newProduct.brand_id || brandIdForProducts
     const trimmedName = newProduct.name.trim()
     if (!brandId || !trimmedName) {
       showError('Marke und Name sind Pflicht')
@@ -624,17 +624,17 @@ export function TextileStockPage() {
     }
     try {
       await textileMasterDataService.createProduct({
-        marke_id: brandId,
+        brand_id: brandId,
         name: trimmedName,
-        artikelnummer: newProduct.artikelnummer.trim() || null,
-        beschreibung: newProduct.beschreibung.trim() || null,
-        aktiv: true,
+        article_number: newProduct.article_number.trim() || null,
+        description: newProduct.description.trim() || null,
+        is_active: true,
       })
     } catch {
       showError('Produkt konnte nicht angelegt werden')
       return
     }
-    setNewProduct({ marke_id: '', name: '', artikelnummer: '', beschreibung: '' })
+    setNewProduct({ brand_id: '', name: '', article_number: '', description: '' })
     setProductFormOpen(false)
     if (brandId === brandIdForProducts) void loadProductsForBrand(brandIdForProducts)
   }
@@ -646,9 +646,9 @@ export function TextileStockPage() {
     try {
       await textileMasterDataService.updateProduct(editProduct.id, {
         name: trimmedName,
-        artikelnummer: editProductArticleNumber.trim() || null,
-        beschreibung: editProductDescription.trim() || null,
-        aktiv: editProductActive,
+        article_number: editProductArticleNumber.trim() || null,
+        description: editProductDescription.trim() || null,
+        is_active: editProductActive,
       })
     } catch {
       showError('Produkt konnte nicht gespeichert werden')
@@ -664,13 +664,13 @@ export function TextileStockPage() {
       showError('Produkt wählen')
       return
     }
-    const colorValue = newVariant.farbe.trim()
-    const sizeValue = newVariant.groesse.trim()
+    const colorValue = newVariant.color.trim()
+    const sizeValue = newVariant.size.trim()
     if (!colorValue || !sizeValue) {
       showError('Farbe und Größe sind Pflicht')
       return
     }
-    const minimumRaw = newVariant.mindestbestand.trim()
+    const minimumRaw = newVariant.min_stock.trim()
     const minimumValue = minimumRaw === '' ? 0 : parseInt(minimumRaw, 10)
     if (!Number.isInteger(minimumValue) || minimumValue < 0) {
       showError('Mindestbestand ungültig')
@@ -680,26 +680,26 @@ export function TextileStockPage() {
     const nextSortOrder = (maxSortOrder ?? 0) + 1
     try {
       await textileMasterDataService.createVariant({
-        produkt_id: productIdForVariants,
-        farbe: colorValue,
-        farbe_hex: newVariant.farbe_hex.trim() || null,
-        groesse: sizeValue,
-        ist_muster: newVariant.ist_muster,
-        mindestbestand: minimumValue,
-        bestand: 0,
+        product_id: productIdForVariants,
+        color: colorValue,
+        color_hex: newVariant.color_hex.trim() || null,
+        size: sizeValue,
+        is_sample: newVariant.is_sample,
+        min_stock: minimumValue,
+        stock: 0,
         sort_order: nextSortOrder,
-        aktiv: true,
+        is_active: true,
       })
     } catch {
       showError('Variante konnte nicht angelegt werden')
       return
     }
     setNewVariant({
-      farbe: '',
-      farbe_hex: '',
-      groesse: '',
-      ist_muster: false,
-      mindestbestand: '0',
+      color: '',
+      color_hex: '',
+      size: '',
+      is_sample: false,
+      min_stock: '0',
     })
     setVariantFormOpen(false)
     void loadVariantsForProduct(productIdForVariants)
@@ -813,10 +813,10 @@ export function TextileStockPage() {
 
       const existingCombinationSet = new Set<string>()
       for (const existingRow of existingVariants) {
-        existingCombinationSet.add(`${existingRow.farbe}|||${existingRow.groesse}`)
+        existingCombinationSet.add(`${existingRow.color}|||${existingRow.size}`)
       }
 
-      const variantInserts: Database['public']['Tables']['textil_varianten']['Insert'][] = []
+      const variantInserts: Database['public']['Tables']['textile_variants']['Insert'][] = []
       let sortCounter = 0
       for (const colorEntry of colors) {
         const sizeList = sizesForPreset(colorEntry.sizeRun, colorEntry.customSizes)
@@ -824,15 +824,15 @@ export function TextileStockPage() {
           const combinationKey = `${colorEntry.name}|||${sizeValue}`
           if (existingCombinationSet.has(combinationKey)) return
           variantInserts.push({
-            produkt_id: productIdForVariants,
-            farbe: colorEntry.name,
-            farbe_hex: colorEntry.hex,
-            groesse: sizeValue,
-            ist_muster: matrixAllSamples,
-            mindestbestand: min,
-            bestand: 0,
+            product_id: productIdForVariants,
+            color: colorEntry.name,
+            color_hex: colorEntry.hex,
+            size: sizeValue,
+            is_sample: matrixAllSamples,
+            min_stock: min,
+            stock: 0,
             sort_order: sortCounter++,
-            aktiv: true,
+            is_active: true,
           })
         })
       }
@@ -868,12 +868,12 @@ export function TextileStockPage() {
     if (!Number.isInteger(minimumValue) || minimumValue < 0) return
     try {
       await textileMasterDataService.updateVariant(editVariant.id, {
-        farbe: colorValue,
-        farbe_hex: editVariantColorHex.trim() || null,
-        groesse: sizeValue,
-        ist_muster: editVariantIsSample,
-        mindestbestand: minimumValue,
-        aktiv: editVariantActive,
+        color: colorValue,
+        color_hex: editVariantColorHex.trim() || null,
+        size: sizeValue,
+        is_sample: editVariantIsSample,
+        min_stock: minimumValue,
+        is_active: editVariantActive,
       })
     } catch {
       showError('Variante konnte nicht gespeichert werden')
@@ -896,7 +896,7 @@ export function TextileStockPage() {
     const quantityStr = (bookingQuantity[variant.id] ?? '').slice(0, 3)
     const quantity = quantityStr.trim() === '' ? null : parseInt(quantityStr, 10)
     const quantityValid = quantity != null && Number.isInteger(quantity) && quantity >= 1
-    const outboundDisabled = !quantityValid || bookingBusyId != null || (quantityValid && (quantity as number) > (variant.bestand ?? 0))
+    const outboundDisabled = !quantityValid || bookingBusyId != null || (quantityValid && (quantity as number) > (variant.stock ?? 0))
     return (
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         <input
@@ -1050,7 +1050,7 @@ export function TextileStockPage() {
                       setEditVariant(null)
                       setVariantFormOpen(false)
                     }}
-                    title={m.aktiv ? m.name : `${m.name} (inaktiv)`}
+                    title={m.is_active ? m.name : `${m.name} (inaktiv)`}
                   >
                     {m.name}
                   </button>
@@ -1062,7 +1062,7 @@ export function TextileStockPage() {
                       e.stopPropagation()
                       setEditingBrandId(m.id)
                       setEditBrandName(m.name)
-                      setEditBrandActive(m.aktiv)
+                      setEditBrandActive(m.is_active)
                     }}
                     title="Marke bearbeiten"
                     aria-label={`Marke ${m.name} bearbeiten`}
@@ -1138,7 +1138,7 @@ export function TextileStockPage() {
                   onClick={() => {
                     setProductFormOpen(o => {
                       const isOpen = !o
-                      if (isOpen) setNewProduct(s => ({ ...s, marke_id: brandIdForProducts }))
+                      if (isOpen) setNewProduct(s => ({ ...s, brand_id: brandIdForProducts }))
                       return isOpen
                     })
                   }}
@@ -1175,14 +1175,14 @@ export function TextileStockPage() {
                   <input
                     className="cp-select"
                     placeholder="Artikelnummer"
-                    value={newProduct.artikelnummer}
-                    onChange={e => setNewProduct(s => ({ ...s, artikelnummer: e.target.value }))}
+                    value={newProduct.article_number}
+                    onChange={e => setNewProduct(s => ({ ...s, article_number: e.target.value }))}
                   />
                   <input
                     className="cp-select"
                     placeholder="Beschreibung"
-                    value={newProduct.beschreibung}
-                    onChange={e => setNewProduct(s => ({ ...s, beschreibung: e.target.value }))}
+                    value={newProduct.description}
+                    onChange={e => setNewProduct(s => ({ ...s, description: e.target.value }))}
                     style={{ gridColumn: '1 / -1' }}
                   />
                   <button type="button" className="cp-btn" onClick={() => void saveProduct()}>
@@ -1205,7 +1205,7 @@ export function TextileStockPage() {
                       {products.map(p => (
                         <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                           <td style={{ padding: '8px 6px', fontWeight: 600 }}>{p.name}</td>
-                          <td style={{ padding: '8px 6px' }}>{p.artikelnummer ?? '—'}</td>
+                          <td style={{ padding: '8px 6px' }}>{p.article_number ?? '—'}</td>
                           <td style={{ padding: '8px 6px' }}>
                             <button
                               type="button"
@@ -1213,9 +1213,9 @@ export function TextileStockPage() {
                               onClick={() => {
                                 setEditProduct(p)
                                 setEditProductName(p.name)
-                                setEditProductArticleNumber(p.artikelnummer ?? '')
-                                setEditProductDescription(p.beschreibung ?? '')
-                                setEditProductActive(p.aktiv)
+                                setEditProductArticleNumber(p.article_number ?? '')
+                                setEditProductDescription(p.description ?? '')
+                                setEditProductActive(p.is_active)
                               }}
                             >
                               Bearbeiten
@@ -1621,28 +1621,28 @@ export function TextileStockPage() {
                   <input
                     className="cp-select"
                     placeholder="Farbe (Pflicht)"
-                    value={newVariant.farbe}
-                    onChange={e => setNewVariant(s => ({ ...s, farbe: e.target.value }))}
+                    value={newVariant.color}
+                    onChange={e => setNewVariant(s => ({ ...s, color: e.target.value }))}
                   />
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ fontSize: 12 }}>Farbcode</span>
                     <input
                       type="color"
-                      value={newVariant.farbe_hex || '#000000'}
-                      onChange={e => setNewVariant(s => ({ ...s, farbe_hex: e.target.value }))}
+                      value={newVariant.color_hex || '#000000'}
+                      onChange={e => setNewVariant(s => ({ ...s, color_hex: e.target.value }))}
                       style={{ width: 44, height: 32, padding: 0, border: 'none' }}
                     />
                   </div>
                   <input
                     className="cp-select"
                     placeholder="Größe (Pflicht)"
-                    value={newVariant.groesse}
-                    onChange={e => setNewVariant(s => ({ ...s, groesse: e.target.value }))}
+                    value={newVariant.size}
+                    onChange={e => setNewVariant(s => ({ ...s, size: e.target.value }))}
                   />
                   <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13 }}>
                     <input
                       type="checkbox"
-                      checked={newVariant.ist_muster}
+                      checked={newVariant.is_sample}
                       onChange={e => setNewVariant(s => ({ ...s, ist_muster: e.target.checked }))}
                     />
                     Ist Muster
@@ -1651,8 +1651,8 @@ export function TextileStockPage() {
                     type="number"
                     className="cp-select"
                     min={0}
-                    value={newVariant.mindestbestand}
-                    onChange={e => setNewVariant(s => ({ ...s, mindestbestand: e.target.value }))}
+                    value={newVariant.min_stock}
+                    onChange={e => setNewVariant(s => ({ ...s, min_stock: e.target.value }))}
                     placeholder="Mindestbestand"
                   />
                   <button type="button" className="cp-btn" onClick={() => void saveVariant()} disabled={matrixBusy}>
@@ -1679,16 +1679,16 @@ export function TextileStockPage() {
                     <tbody>
                       {varianten.map(variant => {
                         const minEditValue = minimumEdit[variant.id]
-                        const minimumDisplay = minEditValue != null ? minEditValue : String(variant.mindestbestand ?? 0)
+                        const minimumDisplay = minEditValue != null ? minEditValue : String(variant.min_stock ?? 0)
                         return (
                           <tr key={variant.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                            <td style={{ padding: '8px 6px' }}>{variant.farbe}</td>
-                            <td style={{ padding: '8px 6px' }}>{variant.farbe_hex || '—'}</td>
-                            <td style={{ padding: '8px 6px' }}>{variant.groesse}</td>
+                            <td style={{ padding: '8px 6px' }}>{variant.color}</td>
+                            <td style={{ padding: '8px 6px' }}>{variant.color_hex || '—'}</td>
+                            <td style={{ padding: '8px 6px' }}>{variant.size}</td>
                             <td style={{ padding: '8px 6px' }}>
-                              {variant.ist_muster ? <span className="badge badge-grau">Muster</span> : '—'}
+                              {variant.is_sample ? <span className="badge badge-grau">Muster</span> : '—'}
                             </td>
-                            <td style={{ padding: '8px 6px' }}>{variant.bestand ?? 0}</td>
+                            <td style={{ padding: '8px 6px' }}>{variant.stock ?? 0}</td>
                             <td style={{ padding: '8px 6px' }}>
                               <input
                                 type="number"
@@ -1707,12 +1707,12 @@ export function TextileStockPage() {
                                 style={{ padding: '2px 8px', fontSize: 12 }}
                                 onClick={() => {
                                   setEditVariant(variant)
-                                  setEditVariantColor(variant.farbe)
-                                  setEditVariantColorHex(variant.farbe_hex ?? '')
-                                  setEditVariantSize(variant.groesse)
-                                  setEditVariantIsSample(variant.ist_muster)
-                                  setEditVariantMinimum(String(variant.mindestbestand ?? 0))
-                                  setEditVariantActive(variant.aktiv)
+                                  setEditVariantColor(variant.color)
+                                  setEditVariantColorHex(variant.color_hex ?? '')
+                                  setEditVariantSize(variant.size)
+                                  setEditVariantIsSample(variant.is_sample)
+                                  setEditVariantMinimum(String(variant.min_stock ?? 0))
+                                  setEditVariantActive(variant.is_active)
                                 }}
                               >
                                 …
@@ -1890,17 +1890,17 @@ export function TextileStockPage() {
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer' }}
-                    onClick={() => toggleStockSort('farbe')}
+                    onClick={() => toggleStockSort('color')}
                   >
                     Farbe
-                    {stockSorting?.key === 'farbe' ? (stockSorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
+                    {stockSorting?.key === 'color' ? (stockSorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer' }}
-                    onClick={() => toggleStockSort('groesse')}
+                    onClick={() => toggleStockSort('size')}
                   >
                     Größe
-                    {stockSorting?.key === 'groesse' ? (stockSorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
+                    {stockSorting?.key === 'size' ? (stockSorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer' }}
@@ -1911,17 +1911,17 @@ export function TextileStockPage() {
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer' }}
-                    onClick={() => toggleStockSort('bestand')}
+                    onClick={() => toggleStockSort('stock')}
                   >
                     Bestand
-                    {stockSorting?.key === 'bestand' ? (stockSorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
+                    {stockSorting?.key === 'stock' ? (stockSorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer' }}
-                    onClick={() => toggleStockSort('mindestbestand')}
+                    onClick={() => toggleStockSort('min_stock')}
                   >
                     Mindestbestand
-                    {stockSorting?.key === 'mindestbestand' ? (stockSorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
+                    {stockSorting?.key === 'min_stock' ? (stockSorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer' }}
@@ -1937,17 +1937,17 @@ export function TextileStockPage() {
                 {filteredVariants.map(variant => {
                   const status = variantStatus(variant)
                   const minEditValue = minimumEdit[variant.id]
-                  const minimumDisplay = minEditValue != null ? minEditValue : String(variant.mindestbestand ?? 0)
+                  const minimumDisplay = minEditValue != null ? minEditValue : String(variant.min_stock ?? 0)
                   return (
                     <tr key={variant.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                       <td style={{ padding: '8px 6px' }}>{brandFromVariant(variant)}</td>
                       <td style={{ padding: '8px 6px', fontWeight: 600 }}>{productNameFromVariant(variant)}</td>
-                      <td style={{ padding: '8px 6px' }}>{variant.farbe}</td>
-                      <td style={{ padding: '8px 6px' }}>{variant.groesse}</td>
+                      <td style={{ padding: '8px 6px' }}>{variant.color}</td>
+                      <td style={{ padding: '8px 6px' }}>{variant.size}</td>
                       <td style={{ padding: '8px 6px' }}>
-                        {variant.ist_muster ? <span className="badge badge-grau">Muster</span> : '—'}
+                        {variant.is_sample ? <span className="badge badge-grau">Muster</span> : '—'}
                       </td>
-                      <td style={{ padding: '8px 6px' }}>{variant.bestand ?? 0}</td>
+                      <td style={{ padding: '8px 6px' }}>{variant.stock ?? 0}</td>
                       <td style={{ padding: '8px 6px' }}>
                         <input
                           type="number"
@@ -2027,11 +2027,11 @@ export function TextileStockPage() {
                       <td style={{ padding: '8px 6px', fontWeight: 600 }}>
                         {orderListCell(productNameFromVariant(orderRow), '—')}
                       </td>
-                      <td style={{ padding: '8px 6px' }}>{orderListCell(orderRow.farbe, '—')}</td>
-                      <td style={{ padding: '8px 6px' }}>{orderListCell(orderRow.groesse, '—')}</td>
-                      <td style={{ padding: '8px 6px' }}>{orderListNumber(orderRow.bestand)}</td>
+                      <td style={{ padding: '8px 6px' }}>{orderListCell(orderRow.color, '—')}</td>
+                      <td style={{ padding: '8px 6px' }}>{orderListCell(orderRow.size, '—')}</td>
+                      <td style={{ padding: '8px 6px' }}>{orderListNumber(orderRow.stock)}</td>
                       <td style={{ padding: '8px 6px' }}>{orderListNumber(orderRow.offene_menge)}</td>
-                      <td style={{ padding: '8px 6px' }}>{orderListNumber(orderRow.mindestbestand)}</td>
+                      <td style={{ padding: '8px 6px' }}>{orderListNumber(orderRow.min_stock)}</td>
                       <td
                         style={{
                           padding: '8px 6px',

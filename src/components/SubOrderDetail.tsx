@@ -265,7 +265,7 @@ export function SubOrderDetail({
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
-          const row = await subOrderService.updateSubOrder(subOrder.id, { termin: orderDeadlineIso })
+          const row = await subOrderService.updateSubOrder(subOrder.id, { deadline: orderDeadlineIso })
           if (!alive) return
           serverSnapshotRef.current = row
           localRef.current = row
@@ -290,7 +290,7 @@ export function SubOrderDetail({
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
-          const row = await subOrderService.updateSubOrder(subOrder.id, { lieferung: orderDeliveryMode })
+          const row = await subOrderService.updateSubOrder(subOrder.id, { delivery: orderDeliveryMode })
           if (!alive) return
           serverSnapshotRef.current = row
           localRef.current = row
@@ -316,7 +316,7 @@ export function SubOrderDetail({
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
-          const row = await subOrderService.updateSubOrder(subOrder.id, { prioritaet: orderPriorityMode })
+          const row = await subOrderService.updateSubOrder(subOrder.id, { priority: orderPriorityMode })
           if (!alive) return
           serverSnapshotRef.current = row
           localRef.current = row
@@ -372,17 +372,17 @@ export function SubOrderDetail({
                   if (!isChecked) {
                     const resetIso = orderDeadlineIso || ''
                     const resetDeadline = resetIso ? resetIso : null
-                    setLocal(s => ({ ...s, termin: resetDeadline }))
+                    setLocal(s => ({ ...s, deadline: resetDeadline }))
                     void save({ deadline: resetDeadline })
                   } else {
                     // Beim Aktivieren: Eingabefeld soll den aktuellen Wert (Teilauftrag oder Auftrag) zeigen.
                     const currentLocal = localRef.current
-                    const currentIso = currentLocal.termin
-                      ? currentLocal.termin.length > 10
-                        ? currentLocal.termin.slice(0, 10)
-                        : currentLocal.termin
+                    const currentIso = currentLocal.deadline
+                      ? currentLocal.deadline.length > 10
+                        ? currentLocal.deadline.slice(0, 10)
+                        : currentLocal.deadline
                       : ''
-                    if (!currentIso && orderDeadlineIso) setLocal(s => ({ ...s, termin: orderDeadlineIso }))
+                    if (!currentIso && orderDeadlineIso) setLocal(s => ({ ...s, deadline: orderDeadlineIso }))
                   }
                 }}
               />
@@ -395,7 +395,7 @@ export function SubOrderDetail({
                   value={local.deadline ? (local.deadline.length > 10 ? local.deadline.slice(0, 10) : local.deadline) : deadlineIso}
                   onChange={e => {
                     const value = e.target.value
-                    setLocal(s => ({ ...s, termin: value || null }))
+                    setLocal(s => ({ ...s, deadline: value || null }))
                   }}
                   onBlur={e => {
                     const value = e.target.value || null
@@ -424,7 +424,7 @@ export function SubOrderDetail({
                     void save({ delivery: orderDeliveryMode })
                   } else {
                     const alternativeDelivery = orderDeliveryMode === 'PICKUP' ? 'SHIPPING' : 'PICKUP'
-                    setLocal(s => ({ ...s, lieferung: alternativeDelivery }))
+                    setLocal(s => ({ ...s, delivery: alternativeDelivery }))
                     void save({ delivery: alternativeDelivery })
                   }
                 }}
@@ -438,7 +438,7 @@ export function SubOrderDetail({
                   value={local.delivery ?? orderDeliveryMode}
                   onChange={e => {
                     const value = e.target.value as 'PICKUP' | 'SHIPPING'
-                    setLocal(s => ({ ...s, lieferung: value }))
+                    setLocal(s => ({ ...s, delivery: value }))
                   }}
                   onBlur={e => {
                     const value = (e.target.value as 'PICKUP' | 'SHIPPING') || orderDeliveryMode
@@ -485,7 +485,7 @@ export function SubOrderDetail({
                 value={local.priority}
                 onChange={e => {
                   const value = e.target.value
-                  if (value === 'NORMAL' || value === 'HIGH') setLocal(s => ({ ...s, prioritaet: value }))
+                  if (value === 'NORMAL' || value === 'HIGH') setLocal(s => ({ ...s, priority: value }))
                 }}
                 onBlur={e => {
                   const value = e.target.value
@@ -513,12 +513,12 @@ export function SubOrderDetail({
           <input
             type="number"
             className={'ber-inp' + fieldErrorClass('satzzeit_minuten')}
-            value={local.satzzeit_minuten ?? ''}
+            value={local.typesetting_minutes ?? ''}
             onChange={e => {
               const rawValue = e.target.value
               setLocal(s => ({
                 ...s,
-                satzzeit_minuten: rawValue === '' ? null : parseInt(rawValue, 10),
+                typesetting_minutes: rawValue === '' ? null : parseInt(rawValue, 10),
               }))
             }}
             onBlur={e => {
