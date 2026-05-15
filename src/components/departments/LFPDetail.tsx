@@ -104,7 +104,7 @@ export function LFPDetail({
       try {
         rows = await subOrderProductService.getFilesByProductIds(ids)
       } catch {
-        toastError('FileRecord-Zuordnungen konnten nicht geladen werden')
+        toastError('File assignments could not be loaded')
         setProductFiles({})
         return
       }
@@ -129,7 +129,7 @@ export function LFPDetail({
       rows = await subOrderProductService.getProductsBySubOrderId(subOrder.id)
     } catch {
       setProductsLoading(false)
-      toastError('Produkte konnten nicht geladen werden')
+      toastError('Products could not be loaded')
       setProducts([])
       await loadFilesForProducts([])
       return []
@@ -159,7 +159,7 @@ export function LFPDetail({
       try {
         await subOrderProductService.assignFileToProduct(productId, fileId)
       } catch {
-        toastError('FileRecord konnte nicht zugeordnet werden')
+        toastError('File could not be assigned')
         return
       }
       await loadFilesForProducts(reloadRows)
@@ -172,7 +172,7 @@ export function LFPDetail({
       try {
         await subOrderProductService.removeFileFromProduct(assignmentId)
       } catch {
-        toastError('Zuordnung konnte nicht entfernt werden')
+        toastError('Assignment could not be removed')
         return
       }
       await loadFilesForProducts(productRowsForReload ?? products)
@@ -247,7 +247,7 @@ export function LFPDetail({
       try {
         await subOrderProductService.updateProduct(editingId, patch)
       } catch {
-        toastError('Produkt konnte nicht gespeichert werden')
+        toastError('Product could not be saved')
         return
       }
       for (const assignment of [...(productFiles[editingId] ?? [])]) {
@@ -278,7 +278,7 @@ export function LFPDetail({
     try {
       insertedRow = await subOrderProductService.createProduct(productInsert)
     } catch {
-      toastError('Produkt konnte nicht hinzugefügt werden')
+      toastError('Product could not be added')
       return
     }
     const newId = insertedRow.id
@@ -315,7 +315,7 @@ export function LFPDetail({
       try {
         await subOrderProductService.deleteProduct(id)
       } catch {
-        toastError('Produkt konnte nicht gelöscht werden')
+        toastError('Product could not be deleted')
         return
       }
       const list = await reloadProducts()
@@ -350,16 +350,16 @@ export function LFPDetail({
         LFP
       </div>
       {selectedType === 'SONSTIGE_LFP' && (
-        <p className="ber-hinweis">Bei „Sonstige LFP” wird PREPRESS_BEREIT nur manuell gesetzt, nicht automatisch.</p>
+        <p className="ber-hinweis">For "Other (LFP)" sub-orders, PREPRESS_READY is set manually only, not automatically.</p>
       )}
       {selectedType === 'SCHILD_FOLIE' && detail.material === 'ACRYLGLAS' && (
-        <p className="ber-hinweis">Bei Acrylglas: Rückseitenverklebung inkl., kein Zusatzfeld nötig.</p>
+        <p className="ber-hinweis">For acrylic glass: rear lamination included, no extra field needed.</p>
       )}
 
       <div className="ber-grid-2" style={{ marginTop: 4 }}>
         <FieldRow
           stack
-          label="Typ"
+          label="Type"
           error={shouldValidate && validationErrors.typ ? validationErrors.typ : undefined}
           content={
             <select
@@ -401,7 +401,7 @@ export function LFPDetail({
       {selectedType === 'SONSTIGE_LFP' && <OtherSection {...detailBlock} />}
 
       {orderFiles.length > 0 && (
-        <FieldRow label="Dateien">
+        <FieldRow label="Files">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
             {formFileRecordIds.map(fid => (
               <span
@@ -424,7 +424,7 @@ export function LFPDetail({
                   type="button"
                   className="cp-btn cp-btn-grau"
                   style={{ minWidth: 22, padding: '0 6px', fontSize: 14, lineHeight: 1 }}
-                  title="Entfernen"
+                  title="Remove"
                   onClick={() => setFormFileRecordIds(prev => prev.filter(id => id !== fid))}
                 >
                   ×
@@ -443,7 +443,7 @@ export function LFPDetail({
                 }
               }}
             >
-              <option value="">FileRecord hinzufügen…</option>
+              <option value="">Add file…</option>
               {orderFiles
                 .filter(file => !formFileRecordIds.includes(file.id))
                 .map(file => (
@@ -465,7 +465,7 @@ export function LFPDetail({
             if (requiresUnlock) {
               if (
                 window.confirm(
-                  'Teilauftrag ist bereits freigegeben.\nWirklich Produkte bearbeiten?',
+                  'Sub-order is already released.\nReally edit products?',
                 )
               ) {
                 setUnlocked(true)
@@ -476,34 +476,34 @@ export function LFPDetail({
           }}
         >
           {requiresUnlock
-            ? 'Bearbeitung entsperren'
+            ? 'Unlock editing'
             : editingId
-              ? 'Speichern'
-              : 'Produkt hinzufügen'}
+              ? 'Save'
+              : 'Add product'}
         </button>
         {editingId && (
           <button type="button" className="cp-btn cp-btn-grau" onClick={() => resetForm()}>
-            Abbrechen
+            Cancel
           </button>
         )}
       </div>
       {unlocked && (
         <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
-          Bearbeitung unlocked — Änderungen setzen Status zurück
+          Editing unlocked — changes will reset status
         </p>
       )}
 
       <div style={{ borderTop: '1px solid var(--color-border, #e5e7eb)', marginTop: 10, paddingTop: 10 }}>
         <h3 className="wa-dl-titel" style={{ margin: 0 }}>
-          Produkte
+          Products
         </h3>
         {productsLoading ? (
           <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
-            Lädt Produkte …
+            Loading products…
           </p>
         ) : products.length === 0 ? (
           <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
-            Noch keine Produkte.
+            No products yet.
           </p>
         ) : (
           <div style={{ overflowX: 'auto', marginTop: 6 }}>
@@ -511,10 +511,10 @@ export function LFPDetail({
               <thead>
                 <tr>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                    Typ
+                    Type
                   </th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                    Stückzahl
+                    Quantity
                   </th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
                     Material
@@ -523,7 +523,7 @@ export function LFPDetail({
                     Format
                   </th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                    Aktionen
+                    Actions
                   </th>
                 </tr>
               </thead>
@@ -555,14 +555,14 @@ export function LFPDetail({
                             className="cp-btn cp-btn-grau"
                             onClick={() => handleEdit(product)}
                           >
-                            Bearbeiten
+                            Edit
                           </button>
                           <button
                             type="button"
                             className="cp-btn cp-btn-rot"
                             onClick={() => void handleDelete(product.id)}
                           >
-                            Löschen
+                            Delete
                           </button>
                         </div>
                         <div
@@ -624,7 +624,7 @@ function QuantityInput(props: DetailBlockProps & { stack?: boolean }) {
   const rawQuantity = detail.stueckzahl
   const displayValue = rawQuantity === null || rawQuantity === undefined ? '' : String(rawQuantity)
   return (
-    <FieldRow stack={stack} label="Stückzahl" error={shouldValidate && validationErrors.stueckzahl ? validationErrors.stueckzahl : undefined}>
+    <FieldRow stack={stack} label="Quantity" error={shouldValidate && validationErrors.stueckzahl ? validationErrors.stueckzahl : undefined}>
       <input
         type="number"
         className={'ber-inp' + fieldErrorClass('stueckzahl')}
@@ -684,8 +684,8 @@ function BooleanSelect(props: DetailBlockProps & { fieldKey: string; label?: str
         }}
       >
         <option value="">—</option>
-        <option value="true">Ja</option>
-        <option value="false">Nein</option>
+        <option value="true">Yes</option>
+        <option value="false">No</option>
       </select>
     </FieldRow>
   )
@@ -748,7 +748,7 @@ function IntegerInput(
   )
 }
 
-/** Breite/Höhe: mindestens eines &gt; 0 – gemeinsame Fehlermeldung format_masse */
+/** Width/Height: at least one > 0 — shared error format_masse */
 function DimensionInputs(props: DetailBlockProps) {
   const { detail, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit } = props
   const errorMsg = shouldValidate ? validationErrors.format_masse : undefined
@@ -760,7 +760,7 @@ function DimensionInputs(props: DetailBlockProps) {
     <div>
       <div className="ber-grid-2">
         <div className="ber-zeile-stack">
-          <span className="ber-lbl">Format Breite (mm)</span>
+          <span className="ber-lbl">Width (mm)</span>
           <div>
             <input
               type="number"
@@ -779,7 +779,7 @@ function DimensionInputs(props: DetailBlockProps) {
           </div>
         </div>
         <div className="ber-zeile-stack">
-          <span className="ber-lbl">Format Höhe (mm)</span>
+          <span className="ber-lbl">Height (mm)</span>
           <div>
             <input
               type="number"
@@ -820,7 +820,7 @@ function DateField(props: DetailBlockProps & { fieldKey: string; label: string }
 }
 
 function NotesField(props: DetailBlockProps) {
-  return <TextField {...props} fieldKey="besonderheiten" label="Besonderheiten" rows={3} />
+  return <TextField {...props} fieldKey="besonderheiten" label="Notes" rows={3} />
 }
 
 function StickerSection(props: DetailBlockProps) {
@@ -851,16 +851,16 @@ function StickerSection(props: DetailBlockProps) {
           {...props}
           stack
           fieldKey="konturschnitt"
-          label="Konturschnitt"
+          label="Contour cut"
           options={[
-            { value: 'FREIFORM', text: 'Freiform' },
-            { value: 'RECHTECK', text: 'Rechteck' },
+            { value: 'FREIFORM', text: 'Freeform' },
+            { value: 'RECHTECK', text: 'Rectangle' },
           ]}
         />
       </div>
       {props.detail.material === '3551' && (
         <div className="ber-col-voll" style={{ marginBottom: 6 }}>
-          <FieldRow stack label="3551 Variante">
+          <FieldRow stack label="3551 Variant">
             <select
               className="ber-inp"
               value={String((detail as Record<string, string | null>).material_3551_variante ?? '')}
@@ -885,21 +885,21 @@ function StickerSection(props: DetailBlockProps) {
           {...props}
           stack
           fieldKey="laminat"
-          label="Laminat"
+          label="Laminate"
           options={[
-            { value: 'NEIN', text: 'Nein' },
-            { value: 'MATT', text: 'Matt' },
-            { value: 'GLAENZEND', text: 'Glänzend' },
+            { value: 'NEIN', text: 'No' },
+            { value: 'MATT', text: 'Matte' },
+            { value: 'GLAENZEND', text: 'Glossy' },
           ]}
         />
         <SelectField
           {...props}
           stack
           fieldKey="ausgabe"
-          label="Ausgabe"
+          label="Output"
           options={[
-            { value: 'EINZEL', text: 'Einzel' },
-            { value: 'BOGEN', text: 'Bogen' },
+            { value: 'EINZEL', text: 'Single' },
+            { value: 'BOGEN', text: 'Sheet' },
           ]}
         />
       </div>
@@ -919,19 +919,19 @@ function UvSignSection(props: DetailBlockProps) {
           fieldKey="material"
           label="Material"
           options={[
-            { value: 'ALUVERBUND', text: 'Alu-Verbund' },
+            { value: 'ALUVERBUND', text: 'Alu-Composite' },
             { value: 'PVC', text: 'PVC' },
-            { value: 'ACRYLGLAS', text: 'Acrylglas' },
+            { value: 'ACRYLGLAS', text: 'Acrylic glass' },
           ]}
         />
         <SelectField
           {...props}
           stack
           fieldKey="druckseite"
-          label="Druckseite"
+          label="Print side"
           options={[
-            { value: 'EINSEITIG', text: 'Einseitig' },
-            { value: 'BEIDSEITIG', text: 'Beidseitig' },
+            { value: 'EINSEITIG', text: 'Single-sided' },
+            { value: 'BEIDSEITIG', text: 'Double-sided' },
           ]}
         />
       </div>
@@ -939,20 +939,20 @@ function UvSignSection(props: DetailBlockProps) {
         <SelectField
           {...props}
           fieldKey="acryl_druckrichtung"
-          label="Acryl Druckrichtung"
+          label="Acrylic print direction"
           options={[
-            { value: 'VORDERSEITE', text: 'Vorderseite' },
-            { value: 'RUECKSEITE', text: 'Rückseite' },
+            { value: 'VORDERSEITE', text: 'Front' },
+            { value: 'RUECKSEITE', text: 'Back' },
           ]}
         />
       )}
       <DimensionInputs {...props} />
-      {BooleanSelect({ ...props, fieldKey: 'ecken_runden', label: 'Ecken runden' })}
-      {BooleanSelect({ ...props, fieldKey: 'bohrungen', label: 'Bohrungen' })}
+      {BooleanSelect({ ...props, fieldKey: 'ecken_runden', label: 'Round corners' })}
+      {BooleanSelect({ ...props, fieldKey: 'bohrungen', label: 'Drill holes' })}
       {props.detail.bohrungen === true && (
         <>
-          <IntegerInput {...props} fieldKey="bohrungen_durchmesser" label="Bohrungen Ø (mm)" errorKey="bohrungen_durchmesser" min={1} />
-          <TextField {...props} fieldKey="bohrungen_position" label="Bohrungen Position" />
+          <IntegerInput {...props} fieldKey="bohrungen_durchmesser" label="Drill diameter Ø (mm)" errorKey="bohrungen_durchmesser" min={1} />
+          <TextField {...props} fieldKey="bohrungen_position" label="Drill hole position" />
         </>
       )}
       <NotesField {...props} />
@@ -970,19 +970,19 @@ function FoilSignSection(props: DetailBlockProps) {
           fieldKey="material"
           label="Material"
           options={[
-            { value: 'ALUVERBUND', text: 'Alu-Verbund' },
+            { value: 'ALUVERBUND', text: 'Alu-Composite' },
             { value: 'PVC', text: 'PVC' },
-            { value: 'ACRYLGLAS', text: 'Acrylglas' },
+            { value: 'ACRYLGLAS', text: 'Acrylic glass' },
           ]}
         />
         <SelectField
           {...props}
           stack
           fieldKey="druckseite"
-          label="Druckseite"
+          label="Print side"
           options={[
-            { value: 'EINSEITIG', text: 'Einseitig' },
-            { value: 'BEIDSEITIG', text: 'Beidseitig' },
+            { value: 'EINSEITIG', text: 'Single-sided' },
+            { value: 'BEIDSEITIG', text: 'Double-sided' },
           ]}
         />
       </div>
@@ -991,21 +991,21 @@ function FoilSignSection(props: DetailBlockProps) {
           {...props}
           stack
           fieldKey="laminat"
-          label="Laminat"
+          label="Laminate"
           options={[
-            { value: 'NEIN', text: 'Nein' },
-            { value: 'MATT', text: 'Matt' },
-            { value: 'GLAENZEND', text: 'Glänzend' },
+            { value: 'NEIN', text: 'No' },
+            { value: 'MATT', text: 'Matte' },
+            { value: 'GLAENZEND', text: 'Glossy' },
           ]}
         />
       </div>
       <DimensionInputs {...props} />
-      {BooleanSelect({ ...props, fieldKey: 'ecken_runden', label: 'Ecken runden' })}
-      {BooleanSelect({ ...props, fieldKey: 'bohrungen', label: 'Bohrungen' })}
+      {BooleanSelect({ ...props, fieldKey: 'ecken_runden', label: 'Round corners' })}
+      {BooleanSelect({ ...props, fieldKey: 'bohrungen', label: 'Drill holes' })}
       {props.detail.bohrungen === true && (
         <>
-          <IntegerInput {...props} fieldKey="bohrungen_durchmesser" label="Bohrungen Ø (mm)" errorKey="bohrungen_durchmesser" min={1} />
-          <TextField {...props} fieldKey="bohrungen_position" label="Bohrungen Position" />
+          <IntegerInput {...props} fieldKey="bohrungen_durchmesser" label="Drill diameter Ø (mm)" errorKey="bohrungen_durchmesser" min={1} />
+          <TextField {...props} fieldKey="bohrungen_position" label="Drill hole position" />
         </>
       )}
       <NotesField {...props} />
@@ -1028,10 +1028,10 @@ function FoilPlottSection(props: DetailBlockProps) {
           {...props}
           stack
           fieldKey="ausgabe"
-          label="Ausgabe"
+          label="Output"
           options={[
-            { value: 'EINZEL', text: 'Einzel' },
-            { value: 'BOGEN', text: 'Bogen' },
+            { value: 'EINZEL', text: 'Single' },
+            { value: 'BOGEN', text: 'Sheet' },
           ]}
         />
       </div>
@@ -1067,7 +1067,7 @@ function BannerSection(props: DetailBlockProps) {
           <option value="">—</option>
           {(['PVC_FRONTLIT', 'MESH', 'BAUZAUNBANNER'] as const).map(bannerMaterial => {
             const materialLabel =
-              bannerMaterial === 'PVC_FRONTLIT' ? 'PVC Frontlit' : bannerMaterial === 'MESH' ? 'Mesh' : 'Bauzaunbanner'
+              bannerMaterial === 'PVC_FRONTLIT' ? 'PVC Frontlit' : bannerMaterial === 'MESH' ? 'Mesh' : 'Construction fence banner'
             return (
               <option key={bannerMaterial} value={bannerMaterial}>
                 {materialLabel}
@@ -1077,10 +1077,10 @@ function BannerSection(props: DetailBlockProps) {
         </select>
       </FieldRow>
       <DimensionInputs {...props} />
-      {BooleanSelect({ ...props, fieldKey: 'saum', label: 'Saum' })}
-      {props.detail.saum === true && <TextField {...props} fieldKey="saum_seiten" label="Saum (Seiten)" />}
-      {BooleanSelect({ ...props, fieldKey: 'oesen', label: 'Ösen' })}
-      {props.detail.oesen === true && <TextField {...props} fieldKey="oesen_detail" label="Ösen Detail" />}
+      {BooleanSelect({ ...props, fieldKey: 'saum', label: 'Hem' })}
+      {props.detail.saum === true && <TextField {...props} fieldKey="saum_seiten" label="Hem (sides)" />}
+      {BooleanSelect({ ...props, fieldKey: 'oesen', label: 'Eyelets' })}
+      {props.detail.oesen === true && <TextField {...props} fieldKey="oesen_detail" label="Eyelet detail" />}
       <NotesField {...props} />
     </>
   )
@@ -1096,7 +1096,7 @@ function RollupSection(props: DetailBlockProps) {
         label="Material"
         options={[
           { value: 'PVC_FRONTLIT', text: 'PVC Frontlit' },
-          { value: 'ROLLUP_FILM', text: 'Rollup-Film' },
+          { value: 'ROLLUP_FILM', text: 'Roll-up Film' },
         ]}
       />
       <SelectField
@@ -1104,11 +1104,11 @@ function RollupSection(props: DetailBlockProps) {
         fieldKey="system"
         label="System"
         options={[
-          { value: 'NEUE_KASSETTE', text: 'Neue Kassette' },
-          { value: 'MOTIVTAUSCH', text: 'Motivtausch' },
+          { value: 'NEUE_KASSETTE', text: 'New cassette' },
+          { value: 'MOTIVTAUSCH', text: 'Motif swap' },
         ]}
       />
-      <FieldRow label="Breite" error={props.shouldValidate ? props.validationErrors.breite : undefined}>
+      <FieldRow label="Width" error={props.shouldValidate ? props.validationErrors.breite : undefined}>
         <select
           className={'ber-inp' + props.fieldErrorClass('breite')}
           value={rollupWidth === 85 || rollupWidth === 100 ? String(rollupWidth) : ''}
@@ -1131,12 +1131,12 @@ function VehicleWrapSection(props: DetailBlockProps) {
   const { detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail } = props
   return (
     <>
-      <TextField {...props} fieldKey="marke" label="Marke" />
-      <TextField {...props} fieldKey="modell" label="Modell" />
-      {BooleanSelect({ ...props, fieldKey: 'bereiche_seiten', label: 'Bereich Seiten' })}
-      {BooleanSelect({ ...props, fieldKey: 'bereiche_front', label: 'Bereich Front' })}
-      {BooleanSelect({ ...props, fieldKey: 'bereiche_heck', label: 'Bereich Heck' })}
-      <FieldRow label="Montage" error={shouldValidate ? validationErrors.montage : undefined}>
+      <TextField {...props} fieldKey="marke" label="Make" />
+      <TextField {...props} fieldKey="modell" label="Model" />
+      {BooleanSelect({ ...props, fieldKey: 'bereiche_seiten', label: 'Side panels' })}
+      {BooleanSelect({ ...props, fieldKey: 'bereiche_front', label: 'Front area' })}
+      {BooleanSelect({ ...props, fieldKey: 'bereiche_heck', label: 'Rear area' })}
+      <FieldRow label="Installation" error={shouldValidate ? validationErrors.montage : undefined}>
         <select
           className={'ber-inp' + fieldErrorClass('montage')}
           value={String((detail as Record<string, string>).montage ?? '')}
@@ -1155,17 +1155,17 @@ function VehicleWrapSection(props: DetailBlockProps) {
           }}
         >
           <option value="">—</option>
-          <option value="MIT">Mit</option>
-          <option value="OHNE">Ohne</option>
+          <option value="MIT">With</option>
+          <option value="OHNE">Without</option>
         </select>
       </FieldRow>
-      {detail.montage === 'MIT' && BooleanSelect({ ...props, fieldKey: 'altbeklebung', label: 'Altbeklebung' })}
-      {detail.montage === 'MIT' && <DateField {...props} fieldKey="montagetermin" label="Montagetermin" />}
-      <TextField {...props} fieldKey="besonderheiten" label="Besonderheiten" rows={3} />
+      {detail.montage === 'MIT' && BooleanSelect({ ...props, fieldKey: 'altbeklebung', label: 'Existing wrap' })}
+      {detail.montage === 'MIT' && <DateField {...props} fieldKey="montagetermin" label="Installation date" />}
+      <TextField {...props} fieldKey="besonderheiten" label="Notes" rows={3} />
     </>
   )
 }
 
 function OtherSection(props: DetailBlockProps) {
-  return <TextField {...props} fieldKey="beschreibung" label="Beschreibung" rows={6} />
+  return <TextField {...props} fieldKey="beschreibung" label="Description" rows={6} />
 }

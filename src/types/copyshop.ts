@@ -27,15 +27,15 @@ export const COPY_SHOP_TYPES = [
 /** Discriminator for the kind of CopyShop work, stored in `teilauftraege.typ`. */
 export type CopyShopType = (typeof COPY_SHOP_TYPES)[number]
 
-/** German display labels for {@link CopyShopType}, rendered in dropdowns and tabs. */
+/** Display labels for {@link CopyShopType}, rendered in dropdowns and tabs. */
 export const COPY_SHOP_TYPE_LABELS: Record<CopyShopType, string> = {
-  PLAKAT_POSTER: 'Plakat/Poster',
-  KARTE_FLYER: 'Karte & Flyer',
-  FALZFLYER: 'Falzflyer',
-  BROSCHUERE: 'Broschüre',
-  VISITENKARTE: 'Visitenkarte',
-  BINDUNG: 'Bindung',
-  AUSDRUCK: 'Ausdruck',
+  PLAKAT_POSTER: 'Poster',
+  KARTE_FLYER: 'Card & Flyer',
+  FALZFLYER: 'Folded Flyer',
+  BROSCHUERE: 'Brochure',
+  VISITENKARTE: 'Business Card',
+  BINDUNG: 'Binding',
+  AUSDRUCK: 'Print-out',
 }
 
 /**

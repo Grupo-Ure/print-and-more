@@ -35,16 +35,16 @@ export const LFP_TYPES: LfpType[] = [
   'SONSTIGE_LFP',
 ]
 
-/** German display labels for {@link LfpType}, rendered in tabs and dropdowns. */
+/** Display labels for {@link LfpType}, rendered in tabs and dropdowns. */
 export const LFP_TYPE_LABELS: Record<LfpType, string> = {
-  AUFKLEBER: 'Aufkleber',
-  SCHILD_UV: 'Schild UV',
-  SCHILD_FOLIE: 'Schild Folie',
-  FOLIENPLOTT: 'Folienplott',
+  AUFKLEBER: 'Sticker',
+  SCHILD_UV: 'Sign (UV)',
+  SCHILD_FOLIE: 'Sign (Foil)',
+  FOLIENPLOTT: 'Vinyl Plot',
   BANNER: 'Banner',
-  ROLLUP: 'Rollup',
-  FAHRZEUGBESCHRIFTUNG: 'Fahrzeugbeschriftung',
-  SONSTIGE_LFP: 'Sonstige LFP',
+  ROLLUP: 'Roll-up',
+  FAHRZEUGBESCHRIFTUNG: 'Vehicle Wrap',
+  SONSTIGE_LFP: 'Other (LFP)',
 }
 
 /**

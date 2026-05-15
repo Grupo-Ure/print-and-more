@@ -10,8 +10,8 @@ function App() {
       <ToastContainer />
       <Routes>
         <Route path="/" element={<OrderWorkspace />} />
-        <Route path="/bestandspflege" element={<StampStockPage />} />
-        <Route path="/textil-bestand" element={<TextileStockPage />} />
+        <Route path="/stamp-stock" element={<StampStockPage />} />
+        <Route path="/textile-stock" element={<TextileStockPage />} />
       </Routes>
     </ToastProvider>
   )

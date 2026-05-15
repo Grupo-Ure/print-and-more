@@ -30,13 +30,13 @@ export const STAMP_TYPES = [
 /** Discriminator for the kind of stamp work, stored in `teilauftraege.typ`. */
 export type StampType = (typeof STAMP_TYPES)[number]
 
-/** German display labels for {@link StampType}, rendered in dropdowns and tabs. */
+/** Display labels for {@link StampType}, rendered in dropdowns and tabs. */
 export const STAMP_TYPE_LABELS: Record<StampType, string> = {
   TRODAT_PRINTY: 'Trodat Printy',
-  HOLZSTEMPEL: 'Holzstempel',
-  STATIVSTEMPEL: 'Stativstempel',
-  DATUMSSTEMPEL: 'Datumsstempel',
-  SONSTIGE_STEMPEL: 'Sonstige Stempel',
+  HOLZSTEMPEL: 'Wooden Stamp',
+  STATIVSTEMPEL: 'Tripod Stamp',
+  DATUMSSTEMPEL: 'Date Stamp',
+  SONSTIGE_STEMPEL: 'Other Stamps',
 }
 
 /** Standard ink colors for stamps. `SONSTIGE` requires a free-text spec. */
@@ -44,13 +44,13 @@ export const STAMP_COLORS = ['SCHWARZ', 'ROT', 'BLAU', 'GRUEN', 'SONSTIGE'] as c
 
 export type StampColor = (typeof STAMP_COLORS)[number]
 
-/** German display labels for {@link StampColor}. */
+/** Display labels for {@link StampColor}. */
 export const STAMP_COLOR_LABELS: Record<StampColor, string> = {
-  SCHWARZ: 'Schwarz',
-  ROT: 'Rot',
-  BLAU: 'Blau',
-  GRUEN: 'Grün',
-  SONSTIGE: 'Sonstige',
+  SCHWARZ: 'Black',
+  ROT: 'Red',
+  BLAU: 'Blue',
+  GRUEN: 'Green',
+  SONSTIGE: 'Other',
 }
 
 /**

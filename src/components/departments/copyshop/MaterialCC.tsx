@@ -9,7 +9,7 @@ export type MatCcProps = {
   patchLocal: (patch: CopyShopDetailJson) => void
   commit: () => void
   applyDetail: (detail: CopyShopDetailJson) => void
-  /** z. B. material_cc / cc_umschlag */
+  /** e.g. material_cc / cc_umschlag */
   materialKey: string
   customKey: string
   label: string
@@ -44,14 +44,14 @@ export function MaterialCC(props: MatCcProps) {
                 {x}
               </option>
             ))}
-            <option value="SONSTIGE">Sonstige</option>
+            <option value="SONSTIGE">Other</option>
           </select>
           {shouldValidate && validationErrors[materialKey] && <p className="ber-err">{validationErrors[materialKey]}</p>}
         </div>
       </div>
       {mat === 'SONSTIGE' && (
         <div className="ber-zeile">
-          <span className="ber-lbl">{label} (sonstige)</span>
+          <span className="ber-lbl">{label} (other)</span>
           <div>
             <textarea
               className={'ber-inp ber-ta' + feSon}

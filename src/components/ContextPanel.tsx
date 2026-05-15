@@ -91,10 +91,10 @@ function completionBlockedHint(
   const stampIsZero = stampStock !== null && stampStock === 0
   const padIsZero = padStock !== null && padStock === 0
   if (stampIsZero && padIsZero) {
-    return 'Fertigmeldung nicht möglich — Stempel- und Kissen-Bestand sind 0'
+    return 'Cannot mark done — stamp and pad stock are 0'
   }
-  if (stampIsZero) return 'Fertigmeldung nicht möglich — Stempel-Bestand ist 0'
-  if (padIsZero) return 'Fertigmeldung nicht möglich — Kissen-Bestand ist 0'
+  if (stampIsZero) return 'Cannot mark done — stamp stock is 0'
+  if (padIsZero) return 'Cannot mark done — pad stock is 0'
   return ''
 }
 
@@ -104,10 +104,10 @@ function productionStockModalTitle(
 ): string {
   const stampIsZero = stampStock !== null && stampStock === 0
   const padIsZero = padStock !== null && padStock === 0
-  if (stampIsZero && padIsZero) return 'Achtung: Stempel- und Kissen-Bestand sind 0'
-  if (stampIsZero) return 'Achtung: Stempel-Bestand ist 0'
-  if (padIsZero) return 'Achtung: Kissen-Bestand ist 0'
-  return 'Achtung: Bestand ist 0'
+  if (stampIsZero && padIsZero) return 'Warning: Stamp and pad stock are 0'
+  if (stampIsZero) return 'Warning: Stamp stock is 0'
+  if (padIsZero) return 'Warning: Pad stock is 0'
+  return 'Warning: Stock is 0'
 }
 
 type StampPadStock = { stampStock: number | null; padStock: number | null }
@@ -215,7 +215,7 @@ export function ContextPanel({
         const summaries = await subOrderService.getSubOrderSummariesForOrder(order.id).catch(() => null)
         if (!alive) return
         if (!summaries) {
-          fehler('Daten konnten nicht geladen werden')
+          fehler('Data could not be loaded')
           setSubOrderAreaList([])
           return
         }
@@ -232,7 +232,7 @@ export function ContextPanel({
   if (!order) {
     return (
       <div className="cp" style={{ padding: 0 }}>
-        <p className="cp-hinweis">Wählen Sie links einen Auftrag.</p>
+        <p className="cp-hinweis">Select an order on the left.</p>
       </div>
     )
   }
@@ -254,7 +254,7 @@ export function ContextPanel({
       const updated = await orderService.synchronizeOrderStatus(order.id)
       onOrderUpdated({ ...order, status: updated.status })
     } catch {
-      fehler('Status konnte nicht geändert werden')
+      fehler('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -262,13 +262,13 @@ export function ContextPanel({
 
   const handleArchiv = async () => {
     if (busy) return
-    if (!window.confirm('Auftrag archivieren?\nEr wird aus der normalen Liste ausgeblendet.')) return
+    if (!window.confirm('Archive order?\nIt will be hidden from the main list.')) return
     setBusy(true)
     try {
       await orderService.archiveOrder(order.id)
       onOrderUpdated({ ...order, is_archived: true })
     } catch {
-      fehler('Status konnte nicht geändert werden')
+      fehler('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -276,7 +276,7 @@ export function ContextPanel({
 
   const handleAbrechnen = async () => {
     if (busy) return
-    if (!window.confirm('Auftrag als abgerechnet markieren?\nEr wird aus der Liste ausgeblendet.')) return
+    if (!window.confirm('Mark order as invoiced?\nIt will be hidden from the list.')) return
     setBusy(true)
     try {
       await orderService.markOrderBilled(order.id)
@@ -287,7 +287,7 @@ export function ContextPanel({
       })
       onOrderUpdated({ ...order, status: 'INVOICED', is_archived: true })
     } catch {
-      fehler('Status konnte nicht geändert werden')
+      fehler('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -297,7 +297,7 @@ export function ContextPanel({
     if (busy) return
     if (
       !window.confirm(
-        'Auftrag stornieren? Alle Teilaufträge werden storniert und der Auftrag wird ausgeblendet.'
+        'Cancel order? All sub-orders will be cancelled and the order hidden.'
       )
     )
       return
@@ -307,7 +307,7 @@ export function ContextPanel({
       await historyService.writeHistory({ order_id: order.id, event_type: 'CANCELLED' })
       onOrderUpdated({ ...order, is_archived: true })
     } catch {
-      fehler('Status konnte nicht geändert werden')
+      fehler('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -317,7 +317,7 @@ export function ContextPanel({
     if (busy) return
     if (
       !window.confirm(
-        'Auftrag endgültig löschen?\nAlle Teilaufträge und Dateien werden mitgelöscht.'
+        'Permanently delete order?\nAll sub-orders and files will also be deleted.'
       )
     )
       return
@@ -326,7 +326,7 @@ export function ContextPanel({
       await orderService.deleteOrder(order.id)
       onOrderDeleted(order.id)
     } catch {
-      fehler('Status konnte nicht geändert werden')
+      fehler('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -340,12 +340,12 @@ export function ContextPanel({
   const handlePrepressFrei = async () => {
     if (busy || !subOrder || subOrder.status !== 'INCOMPLETE') return
     if (order.status === 'QUOTE') {
-      fehler('Auftrag muss zuerst in Bearbeitung genommen werden')
+      fehler('Order must be started before releasing to PrePress')
       return
     }
     const isComplete = isSubOrderComplete(subOrder, subOrder.status)
     if (!isComplete) {
-      fehler('Teilauftrag ist noch nicht vollständig ausgefüllt')
+      fehler('Sub-order is not yet complete')
       return
     }
     setBusy(true)
@@ -358,10 +358,10 @@ export function ContextPanel({
       })
       onSubOrderUpdated(data as SubOrderRow)
       const pdfOk = await generateAndDownloadPdf(subOrder.id, order.id)
-      if (!pdfOk) fehler('PDF konnte nicht erstellt werden')
+      if (!pdfOk) fehler('PDF could not be generated')
       await syncOrderStatusAfterSubOrderAction()
     } catch {
-      fehler('Status konnte nicht geändert werden')
+      fehler('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -384,7 +384,7 @@ export function ContextPanel({
               : 1
         const quantity = Number.isFinite(parsedQuantity) && parsedQuantity >= 1 ? Math.floor(parsedQuantity) : 1
 
-        const stampNote = 'Automatisch bei Produktionsfreigabe ' + (order.order_number ?? '')
+        const stampNote = 'Automatic on production release ' + (order.order_number ?? '')
 
         const bookStampStockDeduction = async (modelId: string, quantity: number, note: string) => {
           const modelRow = await stampService.getStampModelById(modelId)
@@ -419,7 +419,7 @@ export function ContextPanel({
                 if (padRow) {
                   const padCurrentStock = padRow.stock ?? 0
                   if (padCurrentStock > 0) {
-                    await bookStampStockDeduction(padRow.id, quantity, stampNote + ' (Kissen zu Stempel)')
+                    await bookStampStockDeduction(padRow.id, quantity, stampNote + ' (Pad for stamp)')
                   }
                 }
               }
@@ -430,7 +430,7 @@ export function ContextPanel({
 
       // Textil: Automatischer Lagerabgang (vor Status-Update).
       if (subOrder.department === 'TEXTILE') {
-        const textileNote = 'Automatisch bei Produktionsfreigabe ' + (order.order_number ?? '')
+        const textileNote = 'Automatic on production release ' + (order.order_number ?? '')
         const user = await authService.getUser()
         const userId = user?.id ?? null
 
@@ -466,13 +466,13 @@ export function ContextPanel({
           event_type: 'PRODUCTION_READY_SET',
         })
       } catch {
-        console.error('Historie Produktion fehlgeschlagen')
+        console.error('History production-released failed')
       }
 
       onSubOrderUpdated(data)
       await syncOrderStatusAfterSubOrderAction()
     } catch {
-      fehler('Status konnte nicht geändert werden')
+      fehler('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -492,7 +492,7 @@ export function ContextPanel({
 
   const handleFertigMelden = async () => {
     if (busy || !subOrder || subOrder.status !== 'PRODUCTION_READY') return
-    if (!window.confirm('Teilauftrag als fertig markieren?')) return
+    if (!window.confirm('Mark sub-order as done?')) return
     setBusy(true)
     try {
       const data = await subOrderService.setSubOrderStatus(subOrder.id, 'DONE')
@@ -504,7 +504,7 @@ export function ContextPanel({
       onSubOrderUpdated(data)
       await syncOrderStatusAfterSubOrderAction()
     } catch {
-      fehler('Status konnte nicht geändert werden')
+      fehler('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -521,7 +521,7 @@ export function ContextPanel({
     if (busy || !subOrder) return
     const reason = emergencyReason.trim()
     if (!reason) {
-      fehler('Bitte eine Begründung eingeben')
+      fehler('Please enter a reason')
       return
     }
     const nextStatus = nextEmergencyStatus(subOrder.status)
@@ -546,7 +546,7 @@ export function ContextPanel({
       onSubOrderUpdated(data)
       await syncOrderStatusAfterSubOrderAction()
     } catch {
-      fehler('Status konnte nicht geändert werden')
+      fehler('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -569,7 +569,7 @@ export function ContextPanel({
       onSubOrderUpdated(data)
       await syncOrderStatusAfterSubOrderAction()
     } catch {
-      fehler('Status konnte nicht geändert werden')
+      fehler('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -599,7 +599,7 @@ export function ContextPanel({
       onSubOrderUpdated(data)
       await syncOrderStatusAfterSubOrderAction()
     } catch {
-      fehler('Status konnte nicht geändert werden')
+      fehler('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -628,9 +628,9 @@ export function ContextPanel({
       })
       onSubOrderUpdated(data)
       await syncOrderStatusAfterSubOrderAction()
-      erfolg('Freigabe erteilt')
+      erfolg('Approval granted')
     } catch {
-      fehler('Status konnte nicht geändert werden')
+      fehler('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -638,7 +638,7 @@ export function ContextPanel({
 
   const handleStorno = async () => {
     if (!subOrder || cancelInProgress) return
-    if (!window.confirm('Teilauftrag stornieren? Er wird ausgeblendet, aber nicht gelöscht.')) return
+    if (!window.confirm('Cancel sub-order? It will be hidden but not deleted.')) return
     setCancelInProgress(true)
     try {
       await subOrderService.cancelSubOrder(subOrder.id)
@@ -646,10 +646,10 @@ export function ContextPanel({
       try {
         await syncOrderStatusAfterSubOrderAction()
       } catch {
-        fehler('Status konnte nicht geändert werden')
+        fehler('Status could not be changed')
       }
     } catch {
-      fehler('Status konnte nicht geändert werden')
+      fehler('Status could not be changed')
     } finally {
       setCancelInProgress(false)
     }
@@ -657,7 +657,7 @@ export function ContextPanel({
 
   const handleLoeschen = async () => {
     if (!subOrder || deleteInProgress || subOrder.status !== 'INCOMPLETE') return
-    if (!window.confirm('Teilauftrag endgültig löschen?')) return
+    if (!window.confirm('Permanently delete sub-order?')) return
     setDeleteInProgress(true)
     try {
       await subOrderService.deleteSubOrder(subOrder.id)
@@ -665,10 +665,10 @@ export function ContextPanel({
       try {
         await syncOrderStatusAfterSubOrderAction()
       } catch {
-        fehler('Status konnte nicht geändert werden')
+        fehler('Status could not be changed')
       }
     } catch {
-      fehler('Status konnte nicht geändert werden')
+      fehler('Status could not be changed')
     } finally {
       setDeleteInProgress(false)
     }
@@ -693,16 +693,16 @@ export function ContextPanel({
 
   const hints: string[] = []
   if (subOrder && subOrder.customer_approval_required && !subOrder.customer_approval_granted) {
-    hints.push('Kundenfreigabe fehlt — Produktion blockiert')
+    hints.push('Customer approval missing — production blocked')
   }
   if (subOrder?.is_emergency) {
-    hints.push(`Notfall aktiv: ${subOrder.emergency_reason ?? '—'}`)
+    hints.push(`Emergency active: ${subOrder.emergency_reason ?? '—'}`)
   }
   if (subOrder && subOrder.status === 'PREPRESS_READY' && !subOrder.customer_approval_required) {
-    hints.push('Bereit zur Produktionsfreigabe')
+    hints.push('Ready for production release')
   }
   if (order.status === 'DONE') {
-    hints.push('Auftrag abgeschlossen')
+    hints.push('Order completed')
   }
 
   return (
@@ -717,7 +717,7 @@ export function ContextPanel({
           )}
           {subOrder?.is_emergency && (
             <div className="cp-st-notfall">
-              <span className="badge badge-rot cp-badge-lg">!! NOTFALL !!</span>
+              <span className="badge badge-rot cp-badge-lg">!! EMERGENCY !!</span>
               {subOrder.emergency_reason && (
                 <p className="cp-hinweis cp-hinweis--komp">{subOrder.emergency_reason}</p>
               )}
@@ -725,7 +725,7 @@ export function ContextPanel({
           )}
           {subOrder?.department === 'STAMP' && hasStampModelLinked(currentStampDetail) && (
             <p className="cp-hinweis cp-hinweis--komp" style={{ marginTop: 6 }}>
-              Lager: Stempel {stockDisplayValue(stampStock)} · Kissen {stockDisplayValue(padStock)}
+              Stock: Stamp {stockDisplayValue(stampStock)} · Pad {stockDisplayValue(padStock)}
             </p>
           )}
         </div>
@@ -742,7 +742,7 @@ export function ContextPanel({
         if (!addressLine1 && !addressLine2) return null
         return (
           <div className="cp-sektion">
-            <h2>Kunde</h2>
+            <h2>Customer</h2>
             {addressLine1 ? (
               <p className="cp-hinweis cp-hinweis--komp" style={{ margin: '0 0 4px' }}>
                 {addressLine1}
@@ -753,7 +753,7 @@ export function ContextPanel({
         )
       })()}
       <div className="cp-sektion">
-        <h2>Aktionen</h2>
+        <h2>Actions</h2>
         <div className="cp-gruppe">
           {order.status === 'QUOTE' && (
             <button
@@ -762,22 +762,22 @@ export function ContextPanel({
               disabled={busy}
               onClick={() => void handleInBearbeitung()}
             >
-              In Bearbeitung nehmen
+              Start processing
             </button>
           )}
           {order.status === 'QUOTE' && (
             <button type="button" className="cp-btn" disabled={busy} onClick={onEditCustomer}>
-              Kunde bearbeiten
+              Edit customer
             </button>
           )}
           {order.status === 'DONE' && (
             <button type="button" className="cp-btn" disabled={busy} onClick={() => void handleAbrechnen()}>
-              Abrechnen
+              Mark as invoiced
             </button>
           )}
           {order.status !== 'INVOICED' && (
             <button type="button" className="cp-btn" disabled={busy} onClick={() => void handleArchiv()}>
-              Archivieren
+              Archive
             </button>
           )}
           {canCancelOrder && (
@@ -787,7 +787,7 @@ export function ContextPanel({
               disabled={busy}
               onClick={() => void handleAuftragStornieren()}
             >
-              Auftrag stornieren
+              Cancel order
             </button>
           )}
           {canDeleteOrder && (
@@ -797,7 +797,7 @@ export function ContextPanel({
               disabled={busy}
               onClick={() => void handleAuftragLoeschen()}
             >
-              Auftrag löschen
+              Delete order
             </button>
           )}
         </div>
@@ -813,7 +813,7 @@ export function ContextPanel({
                   disabled={busy}
                   onClick={() => void handlePrepressFrei()}
                 >
-                  Prepress freigeben
+                  Release to PrePress
                 </button>
               )}
               {subOrder.status === 'PREPRESS_READY' && (
@@ -824,9 +824,9 @@ export function ContextPanel({
                     disabled={busy || prodDisabled}
                     onClick={() => void handleProduktionFrei()}
                   >
-                    Produktion freigeben
+                    Release to Production
                   </button>
-                  {prodDisabled && <p className="cp-sublabel">Kundenfreigabe fehlt</p>}
+                  {prodDisabled && <p className="cp-sublabel">Customer approval missing</p>}
                 </>
               )}
               {subOrder.status === 'PRODUCTION_READY' && (
@@ -837,7 +837,7 @@ export function ContextPanel({
                     disabled={busy || completionBlockedByStock}
                     onClick={() => void handleFertigMelden()}
                   >
-                    Als fertig melden
+                    Mark as done
                   </button>
                   {completionBlockedByStock && (
                     <p className="cp-sublabel">
@@ -858,7 +858,7 @@ export function ContextPanel({
                     })()
                   }
                 >
-                  PDF laden
+                  Download PDF
                 </button>
               )}
             </div>
@@ -871,7 +871,7 @@ export function ContextPanel({
                   disabled={busy}
                   onClick={handleNotfallOeffnen}
                 >
-                  Notfall
+                  Emergency
                 </button>
               )}
               {subOrder.is_emergency && (
@@ -881,7 +881,7 @@ export function ContextPanel({
                   disabled={busy}
                   onClick={() => void handleNotfallZurueck()}
                 >
-                  Notfall zurücknehmen
+                  Cancel emergency
                 </button>
               )}
               {subOrder.status !== 'QUOTE' && (
@@ -892,12 +892,12 @@ export function ContextPanel({
                     disabled={busy}
                     onChange={e => void handleCustomerApprovalToggle(e.target.checked)}
                   />
-                  <span>Kundenfreigabe erforderlich</span>
+                  <span>Customer approval required</span>
                 </label>
               )}
               {customerApprovalGrantVisible && (
                 <button type="button" className="cp-btn" disabled={busy} onClick={handleCustomerApprovalFileOpen}>
-                  Kundenfreigabe erteilen
+                  Grant customer approval
                 </button>
               )}
             </div>
@@ -909,7 +909,7 @@ export function ContextPanel({
                 disabled={cancelInProgress}
                 onClick={() => void handleStorno()}
               >
-                Teilauftrag stornieren
+                Cancel sub-order
               </button>
               <button
                 type="button"
@@ -917,10 +917,10 @@ export function ContextPanel({
                 disabled={subOrder.status !== 'INCOMPLETE' || deleteInProgress}
                 onClick={() => void handleLoeschen()}
               >
-                Teilauftrag löschen
+                Delete sub-order
               </button>
               {subOrder.status !== 'INCOMPLETE' && (
-                <p className="cp-sublabel">Nur löschbar im Status Unvollständig</p>
+                <p className="cp-sublabel">Only deletable in Incomplete status</p>
               )}
             </div>
           </>
@@ -937,7 +937,7 @@ export function ContextPanel({
 
       {hints.length > 0 && (
         <div className="cp-sektion">
-          <h2>Hinweise</h2>
+          <h2>Notes</h2>
           {hints.map((hint, i) => (
             <p key={i} className="cp-hinweis">
               {hint}
@@ -951,18 +951,18 @@ export function ContextPanel({
           <button
             type="button"
             className="cp-btn cp-btn-grau"
-            onClick={() => window.open('/bestandspflege', '_blank')}
-            title="Stempel-Bestandspflege öffnen"
+            onClick={() => window.open('/stamp-stock', '_blank')}
+            title="Open stamp stock management"
           >
-            Bestandspflege ↗
+            Stamp stock ↗
           </button>
           <button
             type="button"
             className="cp-btn cp-btn-grau"
-            onClick={() => window.open('/textil-bestand', '_blank')}
-            title="Textil-Bestand öffnen"
+            onClick={() => window.open('/textile-stock', '_blank')}
+            title="Open textile stock"
           >
-            Textil-Bestand ↗
+            Textile stock ↗
           </button>
         </div>
       </div>
@@ -978,21 +978,21 @@ export function ContextPanel({
           className="cp-modal-bg"
           role="dialog"
           aria-modal="true"
-          aria-label="Notfall"
+          aria-label="Emergency"
         >
           <div className="cp-modal">
-            <h3>Notfall</h3>
-            <p className="cp-hinweis">Begründung (Pflicht). Der Status wird eine Stufe weitergesetzt.</p>
+            <h3>Emergency</h3>
+            <p className="cp-hinweis">Reason (required). Status will be advanced one step.</p>
             <textarea
               className="cp-textarea"
               rows={3}
               value={emergencyReason}
               onChange={e => setEmergencyReason(e.target.value)}
-              placeholder="Begründung …"
+              placeholder="Reason…"
             />
             <div className="cp-modal-bar">
               <button type="button" className="cp-btn" onClick={() => setEmergencyDialogOpen(false)}>
-                Abbrechen
+                Cancel
               </button>
               <button
                 type="button"
@@ -1000,7 +1000,7 @@ export function ContextPanel({
                 disabled={!emergencyReason.trim() || busy}
                 onClick={() => void handleNotfallBestaetigt()}
               >
-                Bestätigen
+                Confirm
               </button>
             </div>
           </div>
@@ -1012,14 +1012,14 @@ export function ContextPanel({
           className="cp-modal-bg"
           role="dialog"
           aria-modal="true"
-          aria-label="Bestand"
+          aria-label="Stock"
         >
           <div className="cp-modal">
             <h3>{productionStockModalTitle(stampStock, padStock)}</h3>
-            <p className="cp-hinweis">Trotzdem auf Produktion setzen?</p>
+            <p className="cp-hinweis">Release to production anyway?</p>
             <div className="cp-modal-bar">
               <button type="button" className="cp-btn" onClick={() => setProductionStockZeroDialogOpen(false)}>
-                Abbrechen
+                Cancel
               </button>
               <button
                 type="button"
@@ -1030,7 +1030,7 @@ export function ContextPanel({
                   void executeProductionRelease()
                 }}
               >
-                Trotzdem freigeben
+                Release anyway
               </button>
             </div>
           </div>
@@ -1042,11 +1042,11 @@ export function ContextPanel({
           className="cp-modal-bg"
           role="dialog"
           aria-modal="true"
-          aria-label="Kundenfreigabe"
+          aria-label="Customer approval"
         >
           <div className="cp-modal">
-            <h3>Kundenfreigabe erteilen</h3>
-            <p className="cp-hinweis">FileRow wählen:</p>
+            <h3>Grant customer approval</h3>
+            <p className="cp-hinweis">Select file:</p>
             <select
               className="cp-select"
               value={customerApprovalFileId}
@@ -1060,7 +1060,7 @@ export function ContextPanel({
             </select>
             <div className="cp-modal-bar">
               <button type="button" className="cp-btn" onClick={() => setDialogCustomerApprovalFile(false)}>
-                Abbrechen
+                Cancel
               </button>
               <button
                 type="button"
@@ -1068,7 +1068,7 @@ export function ContextPanel({
                 disabled={!customerApprovalFileId || busy}
                 onClick={() => void handleCustomerApprovalFileConfirmed()}
               >
-                Bestätigen
+                Confirm
               </button>
             </div>
           </div>

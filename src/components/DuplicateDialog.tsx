@@ -44,8 +44,8 @@ function formatDetailDimensions(detail: import('../types/database').SubOrderRow[
   const widthText = widthValid ? String(Math.round(width as number)) : ''
   const heightText = heightValid ? String(Math.round(height as number)) : ''
   if (widthValid && heightValid) return `${widthText} × ${heightText} mm`
-  if (widthValid) return `${widthText} mm Breite`
-  if (heightValid) return `${heightText} mm Höhe`
+  if (widthValid) return `${widthText} mm width`
+  if (heightValid) return `${heightText} mm height`
   return ''
 }
 
@@ -111,17 +111,17 @@ export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }:
       })
 
       if (!newOrderId.trim()) {
-        toastFehler('Auftrag konnte nicht dupliziert werden')
+        toastFehler('Order could not be duplicated')
         return
       }
 
       const newOrderData = await orderService.getOrderById(newOrderId)
-      if (!newOrderData) throw new Error('Duplizierter Auftrag nicht gefunden')
+      if (!newOrderData) throw new Error('Duplicated order not found')
 
-      erfolg('Auftrag dupliziert')
+      erfolg('Order duplicated')
       onSuccess(newOrderData)
     } catch (e) {
-      toastFehler('Auftrag konnte nicht dupliziert werden')
+      toastFehler('Order could not be duplicated')
       setError(e instanceof Error ? e.message : String(e))
     } finally {
       setBusy(false)
@@ -129,19 +129,19 @@ export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }:
   }
 
   return (
-    <div className="cp-modal-bg" role="dialog" aria-modal="true" aria-label="Auftrag duplizieren">
+    <div className="cp-modal-bg" role="dialog" aria-modal="true" aria-label="Duplicate Order">
       <div className="cp-modal">
         {step === 1 && (
           <>
-            <h3>Welche Teilaufträge übernehmen?</h3>
-            <p className="cp-hinweis">Nur aktive (nicht stornierte) Teilaufträge.</p>
+            <h3>Which sub-orders to copy?</h3>
+            <p className="cp-hinweis">Active (non-cancelled) sub-orders only.</p>
 
             <div className="cp-modal-bar" style={{ justifyContent: 'flex-start', gap: 10 }}>
               <button type="button" className="cp-btn" onClick={selectAll}>
-                Alle übernehmen
+                Copy all
               </button>
               <button type="button" className="cp-btn" onClick={startSelecting}>
-                Auswählen
+                Select
               </button>
             </div>
 
@@ -157,13 +157,13 @@ export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }:
                     </span>
                   </label>
                 ))}
-                {!hasSelection && <p className="cp-hinweis">Mindestens 1 Teilauftrag wählen.</p>}
+                {!hasSelection && <p className="cp-hinweis">Select at least 1 sub-order.</p>}
                 <div className="cp-modal-bar">
                   <button type="button" className="cp-btn" onClick={onCancel}>
-                    Abbrechen
+                    Cancel
                   </button>
                   <button type="button" className="cp-btn" disabled={!hasSelection} onClick={goNext}>
-                    Weiter
+                    Next
                   </button>
                 </div>
               </div>
@@ -172,7 +172,7 @@ export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }:
             {mode === 'ALL' && (
               <div className="cp-modal-bar">
                 <button type="button" className="cp-btn" onClick={onCancel}>
-                  Abbrechen
+                  Cancel
                 </button>
               </div>
             )}
@@ -181,24 +181,24 @@ export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }:
 
         {step === 2 && (
           <>
-            <h3>Auftrag duplizieren</h3>
+            <h3>Duplicate Order</h3>
             <p className="cp-hinweis" style={{ marginTop: 6 }}>
-              Kunde: <strong>{customerLabel}</strong>
+              Customer: <strong>{customerLabel}</strong>
               <br />
-              Teilaufträge: <strong>{selectedSubOrders.length}</strong>
+              Sub-orders: <strong>{selectedSubOrders.length}</strong>
             </p>
 
             <div style={{ marginTop: 10 }}>
-              <p className="cp-hinweis">Neuer Termin (optional)</p>
+              <p className="cp-hinweis">New deadline (optional)</p>
               <DateInput
                 className="cp-select"
                 value={newDeadline}
                 onChange={e => setNewDeadline(e.target.value)}
-                placeholder="Kein Termin — später setzen"
+                placeholder="No deadline — set later"
               />
               {!newDeadline && (
                 <p className="cp-hinweis" style={{ marginTop: 6 }}>
-                  Kein Termin — später setzen
+                  No deadline — set later
                 </p>
               )}
             </div>
@@ -207,10 +207,10 @@ export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }:
 
             <div className="cp-modal-bar" style={{ marginTop: 12 }}>
               <button type="button" className="cp-btn" disabled={busy} onClick={onCancel}>
-                Abbrechen
+                Cancel
               </button>
               <button type="button" className="cp-btn" disabled={busy || !hasSelection} onClick={() => void handleDuplicate()}>
-                Duplizieren
+                Duplicate
               </button>
             </div>
           </>

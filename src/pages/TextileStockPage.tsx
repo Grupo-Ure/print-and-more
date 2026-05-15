@@ -38,7 +38,7 @@ function sizeRunLabel(preset: SizeMatrixPreset, customSizes: readonly string[]):
     case 'UNISEX':
       return 'Unisex (XS–5XL)'
     case 'EIGENE':
-      return customSizes.length ? customSizes.join(' · ') : 'Eigene'
+      return customSizes.length ? customSizes.join(' · ') : 'Custom'
   }
 }
 
@@ -93,7 +93,7 @@ function errorToString(e: unknown): string {
   try {
     return JSON.stringify(e)
   } catch {
-    return 'Unbekannter Fehler'
+    return 'Unknown error'
   }
 }
 
@@ -106,21 +106,21 @@ function orderListCell(value: unknown, fallback: string = '—'): string {
   if (value == null) return fallback
   if (typeof value === 'string') return value.trim() === '' ? fallback : value
   if (typeof value === 'number' && Number.isFinite(value)) return String(value)
-  if (typeof value === 'boolean') return value ? 'ja' : 'nein'
+  if (typeof value === 'boolean') return value ? 'yes' : 'no'
   if (typeof value === 'object') return fallback
   return String(value)
 }
 
-/** Status für Bestand-Tab (ohne Muster: Farblogik; Muster: immer grau). */
+/** Status for the Stock tab (excluding samples: colour logic; samples: always grey). */
 function variantStatus(
   variant: VariantRow
 ): { cls: string; label: string; rank: number } {
-  if (variant.is_sample) return { cls: 'badge-grau', label: 'Muster', rank: -1 }
+  if (variant.is_sample) return { cls: 'badge-grau', label: 'Sample', rank: -1 }
   const stock = variant.stock ?? 0
   const minimum = variant.min_stock ?? 0
-  if (stock <= 0) return { cls: 'badge-rot', label: 'Leer', rank: 0 }
-  if (stock < minimum) return { cls: 'badge-rot', label: 'Nachbestellen', rank: 1 }
-  if (stock === minimum) return { cls: 'badge-orange', label: 'Minimum', rank: 2 }
+  if (stock <= 0) return { cls: 'badge-rot', label: 'Out of stock', rank: 0 }
+  if (stock < minimum) return { cls: 'badge-rot', label: 'Reorder', rank: 1 }
+  if (stock === minimum) return { cls: 'badge-orange', label: 'At minimum', rank: 2 }
   return { cls: 'badge-gruen', label: 'OK', rank: 3 }
 }
 
@@ -171,7 +171,7 @@ export function TextileStockPage() {
       brands = await textileMasterDataService.getBrands()
     } catch {
       setBrandsLoading(false)
-      showError('Marken konnten nicht geladen werden')
+      showError('Brands could not be loaded')
       return
     }
     setBrandsLoading(false)
@@ -201,7 +201,7 @@ export function TextileStockPage() {
         products = (await textileMasterDataService.getProductsByBrand(brandId)) as unknown as ProductRow[]
       } catch {
         setProductsLoading(false)
-        showError('Produkte konnten nicht geladen werden')
+        showError('Products could not be loaded')
         return
       }
       setProductsLoading(false)
@@ -243,7 +243,7 @@ export function TextileStockPage() {
         variants = await textileMasterDataService.getVariantsByProduct(productId)
       } catch {
         setVariantsLoading(false)
-        showError('Varianten konnten nicht geladen werden')
+        showError('Variants could not be loaded')
         return
       }
       setVariantsLoading(false)
@@ -308,13 +308,13 @@ export function TextileStockPage() {
     setBookingErrors(m => ({ ...m, [variant.id]: null }))
     const quantity = parseInt(rawQuantity, 10)
     if (!Number.isInteger(quantity) || quantity < 1) {
-      setBookingErrors(m => ({ ...m, [variant.id]: 'Menge: ganze Zahl ≥ 1' }))
+      setBookingErrors(m => ({ ...m, [variant.id]: 'Quantity: integer ≥ 1' }))
       return
     }
     const stockDelta = movementType === 'ZUGANG' ? quantity : -quantity
     const nextStock = (variant.stock ?? 0) + stockDelta
     if (nextStock < 0) {
-      setBookingErrors(m => ({ ...m, [variant.id]: 'Menge überschreitet aktuellen Bestand' }))
+      setBookingErrors(m => ({ ...m, [variant.id]: 'Quantity exceeds current stock' }))
       return
     }
     setBookingBusyId(variant.id)
@@ -334,7 +334,7 @@ export function TextileStockPage() {
       }
       setBookingQuantity(m => ({ ...m, [variant.id]: '' }))
     } catch (e) {
-      showError('Buchung fehlgeschlagen')
+      showError('Booking failed')
       setBookingErrors(m => ({ ...m, [variant.id]: errorToString(e) }))
     } finally {
       setBookingBusyId(null)
@@ -355,7 +355,7 @@ export function TextileStockPage() {
     try {
       await textileMasterDataService.updateVariantMinimumStock(variant.id, minimumValue)
     } catch {
-      showError('Mindestbestand konnte nicht gespeichert werden')
+      showError('Min. stock could not be saved')
       return
     }
     setVarianten(list => list.map(x => (x.id === variant.id ? { ...x, min_stock: minimumValue } : x)))
@@ -395,7 +395,7 @@ export function TextileStockPage() {
       variants = await textileMasterDataService.getVariantsWithDetails()
     } catch {
       setAllVariantsLoading(false)
-      showError('Bestand konnte nicht geladen werden')
+      showError('Stock could not be loaded')
       return
     }
     setAllVariantsLoading(false)
@@ -538,7 +538,7 @@ export function TextileStockPage() {
       reorderRows.sort((a, b) => b.bestellmenge - a.bestellmenge)
       setOrderRows(reorderRows)
     } catch (e) {
-      showError('Bestellliste konnte nicht geladen werden')
+      showError('Reorder list could not be loaded')
       setOrderRows([])
       setOrderError(errorToString(e))
     } finally {
@@ -553,7 +553,7 @@ export function TextileStockPage() {
   }, [session, tab, loadOrderList])
 
   const orderClipboardText = useMemo(() => {
-    const header = 'Marke | Produkt | Farbe | Größe | Bestand | Offen | Mindestbestand | Bestellen'
+    const header = 'Brand | Product | Colour | Size | Stock | Open | Min. Stock | Order qty'
     const body = orderRows
       .map(orderRow => {
         return [
@@ -577,7 +577,7 @@ export function TextileStockPage() {
       setOrderCopied(true)
       window.setTimeout(() => setOrderCopied(false), 2000)
     } catch {
-      showError('Kopieren fehlgeschlagen')
+      showError('Copy failed')
     }
   }
 
@@ -591,7 +591,7 @@ export function TextileStockPage() {
     try {
       await textileMasterDataService.createBrand(trimmedName)
     } catch {
-      showError('Marke konnte nicht angelegt werden')
+      showError('Brand could not be created')
       return
     }
     setNewBrandName('')
@@ -607,7 +607,7 @@ export function TextileStockPage() {
     try {
       await textileMasterDataService.updateBrand(editingBrandId, { name: trimmedName, is_active: editBrandActive })
     } catch {
-      showError('Marke konnte nicht gespeichert werden')
+      showError('Brand could not be saved')
       return
     }
     setEditingBrandId(null)
@@ -619,7 +619,7 @@ export function TextileStockPage() {
     const brandId = newProduct.brand_id || brandIdForProducts
     const trimmedName = newProduct.name.trim()
     if (!brandId || !trimmedName) {
-      showError('Marke und Name sind Pflicht')
+      showError('Brand and name are required')
       return
     }
     try {
@@ -631,7 +631,7 @@ export function TextileStockPage() {
         is_active: true,
       })
     } catch {
-      showError('Produkt konnte nicht angelegt werden')
+      showError('Product could not be created')
       return
     }
     setNewProduct({ brand_id: '', name: '', article_number: '', description: '' })
@@ -651,7 +651,7 @@ export function TextileStockPage() {
         is_active: editProductActive,
       })
     } catch {
-      showError('Produkt konnte nicht gespeichert werden')
+      showError('Product could not be saved')
       return
     }
     setEditProduct(null)
@@ -661,19 +661,19 @@ export function TextileStockPage() {
 
   const saveVariant = async () => {
     if (!productIdForVariants) {
-      showError('Produkt wählen')
+      showError('Select a product')
       return
     }
     const colorValue = newVariant.color.trim()
     const sizeValue = newVariant.size.trim()
     if (!colorValue || !sizeValue) {
-      showError('Farbe und Größe sind Pflicht')
+      showError('Colour and size are required')
       return
     }
     const minimumRaw = newVariant.min_stock.trim()
     const minimumValue = minimumRaw === '' ? 0 : parseInt(minimumRaw, 10)
     if (!Number.isInteger(minimumValue) || minimumValue < 0) {
-      showError('Mindestbestand ungültig')
+      showError('Invalid minimum stock')
       return
     }
     const maxSortOrder = await textileMasterDataService.getMaxSortOrderForProduct(productIdForVariants)
@@ -691,7 +691,7 @@ export function TextileStockPage() {
         is_active: true,
       })
     } catch {
-      showError('Variante konnte nicht angelegt werden')
+      showError('Variant could not be created')
       return
     }
     setNewVariant({
@@ -723,9 +723,9 @@ export function TextileStockPage() {
     for (const colorEntry of matrixColors) {
       const sizeCount = sizesForPreset(colorEntry.sizeRun, colorEntry.customSizes).length
       total += sizeCount
-      parts.push(`${colorEntry.name} (${sizeCount} Größen)`)
+      parts.push(`${colorEntry.name} (${sizeCount} sizes)`)
     }
-    const summaryText = `${parts.join(' + ')} = ${total} Varianten gesamt`
+    const summaryText = `${parts.join(' + ')} = ${total} variants total`
     return { parts, total, summaryText }
   }, [matrixColors])
 
@@ -745,7 +745,7 @@ export function TextileStockPage() {
     const name = matrixColorName.trim()
     if (!name) return
     if (matrixColorSizeRun === 'EIGENE' && matrixCustomTags.length === 0) {
-      showError('Bei „Eigene…” mindestens eine Größe als Tag hinzufügen')
+      showError('For "Custom…" add at least one size as a tag')
       return
     }
     const hex = (matrixColorHex || '#000000').toUpperCase()
@@ -779,20 +779,20 @@ export function TextileStockPage() {
 
     const colors = matrixColors.slice()
     if (colors.length === 0) {
-      showError('Mindestens 1 Farbe hinzufügen')
+      showError('Add at least 1 colour')
       return
     }
     for (const colorEntry of colors) {
       const sizeList = sizesForPreset(colorEntry.sizeRun, colorEntry.customSizes)
       if (sizeList.length === 0) {
-        showError(`Keine Größen für Farbe „${colorEntry.name}”`)
+        showError(`No sizes for colour "${colorEntry.name}"`)
         return
       }
     }
     const minRaw = matrixMin.trim()
     const min = minRaw === '' ? 0 : parseInt(minRaw, 10)
     if (!Number.isInteger(min) || min < 0) {
-      showError('Mindestbestand ungültig')
+      showError('Invalid minimum stock')
       return
     }
 
@@ -838,13 +838,13 @@ export function TextileStockPage() {
       }
 
       if (variantInserts.length === 0) {
-        showSuccess('Keine neuen Varianten — alles vorhanden')
+        showSuccess('No new variants — all already exist')
         return
       }
 
       await textileMasterDataService.createVariantsBatch(variantInserts)
 
-      showSuccess(`${variantInserts.length} Varianten angelegt`)
+      showSuccess(`${variantInserts.length} variants created`)
       resetMatrix()
       setShowSingleVariantForm(false)
       void loadVariantsForProduct(productIdForVariants)
@@ -860,7 +860,7 @@ export function TextileStockPage() {
     const colorValue = editVariantColor.trim()
     const sizeValue = editVariantSize.trim()
     if (!colorValue || !sizeValue) {
-      showError('Farbe und Größe sind Pflicht')
+      showError('Colour and size are required')
       return
     }
     const minimumRaw = editVariantMinimum.trim()
@@ -876,7 +876,7 @@ export function TextileStockPage() {
         is_active: editVariantActive,
       })
     } catch {
-      showError('Variante konnte nicht gespeichert werden')
+      showError('Variant could not be saved')
       return
     }
     setEditVariant(null)
@@ -925,7 +925,7 @@ export function TextileStockPage() {
           style={{ width: 34, padding: '6px 0' }}
           disabled={!quantityValid || bookingBusyId != null}
           onClick={() => void onBook(variant, 'ZUGANG')}
-          title="Zugang"
+          title="Stock in"
         >
           +
         </button>
@@ -935,7 +935,7 @@ export function TextileStockPage() {
           style={{ width: 34, padding: '6px 0' }}
           disabled={outboundDisabled}
           onClick={() => void onBook(variant, 'ABGANG')}
-          title="Abgang"
+          title="Stock out"
         >
           −
         </button>
@@ -946,7 +946,7 @@ export function TextileStockPage() {
   return (
     <div style={{ padding: 20, maxWidth: 1200, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <h1 style={{ margin: 0, fontSize: 18 }}>Textilien — Bestandspflege</h1>
+        <h1 style={{ margin: 0, fontSize: 18 }}>Textiles — Stock Management</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 13, opacity: 0.85 }}>{userEmail}</span>
           <button type="button" className="cp-btn cp-btn-grau" onClick={() => void logout()}>
@@ -961,21 +961,21 @@ export function TextileStockPage() {
           className={tab === 'PRODUCTS' ? 'cp-btn' : 'cp-btn cp-btn-grau'}
           onClick={() => setTab('PRODUCTS')}
         >
-          Produkte
+          Products
         </button>
         <button
           type="button"
           className={tab === 'STOCK' ? 'cp-btn' : 'cp-btn cp-btn-grau'}
           onClick={() => setTab('STOCK')}
         >
-          Bestand
+          Stock
         </button>
         <button
           type="button"
           className={tab === 'ORDER_LIST' ? 'cp-btn' : 'cp-btn cp-btn-grau'}
           onClick={() => setTab('ORDER_LIST')}
         >
-          Bestellliste
+          Reorder list
         </button>
       </div>
 
@@ -991,7 +991,7 @@ export function TextileStockPage() {
               marginBottom: 16,
             }}
           >
-            {brandsLoading && <span style={{ fontSize: 13, opacity: 0.75 }}>Lädt…</span>}
+            {brandsLoading && <span style={{ fontSize: 13, opacity: 0.75 }}>Loading…</span>}
             {brands.map(m => {
               if (editingBrandId === m.id) {
                 return (
@@ -1020,10 +1020,10 @@ export function TextileStockPage() {
                         checked={editBrandActive}
                         onChange={e => setEditBrandActive(e.target.checked)}
                       />
-                      aktiv
+                      active
                     </label>
                     <button type="button" className="cp-btn" style={{ padding: '4px 10px' }} onClick={() => void updateBrand()}>
-                      Speichern
+                      Save
                     </button>
                     <button
                       type="button"
@@ -1031,7 +1031,7 @@ export function TextileStockPage() {
                       style={{ padding: '4px 10px' }}
                       onClick={() => setEditingBrandId(null)}
                     >
-                      Abbrechen
+                      Cancel
                     </button>
                   </div>
                 )
@@ -1050,7 +1050,7 @@ export function TextileStockPage() {
                       setEditVariant(null)
                       setVariantFormOpen(false)
                     }}
-                    title={m.is_active ? m.name : `${m.name} (inaktiv)`}
+                    title={m.is_active ? m.name : `${m.name} (inactive)`}
                   >
                     {m.name}
                   </button>
@@ -1064,8 +1064,8 @@ export function TextileStockPage() {
                       setEditBrandName(m.name)
                       setEditBrandActive(m.is_active)
                     }}
-                    title="Marke bearbeiten"
-                    aria-label={`Marke ${m.name} bearbeiten`}
+                    title="Edit brand"
+                    aria-label={`Edit brand ${m.name}`}
                   >
                     ✎
                   </button>
@@ -1080,9 +1080,9 @@ export function TextileStockPage() {
                   setNewBrandFormOpen(true)
                   setNewBrandName('')
                 }}
-                title="Neue Marke"
+                title="New brand"
               >
-                + Neu
+                + New
               </button>
             ) : (
               <div
@@ -1104,7 +1104,7 @@ export function TextileStockPage() {
                   style={{ minWidth: 120, maxWidth: 200 }}
                 />
                 <button type="button" className="cp-btn" style={{ padding: '4px 10px' }} onClick={() => void saveBrand()}>
-                  Speichern
+                  Save
                 </button>
                 <button
                   type="button"
@@ -1112,7 +1112,7 @@ export function TextileStockPage() {
                   style={{ padding: '4px 10px' }}
                   onClick={() => setNewBrandFormOpen(false)}
                 >
-                  Abbrechen
+                  Cancel
                 </button>
               </div>
             )}
@@ -1122,7 +1122,7 @@ export function TextileStockPage() {
               style={{ marginLeft: 4, padding: '4px 10px' }}
               onClick={() => void loadBrands()}
               disabled={brandsLoading}
-              title="Marken neu laden"
+              title="Reload brands"
             >
               ↻
             </button>
@@ -1143,7 +1143,7 @@ export function TextileStockPage() {
                     })
                   }}
                 >
-                  + Produkt hinzufügen
+                  + Add product
                 </button>
                 <button
                   type="button"
@@ -1151,7 +1151,7 @@ export function TextileStockPage() {
                   onClick={() => void loadProductsForBrand(brandIdForProducts)}
                   disabled={productsLoading}
                 >
-                  Neu laden
+                  Reload
                 </button>
               </div>
               {productFormOpen && (
@@ -1168,37 +1168,37 @@ export function TextileStockPage() {
                 >
                   <input
                     className="cp-select"
-                    placeholder="Name (Pflicht)"
+                    placeholder="Name (required)"
                     value={newProduct.name}
                     onChange={e => setNewProduct(s => ({ ...s, name: e.target.value }))}
                   />
                   <input
                     className="cp-select"
-                    placeholder="Artikelnummer"
+                    placeholder="Article number"
                     value={newProduct.article_number}
                     onChange={e => setNewProduct(s => ({ ...s, article_number: e.target.value }))}
                   />
                   <input
                     className="cp-select"
-                    placeholder="Beschreibung"
+                    placeholder="Description"
                     value={newProduct.description}
                     onChange={e => setNewProduct(s => ({ ...s, description: e.target.value }))}
                     style={{ gridColumn: '1 / -1' }}
                   />
                   <button type="button" className="cp-btn" onClick={() => void saveProduct()}>
-                    Speichern
+                    Save
                   </button>
                 </div>
               )}
-              {productsLoading && <p style={{ opacity: 0.8, margin: '0 0 8px' }}>Lädt…</p>}
+              {productsLoading && <p style={{ opacity: 0.8, margin: '0 0 8px' }}>Loading…</p>}
               {!productsLoading && (
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>
                         <th style={{ padding: '8px 6px' }}>Name</th>
-                        <th style={{ padding: '8px 6px' }}>Artikelnummer</th>
-                        <th style={{ padding: '8px 6px' }}>Aktionen</th>
+                        <th style={{ padding: '8px 6px' }}>Article number</th>
+                        <th style={{ padding: '8px 6px' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1218,7 +1218,7 @@ export function TextileStockPage() {
                                 setEditProductActive(p.is_active)
                               }}
                             >
-                              Bearbeiten
+                              Edit
                             </button>
                             <button
                               type="button"
@@ -1232,7 +1232,7 @@ export function TextileStockPage() {
                                 setVariantFormOpen(false)
                               }}
                             >
-                              Varianten
+                              Variants
                             </button>
                           </td>
                         </tr>
@@ -1251,7 +1251,7 @@ export function TextileStockPage() {
                     maxWidth: 560,
                   }}
                 >
-                  <h3 style={{ fontSize: 14, marginTop: 0 }}>Produkt bearbeiten</h3>
+                  <h3 style={{ fontSize: 14, marginTop: 0 }}>Edit product</h3>
                   <div
                     style={{
                       display: 'grid',
@@ -1268,13 +1268,13 @@ export function TextileStockPage() {
                       className="cp-select"
                       value={editProductArticleNumber}
                       onChange={e => setEditProductArticleNumber(e.target.value)}
-                      placeholder="Artikelnummer"
+                      placeholder="Article number"
                     />
                     <input
                       className="cp-select"
                       value={editProductDescription}
                       onChange={e => setEditProductDescription(e.target.value)}
-                      placeholder="Beschreibung"
+                      placeholder="Description"
                       style={{ gridColumn: '1 / -1' }}
                     />
                     <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13 }}>
@@ -1283,14 +1283,14 @@ export function TextileStockPage() {
                         checked={editProductActive}
                         onChange={e => setEditProductActive(e.target.checked)}
                       />
-                      Aktiv
+                      Active
                     </label>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button type="button" className="cp-btn" onClick={() => void updateProduct()}>
-                        Speichern
+                        Save
                       </button>
                       <button type="button" className="cp-btn cp-btn-grau" onClick={() => setEditProduct(null)}>
-                        Abbrechen
+                        Cancel
                       </button>
                     </div>
                   </div>
@@ -1321,10 +1321,10 @@ export function TextileStockPage() {
                     setShowSingleVariantForm(false)
                   }}
                 >
-                  ← Produkte
+                  ← Products
                 </button>
                 <span style={{ fontSize: 13, color: '#64748b' }}>
-                  {currentBrandName} <span aria-hidden>›</span> {productBreadcrumbName} <span aria-hidden>›</span> Varianten
+                  {currentBrandName} <span aria-hidden>›</span> {productBreadcrumbName} <span aria-hidden>›</span> Variants
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
@@ -1334,11 +1334,11 @@ export function TextileStockPage() {
                   onClick={() => void loadVariantsForProduct(productIdForVariants)}
                   disabled={variantsLoading || matrixBusy}
                 >
-                  Neu laden
+                  Reload
                 </button>
               </div>
 
-              {/* Matrix: Farben × Größen */}
+              {/* Matrix: colours × sizes */}
               <div
                 style={{
                   border: '1px solid #e5e7eb',
@@ -1349,15 +1349,15 @@ export function TextileStockPage() {
                 }}
               >
                 <div style={{ display: 'grid', gap: 12 }}>
-                  {/* Schritt 1: Farben mit je eigenem Größenlauf */}
+                  {/* Step 1: colours each with their own size run */}
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>
-                      Schritt 1: Farben mit je eigenem Größenlauf
+                      Step 1: Colours each with their own size run
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
                       <input
                         className="cp-select"
-                        placeholder="Farbname"
+                        placeholder="Colour name"
                         value={matrixColorName}
                         onChange={e => setMatrixColorName(e.target.value)}
                         onKeyDown={e => {
@@ -1373,7 +1373,7 @@ export function TextileStockPage() {
                         value={matrixColorHex}
                         onChange={e => setMatrixColorHex(e.target.value)}
                         style={{ width: 44, height: 32, padding: 0, border: 'none' }}
-                        aria-label="Farbwähler"
+                        aria-label="Colour picker"
                       />
                       <select
                         className="cp-select"
@@ -1381,13 +1381,13 @@ export function TextileStockPage() {
                         onChange={e => setMatrixColorSizeRun(e.target.value as SizeMatrixPreset)}
                         disabled={matrixBusy}
                         style={{ minWidth: 220 }}
-                        aria-label="Größenlauf wählen"
+                        aria-label="Select size run"
                       >
                         <option value="STANDARD">Standard (XS–5XL)</option>
-                        <option value="REDUZIERT">Reduziert (XS–3XL)</option>
+                        <option value="REDUZIERT">Reduced (XS–3XL)</option>
                         <option value="KIDS">Kids</option>
                         <option value="UNISEX">Unisex (XS–5XL)</option>
-                        <option value="EIGENE">Eigene…</option>
+                        <option value="EIGENE">Custom…</option>
                       </select>
                       <button
                         type="button"
@@ -1395,7 +1395,7 @@ export function TextileStockPage() {
                         onClick={() => addMatrixColor()}
                         disabled={matrixBusy}
                       >
-                        + Hinzufügen
+                        + Add
                       </button>
                     </div>
                     {matrixColorSizeRun === 'EIGENE' && (
@@ -1403,7 +1403,7 @@ export function TextileStockPage() {
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
                           <input
                             className="cp-select"
-                            placeholder="Größe tippen + Enter"
+                            placeholder="Type size + Enter"
                             value={matrixCustomInput}
                             onChange={e => setMatrixCustomInput(e.target.value)}
                             onKeyDown={e => {
@@ -1420,7 +1420,7 @@ export function TextileStockPage() {
                             onClick={() => addMatrixCustomTag()}
                             disabled={matrixBusy}
                           >
-                            + Hinzufügen
+                            + Add
                           </button>
                         </div>
                         {matrixCustomTags.length > 0 && (
@@ -1452,7 +1452,7 @@ export function TextileStockPage() {
                                     padding: 0,
                                     opacity: 0.75,
                                   }}
-                                  aria-label={`${tag} entfernen`}
+                                  aria-label={`Remove ${tag}`}
                                   disabled={matrixBusy}
                                 >
                                   ×
@@ -1514,7 +1514,7 @@ export function TextileStockPage() {
                                 padding: 0,
                                 opacity: 0.75,
                               }}
-                              aria-label={`${f.name} entfernen`}
+                              aria-label={`Remove ${f.name}`}
                               disabled={matrixBusy}
                             >
                               ×
@@ -1527,20 +1527,20 @@ export function TextileStockPage() {
 
                   {/* Schritt 2: Vorschau */}
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Schritt 2: Vorschau</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Step 2: Preview</div>
                     <p style={{ margin: 0, fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>
                       {matrixColors.length === 0
-                        ? 'Noch keine Farben — Vorschau erscheint nach dem Hinzufügen.'
+                        ? 'No colours yet — preview appears after adding.'
                         : matrixPreview.summaryText}
                     </p>
                   </div>
 
                   {/* Schritt 3: Optionen + Anlegen */}
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Schritt 3: Optionen</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Step 3: Options</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 10 }}>
                       <label style={{ display: 'inline-flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
-                        Mindestbestand für alle
+                        Min. stock for all
                         <input
                           type="number"
                           className="cp-select"
@@ -1558,7 +1558,7 @@ export function TextileStockPage() {
                           onChange={e => setMatrixAllSamples(e.target.checked)}
                           disabled={matrixBusy}
                         />
-                        Alle als Muster markieren
+                        Mark all as samples
                       </label>
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
@@ -1568,7 +1568,7 @@ export function TextileStockPage() {
                         onClick={() => void createVariantMatrix()}
                         disabled={matrixBusy || matrixColors.length === 0 || matrixPreview.total === 0}
                       >
-                        Varianten anlegen
+                        Create variants
                       </button>
                       <button
                         type="button"
@@ -1576,7 +1576,7 @@ export function TextileStockPage() {
                         onClick={() => resetMatrix()}
                         disabled={matrixBusy}
                       >
-                        Zurücksetzen
+                        Reset
                       </button>
                     </div>
                   </div>
@@ -1599,7 +1599,7 @@ export function TextileStockPage() {
                     }}
                     disabled={matrixBusy}
                   >
-                    {showSingleVariantForm ? 'Einzel-Variante schließen' : 'Einzelne Variante hinzufügen'}
+                    {showSingleVariantForm ? 'Close single variant' : 'Add single variant'}
                   </button>
                 </div>
               </div>
@@ -1620,12 +1620,12 @@ export function TextileStockPage() {
                 >
                   <input
                     className="cp-select"
-                    placeholder="Farbe (Pflicht)"
+                    placeholder="Colour (required)"
                     value={newVariant.color}
                     onChange={e => setNewVariant(s => ({ ...s, color: e.target.value }))}
                   />
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 12 }}>Farbcode</span>
+                    <span style={{ fontSize: 12 }}>Colour code</span>
                     <input
                       type="color"
                       value={newVariant.color_hex || '#000000'}
@@ -1635,7 +1635,7 @@ export function TextileStockPage() {
                   </div>
                   <input
                     className="cp-select"
-                    placeholder="Größe (Pflicht)"
+                    placeholder="Size (required)"
                     value={newVariant.size}
                     onChange={e => setNewVariant(s => ({ ...s, size: e.target.value }))}
                   />
@@ -1645,7 +1645,7 @@ export function TextileStockPage() {
                       checked={newVariant.is_sample}
                       onChange={e => setNewVariant(s => ({ ...s, ist_muster: e.target.checked }))}
                     />
-                    Ist Muster
+                    Is sample
                   </label>
                   <input
                     type="number"
@@ -1653,27 +1653,27 @@ export function TextileStockPage() {
                     min={0}
                     value={newVariant.min_stock}
                     onChange={e => setNewVariant(s => ({ ...s, min_stock: e.target.value }))}
-                    placeholder="Mindestbestand"
+                    placeholder="Min. stock"
                   />
                   <button type="button" className="cp-btn" onClick={() => void saveVariant()} disabled={matrixBusy}>
-                    Speichern
+                    Save
                   </button>
                 </div>
               )}
-              {variantsLoading && <p style={{ opacity: 0.8 }}>Lädt…</p>}
+              {variantsLoading && <p style={{ opacity: 0.8 }}>Loading…</p>}
               {!variantsLoading && (
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>
-                        <th style={{ padding: '8px 6px' }}>Farbe</th>
-                        <th style={{ padding: '8px 6px' }}>Farbcode</th>
-                        <th style={{ padding: '8px 6px' }}>Größe</th>
-                        <th style={{ padding: '8px 6px' }}>Muster</th>
-                        <th style={{ padding: '8px 6px' }}>Bestand</th>
-                        <th style={{ padding: '8px 6px' }}>Mindestbestand</th>
-                        <th style={{ padding: '8px 6px' }}>Bearb.</th>
-                        <th style={{ padding: '8px 6px' }}>Buchung</th>
+                        <th style={{ padding: '8px 6px' }}>Colour</th>
+                        <th style={{ padding: '8px 6px' }}>Colour code</th>
+                        <th style={{ padding: '8px 6px' }}>Size</th>
+                        <th style={{ padding: '8px 6px' }}>Sample</th>
+                        <th style={{ padding: '8px 6px' }}>Stock</th>
+                        <th style={{ padding: '8px 6px' }}>Min. stock</th>
+                        <th style={{ padding: '8px 6px' }}>Edit</th>
+                        <th style={{ padding: '8px 6px' }}>Booking</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1686,7 +1686,7 @@ export function TextileStockPage() {
                             <td style={{ padding: '8px 6px' }}>{variant.color_hex || '—'}</td>
                             <td style={{ padding: '8px 6px' }}>{variant.size}</td>
                             <td style={{ padding: '8px 6px' }}>
-                              {variant.is_sample ? <span className="badge badge-grau">Muster</span> : '—'}
+                              {variant.is_sample ? <span className="badge badge-grau">Sample</span> : '—'}
                             </td>
                             <td style={{ padding: '8px 6px' }}>{variant.stock ?? 0}</td>
                             <td style={{ padding: '8px 6px' }}>
@@ -1741,7 +1741,7 @@ export function TextileStockPage() {
                     maxWidth: 560,
                   }}
                 >
-                  <h3 style={{ fontSize: 14, marginTop: 0 }}>Variante bearbeiten</h3>
+                  <h3 style={{ fontSize: 14, marginTop: 0 }}>Edit variant</h3>
                   <div
                     style={{
                       display: 'grid',
@@ -1754,7 +1754,7 @@ export function TextileStockPage() {
                       className="cp-select"
                       value={editVariantColor}
                       onChange={e => setEditVariantColor(e.target.value)}
-                      placeholder="Farbe"
+                      placeholder="Colour"
                     />
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <input
@@ -1768,7 +1768,7 @@ export function TextileStockPage() {
                       className="cp-select"
                       value={editVariantSize}
                       onChange={e => setEditVariantSize(e.target.value)}
-                      placeholder="Größe"
+                      placeholder="Size"
                     />
                     <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                       <input
@@ -1776,7 +1776,7 @@ export function TextileStockPage() {
                         checked={editVariantIsSample}
                         onChange={e => setEditVariantIsSample(e.target.checked)}
                       />
-                      Muster
+                      Sample
                     </label>
                     <input
                       type="number"
@@ -1791,14 +1791,14 @@ export function TextileStockPage() {
                         checked={editVariantActive}
                         onChange={e => setEditVariantActive(e.target.checked)}
                       />
-                      Aktiv
+                      Active
                     </label>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button type="button" className="cp-btn" onClick={() => void updateVariant()}>
-                        Speichern
+                        Save
                       </button>
                       <button type="button" className="cp-btn cp-btn-grau" onClick={() => setEditVariant(null)}>
-                        Abbrechen
+                        Cancel
                       </button>
                     </div>
                   </div>
@@ -1808,7 +1808,7 @@ export function TextileStockPage() {
           )}
 
           {!brandIdForProducts && (
-            <p style={{ fontSize: 13, color: '#64748b', margin: '8px 0 0' }}>Zuerst eine Marke wählen.</p>
+            <p style={{ fontSize: 13, color: '#64748b', margin: '8px 0 0' }}>Select a brand first.</p>
           )}
         </div>
       )}
@@ -1827,7 +1827,7 @@ export function TextileStockPage() {
             <input
               type="search"
               className="cp-select"
-              placeholder="Marke, Produkt, Farbe, Größe…"
+              placeholder="Brand, product, colour, size…"
               value={stockSearch}
               onChange={e => setStockSearch(e.target.value)}
               style={{ minWidth: 220, maxWidth: 320 }}
@@ -1837,7 +1837,7 @@ export function TextileStockPage() {
               value={stockBrandFilter}
               onChange={e => setStockBrandFilter(e.target.value)}
             >
-              <option value="ALL">Alle Marken</option>
+              <option value="ALL">All brands</option>
               {brandOptionsForStock.map(m => (
                 <option key={m} value={m}>
                   {m}
@@ -1850,7 +1850,7 @@ export function TextileStockPage() {
                 checked={filterReorderOnly}
                 onChange={e => setFilterReorderOnly(e.target.checked)}
               />
-              Nur Nachbestellen
+              Only reorder
             </label>
             <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
               <input
@@ -1858,7 +1858,7 @@ export function TextileStockPage() {
                 checked={filterSamplesOnly}
                 onChange={e => setFilterSamplesOnly(e.target.checked)}
               />
-              Nur Muster
+              Only samples
             </label>
             <button
               type="button"
@@ -1866,10 +1866,10 @@ export function TextileStockPage() {
               onClick={() => void loadAllVariants()}
               disabled={allVariantsLoading}
             >
-              Neu laden
+              Reload
             </button>
           </div>
-          {allVariantsLoading && <p style={{ opacity: 0.8 }}>Lädt…</p>}
+          {allVariantsLoading && <p style={{ opacity: 0.8 }}>Loading…</p>}
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
@@ -1878,49 +1878,49 @@ export function TextileStockPage() {
                     style={{ padding: '8px 6px', cursor: 'pointer' }}
                     onClick={() => toggleStockSort('marke')}
                   >
-                    Marke
+                    Brand
                     {stockSorting?.key === 'marke' ? (stockSorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer' }}
                     onClick={() => toggleStockSort('produkt')}
                   >
-                    Produkt
+                    Product
                     {stockSorting?.key === 'produkt' ? (stockSorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer' }}
                     onClick={() => toggleStockSort('color')}
                   >
-                    Farbe
+                    Colour
                     {stockSorting?.key === 'color' ? (stockSorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer' }}
                     onClick={() => toggleStockSort('size')}
                   >
-                    Größe
+                    Size
                     {stockSorting?.key === 'size' ? (stockSorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer' }}
                     onClick={() => toggleStockSort('muster')}
                   >
-                    Muster
+                    Sample
                     {stockSorting?.key === 'muster' ? (stockSorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer' }}
                     onClick={() => toggleStockSort('stock')}
                   >
-                    Bestand
+                    Stock
                     {stockSorting?.key === 'stock' ? (stockSorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer' }}
                     onClick={() => toggleStockSort('min_stock')}
                   >
-                    Mindestbestand
+                    Min. stock
                     {stockSorting?.key === 'min_stock' ? (stockSorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th
@@ -1930,7 +1930,7 @@ export function TextileStockPage() {
                     Status
                     {stockSorting?.key === 'status' ? (stockSorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
-                  <th style={{ padding: '8px 6px' }}>Buchung</th>
+                  <th style={{ padding: '8px 6px' }}>Booking</th>
                 </tr>
               </thead>
               <tbody>
@@ -1945,7 +1945,7 @@ export function TextileStockPage() {
                       <td style={{ padding: '8px 6px' }}>{variant.color}</td>
                       <td style={{ padding: '8px 6px' }}>{variant.size}</td>
                       <td style={{ padding: '8px 6px' }}>
-                        {variant.is_sample ? <span className="badge badge-grau">Muster</span> : '—'}
+                        {variant.is_sample ? <span className="badge badge-grau">Sample</span> : '—'}
                       </td>
                       <td style={{ padding: '8px 6px' }}>{variant.stock ?? 0}</td>
                       <td style={{ padding: '8px 6px' }}>
@@ -1986,7 +1986,7 @@ export function TextileStockPage() {
               onClick={() => void loadOrderList()}
               disabled={orderLoading}
             >
-              Aktualisieren
+              Refresh
             </button>
             <button
               type="button"
@@ -1994,15 +1994,15 @@ export function TextileStockPage() {
               onClick={() => void copyOrderList()}
               disabled={orderLoading || orderRows.length === 0}
             >
-              In Zwischenablage kopieren
+              Copy to clipboard
             </button>
-            {orderCopied && <span style={{ fontSize: 13, color: '#15803d' }}>Kopiert</span>}
+            {orderCopied && <span style={{ fontSize: 13, color: '#15803d' }}>Copied</span>}
           </div>
           {orderError && <p style={{ color: '#b91c1c' }}>{orderError}</p>}
-          {orderLoading && <p style={{ opacity: 0.8 }}>Lädt…</p>}
+          {orderLoading && <p style={{ opacity: 0.8 }}>Loading…</p>}
           {!orderLoading && !orderError && orderRows.length === 0 && (
             <p style={{ margin: '12px 0', color: '#15803d', fontWeight: 600 }}>
-              Alles auf Lager — keine Bestellung nötig
+              All in stock — no reorder needed
             </p>
           )}
           {orderRows.length > 0 && (
@@ -2010,14 +2010,14 @@ export function TextileStockPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>
-                    <th style={{ padding: '8px 6px' }}>Marke</th>
-                    <th style={{ padding: '8px 6px' }}>Produkt</th>
-                    <th style={{ padding: '8px 6px' }}>Farbe</th>
-                    <th style={{ padding: '8px 6px' }}>Größe</th>
-                    <th style={{ padding: '8px 6px' }}>Bestand</th>
-                    <th style={{ padding: '8px 6px' }}>Offen</th>
-                    <th style={{ padding: '8px 6px' }}>Mindestbestand</th>
-                    <th style={{ padding: '8px 6px' }}>Bestellen</th>
+                    <th style={{ padding: '8px 6px' }}>Brand</th>
+                    <th style={{ padding: '8px 6px' }}>Product</th>
+                    <th style={{ padding: '8px 6px' }}>Colour</th>
+                    <th style={{ padding: '8px 6px' }}>Size</th>
+                    <th style={{ padding: '8px 6px' }}>Stock</th>
+                    <th style={{ padding: '8px 6px' }}>Open</th>
+                    <th style={{ padding: '8px 6px' }}>Min. stock</th>
+                    <th style={{ padding: '8px 6px' }}>Order qty</th>
                   </tr>
                 </thead>
                 <tbody>

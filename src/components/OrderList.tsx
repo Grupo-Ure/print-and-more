@@ -46,12 +46,12 @@ const DEFAULT_STATUS_TOGGLES: Record<OrderStatus, boolean> = {
 
 /** Short label for the status filter checkboxes. */
 const STATUS_CHECKBOX_SHORT: Record<OrderStatus, string> = {
-  QUOTE: 'Angebot',
-  INCOMPLETE: 'Unvollst.',
+  QUOTE: 'Quote',
+  INCOMPLETE: 'Incomplete',
   PREPRESS_READY: 'PrePress',
-  PRODUCTION_READY: 'Produkt.',
-  DONE: 'Fertig',
-  INVOICED: 'Abgerech.',
+  PRODUCTION_READY: 'In Prod.',
+  DONE: 'Done',
+  INVOICED: 'Invoiced',
 }
 
 
@@ -65,7 +65,7 @@ function defaultFilterState() {
     deadlineTo: '',
     intakeFrom: '',
     intakeTo: '',
-    department: 'Alle' as 'Alle' | (typeof SUB_ORDER_DEPARTMENTS)[number],
+    department: 'All' as 'All' | (typeof SUB_ORDER_DEPARTMENTS)[number],
   }
 }
 
@@ -88,7 +88,7 @@ function isFilterActive(filterState: FilterState): boolean {
   const defaultState = defaultFilterState()
   if (filterState.searchInput.trim() !== '' || filterState.searchDebounced.trim() !== '') return true
   if (filterState.deadlineFrom || filterState.deadlineTo || filterState.intakeFrom || filterState.intakeTo) return true
-  if (filterState.department !== 'Alle') return true
+  if (filterState.department !== 'All') return true
   if (filterState.statusAll !== defaultState.statusAll) return true
   for (const status of STATUS_ORDER) {
     if (filterState.statusToggles[status] !== defaultState.statusToggles[status]) return true
@@ -115,12 +115,12 @@ function statusBadgeClass(s: OrderStatus): string {
 
 function statusLabel(status: OrderStatus): string {
   const labels: Record<OrderStatus, string> = {
-    QUOTE: 'Angebot',
-    INCOMPLETE: 'Unvollständig',
+    QUOTE: 'Quote',
+    INCOMPLETE: 'Incomplete',
     PREPRESS_READY: 'PrePress',
-    PRODUCTION_READY: 'Produktion',
-    DONE: 'Fertig',
-    INVOICED: 'Abgerechnet',
+    PRODUCTION_READY: 'In Production',
+    DONE: 'Done',
+    INVOICED: 'Invoiced',
   }
   return labels[status] ?? status
 }
@@ -174,7 +174,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
           customerIds = await customerService.searchCustomerIds(trimmedSearch)
         } catch {
           if (isStale()) return
-          fehler('Aufträge konnten nicht geladen werden')
+          fehler('Orders could not be loaded')
           setRawOrders([])
           hasLoadedOnce.current = true
           setInitialLoading(false)
@@ -233,7 +233,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
         setRawOrders(data)
       } catch {
         if (isStale()) return
-        fehler('Aufträge konnten nicht geladen werden')
+        fehler('Orders could not be loaded')
         setRawOrders([])
       }
       if (isStale()) return
@@ -268,7 +268,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
   }, [loadOrders])
 
   const orders = useMemo(() => {
-    if (department === 'Alle') return rawOrders
+    if (department === 'All') return rawOrders
     return rawOrders.filter(
       order => order.sub_orders?.some(subOrder => subOrder.department === department) ?? false,
     )
@@ -293,13 +293,13 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
       setDuplicateError(null)
       try {
         const orderData = await orderService.getOrderById(auftragId)
-        if (!orderData) throw new Error('Auftrag nicht gefunden')
+        if (!orderData) throw new Error('Order not found')
         const subOrderData = await subOrderService.getSubOrdersByOrderId(auftragId)
         setDuplicateOrder(orderData as Auftrag)
         setDuplicateSubOrders(subOrderData)
         setDuplicateDialogOpen(true)
       } catch (e) {
-        fehler('Aufträge konnten nicht geladen werden')
+        fehler('Orders could not be loaded')
         setDuplicateError(e instanceof Error ? e.message : String(e))
       } finally {
         setDuplicateBusy(false)
@@ -312,13 +312,13 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
     <div className="ol-root">
       <div className="ol-head b-dev border-dashed">
         <div className="ol-head-row">
-          <h1 className="ol-title">Auftragsliste</h1>
+          <h1 className="ol-title">Order List</h1>
           <div className="ol-head-btns">
             <button
               type="button"
               className="ol-icon-btn"
-              title="Kunde suchen"
-              aria-label="Kunde suchen"
+              title="Search customer"
+              aria-label="Search customer"
               aria-pressed={searchOpen}
               onClick={() => {
                 setSearchOpen(o => !o)
@@ -351,15 +351,15 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
               type="search"
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
-              placeholder="Kunde suchen..."
-              aria-label="Kunde suchen"
+              placeholder="Search customer..."
+              aria-label="Search customer"
               style={{ flex: 1, minWidth: 0, boxSizing: 'border-box' }}
             />
             <button
               type="button"
               className="ol-icon-btn"
-              title="Suche löschen"
-              aria-label="Suche löschen"
+              title="Clear search"
+              aria-label="Clear search"
               onClick={clearSearch}
             >
               ×
@@ -382,7 +382,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
                         setFilter(f => ({ ...f, statusAll: checked }))
                       }}
                     />
-                    Alle
+                    All
                   </label>
                   {!statusAll &&
                     STATUS_ORDER.map(status => (
@@ -407,7 +407,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
 
               <div className="ol-filter-row">
                 <label className="ol-label" htmlFor="ol-bereich">
-                  Bereich
+                  Department
                 </label>
                 <select
                   id="ol-bereich"
@@ -418,7 +418,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
                   }
                   style={{ width: '100%', boxSizing: 'border-box' }}
                 >
-                  <option value="Alle">Alle</option>
+                  <option value="All">All</option>
                   {SUB_ORDER_DEPARTMENTS.map(dep => (
                     <option key={dep} value={dep}>
                       {SUB_ORDER_DEPARTMENT_LABELS[dep]}
@@ -428,7 +428,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
               </div>
 
               <div className="ol-filter-row">
-                <span className="ol-label">Termin (von / bis)</span>
+                <span className="ol-label">Deadline (from / to)</span>
                 <div className="ol-filter-dates">
                   <DateInput
                     className="input-compact"
@@ -444,7 +444,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
               </div>
 
               <div className="ol-filter-row">
-                <span className="ol-label">Annahme (von / bis)</span>
+                <span className="ol-label">Intake (from / to)</span>
                 <div className="ol-filter-dates">
                   <DateInput
                     className="input-compact"
@@ -460,7 +460,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
               </div>
 
               <button type="button" className="ol-filter-reset" onClick={resetFilter}>
-                Filter zurücksetzen
+                Reset filters
               </button>
             </div>
           </div>
@@ -468,16 +468,16 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
       </div>
 
       <div className="ol-body" style={{ opacity: refreshing && !initialLoading ? 0.5 : 1, transition: 'opacity 0.15s' }}>
-        {initialLoading && <div className="ol-leer">Lädt...</div>}
+        {initialLoading && <div className="ol-leer">Loading...</div>}
         {isEmpty && (
           <div className="ol-leer">
-            <div style={{ marginBottom: 8 }}>Keine Aufträge gefunden</div>
+            <div style={{ marginBottom: 8 }}>No orders found</div>
             <button type="button" className="ol-filter-reset" onClick={resetFilter}>
-              Filter zurücksetzen
+              Reset filters
             </button>
           </div>
         )}
-        {refreshing && !initialLoading && <div className="ol-aktual">Aktualisiere…</div>}
+        {refreshing && !initialLoading && <div className="ol-aktual">Refreshing…</div>}
         {!initialLoading &&
           orders.map(order => {
             const isActive = order.id === activeOrderId
@@ -520,12 +520,12 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
                     >
                       <span className="ol-kunde">{customerName(order.customers)}</span>
                       {order.is_emergency && (
-                        <span className="ol-alarm" title="Notfall" aria-label="Notfall">
+                        <span className="ol-alarm" title="Emergency" aria-label="Emergency">
                           !
                         </span>
                       )}
                       {order.priority === 'HIGH' && (
-                        <span className="ol-prio" title="Priorität hoch" aria-label="Priorität hoch">
+                        <span className="ol-prio" title="High priority" aria-label="High priority">
                           ↑
                         </span>
                       )}
@@ -547,8 +547,8 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
                       <button
                         type="button"
                         className="ol-icon-btn"
-                        title="Auftrag duplizieren"
-                        aria-label="Auftrag duplizieren"
+                        title="Duplicate order"
+                        aria-label="Duplicate order"
                         disabled={duplicateBusy}
                         onClick={e => {
                           e.stopPropagation()
@@ -567,7 +567,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
                         }}
                         style={{ padding: '6px 10px' }}
                       >
-                        Auftrag duplizieren
+                        Duplicate order
                       </button>
                     </div>
                   )}
@@ -579,7 +579,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
 
       <div className="ol-foot">
         <button type="button" className="ol-btn-neu" onClick={onNewOrder}>
-          + Neuer Auftrag
+          + New Order
         </button>
       </div>
 
@@ -592,7 +592,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
           onCancel={() => setDuplicateDialogOpen(false)}
           onSuccess={newOrder => {
             setDuplicateDialogOpen(false)
-            void loadOrders().catch(() => fehler('Aufträge konnten nicht aktualisiert werden'))
+            void loadOrders().catch(() => fehler('Orders could not be refreshed'))
             onSelectOrder(newOrder.id)
           }}
         />

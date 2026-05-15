@@ -52,30 +52,30 @@ function detailRows(detail: Record<string, unknown>): { label: string; value: st
 function fieldToLabel(key: string): string {
   switch (key) {
     case 'typ':
-      return 'Typ'
+      return 'Type'
     case 'stueckzahl':
-      return 'Stückzahl'
+      return 'Quantity'
     case 'material':
     case 'material_freitext':
       return 'Material'
     case 'material_sonstige':
-      return 'Material (Sonstige)'
+      return 'Material (other)'
     case 'format_breite':
-      return 'Breite (mm)'
+      return 'Width (mm)'
     case 'format_hoehe':
-      return 'Höhe (mm)'
+      return 'Height (mm)'
     case 'ecken_runden':
-      return 'Ecken runden'
+      return 'Round corners'
     case 'selbstklebend':
-      return 'Selbstklebend'
+      return 'Self-adhesive'
     case 'motiv':
-      return 'Motiv / Inhalt'
+      return 'Motif / Content'
     case 'herkunft':
-      return 'Herkunft'
+      return 'Origin'
     case 'besonderheiten':
-      return 'Besonderheiten'
+      return 'Notes'
     case 'beschreibung':
-      return 'Beschreibung'
+      return 'Description'
     default:
       return key
   }
@@ -87,7 +87,7 @@ function isEmpty(value: unknown): boolean {
 
 function valueAsString(value: unknown): string {
   if (value === null || value === undefined) return ''
-  if (typeof value === 'boolean') return value ? 'Ja' : 'Nein'
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No'
   if (typeof value === 'object') return JSON.stringify(value)
   return String(value)
 }
@@ -97,8 +97,8 @@ function detailEntry(key: string, value: unknown): { label: string; value: strin
   if (isEmpty(value)) return null
 
   if (key === 'ecken_runden' || key === 'selbstklebend') {
-    if (value === true) return { label: fieldToLabel(key), value: 'Ja' }
-    if (value === false) return { label: fieldToLabel(key), value: 'Nein' }
+    if (value === true) return { label: fieldToLabel(key), value: 'Yes' }
+    if (value === false) return { label: fieldToLabel(key), value: 'No' }
     return { label: fieldToLabel(key), value: String(value) }
   }
 
@@ -157,13 +157,13 @@ function buildFileName(
 }
 
 function formatDelivery(deliveryType: DeliveryChoice | null | undefined): string {
-  if (deliveryType === 'PICKUP') return 'Abholung'
-  if (deliveryType === 'SHIPPING') return 'Versand'
+  if (deliveryType === 'PICKUP') return 'Pickup'
+  if (deliveryType === 'SHIPPING') return 'Shipping'
   return '—'
 }
 
 function formatPriority(priorityType: Priority): string {
-  if (priorityType === 'HIGH') return '⚡ HOCH'
+  if (priorityType === 'HIGH') return '⚡ HIGH'
   return 'Normal'
 }
 
@@ -210,8 +210,8 @@ function cellValueForKey(row: Record<string, unknown>, key: string): string {
   const fieldValue = detail[key]
   if (isEmpty(fieldValue)) return ''
   if (key === 'ecken_runden' || key === 'selbstklebend') {
-    if (fieldValue === true) return 'Ja'
-    if (fieldValue === false) return 'Nein'
+    if (fieldValue === true) return 'Yes'
+    if (fieldValue === false) return 'No'
   }
   return valueAsString(fieldValue)
 }
@@ -232,7 +232,7 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
     const products = rawProducts as unknown as Record<string, unknown>[]
 
     const customer = extractCustomer(order.customers as OrderPdfRow['customers'])
-    const customerDisplayName = customer?.name?.trim() ? customer.name.trim() : 'Unbekannt'
+    const customerDisplayName = customer?.name?.trim() ? customer.name.trim() : 'Unknown'
 
     const fileName = buildFileName(
       customerDisplayName,
@@ -253,7 +253,7 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(16)
     doc.setTextColor(0)
-    cursorY = addText(doc, `AUFTRAG ${order.order_number}`, marginLeft, cursorY, 8)
+    cursorY = addText(doc, `ORDER ${order.order_number}`, marginLeft, cursorY, 8)
     doc.setFont('helvetica', 'normal')
 
     doc.setDrawColor(60)
@@ -265,7 +265,7 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
 
     doc.setFontSize(8)
     doc.setTextColor(120)
-    leftColumnY = addText(doc, 'Kunde', marginLeft, leftColumnY, 4)
+    leftColumnY = addText(doc, 'Customer', marginLeft, leftColumnY, 4)
     doc.setTextColor(0)
     doc.setFontSize(11)
     doc.setFont('helvetica', 'bold')
@@ -287,11 +287,11 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
     const rightColumnX = 120
     doc.setFontSize(10)
     doc.setTextColor(0)
-    rightColumnY = addText(doc, `Termin    ${formatDateDe(order.deadline)}`, rightColumnX, rightColumnY, 5)
-    rightColumnY = addText(doc, `Lieferung    ${formatDelivery(order.delivery)}`, rightColumnX, rightColumnY, 5)
-    rightColumnY = addText(doc, `Priorität    ${formatPriority(order.priority)}`, rightColumnX, rightColumnY, 5)
-    rightColumnY = addText(doc, `Bereich    ${subOrder.department}`, rightColumnX, rightColumnY, 5)
-    rightColumnY = addText(doc, `Erstellt    ${formatDateDe(order.created_at)}`, rightColumnX, rightColumnY, 5)
+    rightColumnY = addText(doc, `Deadline    ${formatDateDe(order.deadline)}`, rightColumnX, rightColumnY, 5)
+    rightColumnY = addText(doc, `Delivery    ${formatDelivery(order.delivery)}`, rightColumnX, rightColumnY, 5)
+    rightColumnY = addText(doc, `Priority    ${formatPriority(order.priority)}`, rightColumnX, rightColumnY, 5)
+    rightColumnY = addText(doc, `Department    ${subOrder.department}`, rightColumnX, rightColumnY, 5)
+    rightColumnY = addText(doc, `Created    ${formatDateDe(order.created_at)}`, rightColumnX, rightColumnY, 5)
 
     cursorY = Math.max(leftColumnY, rightColumnY) + 8
 
@@ -319,11 +319,11 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
       cursorY = checkNewPage(doc, cursorY, 30)
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(10)
-      cursorY = addText(doc, 'Produkte', marginLeft, cursorY, 6)
+      cursorY = addText(doc, 'Products', marginLeft, cursorY, 6)
       doc.setFont('helvetica', 'normal')
 
       const detailKeys = productDetailKeys(products)
-      const header = ['#', 'Typ', ...detailKeys.map(fieldToLabel)]
+      const header = ['#', 'Type', ...detailKeys.map(fieldToLabel)]
       const rows = products.map((product, idx) => {
         const detail = asDetailRecord(product.detail)
         const typeValue = String(product.typ ?? detail.typ ?? '—')
@@ -346,13 +346,13 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
       cursorY = checkNewPage(doc, cursorY, 30)
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(10)
-      cursorY = addText(doc, 'Positionen', marginLeft, cursorY, 6)
+      cursorY = addText(doc, 'Positions', marginLeft, cursorY, 6)
       doc.setFont('helvetica', 'normal')
 
       autoTable(doc, {
         startY: cursorY,
         margin: { left: marginLeft, right: marginRight },
-        head: [['Produkt', 'Farbe', 'Größe', 'Stückzahl', 'Herkunft', 'Notiz']],
+        head: [['Product', 'Colour', 'Size', 'Quantity', 'Origin', 'Note']],
         body: textilePositions.map(position => {
           const positionRecord = position as Record<string, unknown>
           const variantEmbed = positionRecord.textile_variants as {
@@ -381,7 +381,7 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
       doc.setPage(i)
       doc.setFontSize(8)
       doc.setTextColor(150)
-      doc.text(`Seite ${i} / ${totalPages}`, 210 - marginRight, 290, { align: 'right' })
+      doc.text(`Page ${i} / ${totalPages}`, 210 - marginRight, 290, { align: 'right' })
     }
 
     doc.save(fileName)

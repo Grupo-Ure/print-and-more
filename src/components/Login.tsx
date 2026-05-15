@@ -10,7 +10,7 @@ export function Login() {
     try {
       await authService.signIn(email.trim(), password)
     } catch (err) {
-      setLoginError(err instanceof Error ? err.message : 'Anmeldung fehlgeschlagen')
+      setLoginError(err instanceof Error ? err.message : 'Login failed')
     }
   }
 
@@ -19,13 +19,13 @@ export function Login() {
       <div style={{ width: 320, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <h2 style={{ margin: 0 }}>Auftragssystem</h2>
         <input
-          placeholder="E-Mail"
+          placeholder="Email"
           value={email}
           onChange={e => setEmail(e.target.value)}
           style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6 }}
         />
         <input
-          placeholder="Passwort"
+          placeholder="Password"
           type="password"
           value={password}
           onChange={e => setPassword(e.target.value)}
@@ -33,7 +33,7 @@ export function Login() {
         />
         {loginError && <p style={{ color: 'red', fontSize: 13 }}>{loginError}</p>}
         <button onClick={handleLogin} style={{ padding: 8, background: '#18181b', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
-          Einloggen
+          Log in
         </button>
       </div>
     </div>

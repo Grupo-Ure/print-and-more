@@ -13,20 +13,20 @@ type Props = {
 
 
 const EVENT_LABELS: Record<string, string> = {
-  ORDER_CREATED: 'Auftrag erstellt',
-  PROCESSING_STARTED: 'In Bearbeitung genommen',
-  PREPRESS_READY_AUTO: 'Prepress — automatisch',
-  PREPRESS_READY_MANUAL: 'Prepress — manuell',
-  PRODUCTION_READY_SET: 'Produktion freigegeben',
-  MARKED_DONE: 'Als fertig gemeldet',
-  EMERGENCY_TRIGGERED: 'Notfall ausgelöst',
-  CUSTOMER_APPROVAL_ACTIVATED: 'Kundenfreigabe aktiviert',
-  CUSTOMER_APPROVAL_GRANTED: 'Kundenfreigabe erteilt',
-  CUSTOMER_APPROVAL_EXPIRED: 'Kundenfreigabe verfallen',
-  CUSTOMER_APPROVAL_BYPASSED: 'Kundenfreigabe übergangen',
-  ROLLED_BACK: 'Rücksprung',
-  ERP_EXPORTED: 'ERP exportiert',
-  CANCELLED: 'Auftrag storniert',
+  ORDER_CREATED: 'Order created',
+  PROCESSING_STARTED: 'Processing started',
+  PREPRESS_READY_AUTO: 'PrePress — automatic',
+  PREPRESS_READY_MANUAL: 'PrePress — manual',
+  PRODUCTION_READY_SET: 'Released to production',
+  MARKED_DONE: 'Marked as done',
+  EMERGENCY_TRIGGERED: 'Emergency triggered',
+  CUSTOMER_APPROVAL_ACTIVATED: 'Customer approval activated',
+  CUSTOMER_APPROVAL_GRANTED: 'Customer approval granted',
+  CUSTOMER_APPROVAL_EXPIRED: 'Customer approval expired',
+  CUSTOMER_APPROVAL_BYPASSED: 'Customer approval bypassed',
+  ROLLED_BACK: 'Rolled back',
+  ERP_EXPORTED: 'ERP exported',
+  CANCELLED: 'Order cancelled',
 }
 
 function eventLabel(art: string): string {
@@ -36,7 +36,7 @@ function eventLabel(art: string): string {
 function formatHistoryTime(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return iso
-  return date.toLocaleString('de-DE', {
+  return date.toLocaleString('en-GB', {
     day: '2-digit',
     month: '2-digit',
     year: '2-digit',
@@ -64,7 +64,7 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: P
         setStaffById(staffMap)
       },
       () => {
-        if (alive) toastFehler('Mitarbeiterdaten konnten nicht geladen werden')
+        if (alive) toastFehler('Staff data could not be loaded')
       },
     )
     return () => {
@@ -82,7 +82,7 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: P
         setEntries(data)
       } catch {
         if (!alive) return
-        toastFehler('Verlauf konnte nicht geladen werden')
+        toastFehler('History could not be loaded')
         setEntries([])
       }
       if (alive) setLoading(false)
@@ -105,15 +105,15 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: P
         onClick={() => setExpanded(previous => !previous)}
         aria-expanded={expanded}
       >
-        <span>Verlauf {expanded ? '▼' : '▶'}</span>
+        <span>History {expanded ? '▼' : '▶'}</span>
       </button>
 
       {expanded && (
         <div className="cp-hist-body">
-          {loading && <p className="cp-hinweis" style={{ margin: '0.25rem 0' }}>Lädt …</p>}
+          {loading && <p className="cp-hinweis" style={{ margin: '0.25rem 0' }}>Loading…</p>}
           {!loading && entries.length === 0 && (
             <p className="cp-hinweis" style={{ margin: '0.25rem 0' }}>
-              Noch keine Einträge im Verlauf
+              No history entries yet
             </p>
           )}
           {!loading &&
@@ -128,7 +128,7 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: P
                     <span className="cp-hist-who">{staffName || '—'}</span>
                   </div>
                   {entry.reason && <p className="cp-hist-sub">{entry.reason}</p>}
-                  {department && <p className="cp-hist-tl">Teil: {subOrderDepartmentLabel(department)}</p>}
+                  {department && <p className="cp-hist-tl">Sub-order: {subOrderDepartmentLabel(department)}</p>}
                 </div>
               )
             })}

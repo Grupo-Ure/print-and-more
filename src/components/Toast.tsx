@@ -83,7 +83,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
 export function useToast() {
   const context = useContext(ToastApiContext)
-  if (!context) throw new Error('useToast muss innerhalb von ToastProvider verwendet werden')
+  if (!context) throw new Error('useToast must be used within ToastProvider')
   return { fehler: context.fehler, erfolg: context.erfolg, info: context.info }
 }
 
@@ -131,7 +131,7 @@ export function ToastContainer() {
           <button
             type="button"
             onClick={() => dismiss(toast.id)}
-            aria-label="Schließen"
+            aria-label="Close"
             style={{
               flexShrink: 0,
               border: 'none',

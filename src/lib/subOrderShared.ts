@@ -75,17 +75,17 @@ export function validateSubOrderCommonFields(
 ): Record<string, string> {
   const errors: Record<string, string> = {}
   if (status === 'QUOTE') return errors
-  if (subOrder.delivery !== 'PICKUP' && subOrder.delivery !== 'SHIPPING') errors.lieferung = 'Pflichtfeld'
-  if (!subOrder.deadline) errors.termin = 'Pflichtfeld'
+  if (subOrder.delivery !== 'PICKUP' && subOrder.delivery !== 'SHIPPING') errors.lieferung = 'Required'
+  if (!subOrder.deadline) errors.termin = 'Required'
   if (subOrder.priority !== 'NORMAL' && subOrder.priority !== 'HIGH') {
-    errors.prioritaet = 'Pflichtfeld'
+    errors.prioritaet = 'Required'
   }
   const rawAssigneeId = subOrder.assignee_id
   const assigneeId = typeof rawAssigneeId === 'string' ? rawAssigneeId.trim() : ''
-  if (assigneeId && !UUID_LOOSE.test(assigneeId)) errors.verantwortlicher_id = 'Gültige UUID'
+  if (assigneeId && !UUID_LOOSE.test(assigneeId)) errors.verantwortlicher_id = 'Valid UUID'
   if (subOrder.typesetting_minutes != null) {
     const minutes = Number(subOrder.typesetting_minutes)
-    if (!Number.isInteger(minutes) || minutes <= 0) errors.satzzeit_minuten = 'Ganze Zahl > 0'
+    if (!Number.isInteger(minutes) || minutes <= 0) errors.satzzeit_minuten = 'Integer > 0'
   }
   return errors
 }

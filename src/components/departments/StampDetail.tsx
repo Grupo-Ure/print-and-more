@@ -48,25 +48,25 @@ type StampFormContext = {
 
 const EXTRA_TYPES = ['NACHFUELLFARBE', 'STEMPELKISSEN', 'STEMPELPLATTE', 'TRODAT_KISSEN'] as const
 const EXTRA_TYPE_LABELS: Record<(typeof EXTRA_TYPES)[number], string> = {
-  NACHFUELLFARBE: 'Nachfüllfarbe',
-  STEMPELKISSEN: 'Stempelkissen',
-  STEMPELPLATTE: 'Stempelplatte',
-  TRODAT_KISSEN: 'Trodat Ersatzkissen',
+  NACHFUELLFARBE: 'Refill Ink',
+  STEMPELKISSEN: 'Stamp Pad',
+  STEMPELPLATTE: 'Stamp Plate',
+  TRODAT_KISSEN: 'Trodat Replacement Pad',
 }
 
 const REFILL_INK_COLORS = ['SCHWARZ', 'ROT', 'BLAU', 'GRUEN'] as const
 const REFILL_INK_TYPES = ['NORMAL', 'HAUTVERTRAEGLICH', 'TEXTIL'] as const
 const REFILL_INK_TYPE_LABELS: Record<(typeof REFILL_INK_TYPES)[number], string> = {
-  NORMAL: 'Normal',
-  HAUTVERTRAEGLICH: 'Hautverträglich',
-  TEXTIL: 'Textil',
+  NORMAL: 'Standard',
+  HAUTVERTRAEGLICH: 'Skin-safe',
+  TEXTIL: 'Textile',
 }
 
 const STAMP_PAD_SIZES = ['KLEIN', 'MITTEL', 'GROSS'] as const
 const STAMP_PAD_SIZE_LABELS: Record<(typeof STAMP_PAD_SIZES)[number], string> = {
-  KLEIN: 'Klein',
-  MITTEL: 'Mittel',
-  GROSS: 'Groß',
+  KLEIN: 'Small',
+  MITTEL: 'Medium',
+  GROSS: 'Large',
 }
 
 type StampModel = {
@@ -178,7 +178,7 @@ export function StampDetail({
       try {
         rows = await subOrderProductService.getFilesByProductIds(ids)
       } catch {
-        showError('FileRecord-Zuordnungen konnten nicht geladen werden')
+        showError('File assignments could not be loaded')
         setProductFiles({})
         return
       }
@@ -203,7 +203,7 @@ export function StampDetail({
       rows = await subOrderProductService.getProductsBySubOrderId(subOrder.id)
     } catch {
       setProductsLoading(false)
-      showError('Produkte konnten nicht geladen werden')
+      showError('Products could not be loaded')
       setProducts([])
       await loadFilesForProducts([])
       return []
@@ -233,7 +233,7 @@ export function StampDetail({
       try {
         await subOrderProductService.assignFileToProduct(produktId, dateiId)
       } catch {
-        showError('FileRecord konnte nicht zugeordnet werden')
+        showError('File could not be assigned')
         return
       }
       await loadFilesForProducts(reloadRows)
@@ -246,7 +246,7 @@ export function StampDetail({
       try {
         await subOrderProductService.removeFileFromProduct(zuordnungId)
       } catch {
-        showError('Zuordnung konnte nicht entfernt werden')
+        showError('Assignment could not be removed')
         return
       }
       await loadFilesForProducts(produktRowsForReload ?? products)
@@ -455,7 +455,7 @@ export function StampDetail({
       } catch (err) {
         if (!alive) return
         setCushionSearchResults([])
-        setCushionSearchError(err instanceof Error ? err.message : 'Suche fehlgeschlagen')
+        setCushionSearchError(err instanceof Error ? err.message : 'Search failed')
         setCushionSearchLoading(false)
         return
       }
@@ -563,7 +563,7 @@ export function StampDetail({
       try {
         await subOrderProductService.updateProduct(editingId, patch)
       } catch {
-        showError('Produkt konnte nicht gespeichert werden')
+        showError('Product could not be saved')
         return
       }
       for (const assignment of [...(productFiles[editingId] ?? [])]) {
@@ -594,7 +594,7 @@ export function StampDetail({
     try {
       insRow = await subOrderProductService.createProduct(insertRow)
     } catch {
-      showError('Produkt konnte nicht hinzugefügt werden')
+      showError('Product could not be added')
       return
     }
     const newId = insRow.id
@@ -631,7 +631,7 @@ export function StampDetail({
       try {
         await subOrderProductService.deleteProduct(id)
       } catch {
-        showError('Produkt konnte nicht gelöscht werden')
+        showError('Product could not be deleted')
         return
       }
       const updatedProducts = await reloadProducts()
@@ -674,15 +674,15 @@ export function StampDetail({
 
   return (
     <div className="ber-lfp">
-      <h3 className="ber-h3">Stempel-Details</h3>
+      <h3 className="ber-h3">Stamp Details</h3>
       {stampType === 'SONSTIGE_STEMPEL' && (
         <p className="ber-hinweis">
-          Bei &apos;Sonstige Stempel&apos; wird PREPRESS_BEREIT nur manuell gesetzt.
+          For &apos;Other Stamps&apos;, PREPRESS_READY is set manually only.
         </p>
       )}
 
       <FormRow
-        label="Typ"
+        label="Type"
         error={shouldValidate && stampErrors.typ ? stampErrors.typ : undefined}
         content={
           <select
@@ -715,7 +715,7 @@ export function StampDetail({
       {stampType === 'TRODAT_KISSEN' && (
         <>
           <FormRow
-            label="Suche"
+            label="Search"
             error={
               shouldValidate && (stampErrors.kissen_artikelnummer || stampErrors.kissen_modell_id)
                 ? [stampErrors.kissen_artikelnummer, stampErrors.kissen_modell_id].filter(Boolean).join(' — ')
@@ -726,15 +726,15 @@ export function StampDetail({
                 <input
                   type="search"
                   className={'ber-inp' + fieldErrorClass('kissen_artikelnummer')}
-                  placeholder="Modell oder Artikelnummer…"
+                  placeholder="Model or article number…"
                   value={cushionSearchInput}
                   onChange={e => setCushionSearchInput(e.target.value)}
                 />
-                {cushionSearchLoading && <p className="ber-hinweis" style={{ marginTop: 6 }}>Suchen…</p>}
+                {cushionSearchLoading && <p className="ber-hinweis" style={{ marginTop: 6 }}>Searching…</p>}
                 {cushionSearchError && <p className="ber-err" style={{ marginTop: 6 }}>{cushionSearchError}</p>}
                 {!cushionSearchLoading && !cushionSearchError && cushionSearchDebounced.trim() !== '' && cushionSearchResults.length === 0 && (
                   <p className="ber-hinweis" style={{ marginTop: 6 }}>
-                    Kein Treffer
+                    No results
                   </p>
                 )}
                 {!cushionSearchLoading && cushionSearchResults.length > 0 && (
@@ -769,7 +769,7 @@ export function StampDetail({
           />
           {!!cushionArticleNumber && cushionColorOptions.length > 0 && (
             <FormRow
-              label="Farbe"
+              label="Colour"
               error={shouldValidate && (stampErrors.farbe || stampErrors.kissen_modell_id) ? [stampErrors.farbe, stampErrors.kissen_modell_id].filter(Boolean).join(' — ') : undefined}
               content={
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexWrap: 'wrap' }}>
@@ -798,7 +798,7 @@ export function StampDetail({
                           fontWeight: noStock || isSelected ? 600 : undefined,
                         }}
                       >
-                        {STAMP_COLOR_LABELS[fv.color as keyof typeof STAMP_COLOR_LABELS]} (Bestand: {fv.stock})
+                        {STAMP_COLOR_LABELS[fv.color as keyof typeof STAMP_COLOR_LABELS]} (Stock: {fv.stock})
                       </button>
                     )
                   })}
@@ -806,9 +806,9 @@ export function StampDetail({
               }
             />
           )}
-          <QuantityInput {...formContext} label="Stückzahl" />
+          <QuantityInput {...formContext} label="Quantity" />
           {cushionModelId && (
-            <FormRow label="Gewählt" error={undefined}>
+            <FormRow label="Selected" error={undefined}>
               <div
                 className="wa-badge"
                 style={{
@@ -823,7 +823,7 @@ export function StampDetail({
                 }}
               >
                 {detailRecord.kissen_artikelnummer != null && String(detailRecord.kissen_artikelnummer) !== '' ? String(detailRecord.kissen_artikelnummer) : '—'} {String(detailRecord.kissen_name ?? '')} · {cushionColorLabel} ·
-                Bestand: {cushionBadgeStock == null ? '—' : cushionBadgeStock}
+                Stock: {cushionBadgeStock == null ? '—' : cushionBadgeStock}
                 <span
                   role="button"
                   tabIndex={0}
@@ -852,7 +852,7 @@ export function StampDetail({
                     }
                   }}
                   style={{ cursor: 'pointer', padding: '0 6px', userSelect: 'none', fontWeight: 700 }}
-                  title="Abwählen"
+                  title="Deselect"
                 >
                   ×
                 </span>
@@ -863,11 +863,11 @@ export function StampDetail({
       )}
 
       {showQuantity && stampType !== 'TRODAT_KISSEN' && (
-        <QuantityInput {...formContext} label={stampType === 'NACHFUELLFARBE' || stampType === 'STEMPELKISSEN' ? 'Anzahl' : 'Stückzahl'} />
+        <QuantityInput {...formContext} label={stampType === 'NACHFUELLFARBE' || stampType === 'STEMPELKISSEN' ? 'Count' : 'Quantity'} />
       )}
 
       {stampType === 'STEMPELKISSEN' && (
-        <FormRow label="Größe" error={shouldValidate && stampErrors.groesse ? stampErrors.groesse : undefined}>
+        <FormRow label="Size" error={shouldValidate && stampErrors.groesse ? stampErrors.groesse : undefined}>
           <select
             className={'ber-inp' + fieldErrorClass('groesse')}
             value={String(detail['groesse'] ?? '')}
@@ -889,7 +889,7 @@ export function StampDetail({
         stampType !== 'STEMPELPLATTE' &&
         stampType !== 'TRODAT_KISSEN' && (
         <FormRow
-          label="Farbe"
+          label="Colour"
           error={
             (shouldValidate && stampErrors.farbe) || (shouldValidate && stampErrors.farbe_sonstige)
               ? [stampErrors.farbe, stampErrors.farbe_sonstige].filter(Boolean).join(' — ')
@@ -921,7 +921,7 @@ export function StampDetail({
                   <input
                     type="text"
                     className={'ber-inp' + fieldErrorClass('farbe_sonstige')}
-                    placeholder="Farbe (Freitext)"
+                    placeholder="Colour (free text)"
                     value={String(detail['farbe_sonstige'] ?? '')}
                     onChange={e => patchLocal({ farbe_sonstige: e.target.value || null } as StampDetailJson)}
                     onBlur={commitChanges}
@@ -934,7 +934,7 @@ export function StampDetail({
       )}
 
       {stampType === 'NACHFUELLFARBE' && (
-        <FormRow label="Typ" error={shouldValidate && stampErrors.tinte_typ ? stampErrors.tinte_typ : undefined}>
+        <FormRow label="Type" error={shouldValidate && stampErrors.tinte_typ ? stampErrors.tinte_typ : undefined}>
           <select
             className={'ber-inp' + fieldErrorClass('tinte_typ')}
             value={String(detail['tinte_typ'] ?? '')}
@@ -966,7 +966,7 @@ export function StampDetail({
                 <input
                   type="number"
                   className={'ber-inp' + fieldErrorClass('format_breite')}
-                  placeholder="Breite"
+                  placeholder="Width"
                   value={widthValue ?? ''}
                   onChange={e => {
                     const raw = e.target.value
@@ -980,7 +980,7 @@ export function StampDetail({
                 <input
                   type="number"
                   className={'ber-inp' + fieldErrorClass('format_hoehe')}
-                  placeholder="Höhe"
+                  placeholder="Height"
                   value={heightValue ?? ''}
                   onChange={e => {
                     const raw = e.target.value
@@ -996,7 +996,7 @@ export function StampDetail({
       )}
 
       {(stampType === 'TRODAT_PRINTY' || stampType === 'HOLZSTEMPEL') && showDimensions && hasDimensions && (
-        <FormRow label="Modellvorschlag">
+        <FormRow label="Suggested model">
           <div>
             {selectedModelId && (
               <div style={{ marginBottom: 8 }}>
@@ -1013,7 +1013,7 @@ export function StampDetail({
                     fontSize: 12,
                   }}
                 >
-                  Gewählt: {selectedModelName || modelName || 'Modell'}
+                  Selected: {selectedModelName || modelName || 'Model'}
                   <span
                     role="button"
                     tabIndex={0}
@@ -1030,7 +1030,7 @@ export function StampDetail({
                       }
                     }}
                     style={{ cursor: 'pointer', padding: '0 6px', userSelect: 'none', fontWeight: 700 }}
-                    title="Modell abwählen"
+                    title="Deselect model"
                   >
                     ×
                   </span>
@@ -1045,7 +1045,7 @@ export function StampDetail({
                           fontWeight: z.bestand <= 0 ? 600 : undefined,
                         }}
                       >
-                        {z.label}: Bestand {z.bestand}
+                        {z.label}: Stock {z.bestand}
                       </div>
                     ))}
                   </div>
@@ -1053,12 +1053,12 @@ export function StampDetail({
               </div>
             )}
 
-            {modelsLoading && <p className="ber-hinweis">Suche passende Modelle…</p>}
+            {modelsLoading && <p className="ber-hinweis">Searching matching models…</p>}
             {!modelsLoading && modelError && <p className="ber-err">{modelError}</p>}
 
             {!modelsLoading && !modelError && models.length === 0 && (
               <p className="ber-hinweis">
-                Kein passendes Modell gefunden — bitte Maße prüfen oder manuell erfassen
+                No matching model found — please check dimensions or enter manually
               </p>
             )}
 
@@ -1096,14 +1096,14 @@ export function StampDetail({
                       }}
                     >
                       <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                        {isSelected && <span title="Gewählt">✓</span>}
+                        {isSelected && <span title="Selected">✓</span>}
                         {m.name}
                       </span>
                       <span style={{ opacity: 0.8 }}>{m.print_area ?? ''}</span>
                       <span style={{ opacity: 0.9, whiteSpace: 'nowrap' }}>
-                        Bestand: {m.stock ?? 0}
+                        Stock: {m.stock ?? 0}
                         {noStock && (
-                          <span style={{ marginLeft: 8, color: '#f59e0b', fontWeight: 600 }}>Kein Bestand vorhanden</span>
+                          <span style={{ marginLeft: 8, color: '#f59e0b', fontWeight: 600 }}>Out of stock</span>
                         )}
                       </span>
                     </button>
@@ -1117,7 +1117,7 @@ export function StampDetail({
 
       {showDescription && (
         <FormRow
-          label="Beschreibung / Inhalt"
+          label="Description / Content"
           error={shouldValidate && stampErrors.beschreibung ? stampErrors.beschreibung : undefined}
           content={
             <div>
@@ -1129,7 +1129,7 @@ export function StampDetail({
                 onBlur={commitChanges}
               />
               <p className="ber-hinweis" style={{ marginTop: 6, marginBottom: 0 }}>
-                Änderungen nach Produktionsfreigabe setzen den Status zurück (Beschreibung, Breite/Höhe)
+                Changes after production release reset the status (description, width/height)
               </p>
             </div>
           }
@@ -1137,11 +1137,11 @@ export function StampDetail({
       )}
 
       {(stampType === 'NACHFUELLFARBE' || stampType === 'STEMPELKISSEN') && (
-        <FormRow label="Hinweis" error={undefined}>
+        <FormRow label="Note" error={undefined}>
           <textarea
             className="ber-inp"
             rows={2}
-            placeholder="Besonderheiten, Hinweise..."
+            placeholder="Notes, remarks..."
             value={String(detail['hinweis'] ?? '')}
             onChange={e => patchLocal({ hinweis: e.target.value || null } as StampDetailJson)}
             onBlur={commitChanges}
@@ -1150,7 +1150,7 @@ export function StampDetail({
       )}
 
       {orderFiles.length > 0 && (
-        <FormRow label="Dateien">
+        <FormRow label="Files">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
             {formFileRecordIds.map(fid => (
               <span
@@ -1173,7 +1173,7 @@ export function StampDetail({
                   type="button"
                   className="cp-btn cp-btn-grau"
                   style={{ minWidth: 22, padding: '0 6px', fontSize: 14, lineHeight: 1 }}
-                  title="Entfernen"
+                  title="Remove"
                   onClick={() => setFormFileRecordIds(prev => prev.filter(x => x !== fid))}
                 >
                   ×
@@ -1192,7 +1192,7 @@ export function StampDetail({
                 }
               }}
             >
-              <option value="">FileRecord hinzufügen…</option>
+              <option value="">Add file…</option>
               {orderFiles
                 .filter(df => !formFileRecordIds.includes(df.id))
                 .map(df => (
@@ -1214,7 +1214,7 @@ export function StampDetail({
             if (requiresUnlock) {
               if (
                 window.confirm(
-                  'Teilauftrag ist bereits freigegeben.\nWirklich Produkte bearbeiten?',
+                  'Sub-order is already released.\nReally edit products?',
                 )
               ) {
                 setUnlocked(true)
@@ -1225,34 +1225,34 @@ export function StampDetail({
           }}
         >
           {requiresUnlock
-            ? 'Bearbeitung entsperren'
+            ? 'Unlock editing'
             : editingId
-              ? 'Speichern'
-              : 'Produkt hinzufügen'}
+              ? 'Save'
+              : 'Add product'}
         </button>
         {editingId && (
           <button type="button" className="cp-btn cp-btn-grau" onClick={() => resetForm()}>
-            Abbrechen
+            Cancel
           </button>
         )}
       </div>
       {unlocked && (
         <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
-          Bearbeitung unlocked — Änderungen setzen Status zurück
+          Editing unlocked — changes will reset status
         </p>
       )}
 
       <div style={{ borderTop: '1px solid var(--color-border, #e5e7eb)', marginTop: 10, paddingTop: 10 }}>
         <h3 className="wa-dl-titel" style={{ margin: 0 }}>
-          Produkte
+          Products
         </h3>
         {productsLoading ? (
           <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
-            Lädt Produkte …
+            Loading products…
           </p>
         ) : products.length === 0 ? (
           <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
-            Noch keine Produkte.
+            No products yet.
           </p>
         ) : (
           <div style={{ overflowX: 'auto', marginTop: 6 }}>
@@ -1260,16 +1260,16 @@ export function StampDetail({
               <thead>
                 <tr>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                    Typ
+                    Type
                   </th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                    Stückzahl
+                    Quantity
                   </th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                    Kurzinfo
+                    Summary
                   </th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                    Aktionen
+                    Actions
                   </th>
                 </tr>
               </thead>
@@ -1296,10 +1296,10 @@ export function StampDetail({
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                           <button type="button" className="cp-btn cp-btn-grau" onClick={() => handleEdit(r)}>
-                            Bearbeiten
+                            Edit
                           </button>
                           <button type="button" className="cp-btn cp-btn-rot" onClick={() => void handleDelete(r.id)}>
-                            Löschen
+                            Delete
                           </button>
                         </div>
                         <div

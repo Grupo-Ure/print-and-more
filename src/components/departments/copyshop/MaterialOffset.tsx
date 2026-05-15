@@ -54,7 +54,7 @@ export function MaterialOffset(props: MaterialOffsetProps) {
 
   return (
     <>
-      <FieldRow label="Offset-Art" error={shouldValidate && validationErrors.offset_art ? validationErrors.offset_art : undefined}>
+      <FieldRow label="Offset type" error={shouldValidate && validationErrors.offset_art ? validationErrors.offset_art : undefined}>
         <select
           className={'ber-inp' + fieldErrorClass('offset_art')}
           value={offsetType}
@@ -63,14 +63,14 @@ export function MaterialOffset(props: MaterialOffsetProps) {
           <option value="">—</option>
           <option value="STANDARD">Standard</option>
           <option value="OFFSET">Offset</option>
-          <option value="SPEZIAL">Spezial</option>
+          <option value="SPEZIAL">Special</option>
         </select>
       </FieldRow>
 
       {offsetType === 'STANDARD' && (
         <>
           <FieldRow
-            label="Grammatur"
+            label="Weight"
             error={shouldValidate && validationErrors.offset_grammatur ? validationErrors.offset_grammatur : undefined}
           >
             <select
@@ -89,7 +89,7 @@ export function MaterialOffset(props: MaterialOffsetProps) {
             </select>
           </FieldRow>
           <FieldRow
-            label="Oberfläche"
+            label="Finish"
             error={shouldValidate && validationErrors.offset_oberflaeche ? validationErrors.offset_oberflaeche : undefined}
           >
             <select
@@ -100,8 +100,8 @@ export function MaterialOffset(props: MaterialOffsetProps) {
               }
             >
               <option value="">—</option>
-              <option value="MATT">Matt</option>
-              <option value="GLAENZEND">Glänzend</option>
+              <option value="MATT">Matte</option>
+              <option value="GLAENZEND">Glossy</option>
             </select>
           </FieldRow>
         </>
@@ -132,7 +132,7 @@ export function MaterialOffset(props: MaterialOffsetProps) {
       {offsetType === 'SPEZIAL' && (
         <>
           <FieldRow
-            label="Papier"
+            label="Paper"
             error={shouldValidate && validationErrors.spezial_papier ? validationErrors.spezial_papier : undefined}
           >
             <select
@@ -151,16 +151,16 @@ export function MaterialOffset(props: MaterialOffsetProps) {
               }}
             >
               <option value="">—</option>
-              <option value="300G_FOLIENKASCHIERT">300g folienkaschiert</option>
-              <option value="RECYCLING">Recycling</option>
-              <option value="250G_LEINENSTRUKTUR">250g Leinenstruktur</option>
-              <option value="SONSTIGE">Sonstige</option>
+              <option value="300G_FOLIENKASCHIERT">300g laminated</option>
+              <option value="RECYCLING">Recycled</option>
+              <option value="250G_LEINENSTRUKTUR">250g Linen texture</option>
+              <option value="SONSTIGE">Other</option>
             </select>
           </FieldRow>
           {detailRecord.spezial_papier === '300G_FOLIENKASCHIERT' && (
             <>
               <FieldRow
-                label="Kaschierung"
+                label="Lamination"
                 error={shouldValidate && validationErrors.kaschierung ? validationErrors.kaschierung : undefined}
               >
                 <select
@@ -171,12 +171,12 @@ export function MaterialOffset(props: MaterialOffsetProps) {
                   }
                 >
                   <option value="">—</option>
-                  <option value="MATT">Matt</option>
-                  <option value="GLAENZEND">Glänzend</option>
+                  <option value="MATT">Matte</option>
+                  <option value="GLAENZEND">Glossy</option>
                 </select>
               </FieldRow>
               <FieldRow
-                label="Seiten"
+                label="Sides"
                 error={shouldValidate && validationErrors.kaschierung_seiten ? validationErrors.kaschierung_seiten : undefined}
               >
                 <select
@@ -187,15 +187,15 @@ export function MaterialOffset(props: MaterialOffsetProps) {
                   }
                 >
                   <option value="">—</option>
-                  <option value="EINSEITIG">Einseitig</option>
-                  <option value="BEIDSEITIG">Beidseitig</option>
+                  <option value="EINSEITIG">Single-sided</option>
+                  <option value="BEIDSEITIG">Double-sided</option>
                 </select>
               </FieldRow>
             </>
           )}
           {detailRecord.spezial_papier === 'RECYCLING' && (
             <FieldRow
-              label="Grammatur"
+              label="Weight"
               error={shouldValidate && validationErrors.recycling_grammatur ? validationErrors.recycling_grammatur : undefined}
             >
               <select
@@ -216,7 +216,7 @@ export function MaterialOffset(props: MaterialOffsetProps) {
           )}
           {detailRecord.spezial_papier === 'SONSTIGE' && (
             <FieldRow
-              label="Papier (sonstige)"
+              label="Paper (other)"
               error={shouldValidate && validationErrors.spezial_sonstige ? validationErrors.spezial_sonstige : undefined}
             >
               <textarea

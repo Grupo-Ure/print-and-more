@@ -64,7 +64,7 @@ const addError = (errors: Err, field: string, message: string) => {
   errors[field] = message
 }
 
-const MSG_FORMAT_MASSE = 'Mindestens Breite oder Höhe angeben'
+const MSG_FORMAT_MASSE = 'Provide at least width or height'
 
 /**
  * Validate a laser sub-order's typ + detail against its current status.
@@ -83,35 +83,35 @@ export function validateLaserDetail(
   const errors: Err = {}
   if (subOrderStatus === 'QUOTE') return errors
   if (!typ || !LASER_TYPES.includes(typ as LaserType)) {
-    addError(errors, 'typ', 'Typ wählen')
+    addError(errors, 'typ', 'Select type')
     return errors
   }
-  if (!isValidQuantity(detail?.stueckzahl)) addError(errors, 'stueckzahl', 'Ganze Zahl ≥ 1')
+  if (!isValidQuantity(detail?.stueckzahl)) addError(errors, 'stueckzahl', 'Integer ≥ 1')
 
   const laserType = typ as LaserType
 
   if (laserType === 'SCHILD' || laserType === 'POKALSCHILD' || laserType === 'NAMENSSCHILD') {
     const material = parseRequiredString(detail?.material) as (typeof LASER_SIGN_MATERIALS)[number] | null
     if (!material || !LASER_SIGN_MATERIALS.includes(material as (typeof LASER_SIGN_MATERIALS)[number])) {
-      addError(errors, 'material', 'Pflichtfeld')
+      addError(errors, 'material', 'Required')
     }
-    if (material === 'SONSTIGE' && !parseRequiredString(detail?.material_sonstige)) addError(errors, 'material_sonstige', 'Pflichtfeld')
+    if (material === 'SONSTIGE' && !parseRequiredString(detail?.material_sonstige)) addError(errors, 'material_sonstige', 'Required')
     if (!hasDimension(detail?.format_breite, detail?.format_hoehe)) addError(errors, 'format_masse', MSG_FORMAT_MASSE)
-    if (requireBoolPresent(detail?.ecken_runden) === 'missing') addError(errors, 'ecken_runden', 'Pflichtfeld')
+    if (requireBoolPresent(detail?.ecken_runden) === 'missing') addError(errors, 'ecken_runden', 'Required')
     if ((laserType === 'SCHILD' || laserType === 'POKALSCHILD') && requireBoolPresent(detail?.selbstklebend) === 'missing') {
-      addError(errors, 'selbstklebend', 'Pflichtfeld')
+      addError(errors, 'selbstklebend', 'Required')
     }
-    if (!parseRequiredString(detail?.motiv)) addError(errors, 'motiv', 'Pflichtfeld')
+    if (!parseRequiredString(detail?.motiv)) addError(errors, 'motiv', 'Required')
   } else if (laserType === 'GESCHENKARTIKEL') {
-    if (!parseRequiredString(detail?.material_freitext)) addError(errors, 'material_freitext', 'Pflichtfeld')
+    if (!parseRequiredString(detail?.material_freitext)) addError(errors, 'material_freitext', 'Required')
     const origin = parseRequiredString(detail?.herkunft)
-    if (!origin || !LASER_ORIGINS.includes(origin as (typeof LASER_ORIGINS)[number])) addError(errors, 'herkunft', 'Pflichtfeld')
-    if (!parseRequiredString(detail?.motiv)) addError(errors, 'motiv', 'Pflichtfeld')
+    if (!origin || !LASER_ORIGINS.includes(origin as (typeof LASER_ORIGINS)[number])) addError(errors, 'herkunft', 'Required')
+    if (!parseRequiredString(detail?.motiv)) addError(errors, 'motiv', 'Required')
   } else if (laserType === 'SONSTIGE_LASER') {
-    if (requireBoolPresent(detail?.selbstklebend) === 'missing') addError(errors, 'selbstklebend', 'Pflichtfeld')
+    if (requireBoolPresent(detail?.selbstklebend) === 'missing') addError(errors, 'selbstklebend', 'Required')
     const origin = parseRequiredString(detail?.herkunft)
-    if (!origin || !LASER_ORIGINS.includes(origin as (typeof LASER_ORIGINS)[number])) addError(errors, 'herkunft', 'Pflichtfeld')
-    if (!parseRequiredString(detail?.motiv)) addError(errors, 'motiv', 'Pflichtfeld')
+    if (!origin || !LASER_ORIGINS.includes(origin as (typeof LASER_ORIGINS)[number])) addError(errors, 'herkunft', 'Required')
+    if (!parseRequiredString(detail?.motiv)) addError(errors, 'motiv', 'Required')
   }
 
   return errors

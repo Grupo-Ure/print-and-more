@@ -17,7 +17,7 @@ function hasAddressData(customer: Customer | null | undefined): boolean {
 }
 
 function validate(name: string): string | null {
-  if (!name.trim()) return 'Name ist erforderlich'
+  if (!name.trim()) return 'Name is required'
   return null
 }
 
@@ -75,7 +75,7 @@ export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
       onSaved(saved as Customer)
     } catch (err) {
       setSaving(false)
-      const msg = err instanceof Error ? err.message : 'Fehler beim Speichern'
+      const msg = err instanceof Error ? err.message : 'Error saving'
       console.error(err)
       setError(msg)
     }
@@ -87,10 +87,10 @@ export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
       style={{ zIndex: 110 }}
       role="dialog"
       aria-modal="true"
-      aria-label={isEditing ? 'Customer bearbeiten' : 'Neuer Customer'}
+      aria-label={isEditing ? 'Edit Customer' : 'New Customer'}
     >
       <div className="cp-modal" style={{ maxWidth: 420 }}>
-        <h3>{isEditing ? 'Customer bearbeiten' : 'Neuer Customer'}</h3>
+        <h3>{isEditing ? 'Edit Customer' : 'New Customer'}</h3>
         {error && (
           <p className="cp-hinweis" style={{ color: '#b91c1c' }}>
             {error}
@@ -108,7 +108,7 @@ export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
           autoFocus
         />
         <label className="cp-hinweis" style={{ display: 'block', marginBottom: 4 }}>
-          E-Mail
+          Email
         </label>
         <input
           type="email"
@@ -118,7 +118,7 @@ export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
           onChange={e => setEmail(e.target.value)}
         />
         <label className="cp-hinweis" style={{ display: 'block', marginBottom: 4 }}>
-          Telefon
+          Phone
         </label>
         <input
           type="text"
@@ -128,7 +128,7 @@ export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
           onChange={e => setTelefon(e.target.value)}
         />
         <label className="cp-hinweis" style={{ display: 'block', marginBottom: 4 }}>
-          Notiz
+          Note
         </label>
         <textarea className="cp-textarea" rows={3} value={notiz} onChange={e => setNotiz(e.target.value)} />
 
@@ -139,13 +139,13 @@ export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
             style={{ width: '100%', textAlign: 'left', fontWeight: 500 }}
             onClick={() => setAddressExpanded(previous => !previous)}
           >
-            {addressExpanded ? 'Adresse ausblenden ▴' : 'Adresse hinzufügen ▾'}
+            {addressExpanded ? 'Hide address ▴' : 'Add address ▾'}
           </button>
         </div>
         {addressExpanded && (
           <div style={{ marginBottom: 10 }}>
             <label className="cp-hinweis" style={{ display: 'block', marginBottom: 4 }}>
-              Straße
+              Street
             </label>
             <input
               type="text"
@@ -155,7 +155,7 @@ export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
               onChange={e => setStrasse(e.target.value)}
             />
             <label className="cp-hinweis" style={{ display: 'block', marginBottom: 4 }}>
-              Hausnummer
+              House No.
             </label>
             <input
               type="text"
@@ -165,7 +165,7 @@ export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
               onChange={e => setHausnummer(e.target.value)}
             />
             <label className="cp-hinweis" style={{ display: 'block', marginBottom: 4 }}>
-              PLZ
+              Postal Code
             </label>
             <input
               type="text"
@@ -175,7 +175,7 @@ export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
               onChange={e => setPlz(e.target.value)}
             />
             <label className="cp-hinweis" style={{ display: 'block', marginBottom: 4 }}>
-              Ort
+              City
             </label>
             <input
               type="text"
@@ -189,10 +189,10 @@ export function CustomerDialog({ kunde, onSaved, onCancel }: Props) {
 
         <div className="cp-modal-bar" style={{ marginTop: 14 }}>
           <button type="button" className="cp-btn" onClick={onCancel} disabled={saving}>
-            Abbrechen
+            Cancel
           </button>
           <button type="button" className="cp-btn" disabled={saving} onClick={() => void handleSave()}>
-            {isEditing ? 'Änderungen speichern' : 'Customer anlegen'}
+            {isEditing ? 'Save changes' : 'Create Customer'}
           </button>
         </div>
       </div>

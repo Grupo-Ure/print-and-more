@@ -21,8 +21,8 @@ export function AddSubOrderOverlay({ open, saving, onDepartmentSelected, onClose
       onClick={e => e.target === e.currentTarget && !saving && onClose()}
     >
       <div className="wa-dialog" onClick={e => e.stopPropagation()}>
-        <h2 id="wa-dialog-title">Neuer Teilauftrag</h2>
-        <p className="wa-hint">Department wählen:</p>
+        <h2 id="wa-dialog-title">New Sub-Order</h2>
+        <p className="wa-hint">Select a department:</p>
         <div className="wa-bereich-grid">
           {SUB_ORDER_DEPARTMENTS.map(department => (
             <button
@@ -38,7 +38,7 @@ export function AddSubOrderOverlay({ open, saving, onDepartmentSelected, onClose
         </div>
         <div className="wa-dialog-foot">
           <button type="button" className="wa-ghost-btn" disabled={saving} onClick={onClose}>
-            Abbrechen
+            Cancel
           </button>
         </div>
       </div>

@@ -5,17 +5,17 @@ import { useToast } from './Toast'
 
 
 const ROLES: { value: FileRole; label: string }[] = [
-  { value: 'PRODUCTION_FILE', label: 'Produktionsdatei' },
-  { value: 'PREVIEW', label: 'Vorschau / Mockup' },
-  { value: 'CUSTOMER_APPROVAL', label: 'Kundenfreigabe' },
-  { value: 'REFERENCE', label: 'Referenz / Altstand' },
+  { value: 'PRODUCTION_FILE', label: 'Production file' },
+  { value: 'PREVIEW', label: 'Preview / Mockup' },
+  { value: 'CUSTOMER_APPROVAL', label: 'Customer approval' },
+  { value: 'REFERENCE', label: 'Reference / Archive' },
 ]
 
 const ROLE_SHORT_LABELS: Record<FileRole, string> = {
-  PRODUCTION_FILE: 'Produkt.',
-  PREVIEW: 'Vorschau',
-  CUSTOMER_APPROVAL: 'Freigabe',
-  REFERENCE: 'Referenz',
+  PRODUCTION_FILE: 'Prod.',
+  PREVIEW: 'Preview',
+  CUSTOMER_APPROVAL: 'Approval',
+  REFERENCE: 'Reference',
 }
 
 type Props = {
@@ -48,7 +48,7 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
       } catch {
         try {
           await navigator.clipboard.writeText(trimmedPath)
-          erfolg('Pfad in Zwischenablage kopiert')
+          erfolg('Path copied to clipboard')
         } catch {
           // clipboard may be blocked by the browser
         }
@@ -63,7 +63,7 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
     const trimmedName = displayName.trim()
     const trimmedPath = path.trim()
     if (!trimmedName || !trimmedPath) {
-      setError('Anzeigename und Pfad sind erforderlich.')
+      setError('Display name and path are required.')
       return
     }
     setSaving(true)
@@ -77,7 +77,7 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
       })
     } catch (err) {
       setSaving(false)
-      setError(err instanceof Error ? err.message : 'Fehler beim Speichern')
+      setError(err instanceof Error ? err.message : 'Error saving')
       return
     }
     setSaving(false)
@@ -97,7 +97,7 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
       await fileService.deleteFile(id)
     } catch (err) {
       setRemovingId(null)
-      setError(err instanceof Error ? err.message : 'Fehler beim Löschen')
+      setError(err instanceof Error ? err.message : 'Error deleting')
       return
     }
     setRemovingId(null)
@@ -107,13 +107,13 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
   return (
     <div className="wa-dl">
       <div className="wa-dl-top">
-        <h3 className="wa-dl-titel">Dateien</h3>
+        <h3 className="wa-dl-titel">Files</h3>
         <button
           type="button"
           className="wa-dl-add"
           onClick={() => setFormOpen(open => !open)}
         >
-          {formOpen ? 'Abbrechen' : '+ Hinzufügen'}
+          {formOpen ? 'Cancel' : '+ Add'}
         </button>
       </div>
       {error && <p className="wa-dl-err">{error}</p>}
@@ -125,27 +125,27 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
               className="ber-inp"
               value={displayName}
               onChange={e => setDisplayName(e.target.value)}
-              placeholder="Anzeigename"
+              placeholder="Display name"
               required
               maxLength={500}
-              aria-label="Anzeigename"
+              aria-label="Display name"
             />
             <input
               className="ber-inp"
               value={path}
               onChange={e => setPath(e.target.value)}
               required
-              placeholder="Pfad (UNC …)"
+              placeholder="Path (UNC…)"
               maxLength={2000}
               title={path}
-              aria-label="Pfad"
+              aria-label="Path"
             />
             <select
               className="ber-inp wa-dl-rolle"
               value={role}
               onChange={e => setRole(e.target.value as FileRole)}
               required
-              aria-label="Rolle"
+              aria-label="Role"
             >
               {ROLES.map(roleOption => (
                 <option key={roleOption.value} value={roleOption.value}>
@@ -153,7 +153,7 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
                 </option>
               ))}
             </select>
-            <button type="submit" className="wa-dl-submit" disabled={saving} title="Hinzufügen">
+            <button type="submit" className="wa-dl-submit" disabled={saving} title="Add">
               {saving ? '…' : '+'}
             </button>
           </div>
@@ -162,11 +162,11 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
 
       {loading ? (
         <p className="ber-hinweis" style={{ fontStyle: 'normal', fontSize: 12, margin: '4px 0' }}>
-          Lädt Dateien …
+          Loading files…
         </p>
       ) : files.length === 0 ? (
         <p className="ber-hinweis" style={{ fontSize: 12, margin: '4px 0' }}>
-          Noch keine Dateien.
+          No files yet.
         </p>
       ) : (
         <ul className="wa-dl-list">
@@ -199,8 +199,8 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
                 className="wa-dl-rm"
                 onClick={() => void handleRemove(file.id)}
                 disabled={removingId === file.id}
-                title="Entfernen"
-                aria-label={`Entfernen: ${file.display_name}`}
+                title="Remove"
+                aria-label={`Remove: ${file.display_name}`}
               >
                 ×
               </button>

@@ -26,13 +26,13 @@ export const LASER_TYPES = [
 /** Discriminator for the kind of laser work, stored in `teilauftraege.typ`. */
 export type LaserType = (typeof LASER_TYPES)[number]
 
-/** German display labels for {@link LaserType}, rendered in dropdowns and tabs. */
+/** Display labels for {@link LaserType}, rendered in dropdowns and tabs. */
 export const LASER_TYPE_LABELS: Record<LaserType, string> = {
-  SCHILD: 'Schild',
-  POKALSCHILD: 'Pokalschild',
-  NAMENSSCHILD: 'Namenschild',
-  GESCHENKARTIKEL: 'Geschenkartikel',
-  SONSTIGE_LASER: 'Sonstige Laser',
+  SCHILD: 'Sign',
+  POKALSCHILD: 'Trophy Plate',
+  NAMENSSCHILD: 'Name Tag',
+  GESCHENKARTIKEL: 'Gift Item',
+  SONSTIGE_LASER: 'Other (Laser)',
 }
 
 /** Material options for sign typen (SCHILD / POKALSCHILD / NAMENSSCHILD). */
@@ -46,13 +46,13 @@ export const LASER_SIGN_MATERIALS = [
 
 export type LaserSignMaterial = (typeof LASER_SIGN_MATERIALS)[number]
 
-/** German display labels for {@link LaserSignMaterial}. */
+/** Display labels for {@link LaserSignMaterial}. */
 export const LASER_SIGN_MATERIAL_LABELS: Record<LaserSignMaterial, string> = {
-  ABS_SW: 'ABS schwarz/weiß',
-  ABS_WS: 'ABS weiß/schwarz',
-  ABS_GS: 'ABS gold/schwarz',
-  ABS_SS: 'ABS silber/schwarz',
-  SONSTIGE: 'Sonstiges',
+  ABS_SW: 'ABS black/white',
+  ABS_WS: 'ABS white/black',
+  ABS_GS: 'ABS gold/black',
+  ABS_SS: 'ABS silver/black',
+  SONSTIGE: 'Other',
 }
 
 /**
@@ -62,10 +62,10 @@ export const LASER_SIGN_MATERIAL_LABELS: Record<LaserSignMaterial, string> = {
 export const LASER_ORIGINS = ['KUNDENMATERIAL', 'EIGENMATERIAL'] as const
 export type LaserOrigin = (typeof LASER_ORIGINS)[number]
 
-/** German display labels for {@link LaserOrigin}. */
+/** Display labels for {@link LaserOrigin}. */
 export const LASER_ORIGIN_LABELS: Record<LaserOrigin, string> = {
-  KUNDENMATERIAL: 'Kundenmaterial',
-  EIGENMATERIAL: 'Eigenmaterial',
+  KUNDENMATERIAL: 'Customer material',
+  EIGENMATERIAL: 'In-house material',
 }
 
 /**

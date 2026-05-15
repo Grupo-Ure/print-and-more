@@ -152,7 +152,7 @@ export function CopyShopDetail({
       try {
         rows = await subOrderProductService.getFilesByProductIds(ids)
       } catch {
-        toastError('FileRecord-Zuordnungen konnten nicht geladen werden')
+        toastError('File assignments could not be loaded')
         setProductFiles({})
         return
       }
@@ -177,7 +177,7 @@ export function CopyShopDetail({
       rows = await subOrderProductService.getProductsBySubOrderId(subOrder.id)
     } catch {
       setProductsLoading(false)
-      toastError('Produkte konnten nicht geladen werden')
+      toastError('Products could not be loaded')
       setProducts([])
       await loadFilesForProducts([])
       return []
@@ -207,7 +207,7 @@ export function CopyShopDetail({
       try {
         await subOrderProductService.assignFileToProduct(productId, fileId)
       } catch {
-        toastError('FileRecord konnte nicht zugeordnet werden')
+        toastError('File could not be assigned')
         return
       }
       await loadFilesForProducts(reloadRows)
@@ -220,7 +220,7 @@ export function CopyShopDetail({
       try {
         await subOrderProductService.removeFileFromProduct(assignmentId)
       } catch {
-        toastError('Zuordnung konnte nicht entfernt werden')
+        toastError('Assignment could not be removed')
         return
       }
       await loadFilesForProducts(productRowsForReload ?? products)
@@ -296,7 +296,7 @@ export function CopyShopDetail({
       try {
         await subOrderProductService.updateProduct(editingId, patch)
       } catch {
-        toastError('Produkt konnte nicht gespeichert werden')
+        toastError('Product could not be saved')
         return
       }
       for (const assignment of [...(productFiles[editingId] ?? [])]) {
@@ -327,7 +327,7 @@ export function CopyShopDetail({
     try {
       insertedRow = await subOrderProductService.createProduct(productInsert)
     } catch {
-      toastError('Produkt konnte nicht hinzugefügt werden')
+      toastError('Product could not be added')
       return
     }
     const newId = insertedRow.id
@@ -364,7 +364,7 @@ export function CopyShopDetail({
       try {
         await subOrderProductService.deleteProduct(id)
       } catch {
-        toastError('Produkt konnte nicht gelöscht werden')
+        toastError('Product could not be deleted')
         return
       }
       const list = await reloadProducts()
@@ -495,10 +495,10 @@ export function CopyShopDetail({
 
   return (
     <div className="ber-lfp">
-      <h3 className="ber-h3">Copy-Shop-Details</h3>
+      <h3 className="ber-h3">Copy Shop Details</h3>
 
       <FieldRow
-        label="Typ"
+        label="Type"
         error={shouldValidate && validationErrors.typ ? validationErrors.typ : undefined}
         content={
           <select
@@ -555,7 +555,7 @@ export function CopyShopDetail({
       {selectedType === 'AUSDRUCK' && <PrintSection {...detailBlock} />}
 
       {orderFiles.length > 0 && (
-        <FieldRow label="Dateien">
+        <FieldRow label="Files">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
             {formFileRecordIds.map(fid => (
               <span
@@ -597,7 +597,7 @@ export function CopyShopDetail({
                 }
               }}
             >
-              <option value="">FileRecord hinzufügen…</option>
+              <option value="">Add file…</option>
               {orderFiles
                 .filter(file => !formFileRecordIds.includes(file.id))
                 .map(file => (
@@ -619,7 +619,7 @@ export function CopyShopDetail({
             if (requiresUnlock) {
               if (
                 window.confirm(
-                  'Teilauftrag ist bereits freigegeben.\nWirklich Produkte bearbeiten?',
+                  'Sub-order is already released.\nReally edit products?',
                 )
               ) {
                 setUnlocked(true)
@@ -630,34 +630,34 @@ export function CopyShopDetail({
           }}
         >
           {requiresUnlock
-            ? 'Bearbeitung entsperren'
+            ? 'Unlock editing'
             : editingId
-              ? 'Speichern'
-              : 'Produkt hinzufügen'}
+              ? 'Save'
+              : 'Add product'}
         </button>
         {editingId && (
           <button type="button" className="cp-btn cp-btn-grau" onClick={() => resetForm()}>
-            Abbrechen
+            Cancel
           </button>
         )}
       </div>
       {unlocked && (
         <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
-          Bearbeitung entsperrt — Änderungen setzen Status zurück
+          Editing unlocked — changes will reset status
         </p>
       )}
 
       <div style={{ borderTop: '1px solid var(--color-border, #e5e7eb)', marginTop: 10, paddingTop: 10 }}>
         <h3 className="wa-dl-titel" style={{ margin: 0 }}>
-          Produkte
+          Products
         </h3>
         {productsLoading ? (
           <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
-            Lädt Produkte …
+            Loading products…
           </p>
         ) : products.length === 0 ? (
           <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
-            Noch keine Produkte.
+            No products yet.
           </p>
         ) : (
           <div style={{ overflowX: 'auto', marginTop: 6 }}>
@@ -665,19 +665,19 @@ export function CopyShopDetail({
               <thead>
                 <tr>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                    Typ
+                    Type
                   </th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                    Stückzahl
+                    Quantity
                   </th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                    Prod.-Weg / Material
+                    Process / Material
                   </th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
                     Format
                   </th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                    Aktionen
+                    Actions
                   </th>
                 </tr>
               </thead>
@@ -708,10 +708,10 @@ export function CopyShopDetail({
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                           <button type="button" className="cp-btn cp-btn-grau" onClick={() => handleEdit(product)}>
-                            Bearbeiten
+                            Edit
                           </button>
                           <button type="button" className="cp-btn cp-btn-rot" onClick={() => void handleDelete(product.id)}>
-                            Löschen
+                            Delete
                           </button>
                         </div>
                         <div
@@ -761,7 +761,7 @@ function QuantityInput(props: DetailBlockProps) {
   const quantity = detail.stueckzahl
   const inputValue = quantity === null || quantity === undefined ? '' : String(quantity)
   return (
-    <FieldRow label="Stückzahl" error={shouldValidate && validationErrors.stueckzahl ? validationErrors.stueckzahl : undefined}>
+    <FieldRow label="Quantity" error={shouldValidate && validationErrors.stueckzahl ? validationErrors.stueckzahl : undefined}>
       <input
         type="number"
         className={'ber-inp' + fieldErrorClass('stueckzahl')}
@@ -784,7 +784,7 @@ function ProductionPathSelect(props: DetailBlockProps) {
   const { detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail } = props
   const productionPath = (detail.produktionsweg as string | null | undefined) ?? ''
   return (
-    <FieldRow label="Produktionsweg" error={shouldValidate && validationErrors.produktionsweg ? validationErrors.produktionsweg : undefined}>
+    <FieldRow label="Process" error={shouldValidate && validationErrors.produktionsweg ? validationErrors.produktionsweg : undefined}>
       <select
         className={'ber-inp' + fieldErrorClass('produktionsweg')}
         value={productionPath}
@@ -794,7 +794,7 @@ function ProductionPathSelect(props: DetailBlockProps) {
         }}
       >
         <option value="">—</option>
-        <option value="COPYSHOP">Copy-Shop</option>
+        <option value="COPYSHOP">Copy Shop</option>
         <option value="OFFSET">Offset</option>
       </select>
     </FieldRow>
@@ -841,8 +841,8 @@ function BooleanSelect(props: DetailBlockProps & { fieldKey: string; label?: str
         }}
       >
         <option value="">—</option>
-        <option value="true">Ja</option>
-        <option value="false">Nein</option>
+        <option value="true">Yes</option>
+        <option value="false">No</option>
       </select>
     </FieldRow>
   )
@@ -886,7 +886,7 @@ function DimensionInputs(props: DetailBlockProps) {
   return (
     <div>
       <div className="ber-zeile">
-        <span className="ber-lbl">Format Breite (mm)</span>
+        <span className="ber-lbl">Width (mm)</span>
         <div>
           <input
             type="number"
@@ -905,7 +905,7 @@ function DimensionInputs(props: DetailBlockProps) {
         </div>
       </div>
       <div className="ber-zeile">
-        <span className="ber-lbl">Format Höhe (mm)</span>
+        <span className="ber-lbl">Height (mm)</span>
         <div>
           <input
             type="number"
@@ -929,7 +929,7 @@ function DimensionInputs(props: DetailBlockProps) {
 }
 
 function NotesField(props: DetailBlockProps) {
-  return <TextField {...props} fieldKey="besonderheiten" label="Besonderheiten" rows={3} />
+  return <TextField {...props} fieldKey="besonderheiten" label="Notes" rows={3} />
 }
 
 function PlakatPoster(props: DetailBlockProps) {
@@ -967,7 +967,7 @@ function PlakatPoster(props: DetailBlockProps) {
               </option>
             )
           })}
-          <option value="FREI">Frei</option>
+          <option value="FREI">Free</option>
         </select>
       </FieldRow>
       <SelectField
@@ -979,11 +979,11 @@ function PlakatPoster(props: DetailBlockProps) {
       <SelectField
         {...props}
         fieldKey="laminat"
-        label="Laminat"
+        label="Laminate"
         options={[
-          { value: 'NEIN', text: 'Nein' },
-          { value: 'MATT', text: 'Matt' },
-          { value: 'GLAENZEND', text: 'Glänzend' },
+          { value: 'NEIN', text: 'No' },
+          { value: 'MATT', text: 'Matte' },
+          { value: 'GLAENZEND', text: 'Glossy' },
         ]}
       />
       {formatStr === 'FREI' && <DimensionInputs {...props} />}
@@ -1026,7 +1026,7 @@ function FormatDinSelect(props: {
           if (formatKey === 'FREI') {
             return (
               <option key="FREI" value="FREI">
-                Frei
+                Free
               </option>
             )
           }
@@ -1047,7 +1047,7 @@ function CardFoldProductionPathSelect({ block }: { block: DetailBlockProps }) {
   const { detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail } = block
   const productionPath = String((detail as Record<string, string>).produktionsweg ?? '')
   return (
-    <FieldRow label="Produktionsweg" error={shouldValidate && validationErrors.produktionsweg ? validationErrors.produktionsweg : undefined}>
+    <FieldRow label="Process" error={shouldValidate && validationErrors.produktionsweg ? validationErrors.produktionsweg : undefined}>
       <select
         className={'ber-inp' + fieldErrorClass('produktionsweg')}
         value={productionPath}
@@ -1063,7 +1063,7 @@ function CardFoldProductionPathSelect({ block }: { block: DetailBlockProps }) {
         <option value="">—</option>
         <option value="CC">CC</option>
         <option value="OFFSET">Offset</option>
-        <option value="OFFEN">Offen</option>
+        <option value="OFFEN">Open</option>
       </select>
     </FieldRow>
   )
@@ -1073,7 +1073,7 @@ function BrochureProductionPathSelect({ block }: { block: DetailBlockProps }) {
   const { detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail } = block
   const productionPath = String((detail as Record<string, string>).produktionsweg ?? '')
   return (
-    <FieldRow label="Produktionsweg" error={shouldValidate && validationErrors.produktionsweg ? validationErrors.produktionsweg : undefined}>
+    <FieldRow label="Process" error={shouldValidate && validationErrors.produktionsweg ? validationErrors.produktionsweg : undefined}>
       <select
         className={'ber-inp' + fieldErrorClass('produktionsweg')}
         value={productionPath}
@@ -1098,7 +1098,7 @@ function BrochureProductionPathSelect({ block }: { block: DetailBlockProps }) {
         <option value="">—</option>
         <option value="CC">CC</option>
         <option value="OFFSET">Offset</option>
-        <option value="OFFEN">Offen</option>
+        <option value="OFFEN">Open</option>
       </select>
     </FieldRow>
   )
@@ -1110,42 +1110,42 @@ function BrochureOffsetFields(props: DetailBlockProps) {
       <SelectField
         {...props}
         fieldKey="brosch_bindung"
-        label="Bindung"
+        label="Binding"
         options={[
-          { value: 'DRAHTHEFTUNG', text: 'Drahtheftung' },
-          { value: 'RINGSÖSEN', text: 'Ringsösen' },
-          { value: 'KLEBEBINDUNG', text: 'Klebebindung' },
-          { value: 'SPIRALBINDUNG', text: 'Spiralbindung' },
+          { value: 'DRAHTHEFTUNG', text: 'Staple binding' },
+          { value: 'RINGSÖSEN', text: 'Ring binder' },
+          { value: 'KLEBEBINDUNG', text: 'Perfect binding' },
+          { value: 'SPIRALBINDUNG', text: 'Spiral binding' },
         ]}
       />
       <SelectField
         {...props}
         fieldKey="brosch_u_gramm"
-        label="Umschlag Grammatur"
+        label="Cover weight"
         options={['135G', '170G', '250G', '300G'].map(weight => ({ value: weight, text: weight }))}
       />
       <SelectField
         {...props}
         fieldKey="brosch_u_ober"
-        label="Umschlag Oberfläche"
+        label="Cover finish"
         options={[
-          { value: 'MATT', text: 'Matt' },
-          { value: 'GLAENZEND', text: 'Glänzend' },
+          { value: 'MATT', text: 'Matte' },
+          { value: 'GLAENZEND', text: 'Glossy' },
         ]}
       />
       <SelectField
         {...props}
         fieldKey="brosch_i_gramm"
-        label="Inhalt Grammatur"
+        label="Content weight"
         options={['90G', '135G', '170G'].map(weight => ({ value: weight, text: weight }))}
       />
       <SelectField
         {...props}
         fieldKey="brosch_i_ober"
-        label="Inhalt Oberfläche"
+        label="Content finish"
         options={[
-          { value: 'MATT', text: 'Matt' },
-          { value: 'GLAENZEND', text: 'Glänzend' },
+          { value: 'MATT', text: 'Matte' },
+          { value: 'GLAENZEND', text: 'Glossy' },
         ]}
       />
     </>
@@ -1157,7 +1157,7 @@ function FoldPageCountInput(props: DetailBlockProps) {
   const pageCount = detail.seitenzahl
   const inputValue = pageCount == null ? '' : String(pageCount)
   return (
-    <FieldRow label="Seitenzahl" error={shouldValidate && validationErrors.seitenzahl ? validationErrors.seitenzahl : undefined}>
+    <FieldRow label="Page count" error={shouldValidate && validationErrors.seitenzahl ? validationErrors.seitenzahl : undefined}>
       <input
         type="number"
         className={'ber-inp' + fieldErrorClass('seitenzahl')}
@@ -1189,7 +1189,7 @@ function BrochurePageCountInput(props: DetailBlockProps) {
   const pageCount = detail.seitenzahl
   const inputValue = pageCount == null ? '' : String(pageCount)
   return (
-    <FieldRow label="Seitenzahl" error={shouldValidate && validationErrors.seitenzahl ? validationErrors.seitenzahl : undefined}>
+    <FieldRow label="Page count" error={shouldValidate && validationErrors.seitenzahl ? validationErrors.seitenzahl : undefined}>
       <input
         type="number"
         className={'ber-inp' + fieldErrorClass('seitenzahl')}
@@ -1225,7 +1225,7 @@ function CardFlyerSection(props: DetailBlockProps) {
       <SelectField
         {...props}
         fieldKey="farbigkeit"
-        label="Farbigkeit"
+        label="Colour mode"
         options={[
           { value: '1_0', text: '1/0' },
           { value: '1_1', text: '1/1' },
@@ -1235,7 +1235,7 @@ function CardFlyerSection(props: DetailBlockProps) {
       />
       <FormatDinSelect din={CARD_DIN} order={CARD_FORMAT_ORDER} block={props} />
       {String(detailRecord.format) === 'FREI' && <DimensionInputs {...props} />}
-      {BooleanSelect({ ...props, fieldKey: 'randabfallend', label: 'Randabfallend' })}
+      {BooleanSelect({ ...props, fieldKey: 'randabfallend', label: 'Bleed' })}
       <CardFoldProductionPathSelect block={props} />
       {productionPath === 'CC' && (
         <MaterialCC
@@ -1266,7 +1266,7 @@ function FoldFlyerSection(props: DetailBlockProps) {
       <SelectField
         {...props}
         fieldKey="farbigkeit"
-        label="Farbigkeit"
+        label="Colour mode"
         options={[
           { value: '1_1', text: '1/1' },
           { value: '4_4', text: '4/4' },
@@ -1275,17 +1275,17 @@ function FoldFlyerSection(props: DetailBlockProps) {
       <SelectField
         {...props}
         fieldKey="falzart"
-        label="Falzart"
+        label="Fold type"
         options={[
-          { value: 'MITTELFALZ', text: 'Mittelfalz' },
-          { value: 'WICKELFALZ', text: 'Wickelfalz' },
-          { value: 'ZICKZACK', text: 'Zick-Zack-Falz' },
+          { value: 'MITTELFALZ', text: 'Centre fold' },
+          { value: 'WICKELFALZ', text: 'Roll fold' },
+          { value: 'ZICKZACK', text: 'Z-fold' },
         ]}
       />
       <FormatDinSelect din={FOLD_DIN as Record<string, { b: number; h: number }>} order={FOLD_FORMAT_ORDER} block={props} />
       {String(detailRecord.format) === 'FREI' && <DimensionInputs {...props} />}
       <FoldPageCountInput {...props} />
-      {BooleanSelect({ ...props, fieldKey: 'randabfallend', label: 'Randabfallend' })}
+      {BooleanSelect({ ...props, fieldKey: 'randabfallend', label: 'Bleed' })}
       <CardFoldProductionPathSelect block={props} />
       {productionPath === 'CC' && (
         <MaterialCC
@@ -1316,7 +1316,7 @@ function BrochureSection(props: DetailBlockProps) {
     <>
       <FormatDinSelect din={BROCHURE_DIN} order={BROCHURE_FORMAT_ORDER} block={props} />
       <FieldRow
-        label="Ausrichtung"
+        label="Orientation"
         error={shouldValidate && (validationErrors.orientierung || validationErrors.brosch_quer_cc) ? validationErrors.orientierung || validationErrors.brosch_quer_cc : undefined}
       >
         <select
@@ -1327,15 +1327,15 @@ function BrochureSection(props: DetailBlockProps) {
           }
         >
           <option value="">—</option>
-          <option value="HOCHFORMAT">Hochformat</option>
-          <option value="QUERFORMAT">Querformat</option>
+          <option value="HOCHFORMAT">Portrait</option>
+          <option value="QUERFORMAT">Landscape</option>
         </select>
       </FieldRow>
       <BrochurePageCountInput {...props} />
       <BrochureProductionPathSelect block={props} />
       {productionPath === 'CC' && (
         <>
-          <p className="ber-hinweis">Bindung: Drahtheftung (fix)</p>
+          <p className="ber-hinweis">Binding: Staple binding (fixed)</p>
           <MaterialCC
             detail={detail}
             fieldErrorClass={props.fieldErrorClass}
@@ -1346,7 +1346,7 @@ function BrochureSection(props: DetailBlockProps) {
             applyDetail={props.applyDetail}
             materialKey="cc_umschlag"
             customKey="cc_umschlag_sonstige"
-            label="Umschlag"
+            label="Cover"
           />
           <MaterialCC
             detail={detail}
@@ -1358,12 +1358,12 @@ function BrochureSection(props: DetailBlockProps) {
             applyDetail={props.applyDetail}
             materialKey="cc_inhalt"
             customKey="cc_inhalt_sonstige"
-            label="Inhalt"
+            label="Content"
           />
         </>
       )}
       {(productionPath === 'OFFSET' || productionPath === 'OFFEN') && <BrochureOffsetFields {...props} />}
-      {BooleanSelect({ ...props, fieldKey: 'randabfallend', label: 'Randabfallend' })}
+      {BooleanSelect({ ...props, fieldKey: 'randabfallend', label: 'Bleed' })}
       <NotesField {...props} />
     </>
   )
@@ -1383,22 +1383,22 @@ function BusinessCardSection(props: DetailBlockProps) {
         options={[
           { value: 'STANDARD_85_55', text: '85 × 55 mm (Standard)' },
           { value: 'STANDARD_90_50', text: '90 × 50 mm' },
-          { value: 'FREI', text: 'Frei' },
+          { value: 'FREI', text: 'Free' },
         ]}
       />
       <SelectField
         {...props}
         fieldKey="orientierung"
-        label="Ausrichtung"
+        label="Orientation"
         options={[
-          { value: 'HOCHFORMAT', text: 'Hochformat' },
-          { value: 'QUERFORMAT', text: 'Querformat' },
+          { value: 'HOCHFORMAT', text: 'Portrait' },
+          { value: 'QUERFORMAT', text: 'Landscape' },
         ]}
       />
       <SelectField
         {...props}
         fieldKey="farbigkeit"
-        label="Farbigkeit"
+        label="Colour mode"
         options={[
           { value: '4_0', text: '4/0' },
           { value: '4_4', text: '4/4' },
@@ -1424,17 +1424,17 @@ function BusinessCardSection(props: DetailBlockProps) {
           ))}
         </select>
       </FieldRow>
-      {material === '350G_OFFSET' && BooleanSelect({ ...props, fieldKey: 'folienkaschiert', label: 'Beidseitig Folienkaschiert matt' })}
+      {material === '350G_OFFSET' && BooleanSelect({ ...props, fieldKey: 'folienkaschiert', label: 'Double-sided matte laminate' })}
       {material === 'MULTILOFT' && (
         <SelectField
           {...props}
           fieldKey="multiloft_farbkern"
-          label="Farbkern"
+          label="Colour core"
           options={MULTILOFT_FARBKERNE.map(colorCore => ({ value: colorCore.wert, text: colorCore.anzeige }))}
         />
       )}
       {format === 'FREI' && <DimensionInputs {...props} />}
-      {BooleanSelect({ ...props, fieldKey: 'randabfallend', label: 'Randabfallend' })}
+      {BooleanSelect({ ...props, fieldKey: 'randabfallend', label: 'Bleed' })}
       <NotesField {...props} />
     </>
   )
@@ -1449,7 +1449,7 @@ function BindingFreeDimensions(props: DetailBlockProps) {
   return (
     <div>
       <div className="ber-zeile">
-        <span className="ber-lbl">Format Breite (mm)</span>
+        <span className="ber-lbl">Width (mm)</span>
         <div>
           <input
             type="number"
@@ -1468,7 +1468,7 @@ function BindingFreeDimensions(props: DetailBlockProps) {
         </div>
       </div>
       <div className="ber-zeile">
-        <span className="ber-lbl">Format Höhe (mm)</span>
+        <span className="ber-lbl">Height (mm)</span>
         <div>
           <input
             type="number"
@@ -1501,23 +1501,23 @@ function BindingColorSelect(
   let colorOptions: { value: string; text: string }[] = []
   if (bindungsart === 'WIRE_O') {
     colorOptions = [
-      { value: 'SCHWARZ', text: 'Schwarz' },
-      { value: 'SILBER', text: 'Silber' },
+      { value: 'SCHWARZ', text: 'Black' },
+      { value: 'SILBER', text: 'Silver' },
     ]
   } else if (bindungsart === 'KUNSTSTOFFSPIRALE') {
     colorOptions = [
-      { value: 'SCHWARZ', text: 'Schwarz' },
-      { value: 'WEISS', text: 'Weiß' },
+      { value: 'SCHWARZ', text: 'Black' },
+      { value: 'WEISS', text: 'White' },
     ]
   } else if (bindungsart === 'SOFTCOVER' || bindungsart === 'HARDCOVER') {
     colorOptions = [
-      { value: 'SCHWARZ', text: 'Schwarz' },
-      { value: 'DUNKELBLAU', text: 'Dunkelblau' },
-      { value: 'DUNKELROT', text: 'Dunkelrot' },
+      { value: 'SCHWARZ', text: 'Black' },
+      { value: 'DUNKELBLAU', text: 'Dark blue' },
+      { value: 'DUNKELROT', text: 'Dark red' },
     ]
   }
   return (
-    <FieldRow label="Bindungsfarbe" error={shouldValidate && validationErrors.bindungsart_farbe ? validationErrors.bindungsart_farbe : undefined}>
+    <FieldRow label="Binding colour" error={shouldValidate && validationErrors.bindungsart_farbe ? validationErrors.bindungsart_farbe : undefined}>
       <select
         className={'ber-inp' + fieldErrorClass('bindungsart_farbe')}
         value={String((detail as Record<string, string>).bindungsart_farbe ?? '')}
@@ -1570,11 +1570,11 @@ function BindingSection(props: DetailBlockProps) {
           ))}
         </select>
       </FieldRow>
-      {detailRecord.material === 'SONSTIGE' && <TextField {...props} fieldKey="material_sonstige" label="Material (sonstige)" rows={2} />}
+      {detailRecord.material === 'SONSTIGE' && <TextField {...props} fieldKey="material_sonstige" label="Material (other)" rows={2} />}
       <SelectField
         {...props}
         fieldKey="farbigkeit"
-        label="Farbigkeit"
+        label="Colour mode"
         options={[
           { value: '1_0', text: '1/0' },
           { value: '1_1', text: '1/1' },
@@ -1582,7 +1582,7 @@ function BindingSection(props: DetailBlockProps) {
           { value: '4_1', text: '4/1' },
         ]}
       />
-      <FieldRow label="Bindungsart" error={shouldValidate && validationErrors.bindungsart ? validationErrors.bindungsart : undefined}>
+      <FieldRow label="Binding type" error={shouldValidate && validationErrors.bindungsart ? validationErrors.bindungsart : undefined}>
         <select
           className={'ber-inp' + fieldErrorClass('bindungsart')}
           value={bindingType}
@@ -1617,7 +1617,7 @@ function BindingSection(props: DetailBlockProps) {
         >
           <option value="">—</option>
           <option value="WIRE_O">Wire-O</option>
-          <option value="KUNSTSTOFFSPIRALE">Kunststoffspirale</option>
+          <option value="KUNSTSTOFFSPIRALE">Plastic coil</option>
           <option value="SOFTCOVER">Softcover</option>
           <option value="HARDCOVER">Hardcover</option>
         </select>
@@ -1655,7 +1655,7 @@ function BindingSection(props: DetailBlockProps) {
             <option value="A5">A5</option>
             <option value="A4">A4</option>
             <option value="A3">A3</option>
-            <option value="FREI">Frei</option>
+            <option value="FREI">Free</option>
           </select>
         </FieldRow>
       ) : null}
@@ -1664,28 +1664,28 @@ function BindingSection(props: DetailBlockProps) {
         <SelectField
           {...props}
           fieldKey="orientierung"
-          label="Ausrichtung"
+          label="Orientation"
           options={[
-            { value: 'HOCHFORMAT', text: 'Hochformat' },
-            { value: 'QUERFORMAT', text: 'Querformat' },
+            { value: 'HOCHFORMAT', text: 'Portrait' },
+            { value: 'QUERFORMAT', text: 'Landscape' },
           ]}
         />
       ) : wireFormat === 'A3' ? (
-        <FieldRow label="Ausrichtung" content={<span className="td-wert">Querformat (fix)</span>} />
+        <FieldRow label="Orientation" content={<span className="td-wert">Landscape (fixed)</span>} />
       ) : null) : null}
 
       {bindingType === 'WIRE_O' || bindingType === 'KUNSTSTOFFSPIRALE' ? (wireFormat === 'FREI' ? <BindingFreeDimensions {...props} /> : null) : null}
 
       {bindingType === 'SOFTCOVER' || bindingType === 'HARDCOVER' ? (
-        <FieldRow label="Format" content={<span className="td-wert">A4 Hochformat (210 × 297 mm)</span>} />
+        <FieldRow label="Format" content={<span className="td-wert">A4 Portrait (210 × 297 mm)</span>} />
       ) : null}
 
-      {BooleanSelect({ ...props, fieldKey: 'randabfallend', label: 'Randabfallend' })}
+      {BooleanSelect({ ...props, fieldKey: 'randabfallend', label: 'Bleed' })}
 
       {bindingType === 'HARDCOVER' && (
         <>
-          {BooleanSelect({ ...props, fieldKey: 'hardcover_druck', label: 'Druck auf Hardcover' })}
-          {detail.hardcover_druck === true && <TextField {...props} fieldKey="hardcover_einband" label="Hardcover Einband" rows={2} />}
+          {BooleanSelect({ ...props, fieldKey: 'hardcover_druck', label: 'Print on hardcover' })}
+          {detail.hardcover_druck === true && <TextField {...props} fieldKey="hardcover_einband" label="Hardcover cover" rows={2} />}
         </>
       )}
 
@@ -1734,7 +1734,7 @@ function PrintSection(props: DetailBlockProps) {
       <SelectField
         {...props}
         fieldKey="farbigkeit"
-        label="Farbigkeit"
+        label="Colour mode"
         options={[
           { value: '1_0', text: '1/0' },
           { value: '1_1', text: '1/1' },
@@ -1745,22 +1745,22 @@ function PrintSection(props: DetailBlockProps) {
       <SelectField
         {...props}
         fieldKey="lochen"
-        label="Lochen"
+        label="Punching"
         options={[
-          { value: 'NEIN', text: 'Nein' },
-          { value: '2_LOCH', text: '2 Loch' },
-          { value: '4_LOCH', text: '4 Loch' },
+          { value: 'NEIN', text: 'No' },
+          { value: '2_LOCH', text: '2 holes' },
+          { value: '4_LOCH', text: '4 holes' },
         ]}
       />
-      {BooleanSelect({ ...props, fieldKey: 'heften', label: 'Heften' })}
+      {BooleanSelect({ ...props, fieldKey: 'heften', label: 'Staple' })}
       <SelectField
         {...props}
         fieldKey="laminieren"
-        label="Laminieren"
+        label="Laminate"
         options={[
-          { value: 'NEIN', text: 'Nein' },
-          { value: 'MATT', text: 'Matt' },
-          { value: 'GLAENZEND', text: 'Glänzend' },
+          { value: 'NEIN', text: 'No' },
+          { value: 'MATT', text: 'Matte' },
+          { value: 'GLAENZEND', text: 'Glossy' },
         ]}
       />
       <NotesField {...props} />

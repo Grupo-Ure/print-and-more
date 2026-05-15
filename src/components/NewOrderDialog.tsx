@@ -63,7 +63,7 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
       const data = await customerService.searchCustomers(trimmedQuery)
       setSearchResults(data as Customer[])
     } catch {
-      toastFehler('Customernsuche fehlgeschlagen')
+      toastFehler('Customer search failed')
       setSearchResults([])
     }
     setSearchLoading(false)
@@ -89,7 +89,7 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
       }
     } catch {
       setEditingCustomer(false)
-      toastFehler('Customer konnte nicht geladen werden')
+      toastFehler('Customer could not be loaded')
     }
   }
 
@@ -115,7 +115,7 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
       data = await orderService.createOrder(auftragInsert as Parameters<typeof orderService.createOrder>[0]) as unknown as NewOrderInsertRow
     } catch (err) {
       setCreating(false)
-      setError(err instanceof Error ? err.message : 'Fehler beim Erstellen')
+      setError(err instanceof Error ? err.message : 'Error creating order')
       return
     }
     setCreating(false)
@@ -126,8 +126,8 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
         event_type: 'ORDER_CREATED',
       })
     } catch {
-      console.error('Historie AUFTRAG_ERSTELLT fehlgeschlagen')
-      toastFehler('Auftrag angelegt, aber Verlaufseintrag fehlgeschlagen')
+      console.error('History ORDER_CREATED failed')
+      toastFehler('Order created, but history entry failed')
     }
   }
 
@@ -135,9 +135,9 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
 
   return (
     <>
-      <div className="cp-modal-bg" role="dialog" aria-modal="true" aria-label="Neuer Auftrag">
+      <div className="cp-modal-bg" role="dialog" aria-modal="true" aria-label="New Order">
         <div className="cp-modal" style={{ maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}>
-          <h3>Neuer Auftrag</h3>
+          <h3>New Order</h3>
           {error && (
             <p className="cp-hinweis" style={{ color: '#b91c1c' }}>
               {error}
@@ -153,11 +153,11 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
                 type="search"
                 className="ber-inp"
                 style={{ width: '100%', boxSizing: 'border-box', marginBottom: 8 }}
-                placeholder="Customernsuche …"
+                placeholder="Search customer…"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
               />
-              {searchLoading && <p className="cp-hinweis">Suche…</p>}
+              {searchLoading && <p className="cp-hinweis">Searching…</p>}
               <div
                 style={{
                   border: '1px solid #e5e5e5',
@@ -169,7 +169,7 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
               >
                 {searchResults.length === 0 && !searchLoading && searchQuery.trim() && (
                   <p className="cp-hinweis" style={{ padding: 8, margin: 0 }}>
-                    Keine Treffer
+                    No results
                   </p>
                 )}
                 {searchResults.map(customer => (
@@ -192,7 +192,7 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
                 ))}
               </div>
               <button type="button" className="cp-btn" onClick={() => { setCustomerForForm(null); setCustomerSubDialog('neu') }}>
-                + Neuer Customer
+                + New Customer
               </button>
             </>
           )}
@@ -221,7 +221,7 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
                     disabled={editingCustomer}
                     onClick={() => { void openEditCustomer() }}
                   >
-                    {editingCustomer ? '…' : 'Ändern'}
+                    {editingCustomer ? '…' : 'Edit'}
                   </button>
                   <button
                     type="button"
@@ -229,7 +229,7 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
                     style={{ width: 'auto' }}
                     onClick={() => setSelectedCustomer(null)}
                   >
-                    Andere wählen
+                    Change
                   </button>
                 </div>
               </div>
@@ -238,7 +238,7 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
 
           <div className="cp-modal-bar" style={{ marginTop: 16 }}>
             <button type="button" className="cp-btn" onClick={onClose} disabled={creating}>
-              Abbrechen
+              Cancel
             </button>
             <button
               type="button"
@@ -246,7 +246,7 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
               disabled={!selectedCustomer || creating}
               onClick={() => void handleCreateOrder()}
             >
-              Auftrag anlegen
+              Create Order
             </button>
           </div>
         </div>

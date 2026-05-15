@@ -59,12 +59,12 @@ function normalizeSubOrderDeadline(value: string | null | undefined): string | n
 
 function subOrderStatusBadge(status: OrderStatus): { cls: string; label: string } {
   const statusMap: Record<OrderStatus, { cls: string; label: string }> = {
-    QUOTE: { cls: 'badge-grau', label: 'ANGEBOT' },
-    INCOMPLETE: { cls: 'badge-orange', label: 'UNVOLLSTAENDIG' },
-    PREPRESS_READY: { cls: 'badge-blau', label: 'PREPRESS_BEREIT' },
-    PRODUCTION_READY: { cls: 'badge-lila', label: 'PRODUKTION_BEREIT' },
-    DONE: { cls: 'badge-gruen', label: 'FERTIG' },
-    INVOICED: { cls: 'badge-grau', label: 'Abgerechnet' },
+    QUOTE: { cls: 'badge-grau', label: 'Quote' },
+    INCOMPLETE: { cls: 'badge-orange', label: 'Incomplete' },
+    PREPRESS_READY: { cls: 'badge-blau', label: 'PrePress Ready' },
+    PRODUCTION_READY: { cls: 'badge-lila', label: 'Production Ready' },
+    DONE: { cls: 'badge-gruen', label: 'Done' },
+    INVOICED: { cls: 'badge-grau', label: 'Invoiced' },
   }
   return statusMap[status] ?? { cls: 'badge-grau', label: status }
 }
@@ -163,7 +163,7 @@ export function SubOrderDetail({
         row = await subOrderService.updateSubOrder(subOrder.id, subOrderUpdate)
       } catch {
         setSavePending(false)
-        fehler('Speichern fehlgeschlagen')
+        fehler('Save failed')
         return
       }
       setSavePending(false)
@@ -173,7 +173,7 @@ export function SubOrderDetail({
       onUpdated(row)
       if (row.status === 'PREPRESS_READY' && previousStatus !== 'PREPRESS_READY') {
         const pdfOk = await generateAndDownloadPdf(subOrder.id, subOrder.order_id)
-        if (!pdfOk) fehler('PDF konnte nicht erstellt werden')
+        if (!pdfOk) fehler('PDF could not be generated')
       }
     },
     [orderDeliveryMode, subOrder.id, subOrder.order_id, orderStatus, onUpdated, customerMeetsPrepressRequirements, fehler]
@@ -273,7 +273,7 @@ export function SubOrderDetail({
           onUpdated(row)
         } catch {
           if (!alive) return
-          fehler('Speichern fehlgeschlagen')
+          fehler('Save failed')
         }
       })()
     }, 300)
@@ -298,7 +298,7 @@ export function SubOrderDetail({
           onUpdated(row)
         } catch {
           if (!alive) return
-          fehler('Speichern fehlgeschlagen')
+          fehler('Save failed')
         }
       })()
     }, 300)
@@ -324,7 +324,7 @@ export function SubOrderDetail({
           onUpdated(row)
         } catch {
           if (!alive) return
-          fehler('Speichern fehlgeschlagen')
+          fehler('Save failed')
         }
       })()
     }, 300)
@@ -338,7 +338,7 @@ export function SubOrderDetail({
 
   return (
     <div className="td">
-      <div className="td-kopf" aria-label="Teilauftrag">
+      <div className="td-kopf" aria-label="Sub-order">
         <span className="td-bkz">[{departmentAbbreviation(local.department)}]</span>
         <span className={`badge ${statusBadge.cls}`}>
           {statusBadge.label}
@@ -352,15 +352,15 @@ export function SubOrderDetail({
           local.department === 'COPYSHOP' ||
           (local.department === 'STAMP' && local.type !== 'SONSTIGE_STEMPEL') ||
           (local.department === 'LASER_ENGRAVING' && local.type !== 'SONSTIGE_LASER')) && (
-          <p className="ber-hinweis">Für Auto-PREPRESS: Kunde braucht Name und E-Mail oder Telefon.</p>
+          <p className="ber-hinweis">For auto-PREPRESS: Customer needs name and email or phone.</p>
         )}
 
       <h2 className="sec-h2" style={{ marginTop: 8 }}>
-        Allgemein
+        General
       </h2>
       <div className="ber-grid-2">
         <div className="ber-zeile-stack">
-          <span className="ber-lbl">Lieferdatum</span>
+          <span className="ber-lbl">Delivery date</span>
           <div>
             <label className="cp-toggle" style={{ marginTop: 4 }}>
               <input
@@ -386,7 +386,7 @@ export function SubOrderDetail({
                   }
                 }}
               />
-              <span>Separates Lieferdatum</span>
+              <span>Separate delivery date</span>
             </label>
             {separateDeadline && (
               <div style={{ marginTop: 8 }}>
@@ -412,7 +412,7 @@ export function SubOrderDetail({
           </div>
         </div>
         <div className="ber-zeile-stack">
-          <span className="ber-lbl">Lieferart</span>
+          <span className="ber-lbl">Delivery type</span>
           <div>
             <label className="cp-toggle" style={{ marginTop: 4 }}>
               <input
@@ -429,7 +429,7 @@ export function SubOrderDetail({
                   }
                 }}
               />
-              <span>Separate Lieferart</span>
+              <span>Separate delivery type</span>
             </label>
             {hasSeparateDelivery ? (
               <div style={{ marginTop: 8 }}>
@@ -445,14 +445,14 @@ export function SubOrderDetail({
                     if (value !== serverSnapshotRef.current.delivery) void save({ delivery: value })
                   }}
                 >
-                  <option value="PICKUP">Abholung</option>
-                  <option value="SHIPPING">Versand</option>
+                  <option value="PICKUP">Pickup</option>
+                  <option value="SHIPPING">Shipping</option>
                 </select>
                 {shouldValidate && validationErrors.lieferung && <p className="td-feld-err">{validationErrors.lieferung}</p>}
               </div>
             ) : (
               <div className="cp-hinweis" style={{ marginTop: 6, marginBottom: 0 }}>
-                {effectiveDelivery === 'PICKUP' ? 'Abholung' : 'Versand'}
+                {effectiveDelivery === 'PICKUP' ? 'Pickup' : 'Shipping'}
                 {shouldValidate && validationErrors.lieferung && <p className="td-feld-err">{validationErrors.lieferung}</p>}
               </div>
             )}
@@ -460,7 +460,7 @@ export function SubOrderDetail({
         </div>
       </div>
       <div className="ber-zeile-stack" style={{ marginTop: 0, maxWidth: '22rem' }}>
-        <span className="ber-lbl">Priorität</span>
+        <span className="ber-lbl">Priority</span>
         <div>
           <label className="cp-toggle" style={{ marginTop: 4 }}>
             <input
@@ -476,7 +476,7 @@ export function SubOrderDetail({
                 }
               }}
             />
-            <span>Separate Priorität</span>
+            <span>Separate priority</span>
           </label>
           {hasSeparatePriority ? (
             <div style={{ marginTop: 8 }}>
@@ -495,20 +495,20 @@ export function SubOrderDetail({
                 }}
               >
                 <option value="NORMAL">Normal</option>
-                <option value="HIGH">Hoch</option>
+                <option value="HIGH">High</option>
               </select>
               {shouldValidate && validationErrors.prioritaet && <p className="td-feld-err">{validationErrors.prioritaet}</p>}
             </div>
           ) : (
             <div className="cp-hinweis" style={{ marginTop: 6, marginBottom: 0 }}>
-              {effectivePriority === 'HIGH' ? 'Hoch' : 'Normal'}
+              {effectivePriority === 'HIGH' ? 'High' : 'Normal'}
               {shouldValidate && validationErrors.prioritaet && <p className="td-feld-err">{validationErrors.prioritaet}</p>}
             </div>
           )}
         </div>
       </div>
       <div className="ber-zeile-stack" style={{ marginBottom: 6, maxWidth: '16rem' }}>
-        <span className="ber-lbl">Satzzeit (min)</span>
+        <span className="ber-lbl">Typesetting time (min)</span>
         <div>
           <input
             type="number"
@@ -572,11 +572,11 @@ export function SubOrderDetail({
         local.department !== 'TEXTILE' && (
         <>
           <div className="td-zeile" style={{ marginTop: 8 }}>
-            <p className="td-label">Typ</p>
+            <p className="td-label">Type</p>
             <p className="td-wert td-mono">{local.type?.trim() ? local.type : '—'}</p>
           </div>
           <p className="wa-hint" style={{ marginTop: 8 }}>
-            Bereich {subOrderDepartmentLabel(local.department)}: Detailmaske folgt (analog LFP).
+            Department {subOrderDepartmentLabel(local.department)}: detail form coming soon (like LFP).
           </p>
         </>
       )}

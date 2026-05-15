@@ -106,7 +106,7 @@ export function WorkArea({
       setFiles(data)
     } catch {
       setFiles([])
-      toastFehler('Dateien konnten nicht geladen werden')
+      toastFehler('Files could not be loaded')
     }
   }, [activeOrderId, toastFehler])
 
@@ -143,8 +143,8 @@ export function WorkArea({
         if (isStale()) return
 
         if (!orderData) {
-          setError('Auftrag nicht gefunden')
-          toastFehler('Auftrag konnte nicht geladen werden')
+          setError('Order not found')
+          toastFehler('Order could not be loaded')
           setOrder(null)
           setSubOrders([])
           setActiveSubOrderId(null)
@@ -162,7 +162,7 @@ export function WorkArea({
       } catch (err) {
         if (isStale()) return
         setError(err instanceof Error ? err.message : String(err))
-        toastFehler('Auftrag konnte nicht geladen werden')
+        toastFehler('Order could not be loaded')
         setOrder(null)
         setSubOrders([])
         setActiveSubOrderId(null)
@@ -211,7 +211,7 @@ export function WorkArea({
           priority: updatedOrder.priority,
         }
       } catch {
-        toastFehler('Auftrag konnte nicht gespeichert werden')
+        toastFehler('Order could not be saved')
       }
     },
     [activeOrderId, onOrderFromWorkArea, onOrderCustomerLoaded, toastFehler]
@@ -287,7 +287,7 @@ export function WorkArea({
     setError(null)
     const user = await authService.getUser()
     if (!user?.id) {
-      setError('Nicht angemeldet')
+      setError('Not logged in')
       setSaving(false)
       return
     }
@@ -319,7 +319,7 @@ export function WorkArea({
       })
     } catch (err) {
       setSaving(false)
-      setError(err instanceof Error ? err.message : 'Fehler beim Erstellen')
+      setError(err instanceof Error ? err.message : 'Error creating sub-order')
       return
     }
     setSaving(false)
@@ -336,7 +336,7 @@ export function WorkArea({
       setOrder(current => (current ? { ...current, status: statusResult.status } : current))
       onOrderUpdated({ ...order, status: statusResult.status })
     } catch {
-      toastFehler('Auftragsstatus konnte nicht aktualisiert werden')
+      toastFehler('Order status could not be updated')
       const refreshed = await orderService.getOrderById(order.id)
       if (refreshed) {
         setOrder(refreshed as OrderDetailRow)
@@ -349,7 +349,7 @@ export function WorkArea({
   if (!activeOrderId) {
     return (
       <div className="work-area work-area--empty">
-        <p className="wa-hint">Wählen Sie links einen Auftrag aus, um Details und Teilaufträge zu bearbeiten.</p>
+        <p className="wa-hint">Select an order on the left to view details and sub-orders.</p>
       </div>
     )
   }
@@ -357,7 +357,7 @@ export function WorkArea({
   if (loading) {
     return (
       <div className="work-area work-area--empty">
-        <p className="wa-laden">Lädt Auftrag …</p>
+        <p className="wa-laden">Loading order…</p>
       </div>
     )
   }
@@ -373,7 +373,7 @@ export function WorkArea({
   if (!order) {
     return (
       <div className="work-area work-area--empty">
-        <p className="wa-hint">Auftrag nicht gefunden.</p>
+        <p className="wa-hint">Order not found.</p>
       </div>
     )
   }
@@ -418,8 +418,8 @@ export function WorkArea({
               className="wa-gear"
               style={{ marginLeft: 0 }}
               onClick={onEditCustomer}
-              title="Kunde bearbeiten"
-              aria-label="Kunde bearbeiten"
+              title="Edit customer"
+              aria-label="Edit customer"
             >
               <span className="wa-gear-ico" aria-hidden>
                 ⚙
@@ -448,8 +448,8 @@ export function WorkArea({
 
       {error && <p className="wa-fehler">{error}</p>}
 
-      <section className="work-area__meta" aria-label="Auftrags-Meta">
-        <label className="meta-pill" title="Termin">
+      <section className="work-area__meta" aria-label="Order meta">
+        <label className="meta-pill" title="Deadline">
           <span aria-hidden>📅</span>
           <DateInput
             value={headerDeadline}
@@ -463,7 +463,7 @@ export function WorkArea({
             }}
           />
         </label>
-        <label className="meta-pill" title="Lieferung">
+        <label className="meta-pill" title="Delivery">
           <span aria-hidden>🚚</span>
           <select
             value={headerDelivery}
@@ -477,11 +477,11 @@ export function WorkArea({
             }}
           >
             <option value="">—</option>
-            <option value="PICKUP">Abholung</option>
-            <option value="SHIPPING">Versand</option>
+            <option value="PICKUP">Pickup</option>
+            <option value="SHIPPING">Shipping</option>
           </select>
         </label>
-        <label className="meta-pill" title="Priorität">
+        <label className="meta-pill" title="Priority">
           <span className="wa-prio-glyph" aria-hidden>
             {priorityGlyph(headerPriority)}
           </span>
@@ -498,12 +498,12 @@ export function WorkArea({
             }}
           >
             <option value="NORMAL">Normal</option>
-            <option value="HIGH">Hoch</option>
+            <option value="HIGH">High</option>
           </select>
         </label>
       </section>
 
-      <div className="work-area__tabs" role="tablist" aria-label="Teilaufträge">
+      <div className="work-area__tabs" role="tablist" aria-label="Sub-orders">
         {visibleSubOrders.map(subOrder => {
           const isActive = subOrder.id === activeSubOrderId
           const abbreviation = departmentAbbreviation(subOrder.department)
@@ -535,7 +535,7 @@ export function WorkArea({
           type="button"
           className="tab-add-btn"
           onClick={() => setOverlayOpen(true)}
-          aria-label="Teilauftrag hinzufügen"
+          aria-label="Add sub-order"
         >
           +
         </button>
@@ -554,7 +554,7 @@ export function WorkArea({
             onUpdated={handleSubOrderUpdated}
           />
         ) : (
-          <p className="wa-hint">Noch keine Teilaufträge. Nutzen Sie +, um einen Department anzulegen.</p>
+          <p className="wa-hint">No sub-orders yet. Use + to add a department.</p>
         )}
       </div>
 

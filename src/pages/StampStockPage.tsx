@@ -19,11 +19,11 @@ type StampType =
 
 const STAMP_TYPE_LABELS: Record<StampType, string> = {
   TRODAT_PRINTY: 'Trodat Printy',
-  HOLZSTEMPEL: 'Holzstempel',
-  STATIVSTEMPEL: 'Stativstempel',
-  DATUMSSTEMPEL: 'Datumsstempel',
-  STEMPELKISSEN_PRODUKT: 'Stempelkissen',
-  TRODAT_KISSEN: 'Trodat Kissen',
+  HOLZSTEMPEL: 'Wooden Stamp',
+  STATIVSTEMPEL: 'Tripod Stamp',
+  DATUMSSTEMPEL: 'Date Stamp',
+  STEMPELKISSEN_PRODUKT: 'Stamp Pad',
+  TRODAT_KISSEN: 'Trodat Pad',
 }
 
 function typeLabel(type: string): string {
@@ -41,7 +41,7 @@ const STAMP_TYPE_FILTER_OPTIONS: { value: StampType; label: string }[] = [
 
 function formatNetRetailPrice(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value)) return '—'
-  return new Intl.NumberFormat('de-DE', {
+  return new Intl.NumberFormat('en-GB', {
     style: 'currency',
     currency: 'EUR',
     minimumFractionDigits: 2,
@@ -52,10 +52,10 @@ function formatNetRetailPrice(value: number | null | undefined): string {
 type StampColorDb = 'SCHWARZ' | 'ROT' | 'BLAU' | 'GRUEN'
 
 const STAMP_COLOR_LABELS: Record<StampColorDb, string> = {
-  SCHWARZ: 'Schwarz',
-  ROT: 'Rot',
-  BLAU: 'Blau',
-  GRUEN: 'Grün',
+  SCHWARZ: 'Black',
+  ROT: 'Red',
+  BLAU: 'Blue',
+  GRUEN: 'Green',
 }
 
 function colorLabel(colorCode: string | null | undefined): string {
@@ -158,7 +158,7 @@ function errorToString(e: unknown): string {
   try {
     return JSON.stringify(e)
   } catch {
-    return 'Unbekannter Fehler'
+    return 'Unknown error'
   }
 }
 
@@ -182,9 +182,9 @@ function joinName(rawValue: unknown): string {
 function statusInfo(model: StampModelRow): { cls: string; label: string; rank: number } {
   const stock = model.stock ?? 0
   const minimumStock = model.min_stock ?? 0
-  if (stock <= 0) return { cls: 'badge-rot', label: 'Leer', rank: 0 }
-  if (stock < minimumStock) return { cls: 'badge-rot', label: 'Nachbestellen', rank: 0 }
-  if (stock === minimumStock) return { cls: 'badge-orange', label: 'Minimum', rank: 1 }
+  if (stock <= 0) return { cls: 'badge-rot', label: 'Out of stock', rank: 0 }
+  if (stock < minimumStock) return { cls: 'badge-rot', label: 'Reorder', rank: 0 }
+  if (stock === minimumStock) return { cls: 'badge-orange', label: 'At minimum', rank: 1 }
   return { cls: 'badge-gruen', label: 'OK', rank: 2 }
 }
 
@@ -231,7 +231,7 @@ export function StampStockPage() {
         setStaffEmailById(emailMap)
       },
       () => {
-        if (alive) showError('Mitarbeiterdaten konnten nicht geladen werden')
+        if (alive) showError('Staff data could not be loaded')
       },
     )
     return () => {
@@ -240,7 +240,7 @@ export function StampStockPage() {
   }, [showError, session])
 
   // ------------------------------------------------------------
-  // Tab 1: Übersicht
+  // Tab 1: Overview
   // ------------------------------------------------------------
   const [models, setModels] = useState<StampModelRow[]>([])
   const [modelsLoading, setModelsLoading] = useState(false)
@@ -276,7 +276,7 @@ export function StampStockPage() {
       })
       setModels(modelList)
     } catch (e) {
-      showError('Daten konnten nicht geladen werden')
+      showError('Data could not be loaded')
       setModels([])
       setModelsError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -374,13 +374,13 @@ export function StampStockPage() {
     setBookingErrors(prev => ({ ...prev, [model.id]: null }))
     const quantity = parseInt(rawQuantity, 10)
     if (!Number.isInteger(quantity) || quantity < 1) {
-      setBookingErrors(prev => ({ ...prev, [model.id]: 'Menge: ganze Zahl ≥ 1' }))
+      setBookingErrors(prev => ({ ...prev, [model.id]: 'Quantity: integer ≥ 1' }))
       return
     }
     const stockDelta = movementType === 'ZUGANG' ? quantity : -quantity
     const nextStock = (model.stock ?? 0) + stockDelta
     if (nextStock < 0) {
-      setBookingErrors(prev => ({ ...prev, [model.id]: 'Menge überschreitet aktuellen Bestand' }))
+      setBookingErrors(prev => ({ ...prev, [model.id]: 'Quantity exceeds current stock' }))
       return
     }
     setBookingBusyId(model.id)
@@ -396,7 +396,7 @@ export function StampStockPage() {
       setModels(list => list.map(stampModel => (stampModel.id === model.id ? { ...stampModel, stock: nextStock } : stampModel)))
       setBookingQuantity(prev => ({ ...prev, [model.id]: '' }))
     } catch (e) {
-      showError('Buchung fehlgeschlagen')
+      showError('Booking failed')
       setBookingErrors(prev => ({ ...prev, [model.id]: e instanceof Error ? e.message : String(e) }))
     } finally {
       setBookingBusyId(null)
@@ -412,14 +412,14 @@ export function StampStockPage() {
     try {
       await stampService.updateStampModelMinimumStock(model.id, minimumValue)
     } catch {
-      showError('Bestand konnte nicht aktualisiert werden')
+      showError('Stock could not be updated')
       return
     }
     setModels(list => list.map(stampModel => (stampModel.id === model.id ? { ...stampModel, min_stock: minimumValue } : stampModel)))
   }
 
   // ------------------------------------------------------------
-  // Tab 2: Bewegungen
+  // Tab 2: Movements
   // ------------------------------------------------------------
   const [movements, setMovements] = useState<StockMovementRow[]>([])
   const [movementsLoading, setMovementsLoading] = useState(false)
@@ -434,7 +434,7 @@ export function StampStockPage() {
       const data = await stampService.getStockMovements()
       setMovements(data as unknown as StockMovementRow[])
     } catch (e) {
-      showError('Daten konnten nicht geladen werden')
+      showError('Data could not be loaded')
       setMovements([])
       setMovementsError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -461,7 +461,7 @@ export function StampStockPage() {
   }, [movements, movementSearch, movementTypeFilter])
 
   // ------------------------------------------------------------
-  // Tab 3: Bestellliste
+  // Tab 3: Reorder list
   // ------------------------------------------------------------
   const [orderListRows, setOrderListRows] = useState<OrderListRow[]>([])
   const [orderListLoading, setOrderListLoading] = useState(false)
@@ -509,7 +509,7 @@ export function StampStockPage() {
       orderRows.sort((a, b) => b.bestellmenge - a.bestellmenge)
       setOrderListRows(orderRows)
     } catch (e) {
-      showError('Daten konnten nicht geladen werden')
+      showError('Data could not be loaded')
       setOrderListRows([])
       setOrderListError(errorToString(e))
     } finally {
@@ -525,7 +525,7 @@ export function StampStockPage() {
   }, [session, tab])
 
   const orderListClipboardText = useMemo(() => {
-    const header = 'Artikelnummer | Name | Farbe | Menge'
+    const header = 'Article number | Name | Colour | Quantity'
     const body = orderListRows
       .map(orderRow => {
         const art = orderListCell(orderRow.article_number, '—')
@@ -543,7 +543,7 @@ export function StampStockPage() {
       setOrderListCopied(true)
       window.setTimeout(() => setOrderListCopied(false), 2000)
     } catch {
-      showError('Kopieren fehlgeschlagen')
+      showError('Copy failed')
     }
   }
 
@@ -557,7 +557,7 @@ export function StampStockPage() {
   return (
     <div style={{ padding: 20, maxWidth: 1200, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <h1 style={{ margin: 0, fontSize: 18 }}>Stempel — Bestandspflege</h1>
+        <h1 style={{ margin: 0, fontSize: 18 }}>Stamp — Stock Management</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 13, opacity: 0.85 }}>{userEmail}</span>
           <button type="button" className="cp-btn cp-btn-grau" onClick={() => void logout()}>
@@ -572,21 +572,21 @@ export function StampStockPage() {
           className={tab === 'OVERVIEW' ? 'cp-btn' : 'cp-btn cp-btn-grau'}
           onClick={() => setTab('OVERVIEW')}
         >
-          Übersicht
+          Overview
         </button>
         <button
           type="button"
           className={tab === 'MOVEMENTS' ? 'cp-btn' : 'cp-btn cp-btn-grau'}
           onClick={() => setTab('MOVEMENTS')}
         >
-          Bewegungen
+          Movements
         </button>
         <button
           type="button"
           className={tab === 'ORDER_LIST' ? 'cp-btn' : 'cp-btn cp-btn-grau'}
           onClick={() => setTab('ORDER_LIST')}
         >
-          Bestellliste
+          Reorder list
         </button>
       </div>
 
@@ -596,10 +596,10 @@ export function StampStockPage() {
             <input
               type="search"
               className="cp-select"
-              placeholder="Name oder Artikelnummer…"
+              placeholder="Name or article number…"
               value={overviewSearch}
               onChange={e => setOverviewSearch(e.target.value)}
-              aria-label="Suche Name oder Artikelnummer"
+              aria-label="Search name or article number"
               style={{ minWidth: 220, maxWidth: 320 }}
             />
             <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
@@ -608,7 +608,7 @@ export function StampStockPage() {
                 checked={filterReorderOnly}
                 onChange={e => setFilterReorderOnly(e.target.checked)}
               />
-              Nur Nachbestellen
+              Only reorder
             </label>
             <select
               className="cp-select"
@@ -633,9 +633,9 @@ export function StampStockPage() {
                 value={filterColor}
                 onChange={e => setFilterColor(e.target.value)}
                 style={{ maxWidth: 200 }}
-                aria-label="Filter Farbe"
+                aria-label="Filter colour"
               >
-                <option value="ALL">Alle Farben</option>
+                <option value="ALL">All colours</option>
                 {(Object.keys(STAMP_COLOR_LABELS) as StampColorDb[]).map(colorKey => (
                   <option key={colorKey} value={colorKey}>
                     {STAMP_COLOR_LABELS[colorKey]}
@@ -644,12 +644,12 @@ export function StampStockPage() {
               </select>
             )}
             <button type="button" className="cp-btn cp-btn-grau" onClick={() => void loadModels()} disabled={modelsLoading}>
-              Neu laden
+              Refresh
             </button>
           </div>
 
           {modelsError && <p style={{ color: '#b91c1c' }}>{modelsError}</p>}
-          {modelsLoading && <p style={{ opacity: 0.8 }}>Lädt…</p>}
+          {modelsLoading && <p style={{ opacity: 0.8 }}>Loading…</p>}
 
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -658,51 +658,51 @@ export function StampStockPage() {
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer', userSelect: 'none' }}
                     onClick={() => toggleSort('name')}
-                    title="Sortieren"
+                    title="Sort"
                   >
                     Name{sorting?.key === 'name' ? (sorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer', userSelect: 'none' }}
                     onClick={() => toggleSort('color')}
-                    title="Sortieren"
+                    title="Sort"
                   >
-                    Farbe{sorting?.key === 'color' ? (sorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
+                    Colour{sorting?.key === 'color' ? (sorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer', userSelect: 'none' }}
                     onClick={() => toggleSort('print_area')}
-                    title="Sortieren"
+                    title="Sort"
                   >
-                    Druckfläche{sorting?.key === 'print_area' ? (sorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
+                    Print area{sorting?.key === 'print_area' ? (sorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer', userSelect: 'none' }}
                     onClick={() => toggleSort('type')}
-                    title="Sortieren"
+                    title="Sort"
                   >
                     Typ{sorting?.key === 'type' ? (sorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer', userSelect: 'none' }}
                     onClick={() => toggleSort('stock')}
-                    title="Sortieren"
+                    title="Sort"
                   >
-                    Bestand{sorting?.key === 'stock' ? (sorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
+                    Stock{sorting?.key === 'stock' ? (sorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer', userSelect: 'none' }}
                     onClick={() => toggleSort('min_stock')}
-                    title="Sortieren"
+                    title="Sort"
                   >
-                    Mindestbestand
+                    Min. stock
                     {sorting?.key === 'min_stock' ? (sorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
                   <th style={{ padding: '8px 6px' }}>VK-Preis</th>
                   <th
                     style={{ padding: '8px 6px', cursor: 'pointer', userSelect: 'none' }}
                     onClick={() => toggleSort('status')}
-                    title="Sortieren"
+                    title="Sort"
                   >
                     Status{sorting?.key === 'status' ? (sorting.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </th>
@@ -770,7 +770,7 @@ export function StampStockPage() {
                               style={{ width: 34, padding: '6px 0', textAlign: 'center' }}
                               disabled={inboundDisabled}
                               onClick={() => void bookMovement(model, 'ZUGANG')}
-                              title="Zugang buchen"
+                              title="Book stock in"
                             >
                               +
                             </button>
@@ -780,7 +780,7 @@ export function StampStockPage() {
                               style={{ width: 34, padding: '6px 0', textAlign: 'center' }}
                               disabled={outboundDisabled}
                               onClick={() => void bookMovement(model, 'ABGANG')}
-                              title="Abgang buchen"
+                              title="Book stock out"
                             >
                               -
                             </button>
@@ -810,36 +810,36 @@ export function StampStockPage() {
               }}
               style={{ maxWidth: 220 }}
             >
-              <option value="ALL">Alle</option>
-              <option value="ZUGANG">Zugang</option>
-              <option value="ABGANG">Abgang</option>
-              <option value="AUTOABGANG">Auto-Abgang</option>
+              <option value="ALL">All</option>
+              <option value="ZUGANG">Stock in</option>
+              <option value="ABGANG">Stock out</option>
+              <option value="AUTOABGANG">Auto stock-out</option>
             </select>
             <input
               type="text"
               className="cp-select"
-              placeholder="Modell suchen…"
+              placeholder="Search model…"
               value={movementSearch}
               onChange={e => setMovementSearch(e.target.value)}
               style={{ minWidth: 280 }}
             />
             <button type="button" className="cp-btn cp-btn-grau" onClick={() => void loadMovements()} disabled={movementsLoading}>
-              Neu laden
+              Refresh
             </button>
           </div>
 
           {movementsError && <p style={{ color: '#b91c1c' }}>{movementsError}</p>}
-          {movementsLoading && <p style={{ opacity: 0.8 }}>Lädt…</p>}
+          {movementsLoading && <p style={{ opacity: 0.8 }}>Loading…</p>}
 
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>
-                  <th style={{ padding: '8px 6px' }}>Datum</th>
-                  <th style={{ padding: '8px 6px' }}>Modell</th>
-                  <th style={{ padding: '8px 6px' }}>Typ</th>
-                  <th style={{ padding: '8px 6px' }}>Menge</th>
-                  <th style={{ padding: '8px 6px' }}>Notiz</th>
+                  <th style={{ padding: '8px 6px' }}>Date</th>
+                  <th style={{ padding: '8px 6px' }}>Model</th>
+                  <th style={{ padding: '8px 6px' }}>Type</th>
+                  <th style={{ padding: '8px 6px' }}>Quantity</th>
+                  <th style={{ padding: '8px 6px' }}>Note</th>
                   <th style={{ padding: '8px 6px' }}>Person</th>
                 </tr>
               </thead>
@@ -847,10 +847,10 @@ export function StampStockPage() {
                 {filteredMovements.map(movement => {
                   const movementBadge =
                     movement.type === 'ZUGANG'
-                      ? { cls: 'badge-gruen', label: 'Zugang' }
+                      ? { cls: 'badge-gruen', label: 'Stock in' }
                       : movement.type === 'ABGANG'
-                      ? { cls: 'badge-grau', label: 'Abgang' }
-                      : { cls: 'badge-blau', label: 'Auto-Abgang' }
+                      ? { cls: 'badge-grau', label: 'Stock out' }
+                      : { cls: 'badge-blau', label: 'Auto stock-out' }
                   const personEmail = movement.user_id ? staffEmailById.get(movement.user_id) ?? movement.user_id : ''
                   return (
                     <tr key={movement.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
@@ -880,7 +880,7 @@ export function StampStockPage() {
               onClick={() => void loadOrderList()}
               disabled={orderListLoading}
             >
-              Aktualisieren
+              Refresh
             </button>
             <button
               type="button"
@@ -888,19 +888,19 @@ export function StampStockPage() {
               onClick={() => void copyOrderList()}
               disabled={orderListLoading || orderListRows.length === 0}
             >
-              Kopieren
+              Copy
             </button>
             {orderListCopied && (
-              <span style={{ fontSize: 13, color: '#15803d' }}>In Zwischenablage kopiert</span>
+              <span style={{ fontSize: 13, color: '#15803d' }}>Copied to clipboard</span>
             )}
           </div>
 
           {orderListError && <p style={{ color: '#b91c1c' }}>{orderListError}</p>}
-          {orderListLoading && <p style={{ opacity: 0.8 }}>Lädt…</p>}
+          {orderListLoading && <p style={{ opacity: 0.8 }}>Loading…</p>}
 
           {!orderListLoading && !orderListError && orderListRows.length === 0 && (
             <p style={{ margin: '12px 0', color: '#15803d', fontWeight: 600 }}>
-              Alles auf Lager — keine Bestellung nötig
+              All in stock — no reorder needed
             </p>
           )}
 
@@ -910,13 +910,13 @@ export function StampStockPage() {
                 <thead>
                   <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>
                     <th style={{ padding: '8px 6px' }}>Name</th>
-                    <th style={{ padding: '8px 6px' }}>Artikelnummer</th>
-                    <th style={{ padding: '8px 6px' }}>Typ</th>
-                    <th style={{ padding: '8px 6px' }}>Farbe</th>
-                    <th style={{ padding: '8px 6px' }}>Bestand</th>
-                    <th style={{ padding: '8px 6px' }}>Offene Aufträge</th>
-                    <th style={{ padding: '8px 6px' }}>Mindestbestand</th>
-                    <th style={{ padding: '8px 6px' }}>Bestellen</th>
+                    <th style={{ padding: '8px 6px' }}>Article number</th>
+                    <th style={{ padding: '8px 6px' }}>Type</th>
+                    <th style={{ padding: '8px 6px' }}>Colour</th>
+                    <th style={{ padding: '8px 6px' }}>Stock</th>
+                    <th style={{ padding: '8px 6px' }}>Open orders</th>
+                    <th style={{ padding: '8px 6px' }}>Min. stock</th>
+                    <th style={{ padding: '8px 6px' }}>Order</th>
                   </tr>
                 </thead>
                 <tbody>

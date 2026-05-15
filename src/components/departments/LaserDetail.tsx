@@ -108,7 +108,7 @@ export function LaserDetail({
       try {
         rows = await subOrderProductService.getFilesByProductIds(ids)
       } catch {
-        toastError('FileRecord-Zuordnungen konnten nicht geladen werden')
+        toastError('File assignments could not be loaded')
         setProductFiles({})
         return
       }
@@ -133,7 +133,7 @@ export function LaserDetail({
       rows = await subOrderProductService.getProductsBySubOrderId(subOrder.id)
     } catch {
       setProductsLoading(false)
-      toastError('Produkte konnten nicht geladen werden')
+      toastError('Products could not be loaded')
       setProducts([])
       await loadFilesForProducts([])
       return []
@@ -163,7 +163,7 @@ export function LaserDetail({
       try {
         await subOrderProductService.assignFileToProduct(productId, fileId)
       } catch {
-        toastError('FileRecord konnte nicht zugeordnet werden')
+        toastError('File could not be assigned')
         return
       }
       await loadFilesForProducts(reloadRows)
@@ -176,7 +176,7 @@ export function LaserDetail({
       try {
         await subOrderProductService.removeFileFromProduct(assignmentId)
       } catch {
-        toastError('Zuordnung konnte nicht entfernt werden')
+        toastError('Assignment could not be removed')
         return
       }
       await loadFilesForProducts(productRowsForReload ?? products)
@@ -262,7 +262,7 @@ export function LaserDetail({
       try {
         await subOrderProductService.updateProduct(editingId, patch)
       } catch {
-        toastError('Produkt konnte nicht gespeichert werden')
+        toastError('Product could not be saved')
         return
       }
       for (const assignment of [...(productFiles[editingId] ?? [])]) {
@@ -293,7 +293,7 @@ export function LaserDetail({
     try {
       insertedRow = await subOrderProductService.createProduct(productInsert)
     } catch {
-      toastError('Produkt konnte nicht hinzugefügt werden')
+      toastError('Product could not be added')
       return
     }
     const newId = insertedRow.id
@@ -330,7 +330,7 @@ export function LaserDetail({
       try {
         await subOrderProductService.deleteProduct(id)
       } catch {
-        toastError('Produkt konnte nicht gelöscht werden')
+        toastError('Product could not be deleted')
         return
       }
       const list = await reloadProducts()
@@ -361,13 +361,13 @@ export function LaserDetail({
 
   return (
     <div className="ber-lfp">
-      <h3 className="ber-h3">Lasergravur-Details</h3>
+      <h3 className="ber-h3">Laser Engraving Details</h3>
       {selectedType === 'SONSTIGE_LASER' && (
-        <p className="ber-hinweis">Bei &apos;Sonstige Laser&apos; wird PREPRESS_BEREIT nur manuell gesetzt.</p>
+        <p className="ber-hinweis">For &apos;Other (Laser)&apos;, PREPRESS_READY is set manually only.</p>
       )}
 
       <FieldRow
-        label="Typ"
+        label="Type"
         error={shouldValidate && validationErrors.typ ? validationErrors.typ : undefined}
         content={
           <select
@@ -406,13 +406,13 @@ export function LaserDetail({
       <TextField
         {...detailBlock}
         fieldKey="besonderheiten"
-        label="Besonderheiten (optional)"
+        label="Notes (optional)"
         rows={3}
         optional
       />
 
       {orderFiles.length > 0 && (
-        <FieldRow label="Dateien">
+        <FieldRow label="Files">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
             {formFileRecordIds.map(fid => (
               <span
@@ -435,7 +435,7 @@ export function LaserDetail({
                   type="button"
                   className="cp-btn cp-btn-grau"
                   style={{ minWidth: 22, padding: '0 6px', fontSize: 14, lineHeight: 1 }}
-                  title="Entfernen"
+                  title="Remove"
                   onClick={() => setFormFileRecordIds(prev => prev.filter(id => id !== fid))}
                 >
                   ×
@@ -454,7 +454,7 @@ export function LaserDetail({
                 }
               }}
             >
-              <option value="">FileRecord hinzufügen…</option>
+              <option value="">Add file…</option>
               {orderFiles
                 .filter(file => !formFileRecordIds.includes(file.id))
                 .map(file => (
@@ -476,7 +476,7 @@ export function LaserDetail({
             if (requiresUnlock) {
               if (
                 window.confirm(
-                  'Teilauftrag ist bereits freigegeben.\nWirklich Produkte bearbeiten?',
+                  'Sub-order is already released.\nReally edit products?',
                 )
               ) {
                 setUnlocked(true)
@@ -487,34 +487,34 @@ export function LaserDetail({
           }}
         >
           {requiresUnlock
-            ? 'Bearbeitung entsperren'
+            ? 'Unlock editing'
             : editingId
-              ? 'Speichern'
-              : 'Produkt hinzufügen'}
+              ? 'Save'
+              : 'Add product'}
         </button>
         {editingId && (
           <button type="button" className="cp-btn cp-btn-grau" onClick={() => resetForm()}>
-            Abbrechen
+            Cancel
           </button>
         )}
       </div>
       {unlocked && (
         <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
-          Bearbeitung entsperrt — Änderungen setzen Status zurück
+          Editing unlocked — changes will reset status
         </p>
       )}
 
       <div style={{ borderTop: '1px solid var(--color-border, #e5e7eb)', marginTop: 10, paddingTop: 10 }}>
         <h3 className="wa-dl-titel" style={{ margin: 0 }}>
-          Produkte
+          Products
         </h3>
         {productsLoading ? (
           <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
-            Lädt Produkte …
+            Loading products…
           </p>
         ) : products.length === 0 ? (
           <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
-            Noch keine Produkte.
+            No products yet.
           </p>
         ) : (
           <div style={{ overflowX: 'auto', marginTop: 6 }}>
@@ -522,19 +522,19 @@ export function LaserDetail({
               <thead>
                 <tr>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                    Typ
+                    Type
                   </th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                    Stückzahl
+                    Quantity
                   </th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
                     Material
                   </th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                    Beschreibung
+                    Description
                   </th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                    Aktionen
+                    Actions
                   </th>
                 </tr>
               </thead>
@@ -561,10 +561,10 @@ export function LaserDetail({
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                           <button type="button" className="cp-btn cp-btn-grau" onClick={() => handleEdit(product)}>
-                            Bearbeiten
+                            Edit
                           </button>
                           <button type="button" className="cp-btn cp-btn-rot" onClick={() => void handleDelete(product.id)}>
-                            Löschen
+                            Delete
                           </button>
                         </div>
                         <div
@@ -619,7 +619,7 @@ function QuantityInput(props: DetailBlockProps) {
     if (Number.isInteger(parsed) && parsed >= 1) numForInput = parsed
   }
   return (
-    <FieldRow label="Stückzahl" error={shouldValidate && validationErrors.stueckzahl ? validationErrors.stueckzahl : undefined}>
+    <FieldRow label="Quantity" error={shouldValidate && validationErrors.stueckzahl ? validationErrors.stueckzahl : undefined}>
       <input
         type="number"
         className={'ber-inp' + fieldErrorClass('stueckzahl')}
@@ -651,8 +651,8 @@ function BooleanSelect(props: DetailBlockProps & { fieldKey: string; label: stri
         }}
       >
         <option value="">—</option>
-        <option value="true">Ja</option>
-        <option value="false">Nein</option>
+        <option value="true">Yes</option>
+        <option value="false">No</option>
       </select>
     </FieldRow>
   )
@@ -698,7 +698,7 @@ function DimensionInputsMm(props: DetailBlockProps) {
   return (
     <div>
       <div className="ber-zeile">
-        <span className="ber-lbl">Format Breite (mm)</span>
+        <span className="ber-lbl">Width (mm)</span>
         <div>
           <input
             type="number"
@@ -718,7 +718,7 @@ function DimensionInputsMm(props: DetailBlockProps) {
         </div>
       </div>
       <div className="ber-zeile">
-        <span className="ber-lbl">Format Höhe (mm)</span>
+        <span className="ber-lbl">Height (mm)</span>
         <div>
           <input
             type="number"
@@ -777,7 +777,7 @@ function SignGroup({ props, signType }: { props: DetailBlockProps; signType: str
                 <input
                   type="text"
                   className={'ber-inp' + fieldErrorClass('material_sonstige')}
-                  placeholder="Material (Freitext)"
+                  placeholder="Material (free text)"
                   value={String(detailRecord.material_sonstige ?? '')}
                   onChange={e => patchLocal({ material_sonstige: e.target.value || null } as LaserDetailJson)}
                   onBlur={commit}
@@ -788,9 +788,9 @@ function SignGroup({ props, signType }: { props: DetailBlockProps; signType: str
         }
       />
       <DimensionInputsMm {...props} />
-      {BooleanSelect({ ...props, fieldKey: 'ecken_runden', label: 'Ecken runden' })}
-      {signType !== 'NAMENSSCHILD' && BooleanSelect({ ...props, fieldKey: 'selbstklebend', label: 'Selbstklebend' })}
-      <TextField {...props} fieldKey="motiv" label="Motiv / Inhalt" rows={5} />
+      {BooleanSelect({ ...props, fieldKey: 'ecken_runden', label: 'Round corners' })}
+      {signType !== 'NAMENSSCHILD' && BooleanSelect({ ...props, fieldKey: 'selbstklebend', label: 'Self-adhesive' })}
+      <TextField {...props} fieldKey="motiv" label="Motif / Content" rows={5} />
     </>
   )
 }
@@ -802,7 +802,7 @@ function GiftGroup({ props }: { props: DetailBlockProps }) {
     <>
       <TextField {...props} fieldKey="material_freitext" label="Material" rows={2} />
       <FieldRow
-        label="Herkunft"
+        label="Origin"
         error={shouldValidate && validationErrors.herkunft ? validationErrors.herkunft : undefined}
         content={
           <select
@@ -821,7 +821,7 @@ function GiftGroup({ props }: { props: DetailBlockProps }) {
           </select>
         }
       />
-      <TextField {...props} fieldKey="motiv" label="Motiv / Inhalt" rows={5} />
+      <TextField {...props} fieldKey="motiv" label="Motif / Content" rows={5} />
     </>
   )
 }
@@ -832,9 +832,9 @@ function OtherLaserGroup({ props }: { props: DetailBlockProps }) {
   return (
     <>
       <TextField {...props} fieldKey="material_freitext" label="Material (optional)" optional rows={2} />
-      {BooleanSelect({ ...props, fieldKey: 'selbstklebend', label: 'Selbstklebend' })}
+      {BooleanSelect({ ...props, fieldKey: 'selbstklebend', label: 'Self-adhesive' })}
       <FieldRow
-        label="Herkunft"
+        label="Origin"
         error={shouldValidate && validationErrors.herkunft ? validationErrors.herkunft : undefined}
         content={
           <select
@@ -853,7 +853,7 @@ function OtherLaserGroup({ props }: { props: DetailBlockProps }) {
           </select>
         }
       />
-      <TextField {...props} fieldKey="motiv" label="Motiv / Inhalt" rows={5} />
+      <TextField {...props} fieldKey="motiv" label="Motif / Content" rows={5} />
     </>
   )
 }

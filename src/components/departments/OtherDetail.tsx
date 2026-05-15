@@ -94,7 +94,7 @@ export function OtherDetail({
       try {
         rows = await subOrderProductService.getFilesByProductIds(ids)
       } catch {
-        toastError('FileRecord-Zuordnungen konnten nicht geladen werden')
+        toastError('File assignments could not be loaded')
         setProductFiles({})
         return
       }
@@ -119,7 +119,7 @@ export function OtherDetail({
       rows = await subOrderProductService.getProductsBySubOrderId(subOrder.id)
     } catch {
       setProductsLoading(false)
-      toastError('Produkte konnten nicht geladen werden')
+      toastError('Products could not be loaded')
       setProducts([])
       await loadFilesForProducts([])
       return []
@@ -149,7 +149,7 @@ export function OtherDetail({
       try {
         await subOrderProductService.assignFileToProduct(productId, fileId)
       } catch {
-        toastError('FileRecord konnte nicht zugeordnet werden')
+        toastError('File could not be assigned')
         return
       }
       await loadFilesForProducts(reloadRows)
@@ -162,7 +162,7 @@ export function OtherDetail({
       try {
         await subOrderProductService.removeFileFromProduct(assignmentId)
       } catch {
-        toastError('Zuordnung konnte nicht entfernt werden')
+        toastError('Assignment could not be removed')
         return
       }
       await loadFilesForProducts(productRowsForReload ?? products)
@@ -236,7 +236,7 @@ export function OtherDetail({
       try {
         await subOrderProductService.updateProduct(editingId, patch)
       } catch {
-        toastError('Produkt konnte nicht gespeichert werden')
+        toastError('Product could not be saved')
         return
       }
       for (const assignment of [...(productFiles[editingId] ?? [])]) {
@@ -267,7 +267,7 @@ export function OtherDetail({
     try {
       insertedRow = await subOrderProductService.createProduct(productInsert)
     } catch {
-      toastError('Produkt konnte nicht hinzugefügt werden')
+      toastError('Product could not be added')
       return
     }
     const newId = insertedRow.id
@@ -305,7 +305,7 @@ export function OtherDetail({
       try {
         await subOrderProductService.deleteProduct(id)
       } catch {
-        toastError('Produkt konnte nicht gelöscht werden')
+        toastError('Product could not be deleted')
         return
       }
       const list = await reloadProducts()
@@ -331,18 +331,18 @@ export function OtherDetail({
 
   return (
     <div className="ber-lfp">
-      <h3 className="ber-h3">Sonstige — Details</h3>
-      <p className="ber-hinweis">Bei &apos;Sonstige&apos; wird PREPRESS_BEREIT nur manuell gesetzt.</p>
+      <h3 className="ber-h3">Other — Details</h3>
+      <p className="ber-hinweis">For &apos;Other&apos;, PREPRESS_READY is set manually only.</p>
 
       <div className="ber-zeile" style={{ marginBottom: 8 }}>
-        <span className="ber-lbl">Typ</span>
+        <span className="ber-lbl">Type</span>
         <p className="td-wert td-mono" style={{ margin: 0 }}>
           {SONSTIGE_TYPE}
         </p>
       </div>
 
       <FieldRow
-        label="Beschreibung / Inhalt"
+        label="Description / Content"
         error={shouldValidate && validationErrors.beschreibung ? validationErrors.beschreibung : undefined}
         content={
           <div>
@@ -354,7 +354,7 @@ export function OtherDetail({
               onBlur={commit}
             />
             <p className="ber-hinweis" style={{ marginTop: 6, marginBottom: 0 }}>
-              Änderungen nach Produktionsfreigabe setzen den Status zurück
+              Changes after production release will reset the status
             </p>
           </div>
         }
@@ -363,7 +363,7 @@ export function OtherDetail({
       <OptionalQuantityInput {...detailBlock} />
 
       {orderFiles.length > 0 && (
-        <FieldRow label="Dateien">
+        <FieldRow label="Files">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
             {formFileRecordIds.map(fid => (
               <span
@@ -386,7 +386,7 @@ export function OtherDetail({
                   type="button"
                   className="cp-btn cp-btn-grau"
                   style={{ minWidth: 22, padding: '0 6px', fontSize: 14, lineHeight: 1 }}
-                  title="Entfernen"
+                  title="Remove"
                   onClick={() => setFormFileRecordIds(prev => prev.filter(id => id !== fid))}
                 >
                   ×
@@ -405,7 +405,7 @@ export function OtherDetail({
                 }
               }}
             >
-              <option value="">FileRecord hinzufügen…</option>
+              <option value="">Add file…</option>
               {orderFiles
                 .filter(file => !formFileRecordIds.includes(file.id))
                 .map(file => (
@@ -427,7 +427,7 @@ export function OtherDetail({
             if (requiresUnlock) {
               if (
                 window.confirm(
-                  'Teilauftrag ist bereits freigegeben.\nWirklich Produkte bearbeiten?',
+                  'Sub-order is already released.\nReally edit products?',
                 )
               ) {
                 setUnlocked(true)
@@ -438,34 +438,34 @@ export function OtherDetail({
           }}
         >
           {requiresUnlock
-            ? 'Bearbeitung entsperren'
+            ? 'Unlock editing'
             : editingId
-              ? 'Speichern'
-              : 'Produkt hinzufügen'}
+              ? 'Save'
+              : 'Add product'}
         </button>
         {editingId && (
           <button type="button" className="cp-btn cp-btn-grau" onClick={() => resetForm()}>
-            Abbrechen
+            Cancel
           </button>
         )}
       </div>
       {unlocked && (
         <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
-          Bearbeitung entsperrt — Änderungen setzen Status zurück
+          Editing unlocked — changes will reset status
         </p>
       )}
 
       <div style={{ borderTop: '1px solid var(--color-border, #e5e7eb)', marginTop: 10, paddingTop: 10 }}>
         <h3 className="wa-dl-titel" style={{ margin: 0 }}>
-          Produkte
+          Products
         </h3>
         {productsLoading ? (
           <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
-            Lädt Produkte …
+            Loading products…
           </p>
         ) : products.length === 0 ? (
           <p className="ber-hinweis" style={{ fontSize: 12, margin: '6px 0 0' }}>
-            Noch keine Produkte.
+            No products yet.
           </p>
         ) : (
           <div style={{ overflowX: 'auto', marginTop: 6 }}>
@@ -473,16 +473,16 @@ export function OtherDetail({
               <thead>
                 <tr>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                    Typ
+                    Type
                   </th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                    Stückzahl
+                    Quantity
                   </th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                    Beschreibung
+                    Description
                   </th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                    Aktionen
+                    Actions
                   </th>
                 </tr>
               </thead>
@@ -505,10 +505,10 @@ export function OtherDetail({
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                           <button type="button" className="cp-btn cp-btn-grau" onClick={() => handleEdit(product)}>
-                            Bearbeiten
+                            Edit
                           </button>
                           <button type="button" className="cp-btn cp-btn-rot" onClick={() => void handleDelete(product.id)}>
-                            Löschen
+                            Delete
                           </button>
                         </div>
                         <div
@@ -563,7 +563,7 @@ function OptionalQuantityInput({ detail, fieldErrorClass, validationErrors, shou
   }
   return (
     <FieldRow
-      label="Stückzahl (optional)"
+      label="Quantity (optional)"
       error={shouldValidate && validationErrors.stueckzahl ? validationErrors.stueckzahl : undefined}
       content={
         <div>
@@ -580,7 +580,7 @@ function OptionalQuantityInput({ detail, fieldErrorClass, validationErrors, shou
             placeholder="—"
           />
           <p className="ber-hinweis" style={{ marginTop: 6, marginBottom: 0 }}>
-            Falls relevant, Stückzahl hier oder in der Beschreibung angeben
+            If relevant, enter quantity here or in the description
           </p>
         </div>
       }
