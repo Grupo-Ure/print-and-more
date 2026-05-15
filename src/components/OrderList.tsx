@@ -19,13 +19,7 @@ import { useToast } from './Toast'
 import { OrderListSearch } from './orderList/OrderListSearch'
 import { OrderListFilters } from './orderList/OrderListFilters'
 import { OrderListBody } from './orderList/OrderListBody'
-import {
-  defaultFilterState,
-  filterValidOrderStatuses,
-  isFilterActive,
-  statusTogglesToIn,
-  type FilterState,
-} from './orderList/filterState'
+import { useOrderListFilter } from './orderList/useOrderListFilter'
 import './OrderList.css'
 
 type OrderInPlace = { tick: number; id: string; status: OrderStatus }
@@ -38,48 +32,24 @@ type Props = {
 }
 
 export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrder }: Props) {
-  const [filter, setFilter] = useState<FilterState>(() => defaultFilterState())
-  const { searchInput, searchDebounced, statusAll, statusToggles, deadlineFrom, deadlineTo, intakeFrom, intakeTo, department } =
-    filter
+  const { filter, isActive: filterActive, selectedStatuses, hasStatusFilter, actions } = useOrderListFilter()
   const [searchOpen, setSearchOpen] = useState(false)
   const [filterPopOpen, setFilterPopOpen] = useState(false)
 
-  useEffect(() => {
-    const t = window.setTimeout(() => {
-      setFilter(f => (f.searchInput === searchInput ? { ...f, searchDebounced: searchInput } : f))
-    }, 300)
-    return () => clearTimeout(t)
-  }, [searchInput])
-
-  const setSearchInput = useCallback((value: string) => {
-    setFilter(f => ({ ...f, searchInput: value }))
-  }, [])
-
-  const clearSearch = useCallback(() => {
-    setFilter(f => ({ ...f, searchInput: '', searchDebounced: '' }))
-  }, [])
-
-  const filterActive = isFilterActive(filter)
   const { showError } = useToast()
   const queryClient = useQueryClient()
 
-  const selectedStatuses = useMemo(
-    () => filterValidOrderStatuses(statusTogglesToIn(statusToggles)),
-    [statusToggles],
-  )
-  const hasStatusFilter = statusAll || selectedStatuses.length > 0
-
   const ordersFilter = useMemo<OrdersListFilter>(
     () => ({
-      searchDebounced,
-      statusAll,
+      searchDebounced: filter.searchDebounced,
+      statusAll: filter.statusAll,
       selectedStatuses,
-      deadlineFrom,
-      deadlineTo,
-      intakeFrom,
-      intakeTo,
+      deadlineFrom: filter.deadlineFrom,
+      deadlineTo: filter.deadlineTo,
+      intakeFrom: filter.intakeFrom,
+      intakeTo: filter.intakeTo,
     }),
-    [searchDebounced, statusAll, selectedStatuses, deadlineFrom, deadlineTo, intakeFrom, intakeTo],
+    [filter.searchDebounced, filter.statusAll, selectedStatuses, filter.deadlineFrom, filter.deadlineTo, filter.intakeFrom, filter.intakeTo],
   )
 
   const ordersQuery = useOrdersList(ordersFilter)
@@ -102,15 +72,11 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
   // When no status is selected, the orders query is disabled and may hold stale data — render empty.
   const orders = useMemo(() => {
     const rawOrders = hasStatusFilter ? ordersQuery.data ?? [] : []
-    if (department === 'All') return rawOrders
+    if (filter.department === 'All') return rawOrders
     return rawOrders.filter(
-      order => order.sub_orders?.some(subOrder => subOrder.department === department) ?? false,
+      order => order.sub_orders?.some(subOrder => subOrder.department === filter.department) ?? false,
     )
-  }, [hasStatusFilter, ordersQuery.data, department])
-
-  const resetFilter = useCallback(() => {
-    setFilter(defaultFilterState())
-  }, [])
+  }, [hasStatusFilter, ordersQuery.data, filter.department])
 
   const isEmpty = !ordersQuery.isLoading && orders.length === 0
 
@@ -179,17 +145,16 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
 
         {searchOpen && (
           <OrderListSearch
-            value={searchInput}
-            onChange={setSearchInput}
-            onClear={clearSearch}
+            value={filter.searchInput}
+            onChange={actions.setSearchInput}
+            onClear={actions.clearSearch}
           />
         )}
 
         {filterPopOpen && (
           <OrderListFilters
             filter={filter}
-            setFilter={setFilter}
-            onReset={resetFilter}
+            actions={actions}
           />
         )}
       </div>
@@ -201,7 +166,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
         isLoading={ordersQuery.isLoading}
         isFetching={ordersQuery.isFetching}
         isEmpty={isEmpty}
-        onResetFilters={resetFilter}
+        onResetFilters={actions.reset}
         onDuplicate={orderId => { void openDuplicateDialog(orderId) }}
         duplicateBusy={duplicateBusy}
       />

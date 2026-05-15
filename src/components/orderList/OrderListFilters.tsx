@@ -1,16 +1,24 @@
-import type { Dispatch, SetStateAction } from 'react'
-import { SUB_ORDER_DEPARTMENTS } from '../../types/database'
+import { SUB_ORDER_DEPARTMENTS, type OrderStatus } from '../../types/database'
 import { SUB_ORDER_DEPARTMENT_LABELS } from '../../const/departmentAbbreviation'
 import { DateInput } from '../DateInput'
-import { STATUS_CHECKBOX_SHORT, STATUS_ORDER, type FilterState } from './filterState'
+import { STATUS_ORDER, type FilterActions, type FilterState } from './useOrderListFilter'
+
+/** Short label for the status filter checkboxes. */
+const STATUS_CHECKBOX_SHORT: Record<OrderStatus, string> = {
+  QUOTE: 'Quote',
+  INCOMPLETE: 'Incomplete',
+  PREPRESS_READY: 'PrePress',
+  PRODUCTION_READY: 'In Prod.',
+  DONE: 'Done',
+  INVOICED: 'Invoiced',
+}
 
 type Props = {
   filter: FilterState
-  setFilter: Dispatch<SetStateAction<FilterState>>
-  onReset: () => void
+  actions: FilterActions
 }
 
-export function OrderListFilters({ filter, setFilter, onReset }: Props) {
+export function OrderListFilters({ filter, actions }: Props) {
   const { statusAll, statusToggles, deadlineFrom, deadlineTo, intakeFrom, intakeTo, department } = filter
 
   return (
@@ -23,10 +31,7 @@ export function OrderListFilters({ filter, setFilter, onReset }: Props) {
               <input
                 type="checkbox"
                 checked={statusAll}
-                onChange={e => {
-                  const checked = e.target.checked
-                  setFilter(f => ({ ...f, statusAll: checked }))
-                }}
+                onChange={e => actions.setStatusAll(e.target.checked)}
               />
               All
             </label>
@@ -36,14 +41,7 @@ export function OrderListFilters({ filter, setFilter, onReset }: Props) {
                   <input
                     type="checkbox"
                     checked={statusToggles[status]}
-                    onChange={e => {
-                      const checked = e.target.checked
-                      setFilter(f => ({
-                        ...f,
-                        statusAll: false,
-                        statusToggles: { ...f.statusToggles, [status]: checked },
-                      }))
-                    }}
+                    onChange={e => actions.toggleStatus(status, e.target.checked)}
                   />
                   {STATUS_CHECKBOX_SHORT[status]}
                 </label>
@@ -59,9 +57,7 @@ export function OrderListFilters({ filter, setFilter, onReset }: Props) {
             id="ol-bereich"
             className="input-compact"
             value={department}
-            onChange={e =>
-              setFilter(f => ({ ...f, department: e.target.value as FilterState['department'] }))
-            }
+            onChange={e => actions.setDepartment(e.target.value as FilterState['department'])}
             style={{ width: '100%', boxSizing: 'border-box' }}
           >
             <option value="All">All</option>
@@ -79,12 +75,12 @@ export function OrderListFilters({ filter, setFilter, onReset }: Props) {
             <DateInput
               className="input-compact"
               value={deadlineFrom}
-              onChange={e => setFilter(f => ({ ...f, deadlineFrom: e.target.value }))}
+              onChange={e => actions.setDeadlineFrom(e.target.value)}
             />
             <DateInput
               className="input-compact"
               value={deadlineTo}
-              onChange={e => setFilter(f => ({ ...f, deadlineTo: e.target.value }))}
+              onChange={e => actions.setDeadlineTo(e.target.value)}
             />
           </div>
         </div>
@@ -95,17 +91,17 @@ export function OrderListFilters({ filter, setFilter, onReset }: Props) {
             <DateInput
               className="input-compact"
               value={intakeFrom}
-              onChange={e => setFilter(f => ({ ...f, intakeFrom: e.target.value }))}
+              onChange={e => actions.setIntakeFrom(e.target.value)}
             />
             <DateInput
               className="input-compact"
               value={intakeTo}
-              onChange={e => setFilter(f => ({ ...f, intakeTo: e.target.value }))}
+              onChange={e => actions.setIntakeTo(e.target.value)}
             />
           </div>
         </div>
 
-        <button type="button" className="ol-filter-reset" onClick={onReset}>
+        <button type="button" className="ol-filter-reset" onClick={actions.reset}>
           Reset filters
         </button>
       </div>
