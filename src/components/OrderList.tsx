@@ -310,7 +310,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
 
   return (
     <div className="ol-root">
-      <div className="ol-head b-dev border-dashed">
+      <div className="ol-head border-dashed">
         <div className="ol-head-row">
           <h1 className="ol-title">Order List</h1>
           <div className="ol-head-btns">
