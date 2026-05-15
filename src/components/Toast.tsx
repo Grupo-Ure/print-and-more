@@ -9,7 +9,7 @@ import {
 
 export type ToastType = 'error' | 'success' | 'info'
 
-type ToastEntry = { id: string; typ: ToastType; text: string }
+type ToastEntry = { id: string; type: ToastType; text: string }
 
 const MAX = 3
 const AUTO_MS = 4000
@@ -21,8 +21,8 @@ const BORDER: Record<ToastType, string> = {
 }
 
 type ToastApiContextValue = {
-  fehler: (text: string) => void
-  erfolg: (text: string) => void
+  showError: (text: string) => void
+  showSuccess: (text: string) => void
   info: (text: string) => void
 }
 
@@ -51,9 +51,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const add = useCallback(
-    (typ: ToastType, text: string) => {
+    (type: ToastType, text: string) => {
       const id = crypto.randomUUID()
-      setToasts(previous => pushToastCapped(previous, { id, typ, text: text.trim() || '—' }))
+      setToasts(previous => pushToastCapped(previous, { id, type, text: text.trim() || '—' }))
       window.setTimeout(() => {
         setToasts(previous => previous.filter(toast => toast.id !== id))
       }, AUTO_MS)
@@ -61,13 +61,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     []
   )
 
-  const fehler = useCallback((text: string) => add('error', text), [add])
-  const erfolg = useCallback((text: string) => add('success', text), [add])
+  const showError = useCallback((text: string) => add('error', text), [add])
+  const showSuccess = useCallback((text: string) => add('success', text), [add])
   const info = useCallback((text: string) => add('info', text), [add])
 
   const apiValue = useMemo(
-    () => ({ fehler, erfolg, info }) satisfies ToastApiContextValue,
-    [fehler, erfolg, info]
+    () => ({ showError, showSuccess, info }) satisfies ToastApiContextValue,
+    [showError, showSuccess, info]
   )
   const listValue = useMemo(
     () => ({ toasts, dismiss }) satisfies ToastListContextValue,
@@ -84,7 +84,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 export function useToast() {
   const context = useContext(ToastApiContext)
   if (!context) throw new Error('useToast must be used within ToastProvider')
-  return { fehler: context.fehler, erfolg: context.erfolg, info: context.info }
+  return { showError: context.showError, showSuccess: context.showSuccess, info: context.info }
 }
 
 export function ToastContainer() {
@@ -122,7 +122,7 @@ export function ToastContainer() {
             padding: '12px 16px',
             borderRadius: 8,
             background: '#fff',
-            borderLeft: `4px solid ${BORDER[toast.typ]}`,
+            borderLeft: `4px solid ${BORDER[toast.type]}`,
             boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
             color: '#111',
           }}

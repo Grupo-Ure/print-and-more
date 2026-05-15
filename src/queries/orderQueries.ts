@@ -55,7 +55,7 @@ export function useOrdersList(filter: OrdersListFilter) {
   const searchSettled = !trimmedSearch || customerSearch.isSuccess
   const customerIds = trimmedSearch ? customerSearch.data ?? null : null
 
-  return useQuery({
+  const ordersQuery = useQuery({
     queryKey: orderListKeys.list({
       is_archived: deriveIsArchived(filter),
       customerIds,
@@ -78,7 +78,13 @@ export function useOrdersList(filter: OrdersListFilter) {
       })
     },
     enabled: hasStatusFilter && searchSettled,
+    refetchOnWindowFocus: false,
   })
+
+  return {
+    ...ordersQuery,
+    isError: ordersQuery.isError || customerSearch.isError,
+  }
 }
 
 /** Patch one order's status across every cached list (used by the in-place status update). */

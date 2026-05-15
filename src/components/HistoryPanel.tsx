@@ -46,7 +46,7 @@ function formatHistoryTime(iso: string): string {
 }
 
 export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: Props) {
-  const { fehler: toastFehler } = useToast()
+  const { showError } = useToast()
   const [expanded, setExpanded] = useState(false)
   const [entries, setEntries] = useState<HistoryRow[]>([])
   const [staffById, setStaffById] = useState<Map<string, string>>(new Map())
@@ -64,13 +64,13 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: P
         setStaffById(staffMap)
       },
       () => {
-        if (alive) toastFehler('Staff data could not be loaded')
+        if (alive) showError('Staff data could not be loaded')
       },
     )
     return () => {
       alive = false
     }
-  }, [toastFehler])
+  }, [showError])
 
   useEffect(() => {
     let alive = true
@@ -82,7 +82,7 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: P
         setEntries(data)
       } catch {
         if (!alive) return
-        toastFehler('History could not be loaded')
+        showError('History could not be loaded')
         setEntries([])
       }
       if (alive) setLoading(false)
@@ -90,7 +90,7 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: P
     return () => {
       alive = false
     }
-  }, [activeOrderId, contextRefreshTick, toastFehler])
+  }, [activeOrderId, contextRefreshTick, showError])
 
   const subOrderDepartment = (subOrderId: string | null): string | null => {
     if (!subOrderId) return null

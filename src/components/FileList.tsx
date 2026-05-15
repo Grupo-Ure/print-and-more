@@ -27,7 +27,7 @@ type Props = {
 
 export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: Props) {
   const loading = filesLoading
-  const { erfolg } = useToast()
+  const { showSuccess } = useToast()
   const [displayName, setDisplayName] = useState('')
   const [path, setPath] = useState('')
   const [role, setRole] = useState<FileRole>('PRODUCTION_FILE')
@@ -48,13 +48,13 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
       } catch {
         try {
           await navigator.clipboard.writeText(trimmedPath)
-          erfolg('Path copied to clipboard')
+          showSuccess('Path copied to clipboard')
         } catch {
           // clipboard may be blocked by the browser
         }
       }
     },
-    [erfolg],
+    [showSuccess],
   )
 
   const handleAdd = async (e: FormEvent) => {

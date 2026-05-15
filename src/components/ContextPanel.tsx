@@ -181,7 +181,7 @@ export function ContextPanel({
   const [stampStock, setStampStock] = useState<number | null>(null)
   const [padStock, setPadStock] = useState<number | null>(null)
   const [productionStockZeroDialogOpen, setProductionStockZeroDialogOpen] = useState(false)
-  const { fehler, erfolg } = useToast()
+  const { showError, showSuccess } = useToast()
 
   useEffect(() => {
     if (!activeSubOrder || activeSubOrder.department !== 'STAMP') {
@@ -215,7 +215,7 @@ export function ContextPanel({
         const summaries = await subOrderService.getSubOrderSummariesForOrder(order.id).catch(() => null)
         if (!alive) return
         if (!summaries) {
-          fehler('Data could not be loaded')
+          showError('Data could not be loaded')
           setSubOrderAreaList([])
           return
         }
@@ -227,7 +227,7 @@ export function ContextPanel({
     return () => {
       alive = false
     }
-  }, [order, contextRefreshTick, fehler])
+  }, [order, contextRefreshTick, showError])
 
   if (!order) {
     return (
@@ -254,7 +254,7 @@ export function ContextPanel({
       const updated = await orderService.synchronizeOrderStatus(order.id)
       onOrderUpdated({ ...order, status: updated.status })
     } catch {
-      fehler('Status could not be changed')
+      showError('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -268,7 +268,7 @@ export function ContextPanel({
       await orderService.archiveOrder(order.id)
       onOrderUpdated({ ...order, is_archived: true })
     } catch {
-      fehler('Status could not be changed')
+      showError('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -287,7 +287,7 @@ export function ContextPanel({
       })
       onOrderUpdated({ ...order, status: 'INVOICED', is_archived: true })
     } catch {
-      fehler('Status could not be changed')
+      showError('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -307,7 +307,7 @@ export function ContextPanel({
       await historyService.writeHistory({ order_id: order.id, event_type: 'CANCELLED' })
       onOrderUpdated({ ...order, is_archived: true })
     } catch {
-      fehler('Status could not be changed')
+      showError('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -326,7 +326,7 @@ export function ContextPanel({
       await orderService.deleteOrder(order.id)
       onOrderDeleted(order.id)
     } catch {
-      fehler('Status could not be changed')
+      showError('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -340,12 +340,12 @@ export function ContextPanel({
   const handlePrepressFrei = async () => {
     if (busy || !subOrder || subOrder.status !== 'INCOMPLETE') return
     if (order.status === 'QUOTE') {
-      fehler('Order must be started before releasing to PrePress')
+      showError('Order must be started before releasing to PrePress')
       return
     }
     const isComplete = isSubOrderComplete(subOrder, subOrder.status)
     if (!isComplete) {
-      fehler('Sub-order is not yet complete')
+      showError('Sub-order is not yet complete')
       return
     }
     setBusy(true)
@@ -358,10 +358,10 @@ export function ContextPanel({
       })
       onSubOrderUpdated(data as SubOrderRow)
       const pdfOk = await generateAndDownloadPdf(subOrder.id, order.id)
-      if (!pdfOk) fehler('PDF could not be generated')
+      if (!pdfOk) showError('PDF could not be generated')
       await syncOrderStatusAfterSubOrderAction()
     } catch {
-      fehler('Status could not be changed')
+      showError('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -472,7 +472,7 @@ export function ContextPanel({
       onSubOrderUpdated(data)
       await syncOrderStatusAfterSubOrderAction()
     } catch {
-      fehler('Status could not be changed')
+      showError('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -504,7 +504,7 @@ export function ContextPanel({
       onSubOrderUpdated(data)
       await syncOrderStatusAfterSubOrderAction()
     } catch {
-      fehler('Status could not be changed')
+      showError('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -521,7 +521,7 @@ export function ContextPanel({
     if (busy || !subOrder) return
     const reason = emergencyReason.trim()
     if (!reason) {
-      fehler('Please enter a reason')
+      showError('Please enter a reason')
       return
     }
     const nextStatus = nextEmergencyStatus(subOrder.status)
@@ -546,7 +546,7 @@ export function ContextPanel({
       onSubOrderUpdated(data)
       await syncOrderStatusAfterSubOrderAction()
     } catch {
-      fehler('Status could not be changed')
+      showError('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -569,7 +569,7 @@ export function ContextPanel({
       onSubOrderUpdated(data)
       await syncOrderStatusAfterSubOrderAction()
     } catch {
-      fehler('Status could not be changed')
+      showError('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -599,7 +599,7 @@ export function ContextPanel({
       onSubOrderUpdated(data)
       await syncOrderStatusAfterSubOrderAction()
     } catch {
-      fehler('Status could not be changed')
+      showError('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -628,9 +628,9 @@ export function ContextPanel({
       })
       onSubOrderUpdated(data)
       await syncOrderStatusAfterSubOrderAction()
-      erfolg('Approval granted')
+      showSuccess('Approval granted')
     } catch {
-      fehler('Status could not be changed')
+      showError('Status could not be changed')
     } finally {
       setBusy(false)
     }
@@ -646,10 +646,10 @@ export function ContextPanel({
       try {
         await syncOrderStatusAfterSubOrderAction()
       } catch {
-        fehler('Status could not be changed')
+        showError('Status could not be changed')
       }
     } catch {
-      fehler('Status could not be changed')
+      showError('Status could not be changed')
     } finally {
       setCancelInProgress(false)
     }
@@ -665,10 +665,10 @@ export function ContextPanel({
       try {
         await syncOrderStatusAfterSubOrderAction()
       } catch {
-        fehler('Status could not be changed')
+        showError('Status could not be changed')
       }
     } catch {
-      fehler('Status could not be changed')
+      showError('Status could not be changed')
     } finally {
       setDeleteInProgress(false)
     }
@@ -854,7 +854,7 @@ export function ContextPanel({
                   onClick={() =>
                     void (async () => {
                       const ok = await generateAndDownloadPdf(subOrder.id, order.id)
-                      if (!ok) fehler('PDF konnte nicht erstellt werden')
+                      if (!ok) showError('PDF konnte nicht erstellt werden')
                     })()
                   }
                 >

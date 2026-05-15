@@ -83,7 +83,7 @@ export function SubOrderDetail({
   const localRef = useRef(subOrder)
   const [local, setLocal] = useState(subOrder)
   const [savePending, setSavePending] = useState(false)
-  const { fehler } = useToast()
+  const { showError } = useToast()
 
   const orderDeliveryMode = (orderDelivery ?? 'PICKUP') as DeliveryChoice
   const orderPriorityMode: Priority = orderPriority
@@ -163,7 +163,7 @@ export function SubOrderDetail({
         row = await subOrderService.updateSubOrder(subOrder.id, subOrderUpdate)
       } catch {
         setSavePending(false)
-        fehler('Save failed')
+        showError('Save failed')
         return
       }
       setSavePending(false)
@@ -173,10 +173,10 @@ export function SubOrderDetail({
       onUpdated(row)
       if (row.status === 'PREPRESS_READY' && previousStatus !== 'PREPRESS_READY') {
         const pdfOk = await generateAndDownloadPdf(subOrder.id, subOrder.order_id)
-        if (!pdfOk) fehler('PDF could not be generated')
+        if (!pdfOk) showError('PDF could not be generated')
       }
     },
-    [orderDeliveryMode, subOrder.id, subOrder.order_id, orderStatus, onUpdated, customerMeetsPrepressRequirements, fehler]
+    [orderDeliveryMode, subOrder.id, subOrder.order_id, orderStatus, onUpdated, customerMeetsPrepressRequirements, showError]
   )
 
   const onLfpPatch = useCallback(
@@ -273,7 +273,7 @@ export function SubOrderDetail({
           onUpdated(row)
         } catch {
           if (!alive) return
-          fehler('Save failed')
+          showError('Save failed')
         }
       })()
     }, 300)
@@ -281,7 +281,7 @@ export function SubOrderDetail({
       alive = false
       window.clearTimeout(timer)
     }
-  }, [orderDeadlineIso, onUpdated, subOrder.id, fehler])
+  }, [orderDeadlineIso, onUpdated, subOrder.id, showError])
 
   useEffect(() => {
     if (!subOrder.id) return
@@ -298,7 +298,7 @@ export function SubOrderDetail({
           onUpdated(row)
         } catch {
           if (!alive) return
-          fehler('Save failed')
+          showError('Save failed')
         }
       })()
     }, 300)
@@ -306,7 +306,7 @@ export function SubOrderDetail({
       alive = false
       window.clearTimeout(timer)
     }
-  }, [orderDeliveryMode, local.delivery, onUpdated, subOrder.id, fehler])
+  }, [orderDeliveryMode, local.delivery, onUpdated, subOrder.id, showError])
 
   useEffect(() => {
     if (!subOrder.id) return
@@ -324,7 +324,7 @@ export function SubOrderDetail({
           onUpdated(row)
         } catch {
           if (!alive) return
-          fehler('Save failed')
+          showError('Save failed')
         }
       })()
     }, 300)
@@ -332,7 +332,7 @@ export function SubOrderDetail({
       alive = false
       window.clearTimeout(timer)
     }
-  }, [orderPriorityMode, local.priority, onUpdated, subOrder.id, fehler])
+  }, [orderPriorityMode, local.priority, onUpdated, subOrder.id, showError])
 
   const statusBadge = subOrderStatusBadge(local.status)
 

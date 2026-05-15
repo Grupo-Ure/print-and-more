@@ -96,7 +96,7 @@ export function WorkArea({
     delivery: DeliveryChoice | null
     priority: Priority
   }>({ deadline: null, delivery: null, priority: 'NORMAL' })
-  const { fehler: toastFehler } = useToast()
+  const { showError } = useToast()
   const loadOrderRequestIdRef = useRef(0)
 
   const reloadFiles = useCallback(async () => {
@@ -106,9 +106,9 @@ export function WorkArea({
       setFiles(data)
     } catch {
       setFiles([])
-      toastFehler('Files could not be loaded')
+      showError('Files could not be loaded')
     }
-  }, [activeOrderId, toastFehler])
+  }, [activeOrderId, showError])
 
   useEffect(() => {
     if (!activeOrderId) {
@@ -144,7 +144,7 @@ export function WorkArea({
 
         if (!orderData) {
           setError('Order not found')
-          toastFehler('Order could not be loaded')
+          showError('Order could not be loaded')
           setOrder(null)
           setSubOrders([])
           setActiveSubOrderId(null)
@@ -162,7 +162,7 @@ export function WorkArea({
       } catch (err) {
         if (isStale()) return
         setError(err instanceof Error ? err.message : String(err))
-        toastFehler('Order could not be loaded')
+        showError('Order could not be loaded')
         setOrder(null)
         setSubOrders([])
         setActiveSubOrderId(null)
@@ -175,7 +175,7 @@ export function WorkArea({
 
     void fetchData()
     return () => {}
-  }, [activeOrderId, contextRefreshTick, toastFehler])
+  }, [activeOrderId, contextRefreshTick, showError])
 
   useEffect(() => {
     if (!order) return
@@ -211,10 +211,10 @@ export function WorkArea({
           priority: updatedOrder.priority,
         }
       } catch {
-        toastFehler('Order could not be saved')
+        showError('Order could not be saved')
       }
     },
-    [activeOrderId, onOrderFromWorkArea, onOrderCustomerLoaded, toastFehler]
+    [activeOrderId, onOrderFromWorkArea, onOrderCustomerLoaded, showError]
   )
 
   const visibleSubOrders = useMemo(
@@ -336,7 +336,7 @@ export function WorkArea({
       setOrder(current => (current ? { ...current, status: statusResult.status } : current))
       onOrderUpdated({ ...order, status: statusResult.status })
     } catch {
-      toastFehler('Order status could not be updated')
+      showError('Order status could not be updated')
       const refreshed = await orderService.getOrderById(order.id)
       if (refreshed) {
         setOrder(refreshed as OrderDetailRow)
@@ -365,7 +365,7 @@ export function WorkArea({
   if (error && !order) {
     return (
       <div className="work-area work-area--empty">
-        <p className="wa-fehler">{error}</p>
+        <p className="wa-showError">{error}</p>
       </div>
     )
   }
@@ -446,7 +446,7 @@ export function WorkArea({
         ) : null}
       </header>
 
-      {error && <p className="wa-fehler">{error}</p>}
+      {error && <p className="wa-showError">{error}</p>}
 
       <section className="work-area__meta" aria-label="Order meta">
         <label className="meta-pill" title="Deadline">

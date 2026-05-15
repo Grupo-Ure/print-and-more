@@ -63,7 +63,7 @@ export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }:
   const [newDeadline, setNewDeadline] = useState<string>('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { fehler: toastFehler, erfolg } = useToast()
+  const { showError, showSuccess } = useToast()
 
   const selectedSubOrders = useMemo(() => activeSubOrders.filter(subOrder => selection[subOrder.id]), [activeSubOrders, selection])
   const hasSelection = selectedSubOrders.length >= 1
@@ -111,17 +111,17 @@ export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }:
       })
 
       if (!newOrderId.trim()) {
-        toastFehler('Order could not be duplicated')
+        showError('Order could not be duplicated')
         return
       }
 
       const newOrderData = await orderService.getOrderById(newOrderId)
       if (!newOrderData) throw new Error('Duplicated order not found')
 
-      erfolg('Order duplicated')
+      showSuccess('Order duplicated')
       onSuccess(newOrderData)
     } catch (e) {
-      toastFehler('Order could not be duplicated')
+      showError('Order could not be duplicated')
       setError(e instanceof Error ? e.message : String(e))
     } finally {
       setBusy(false)

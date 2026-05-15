@@ -57,7 +57,7 @@ export function LaserDetail({
   onDetailPatch,
   orderFiles = [],
 }: Props) {
-  const { fehler: toastError } = useToast()
+  const { showError } = useToast()
 
   const [products, setProducts] = useState<ProductRow[]>([])
   const [productFiles, setProductFiles] = useState<Record<string, ProductFileAssignment[]>>({})
@@ -108,7 +108,7 @@ export function LaserDetail({
       try {
         rows = await subOrderProductService.getFilesByProductIds(ids)
       } catch {
-        toastError('File assignments could not be loaded')
+        showError('File assignments could not be loaded')
         setProductFiles({})
         return
       }
@@ -119,7 +119,7 @@ export function LaserDetail({
       }
       setProductFiles(next)
     },
-    [toastError],
+    [showError],
   )
 
   const reloadProducts = useCallback(async (): Promise<ProductRow[]> => {
@@ -133,7 +133,7 @@ export function LaserDetail({
       rows = await subOrderProductService.getProductsBySubOrderId(subOrder.id)
     } catch {
       setProductsLoading(false)
-      toastError('Products could not be loaded')
+      showError('Products could not be loaded')
       setProducts([])
       await loadFilesForProducts([])
       return []
@@ -150,7 +150,7 @@ export function LaserDetail({
     setProducts(mapped)
     await loadFilesForProducts(mapped)
     return mapped
-  }, [subOrder.id, toastError, loadFilesForProducts])
+  }, [subOrder.id, showError, loadFilesForProducts])
 
   useEffect(() => {
     void reloadProducts()
@@ -163,12 +163,12 @@ export function LaserDetail({
       try {
         await subOrderProductService.assignFileToProduct(productId, fileId)
       } catch {
-        toastError('File could not be assigned')
+        showError('File could not be assigned')
         return
       }
       await loadFilesForProducts(reloadRows)
     },
-    [toastError, products, loadFilesForProducts],
+    [showError, products, loadFilesForProducts],
   )
 
   const removeFileFromProduct = useCallback(
@@ -176,12 +176,12 @@ export function LaserDetail({
       try {
         await subOrderProductService.removeFileFromProduct(assignmentId)
       } catch {
-        toastError('Assignment could not be removed')
+        showError('Assignment could not be removed')
         return
       }
       await loadFilesForProducts(productRowsForReload ?? products)
     },
-    [toastError, products, loadFilesForProducts],
+    [showError, products, loadFilesForProducts],
   )
 
   const resetForm = useCallback(() => {
@@ -262,7 +262,7 @@ export function LaserDetail({
       try {
         await subOrderProductService.updateProduct(editingId, patch)
       } catch {
-        toastError('Product could not be saved')
+        showError('Product could not be saved')
         return
       }
       for (const assignment of [...(productFiles[editingId] ?? [])]) {
@@ -293,7 +293,7 @@ export function LaserDetail({
     try {
       insertedRow = await subOrderProductService.createProduct(productInsert)
     } catch {
-      toastError('Product could not be added')
+      showError('Product could not be added')
       return
     }
     const newId = insertedRow.id
@@ -317,7 +317,7 @@ export function LaserDetail({
     products.length,
     productFiles,
     formFileRecordIds,
-    toastError,
+    showError,
     reloadProducts,
     resetForm,
     onDetailPatch,
@@ -330,7 +330,7 @@ export function LaserDetail({
       try {
         await subOrderProductService.deleteProduct(id)
       } catch {
-        toastError('Product could not be deleted')
+        showError('Product could not be deleted')
         return
       }
       const list = await reloadProducts()
@@ -343,7 +343,7 @@ export function LaserDetail({
       })
       if (editingId === id) resetForm()
     },
-    [toastError, reloadProducts, editingId, resetForm, onDetailPatch, subOrder]
+    [showError, reloadProducts, editingId, resetForm, onDetailPatch, subOrder]
   )
 
   const handleEdit = useCallback((row: ProductRow) => {

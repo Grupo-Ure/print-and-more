@@ -189,7 +189,7 @@ function statusInfo(model: StampModelRow): { cls: string; label: string; rank: n
 }
 
 export function StampStockPage() {
-  const { fehler: showError } = useToast()
+  const { showError } = useToast()
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 

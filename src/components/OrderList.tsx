@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { customerService } from '../services/customerService'
-import { orderService, type OrderListEntry } from '../services/orderService'
+import { useQueryClient } from '@tanstack/react-query'
+import { orderService } from '../services/orderService'
 import { subOrderService } from '../services/subOrderService'
+import {
+  invalidateOrderListsIfCustomerReferenced,
+  orderListKeys,
+  patchOrderStatusInCache,
+  useOrdersList,
+  type OrdersListFilter,
+} from '../queries/orderQueries'
 import { departmentAbbreviation } from '../const/departmentAbbreviation'
 import { formatDateDe } from '../lib/formatDate'
 import { customerName } from '../lib/customer'
@@ -147,138 +154,60 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
     queueMicrotask(() => searchInputRef.current?.focus())
   }
 
-  const [rawOrders, setRawOrders] = useState<OrderListEntry[]>([])
-  const rawOrdersRef = useRef(rawOrders)
-  useEffect(() => {
-    rawOrdersRef.current = rawOrders
-  }, [rawOrders])
-  const [initialLoading, setInitialLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const hasLoadedOnce = useRef(false)
-  const loadRequestIdRef = useRef(0)
   const filterActive = isFilterActive(filter)
-  const { fehler } = useToast()
+  const { showError } = useToast()
+  const queryClient = useQueryClient()
 
-  const loadOrders = useCallback(
-    async (opts?: { isAlive?: () => boolean }) => {
-      const requestId = ++loadRequestIdRef.current
-      const isStale = () =>
-        (opts?.isAlive !== undefined && !opts.isAlive()) ||
-        requestId !== loadRequestIdRef.current
+  const selectedStatuses = useMemo(
+    () => filterValidOrderStatuses(statusTogglesToIn(statusToggles)),
+    [statusToggles],
+  )
+  const hasStatusFilter = statusAll || selectedStatuses.length > 0
 
-      if (hasLoadedOnce.current) setRefreshing(true)
-      const trimmedSearch = searchDebounced.trim()
-      let customerIds: string[] | null = null
-      if (trimmedSearch) {
-        try {
-          customerIds = await customerService.searchCustomerIds(trimmedSearch)
-        } catch {
-          if (isStale()) return
-          fehler('Orders could not be loaded')
-          setRawOrders([])
-          hasLoadedOnce.current = true
-          setInitialLoading(false)
-          setRefreshing(false)
-          return
-        }
-        if (isStale()) return
-        if (customerIds.length === 0) {
-          if (isStale()) return
-          setRawOrders([])
-          hasLoadedOnce.current = true
-          setInitialLoading(false)
-          setRefreshing(false)
-          return
-        }
-      }
-
-      const selectedStatuses = statusTogglesToIn(statusToggles)
-      if (!statusAll && selectedStatuses.length === 0) {
-        if (isStale()) return
-        setRawOrders([])
-        hasLoadedOnce.current = true
-        setInitialLoading(false)
-        setRefreshing(false)
-        return
-      }
-
-      if (isStale()) return
-
-      let is_archived: boolean | undefined
-      if (statusAll) {
-        is_archived = false
-      } else {
-        const billedSelected = selectedStatuses.includes('INVOICED')
-        const otherSelected = selectedStatuses.some(status => status !== 'INVOICED')
-        if (billedSelected && otherSelected) {
-          is_archived = undefined
-        } else if (billedSelected) {
-          is_archived = true
-        } else {
-          is_archived = false
-        }
-      }
-
-      try {
-        const data = await orderService.getOrdersForList({
-          is_archived,
-          customerIds: customerIds ?? undefined,
-          statuses: !statusAll ? filterValidOrderStatuses(selectedStatuses) : undefined,
-          deadlineFrom: deadlineFrom || undefined,
-          deadlineTo: deadlineTo || undefined,
-          intakeFrom: intakeFrom || undefined,
-          intakeTo: intakeTo || undefined,
-        })
-        if (isStale()) return
-        setRawOrders(data)
-      } catch {
-        if (isStale()) return
-        fehler('Orders could not be loaded')
-        setRawOrders([])
-      }
-      if (isStale()) return
-      hasLoadedOnce.current = true
-      setInitialLoading(false)
-      setRefreshing(false)
-    },
-    [intakeTo, intakeFrom, fehler, searchDebounced, statusAll, statusToggles, deadlineTo, deadlineFrom]
+  const ordersFilter = useMemo<OrdersListFilter>(
+    () => ({
+      searchDebounced,
+      statusAll,
+      selectedStatuses,
+      deadlineFrom,
+      deadlineTo,
+      intakeFrom,
+      intakeTo,
+    }),
+    [searchDebounced, statusAll, selectedStatuses, deadlineFrom, deadlineTo, intakeFrom, intakeTo],
   )
 
+  const ordersQuery = useOrdersList(ordersFilter)
+
   useEffect(() => {
-    let alive = true
-    void loadOrders({ isAlive: () => alive })
-    return () => {
-      alive = false
-    }
-  }, [loadOrders])
+    if (ordersQuery.isError) showError('Orders could not be loaded')
+  }, [ordersQuery.isError, showError])
 
   useEffect(() => {
     if (orderInPlace.tick === 0) return
-    setRawOrders(previous =>
-      previous.map(order => (order.id === orderInPlace.id ? { ...order, status: orderInPlace.status } : order))
-    )
-  }, [orderInPlace])
+    patchOrderStatusInCache(queryClient, orderInPlace.id, orderInPlace.status)
+  }, [orderInPlace, queryClient])
 
   useEffect(() => {
     return orderService.subscribeToCustomerChanges(customerId => {
-      if (rawOrdersRef.current.some(order => order.customer_id === customerId)) {
-        void loadOrders()
-      }
+      invalidateOrderListsIfCustomerReferenced(queryClient, customerId)
     })
-  }, [loadOrders])
+  }, [queryClient])
 
+  // When no status is selected, the orders query is disabled and may hold stale data — render empty.
   const orders = useMemo(() => {
+    const rawOrders = hasStatusFilter ? ordersQuery.data ?? [] : []
     if (department === 'All') return rawOrders
     return rawOrders.filter(
       order => order.sub_orders?.some(subOrder => subOrder.department === department) ?? false,
     )
-  }, [rawOrders, department])
+  }, [hasStatusFilter, ordersQuery.data, department])
 
   const resetFilter = () => {
     setFilter(defaultFilterState())
   }
 
-  const isEmpty = !initialLoading && orders.length === 0
+  const isEmpty = !ordersQuery.isLoading && orders.length === 0
 
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false)
   const [duplicateBusy, setDuplicateBusy] = useState(false)
@@ -299,13 +228,13 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
         setDuplicateSubOrders(subOrderData)
         setDuplicateDialogOpen(true)
       } catch (e) {
-        fehler('Orders could not be loaded')
+        showError('Orders could not be loaded')
         setDuplicateError(e instanceof Error ? e.message : String(e))
       } finally {
         setDuplicateBusy(false)
       }
     },
-    [duplicateBusy, fehler]
+    [duplicateBusy, showError]
   )
 
   return (
@@ -467,8 +396,8 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
         )}
       </div>
 
-      <div className="ol-body" style={{ opacity: refreshing && !initialLoading ? 0.5 : 1, transition: 'opacity 0.15s' }}>
-        {initialLoading && <div className="ol-leer">Loading...</div>}
+      <div className="ol-body" style={{ opacity: ordersQuery.isFetching && !ordersQuery.isLoading ? 0.5 : 1, transition: 'opacity 0.15s' }}>
+        {ordersQuery.isLoading && <div className="ol-leer">Loading...</div>}
         {isEmpty && (
           <div className="ol-leer">
             <div style={{ marginBottom: 8 }}>No orders found</div>
@@ -477,8 +406,8 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
             </button>
           </div>
         )}
-        {refreshing && !initialLoading && <div className="ol-aktual">Refreshing…</div>}
-        {!initialLoading &&
+        {ordersQuery.isFetching && !ordersQuery.isLoading && <div className="ol-aktual">Refreshing…</div>}
+        {!ordersQuery.isLoading &&
           orders.map(order => {
             const isActive = order.id === activeOrderId
             const seenDepartments = new Set<string>()
@@ -592,7 +521,7 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
           onCancel={() => setDuplicateDialogOpen(false)}
           onSuccess={newOrder => {
             setDuplicateDialogOpen(false)
-            void loadOrders().catch(() => fehler('Orders could not be refreshed'))
+            void queryClient.invalidateQueries({ queryKey: orderListKeys.all })
             onSelectOrder(newOrder.id)
           }}
         />

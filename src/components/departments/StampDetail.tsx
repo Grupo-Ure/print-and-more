@@ -127,7 +127,7 @@ export function StampDetail({
   onDetailPatch,
   orderFiles = [],
 }: Props) {
-  const { fehler: showError } = useToast()
+  const { showError } = useToast()
 
   const [products, setProducts] = useState<ProductRow[]>([])
   const [productFiles, setProductFiles] = useState<Record<string, ProductFileAssignment[]>>({})

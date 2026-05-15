@@ -30,7 +30,7 @@ type Props = {
 }
 
 export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
-  const { fehler: toastFehler } = useToast()
+  const { showError } = useToast()
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Customer[]>([])
@@ -63,11 +63,11 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
       const data = await customerService.searchCustomers(trimmedQuery)
       setSearchResults(data as Customer[])
     } catch {
-      toastFehler('Customer search failed')
+      showError('Customer search failed')
       setSearchResults([])
     }
     setSearchLoading(false)
-  }, [toastFehler])
+  }, [showError])
 
   useEffect(() => {
     if (!open) return
@@ -89,7 +89,7 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
       }
     } catch {
       setEditingCustomer(false)
-      toastFehler('Customer could not be loaded')
+      showError('Customer could not be loaded')
     }
   }
 
@@ -127,7 +127,7 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
       })
     } catch {
       console.error('History ORDER_CREATED failed')
-      toastFehler('Order created, but history entry failed')
+      showError('Order created, but history entry failed')
     }
   }
 

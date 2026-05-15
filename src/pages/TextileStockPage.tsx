@@ -127,7 +127,7 @@ function variantStatus(
 type ReorderRow = VariantRow & { offene_menge: number; bestellmenge: number }
 
 export function TextileStockPage() {
-  const { fehler: showError, erfolg: showSuccess } = useToast()
+  const { showError, showSuccess } = useToast()
   const [session, setSession] = useState<Session | null>(null)
   const [loading,setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>('PRODUCTS')
