@@ -195,7 +195,11 @@ code {
   background: var(--code-bg);
 }
 
-/* Status-Badges (Auftragsliste, WorkArea) */
+/*
+ * Order-status badges live in StatusBadge.tsx (Tailwind). These remaining
+ * classes are kept for the emergency banner and the stamp/textile stock pages,
+ * which use color-coded chips for stock-state (Sample / At minimum / OK / etc.).
+ */
 .badge {
   display: inline-block;
   padding: 2px 8px;
@@ -212,10 +216,6 @@ code {
 .badge-blau {
   background: #dbeafe;
   color: #1e40af;
-}
-.badge-lila {
-  background: #ede9fe;
-  color: #5b21b6;
 }
 .badge-gruen {
   background: #d1fae5;

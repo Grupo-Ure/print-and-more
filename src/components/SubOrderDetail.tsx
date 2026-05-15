@@ -32,6 +32,7 @@ import type { CopyShopDetailJson } from '../types/copyshop'
 import type { StampDetailJson } from '../types/stamp'
 import type { LaserDetailJson } from '../types/laser'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
+import { StatusBadge } from './StatusBadge'
 import './WorkArea.css'
 
 type Props = {
@@ -55,18 +56,6 @@ function normalizeSubOrderDeadline(value: string | null | undefined): string | n
   const trimmed = String(value).trim()
   if (trimmed === '') return null
   return trimmed.length > 10 ? trimmed.slice(0, 10) : trimmed
-}
-
-function subOrderStatusBadge(status: OrderStatus): { cls: string; label: string } {
-  const statusMap: Record<OrderStatus, { cls: string; label: string }> = {
-    QUOTE: { cls: 'badge-grau', label: 'Quote' },
-    INCOMPLETE: { cls: 'badge-orange', label: 'Incomplete' },
-    PREPRESS_READY: { cls: 'badge-blau', label: 'PrePress Ready' },
-    PRODUCTION_READY: { cls: 'badge-lila', label: 'Production Ready' },
-    DONE: { cls: 'badge-gruen', label: 'Done' },
-    INVOICED: { cls: 'badge-grau', label: 'Invoiced' },
-  }
-  return statusMap[status] ?? { cls: 'badge-grau', label: status }
 }
 
 export function SubOrderDetail({
@@ -334,16 +323,12 @@ export function SubOrderDetail({
     }
   }, [orderPriorityMode, local.priority, onUpdated, subOrder.id, showError])
 
-  const statusBadge = subOrderStatusBadge(local.status)
-
   return (
     <div className="td">
       <div className="td-kopf" aria-label="Sub-order">
         <span className="td-bkz">[{departmentAbbreviation(local.department)}]</span>
-        <span className={`badge ${statusBadge.cls}`}>
-          {statusBadge.label}
-          {savePending ? ' …' : ''}
-        </span>
+        <StatusBadge status={local.status} />
+        {savePending && <span aria-label="Saving">…</span>}
       </div>
       {shouldValidate &&
         local.department !== 'OTHER' &&

@@ -18,6 +18,7 @@ import { subOrderDetailToFieldMap } from '../lib/utils'
 import { FileList } from './FileList'
 import type { FileRow } from '../services/fileService'
 import { HistoryPanel } from './HistoryPanel'
+import { StatusBadge } from './StatusBadge'
 import { useToast } from './Toast'
 import { isSubOrderComplete } from '../lib/subOrderShared'
 import './ContextPanel.css'
@@ -34,25 +35,6 @@ type Props = {
   onEditCustomer: () => void
   contextRefreshTick: number
   onFileChanged?: (newFileRow?: FileRow) => void | Promise<void>
-}
-
-function statusBadgeGlobal(status: OrderStatus): string {
-  switch (status) {
-    case 'QUOTE':
-      return 'badge-grau'
-    case 'INCOMPLETE':
-      return 'badge-orange'
-    case 'PREPRESS_READY':
-      return 'badge-blau'
-    case 'PRODUCTION_READY':
-      return 'badge-lila'
-    case 'DONE':
-      return 'badge-gruen'
-    case 'INVOICED':
-      return 'badge-grau'
-    default:
-      return 'badge-grau'
-  }
 }
 
 function nextEmergencyStatus(status: OrderStatus): OrderStatus {
@@ -712,7 +694,7 @@ export function ContextPanel({
         <div className="cp-status-komp">
           {subOrder && (
             <div className="cp-st-zeile">
-              <span className={`badge ${statusBadgeGlobal(subOrder.status)} cp-badge-lg`}>{subOrder.status}</span>
+              <StatusBadge status={subOrder.status} />
             </div>
           )}
           {subOrder?.is_emergency && (

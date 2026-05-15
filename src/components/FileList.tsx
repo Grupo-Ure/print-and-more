@@ -2,6 +2,7 @@ import { useCallback, useState, type FormEvent } from 'react'
 import { fileService } from '../services/fileService'
 import type { FileRow, FileRole } from '../services/fileService'
 import { useToast } from './Toast'
+import { Badge } from './ui/badge'
 
 
 const ROLES: { value: FileRole; label: string }[] = [
@@ -188,9 +189,9 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
               >
                 <span aria-hidden>📄</span> {file.display_name}
               </button>
-              <span className="badge badge-grau" title={ROLES.find(roleOption => roleOption.value === file.role)?.label ?? file.role}>
+              <Badge variant="secondary" title={ROLES.find(roleOption => roleOption.value === file.role)?.label ?? file.role}>
                 {ROLE_SHORT_LABELS[file.role]}
-              </span>
+              </Badge>
               <span className="wa-dl-pfad" title={file.path}>
                 {file.path}
               </span>

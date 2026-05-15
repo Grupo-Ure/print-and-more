@@ -2,25 +2,7 @@ import { customerName } from '../../lib/customer'
 import { formatDateDe } from '../../lib/formatDate'
 import { departmentAbbreviation } from '../../const/departmentAbbreviation'
 import type { OrderListEntry } from '../../services/orderService'
-import type { OrderStatus } from '../../types/database'
-
-const STATUS_BADGE_CLASS: Record<OrderStatus, string> = {
-  QUOTE: 'badge-grau',
-  INCOMPLETE: 'badge-orange',
-  PREPRESS_READY: 'badge-blau',
-  PRODUCTION_READY: 'badge-lila',
-  DONE: 'badge-gruen',
-  INVOICED: 'badge-grau',
-}
-
-const STATUS_LABEL: Record<OrderStatus, string> = {
-  QUOTE: 'Quote',
-  INCOMPLETE: 'Incomplete',
-  PREPRESS_READY: 'PrePress',
-  PRODUCTION_READY: 'In Production',
-  DONE: 'Done',
-  INVOICED: 'Invoiced',
-}
+import { StatusBadge } from '../StatusBadge'
 
 type Props = {
   orders: OrderListEntry[]
@@ -116,7 +98,7 @@ export function OrderListBody({
                   <span className="ol-datum">{formatDateDe(order.created_at)}</span>
                 </div>
                 <div className="ol-ze2">
-                  <span className={`badge ${STATUS_BADGE_CLASS[order.status]}`}>{STATUS_LABEL[order.status]}</span>
+                  <StatusBadge status={order.status} />
                   {visibleTags.map(tag => (
                     <span key={tag} className="ol-bereich-tag">
                       {tag}

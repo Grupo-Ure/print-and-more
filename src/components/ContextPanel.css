@@ -76,46 +76,6 @@
   font-size: 12px;
   padding: 5px 10px;
 }
-.cp-badge {
-  display: inline-block;
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  margin-right: 6px;
-  margin-bottom: 6px;
-}
-.cp-badge-angebot,
-.cp .badge.badge-grau.cp-badge-lg {
-  background: #e5e7eb;
-  color: #374151;
-}
-.cp-badge-unvoll,
-.cp .badge.badge-orange.cp-badge-lg {
-  background: #ffedd5;
-  color: #9a3412;
-}
-.cp-badge-prepress,
-.cp .badge.badge-blau.cp-badge-lg {
-  background: #fef9c3;
-  color: #854d0e;
-}
-.cp-badge-prod,
-.cp .badge.badge-lila.cp-badge-lg {
-  background: #fce7f3;
-  color: #9d174d;
-}
-.cp-badge-fertig,
-.cp .badge.badge-gruen.cp-badge-lg {
-  background: #d1fae5;
-  color: #065f46;
-}
-.cp-badge-notfall {
-  background: #fee2e2;
-  color: #b91c1c;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-}
 .cp .badge.badge-rot.cp-badge-lg {
   background: #fee2e2;
   color: #b91c1c;
