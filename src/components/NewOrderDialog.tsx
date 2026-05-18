@@ -24,13 +24,12 @@ export type NewOrderInsertRow = {
 }
 
 type Props = {
-  open: boolean
-  onClose: () => void
   onSuccess: (a: NewOrderInsertRow) => void
 }
 
-export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
+export function NewOrderDialog({ onSuccess }: Props) {
   const { showError } = useToast()
+  const [open, setOpen] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Customer[]>([])
@@ -119,6 +118,7 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
       return
     }
     setCreating(false)
+    setOpen(false)
     onSuccess(data)
     try {
       await historyService.writeHistory({
@@ -131,10 +131,17 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
     }
   }
 
-  if (!open) return null
-
   return (
     <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="w-full rounded-md bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-700"
+      >
+        + New Order
+      </button>
+      {open && (
+        <>
       <div className="cp-modal-bg" role="dialog" aria-modal="true" aria-label="New Order">
         <div className="cp-modal" style={{ maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}>
           <h3>New Order</h3>
@@ -237,7 +244,7 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
           )}
 
           <div className="cp-modal-bar" style={{ marginTop: 16 }}>
-            <button type="button" className="cp-btn" onClick={onClose} disabled={creating}>
+            <button type="button" className="cp-btn" onClick={() => setOpen(false)} disabled={creating}>
               Cancel
             </button>
             <button
@@ -264,6 +271,8 @@ export function NewOrderDialog({ open, onClose, onSuccess }: Props) {
             setCustomerForForm(null)
           }}
         />
+      )}
+        </>
       )}
     </>
   )

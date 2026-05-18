@@ -18,6 +18,7 @@ import { Search, SlidersHorizontal } from 'lucide-react'
 import { Sidebar, SidebarHeader, SidebarContent, SidebarFooter } from '@/components/ui/sidebar'
 import { cn } from '@/lib/utils'
 import { DuplicateDialog } from './DuplicateDialog'
+import { NewOrderDialog, type NewOrderInsertRow } from './NewOrderDialog'
 import { useToast } from './Toast'
 import { OrderSidebarSearch } from './orderSidebar/OrderSidebarSearch'
 import { OrderSidebarFilters } from './orderSidebar/OrderSidebarFilters'
@@ -30,10 +31,10 @@ type Props = {
   orderInPlace: OrderInPlace
   activeOrderId: string | null
   onSelectOrder: (id: string) => void
-  onNewOrder: () => void
+  onNewOrderCreated: (order: NewOrderInsertRow) => void
 }
 
-export function OrderSidebar({ orderInPlace, activeOrderId, onSelectOrder, onNewOrder }: Props) {
+export function OrderSidebar({ orderInPlace, activeOrderId, onSelectOrder, onNewOrderCreated }: Props) {
   const { filter, isActive: filterActive, selectedStatuses, hasStatusFilter, actions } = useOrderSidebarFilter()
   const [searchOpen, setSearchOpen] = useState(false)
   const [filterPopOpen, setFilterPopOpen] = useState(false)
@@ -184,13 +185,7 @@ export function OrderSidebar({ orderInPlace, activeOrderId, onSelectOrder, onNew
       </SidebarContent>
 
       <SidebarFooter className="border-t border-neutral-200 bg-neutral-50 px-3 py-2.5 shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
-        <button
-          type="button"
-          onClick={onNewOrder}
-          className="w-full rounded-md bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-700"
-        >
-          + New Order
-        </button>
+        <NewOrderDialog onSuccess={onNewOrderCreated} />
         {duplicateError && (
           <div className="px-3 pt-1 text-[11px] text-neutral-500">{duplicateError}</div>
         )}

@@ -5,7 +5,7 @@ import { Login } from '../components/Login'
 import { OrderSidebar } from '../components/OrderSidebar'
 import { WorkArea } from '../components/WorkArea'
 import { ContextPanel } from '../components/ContextPanel'
-import { NewOrderDialog, type NewOrderInsertRow } from '../components/NewOrderDialog'
+import type { NewOrderInsertRow } from '../components/NewOrderDialog'
 import { CustomerDialog } from '../components/CustomerDialog'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { contactJoinToCustomer } from '../lib/customers'
@@ -30,7 +30,6 @@ export function OrderWorkspace() {
   const [contextRefreshTick, setContextRefreshTick] = useState(0)
   const [orderSidebarKey, setOrderSidebarKey] = useState(0)
   const [orderInPlace, setOrderInPlace] = useState(ORDER_LIST_IN_PLACE_INITIAL)
-  const [newOrderOpen, setNewOrderOpen] = useState(false)
   const [customerDialog, setCustomerDialog] = useState<{ open: boolean; customer: Customer | null }>({
     open: false,
     customer: null,
@@ -118,7 +117,6 @@ export function OrderWorkspace() {
   }, [])
 
   const handleNewOrderSuccess = useCallback((a: NewOrderInsertRow) => {
-    setNewOrderOpen(false)
     setActiveOrderId(a.id)
     setOrderSidebarKey(k => k + 1)
     setOrderInPlace(ORDER_LIST_IN_PLACE_INITIAL)
@@ -143,7 +141,7 @@ export function OrderWorkspace() {
         orderInPlace={orderInPlace}
         activeOrderId={activeOrderId}
         onSelectOrder={id => setActiveOrderId(id)}
-        onNewOrder={() => setNewOrderOpen(true)}
+        onNewOrderCreated={handleNewOrderSuccess}
       />
 
       <SidebarInset className="flex flex-col h-screen overflow-hidden">
@@ -179,11 +177,6 @@ export function OrderWorkspace() {
         </div>
       </SidebarInset>
 
-      <NewOrderDialog
-        open={newOrderOpen}
-        onClose={() => setNewOrderOpen(false)}
-        onSuccess={handleNewOrderSuccess}
-      />
       {customerDialog.open && (
         <CustomerDialog
           kunde={customerDialog.customer}
