@@ -1,7 +1,7 @@
 import { SUB_ORDER_DEPARTMENTS, type OrderStatus } from '../../types/database'
 import { SUB_ORDER_DEPARTMENT_LABELS } from '../../const/departmentAbbreviation'
 import { DateInput } from '../DateInput'
-import { STATUS_ORDER, type FilterActions, type FilterState } from './useOrderListFilter'
+import { STATUS_ORDER, type FilterActions, type FilterState } from './useOrderSidebarFilter'
 
 /** Short label for the status filter checkboxes. */
 const STATUS_CHECKBOX_SHORT: Record<OrderStatus, string> = {
@@ -18,7 +18,7 @@ type Props = {
   actions: FilterActions
 }
 
-export function OrderListFilters({ filter, actions }: Props) {
+export function OrderSidebarFilters({ filter, actions }: Props) {
   const { statusAll, statusToggles, deadlineFrom, deadlineTo, intakeFrom, intakeTo, department } = filter
 
   return (

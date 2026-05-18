@@ -20,7 +20,7 @@ type Props = {
 
 const MAX_DEPARTMENT_TAGS = 4
 
-export function OrderListBody({
+export function OrderSidebarBody({
   orders,
   activeOrderId,
   onSelectOrder,

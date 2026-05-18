@@ -7,7 +7,7 @@ type Props = {
   onClear: () => void
 }
 
-export function OrderListSearch({ value, onChange, onClear }: Props) {
+export function OrderSidebarSearch({ value, onChange, onClear }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   return (

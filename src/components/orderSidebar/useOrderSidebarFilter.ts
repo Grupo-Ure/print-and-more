@@ -72,7 +72,7 @@ export type FilterActions = {
   reset: () => void
 }
 
-export function useOrderListFilter() {
+export function useOrderSidebarFilter() {
   const [filter, setFilter] = useState<FilterState>(defaultFilterState)
 
   // 300ms debounce: mirror searchInput → searchDebounced.

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { authService } from '../services/authService'
 import { Login } from '../components/Login'
-import { OrderList } from '../components/OrderList'
+import { OrderSidebar } from '../components/OrderSidebar'
 import { WorkArea } from '../components/WorkArea'
 import { ContextPanel } from '../components/ContextPanel'
 import { NewOrderDialog, type NewOrderInsertRow } from '../components/NewOrderDialog'
@@ -28,7 +28,7 @@ export function OrderWorkspace() {
   const [orderCustomer, setOrderCustomer] = useState<CustomerContactJoin | null>(null)
   const [orderFiles, setOrderFiles] = useState<FileRow[]>([])
   const [contextRefreshTick, setContextRefreshTick] = useState(0)
-  const [orderListKey, setOrderListKey] = useState(0)
+  const [orderSidebarKey, setOrderSidebarKey] = useState(0)
   const [orderInPlace, setOrderInPlace] = useState(ORDER_LIST_IN_PLACE_INITIAL)
   const [newOrderOpen, setNewOrderOpen] = useState(false)
   const [customerDialog, setCustomerDialog] = useState<{ open: boolean; customer: Customer | null }>({
@@ -84,7 +84,7 @@ export function OrderWorkspace() {
     setActiveOrder(order)
     if (order.is_archived) {
       setActiveOrderId(null)
-      setOrderListKey(k => k + 1)
+      setOrderSidebarKey(k => k + 1)
       setOrderInPlace(ORDER_LIST_IN_PLACE_INITIAL)
     } else {
       setOrderInPlace(prev => ({ tick: prev.tick + 1, id: order.id, status: order.status }))
@@ -95,7 +95,7 @@ export function OrderWorkspace() {
   const handleOrderDeleted = useCallback(() => {
     setActiveOrderId(null)
     setActiveSubOrder(null)
-    setOrderListKey(k => k + 1)
+    setOrderSidebarKey(k => k + 1)
     setOrderInPlace(ORDER_LIST_IN_PLACE_INITIAL)
     setContextRefreshTick(x => x + 1)
   }, [])
@@ -112,7 +112,7 @@ export function OrderWorkspace() {
 
   const handleCustomerSaved = useCallback(() => {
     setCustomerDialog({ open: false, customer: null })
-    setOrderListKey(k => k + 1)
+    setOrderSidebarKey(k => k + 1)
     setOrderInPlace(ORDER_LIST_IN_PLACE_INITIAL)
     setContextRefreshTick(x => x + 1)
   }, [])
@@ -120,7 +120,7 @@ export function OrderWorkspace() {
   const handleNewOrderSuccess = useCallback((a: NewOrderInsertRow) => {
     setNewOrderOpen(false)
     setActiveOrderId(a.id)
-    setOrderListKey(k => k + 1)
+    setOrderSidebarKey(k => k + 1)
     setOrderInPlace(ORDER_LIST_IN_PLACE_INITIAL)
   }, [])
 
@@ -138,8 +138,8 @@ export function OrderWorkspace() {
       style={{ '--sidebar-width': '280px' } as CSSProperties}
       className="font-sans text-sm"
     >
-      <OrderList
-        key={orderListKey}
+      <OrderSidebar
+        key={orderSidebarKey}
         orderInPlace={orderInPlace}
         activeOrderId={activeOrderId}
         onSelectOrder={id => setActiveOrderId(id)}

@@ -19,10 +19,10 @@ import { Sidebar, SidebarHeader, SidebarContent, SidebarFooter } from '@/compone
 import { cn } from '@/lib/utils'
 import { DuplicateDialog } from './DuplicateDialog'
 import { useToast } from './Toast'
-import { OrderListSearch } from './orderList/OrderListSearch'
-import { OrderListFilters } from './orderList/OrderListFilters'
-import { OrderListBody } from './orderList/OrderListBody'
-import { useOrderListFilter } from './orderList/useOrderListFilter'
+import { OrderSidebarSearch } from './orderSidebar/OrderSidebarSearch'
+import { OrderSidebarFilters } from './orderSidebar/OrderSidebarFilters'
+import { OrderSidebarBody } from './orderSidebar/OrderSidebarBody'
+import { useOrderSidebarFilter } from './orderSidebar/useOrderSidebarFilter'
 
 type OrderInPlace = { tick: number; id: string; status: OrderStatus }
 
@@ -33,8 +33,8 @@ type Props = {
   onNewOrder: () => void
 }
 
-export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrder }: Props) {
-  const { filter, isActive: filterActive, selectedStatuses, hasStatusFilter, actions } = useOrderListFilter()
+export function OrderSidebar({ orderInPlace, activeOrderId, onSelectOrder, onNewOrder }: Props) {
+  const { filter, isActive: filterActive, selectedStatuses, hasStatusFilter, actions } = useOrderSidebarFilter()
   const [searchOpen, setSearchOpen] = useState(false)
   const [filterPopOpen, setFilterPopOpen] = useState(false)
 
@@ -157,18 +157,18 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
         </div>
 
         {searchOpen && (
-          <OrderListSearch
+          <OrderSidebarSearch
             value={filter.searchInput}
             onChange={actions.setSearchInput}
             onClear={actions.clearSearch}
           />
         )}
 
-        {filterPopOpen && <OrderListFilters filter={filter} actions={actions} />}
+        {filterPopOpen && <OrderSidebarFilters filter={filter} actions={actions} />}
       </SidebarHeader>
 
       <SidebarContent className="p-0">
-        <OrderListBody
+        <OrderSidebarBody
           orders={orders}
           activeOrderId={activeOrderId}
           onSelectOrder={onSelectOrder}
