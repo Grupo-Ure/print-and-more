@@ -23,7 +23,6 @@ import { OrderListSearch } from './orderList/OrderListSearch'
 import { OrderListFilters } from './orderList/OrderListFilters'
 import { OrderListBody } from './orderList/OrderListBody'
 import { useOrderListFilter } from './orderList/useOrderListFilter'
-import './OrderList.css'
 
 type OrderInPlace = { tick: number; id: string; status: OrderStatus }
 

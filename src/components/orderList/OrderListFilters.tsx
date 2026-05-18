@@ -22,12 +22,12 @@ export function OrderListFilters({ filter, actions }: Props) {
   const { statusAll, statusToggles, deadlineFrom, deadlineTo, intakeFrom, intakeTo, department } = filter
 
   return (
-    <div className="ol-filter-pop">
-      <div className="ol-filter-inhalt">
-        <div className="ol-filter-row">
-          <span className="ol-label">Status</span>
-          <div className="ol-status-row">
-            <label className="ol-cb">
+    <div className="mt-2 p-2 bg-white border border-neutral-200 rounded-md text-xs">
+      <div className="pb-2">
+        <div className="mb-2">
+          <span className="block text-xs text-neutral-600 mb-0.5">Status</span>
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+            <label className="inline-flex items-center gap-1 text-[11px] cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={statusAll}
@@ -37,7 +37,11 @@ export function OrderListFilters({ filter, actions }: Props) {
             </label>
             {!statusAll &&
               STATUS_ORDER.map(status => (
-                <label key={status} className="ol-cb" title={status}>
+                <label
+                  key={status}
+                  className="inline-flex items-center gap-1 text-[11px] cursor-pointer select-none"
+                  title={status}
+                >
                   <input
                     type="checkbox"
                     checked={statusToggles[status]}
@@ -49,16 +53,15 @@ export function OrderListFilters({ filter, actions }: Props) {
           </div>
         </div>
 
-        <div className="ol-filter-row">
-          <label className="ol-label" htmlFor="ol-bereich">
+        <div className="mb-2">
+          <label className="block text-xs text-neutral-600 mb-0.5" htmlFor="orderlist-department">
             Department
           </label>
           <select
-            id="ol-bereich"
-            className="input-compact"
+            id="orderlist-department"
             value={department}
             onChange={e => actions.setDepartment(e.target.value as FilterState['department'])}
-            style={{ width: '100%', boxSizing: 'border-box' }}
+            className="w-full box-border px-1.5 py-1 text-[13px] border border-neutral-200 rounded-md bg-white"
           >
             <option value="All">All</option>
             {SUB_ORDER_DEPARTMENTS.map(dep => (
@@ -69,39 +72,43 @@ export function OrderListFilters({ filter, actions }: Props) {
           </select>
         </div>
 
-        <div className="ol-filter-row">
-          <span className="ol-label">Deadline (from / to)</span>
-          <div className="ol-filter-dates">
+        <div className="mb-2">
+          <span className="block text-xs text-neutral-600 mb-0.5">Deadline (from / to)</span>
+          <div className="grid grid-cols-2 gap-2">
             <DateInput
-              className="input-compact"
+              className="px-2 py-1 text-xs border border-neutral-200 rounded-md bg-white"
               value={deadlineFrom}
               onChange={e => actions.setDeadlineFrom(e.target.value)}
             />
             <DateInput
-              className="input-compact"
+              className="px-2 py-1 text-xs border border-neutral-200 rounded-md bg-white"
               value={deadlineTo}
               onChange={e => actions.setDeadlineTo(e.target.value)}
             />
           </div>
         </div>
 
-        <div className="ol-filter-row">
-          <span className="ol-label">Intake (from / to)</span>
-          <div className="ol-filter-dates">
+        <div className="mb-2">
+          <span className="block text-xs text-neutral-600 mb-0.5">Intake (from / to)</span>
+          <div className="grid grid-cols-2 gap-2">
             <DateInput
-              className="input-compact"
+              className="px-2 py-1 text-xs border border-neutral-200 rounded-md bg-white"
               value={intakeFrom}
               onChange={e => actions.setIntakeFrom(e.target.value)}
             />
             <DateInput
-              className="input-compact"
+              className="px-2 py-1 text-xs border border-neutral-200 rounded-md bg-white"
               value={intakeTo}
               onChange={e => actions.setIntakeTo(e.target.value)}
             />
           </div>
         </div>
 
-        <button type="button" className="ol-filter-reset" onClick={actions.reset}>
+        <button
+          type="button"
+          onClick={actions.reset}
+          className="inline p-0 m-0 border-0 bg-transparent text-blue-600 hover:text-blue-700 text-xs underline underline-offset-2 cursor-pointer"
+        >
           Reset filters
         </button>
       </div>
