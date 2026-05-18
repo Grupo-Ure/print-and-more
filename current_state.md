@@ -1,11 +1,46 @@
 # Current State
 
-As of **2026-05-04** — merged from the former `Systemstand.md` and the
-hand-over PDF (`README_Auftragssystem.pdf`).
+As of **2026-05-15**.
 
 This file describes the **current implementation status**: what is done,
 what is open, and which known gaps are documented. The stable architecture
 and workflow description lives in [README.md](README.md).
+
+## Context
+
+The project was originally handed over by the client as a finished system
+with only the UI left to build. That framing has not held up under
+inspection. Ownership of the full project — frontend, backend, schema,
+operations — now sits with the in-house developer, and the codebase is
+broadly in a messy state: prior "complete" statuses below were the
+client's assessment, not a verified one, and should be treated as
+**claimed-complete pending review** rather than trusted.
+
+A separate translation pass (German → English in prose, comments, and
+docs; identifiers stay German) is largely done and continues
+opportunistically as remnants surface — it is no longer the active
+workstream.
+
+## Active Focus
+
+**Structural refactor of the home page** — the three-column shell in
+[`src/App.tsx`](src/App.tsx) and its three children:
+[`OrderList`](src/components/OrderList.tsx) (left),
+[`WorkArea`](src/components/WorkArea.tsx) (centre), and
+[`ContextPanel`](src/components/ContextPanel.tsx) (right).
+
+Goals for this pass:
+
+1. **Reusability** — extract shared pieces, collapse duplication.
+2. **Standard tools over bespoke logic** — prefer well-known libraries
+   (TanStack Query is already installed; `src/queries/` is where extracted
+   query logic is landing) instead of hand-rolled hooks, stores, and
+   effect chains.
+3. **Comprehension** — read deeply while refactoring; the refactor
+   doubles as the developer's onboarding to a codebase they did not write.
+
+Wider refactor of the rest of the app will follow once the home page is
+on stable footing.
 
 ## Status Overview
 
