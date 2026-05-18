@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { authService } from '../services/authService'
 import { Login } from '../components/Login'
@@ -7,6 +7,7 @@ import { WorkArea } from '../components/WorkArea'
 import { ContextPanel } from '../components/ContextPanel'
 import { NewOrderDialog, type NewOrderInsertRow } from '../components/NewOrderDialog'
 import { CustomerDialog } from '../components/CustomerDialog'
+import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { contactJoinToCustomer } from '../lib/customers'
 import type { Customer } from '../lib/customers'
 import type { Auftrag, OrderStatus, CustomerContactJoin, SubOrderRow } from '../types/database'
@@ -132,63 +133,51 @@ export function OrderWorkspace() {
   if (!session) return <Login />
 
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '280px 1fr 300px',
-        height: '100vh',
-        overflow: 'hidden',
-        fontFamily: 'system-ui, sans-serif',
-        fontSize: 14,
-      }}
-      className="b-dev"
+    <SidebarProvider
+      defaultOpen
+      style={{ '--sidebar-width': '280px' } as CSSProperties}
+      className="font-sans text-sm"
     >
-      <div
-        className="app-col b-dev p-4"
-        style={{ borderRight: '1px solid #e5e5e5', background: '#fafafa' }}
-      >
-        <OrderList
-          key={orderListKey}
-          orderInPlace={orderInPlace}
-          activeOrderId={activeOrderId}
-          onSelectOrder={id => setActiveOrderId(id)}
-          onNewOrder={() => setNewOrderOpen(true)}
-        />
-      </div>
-      <div className="app-col">
-        <WorkArea
-          activeOrderId={activeOrderId}
-          contextRefreshTick={contextRefreshTick}
-          onActiveSubOrderChanged={handleActiveSubOrderChanged}
-          onOrderCustomerLoaded={handleOrderCustomerLoaded}
-          onOrderFromWorkArea={handleOrderFromWorkArea}
-          onOrderFilesChanged={handleOrderFilesChanged}
-          onOrderUpdated={handleOrderUpdated}
-          onEditCustomer={openEditCustomer}
-        />
-      </div>
-      <div
-        className="app-col"
-        style={{
-          borderLeft: '1px solid #e5e5e5',
-          background: '#fafafa',
-          padding: 16,
-        }}
-      >
-        <ContextPanel
-          order={activeOrder}
-          activeSubOrder={activeSubOrder}
-          orderCustomer={orderCustomer}
-          orderFiles={orderFiles}
-          onOrderUpdated={handleOrderUpdated}
-          onOrderDeleted={handleOrderDeleted}
-          onSubOrderUpdated={handleSubOrderUpdated}
-          onSubOrderRemoved={handleSubOrderRemoved}
-          onEditCustomer={openEditCustomer}
-          contextRefreshTick={contextRefreshTick}
-          onFileChanged={handleFileChanged}
-        />
-      </div>
+      <OrderList
+        key={orderListKey}
+        orderInPlace={orderInPlace}
+        activeOrderId={activeOrderId}
+        onSelectOrder={id => setActiveOrderId(id)}
+        onNewOrder={() => setNewOrderOpen(true)}
+      />
+
+      <SidebarInset className="flex flex-col h-screen overflow-hidden">
+        <div className="flex items-center gap-2 border-b border-neutral-200 px-3 py-1.5">
+          <SidebarTrigger />
+        </div>
+        <div className="grid grid-cols-[1fr_300px] flex-1 min-h-0">
+          <WorkArea
+            activeOrderId={activeOrderId}
+            contextRefreshTick={contextRefreshTick}
+            onActiveSubOrderChanged={handleActiveSubOrderChanged}
+            onOrderCustomerLoaded={handleOrderCustomerLoaded}
+            onOrderFromWorkArea={handleOrderFromWorkArea}
+            onOrderFilesChanged={handleOrderFilesChanged}
+            onOrderUpdated={handleOrderUpdated}
+            onEditCustomer={openEditCustomer}
+          />
+          <aside className="border-l border-neutral-200 bg-neutral-50 p-4 overflow-y-auto">
+            <ContextPanel
+              order={activeOrder}
+              activeSubOrder={activeSubOrder}
+              orderCustomer={orderCustomer}
+              orderFiles={orderFiles}
+              onOrderUpdated={handleOrderUpdated}
+              onOrderDeleted={handleOrderDeleted}
+              onSubOrderUpdated={handleSubOrderUpdated}
+              onSubOrderRemoved={handleSubOrderRemoved}
+              onEditCustomer={openEditCustomer}
+              contextRefreshTick={contextRefreshTick}
+              onFileChanged={handleFileChanged}
+            />
+          </aside>
+        </div>
+      </SidebarInset>
 
       <NewOrderDialog
         open={newOrderOpen}
@@ -202,6 +191,6 @@ export function OrderWorkspace() {
           onCancel={() => setCustomerDialog({ open: false, customer: null })}
         />
       )}
-    </div>
+    </SidebarProvider>
   )
 }

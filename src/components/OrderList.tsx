@@ -14,6 +14,9 @@ import {
   type OrderStatus,
   type SubOrderRow,
 } from '../types/database'
+import { Search, SlidersHorizontal } from 'lucide-react'
+import { Sidebar, SidebarHeader, SidebarContent, SidebarFooter } from '@/components/ui/sidebar'
+import { cn } from '@/lib/utils'
 import { DuplicateDialog } from './DuplicateDialog'
 import { useToast } from './Toast'
 import { OrderListSearch } from './orderList/OrderListSearch'
@@ -109,14 +112,15 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
   )
 
   return (
-    <div className="ol-root">
-      <div className="ol-head border-dashed">
-        <div className="ol-head-row">
-          <h1 className="ol-title">Order List</h1>
-          <div className="ol-head-btns">
+    <Sidebar collapsible="offcanvas" side="left" className="bg-neutral-50">
+      <SidebarHeader className="border-b border-neutral-200 px-3.5 py-2.5 bg-neutral-50">
+        <div className="flex items-center justify-between gap-2 min-h-7">
+          <h1 className="m-0 text-[11px] font-bold uppercase tracking-[0.08em] text-neutral-500">
+            Order List
+          </h1>
+          <div className="flex items-center gap-0.5">
             <button
               type="button"
-              className="ol-icon-btn"
               title="Search customer"
               aria-label="Search customer"
               aria-pressed={searchOpen}
@@ -124,12 +128,15 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
                 setSearchOpen(o => !o)
                 if (filterPopOpen) setFilterPopOpen(false)
               }}
+              className={cn(
+                'inline-flex items-center justify-center min-w-8 h-7 px-1.5 rounded-md border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100',
+                searchOpen && 'bg-neutral-200 border-neutral-300',
+              )}
             >
-              🔍
+              <Search className="size-3.5" />
             </button>
             <button
               type="button"
-              className={`ol-icon-btn${filterActive ? ' ol-icon-btn--badge' : ''}`}
               title="Filter"
               aria-label="Filter"
               aria-pressed={filterPopOpen}
@@ -137,8 +144,15 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
                 setFilterPopOpen(o => !o)
                 if (searchOpen) setSearchOpen(false)
               }}
+              className={cn(
+                'relative inline-flex items-center justify-center min-w-8 h-7 px-1.5 rounded-md border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100',
+                filterPopOpen && 'bg-neutral-200 border-neutral-300',
+              )}
             >
-              ⚙
+              <SlidersHorizontal className="size-3.5" />
+              {filterActive && (
+                <span className="absolute top-1 right-1 size-1.5 rounded-full bg-orange-600 ring-1 ring-white" />
+              )}
             </button>
           </div>
         </div>
@@ -151,33 +165,37 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
           />
         )}
 
-        {filterPopOpen && (
-          <OrderListFilters
-            filter={filter}
-            actions={actions}
-          />
-        )}
-      </div>
+        {filterPopOpen && <OrderListFilters filter={filter} actions={actions} />}
+      </SidebarHeader>
 
-      <OrderListBody
-        orders={orders}
-        activeOrderId={activeOrderId}
-        onSelectOrder={onSelectOrder}
-        isLoading={ordersQuery.isLoading}
-        isFetching={ordersQuery.isFetching}
-        isEmpty={isEmpty}
-        onResetFilters={actions.reset}
-        onDuplicate={orderId => { void openDuplicateDialog(orderId) }}
-        duplicateBusy={duplicateBusy}
-      />
+      <SidebarContent className="p-0">
+        <OrderListBody
+          orders={orders}
+          activeOrderId={activeOrderId}
+          onSelectOrder={onSelectOrder}
+          isLoading={ordersQuery.isLoading}
+          isFetching={ordersQuery.isFetching}
+          isEmpty={isEmpty}
+          onResetFilters={actions.reset}
+          onDuplicate={orderId => {
+            void openDuplicateDialog(orderId)
+          }}
+          duplicateBusy={duplicateBusy}
+        />
+      </SidebarContent>
 
-      <div className="ol-foot">
-        <button type="button" className="ol-btn-neu" onClick={onNewOrder}>
+      <SidebarFooter className="border-t border-neutral-200 bg-neutral-50 px-3 py-2.5 shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
+        <button
+          type="button"
+          onClick={onNewOrder}
+          className="w-full rounded-md bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-700"
+        >
           + New Order
         </button>
-      </div>
-
-      {duplicateError && <div className="ol-aktual">{duplicateError}</div>}
+        {duplicateError && (
+          <div className="px-3 pt-1 text-[11px] text-neutral-500">{duplicateError}</div>
+        )}
+      </SidebarFooter>
 
       {duplicateDialogOpen && duplicateOrder && (
         <DuplicateDialog
@@ -191,6 +209,6 @@ export function OrderList({ orderInPlace, activeOrderId, onSelectOrder, onNewOrd
           }}
         />
       )}
-    </div>
+    </Sidebar>
   )
 }
