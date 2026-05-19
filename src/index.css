@@ -72,7 +72,8 @@ html {
 
   --primary: rgba(255, 144, 34, 1);
 
-  --primary-hover: rgb(236, 133, 29);
+  --primary-hover: rgba(212, 96, 10, 1);
+;
 
   --primary-foreground: oklch(0.985 0 0);
 
