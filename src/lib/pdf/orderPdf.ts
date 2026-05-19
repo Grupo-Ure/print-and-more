@@ -5,7 +5,7 @@ import { orderService } from '../../services/orderService'
 import { subOrderService } from '../../services/subOrderService'
 import { subOrderProductService } from '../../services/subOrderProductService'
 import { textileService } from '../../services/textileService'
-import type { CustomerContactRow, DeliveryChoice, OrderPdfRow, Priority, SubOrderRow } from '../../types/database'
+import type { DeliveryChoice, OrderPdfRow, Priority, SubOrderRow } from '../../types/database'
 
 type PdfDoc = jsPDF & { lastAutoTable?: { finalY: number } }
 
@@ -103,12 +103,6 @@ function detailEntry(key: string, value: unknown): { label: string; value: strin
   }
 
   return { label: fieldToLabel(key), value: valueAsString(value) }
-}
-
-function extractCustomer(raw: OrderPdfRow['customers']): CustomerContactRow | null {
-  if (!raw) return null
-  if (Array.isArray(raw)) return raw.length ? raw[0] : null
-  return raw
 }
 
 function normalizeFileNameSegment(input: string): string {
@@ -231,7 +225,7 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
 
     const products = rawProducts as unknown as Record<string, unknown>[]
 
-    const customer = extractCustomer(order.customers as OrderPdfRow['customers'])
+    const customer = (order as OrderPdfRow).customers
     const customerDisplayName = customer?.name?.trim() ? customer.name.trim() : 'Unknown'
 
     const fileName = buildFileName(

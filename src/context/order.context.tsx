@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { CustomerDialog } from '../components/CustomerDialog'
-import type { Customer } from '../lib/customers'
+import type { Customer } from '../types/database'
 
 const ORDER_PARAM = 'order'
 const SUB_ORDER_PARAM = 'sub'

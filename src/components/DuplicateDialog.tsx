@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { authService } from '../services/authService'
 import { orderService } from '../services/orderService'
-import { customerName } from '../lib/customer'
 import { type Auftrag, type SubOrderRow } from '../types/database'
 import { subOrderDetailToFieldMap } from '../lib/utils'
 import { SUB_ORDER_DEPARTMENT_LABELS, subOrderDepartmentLabel } from '../const/departmentAbbreviation'
@@ -13,7 +12,7 @@ import { DateInput } from './DateInput'
 import { useToast } from './Toast'
 
 type Props = {
-  auftrag: Auftrag
+  order: Auftrag
   teilauftraege: SubOrderRow[]
   onSuccess: (neuerAuftrag: Auftrag) => void
   onCancel: () => void
@@ -49,7 +48,7 @@ function formatDetailDimensions(detail: import('../types/database').SubOrderRow[
   return ''
 }
 
-export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }: Props) {
+export function DuplicateDialog({ order, teilauftraege, onSuccess, onCancel }: Props) {
   const activeSubOrders = useMemo(() => teilauftraege.filter(subOrder => !subOrder.is_cancelled), [teilauftraege])
   const hasMultipleSubOrders = activeSubOrders.length > 1
 
@@ -68,11 +67,7 @@ export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }:
   const selectedSubOrders = useMemo(() => activeSubOrders.filter(subOrder => selection[subOrder.id]), [activeSubOrders, selection])
   const hasSelection = selectedSubOrders.length >= 1
 
-  const customerLabel = (() => {
-    const customer = auftrag.customers ?? null
-    if (!customer) return auftrag.id
-    return customerName(customer)
-  })()
+  const customerLabel = order.customers?.name?.trim() || order.id
 
   const selectAll = () => {
     const next: Record<string, boolean> = {}
@@ -102,9 +97,9 @@ export function DuplicateDialog({ auftrag, teilauftraege, onSuccess, onCancel }:
     setError(null)
     try {
       const newOrderId = await orderService.duplicateOrder({
-        source_order_id: auftrag.id,
-        new_priority: auftrag.priority ?? null,
-        new_delivery: auftrag.delivery ?? null,
+        source_order_id: order.id,
+        new_priority: order.priority ?? null,
+        new_delivery: order.delivery ?? null,
         new_deadline: newDeadline ? newDeadline : null,
         selected_sub_order_ids: selectedSubOrders.map(subOrder => subOrder.id),
         created_by_user_id: (await authService.getUser())?.id ?? null,

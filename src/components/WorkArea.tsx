@@ -4,16 +4,14 @@ import { fileService } from '../services/fileService'
 import { employeeService } from '../services/employeeService'
 import { orderService } from '../services/orderService'
 import { subOrderService } from '../services/subOrderService'
-import { customerName } from '../lib/customer'
 import { departmentAbbreviation } from '../const/departmentAbbreviation'
 import {
   type Auftrag,
+  type Customer,
   type OrderDetailRow,
   type OrderHeaderPatch,
   type OrderStatus,
   type Department,
-  type CustomerContactJoin,
-  type CustomerContactRow,
   type DeliveryChoice,
   type Priority,
   type SubOrderRow,
@@ -24,24 +22,8 @@ import { AddSubOrderOverlay } from './AddSubOrderOverlay'
 import { DateInput } from './DateInput'
 import type { FileRow } from '../services/fileService'
 import { SubOrderDetail } from './SubOrderDetail'
-import { contactJoinToCustomer } from '../lib/customers'
 import { useOrderWorkspace } from '../context/order.context'
 import './WorkArea.css'
-
-function firstContactRow(contact: CustomerContactJoin | null): CustomerContactRow | null {
-  if (contact == null) return null
-  const row = Array.isArray(contact) ? (contact[0] ?? null) : contact
-  return row ?? null
-}
-
-/** One line for the header: email preferred, phone as fallback. */
-function customerContactOneLine(contact: CustomerContactJoin | null): string {
-  const row = firstContactRow(contact)
-  if (!row) return ''
-  const email = row.email?.trim() ?? ''
-  if (email !== '') return email
-  return row.phone?.trim() ?? ''
-}
 
 function subOrderStatusDotClass(status: OrderStatus): string {
   switch (status) {
@@ -64,7 +46,7 @@ type Props = {
   activeOrderId: string | null
   contextRefreshTick: number
   onActiveSubOrderChanged: (t: SubOrderRow | null) => void
-  onOrderCustomerLoaded: (k: CustomerContactJoin | null) => void
+  onOrderCustomerLoaded: (k: Customer | null) => void
   onOrderFromWorkArea: (a: Auftrag | null) => void
   onOrderFilesChanged: (d: FileRow[]) => void
   onOrderUpdated: (a: Auftrag) => void
@@ -382,9 +364,10 @@ export function WorkArea({
     )
   }
 
-  const customerDisplayName = customerName(order.customers)
+  const customerDisplayName = order.customers?.name?.trim() || '—'
   const trimDeadline = (dateString: string | null) => (dateString && dateString.length > 10 ? dateString.slice(0, 10) : dateString || '')
-  const contactOneLine = customerContactOneLine(order.customers)
+  const contactOneLine =
+    order.customers?.email?.trim() || order.customers?.phone?.trim() || ''
 
   const priorityGlyph = (priority: Priority) => (priority === 'HIGH' ? '▲' : '●')
 
@@ -422,7 +405,7 @@ export function WorkArea({
               className="wa-gear"
               style={{ marginLeft: 0 }}
               onClick={() =>
-                openCustomerDialog(contactJoinToCustomer(order?.customers ?? null), {
+                openCustomerDialog(order?.customers ?? null, {
                   onSaved: () => setLocalReloadTick(x => x + 1),
                 })
               }

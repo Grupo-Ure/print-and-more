@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { useUpsertCustomer } from '../queries/customerQueries'
-import type { Customer } from '../lib/customers'
+import type { Customer } from '../types/database'
 
 type Props = {
   open: boolean

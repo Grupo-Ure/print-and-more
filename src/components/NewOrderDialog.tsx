@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 import { useCreateOrder } from '../queries/orderQueries'
 import { useCustomerSearch } from '../queries/customerQueries'
 import { useOrderWorkspace } from '../context/order.context'
-import type { Customer } from '../lib/customers'
+import type { Customer } from '../types/database'
 
 export function NewOrderDialog() {
   const [open, setOpen] = useState(false)

@@ -9,7 +9,7 @@ import {
   isUniqueViolation,
   textileRecordsAllowPrepress,
 } from '../../lib/textile/validateTextileDetail'
-import type { OrderStatus, CustomerContactJoin, SubOrderRow } from '../../types/database'
+import type { OrderStatus, Customer, SubOrderRow } from '../../types/database'
 import type { FileRow } from '../../services/fileService'
 import type {
   TextileSize,
@@ -30,7 +30,7 @@ type Props = {
   subOrderStatus: OrderStatus
   orderStatus?: OrderStatus
   orderFiles: FileRow[]
-  orderCustomer: CustomerContactJoin
+  orderCustomer: Customer | null
   onUpdated: (t: SubOrderRow) => void
 }
 

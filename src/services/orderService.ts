@@ -17,8 +17,20 @@ export type OrderListEntry = {
   priority: 'NORMAL' | 'HIGH'
   is_emergency: boolean
   customer_id: string
-  customers: { name: string } | { name: string }[] | null
+  customers: { name: string } | null
   sub_orders: { department: string; status: string }[] | null
+}
+
+/**
+ * Supabase emits joined relations as `Object | Object[] | null` even for one-to-one
+ * cardinality. Every method that selects `customers(...)` flattens the result so the
+ * published return types carry a single `customers` row (or `null`).
+ */
+function flattenCustomerJoin<T extends { customers: unknown }>(row: T): T {
+  if (Array.isArray(row.customers)) {
+    return { ...row, customers: row.customers[0] ?? null } as T
+  }
+  return row
 }
 
 const ORDER_LIST_SELECT =
@@ -74,7 +86,7 @@ class OrderService {
     if (params.intakeTo) query = query.lte('created_at', `${params.intakeTo}T23:59:59.999`)
     const { data, error } = await query
     if (error) throw error
-    return (data ?? []) as unknown as OrderListEntry[]
+    return ((data ?? []) as unknown as OrderListEntry[]).map(flattenCustomerJoin)
   }
 
   async getOrders(): Promise<OrderSummaryRow[]> {
@@ -84,7 +96,7 @@ class OrderService {
       .eq('is_archived', false)
       .order('created_at', { ascending: false })
     if (error) throw error
-    return (data ?? []) as unknown as OrderSummaryRow[]
+    return ((data ?? []) as unknown as OrderSummaryRow[]).map(flattenCustomerJoin)
   }
 
   async getOrderById(id: string): Promise<Auftrag | null> {
@@ -94,7 +106,8 @@ class OrderService {
       .eq('id', id)
       .single()
     if (error) throw error
-    return data as unknown as Auftrag | null
+    if (data == null) return null
+    return flattenCustomerJoin(data as unknown as Auftrag)
   }
 
   async createOrder(payload: OrderInsert): Promise<Auftrag> {
@@ -104,7 +117,7 @@ class OrderService {
       .select(ORDER_COLUMNS)
       .single()
     if (error) throw error
-    return data as unknown as Auftrag
+    return flattenCustomerJoin(data as unknown as Auftrag)
   }
 
   async updateOrder(id: string, patch: OrderUpdate): Promise<Auftrag> {
@@ -115,7 +128,7 @@ class OrderService {
       .select(ORDER_COLUMNS)
       .single()
     if (error) throw error
-    return data as unknown as Auftrag
+    return flattenCustomerJoin(data as unknown as Auftrag)
   }
 
   async setOrderStatus(id: string, status: OrderStatus): Promise<Auftrag> {
@@ -126,7 +139,7 @@ class OrderService {
       .select(ORDER_COLUMNS)
       .single()
     if (error) throw error
-    return data as unknown as Auftrag
+    return flattenCustomerJoin(data as unknown as Auftrag)
   }
 
   async archiveOrder(id: string): Promise<void> {
@@ -178,7 +191,7 @@ class OrderService {
       .single()
     if (error) throw error
     if (data == null) throw new Error('synchronizeOrderStatus: no row returned after update')
-    return data as unknown as Auftrag
+    return flattenCustomerJoin(data as unknown as Auftrag)
   }
 
   async duplicateOrder(params: {

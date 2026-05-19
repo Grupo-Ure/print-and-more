@@ -10,7 +10,7 @@ import {
 import {
   SUB_ORDER_DEPARTMENTS,
   type OrderStatus,
-  type CustomerContactJoin,
+  type Customer,
   type DeliveryChoice,
   type Priority,
   type SubOrderDepartment,
@@ -44,8 +44,8 @@ type Props = {
   orderDelivery: DeliveryChoice | null
   /** Order priority (inheritance) */
   orderPriority: Priority
-  /** Server join for customer contact (name, email, telefon) */
-  orderCustomer: CustomerContactJoin
+  /** Customer contact for the active order (name, email, phone, address). */
+  orderCustomer: Customer | null
   orderFiles: FileRow[]
   onUpdated: (updatedSubOrder: SubOrderRow) => void
 }

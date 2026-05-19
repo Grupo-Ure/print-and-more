@@ -1,6 +1,5 @@
 import { AlertTriangle, ArrowUp, Copy } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { customerName } from '../../lib/customer'
 import { formatDateDe } from '../../lib/formatDate'
 import { departmentAbbreviation } from '../../const/departmentAbbreviation'
 import type { OrderListEntry } from '../../services/orderService'
@@ -89,7 +88,7 @@ export function OrderSidebarBody({
                 <div className="flex items-center justify-between gap-1.5">
                   <div className="flex items-center min-w-0 flex-1 gap-1">
                     <span className="text-[13px] font-semibold text-neutral-900 leading-tight overflow-hidden text-ellipsis whitespace-nowrap">
-                      {customerName(order.customers)}
+                      {order.customers?.name ?? '—'}
                     </span>
                     {order.is_emergency && (
                       <AlertTriangle

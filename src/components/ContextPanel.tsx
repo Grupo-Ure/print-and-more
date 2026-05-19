@@ -9,9 +9,8 @@ import { textileMasterDataService } from '../services/textileMasterDataService'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import {
   type Auftrag,
+  type Customer,
   type OrderStatus,
-  type CustomerContactJoin,
-  type CustomerContactRow,
   type SubOrderRow,
 } from '../types/database'
 import { subOrderDetailToFieldMap } from '../lib/utils'
@@ -21,14 +20,13 @@ import { HistoryPanel } from './HistoryPanel'
 import { StatusBadge } from './StatusBadge'
 import { useToast } from './Toast'
 import { isSubOrderComplete } from '../lib/subOrderShared'
-import { contactJoinToCustomer } from '../lib/customers'
 import { useOrderWorkspace } from '../context/order.context'
 import './ContextPanel.css'
 
 type Props = {
   order: Auftrag | null
   activeSubOrder: SubOrderRow | null
-  orderCustomer: CustomerContactJoin | null
+  orderCustomer: Customer | null
   orderFiles: FileRow[]
   onOrderUpdated: (updatedOrder: Auftrag) => void
   onOrderDeleted: (auftragId: string) => void
@@ -44,11 +42,6 @@ function nextEmergencyStatus(status: OrderStatus): OrderStatus {
   if (status === 'PREPRESS_READY') return 'PRODUCTION_READY'
   if (status === 'PRODUCTION_READY') return 'DONE'
   return status
-}
-
-function resolveCustomerContact(contact: CustomerContactJoin | null): CustomerContactRow | null {
-  if (contact == null) return null
-  return Array.isArray(contact) ? (contact[0] ?? null) : contact
 }
 
 function hasStampModelLinked(detail: Record<string, unknown>): boolean {
@@ -714,12 +707,11 @@ export function ContextPanel({
         </div>
       </div>
       {(() => {
-        const customerContact = resolveCustomerContact(orderCustomer)
-        if (!customerContact) return null
-        const street = customerContact.street?.trim()
-        const houseNumber = customerContact.house_number?.trim()
-        const postalCode = customerContact.postal_code?.trim()
-        const city = customerContact.city?.trim()
+        if (!orderCustomer) return null
+        const street = orderCustomer.street?.trim()
+        const houseNumber = orderCustomer.house_number?.trim()
+        const postalCode = orderCustomer.postal_code?.trim()
+        const city = orderCustomer.city?.trim()
         const addressLine1 = [street, houseNumber].filter(Boolean).join(' ')
         const addressLine2 = [postalCode, city].filter(Boolean).join(' ')
         if (!addressLine1 && !addressLine2) return null
@@ -753,7 +745,7 @@ export function ContextPanel({
               type="button"
               className="cp-btn"
               disabled={busy}
-              onClick={() => openCustomerDialog(contactJoinToCustomer(orderCustomer))}
+              onClick={() => openCustomerDialog(orderCustomer)}
             >
               Edit customer
             </button>

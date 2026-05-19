@@ -7,7 +7,7 @@ import { WorkArea } from '../components/WorkArea'
 import { ContextPanel } from '../components/ContextPanel'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { OrderWorkspaceProvider, useOrderWorkspace } from '../context/order.context'
-import type { Auftrag, OrderStatus, CustomerContactJoin, SubOrderRow } from '../types/database'
+import type { Auftrag, Customer, OrderStatus, SubOrderRow } from '../types/database'
 import type { FileRow } from '../services/fileService'
 
 const ORDER_LIST_IN_PLACE_INITIAL: { tick: number; id: string; status: OrderStatus } = {
@@ -48,7 +48,7 @@ function WorkspaceShell() {
   const { activeOrderId, clearActive } = useOrderWorkspace()
   const [activeOrder, setActiveOrder] = useState<Auftrag | null>(null)
   const [activeSubOrder, setActiveSubOrder] = useState<SubOrderRow | null>(null)
-  const [orderCustomer, setOrderCustomer] = useState<CustomerContactJoin | null>(null)
+  const [orderCustomer, setOrderCustomer] = useState<Customer | null>(null)
   const [orderFiles, setOrderFiles] = useState<FileRow[]>([])
   const [contextRefreshTick, setContextRefreshTick] = useState(0)
   const [orderInPlace, setOrderInPlace] = useState(ORDER_LIST_IN_PLACE_INITIAL)
@@ -65,7 +65,7 @@ function WorkspaceShell() {
     setActiveOrder(order)
   }, [])
 
-  const handleOrderCustomerLoaded = useCallback((customer: CustomerContactJoin | null) => {
+  const handleOrderCustomerLoaded = useCallback((customer: Customer | null) => {
     setOrderCustomer(customer)
   }, [])
 

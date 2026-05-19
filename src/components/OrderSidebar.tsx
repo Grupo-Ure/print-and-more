@@ -192,7 +192,7 @@ export function OrderSidebar({ orderInPlace }: Props) {
 
       {duplicateDialogOpen && duplicateOrder && (
         <DuplicateDialog
-          auftrag={duplicateOrder}
+          order={duplicateOrder}
           teilauftraege={duplicateSubOrders}
           onCancel={() => setDuplicateDialogOpen(false)}
           onSuccess={newOrder => {

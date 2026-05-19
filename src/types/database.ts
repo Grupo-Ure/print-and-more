@@ -14,28 +14,32 @@ export type Department = SubOrderDepartment
 /** Entspricht `prioritaet_typ` in der DB (Auftrag und Teilauftrag). */
 export type Priority = Enums<'priority_type'>
 
-export type CustomerName = {
-  name: string
-}
-
 export type CustomerContactRow = Tables<'customers'>
 
-/** PostgREST liefert eingebettete FK-Zeile als Objekt oder 1-Element-Array (je nach Client-Inferenz). */
-export type CustomerJoin = CustomerName | CustomerName[] | null
+/** Flat customer shape used everywhere the app needs to read/edit a customer. */
+export type Customer = {
+  id: string
+  name: string
+  email: string | null
+  phone: string | null
+  note: string | null
+  street: string | null
+  house_number: string | null
+  postal_code: string | null
+  city: string | null
+}
 
-export type CustomerContactJoin = CustomerContactRow | CustomerContactRow[] | null
-
-/** SELECT für die Auftragsliste (OrderList) */
+/** Order list row — minimal customer projection (only `name`). */
 export type OrderSummaryRow = Pick<Tables<'orders'>, 'id' | 'order_number' | 'status' | 'created_at'> & {
-  customers: CustomerName | CustomerName[] | null
+  customers: { name: string } | null
 }
 
-/** SELECT einzelner Auftrag im Arbeitsbereich */
+/** Single-order row loaded into the workspace. */
 export type OrderDetailRow = Tables<'orders'> & {
-  customers: CustomerContactJoin
+  customers: Customer | null
 }
 
-/** Rechte Spalte / Kontext (identisch mit geladenem Auftrag) */
+/** Alias used by the context panel and other workspace consumers. */
 export type Auftrag = OrderDetailRow
 
 /** Patch for the order header fields editable in WorkArea. */
@@ -43,7 +47,7 @@ export type OrderHeaderPatch = Partial<Pick<Tables<'orders'>, 'deadline' | 'deli
 
 /** Shape of order data needed for PDF generation. */
 export type OrderPdfRow = Pick<Tables<'orders'>, 'order_number' | 'deadline' | 'delivery' | 'priority' | 'created_at'> & {
-  customers: CustomerContactJoin
+  customers: Customer | null
 }
 
 export type DeliveryChoice = Enums<'delivery_type'>
