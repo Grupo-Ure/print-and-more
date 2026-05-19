@@ -14,7 +14,7 @@ import {
   type OrderStatus,
   type SubOrderRow,
 } from '../types/database'
-import { Search, SlidersHorizontal } from 'lucide-react'
+import { SlidersHorizontal } from 'lucide-react'
 import { Sidebar, SidebarHeader, SidebarContent, SidebarFooter } from '@/components/ui/sidebar'
 import { cn } from '@/lib/utils'
 import { DuplicateDialog } from './DuplicateDialog'
@@ -111,29 +111,13 @@ export function OrderSidebar({ orderInPlace }: Props) {
   )
 
   return (
-    <Sidebar collapsible="offcanvas" side="left" className="bg-neutral-50">
+    <Sidebar collapsible="offcanvas" side="left" className="border-r! border-gray-200">
       <SidebarHeader className="border-b border-neutral-200 px-3.5 py-2.5 bg-neutral-50">
         <div className="flex items-center justify-between gap-2 min-h-7">
-          <h1 className="m-0 text-[11px] font-bold uppercase tracking-[0.08em] text-neutral-500">
+          <h1 className="m-0 font-bold uppercase text-neutral-500">
             Order List
           </h1>
           <div className="flex items-center gap-0.5">
-            <button
-              type="button"
-              title="Search customer"
-              aria-label="Search customer"
-              aria-pressed={searchOpen}
-              onClick={() => {
-                setSearchOpen(o => !o)
-                if (filterPopOpen) setFilterPopOpen(false)
-              }}
-              className={cn(
-                'inline-flex items-center justify-center min-w-8 h-7 px-1.5 rounded-md border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100',
-                searchOpen && 'bg-neutral-200 border-neutral-300',
-              )}
-            >
-              <Search className="size-3.5" />
-            </button>
             <button
               type="button"
               title="Filter"
@@ -156,13 +140,11 @@ export function OrderSidebar({ orderInPlace }: Props) {
           </div>
         </div>
 
-        {searchOpen && (
-          <OrderSidebarSearch
-            value={filter.searchInput}
-            onChange={actions.setSearchInput}
-            onClear={actions.clearSearch}
-          />
-        )}
+        <OrderSidebarSearch
+          value={filter.searchInput}
+          onChange={actions.setSearchInput}
+          onClear={actions.clearSearch}
+        />
 
         {filterPopOpen && <OrderSidebarFilters filter={filter} actions={actions} />}
       </SidebarHeader>

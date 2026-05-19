@@ -70,9 +70,9 @@ export function NewOrderDialog() {
         <DialogTrigger asChild>
           <Button
             type="button"
-            className="w-full bg-orange-600 text-white hover:bg-orange-700 focus-visible:ring-orange-600/40"
+            className="h-16 text-2xl px-12 m-auto"
           >
-            <Plus className="size-3.5" />
+            <Plus strokeWidth={4} />
             New Order
           </Button>
         </DialogTrigger>
