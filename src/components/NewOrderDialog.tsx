@@ -1,279 +1,195 @@
-import { useCallback, useEffect, useState } from 'react'
-import { historyService } from '../services/historyService'
-import { customerService } from '../services/customerService'
-import { orderService } from '../services/orderService'
-import type { DeliveryChoice, OrderStatus, Priority } from '../types/database'
+import { useEffect, useMemo, useState } from 'react'
+import { Pencil, Plus, Replace } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
+import { useCreateOrder } from '../queries/orderQueries'
+import { useCustomerSearch } from '../queries/customerQueries'
+import { useOrderWorkspace } from '../context/order.context'
 import type { Customer } from '../lib/customers'
-import { CustomerDialog } from './CustomerDialog'
-import { useToast } from './Toast'
-import './ContextPanel.css'
-import './WorkArea.css'
 
-export type NewOrderInsertRow = {
-  id: string
-  auftragsnummer: string
-  status: OrderStatus
-  erstellt_am: string
-  kunde_id: string
-  termin: string | null
-  lieferung: DeliveryChoice | null
-  prioritaet: Priority
-  notfall_aktiv: boolean
-  archiviert: boolean
-  erp_exportiert: boolean
-}
-
-type Props = {
-  onSuccess: (a: NewOrderInsertRow) => void
-}
-
-export function NewOrderDialog({ onSuccess }: Props) {
-  const { showError } = useToast()
+export function NewOrderDialog() {
   const [open, setOpen] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<Customer[]>([])
-  const [searchLoading, setSearchLoading] = useState(false)
-  const [creating, setCreating] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [customerSubDialog, setCustomerSubDialog] = useState<'neu' | 'bearbeiten' | null>(null)
-  const [customerForForm, setCustomerForForm] = useState<Customer | null>(null)
-  const [editingCustomer, setEditingCustomer] = useState(false)
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+
+  const { setActiveOrder, openCustomerDialog } = useOrderWorkspace()
+  const createOrder = useCreateOrder()
 
   useEffect(() => {
-    if (!open) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset on open
-    setSelectedCustomer(null)
-    setSearchQuery('')
-    setSearchResults([])
-    setError(null)
-    setCustomerSubDialog(null)
-    setCustomerForForm(null)
+    if (!open) {
+      setSelectedCustomer(null)
+      setSearchInput('')
+      setDebouncedQuery('')
+      createOrder.reset()
+    }
+    // createOrder is intentionally omitted — useMutation returns a new object every render,
+    // which would cause an infinite loop. createOrder.reset is a stable method.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  const runSearch = useCallback(async (query: string) => {
-    const trimmedQuery = query.trim()
-    if (trimmedQuery.length === 0) {
-      setSearchResults([])
-      return
-    }
-    setSearchLoading(true)
-    try {
-      const data = await customerService.searchCustomers(trimmedQuery)
-      setSearchResults(data as Customer[])
-    } catch {
-      showError('Customer search failed')
-      setSearchResults([])
-    }
-    setSearchLoading(false)
-  }, [showError])
-
   useEffect(() => {
-    if (!open) return
-    const timer = setTimeout(() => {
-      void runSearch(searchQuery)
-    }, 300)
+    const timer = setTimeout(() => setDebouncedQuery(searchInput), 300)
     return () => clearTimeout(timer)
-  }, [searchQuery, runSearch, open])
+  }, [searchInput])
 
-  const openEditCustomer = async () => {
+  const search = useCustomerSearch(debouncedQuery)
+  const trimmedQuery = debouncedQuery.trim()
+  const results = useMemo(() => (search.data ?? []) as Customer[], [search.data])
+
+  const handleSubmit = async () => {
     if (!selectedCustomer) return
-    setEditingCustomer(true)
     try {
-      const data = await customerService.getCustomerById(selectedCustomer.id)
-      setEditingCustomer(false)
-      if (data) {
-        setCustomerForForm(data as Customer)
-        setCustomerSubDialog('bearbeiten')
-      }
+      // order_number is generated server-side via DB default; the client omits it.
+      const payload = {
+        customer_id: selectedCustomer.id,
+        status: 'QUOTE',
+        deadline: null,
+        delivery: 'PICKUP',
+        priority: 'NORMAL',
+      } as Parameters<typeof createOrder.mutateAsync>[0]
+      const order = await createOrder.mutateAsync(payload)
+      setActiveOrder(order.id)
+      setOpen(false)
     } catch {
-      setEditingCustomer(false)
-      showError('Customer could not be loaded')
-    }
-  }
-
-  const handleCustomerSaved = (customer: Customer) => {
-    setCustomerSubDialog(null)
-    setCustomerForForm(null)
-    setSelectedCustomer(customer)
-  }
-
-  const handleCreateOrder = async () => {
-    if (!selectedCustomer) return
-    setError(null)
-    setCreating(true)
-    const auftragInsert = {
-      customer_id: selectedCustomer.id,
-      status: 'QUOTE',
-      deadline: null,
-      delivery: 'PICKUP',
-      priority: 'NORMAL',
-    }
-    let data: NewOrderInsertRow
-    try {
-      data = await orderService.createOrder(auftragInsert as Parameters<typeof orderService.createOrder>[0]) as unknown as NewOrderInsertRow
-    } catch (err) {
-      setCreating(false)
-      setError(err instanceof Error ? err.message : 'Error creating order')
-      return
-    }
-    setCreating(false)
-    setOpen(false)
-    onSuccess(data)
-    try {
-      await historyService.writeHistory({
-        order_id: data.id,
-        event_type: 'ORDER_CREATED',
-      })
-    } catch {
-      console.error('History ORDER_CREATED failed')
-      showError('Order created, but history entry failed')
+      // mutation error surfaces via createOrder.error below
     }
   }
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="w-full rounded-md bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-700"
-      >
-        + New Order
-      </button>
-      {open && (
-        <>
-      <div className="cp-modal-bg" role="dialog" aria-modal="true" aria-label="New Order">
-        <div className="cp-modal" style={{ maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}>
-          <h3>New Order</h3>
-          {error && (
-            <p className="cp-hinweis" style={{ color: '#b91c1c' }}>
-              {error}
+    <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button
+            type="button"
+            className="w-full bg-orange-600 text-white hover:bg-orange-700 focus-visible:ring-orange-600/40"
+          >
+            <Plus className="size-3.5" />
+            New Order
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>New Order</DialogTitle>
+          </DialogHeader>
+
+          {createOrder.error && (
+            <p className="text-xs text-destructive">
+              {createOrder.error instanceof Error ? createOrder.error.message : 'Error creating order'}
             </p>
           )}
 
-          <h4 className="ber-h3" style={{ marginTop: 0, fontSize: '0.8rem' }}>
-            Customer
-          </h4>
-          {selectedCustomer == null && (
-            <>
-              <input
-                type="search"
-                className="ber-inp"
-                style={{ width: '100%', boxSizing: 'border-box', marginBottom: 8 }}
-                placeholder="Search customer…"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-              />
-              {searchLoading && <p className="cp-hinweis">Searching…</p>}
-              <div
-                style={{
-                  border: '1px solid #e5e5e5',
-                  borderRadius: 6,
-                  maxHeight: 200,
-                  overflowY: 'auto',
-                  marginBottom: 8,
-                }}
-              >
-                {searchResults.length === 0 && !searchLoading && searchQuery.trim() && (
-                  <p className="cp-hinweis" style={{ padding: 8, margin: 0 }}>
-                    No results
-                  </p>
-                )}
-                {searchResults.map(customer => (
-                  <button
-                    key={customer.id}
-                    type="button"
-                    onClick={() => setSelectedCustomer(customer)}
-                    className="cp-btn"
-                    style={{
-                      border: 'none',
-                      borderRadius: 0,
-                      borderBottom: '1px solid #eee',
-                    }}
-                  >
-                    <strong>{customer.name}</strong>
-                    <div className="cp-hinweis" style={{ margin: '4px 0 0' }}>
-                      {customer.email || customer.phone || '—'}
-                    </div>
-                  </button>
-                ))}
-              </div>
-              <button type="button" className="cp-btn" onClick={() => { setCustomerForForm(null); setCustomerSubDialog('neu') }}>
-                + New Customer
-              </button>
-            </>
-          )}
+          <section className="flex flex-col gap-2">
+            <h4 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+              Customer
+            </h4>
 
-          {selectedCustomer && (
-            <div
-              style={{
-                marginBottom: 12,
-                padding: 10,
-                background: '#f5f5f5',
-                borderRadius: 6,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>{selectedCustomer.name}</div>
-                  <div className="cp-hinweis" style={{ marginTop: 4 }}>
+            {selectedCustomer == null ? (
+              <>
+                <Input
+                  type="search"
+                  placeholder="Search customer…"
+                  value={searchInput}
+                  onChange={e => setSearchInput(e.target.value)}
+                  autoFocus
+                />
+                <div className="max-h-48 overflow-y-auto rounded-md border border-border">
+                  {search.isFetching && (
+                    <p className="px-3 py-2 text-xs text-muted-foreground">Searching…</p>
+                  )}
+                  {!search.isFetching && trimmedQuery.length > 0 && results.length === 0 && (
+                    <p className="px-3 py-2 text-xs text-muted-foreground">No results</p>
+                  )}
+                  {!search.isFetching && trimmedQuery.length === 0 && (
+                    <p className="px-3 py-2 text-xs text-muted-foreground">
+                      Start typing to find a customer.
+                    </p>
+                  )}
+                  {results.map(customer => (
+                    <button
+                      key={customer.id}
+                      type="button"
+                      onClick={() => setSelectedCustomer(customer)}
+                      className={cn(
+                        'block w-full border-b border-border px-3 py-2 text-left text-sm hover:bg-muted',
+                        'last:border-b-0',
+                      )}
+                    >
+                      <div className="font-medium">{customer.name}</div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">
+                        {customer.email || customer.phone || '—'}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openCustomerDialog(null, { onSaved: setSelectedCustomer })}
+                >
+                  <Plus className="size-3.5" />
+                  New Customer
+                </Button>
+              </>
+            ) : (
+              <div className="flex items-start justify-between gap-3 rounded-md bg-muted p-3">
+                <div className="min-w-0">
+                  <div className="truncate font-medium">{selectedCustomer.name}</div>
+                  <div className="mt-0.5 truncate text-xs text-muted-foreground">
                     {selectedCustomer.email || selectedCustomer.phone || '—'}
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <button
+                <div className="flex shrink-0 flex-col gap-1">
+                  <Button
                     type="button"
-                    className="cp-btn"
-                    style={{ width: 'auto' }}
-                    disabled={editingCustomer}
-                    onClick={() => { void openEditCustomer() }}
+                    variant="outline"
+                    size="xs"
+                    onClick={() => openCustomerDialog(selectedCustomer, { onSaved: setSelectedCustomer })}
                   >
-                    {editingCustomer ? '…' : 'Edit'}
-                  </button>
-                  <button
+                    <Pencil className="size-3" />
+                    Edit
+                  </Button>
+                  <Button
                     type="button"
-                    className="cp-btn"
-                    style={{ width: 'auto' }}
+                    variant="outline"
+                    size="xs"
                     onClick={() => setSelectedCustomer(null)}
                   >
+                    <Replace className="size-3" />
                     Change
-                  </button>
+                  </Button>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </section>
 
-          <div className="cp-modal-bar" style={{ marginTop: 16 }}>
-            <button type="button" className="cp-btn" onClick={() => setOpen(false)} disabled={creating}>
-              Cancel
-            </button>
-            <button
+          <DialogFooter>
+            <Button
               type="button"
-              className="cp-btn"
-              disabled={!selectedCustomer || creating}
-              onClick={() => void handleCreateOrder()}
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={createOrder.isPending}
             >
-              Create Order
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {customerSubDialog === 'neu' && (
-        <CustomerDialog kunde={null} onSaved={handleCustomerSaved} onCancel={() => setCustomerSubDialog(null)} />
-      )}
-      {customerSubDialog === 'bearbeiten' && customerForForm && (
-        <CustomerDialog
-          kunde={customerForForm}
-          onSaved={handleCustomerSaved}
-          onCancel={() => {
-            setCustomerSubDialog(null)
-            setCustomerForForm(null)
-          }}
-        />
-      )}
-        </>
-      )}
-    </>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void handleSubmit()}
+              disabled={!selectedCustomer || createOrder.isPending}
+            >
+              {createOrder.isPending ? 'Creating…' : 'Create Order'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
   )
 }

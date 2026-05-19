@@ -1,7 +1,11 @@
-import { useQuery, type QueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { customerService } from '../services/customerService'
+import { historyService } from '../services/historyService'
 import { orderService, type OrderListEntry } from '../services/orderService'
-import type { OrderStatus } from '../types/database'
+import type { Auftrag, OrderStatus } from '../types/database'
+import type { Database } from '../types/supabase'
+
+type OrderInsert = Database['public']['Tables']['orders']['Insert']
 
 export type OrdersListFilter = {
   searchDebounced: string
@@ -110,4 +114,26 @@ export function invalidateOrderListsIfCustomerReferenced(
   if (referenced) {
     void queryClient.invalidateQueries({ queryKey: orderListKeys.all })
   }
+}
+
+/**
+ * Create a new order. Writes an ORDER_CREATED history entry as a best-effort
+ * follow-up — a failure there does not invalidate the order itself.
+ */
+export function useCreateOrder() {
+  const queryClient = useQueryClient()
+  return useMutation<Auftrag, Error, OrderInsert>({
+    mutationFn: async payload => {
+      const order = await orderService.createOrder(payload)
+      try {
+        await historyService.writeHistory({ order_id: order.id, event_type: 'ORDER_CREATED' })
+      } catch (err) {
+        console.error('History ORDER_CREATED failed', err)
+      }
+      return order
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: orderListKeys.all })
+    },
+  })
 }

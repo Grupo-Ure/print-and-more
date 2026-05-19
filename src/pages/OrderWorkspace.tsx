@@ -5,11 +5,8 @@ import { Login } from '../components/Login'
 import { OrderSidebar } from '../components/OrderSidebar'
 import { WorkArea } from '../components/WorkArea'
 import { ContextPanel } from '../components/ContextPanel'
-import type { NewOrderInsertRow } from '../components/NewOrderDialog'
-import { CustomerDialog } from '../components/CustomerDialog'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
-import { contactJoinToCustomer } from '../lib/customers'
-import type { Customer } from '../lib/customers'
+import { OrderWorkspaceProvider, useOrderWorkspace } from '../context/order.context'
 import type { Auftrag, OrderStatus, CustomerContactJoin, SubOrderRow } from '../types/database'
 import type { FileRow } from '../services/fileService'
 
@@ -22,18 +19,6 @@ const ORDER_LIST_IN_PLACE_INITIAL: { tick: number; id: string; status: OrderStat
 export function OrderWorkspace() {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeOrderId, setActiveOrderId] = useState<string | null>(null)
-  const [activeOrder, setActiveOrder] = useState<Auftrag | null>(null)
-  const [activeSubOrder, setActiveSubOrder] = useState<SubOrderRow | null>(null)
-  const [orderCustomer, setOrderCustomer] = useState<CustomerContactJoin | null>(null)
-  const [orderFiles, setOrderFiles] = useState<FileRow[]>([])
-  const [contextRefreshTick, setContextRefreshTick] = useState(0)
-  const [orderSidebarKey, setOrderSidebarKey] = useState(0)
-  const [orderInPlace, setOrderInPlace] = useState(ORDER_LIST_IN_PLACE_INITIAL)
-  const [customerDialog, setCustomerDialog] = useState<{ open: boolean; customer: Customer | null }>({
-    open: false,
-    customer: null,
-  })
 
   useEffect(() => {
     authService
@@ -49,7 +34,27 @@ export function OrderWorkspace() {
     return () => subscription.unsubscribe()
   }, [])
 
+  if (loading) return null
+  if (!session) return <Login />
+
+  return (
+    <OrderWorkspaceProvider>
+      <WorkspaceShell />
+    </OrderWorkspaceProvider>
+  )
+}
+
+function WorkspaceShell() {
+  const { activeOrderId, clearActive } = useOrderWorkspace()
+  const [activeOrder, setActiveOrder] = useState<Auftrag | null>(null)
+  const [activeSubOrder, setActiveSubOrder] = useState<SubOrderRow | null>(null)
+  const [orderCustomer, setOrderCustomer] = useState<CustomerContactJoin | null>(null)
+  const [orderFiles, setOrderFiles] = useState<FileRow[]>([])
+  const [contextRefreshTick, setContextRefreshTick] = useState(0)
+  const [orderInPlace, setOrderInPlace] = useState(ORDER_LIST_IN_PLACE_INITIAL)
+
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset child caches when the URL-driven active order changes
     setActiveOrder(null)
     setActiveSubOrder(null)
     setOrderCustomer(null)
@@ -79,25 +84,26 @@ export function OrderWorkspace() {
     setContextRefreshTick(x => x + 1)
   }, [])
 
-  const handleOrderUpdated = useCallback((order: Auftrag) => {
-    setActiveOrder(order)
-    if (order.is_archived) {
-      setActiveOrderId(null)
-      setOrderSidebarKey(k => k + 1)
-      setOrderInPlace(ORDER_LIST_IN_PLACE_INITIAL)
-    } else {
-      setOrderInPlace(prev => ({ tick: prev.tick + 1, id: order.id, status: order.status }))
-    }
-    setContextRefreshTick(x => x + 1)
-  }, [])
+  const handleOrderUpdated = useCallback(
+    (order: Auftrag) => {
+      setActiveOrder(order)
+      if (order.is_archived) {
+        clearActive()
+        setOrderInPlace(ORDER_LIST_IN_PLACE_INITIAL)
+      } else {
+        setOrderInPlace(prev => ({ tick: prev.tick + 1, id: order.id, status: order.status }))
+      }
+      setContextRefreshTick(x => x + 1)
+    },
+    [clearActive],
+  )
 
   const handleOrderDeleted = useCallback(() => {
-    setActiveOrderId(null)
+    clearActive()
     setActiveSubOrder(null)
-    setOrderSidebarKey(k => k + 1)
     setOrderInPlace(ORDER_LIST_IN_PLACE_INITIAL)
     setContextRefreshTick(x => x + 1)
-  }, [])
+  }, [clearActive])
 
   const handleSubOrderUpdated = useCallback((subOrder: SubOrderRow) => {
     setActiveSubOrder(subOrder)
@@ -109,40 +115,13 @@ export function OrderWorkspace() {
     setContextRefreshTick(x => x + 1)
   }, [])
 
-  const handleCustomerSaved = useCallback(() => {
-    setCustomerDialog({ open: false, customer: null })
-    setOrderSidebarKey(k => k + 1)
-    setOrderInPlace(ORDER_LIST_IN_PLACE_INITIAL)
-    setContextRefreshTick(x => x + 1)
-  }, [])
-
-  const handleNewOrderSuccess = useCallback((a: NewOrderInsertRow) => {
-    setActiveOrderId(a.id)
-    setOrderSidebarKey(k => k + 1)
-    setOrderInPlace(ORDER_LIST_IN_PLACE_INITIAL)
-  }, [])
-
-  const openEditCustomer = useCallback(() => {
-    const customer = contactJoinToCustomer(orderCustomer)
-    if (customer) setCustomerDialog({ open: true, customer })
-  }, [orderCustomer])
-
-  if (loading) return null
-  if (!session) return <Login />
-
   return (
     <SidebarProvider
       defaultOpen
       style={{ '--sidebar-width': '280px' } as CSSProperties}
       className="font-sans text-sm"
     >
-      <OrderSidebar
-        key={orderSidebarKey}
-        orderInPlace={orderInPlace}
-        activeOrderId={activeOrderId}
-        onSelectOrder={id => setActiveOrderId(id)}
-        onNewOrderCreated={handleNewOrderSuccess}
-      />
+      <OrderSidebar orderInPlace={orderInPlace} />
 
       <SidebarInset className="flex flex-col h-screen overflow-hidden">
         <div className="flex items-center gap-2 border-b border-neutral-200 px-3 py-1.5">
@@ -157,7 +136,6 @@ export function OrderWorkspace() {
             onOrderFromWorkArea={handleOrderFromWorkArea}
             onOrderFilesChanged={handleOrderFilesChanged}
             onOrderUpdated={handleOrderUpdated}
-            onEditCustomer={openEditCustomer}
           />
           <aside className="border-l border-neutral-200 bg-neutral-50 p-4 overflow-y-auto">
             <ContextPanel
@@ -169,21 +147,12 @@ export function OrderWorkspace() {
               onOrderDeleted={handleOrderDeleted}
               onSubOrderUpdated={handleSubOrderUpdated}
               onSubOrderRemoved={handleSubOrderRemoved}
-              onEditCustomer={openEditCustomer}
               contextRefreshTick={contextRefreshTick}
               onFileChanged={handleFileChanged}
             />
           </aside>
         </div>
       </SidebarInset>
-
-      {customerDialog.open && (
-        <CustomerDialog
-          kunde={customerDialog.customer}
-          onSaved={handleCustomerSaved}
-          onCancel={() => setCustomerDialog({ open: false, customer: null })}
-        />
-      )}
     </SidebarProvider>
   )
 }

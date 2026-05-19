@@ -24,6 +24,8 @@ import { AddSubOrderOverlay } from './AddSubOrderOverlay'
 import { DateInput } from './DateInput'
 import type { FileRow } from '../services/fileService'
 import { SubOrderDetail } from './SubOrderDetail'
+import { contactJoinToCustomer } from '../lib/customers'
+import { useOrderWorkspace } from '../context/order.context'
 import './WorkArea.css'
 
 function firstContactRow(contact: CustomerContactJoin | null): CustomerContactRow | null {
@@ -66,7 +68,6 @@ type Props = {
   onOrderFromWorkArea: (a: Auftrag | null) => void
   onOrderFilesChanged: (d: FileRow[]) => void
   onOrderUpdated: (a: Auftrag) => void
-  onEditCustomer: () => void
 }
 
 export function WorkArea({
@@ -77,11 +78,11 @@ export function WorkArea({
   onOrderFromWorkArea,
   onOrderFilesChanged,
   onOrderUpdated,
-  onEditCustomer,
 }: Props) {
+  const { activeSubOrderId, setActiveSubOrder, openCustomerDialog } = useOrderWorkspace()
   const [order, setOrder] = useState<OrderDetailRow | null>(null)
   const [subOrders, setSubOrders] = useState<SubOrderRow[]>([])
-  const [activeSubOrderId, setActiveSubOrderId] = useState<string | null>(null)
+  const [localReloadTick, setLocalReloadTick] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [overlayOpen, setOverlayOpen] = useState(false)
@@ -122,7 +123,6 @@ export function WorkArea({
     if (!activeOrderId) {
       setOrder(null)
       setSubOrders([])
-      setActiveSubOrderId(null)
       setError(null)
       setLoading(false)
       return
@@ -147,25 +147,17 @@ export function WorkArea({
           showError('Order could not be loaded')
           setOrder(null)
           setSubOrders([])
-          setActiveSubOrderId(null)
           return
         }
         if (isStale()) return
         setOrder(orderData as OrderDetailRow)
-        const subOrderList = subOrderResult
-        setSubOrders(subOrderList)
-        setActiveSubOrderId(currentId => {
-          const visible = subOrderList.filter(subOrder => !subOrder.is_cancelled)
-          if (currentId && visible.some(subOrder => subOrder.id === currentId)) return currentId
-          return visible[0]?.id ?? null
-        })
+        setSubOrders(subOrderResult)
       } catch (err) {
         if (isStale()) return
         setError(err instanceof Error ? err.message : String(err))
         showError('Order could not be loaded')
         setOrder(null)
         setSubOrders([])
-        setActiveSubOrderId(null)
       } finally {
         if (!isStale()) {
           setLoading(false)
@@ -175,7 +167,19 @@ export function WorkArea({
 
     void fetchData()
     return () => {}
-  }, [activeOrderId, contextRefreshTick, showError])
+  }, [activeOrderId, contextRefreshTick, localReloadTick, showError])
+
+  // Pick a default sub-order tab when ?sub= is unset or no longer matches a visible row.
+  useEffect(() => {
+    const visible = subOrders.filter(s => !s.is_cancelled)
+    if (visible.length === 0) {
+      if (activeSubOrderId !== null) setActiveSubOrder(null)
+      return
+    }
+    if (activeSubOrderId == null || !visible.some(s => s.id === activeSubOrderId)) {
+      setActiveSubOrder(visible[0].id)
+    }
+  }, [subOrders, activeSubOrderId, setActiveSubOrder])
 
   useEffect(() => {
     if (!order) return
@@ -329,7 +333,7 @@ export function WorkArea({
       )
       return sorted
     })
-    setActiveSubOrderId(data.id)
+    setActiveSubOrder(data.id)
 
     try {
       const statusResult = await orderService.synchronizeOrderStatus(order.id)
@@ -417,7 +421,11 @@ export function WorkArea({
               type="button"
               className="wa-gear"
               style={{ marginLeft: 0 }}
-              onClick={onEditCustomer}
+              onClick={() =>
+                openCustomerDialog(contactJoinToCustomer(order?.customers ?? null), {
+                  onSaved: () => setLocalReloadTick(x => x + 1),
+                })
+              }
               title="Edit customer"
               aria-label="Edit customer"
             >
@@ -515,7 +523,7 @@ export function WorkArea({
               role="tab"
               className={isActive ? 'tab-btn tab-btn--active' : 'tab-btn'}
               aria-selected={isActive}
-              onClick={() => setActiveSubOrderId(subOrder.id)}
+              onClick={() => setActiveSubOrder(subOrder.id)}
               title={tabTitle}
             >
               <span className="wa-tab-kz">{abbreviation}</span>

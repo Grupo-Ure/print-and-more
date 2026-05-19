@@ -18,8 +18,9 @@ import { Search, SlidersHorizontal } from 'lucide-react'
 import { Sidebar, SidebarHeader, SidebarContent, SidebarFooter } from '@/components/ui/sidebar'
 import { cn } from '@/lib/utils'
 import { DuplicateDialog } from './DuplicateDialog'
-import { NewOrderDialog, type NewOrderInsertRow } from './NewOrderDialog'
+import { NewOrderDialog } from './NewOrderDialog'
 import { useToast } from './Toast'
+import { useOrderWorkspace } from '../context/order.context'
 import { OrderSidebarSearch } from './orderSidebar/OrderSidebarSearch'
 import { OrderSidebarFilters } from './orderSidebar/OrderSidebarFilters'
 import { OrderSidebarBody } from './orderSidebar/OrderSidebarBody'
@@ -29,12 +30,10 @@ type OrderInPlace = { tick: number; id: string; status: OrderStatus }
 
 type Props = {
   orderInPlace: OrderInPlace
-  activeOrderId: string | null
-  onSelectOrder: (id: string) => void
-  onNewOrderCreated: (order: NewOrderInsertRow) => void
 }
 
-export function OrderSidebar({ orderInPlace, activeOrderId, onSelectOrder, onNewOrderCreated }: Props) {
+export function OrderSidebar({ orderInPlace }: Props) {
+  const { activeOrderId, setActiveOrder } = useOrderWorkspace()
   const { filter, isActive: filterActive, selectedStatuses, hasStatusFilter, actions } = useOrderSidebarFilter()
   const [searchOpen, setSearchOpen] = useState(false)
   const [filterPopOpen, setFilterPopOpen] = useState(false)
@@ -172,7 +171,7 @@ export function OrderSidebar({ orderInPlace, activeOrderId, onSelectOrder, onNew
         <OrderSidebarBody
           orders={orders}
           activeOrderId={activeOrderId}
-          onSelectOrder={onSelectOrder}
+          onSelectOrder={setActiveOrder}
           isLoading={ordersQuery.isLoading}
           isFetching={ordersQuery.isFetching}
           isEmpty={isEmpty}
@@ -185,7 +184,7 @@ export function OrderSidebar({ orderInPlace, activeOrderId, onSelectOrder, onNew
       </SidebarContent>
 
       <SidebarFooter className="border-t border-neutral-200 bg-neutral-50 px-3 py-2.5 shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
-        <NewOrderDialog onSuccess={onNewOrderCreated} />
+        <NewOrderDialog />
         {duplicateError && (
           <div className="px-3 pt-1 text-[11px] text-neutral-500">{duplicateError}</div>
         )}
@@ -199,7 +198,7 @@ export function OrderSidebar({ orderInPlace, activeOrderId, onSelectOrder, onNew
           onSuccess={newOrder => {
             setDuplicateDialogOpen(false)
             void queryClient.invalidateQueries({ queryKey: orderListKeys.all })
-            onSelectOrder(newOrder.id)
+            setActiveOrder(newOrder.id)
           }}
         />
       )}

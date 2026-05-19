@@ -21,6 +21,8 @@ import { HistoryPanel } from './HistoryPanel'
 import { StatusBadge } from './StatusBadge'
 import { useToast } from './Toast'
 import { isSubOrderComplete } from '../lib/subOrderShared'
+import { contactJoinToCustomer } from '../lib/customers'
+import { useOrderWorkspace } from '../context/order.context'
 import './ContextPanel.css'
 
 type Props = {
@@ -32,7 +34,6 @@ type Props = {
   onOrderDeleted: (auftragId: string) => void
   onSubOrderUpdated: (updatedSubOrder: SubOrderRow) => void
   onSubOrderRemoved: (id: string) => void
-  onEditCustomer: () => void
   contextRefreshTick: number
   onFileChanged?: (newFileRow?: FileRow) => void | Promise<void>
 }
@@ -148,10 +149,10 @@ export function ContextPanel({
   onOrderDeleted,
   onSubOrderUpdated,
   onSubOrderRemoved,
-  onEditCustomer,
   contextRefreshTick,
   onFileChanged = async () => {},
 }: Props) {
+  const { openCustomerDialog } = useOrderWorkspace()
   const [busy, setBusy] = useState(false)
   const [subOrderAreaList, setSubOrderAreaList] = useState<{ id: string; department: string }[]>([])
   const [cancelInProgress, setCancelInProgress] = useState(false)
@@ -748,7 +749,12 @@ export function ContextPanel({
             </button>
           )}
           {order.status === 'QUOTE' && (
-            <button type="button" className="cp-btn" disabled={busy} onClick={onEditCustomer}>
+            <button
+              type="button"
+              className="cp-btn"
+              disabled={busy}
+              onClick={() => openCustomerDialog(contactJoinToCustomer(orderCustomer))}
+            >
               Edit customer
             </button>
           )}
@@ -1056,7 +1062,6 @@ export function ContextPanel({
           </div>
         </div>
       )}
-
     </div>
   )
 }
