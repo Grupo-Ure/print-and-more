@@ -161,10 +161,10 @@ h2 {
 }
 
 h1 {
-  @apply text-gray-500 text-xl font-heading font-bold -tracking-tighter
+  @apply text-gray-500 text-xl font-heading font-bold tracking-tighter
 }
 h2 {
-  @apply text-gray-400 text-lg font-medium
+  @apply text-gray-600 text-lg font-medium tracking-wide
 }
 p {
   margin: 0;

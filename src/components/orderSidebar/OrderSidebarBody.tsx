@@ -103,7 +103,7 @@ function OrderSidebarItem({
       <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
         <div className="flex items-center justify-between gap-1.5">
           <div className="flex items-center min-w-0 flex-1 gap-1">
-            <h2 className="truncate text-black! font-bold!">
+            <h2 className="truncate font-semibold!">
               {order.customers?.name ?? '—'}
             </h2>
             {order.is_emergency && (
