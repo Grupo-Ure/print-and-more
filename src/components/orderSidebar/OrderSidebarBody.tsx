@@ -1,8 +1,9 @@
 import { AlertTriangle, ArrowUp, Copy } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDateDe } from '../../lib/formatDate'
-import { departmentAbbreviation } from '../../const/departmentAbbreviation'
+import { uniqueDepartments } from '../../lib/orderDepartments'
 import type { OrderListEntry } from '../../services/orderService'
+import { DepartmentPill } from '../DepartmentPill'
 import { StatusBadge } from '../StatusBadge'
 
 type Props = {
@@ -54,108 +55,118 @@ export function OrderSidebarBody({
         <div className="py-1 pl-4 pr-3 text-[11px] text-neutral-400">Refreshing…</div>
       )}
       {!isLoading &&
-        orders.map(order => {
-          const isActive = order.id === activeOrderId
-          const seenDepartments = new Set<string>()
-          const uniqueDepartments: string[] = []
-          for (const subOrder of order.sub_orders ?? []) {
-            const dep = subOrder.department
-            if (!dep || seenDepartments.has(dep)) continue
-            seenDepartments.add(dep)
-            uniqueDepartments.push(dep)
-          }
-          const tagLabels = uniqueDepartments.map(dep => departmentAbbreviation(dep))
-          const visibleTags = tagLabels.slice(0, MAX_DEPARTMENT_TAGS)
-          const extraCount = tagLabels.length - MAX_DEPARTMENT_TAGS
-          return (
-            <div
-              key={order.id}
-              className={cn(
-                'relative flex min-h-14.5 box-border py-2 pl-3.5 pr-3 border-b border-neutral-200 cursor-pointer text-left bg-white hover:bg-neutral-100',
-                isActive && 'bg-blue-50 border-l-[3px] border-l-blue-600',
-              )}
-              onClick={() => onSelectOrder(order.id)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  onSelectOrder(order.id)
-                }
-              }}
-              role="button"
-              tabIndex={0}
-            >
-              <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
-                <div className="flex items-center justify-between gap-1.5">
-                  <div className="flex items-center min-w-0 flex-1 gap-1">
-                    <span className="text-[13px] font-semibold text-neutral-900 leading-tight overflow-hidden text-ellipsis whitespace-nowrap">
-                      {order.customers?.name ?? '—'}
-                    </span>
-                    {order.is_emergency && (
-                      <AlertTriangle
-                        className="size-3.5 text-red-700 shrink-0"
-                        aria-label="Emergency"
-                      />
-                    )}
-                    {order.priority === 'HIGH' && (
-                      <ArrowUp
-                        className="size-3 text-blue-600 shrink-0"
-                        aria-label="High priority"
-                      />
-                    )}
-                  </div>
-                  <span className="text-[11px] text-neutral-400 shrink-0">
-                    {formatDateDe(order.created_at)}
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                  <StatusBadge status={order.status} />
-                  {visibleTags.map(tag => (
-                    <span
-                      key={tag}
-                      className="inline-block text-[9px] px-1.25 py-px bg-neutral-100 border border-neutral-200 text-neutral-500 font-semibold"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                  {extraCount > 0 && (
-                    <span className="inline-block text-[9px] px-1.25 py-px bg-neutral-100 border border-neutral-200 text-neutral-500 font-semibold">
-                      +{extraCount}
-                    </span>
-                  )}
-                </div>
+        orders.map(order => (
+          <OrderSidebarItem
+            key={order.id}
+            order={order}
+            isActive={order.id === activeOrderId}
+            onSelect={onSelectOrder}
+            onDuplicate={onDuplicate}
+            duplicateBusy={duplicateBusy}
+          />
+        ))}
+    </div>
+  )
+}
 
-                {isActive && (
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      type="button"
-                      title="Duplicate order"
-                      aria-label="Duplicate order"
-                      disabled={duplicateBusy}
-                      onClick={e => {
-                        e.stopPropagation()
-                        onDuplicate(order.id)
-                      }}
-                      className="inline-flex items-center justify-center min-w-8 h-7 px-1.5 rounded-md border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 disabled:opacity-50"
-                    >
-                      <Copy className="size-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={duplicateBusy}
-                      onClick={e => {
-                        e.stopPropagation()
-                        onDuplicate(order.id)
-                      }}
-                      className="inline py-1.5 px-2.5 m-0 border-0 bg-transparent text-blue-600 hover:text-blue-700 text-xs underline underline-offset-2 cursor-pointer disabled:opacity-50"
-                    >
-                      Duplicate order
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )
-        })}
+type OrderSidebarItemProps = {
+  order: OrderListEntry
+  isActive: boolean
+  onSelect: (id: string) => void
+  onDuplicate: (orderId: string) => void
+  duplicateBusy: boolean
+}
+
+function OrderSidebarItem({
+  order,
+  isActive,
+  onSelect,
+  onDuplicate,
+  duplicateBusy,
+}: OrderSidebarItemProps) {
+  return (
+    <div
+      className={cn(
+        'flex box-border p-3 border-l-6 border-neutral-200 cursor-pointer text-left bg-white hover:bg-neutral-100',
+        isActive && 'bg-primary/8 border-l-primary',
+      )}
+      onClick={() => onSelect(order.id)}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onSelect(order.id)
+        }
+      }}
+      role="button"
+      tabIndex={0}
+    >
+      <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
+        <div className="flex items-center justify-between gap-1.5">
+          <div className="flex items-center min-w-0 flex-1 gap-1">
+            <h2 className="truncate text-black! font-bold!">
+              {order.customers?.name ?? '—'}
+            </h2>
+            {order.is_emergency && (
+              <AlertTriangle
+                className="size-3.5 text-red-700 shrink-0"
+                aria-label="Emergency"
+              />
+            )}
+            {order.priority === 'HIGH' && (
+              <ArrowUp
+                className="size-3 text-blue-600 shrink-0"
+                aria-label="High priority"
+              />
+            )}
+          </div>
+          <span className="text-base text-neutral-400 shrink-0">
+            {formatDateDe(order.created_at)}
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center justify-between">
+          <StatusBadge status={order.status} />
+          <OrderDepartmentPills subOrders={order.sub_orders} />
+        </div>
+
+        {isActive && (
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              disabled={duplicateBusy}
+              onClick={e => {
+                e.stopPropagation()
+                onDuplicate(order.id)
+              }}
+              className="inline py-1.5 px-2.5 m-0 border-0 bg-transparent text-blue-600 hover:text-blue-700 text-xs underline underline-offset-2 cursor-pointer disabled:opacity-50"
+            >
+              Duplicate order
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function OrderDepartmentPills({
+  subOrders,
+}: {
+  subOrders: OrderListEntry['sub_orders']
+}) {
+  const departments = uniqueDepartments(subOrders)
+  const visible = departments.slice(0, MAX_DEPARTMENT_TAGS)
+  const extraCount = departments.length - MAX_DEPARTMENT_TAGS
+
+  return (
+    <div className="flex items-center gap-2">
+      {visible.map(department => (
+        <DepartmentPill key={department} department={department} />
+      ))}
+      {extraCount > 0 && (
+        <span className="inline-block text-[9px] px-1.25 py-px bg-neutral-100 border border-neutral-200 text-neutral-500 font-semibold">
+          +{extraCount}
+        </span>
+      )}
     </div>
   )
 }

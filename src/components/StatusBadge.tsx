@@ -15,12 +15,13 @@ export function StatusBadge({ status }: { status: OrderStatus }) {
   return (
     <Badge
       className={cn(
-        status === 'QUOTE' && 'bg-gray-100 text-gray-700',
-        status === 'INCOMPLETE' && 'bg-amber-100 text-amber-800',
-        status === 'PREPRESS_READY' && 'bg-blue-100 text-blue-800',
-        status === 'PRODUCTION_READY' && 'bg-violet-100 text-violet-800',
-        status === 'DONE' && 'bg-emerald-100 text-emerald-800',
-        status === 'INVOICED' && 'bg-gray-100 text-gray-700',
+        'text-sm px-6',
+        status === 'QUOTE' && 'bg-gray-500',
+        status === 'INCOMPLETE' && 'bg-orange-500',
+        status === 'PREPRESS_READY' && 'bg-pink-500',
+        status === 'PRODUCTION_READY' && 'bg-blue-500',
+        status === 'DONE' && 'bg-emerald-500',
+        status === 'INVOICED' && 'bg-yellow-500',
       )}
     >
       {STATUS_LABEL[status]}

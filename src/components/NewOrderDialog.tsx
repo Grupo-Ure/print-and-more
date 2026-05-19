@@ -76,21 +76,21 @@ export function NewOrderDialog() {
             New Order
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md p-8">
           <DialogHeader>
             <DialogTitle>New Order</DialogTitle>
           </DialogHeader>
 
           {createOrder.error && (
-            <p className="text-xs text-destructive">
+            <p className="text-destructive">
               {createOrder.error instanceof Error ? createOrder.error.message : 'Error creating order'}
             </p>
           )}
 
           <section className="flex flex-col gap-2">
-            <h4 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+            <h2 className="uppercase tracking-[0.06em] text-muted-foreground">
               Customer
-            </h4>
+            </h2>
 
             {selectedCustomer == null ? (
               <>
