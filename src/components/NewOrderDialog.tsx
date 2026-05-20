@@ -98,8 +98,8 @@ export function NewOrderDialog() {
             New Order
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-md p-8">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-md p-8 sm:h-2/3 flex flex-col">
+          <DialogHeader className='flex-initial'>
             <DialogTitle>New Order</DialogTitle>
           </DialogHeader>
 
@@ -109,7 +109,7 @@ export function NewOrderDialog() {
             </p>
           )}
 
-          <section className="flex flex-col gap-2">
+          <section className="flex flex-col gap-2 h-full">
             <h2 className="uppercase tracking-[0.06em] text-muted-foreground">
               Customer
             </h2>

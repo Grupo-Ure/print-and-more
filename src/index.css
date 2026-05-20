@@ -10,10 +10,6 @@
    @apply border-orange-400 border-2;
 }
 
-html {
-  font-size: 14px;
-}
-
 :root {
   --col-left: 280px;
   --col-right: 300px;
@@ -165,6 +161,9 @@ h1 {
 h2 {
   @apply text-gray-600 text-base lg:text-lg font-medium tracking-wide
 }
+h3 {
+  @apply text-base
+}
 p {
   margin: 0;
 }
@@ -224,6 +223,26 @@ code {
   min-width: 0;
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+/* Slim, themed scrollbars for any scrollable surface. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-foreground);
 }
 
 /* Globale Abschnittstitel (WorkArea, Context, Details) */
