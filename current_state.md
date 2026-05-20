@@ -25,7 +25,7 @@ workstream.
 
 **Structural refactor of the home page** — the three-column shell in
 [`src/App.tsx`](src/App.tsx) and its three children:
-[`OrderList`](src/components/OrderList.tsx) (left),
+[`OrderSidebar`](src/components/OrderSidebar.tsx) (left),
 [`WorkArea`](src/components/WorkArea.tsx) (centre), and
 [`ContextPanel`](src/components/ContextPanel.tsx) (right).
 
