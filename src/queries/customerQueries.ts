@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { customerService, type CustomerRow } from '../services/customerService'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { CUSTOMER_PAGE_SIZE, customerService, type CustomerRow } from '../services/customerService'
 import { invalidateOrderListsIfCustomerReferenced } from './orderQueries'
 import type { Database } from '../types/supabase'
 
@@ -8,15 +8,18 @@ type CustomerUpdate = Database['public']['Tables']['customers']['Update']
 export const customerKeys = {
   all: ['customer'] as const,
   byId: (id: string) => ['customer', 'by-id', id] as const,
-  search: (query: string) => ['customer', 'search', query] as const,
+  list: (query: string) => ['customer', 'list', query] as const,
 }
 
-export function useCustomerSearch(query: string) {
+export function useInfiniteCustomers(query: string) {
   const trimmed = query.trim()
-  return useQuery({
-    queryKey: customerKeys.search(trimmed),
-    queryFn: () => customerService.searchCustomers(trimmed),
-    enabled: trimmed.length > 0,
+  return useInfiniteQuery({
+    queryKey: customerKeys.list(trimmed),
+    queryFn: ({ pageParam }) =>
+      customerService.listCustomers({ query: trimmed, offset: pageParam, limit: CUSTOMER_PAGE_SIZE }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, _allPages, lastPageParam) =>
+      lastPage.length < CUSTOMER_PAGE_SIZE ? undefined : lastPageParam + CUSTOMER_PAGE_SIZE,
     staleTime: 30_000,
   })
 }
@@ -42,7 +45,7 @@ export function useUpsertCustomer() {
     onSuccess: saved => {
       queryClient.setQueryData(customerKeys.byId(saved.id), saved)
       invalidateOrderListsIfCustomerReferenced(queryClient, saved.id)
-      void queryClient.invalidateQueries({ queryKey: ['customer', 'search'] })
+      void queryClient.invalidateQueries({ queryKey: ['customer', 'list'] })
     },
   })
 }

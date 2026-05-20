@@ -18,15 +18,20 @@ export type CustomerRow = {
 
 const CUSTOMER_COLUMNS = 'id, name, email, phone, note, street, house_number, postal_code, city'
 
+export const CUSTOMER_PAGE_SIZE = 25
+
 class CustomerService {
-  async searchCustomers(query: string): Promise<CustomerRow[]> {
-    const { data, error } = await supabase
+  async listCustomers(params: { query?: string; offset?: number; limit?: number } = {}): Promise<CustomerRow[]> {
+    const { query = '', offset = 0, limit = CUSTOMER_PAGE_SIZE } = params
+    let q = supabase
       .from('customers')
       .select(CUSTOMER_COLUMNS)
-      .ilike('name', `%${query}%`)
       .eq('is_archived', false)
-      .order('name')
-      .limit(20)
+      .order('name', { ascending: true })
+      .order('id', { ascending: true })
+      .range(offset, offset + limit - 1)
+    if (query.length > 0) q = q.ilike('name', `%${query}%`)
+    const { data, error } = await q
     if (error) throw error
     return (data ?? []) as CustomerRow[]
   }

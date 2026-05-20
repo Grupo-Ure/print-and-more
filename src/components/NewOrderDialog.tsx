@@ -12,7 +12,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { useCreateOrder } from '../queries/orderQueries'
-import { useCustomerSearch } from '../queries/customerQueries'
+import { useInfiniteCustomers } from '../queries/customerQueries'
 import { useOrderWorkspace } from '../context/order.context'
 import type { Customer } from '../types/database'
 
@@ -42,9 +42,31 @@ export function NewOrderDialog() {
     return () => clearTimeout(timer)
   }, [searchInput])
 
-  const search = useCustomerSearch(debouncedQuery)
-  const trimmedQuery = debouncedQuery.trim()
-  const results = useMemo(() => (search.data ?? []) as Customer[], [search.data])
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetching,
+    isFetchingNextPage,
+  } = useInfiniteCustomers(debouncedQuery)
+  const results = useMemo(() => (data?.pages.flat() ?? []) as Customer[], [data])
+
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null)
+  const [sentinelEl, setSentinelEl] = useState<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!scrollEl || !sentinelEl) return
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          void fetchNextPage()
+        }
+      },
+      { root: scrollEl, rootMargin: '50px' },
+    )
+    observer.observe(sentinelEl)
+    return () => observer.disconnect()
+  }, [scrollEl, sentinelEl, hasNextPage, isFetchingNextPage, fetchNextPage])
 
   const handleSubmit = async () => {
     if (!selectedCustomer) return
@@ -101,17 +123,12 @@ export function NewOrderDialog() {
                   onChange={e => setSearchInput(e.target.value)}
                   autoFocus
                 />
-                <div className="max-h-48 overflow-y-auto rounded-md border border-border">
-                  {search.isFetching && (
+                <div ref={setScrollEl} className="max-h-48 overflow-y-auto rounded-md border border-border">
+                  {isFetching && !isFetchingNextPage && (
                     <p className="px-3 py-2 text-xs text-muted-foreground">Searching…</p>
                   )}
-                  {!search.isFetching && trimmedQuery.length > 0 && results.length === 0 && (
+                  {!isFetching && results.length === 0 && (
                     <p className="px-3 py-2 text-xs text-muted-foreground">No results</p>
-                  )}
-                  {!search.isFetching && trimmedQuery.length === 0 && (
-                    <p className="px-3 py-2 text-xs text-muted-foreground">
-                      Start typing to find a customer.
-                    </p>
                   )}
                   {results.map(customer => (
                     <button
@@ -129,6 +146,10 @@ export function NewOrderDialog() {
                       </div>
                     </button>
                   ))}
+                  <div ref={setSentinelEl} />
+                  {isFetchingNextPage && (
+                    <p className="px-3 py-2 text-xs text-muted-foreground">Loading more…</p>
+                  )}
                 </div>
                 <Button
                   type="button"
