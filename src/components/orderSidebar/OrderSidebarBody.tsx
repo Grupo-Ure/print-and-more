@@ -1,10 +1,16 @@
-import { AlertTriangle, ArrowUp, Copy } from 'lucide-react'
+import { AlertTriangle, ArrowUp, Copy, MoreHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDateDe } from '../../lib/formatDate'
 import { uniqueDepartments } from '../../lib/orderDepartments'
 import type { OrderListEntry } from '../../services/orderService'
 import { DepartmentPill } from '../DepartmentPill'
 import { StatusBadge } from '../StatusBadge'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 type Props = {
   orders: OrderListEntry[]
@@ -87,7 +93,7 @@ function OrderSidebarItem({
   return (
     <div
       className={cn(
-        'flex box-border p-3 border-l-6 border-neutral-200 cursor-pointer text-left bg-white hover:bg-neutral-100',
+        'group flex box-border p-3 border-l-6 border-neutral-200 cursor-pointer text-left bg-white hover:bg-neutral-100',
         isActive && 'bg-primary/8 border-l-primary',
       )}
       onClick={() => onSelect(order.id)}
@@ -107,42 +113,37 @@ function OrderSidebarItem({
               {order.customers?.name ?? '—'}
             </h2>
             {order.is_emergency && (
-              <AlertTriangle
-                className="size-3.5 text-red-700 shrink-0"
-                aria-label="Emergency"
-              />
+              <span title='Emergency order'>
+                <AlertTriangle
+                  size={16}
+                  className="text-red-700 shrink-0"
+                  aria-label="Emergency"
+                  />
+                </span>
             )}
             {order.priority === 'HIGH' && (
-              <ArrowUp
-                className="size-3 text-blue-600 shrink-0"
-                aria-label="High priority"
-              />
+              <span title='High Priority'>
+                <ArrowUp
+                  size={16}
+                  className="text-blue-600 shrink-0"
+                  aria-label="High priority"
+                  />
+                </span>
             )}
           </div>
-          <span className="text-base text-neutral-400 shrink-0">
+          <span className="text-base text-neutral-400 shrink-0 tracking-wide">
             {formatDateDe(order.created_at)}
           </span>
+          <OrderSidebarItemMenu
+            isActive={isActive}
+            duplicateBusy={duplicateBusy}
+            onDuplicate={() => onDuplicate(order.id)}
+          />
         </div>
         <div className="flex flex-wrap items-center justify-between">
           <StatusBadge status={order.status} />
           <OrderDepartmentPills subOrders={order.sub_orders} />
         </div>
-
-        {isActive && (
-          <div className="mt-2 flex gap-2">
-            <button
-              type="button"
-              disabled={duplicateBusy}
-              onClick={e => {
-                e.stopPropagation()
-                onDuplicate(order.id)
-              }}
-              className="inline py-1.5 px-2.5 m-0 border-0 bg-transparent text-blue-600 hover:text-blue-700 text-xs underline underline-offset-2 cursor-pointer disabled:opacity-50"
-            >
-              Duplicate order
-            </button>
-          </div>
-        )}
       </div>
     </div>
   )
@@ -168,5 +169,50 @@ function OrderDepartmentPills({
         </span>
       )}
     </div>
+  )
+}
+
+type OrderSidebarItemMenuProps = {
+  isActive: boolean
+  duplicateBusy: boolean
+  onDuplicate: () => void
+}
+
+function OrderSidebarItemMenu({
+  isActive,
+  duplicateBusy,
+  onDuplicate,
+}: OrderSidebarItemMenuProps) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          onClick={e => e.stopPropagation()}
+          onKeyDown={e => e.stopPropagation()}
+          aria-label="Order actions"
+          className={cn(
+            'ml-2 self-start shrink-0 rounded p-1 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-900 cursor-pointer',
+            'opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 focus-visible:opacity-100',
+            isActive && 'opacity-100',
+          )}
+        >
+          <MoreHorizontal className="size-4" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" onClick={e => e.stopPropagation()} className='w-40'>
+        <DropdownMenuItem
+          disabled={duplicateBusy}
+          onSelect={e => {
+            e.preventDefault()
+            onDuplicate()
+          }}
+          className='text-base hover:text-primary font-medium'
+        >
+          <Copy />
+          Duplicate order
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
