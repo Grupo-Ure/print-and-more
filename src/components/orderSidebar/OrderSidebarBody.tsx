@@ -203,10 +203,7 @@ function OrderSidebarItemMenu({
       <DropdownMenuContent align="end" onClick={e => e.stopPropagation()} className='w-40'>
         <DropdownMenuItem
           disabled={duplicateBusy}
-          onSelect={e => {
-            e.preventDefault()
-            onDuplicate()
-          }}
+          onSelect={() => onDuplicate()}
           className='text-base hover:text-primary font-medium'
         >
           <Copy />
