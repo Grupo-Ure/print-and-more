@@ -1,4 +1,13 @@
 import { useMemo, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { authService } from '../services/authService'
 import { orderService } from '../services/orderService'
 import { type Auftrag, type SubOrderRow } from '../types/database'
@@ -17,8 +26,6 @@ type Props = {
   onSuccess: (neuerAuftrag: Auftrag) => void
   onCancel: () => void
 }
-
-type Step = 1 | 2
 
 function readableSubOrderType(bereich: string, typ: string | null): string {
   if (!typ) return '—'
@@ -48,12 +55,19 @@ function formatDetailDimensions(detail: import('../types/database').SubOrderRow[
   return ''
 }
 
+function subOrderLabel(subOrder: SubOrderRow): string {
+  const department =
+    subOrder.department in SUB_ORDER_DEPARTMENT_LABELS
+      ? SUB_ORDER_DEPARTMENT_LABELS[subOrder.department as keyof typeof SUB_ORDER_DEPARTMENT_LABELS]
+      : subOrderDepartmentLabel(subOrder.department)
+  const type = readableSubOrderType(subOrder.department, subOrder.type)
+  const dims = formatDetailDimensions(subOrder.detail)
+  return dims ? `${department} · ${type} · ${dims}` : `${department} · ${type}`
+}
+
 export function DuplicateDialog({ order, teilauftraege, onSuccess, onCancel }: Props) {
   const activeSubOrders = useMemo(() => teilauftraege.filter(subOrder => !subOrder.is_cancelled), [teilauftraege])
-  const hasMultipleSubOrders = activeSubOrders.length > 1
 
-  const [step, setStep] = useState<Step>(hasMultipleSubOrders ? 1 : 2)
-  const [mode, setMode] = useState<'ALL' | 'SELECT'>(hasMultipleSubOrders ? 'ALL' : 'ALL')
   const [selection, setSelection] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {}
     for (const subOrder of activeSubOrders) initial[subOrder.id] = true
@@ -64,35 +78,30 @@ export function DuplicateDialog({ order, teilauftraege, onSuccess, onCancel }: P
   const [error, setError] = useState<string | null>(null)
   const { showError, showSuccess } = useToast()
 
-  const selectedSubOrders = useMemo(() => activeSubOrders.filter(subOrder => selection[subOrder.id]), [activeSubOrders, selection])
-  const hasSelection = selectedSubOrders.length >= 1
+  const selectedSubOrders = useMemo(
+    () => activeSubOrders.filter(subOrder => selection[subOrder.id]),
+    [activeSubOrders, selection]
+  )
+  const allSelected = activeSubOrders.length > 0 && selectedSubOrders.length === activeSubOrders.length
+  const noneSelected = selectedSubOrders.length === 0
+  const masterChecked: boolean | 'indeterminate' = allSelected ? true : noneSelected ? false : 'indeterminate'
 
+  const blocksDuplicate = activeSubOrders.length > 0 && noneSelected
   const customerLabel = order.customers?.name?.trim() || order.id
-
-  const selectAll = () => {
-    const next: Record<string, boolean> = {}
-    for (const subOrder of activeSubOrders) next[subOrder.id] = true
-    setSelection(next)
-    setMode('ALL')
-    setStep(2)
-  }
-
-  const startSelecting = () => {
-    setMode('SELECT')
-  }
-
-  const goNext = () => {
-    if (!hasSelection) return
-    setStep(2)
-  }
 
   const toggle = (id: string) => {
     setSelection(previous => ({ ...previous, [id]: !previous[id] }))
   }
 
+  const toggleAll = (next: boolean | 'indeterminate') => {
+    const target = next === true || next === 'indeterminate'
+    const updated: Record<string, boolean> = {}
+    for (const subOrder of activeSubOrders) updated[subOrder.id] = target
+    setSelection(updated)
+  }
+
   const handleDuplicate = async () => {
-    if (busy) return
-    if (!hasSelection) return
+    if (busy || blocksDuplicate) return
     setBusy(true)
     setError(null)
     try {
@@ -124,94 +133,85 @@ export function DuplicateDialog({ order, teilauftraege, onSuccess, onCancel }: P
   }
 
   return (
-    <div className="cp-modal-bg" role="dialog" aria-modal="true" aria-label="Duplicate Order">
-      <div className="cp-modal">
-        {step === 1 && (
-          <>
-            <h3>Which sub-orders to copy?</h3>
-            <p className="cp-hinweis">Active (non-cancelled) sub-orders only.</p>
+    <Dialog
+      open={true}
+      onOpenChange={open => {
+        if (!open && !busy) onCancel()
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Duplicate Order</DialogTitle>
+        </DialogHeader>
 
-            <div className="cp-modal-bar" style={{ justifyContent: 'flex-start', gap: 10 }}>
-              <button type="button" className="cp-btn" onClick={selectAll}>
-                Copy all
-              </button>
-              <button type="button" className="cp-btn" onClick={startSelecting}>
-                Select
-              </button>
-            </div>
+        <p className="text-sm text-muted-foreground">
+          Customer: <strong className="text-foreground font-medium">{customerLabel}</strong>
+        </p>
 
-            {mode === 'SELECT' && (
-              <div className="cp-stack" style={{ marginTop: 12 }}>
-                {activeSubOrders.map(subOrder => (
-                  <label key={subOrder.id} className="cp-toggle" style={{ alignItems: 'flex-start' }}>
-                    <input type="checkbox" checked={!!selection[subOrder.id]} onChange={() => toggle(subOrder.id)} />
-                    <span>
-                      {(subOrder.department in SUB_ORDER_DEPARTMENT_LABELS ? SUB_ORDER_DEPARTMENT_LABELS[subOrder.department as keyof typeof SUB_ORDER_DEPARTMENT_LABELS] : subOrderDepartmentLabel(subOrder.department))}{' '}
-                      · {readableSubOrderType(subOrder.department, subOrder.type)}{' '}
-                      {formatDetailDimensions(subOrder.detail) ? `· ${formatDetailDimensions(subOrder.detail)}` : ''}
-                    </span>
-                  </label>
-                ))}
-                {!hasSelection && <p className="cp-hinweis">Select at least 1 sub-order.</p>}
-                <div className="cp-modal-bar">
-                  <button type="button" className="cp-btn" onClick={onCancel}>
-                    Cancel
-                  </button>
-                  <button type="button" className="cp-btn" disabled={!hasSelection} onClick={goNext}>
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {mode === 'ALL' && (
-              <div className="cp-modal-bar">
-                <button type="button" className="cp-btn" onClick={onCancel}>
-                  Cancel
-                </button>
-              </div>
-            )}
-          </>
-        )}
-
-        {step === 2 && (
-          <>
-            <h3>Duplicate Order</h3>
-            <p className="cp-hinweis" style={{ marginTop: 6 }}>
-              Customer: <strong>{customerLabel}</strong>
-              <br />
-              Sub-orders: <strong>{selectedSubOrders.length}</strong>
-            </p>
-
-            <div style={{ marginTop: 10 }}>
-              <p className="cp-hinweis">New deadline (optional)</p>
-              <DateInput
-                className="cp-select"
-                value={newDeadline}
-                onChange={e => setNewDeadline(e.target.value)}
-                placeholder="No deadline — set later"
+        {activeSubOrders.length > 0 && (
+          <section className="flex flex-col gap-2">
+            <h2 className="uppercase tracking-[0.06em] text-xs text-muted-foreground">
+              Sub-orders
+            </h2>
+            <label className="flex items-center gap-2.5 rounded-md border bg-muted/40 px-3 py-2 cursor-pointer">
+              <Checkbox
+                checked={masterChecked}
+                onCheckedChange={toggleAll}
               />
-              {!newDeadline && (
-                <p className="cp-hinweis" style={{ marginTop: 6 }}>
-                  No deadline — set later
-                </p>
-              )}
+              <span className="text-sm font-medium">
+                Select all ({selectedSubOrders.length}/{activeSubOrders.length})
+              </span>
+            </label>
+            <div className="flex flex-col gap-1 rounded-md border p-1">
+              {activeSubOrders.map(subOrder => (
+                <label
+                  key={subOrder.id}
+                  className="flex items-start gap-2.5 rounded-sm px-2.5 py-2 hover:bg-muted cursor-pointer"
+                >
+                  <Checkbox
+                    className="mt-0.5"
+                    checked={!!selection[subOrder.id]}
+                    onCheckedChange={() => toggle(subOrder.id)}
+                  />
+                  <span className="text-sm">{subOrderLabel(subOrder)}</span>
+                </label>
+              ))}
             </div>
-
-            {error && <p className="cp-hinweis" style={{ color: '#b91c1c' }}>{error}</p>}
-
-            <div className="cp-modal-bar" style={{ marginTop: 12 }}>
-              <button type="button" className="cp-btn" disabled={busy} onClick={onCancel}>
-                Cancel
-              </button>
-              <button type="button" className="cp-btn" disabled={busy || !hasSelection} onClick={() => void handleDuplicate()}>
-                Duplicate
-              </button>
-            </div>
-          </>
+          </section>
         )}
-      </div>
-    </div>
+
+        <section className="flex flex-col gap-2">
+          <h2 className="uppercase tracking-[0.06em] text-xs text-muted-foreground">
+            New deadline (optional)
+          </h2>
+          <DateInput
+            className="w-full h-12 min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50"
+            value={newDeadline}
+            onChange={e => setNewDeadline(e.target.value)}
+            placeholder="No deadline — set later"
+          />
+        </section>
+
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onCancel}
+            disabled={busy}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={() => void handleDuplicate()}
+            disabled={busy || blocksDuplicate}
+          >
+            {busy ? 'Duplicating…' : 'Duplicate'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
-
