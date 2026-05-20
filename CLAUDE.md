@@ -59,7 +59,7 @@ Three-column layout, full height:
 
 | Column | Component | Role |
 |--------|-----------|------|
-| Left   | [`OrderList`](src/components/OrderList.tsx) | "+ Neuer Auftrag" button (opens `NeuerAuftragDialog`); order list with selection; archived orders excluded (`.eq('archiviert', false)`) |
+| Left   | [`OrderSidebar`](src/components/OrderSidebar.tsx) | "+ Neuer Auftrag" button (opens `NeuerAuftragDialog`); order list with selection; archived orders excluded (`.eq('archiviert', false)`) |
 | Centre | [`WorkArea`](src/components/WorkArea.tsx) | Order header, files, sub-order tabs, active sub-order detail mask |
 | Right  | [`ContextPanel`](src/components/ContextPanel.tsx) | Status, workflow actions, hints (Auftrag and Teilauftrag workflow) |
 
@@ -67,7 +67,7 @@ Three-column layout, full height:
 including header fields, `kunden` join, `erp_exportiert`, `archiviert`),
 `aktiverTeilauftrag`, `auftragKunde`, `auftragDateien`, `kontextAktualisiert`
 (triggers a refetch in `WorkArea` after actions in the context),
-`orderListKey` (remount/refresh of `OrderList` after archiving, creating a new
+`orderSidebarKey` (remount/refresh of `OrderSidebar` after archiving, creating a new
 order, or saving a customer), `neuerAuftragOffen` (modal flag), `kundeDialog`
 (edit via `KundeDialog`).
 
@@ -199,8 +199,8 @@ previously active id if still valid.
 | [`src/lib/sonstige/validateSonstigeDetail.ts`](src/lib/sonstige/validateSonstigeDetail.ts) | Sonstige `detail` |
 | [`src/lib/laser/validateLaserDetail.ts`](src/lib/laser/validateLaserDetail.ts) | Laser `detail` |
 | [`src/lib/textil/validateTextilDetail.ts`](src/lib/textil/validateTextilDetail.ts) | Textil: `textil.voll` / table logic |
-| [`src/App.tsx`](src/App.tsx) | Layout, shared state, mounts `OrderList` / `WorkArea` / `ContextPanel` |
-| [`src/components/OrderList.tsx`](src/components/OrderList.tsx) | `auftraege` (join `kunden(name)`); "+ Neuer Auftrag"; selection / active row; archived filter |
+| [`src/App.tsx`](src/App.tsx) | Layout, shared state, mounts `OrderSidebar` / `WorkArea` / `ContextPanel` |
+| [`src/components/OrderSidebar.tsx`](src/components/OrderSidebar.tsx) | `auftraege` (join `kunden(name)`); "+ Neuer Auftrag"; selection / active row; archived filter |
 | [`src/components/ContextPanel.tsx`](src/components/ContextPanel.tsx) | Right column: status, actions, history integration |
 | [`src/components/WorkArea.tsx`](src/components/WorkArea.tsx) | Auftrag, Teilaufträge, file state, `DateiListe`, tabs, callbacks for the context panel; cancelled rows hidden from tabs |
 | [`src/components/DateiListe.tsx`](src/components/DateiListe.tsx) | Files UI; exports `Datei` type |
