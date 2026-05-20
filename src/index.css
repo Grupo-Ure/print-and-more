@@ -45,7 +45,6 @@ html {
   --mono: ui-monospace, Consolas, monospace;
 
   font: 14px/145% var(--sans);
-  letter-spacing: -0.025em;
   color-scheme: light dark;
   color: var(--text);
   background: var(--bg);
@@ -161,10 +160,10 @@ h2 {
 }
 
 h1 {
-  @apply text-gray-500 text-xl font-heading font-bold tracking-tighter
+  @apply text-gray-500 text-lg lg:text-xl font-heading font-bold tracking-tighter
 }
 h2 {
-  @apply text-gray-600 text-lg font-medium tracking-wide
+  @apply text-gray-600 text-base lg:text-lg font-medium tracking-wide
 }
 p {
   margin: 0;
