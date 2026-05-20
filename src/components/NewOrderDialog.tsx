@@ -42,32 +42,6 @@ export function NewOrderDialog() {
     return () => clearTimeout(timer)
   }, [searchInput])
 
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetching,
-    isFetchingNextPage,
-  } = useInfiniteCustomers(debouncedQuery)
-  const results = useMemo(() => (data?.pages.flat() ?? []) as Customer[], [data])
-
-  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null)
-  const [sentinelEl, setSentinelEl] = useState<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    if (!scrollEl || !sentinelEl) return
-    const observer = new IntersectionObserver(
-      entries => {
-        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
-          void fetchNextPage()
-        }
-      },
-      { root: scrollEl, rootMargin: '50px' },
-    )
-    observer.observe(sentinelEl)
-    return () => observer.disconnect()
-  }, [scrollEl, sentinelEl, hasNextPage, isFetchingNextPage, fetchNextPage])
-
   const handleSubmit = async () => {
     if (!selectedCustomer) return
     try {
@@ -98,7 +72,7 @@ export function NewOrderDialog() {
             New Order
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-md p-8 sm:h-2/3 flex flex-col">
+        <DialogContent className="sm:max-w-md p-4 sm:h-2/3 flex flex-col">
           <DialogHeader className='flex-initial'>
             <DialogTitle>New Order</DialogTitle>
           </DialogHeader>
@@ -109,7 +83,7 @@ export function NewOrderDialog() {
             </p>
           )}
 
-          <section className="flex flex-col gap-2 h-full">
+          <section className="flex flex-col gap-2 overflow-y-hidden px-2 flex-1">
             <h2 className="uppercase tracking-[0.06em] text-muted-foreground">
               Customer
             </h2>
@@ -123,38 +97,9 @@ export function NewOrderDialog() {
                   onChange={e => setSearchInput(e.target.value)}
                   autoFocus
                 />
-                <div ref={setScrollEl} className="max-h-48 overflow-y-auto rounded-md border border-border">
-                  {isFetching && !isFetchingNextPage && (
-                    <p className="px-3 py-2 text-xs text-muted-foreground">Searching…</p>
-                  )}
-                  {!isFetching && results.length === 0 && (
-                    <p className="px-3 py-2 text-xs text-muted-foreground">No results</p>
-                  )}
-                  {results.map(customer => (
-                    <button
-                      key={customer.id}
-                      type="button"
-                      onClick={() => setSelectedCustomer(customer)}
-                      className={cn(
-                        'block w-full border-b border-border px-3 py-2 text-left text-sm hover:bg-muted',
-                        'last:border-b-0',
-                      )}
-                    >
-                      <div className="font-medium">{customer.name}</div>
-                      <div className="mt-0.5 text-xs text-muted-foreground">
-                        {customer.email || customer.phone || '—'}
-                      </div>
-                    </button>
-                  ))}
-                  <div ref={setSentinelEl} />
-                  {isFetchingNextPage && (
-                    <p className="px-3 py-2 text-xs text-muted-foreground">Loading more…</p>
-                  )}
-                </div>
+                <CustomerList query={debouncedQuery} onSelect={setSelectedCustomer} />
                 <Button
                   type="button"
-                  variant="outline"
-                  size="sm"
                   onClick={() => openCustomerDialog(null, { onSaved: setSelectedCustomer })}
                 >
                   <Plus className="size-3.5" />
@@ -164,10 +109,10 @@ export function NewOrderDialog() {
             ) : (
               <div className="flex items-start justify-between gap-3 rounded-md bg-muted p-3">
                 <div className="min-w-0">
-                  <div className="truncate font-medium">{selectedCustomer.name}</div>
-                  <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                  <h2 className="truncate">{selectedCustomer.name}</h2>
+                  <h3 className="truncate">
                     {selectedCustomer.email || selectedCustomer.phone || '—'}
-                  </div>
+                  </h3>
                 </div>
                 <div className="flex shrink-0 flex-col gap-1">
                   <Button
@@ -196,7 +141,7 @@ export function NewOrderDialog() {
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={() => setOpen(false)}
               disabled={createOrder.isPending}
             >
@@ -212,5 +157,64 @@ export function NewOrderDialog() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+  )
+}
+
+function CustomerList({ query, onSelect }: { query: string; onSelect: (customer: Customer) => void }) {
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetching,
+    isFetchingNextPage,
+  } = useInfiniteCustomers(query)
+  const results = useMemo(() => (data?.pages.flat() ?? []) as Customer[], [data])
+
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null)
+  const [sentinelEl, setSentinelEl] = useState<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!scrollEl || !sentinelEl) return
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          void fetchNextPage()
+        }
+      },
+      { root: scrollEl, rootMargin: '50px' },
+    )
+    observer.observe(sentinelEl)
+    return () => observer.disconnect()
+  }, [scrollEl, sentinelEl, hasNextPage, isFetchingNextPage, fetchNextPage])
+
+  return (
+    <div ref={setScrollEl} className="overflow-y-auto rounded-md">
+      {isFetching && !isFetchingNextPage && (
+        <p className="px-3 py-2 text-xs text-muted-foreground">Searching…</p>
+      )}
+      {!isFetching && results.length === 0 && (
+        <p className="px-3 py-2 text-xs text-muted-foreground">No results</p>
+      )}
+      {results.map(customer => (
+        <button
+          key={customer.id}
+          type="button"
+          onClick={() => onSelect(customer)}
+          className={cn(
+            'block w-full border-b border-gray-300 px-3 py-2 text-left text-sm hover:bg-muted',
+            'last:border-b-0',
+          )}
+        >
+          <h2 className="font-medium">{customer.name}</h2>
+          <h3 className="mt-0.5 text-xs text-muted-foreground">
+            {customer.email || customer.phone || '—'}
+          </h3>
+        </button>
+      ))}
+      <div ref={setSentinelEl} />
+      {isFetchingNextPage && (
+        <p className="px-3 py-2 text-xs text-muted-foreground">Loading more…</p>
+      )}
+    </div>
   )
 }
