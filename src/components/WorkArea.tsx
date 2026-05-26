@@ -72,15 +72,7 @@ export function WorkArea({
   const [overlayOpen, setOverlayOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [files, setFiles] = useState<FileRow[]>([])
-  const [headerDeadline, setHeaderDeadline] = useState('')
-  const [headerDelivery, setHeaderDelivery] = useState<DeliveryChoice | ''>('')
-  const [headerPriority, setHeaderPriority] = useState<Priority>('NORMAL')
   const [responsibleName, setResponsibleName] = useState<string | null>(null)
-  const headerSnapshot = useRef<{
-    deadline: string | null
-    delivery: DeliveryChoice | null
-    priority: Priority
-  }>({ deadline: null, delivery: null, priority: 'NORMAL' })
   const { showError } = useToast()
   const loadOrderRequestIdRef = useRef(0)
 
@@ -165,26 +157,6 @@ export function WorkArea({
     }
   }, [subOrders, activeSubOrderId, setActiveSubOrder])
 
-  useEffect(() => {
-    if (!order) return
-    const rawDeadline = order.deadline
-    const isoDate =
-      rawDeadline && rawDeadline.length > 0
-        ? rawDeadline.length > 10
-          ? rawDeadline.slice(0, 10)
-          : rawDeadline
-        : ''
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- form mirrors server row
-    setHeaderDeadline(isoDate)
-    setHeaderDelivery(order.delivery ?? '')
-    setHeaderPriority(order.priority)
-    headerSnapshot.current = {
-      deadline: rawDeadline,
-      delivery: order.delivery,
-      priority: order.priority,
-    }
-  }, [order])
-
   const saveOrderHeader = useCallback(
     async (patch: OrderHeaderPatch) => {
       if (!activeOrderId) return
@@ -193,11 +165,6 @@ export function WorkArea({
         setOrder(updatedOrder)
         onOrderFromWorkArea(updatedOrder)
         onOrderCustomerLoaded(updatedOrder.customers)
-        headerSnapshot.current = {
-          deadline: updatedOrder.deadline,
-          delivery: updatedOrder.delivery,
-          priority: updatedOrder.priority,
-        }
       } catch {
         showError('Order could not be saved')
       }
@@ -367,10 +334,6 @@ export function WorkArea({
     )
   }
 
-  const trimDeadline = (dateString: string | null) => (dateString && dateString.length > 10 ? dateString.slice(0, 10) : dateString || '')
-
-  const priorityGlyph = (priority: Priority) => (priority === 'HIGH' ? '▲' : '●')
-
   return (
     <main className="p-4">
       <OrderHeader
@@ -384,60 +347,7 @@ export function WorkArea({
 
       {error && <p className="wa-showError">{error}</p>}
 
-      <section className="work-area__meta b-dev" aria-label="Order meta">
-        <label className="meta-pill" title="Deadline">
-          <span aria-hidden>📅</span>
-          <DateInput
-            value={headerDeadline}
-            onChange={e => setHeaderDeadline(e.target.value)}
-            onBlur={e => {
-              const value = e.target.value || null
-              const snapshotDeadline = trimDeadline(headerSnapshot.current.deadline)
-              if ((value || '') !== (snapshotDeadline || '')) {
-                void saveOrderHeader({ deadline: value })
-              }
-            }}
-          />
-        </label>
-        <label className="meta-pill" title="Delivery">
-          <span aria-hidden>🚚</span>
-          <select
-            value={headerDelivery}
-            onChange={e => {
-              const value = e.target.value
-              const deliveryValue: DeliveryChoice | null = value === 'PICKUP' || value === 'SHIPPING' ? value : null
-              setHeaderDelivery(deliveryValue ?? '')
-              if (deliveryValue !== headerSnapshot.current.delivery) {
-                void saveOrderHeader({ delivery: deliveryValue })
-              }
-            }}
-          >
-            <option value="">—</option>
-            <option value="PICKUP">Pickup</option>
-            <option value="SHIPPING">Shipping</option>
-          </select>
-        </label>
-        <label className="meta-pill" title="Priority">
-          <span className="wa-prio-glyph" aria-hidden>
-            {priorityGlyph(headerPriority)}
-          </span>
-          <select
-            value={headerPriority}
-            onChange={e => {
-              const value = e.target.value
-              if (value === 'NORMAL' || value === 'HIGH') {
-                setHeaderPriority(value)
-                if (value !== headerSnapshot.current.priority) {
-                  void saveOrderHeader({ priority: value })
-                }
-              }
-            }}
-          >
-            <option value="NORMAL">Normal</option>
-            <option value="HIGH">High</option>
-          </select>
-        </label>
-      </section>
+      <OrderSettings order={order} onSave={saveOrderHeader} />
 
       <div className="work-area__tabs b-dev" role="tablist" aria-label="Sub-orders">
         {visibleSubOrders.map(subOrder => {
@@ -539,5 +449,101 @@ function OrderHeader({ order, onEditCustomer }: OrderHeaderProps) {
         {customerPhone && <p title="Phone">{customerPhone}</p>}
       </div>
     </header>
+  )
+}
+
+type OrderSettingsProps = {
+  order: OrderDetailRow
+  onSave: (patch: OrderHeaderPatch) => void
+}
+
+function OrderSettings({ order, onSave }: OrderSettingsProps) {
+  const [headerDeadline, setHeaderDeadline] = useState('')
+  const [headerDelivery, setHeaderDelivery] = useState<DeliveryChoice | ''>('')
+  const [headerPriority, setHeaderPriority] = useState<Priority>('NORMAL')
+  const headerSnapshot = useRef<{
+    deadline: string | null
+    delivery: DeliveryChoice | null
+    priority: Priority
+  }>({ deadline: null, delivery: null, priority: 'NORMAL' })
+
+  useEffect(() => {
+    const rawDeadline = order.deadline
+    const isoDate =
+      rawDeadline && rawDeadline.length > 0
+        ? rawDeadline.length > 10
+          ? rawDeadline.slice(0, 10)
+          : rawDeadline
+        : ''
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- form mirrors server row
+    setHeaderDeadline(isoDate)
+    setHeaderDelivery(order.delivery ?? '')
+    setHeaderPriority(order.priority)
+    headerSnapshot.current = {
+      deadline: rawDeadline,
+      delivery: order.delivery,
+      priority: order.priority,
+    }
+  }, [order])
+
+  const trimDeadline = (dateString: string | null) =>
+    dateString && dateString.length > 10 ? dateString.slice(0, 10) : dateString || ''
+  const priorityGlyph = (priority: Priority) => (priority === 'HIGH' ? '▲' : '●')
+
+  return (
+    <section className="work-area__meta b-dev" aria-label="Order meta">
+      <label className="meta-pill" title="Deadline">
+        <span aria-hidden>📅</span>
+        <DateInput
+          value={headerDeadline}
+          onChange={e => setHeaderDeadline(e.target.value)}
+          onBlur={e => {
+            const value = e.target.value || null
+            const snapshotDeadline = trimDeadline(headerSnapshot.current.deadline)
+            if ((value || '') !== (snapshotDeadline || '')) {
+              onSave({ deadline: value })
+            }
+          }}
+        />
+      </label>
+      <label className="meta-pill" title="Delivery">
+        <span aria-hidden>🚚</span>
+        <select
+          value={headerDelivery}
+          onChange={e => {
+            const value = e.target.value
+            const deliveryValue: DeliveryChoice | null = value === 'PICKUP' || value === 'SHIPPING' ? value : null
+            setHeaderDelivery(deliveryValue ?? '')
+            if (deliveryValue !== headerSnapshot.current.delivery) {
+              onSave({ delivery: deliveryValue })
+            }
+          }}
+        >
+          <option value="">—</option>
+          <option value="PICKUP">Pickup</option>
+          <option value="SHIPPING">Shipping</option>
+        </select>
+      </label>
+      <label className="meta-pill" title="Priority">
+        <span className="wa-prio-glyph" aria-hidden>
+          {priorityGlyph(headerPriority)}
+        </span>
+        <select
+          value={headerPriority}
+          onChange={e => {
+            const value = e.target.value
+            if (value === 'NORMAL' || value === 'HIGH') {
+              setHeaderPriority(value)
+              if (value !== headerSnapshot.current.priority) {
+                onSave({ priority: value })
+              }
+            }
+          }}
+        >
+          <option value="NORMAL">Normal</option>
+          <option value="HIGH">High</option>
+        </select>
+      </label>
+    </section>
   )
 }
