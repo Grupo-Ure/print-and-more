@@ -203,7 +203,7 @@ class OrderService {
     created_by_user_id: string | null
   }): Promise<string> {
     const { data, error } = await supabase.rpc('duplicate_order', params as unknown as DuplicateOrderArgs)
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data as string
   }
 

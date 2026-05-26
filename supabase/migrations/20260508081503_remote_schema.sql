@@ -128,7 +128,7 @@ $$;
 
 ALTER FUNCTION "public"."check_textile_placement_conflict"() OWNER TO "postgres";
 
-CREATE OR REPLACE FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "text", "new_delivery" "text", "new_deadline" "date", "selected_sub_order_ids" "uuid"[], "created_by_user_id" "uuid") RETURNS "uuid"
+CREATE OR REPLACE FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_sub_order_ids" "uuid"[], "created_by_user_id" "uuid") RETURNS "uuid"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 DECLARE
@@ -231,7 +231,7 @@ BEGIN
 END;
 $$;
 
-ALTER FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "text", "new_delivery" "text", "new_deadline" "date", "selected_sub_order_ids" "uuid"[], "created_by_user_id" "uuid") OWNER TO "postgres";
+ALTER FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_sub_order_ids" "uuid"[], "created_by_user_id" "uuid") OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."fn_calculate_order_status"("target_order_id" "uuid") RETURNS "public"."order_status"
     LANGUAGE "plpgsql"
@@ -1206,9 +1206,9 @@ GRANT ALL ON FUNCTION "public"."check_textile_placement_conflict"() TO "anon";
 GRANT ALL ON FUNCTION "public"."check_textile_placement_conflict"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."check_textile_placement_conflict"() TO "service_role";
 
-GRANT ALL ON FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "text", "new_delivery" "text", "new_deadline" "date", "selected_sub_order_ids" "uuid"[], "created_by_user_id" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "text", "new_delivery" "text", "new_deadline" "date", "selected_sub_order_ids" "uuid"[], "created_by_user_id" "uuid") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "text", "new_delivery" "text", "new_deadline" "date", "selected_sub_order_ids" "uuid"[], "created_by_user_id" "uuid") TO "service_role";
+GRANT ALL ON FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_sub_order_ids" "uuid"[], "created_by_user_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_sub_order_ids" "uuid"[], "created_by_user_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_sub_order_ids" "uuid"[], "created_by_user_id" "uuid") TO "service_role";
 
 GRANT ALL ON FUNCTION "public"."fn_calculate_order_status"("target_order_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."fn_calculate_order_status"("target_order_id" "uuid") TO "authenticated";
