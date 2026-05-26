@@ -165,7 +165,7 @@ h3 {
   @apply text-base
 }
 p {
-  margin: 0;
+  @apply text-lg
 }
 
 code,

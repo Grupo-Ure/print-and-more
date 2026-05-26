@@ -369,8 +369,8 @@ export function WorkArea({
 
   const customerDisplayName = order.customers?.name?.trim() || '—'
   const trimDeadline = (dateString: string | null) => (dateString && dateString.length > 10 ? dateString.slice(0, 10) : dateString || '')
-  const contactOneLine =
-    order.customers?.email?.trim() || order.customers?.phone?.trim() || ''
+  const customerEmail = order.customers?.email?.trim() || ''
+  const customerPhone = order.customers?.phone?.trim() || ''
 
   const priorityGlyph = (priority: Priority) => (priority === 'HIGH' ? '▲' : '●')
 
@@ -386,10 +386,10 @@ export function WorkArea({
           <div
             className='w-full flex items-center gap-4'
           >
-            <h1>
+            <h1 title="Customer">
               {customerDisplayName}
             </h1>
-            <h2>{order.order_number}</h2>
+            <h2 title="Order number">{order.order_number}</h2>
           </div>
             <Button
               onClick={() =>
@@ -403,20 +403,14 @@ export function WorkArea({
              <Settings/>
             </Button>
         </div>
-        {contactOneLine ? (
-          <div
-            style={{
-              width: '100%',
-              fontSize: 12,
-              color: '#6b7280',
-              lineHeight: 1.35,
-            }}
-          >
-            <span style={{ minWidth: 0 }} title={contactOneLine}>
-              {contactOneLine}
-            </span>
-          </div>
-        ) : null}
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          {customerEmail &&
+            <p title="Email">{customerEmail}</p>
+          }
+          {customerPhone &&
+            <p title="Phone">{customerPhone}</p>
+          }
+        </div>
       </header>
 
       {error && <p className="wa-showError">{error}</p>}
@@ -476,7 +470,7 @@ export function WorkArea({
         </label>
       </section>
 
-      <div className="work-area__tabs " role="tablist" aria-label="Sub-orders">
+      <div className="work-area__tabs b-dev" role="tablist" aria-label="Sub-orders">
         {visibleSubOrders.map(subOrder => {
           const isActive = subOrder.id === activeSubOrderId
           const abbreviation = departmentAbbreviation(subOrder.department)
