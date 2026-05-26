@@ -4,45 +4,26 @@ import { fileService } from '../services/fileService'
 import { employeeService } from '../services/employeeService'
 import { orderService } from '../services/orderService'
 import { subOrderService } from '../services/subOrderService'
-import { departmentAbbreviation } from '../const/departmentAbbreviation'
 import {
   type Auftrag,
   type Customer,
   type OrderDetailRow,
   type OrderHeaderPatch,
-  type OrderStatus,
   type Department,
   type DeliveryChoice,
   type Priority,
   type SubOrderRow,
 } from '../types/database'
-import { subOrderDepartmentLabel } from '../const/departmentAbbreviation'
 import { useToast } from './Toast'
 import { AddSubOrderOverlay } from './AddSubOrderOverlay'
 import { DateInput } from './DateInput'
 import type { FileRow } from '../services/fileService'
 import { SubOrderDetail } from './SubOrderDetail'
+import { SubOrderTabs } from './SubOrderTabs'
 import { useOrderWorkspace } from '../context/order.context'
 import './WorkArea.css'
 import { Button } from './ui/button'
 import { Settings } from 'lucide-react'
-
-function subOrderStatusDotClass(status: OrderStatus): string {
-  switch (status) {
-    case 'QUOTE':
-      return 'td-dot td-dot--grau'
-    case 'INCOMPLETE':
-      return 'td-dot td-dot--orange'
-    case 'PREPRESS_READY':
-      return 'td-dot td-dot--blau'
-    case 'PRODUCTION_READY':
-      return 'td-dot td-dot--lila'
-    case 'DONE':
-      return 'td-dot td-dot--gruen'
-    default:
-      return 'td-dot td-dot--grau'
-  }
-}
 
 type Props = {
   activeOrderId: string | null
@@ -349,43 +330,12 @@ export function WorkArea({
 
       <OrderSettings order={order} onSave={saveOrderHeader} />
 
-      <div className="work-area__tabs b-dev" role="tablist" aria-label="Sub-orders">
-        {visibleSubOrders.map(subOrder => {
-          const isActive = subOrder.id === activeSubOrderId
-          const abbreviation = departmentAbbreviation(subOrder.department)
-          const tabTitle = `${subOrderDepartmentLabel(subOrder.department)} · ${subOrder.status}`
-          return (
-            <button
-              key={subOrder.id}
-              type="button"
-              role="tab"
-              className={isActive ? 'tab-btn tab-btn--active' : 'tab-btn'}
-              aria-selected={isActive}
-              onClick={() => setActiveSubOrder(subOrder.id)}
-              title={tabTitle}
-            >
-              <span className="wa-tab-kz">{abbreviation}</span>
-              <span className="wa-tab-sep" aria-hidden>
-                {' '}
-                ·{' '}
-              </span>
-              <span
-                className={subOrderStatusDotClass(subOrder.status)}
-                title={subOrder.status}
-                aria-label={subOrder.status}
-              />
-            </button>
-          )
-        })}
-        <button
-          type="button"
-          className="tab-add-btn"
-          onClick={() => setOverlayOpen(true)}
-          aria-label="Add sub-order"
-        >
-          +
-        </button>
-      </div>
+      <SubOrderTabs
+        subOrders={visibleSubOrders}
+        activeSubOrderId={activeSubOrderId}
+        onSelect={setActiveSubOrder}
+        onAdd={() => setOverlayOpen(true)}
+      />
 
       <div className="work-area__formular " role="tabpanel">
         {activeSubOrder ? (
