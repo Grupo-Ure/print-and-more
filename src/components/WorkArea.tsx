@@ -367,55 +367,24 @@ export function WorkArea({
     )
   }
 
-  const customerDisplayName = order.customers?.name?.trim() || '—'
   const trimDeadline = (dateString: string | null) => (dateString && dateString.length > 10 ? dateString.slice(0, 10) : dateString || '')
-  const customerEmail = order.customers?.email?.trim() || ''
-  const customerPhone = order.customers?.phone?.trim() || ''
 
   const priorityGlyph = (priority: Priority) => (priority === 'HIGH' ? '▲' : '●')
 
   return (
     <main className="p-4">
-      <header
-        className="flex  border-green-500!"
-        style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
-      >
-        <div
-          className='flex'
-        >
-          <div
-            className='w-full flex items-center gap-4'
-          >
-            <h1 title="Customer">
-              {customerDisplayName}
-            </h1>
-            <h2 title="Order number">{order.order_number}</h2>
-          </div>
-            <Button
-              onClick={() =>
-                openCustomerDialog(order?.customers ?? null, {
-                  onSaved: () => setLocalReloadTick(x => x + 1),
-                })
-              }
-              title="Edit customer"
-              aria-label="Edit customer"
-            >
-             <Settings/>
-            </Button>
-        </div>
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          {customerEmail &&
-            <p title="Email">{customerEmail}</p>
-          }
-          {customerPhone &&
-            <p title="Phone">{customerPhone}</p>
-          }
-        </div>
-      </header>
+      <OrderHeader
+        order={order}
+        onEditCustomer={() =>
+          openCustomerDialog(order?.customers ?? null, {
+            onSaved: () => setLocalReloadTick(x => x + 1),
+          })
+        }
+      />
 
       {error && <p className="wa-showError">{error}</p>}
 
-      <section className="work-area__meta" aria-label="Order meta">
+      <section className="work-area__meta b-dev" aria-label="Order meta">
         <label className="meta-pill" title="Deadline">
           <span aria-hidden>📅</span>
           <DateInput
@@ -532,5 +501,43 @@ export function WorkArea({
         onClose={() => !saving && setOverlayOpen(false)}
       />
     </main>
+  )
+}
+
+type OrderHeaderProps = {
+  order: OrderDetailRow
+  onEditCustomer: () => void
+}
+
+function OrderHeader({ order, onEditCustomer }: OrderHeaderProps) {
+  const customerDisplayName = order.customers?.name?.trim() || '—'
+  const customerEmail = order.customers?.email?.trim() || ''
+  const customerPhone = order.customers?.phone?.trim() || ''
+
+  return (
+    <header
+      className="flex  border-green-500!"
+      style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
+    >
+      <div className='flex'>
+        <div className='w-full flex items-center gap-4'>
+          <h1 title="Customer">
+            {customerDisplayName}
+          </h1>
+          <h2 title="Order number">{order.order_number}</h2>
+        </div>
+        <Button
+          onClick={onEditCustomer}
+          title="Edit customer"
+          aria-label="Edit customer"
+        >
+          <Settings />
+        </Button>
+      </div>
+      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+        {customerEmail && <p title="Email">{customerEmail}</p>}
+        {customerPhone && <p title="Phone">{customerPhone}</p>}
+      </div>
+    </header>
   )
 }
