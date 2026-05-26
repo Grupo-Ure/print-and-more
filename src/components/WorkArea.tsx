@@ -441,7 +441,7 @@ function OrderSettings({ order, onSave }: OrderSettingsProps) {
   const priorityGlyph = (priority: Priority) => (priority === 'HIGH' ? '▲' : '●')
 
   return (
-    <section className="work-area__meta b-dev" aria-label="Order meta">
+    <section className="work-area__meta" aria-label="Order meta">
       <label className="meta-pill" title="Deadline">
         <span aria-hidden>📅</span>
         <DateInput
