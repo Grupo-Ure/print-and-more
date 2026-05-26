@@ -1,8 +1,9 @@
-import { AlertTriangle, ArrowUp, Copy, MoreHorizontal } from 'lucide-react'
+import { AlertTriangle, ArrowUp, Copy, MoreHorizontal, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDateDe } from '../../lib/formatDate'
 import { uniqueDepartments } from '../../lib/orderDepartments'
 import type { OrderListEntry } from '../../services/orderService'
+import type { OrderStatus } from '../../types/database'
 import { DepartmentPill } from '../DepartmentPill'
 import { StatusBadge } from '../StatusBadge'
 import {
@@ -22,6 +23,7 @@ type Props = {
   onResetFilters: () => void
   onDuplicate: (orderId: string) => void
   duplicateBusy: boolean
+  onDelete: (orderId: string) => void
 }
 
 const MAX_DEPARTMENT_TAGS = 4
@@ -36,6 +38,7 @@ export function OrderSidebarBody({
   onResetFilters,
   onDuplicate,
   duplicateBusy,
+  onDelete,
 }: Props) {
   return (
     <div
@@ -69,6 +72,7 @@ export function OrderSidebarBody({
             onSelect={onSelectOrder}
             onDuplicate={onDuplicate}
             duplicateBusy={duplicateBusy}
+            onDelete={onDelete}
           />
         ))}
     </div>
@@ -81,6 +85,7 @@ type OrderSidebarItemProps = {
   onSelect: (id: string) => void
   onDuplicate: (orderId: string) => void
   duplicateBusy: boolean
+  onDelete: (orderId: string) => void
 }
 
 function OrderSidebarItem({
@@ -89,6 +94,7 @@ function OrderSidebarItem({
   onSelect,
   onDuplicate,
   duplicateBusy,
+  onDelete,
 }: OrderSidebarItemProps) {
   return (
     <div
@@ -138,6 +144,8 @@ function OrderSidebarItem({
             isActive={isActive}
             duplicateBusy={duplicateBusy}
             onDuplicate={() => onDuplicate(order.id)}
+            orderStatus={order.status}
+            onDelete={() => onDelete(order.id)}
           />
         </div>
         <div className="flex flex-wrap items-center justify-between">
@@ -176,13 +184,19 @@ type OrderSidebarItemMenuProps = {
   isActive: boolean
   duplicateBusy: boolean
   onDuplicate: () => void
+  orderStatus: OrderStatus
+  onDelete: () => void
 }
 
 function OrderSidebarItemMenu({
   isActive,
   duplicateBusy,
   onDuplicate,
+  orderStatus,
+  onDelete,
 }: OrderSidebarItemMenuProps) {
+  const canDelete = orderStatus === 'QUOTE'
+  
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -208,6 +222,14 @@ function OrderSidebarItemMenu({
         >
           <Copy />
           Duplicate order
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={!canDelete}
+          onSelect={() => onDelete()}
+          className='text-base font-medium text-red-600 focus:text-red-700 focus:bg-red-50'
+        >
+          <Trash2 />
+          Delete order
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

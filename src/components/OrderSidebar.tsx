@@ -14,10 +14,12 @@ import {
   type OrderStatus,
   type SubOrderRow,
 } from '../types/database'
+import type { OrderListEntry } from '../services/orderService'
 import { SlidersHorizontal } from 'lucide-react'
 import { Sidebar, SidebarHeader, SidebarContent, SidebarFooter } from '@/components/ui/sidebar'
 import { cn } from '@/lib/utils'
 import { DuplicateDialog } from './DuplicateDialog'
+import { DeleteOrderDialog } from './DeleteOrderDialog'
 import { NewOrderDialog } from './NewOrderDialog'
 import { useToast } from './Toast'
 import { useOrderWorkspace } from '../context/order.context'
@@ -110,6 +112,20 @@ export function OrderSidebar({ orderInPlace }: Props) {
     [duplicateBusy, showError]
   )
 
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<OrderListEntry | null>(null)
+
+  const openDeleteDialog = useCallback(
+    (orderId: string) => {
+      const target = orders.find(order => order.id === orderId)
+      if (!target) return
+      if (target.status !== 'QUOTE') return
+      setDeleteTarget(target)
+      setDeleteDialogOpen(true)
+    },
+    [orders]
+  )
+
   return (
     <Sidebar collapsible="offcanvas" side="left" className="border-r! border-gray-200">
       <SidebarHeader className="border-b border-neutral-200 px-3.5 py-2.5 bg-neutral-50">
@@ -162,6 +178,7 @@ export function OrderSidebar({ orderInPlace }: Props) {
             void openDuplicateDialog(orderId)
           }}
           duplicateBusy={duplicateBusy}
+          onDelete={orderId => openDeleteDialog(orderId)}
         />
       </SidebarContent>
 
@@ -181,6 +198,23 @@ export function OrderSidebar({ orderInPlace }: Props) {
             setDuplicateDialogOpen(false)
             void queryClient.invalidateQueries({ queryKey: orderListKeys.all })
             setActiveOrder(newOrder.id)
+          }}
+        />
+      )}
+
+      {deleteDialogOpen && deleteTarget && (
+        <DeleteOrderDialog
+          order={deleteTarget}
+          onCancel={() => {
+            setDeleteDialogOpen(false)
+            setDeleteTarget(null)
+          }}
+          onConfirmed={() => {
+            const deletedId = deleteTarget.id
+            setDeleteDialogOpen(false)
+            setDeleteTarget(null)
+            void queryClient.invalidateQueries({ queryKey: orderListKeys.all })
+            if (activeOrderId === deletedId) setActiveOrder(null)
           }}
         />
       )}
