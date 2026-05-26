@@ -24,6 +24,8 @@ import type { FileRow } from '../services/fileService'
 import { SubOrderDetail } from './SubOrderDetail'
 import { useOrderWorkspace } from '../context/order.context'
 import './WorkArea.css'
+import { Button } from './ui/button'
+import { Settings } from 'lucide-react'
 
 function subOrderStatusDotClass(status: OrderStatus): string {
   switch (status) {
@@ -373,38 +375,23 @@ export function WorkArea({
   const priorityGlyph = (priority: Priority) => (priority === 'HIGH' ? '▲' : '●')
 
   return (
-    <div className="work-area">
+    <main className="p-4">
       <header
-        className="work-area__header"
+        className="flex  border-green-500!"
         style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
       >
         <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: 12,
-            flexWrap: 'wrap',
-            width: '100%',
-          }}
+          className='flex'
         >
           <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px 12px',
-              flexWrap: 'wrap',
-              minWidth: 0,
-            }}
+            className='w-full flex items-center gap-4'
           >
-            <h1 className="work-area__kunde" style={{ margin: 0 }}>
+            <h1>
               {customerDisplayName}
             </h1>
-            <span className="work-area__ordersnummer">{order.order_number}</span>
-            <button
-              type="button"
-              className="wa-gear"
-              style={{ marginLeft: 0 }}
+            <h2>{order.order_number}</h2>
+          </div>
+            <Button
               onClick={() =>
                 openCustomerDialog(order?.customers ?? null, {
                   onSaved: () => setLocalReloadTick(x => x + 1),
@@ -413,14 +400,8 @@ export function WorkArea({
               title="Edit customer"
               aria-label="Edit customer"
             >
-              <span className="wa-gear-ico" aria-hidden>
-                ⚙
-              </span>
-            </button>
-          </div>
-          <div className="work-area__verantwortlich" aria-hidden style={{ flexShrink: 0, textAlign: 'right' }}>
-            {responsibleName ?? ''}
-          </div>
+             <Settings/>
+            </Button>
         </div>
         {contactOneLine ? (
           <div
@@ -495,7 +476,7 @@ export function WorkArea({
         </label>
       </section>
 
-      <div className="work-area__tabs" role="tablist" aria-label="Sub-orders">
+      <div className="work-area__tabs " role="tablist" aria-label="Sub-orders">
         {visibleSubOrders.map(subOrder => {
           const isActive = subOrder.id === activeSubOrderId
           const abbreviation = departmentAbbreviation(subOrder.department)
@@ -533,7 +514,7 @@ export function WorkArea({
         </button>
       </div>
 
-      <div className="work-area__formular" role="tabpanel">
+      <div className="work-area__formular " role="tabpanel">
         {activeSubOrder ? (
           <SubOrderDetail
             subOrder={activeSubOrder}
@@ -556,6 +537,6 @@ export function WorkArea({
         onDepartmentSelected={handleAddSubOrder}
         onClose={() => !saving && setOverlayOpen(false)}
       />
-    </div>
+    </main>
   )
 }
