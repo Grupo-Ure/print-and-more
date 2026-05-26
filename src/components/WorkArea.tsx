@@ -334,32 +334,33 @@ export function WorkArea({
 
   if (!activeOrderId) {
     return (
-      <div className="work-area work-area--empty">
-        <p className="wa-hint">Select an order on the left to view details and sub-orders.</p>
+      <div className="flex flex-col w-full h-full items-center justify-center">
+        <h1 className='tracking-widest'>Welcome</h1>
+        <h2>Select an order on the left to view details and sub-orders.</h2>
       </div>
     )
   }
 
   if (loading) {
     return (
-      <div className="work-area work-area--empty">
-        <p className="wa-laden">Loading order…</p>
+      <div className="flex flex-col w-full h-full items-center justify-center">
+        <h2>Loading order…</h2>
       </div>
     )
   }
 
   if (error && !order) {
     return (
-      <div className="work-area work-area--empty">
-        <p className="wa-showError">{error}</p>
+      <div className="flex flex-col w-full h-full items-center justify-center">
+        <h2>{error}</h2>
       </div>
     )
   }
 
   if (!order) {
     return (
-      <div className="work-area work-area--empty">
-        <p className="wa-hint">Order not found.</p>
+      <div className="flex flex-col w-full h-full items-center justify-center">
+        <h2>Order not found.</h2>
       </div>
     )
   }

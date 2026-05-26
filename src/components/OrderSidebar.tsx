@@ -131,7 +131,7 @@ export function OrderSidebar({ orderInPlace }: Props) {
       <SidebarHeader className="border-b border-neutral-200 px-3.5 py-2.5 bg-neutral-50">
         <div className="flex items-center justify-between gap-2 min-h-7">
           <h1 className="m-0 font-bold uppercase text-neutral-500">
-            Order List
+            Orders
           </h1>
           <div className="flex items-center gap-0.5">
             <button
