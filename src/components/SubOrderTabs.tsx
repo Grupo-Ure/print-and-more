@@ -26,7 +26,7 @@ export function SubOrderTabs({ subOrders, activeSubOrderId, onSelect, onAdd }: S
   }
 
   return (
-    <nav className='flex items-center justify-between mb-4'>
+    <nav className='flex items-center justify-between mgb-4'>
       <Tabs
         value={activeSubOrderId ?? undefined}
         onValueChange={onSelect}

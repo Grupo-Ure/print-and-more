@@ -24,6 +24,7 @@ import { useOrderWorkspace } from '../context/order.context'
 import './WorkArea.css'
 import { Button } from './ui/button'
 import { Settings } from 'lucide-react'
+import { Separator } from './ui/separator'
 
 type Props = {
   activeOrderId: string | null
@@ -316,7 +317,7 @@ export function WorkArea({
   }
 
   return (
-    <main className="p-4">
+    <main className="flex flex-col gap-2 p-4">
       <OrderHeader
         order={order}
         onEditCustomer={() =>
@@ -325,7 +326,7 @@ export function WorkArea({
           })
         }
       />
-
+      <Separator />
       {error && <p className="wa-showError">{error}</p>}
 
       <OrderSettings order={order} onSave={saveOrderHeader} />
@@ -376,23 +377,24 @@ function OrderHeader({ order, onEditCustomer }: OrderHeaderProps) {
 
   return (
     <header
-      className="flex  border-green-500!"
-      style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
+      className="flex flex-col"
     >
-      <div className='flex'>
-        <div className='w-full flex items-center gap-4'>
-          <h1 title="Customer">
+      <div className='flex items-cente gap-4'>
+        <div className='flex items-center gap-1'>
+          <h1 title="Customer" className='m-0!'>
             {customerDisplayName}
           </h1>
-          <h2 title="Order number">{order.order_number}</h2>
+          <Button
+            onClick={onEditCustomer}
+            title="Edit customer"
+            aria-label="Edit customer"
+            variant='ghost'
+            size='icon-sm'
+          >
+            <Settings />
+          </Button>
         </div>
-        <Button
-          onClick={onEditCustomer}
-          title="Edit customer"
-          aria-label="Edit customer"
-        >
-          <Settings />
-        </Button>
+          <h2 title="Order number">{order.order_number}</h2>
       </div>
       <div className="flex items-center gap-4 text-sm text-muted-foreground">
         {customerEmail && <p title="Email">{customerEmail}</p>}
