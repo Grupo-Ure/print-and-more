@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { format, parse } from 'date-fns'
+import { format, parse, startOfTomorrow } from 'date-fns'
 import {
   type DeliveryChoice,
   type OrderDetailRow,
@@ -110,6 +110,7 @@ function DeadlinePicker({ value, onChange }: DeadlinePickerProps) {
           <Calendar
             mode="single"
             selected={selectedDate}
+            disabled={{ before: startOfTomorrow() }}
             onSelect={date => {
               onChange(date ? format(date, 'yyyy-MM-dd') : null)
               setOpen(false)
