@@ -55,7 +55,7 @@ export function OrderSettings({ order, onSave }: OrderSettingsProps) {
     dateString && dateString.length > 10 ? dateString.slice(0, 10) : dateString || ''
 
   return (
-    <section className="flex items-center" aria-label="Order meta">
+    <section className="flex items-center gap-4" aria-label="Order meta">
       <DeadlinePicker
         value={headerDeadline}
         onChange={value => {
@@ -100,7 +100,6 @@ function DeadlinePicker({ value, onChange }: DeadlinePickerProps) {
 
   return (
     <label className="meta-pill" title="Deadline">
-      <span aria-hidden>📅</span>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button variant="ghost" size="sm">
@@ -132,7 +131,6 @@ type DeliverySelectProps = {
 function DeliverySelect({ value, onChange }: DeliverySelectProps) {
   return (
     <label className="meta-pill" title="Delivery">
-      <span aria-hidden>🚚</span>
       <Select
         value={value === '' ? DELIVERY_NONE : value}
         onValueChange={next => {
@@ -164,9 +162,6 @@ type PrioritySelectProps = {
 function PrioritySelect({ value, onChange }: PrioritySelectProps) {
   return (
     <label className="meta-pill" title="Priority">
-      <span className="wa-prio-glyph" aria-hidden>
-        {value === 'HIGH' ? '▲' : '●'}
-      </span>
       <Select
         value={value}
         onValueChange={next => {
