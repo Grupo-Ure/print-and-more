@@ -6,6 +6,7 @@ import type { Auftrag, OrderStatus } from '../types/database'
 import type { Database } from '../types/supabase'
 
 type OrderInsert = Database['public']['Tables']['orders']['Insert']
+type OrderUpdate = Database['public']['Tables']['orders']['Update']
 
 export type OrdersListFilter = {
   searchDebounced: string
@@ -17,8 +18,9 @@ export type OrdersListFilter = {
   intakeTo: string
 }
 
-export const orderListKeys = {
-  all: ['orders', 'list'] as const,
+export const orderKeys = {
+  all: ['orders'] as const,
+  lists: ['orders', 'list'] as const,
   customerIdSearch: (query: string) => ['customers', 'id-search', query] as const,
   list: (params: {
     is_archived: boolean | undefined
@@ -29,6 +31,7 @@ export const orderListKeys = {
     intakeFrom: string
     intakeTo: string
   }) => ['orders', 'list', params] as const,
+  byId: (id: string) => ['orders', 'by-id', id] as const,
 }
 
 // INVOICED orders live in the archived bucket; mixed selections need both, so is_archived becomes undefined.
@@ -43,7 +46,7 @@ function deriveIsArchived(filter: OrdersListFilter): boolean | undefined {
 
 export function useCustomerIdSearch(query: string) {
   return useQuery({
-    queryKey: orderListKeys.customerIdSearch(query),
+    queryKey: orderKeys.customerIdSearch(query),
     queryFn: () => customerService.searchCustomerIds(query),
     enabled: query.length > 0,
     staleTime: 30_000,
@@ -60,7 +63,7 @@ export function useOrdersList(filter: OrdersListFilter) {
   const customerIds = trimmedSearch ? customerSearch.data ?? null : null
 
   const ordersQuery = useQuery({
-    queryKey: orderListKeys.list({
+    queryKey: orderKeys.list({
       is_archived: deriveIsArchived(filter),
       customerIds,
       statuses: !filter.statusAll ? filter.selectedStatuses : null,
@@ -98,7 +101,7 @@ export function patchOrderStatusInCache(
   status: OrderStatus,
 ): void {
   queryClient.setQueriesData<OrderListEntry[]>(
-    { queryKey: orderListKeys.all },
+    { queryKey: orderKeys.lists },
     old => old?.map(order => (order.id === orderId ? { ...order, status } : order)) ?? old,
   )
 }
@@ -109,10 +112,10 @@ export function invalidateOrderListsIfCustomerReferenced(
   customerId: string,
 ): void {
   const referenced = queryClient
-    .getQueriesData<OrderListEntry[]>({ queryKey: orderListKeys.all })
+    .getQueriesData<OrderListEntry[]>({ queryKey: orderKeys.lists })
     .some(([, data]) => data?.some(order => order.customer_id === customerId))
   if (referenced) {
-    void queryClient.invalidateQueries({ queryKey: orderListKeys.all })
+    void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
   }
 }
 
@@ -133,7 +136,37 @@ export function useCreateOrder() {
       return order
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: orderListKeys.all })
+      void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
+    },
+  })
+}
+
+export function useOrderById(orderId: string | null) {
+  return useQuery({
+    queryKey: orderId ? orderKeys.byId(orderId) : orderKeys.byId('__none__'),
+    queryFn: () => orderService.getOrderById(orderId as string),
+    enabled: !!orderId,
+  })
+}
+
+export function useUpdateOrder() {
+  const queryClient = useQueryClient()
+  return useMutation<Auftrag, Error, { id: string; patch: OrderUpdate }>({
+    mutationFn: ({ id, patch }) => orderService.updateOrder(id, patch),
+    onSuccess: updated => {
+      queryClient.setQueryData(orderKeys.byId(updated.id), updated)
+      void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
+    },
+  })
+}
+
+export function useSynchronizeOrderStatus() {
+  const queryClient = useQueryClient()
+  return useMutation<Auftrag, Error, string>({
+    mutationFn: orderId => orderService.synchronizeOrderStatus(orderId),
+    onSuccess: updated => {
+      queryClient.setQueryData(orderKeys.byId(updated.id), updated)
+      patchOrderStatusInCache(queryClient, updated.id, updated.status)
     },
   })
 }

@@ -4,7 +4,7 @@ import { orderService } from '../services/orderService'
 import { subOrderService } from '../services/subOrderService'
 import {
   invalidateOrderListsIfCustomerReferenced,
-  orderListKeys,
+  orderKeys,
   patchOrderStatusInCache,
   useOrdersList,
   type OrdersListFilter,
@@ -196,7 +196,7 @@ export function OrderSidebar({ orderInPlace }: Props) {
           onCancel={() => setDuplicateDialogOpen(false)}
           onSuccess={newOrder => {
             setDuplicateDialogOpen(false)
-            void queryClient.invalidateQueries({ queryKey: orderListKeys.all })
+            void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
             setActiveOrder(newOrder.id)
           }}
         />
@@ -213,7 +213,7 @@ export function OrderSidebar({ orderInPlace }: Props) {
             const deletedId = deleteTarget.id
             setDeleteDialogOpen(false)
             setDeleteTarget(null)
-            void queryClient.invalidateQueries({ queryKey: orderListKeys.all })
+            void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
             if (activeOrderId === deletedId) setActiveOrder(null)
           }}
         />
