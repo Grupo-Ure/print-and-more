@@ -1,22 +1,8 @@
-import { departmentAbbreviation, subOrderDepartmentLabel } from '../const/departmentAbbreviation'
-import type { OrderStatus, SubOrderRow } from '../types/database'
-
-function subOrderStatusDotClass(status: OrderStatus): string {
-  switch (status) {
-    case 'QUOTE':
-      return 'td-dot td-dot--grau'
-    case 'INCOMPLETE':
-      return 'td-dot td-dot--orange'
-    case 'PREPRESS_READY':
-      return 'td-dot td-dot--blau'
-    case 'PRODUCTION_READY':
-      return 'td-dot td-dot--lila'
-    case 'DONE':
-      return 'td-dot td-dot--gruen'
-    default:
-      return 'td-dot td-dot--grau'
-  }
-}
+import { Plus } from 'lucide-react'
+import { subOrderDepartmentLabel } from '../const/departmentAbbreviation'
+import type { SubOrderRow } from '../types/database'
+import { Button } from './ui/button'
+import { Tabs, TabsList, TabsTrigger } from './ui/tabs'
 
 type SubOrderTabsProps = {
   subOrders: SubOrderRow[]
@@ -26,43 +12,44 @@ type SubOrderTabsProps = {
 }
 
 export function SubOrderTabs({ subOrders, activeSubOrderId, onSelect, onAdd }: SubOrderTabsProps) {
+  if (subOrders.length === 0) {
+    return (
+      <div className="flex items-center justify-center">
+        <Button type="button" size="lg" variant="ghost" onClick={onAdd} aria-label="Add sub-order">
+          <p>
+            Add a sub-order
+          </p>
+          <Plus />
+        </Button>
+      </div>
+    )
+  }
+
   return (
-    <div className="work-area__tabs b-dev" role="tablist" aria-label="Sub-orders">
-      {subOrders.map(subOrder => {
-        const isActive = subOrder.id === activeSubOrderId
-        const abbreviation = departmentAbbreviation(subOrder.department)
-        const tabTitle = `${subOrderDepartmentLabel(subOrder.department)} · ${subOrder.status}`
-        return (
-          <button
-            key={subOrder.id}
-            type="button"
-            role="tab"
-            className={isActive ? 'tab-btn tab-btn--active' : 'tab-btn'}
-            aria-selected={isActive}
-            onClick={() => onSelect(subOrder.id)}
-            title={tabTitle}
-          >
-            <span className="wa-tab-kz">{abbreviation}</span>
-            <span className="wa-tab-sep" aria-hidden>
-              {' '}
-              ·{' '}
-            </span>
-            <span
-              className={subOrderStatusDotClass(subOrder.status)}
-              title={subOrder.status}
-              aria-label={subOrder.status}
-            />
-          </button>
-        )
-      })}
-      <button
+    <nav className='flex items-center justify-between mb-4'>
+      <Tabs
+        value={activeSubOrderId ?? undefined}
+        onValueChange={onSelect}
+        className="flex-row items-start gap-2 flex-1 min-w-0"
+      >
+        <TabsList aria-label="Sub-orders" variant="line" className="grid w-full grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-x-1 gap-y-3 group-data-horizontal/tabs:h-auto">
+          {subOrders.map(subOrder => (
+            <TabsTrigger key={subOrder.id} value={subOrder.id}>
+              {subOrderDepartmentLabel(subOrder.department)}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+      <Button
+        title='Add sub-order'
         type="button"
-        className="tab-add-btn"
+        size="icon-lg"
+        variant="ghost"
         onClick={onAdd}
         aria-label="Add sub-order"
       >
-        +
-      </button>
-    </div>
+        <Plus />
+      </Button>
+    </nav>
   )
 }
