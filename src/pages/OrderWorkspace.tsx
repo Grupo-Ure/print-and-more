@@ -129,7 +129,6 @@ function WorkspaceShell() {
         </div>
         <div className="grid grid-cols-[1fr_300px] flex-1 min-h-0">
           <WorkArea
-            activeOrderId={activeOrderId}
             contextRefreshTick={contextRefreshTick}
             onActiveSubOrderChanged={handleActiveSubOrderChanged}
             onOrderCustomerLoaded={handleOrderCustomerLoaded}

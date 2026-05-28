@@ -22,7 +22,6 @@ import { Separator } from './ui/separator'
 import { OrderSettings } from './OrderSettings'
 
 type Props = {
-  activeOrderId: string | null
   contextRefreshTick: number
   onActiveSubOrderChanged: (t: SubOrderRow | null) => void
   onOrderCustomerLoaded: (k: Customer | null) => void
@@ -31,14 +30,13 @@ type Props = {
 }
 
 export function WorkArea({
-  activeOrderId,
   contextRefreshTick,
   onActiveSubOrderChanged,
   onOrderCustomerLoaded,
   onOrderFromWorkArea,
   onOrderFilesChanged,
 }: Props) {
-  const { activeSubOrderId, setActiveSubOrder, openCustomerDialog } = useOrderWorkspace()
+  const { activeOrderId, activeSubOrderId, setActiveSubOrder, openCustomerDialog } = useOrderWorkspace()
   const queryClient = useQueryClient()
   const [files, setFiles] = useState<FileRow[]>([])
   const { showError } = useToast()
