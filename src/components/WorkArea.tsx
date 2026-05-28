@@ -1,23 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { authService } from '../services/authService'
+import { useQueryClient } from '@tanstack/react-query'
 import { fileService } from '../services/fileService'
-import { employeeService } from '../services/employeeService'
-import { orderService } from '../services/orderService'
-import { subOrderService } from '../services/subOrderService'
 import {
   type Auftrag,
   type Customer,
   type OrderDetailRow,
   type OrderHeaderPatch,
-  type Department,
   type SubOrderRow,
 } from '../types/database'
 import { useToast } from './Toast'
-import { AddSubOrderOverlay } from './AddSubOrderOverlay'
 import type { FileRow } from '../services/fileService'
 import { SubOrderDetail } from './SubOrderDetail'
 import { SubOrderTabs } from './SubOrderTabs'
 import { useOrderWorkspace } from '../context/order.context'
+import { orderKeys, useOrderById, useUpdateOrder } from '../queries/orderQueries'
+import { subOrderKeys, useSubOrdersByOrderId } from '../queries/subOrderQueries'
 import './WorkArea.css'
 import { Button } from './ui/button'
 import { Settings } from 'lucide-react'
@@ -31,7 +28,6 @@ type Props = {
   onOrderCustomerLoaded: (k: Customer | null) => void
   onOrderFromWorkArea: (a: Auftrag | null) => void
   onOrderFilesChanged: (d: FileRow[]) => void
-  onOrderUpdated: (a: Auftrag) => void
 }
 
 export function WorkArea({
@@ -41,20 +37,20 @@ export function WorkArea({
   onOrderCustomerLoaded,
   onOrderFromWorkArea,
   onOrderFilesChanged,
-  onOrderUpdated,
 }: Props) {
   const { activeSubOrderId, setActiveSubOrder, openCustomerDialog } = useOrderWorkspace()
-  const [order, setOrder] = useState<OrderDetailRow | null>(null)
-  const [subOrders, setSubOrders] = useState<SubOrderRow[]>([])
-  const [localReloadTick, setLocalReloadTick] = useState(0)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [overlayOpen, setOverlayOpen] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const queryClient = useQueryClient()
   const [files, setFiles] = useState<FileRow[]>([])
-  const [responsibleName, setResponsibleName] = useState<string | null>(null)
   const { showError } = useToast()
-  const loadOrderRequestIdRef = useRef(0)
+
+  const orderQuery = useOrderById(activeOrderId)
+  const subOrdersQuery = useSubOrdersByOrderId(activeOrderId)
+  const updateOrder = useUpdateOrder()
+
+  const order = orderQuery.data ?? null
+  const subOrders = useMemo(() => subOrdersQuery.data ?? [], [subOrdersQuery.data])
+  const loading = orderQuery.isLoading || subOrdersQuery.isLoading
+  const isError = orderQuery.isError || subOrdersQuery.isError
 
   const reloadFiles = useCallback(async () => {
     if (!activeOrderId) return
@@ -76,81 +72,21 @@ export function WorkArea({
   }, [activeOrderId, contextRefreshTick, reloadFiles])
 
   useEffect(() => {
-    if (!activeOrderId) {
-      setOrder(null)
-      setSubOrders([])
-      setError(null)
-      setLoading(false)
-      return
-    }
+    if (isError) showError('Order could not be loaded')
+  }, [isError, showError])
 
-    const requestId = ++loadOrderRequestIdRef.current
-    const isStale = () => requestId !== loadOrderRequestIdRef.current
-    const orderId = activeOrderId
-
-    const fetchData = async () => {
-      setError(null)
-      setLoading(true)
-      try {
-        const [orderData, subOrderResult] = await Promise.all([
-          orderService.getOrderById(orderId),
-          subOrderService.getSubOrdersByOrderId(orderId),
-        ])
-        if (isStale()) return
-
-        if (!orderData) {
-          setError('Order not found')
-          showError('Order could not be loaded')
-          setOrder(null)
-          setSubOrders([])
-          return
-        }
-        if (isStale()) return
-        setOrder(orderData as OrderDetailRow)
-        setSubOrders(subOrderResult)
-      } catch (err) {
-        if (isStale()) return
-        setError(err instanceof Error ? err.message : String(err))
-        showError('Order could not be loaded')
-        setOrder(null)
-        setSubOrders([])
-      } finally {
-        if (!isStale()) {
-          setLoading(false)
-        }
-      }
-    }
-
-    void fetchData()
-    return () => {}
-  }, [activeOrderId, contextRefreshTick, localReloadTick, showError])
-
-  // Pick a default sub-order tab when ?sub= is unset or no longer matches a visible row.
+  // ContextPanel still mutates sub-orders via services and signals through contextRefreshTick.
+  // Re-sync the query caches it doesn't write to, skipping the initial mount.
+  const didMountRef = useRef(false)
   useEffect(() => {
-    const visible = subOrders.filter(s => !s.is_cancelled)
-    if (visible.length === 0) {
-      if (activeSubOrderId !== null) setActiveSubOrder(null)
+    if (!didMountRef.current) {
+      didMountRef.current = true
       return
     }
-    if (activeSubOrderId == null || !visible.some(s => s.id === activeSubOrderId)) {
-      setActiveSubOrder(visible[0].id)
-    }
-  }, [subOrders, activeSubOrderId, setActiveSubOrder])
-
-  const saveOrderHeader = useCallback(
-    async (patch: OrderHeaderPatch) => {
-      if (!activeOrderId) return
-      try {
-        const updatedOrder = await orderService.updateOrder(activeOrderId, patch) as OrderDetailRow
-        setOrder(updatedOrder)
-        onOrderFromWorkArea(updatedOrder)
-        onOrderCustomerLoaded(updatedOrder.customers)
-      } catch {
-        showError('Order could not be saved')
-      }
-    },
-    [activeOrderId, onOrderFromWorkArea, onOrderCustomerLoaded, showError]
-  )
+    if (!activeOrderId) return
+    void queryClient.invalidateQueries({ queryKey: orderKeys.byId(activeOrderId) })
+    void queryClient.invalidateQueries({ queryKey: subOrderKeys.byOrderId(activeOrderId) })
+  }, [contextRefreshTick, activeOrderId, queryClient])
 
   const visibleSubOrders = useMemo(
     () => subOrders.filter(subOrder => !subOrder.is_cancelled),
@@ -161,34 +97,40 @@ export function WorkArea({
     return visibleSubOrders.find(subOrder => subOrder.id === activeSubOrderId) ?? null
   }, [visibleSubOrders, activeSubOrderId])
 
+  // Pick a default sub-order tab when ?sub= is unset or no longer matches a visible row.
   useEffect(() => {
-    const responsibleId = activeSubOrder?.assignee_id ?? null
-    if (!responsibleId) {
-      setResponsibleName(null)
+    if (visibleSubOrders.length === 0) {
+      if (activeSubOrderId !== null) setActiveSubOrder(null)
       return
     }
-    let alive = true
-    void (async () => {
-      try {
-        const profile = await employeeService.getProfile(responsibleId)
-        if (!alive) return
-        setResponsibleName(profile?.name ?? null)
-      } catch (err) {
-        if (!alive) return
-        console.error(err)
-      }
-    })()
-    return () => {
-      alive = false
+    if (activeSubOrderId == null || !visibleSubOrders.some(s => s.id === activeSubOrderId)) {
+      setActiveSubOrder(visibleSubOrders[0].id)
     }
-  }, [activeSubOrder?.assignee_id])
+  }, [visibleSubOrders, activeSubOrderId, setActiveSubOrder])
+
+  const saveOrderHeader = useCallback(
+    async (patch: OrderHeaderPatch) => {
+      if (!activeOrderId) return
+      try {
+        await updateOrder.mutateAsync({ id: activeOrderId, patch })
+      } catch {
+        showError('Order could not be saved')
+      }
+    },
+    [activeOrderId, updateOrder, showError]
+  )
 
   const handleSubOrderUpdated = useCallback(
     (updatedSubOrder: SubOrderRow) => {
-      setSubOrders(previous => previous.map(subOrder => (subOrder.id === updatedSubOrder.id ? updatedSubOrder : subOrder)))
+      if (activeOrderId) {
+        queryClient.setQueryData<SubOrderRow[]>(
+          subOrderKeys.byOrderId(activeOrderId),
+          old => old?.map(subOrder => (subOrder.id === updatedSubOrder.id ? updatedSubOrder : subOrder)) ?? old,
+        )
+      }
       onActiveSubOrderChanged(updatedSubOrder)
     },
-    [onActiveSubOrderChanged]
+    [activeOrderId, queryClient, onActiveSubOrderChanged]
   )
 
   useEffect(() => {
@@ -216,71 +158,6 @@ export function WorkArea({
     onOrderFilesChanged,
   ])
 
-  const handleAddSubOrder = async (bereich: Department) => {
-    if (!activeOrderId || !order) return
-    setSaving(true)
-    setError(null)
-    const user = await authService.getUser()
-    if (!user?.id) {
-      setError('Not logged in')
-      setSaving(false)
-      return
-    }
-    const today = new Date()
-    const deadlineIso = order.deadline
-      ? order.deadline.length > 10
-        ? order.deadline.slice(0, 10)
-        : order.deadline
-      : `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-    const priority = order.priority
-    const delivery = order.delivery ?? 'PICKUP'
-    let data: SubOrderRow
-    try {
-      data = await subOrderService.createSubOrder({
-        order_id: activeOrderId,
-        department: bereich,
-        status: 'INCOMPLETE',
-        priority: priority,
-        detail: {},
-        deadline: deadlineIso,
-        delivery: delivery,
-        assignee_id: user.id,
-        is_emergency: false,
-        emergency_reason: null,
-        is_cancelled: false,
-        customer_approval_required: false,
-        customer_approval_granted: false,
-        customer_approval_file_id: null,
-      })
-    } catch (err) {
-      setSaving(false)
-      setError(err instanceof Error ? err.message : 'Error creating sub-order')
-      return
-    }
-    setSaving(false)
-    setSubOrders(previous => {
-      const sorted = [...previous, data].sort((a, b) =>
-        a.id < b.id ? -1 : a.id > b.id ? 1 : 0
-      )
-      return sorted
-    })
-    setActiveSubOrder(data.id)
-
-    try {
-      const statusResult = await orderService.recalculateOrderStatus(order.id)
-      setOrder(current => (current ? { ...current, status: statusResult.status } : current))
-      onOrderUpdated({ ...order, status: statusResult.status })
-    } catch {
-      showError('Order status could not be updated')
-      const refreshed = await orderService.getOrderById(order.id)
-      if (refreshed) {
-        setOrder(refreshed as OrderDetailRow)
-        onOrderUpdated(refreshed)
-      }
-    }
-    setOverlayOpen(false)
-  }
-
   if (!activeOrderId) {
     return (
       <div className="flex flex-col w-full h-full items-center justify-center">
@@ -298,10 +175,10 @@ export function WorkArea({
     )
   }
 
-  if (error && !order) {
+  if (isError && !order) {
     return (
       <div className="flex flex-col w-full h-full items-center justify-center">
-        <h2>{error}</h2>
+        <h2>Order could not be loaded.</h2>
       </div>
     )
   }
@@ -320,7 +197,11 @@ export function WorkArea({
         order={order}
         onEditCustomer={() =>
           openCustomerDialog(order?.customers ?? null, {
-            onSaved: () => setLocalReloadTick(x => x + 1),
+            onSaved: () => {
+              if (activeOrderId) {
+                void queryClient.invalidateQueries({ queryKey: orderKeys.byId(activeOrderId) })
+              }
+            },
           })
         }
       />
@@ -329,12 +210,7 @@ export function WorkArea({
       <OrderSettings order={order} onSave={saveOrderHeader} />
       <Separator />
 
-      <SubOrderTabs
-        subOrders={visibleSubOrders}
-        activeSubOrderId={activeSubOrderId}
-        onSelect={setActiveSubOrder}
-        onAdd={() => setOverlayOpen(true)}
-      />
+      <SubOrderTabs />
       <Separator />
 
       <div className="work-area__formular " role="tabpanel">
@@ -353,13 +229,6 @@ export function WorkArea({
           <p className="wa-hint">No sub-orders yet. Use + to add a department.</p>
         )}
       </div>
-
-      <AddSubOrderOverlay
-        open={overlayOpen}
-        saving={saving}
-        onDepartmentSelected={handleAddSubOrder}
-        onClose={() => !saving && setOverlayOpen(false)}
-      />
     </main>
   )
 }

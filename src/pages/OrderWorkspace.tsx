@@ -135,7 +135,6 @@ function WorkspaceShell() {
             onOrderCustomerLoaded={handleOrderCustomerLoaded}
             onOrderFromWorkArea={handleOrderFromWorkArea}
             onOrderFilesChanged={handleOrderFilesChanged}
-            onOrderUpdated={handleOrderUpdated}
           />
           <aside className="border-l border-neutral-200 bg-neutral-50 p-4 overflow-y-auto">
             <ContextPanel
