@@ -4,8 +4,10 @@ import { fileService } from '../services/fileService'
 import {
   type Auftrag,
   type Customer,
+  type DeliveryChoice,
   type OrderDetailRow,
   type OrderHeaderPatch,
+  type Priority,
   type SubOrderRow,
 } from '../types/database'
 import { useToast } from './Toast'
@@ -19,7 +21,9 @@ import './WorkArea.css'
 import { Button } from './ui/button'
 import { Settings } from 'lucide-react'
 import { Separator } from './ui/separator'
-import { OrderSettings } from './OrderSettings'
+import { DeadlinePicker } from './fields/DeadlinePicker'
+import { DeliverySelect } from './fields/DeliverySelect'
+import { PrioritySelect } from './fields/PrioritySelect'
 
 type Props = {
   contextRefreshTick: number
@@ -267,5 +271,76 @@ function OrderHeader({ order, onEditCustomer }: OrderHeaderProps) {
         {customerPhone && <p title="Phone">{customerPhone}</p>}
       </div>
     </header>
+  )
+}
+
+type OrderSettingsProps = {
+  order: OrderDetailRow
+  onSave: (patch: OrderHeaderPatch) => void
+}
+
+function OrderSettings({ order, onSave }: OrderSettingsProps) {
+  const [headerDeadline, setHeaderDeadline] = useState('')
+  const [headerDelivery, setHeaderDelivery] = useState<DeliveryChoice | ''>('')
+  const [headerPriority, setHeaderPriority] = useState<Priority>('NORMAL')
+  const headerSnapshot = useRef<{
+    deadline: string | null
+    delivery: DeliveryChoice | null
+    priority: Priority
+  }>({ deadline: null, delivery: null, priority: 'NORMAL' })
+
+  useEffect(() => {
+    const rawDeadline = order.deadline
+    const isoDate =
+      rawDeadline && rawDeadline.length > 0
+        ? rawDeadline.length > 10
+          ? rawDeadline.slice(0, 10)
+          : rawDeadline
+        : ''
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- form mirrors server row
+    setHeaderDeadline(isoDate)
+    setHeaderDelivery(order.delivery ?? '')
+    setHeaderPriority(order.priority)
+    headerSnapshot.current = {
+      deadline: rawDeadline,
+      delivery: order.delivery,
+      priority: order.priority,
+    }
+  }, [order])
+
+  const trimDeadline = (dateString: string | null) =>
+    dateString && dateString.length > 10 ? dateString.slice(0, 10) : dateString || ''
+
+  return (
+    <section className="flex items-center gap-4" aria-label="Order meta">
+      <DeadlinePicker
+        value={headerDeadline}
+        onChange={value => {
+          setHeaderDeadline(value ?? '')
+          const snapshot = trimDeadline(headerSnapshot.current.deadline)
+          if ((value || '') !== (snapshot || '')) {
+            onSave({ deadline: value })
+          }
+        }}
+      />
+      <DeliverySelect
+        value={headerDelivery}
+        onChange={value => {
+          setHeaderDelivery(value ?? '')
+          if (value !== headerSnapshot.current.delivery) {
+            onSave({ delivery: value })
+          }
+        }}
+      />
+      <PrioritySelect
+        value={headerPriority}
+        onChange={value => {
+          setHeaderPriority(value)
+          if (value !== headerSnapshot.current.priority) {
+            onSave({ priority: value })
+          }
+        }}
+      />
+    </section>
   )
 }
