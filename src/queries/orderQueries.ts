@@ -160,10 +160,10 @@ export function useUpdateOrder() {
   })
 }
 
-export function useSynchronizeOrderStatus() {
+export function useRecalculateOrderStatus() {
   const queryClient = useQueryClient()
   return useMutation<Auftrag, Error, string>({
-    mutationFn: orderId => orderService.synchronizeOrderStatus(orderId),
+    mutationFn: orderId => orderService.recalculateOrderStatus(orderId),
     onSuccess: updated => {
       queryClient.setQueryData(orderKeys.byId(updated.id), updated)
       patchOrderStatusInCache(queryClient, updated.id, updated.status)

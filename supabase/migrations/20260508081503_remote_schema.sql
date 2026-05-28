@@ -233,45 +233,6 @@ $$;
 
 ALTER FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_sub_order_ids" "uuid"[], "created_by_user_id" "uuid") OWNER TO "postgres";
 
-CREATE OR REPLACE FUNCTION "public"."fn_calculate_order_status"("target_order_id" "uuid") RETURNS "public"."order_status"
-    LANGUAGE "plpgsql"
-    AS $$
-DECLARE
-  current_status  order_status;
-  target_status   order_status;
-BEGIN
-  SELECT status INTO current_status
-  FROM orders WHERE id = target_order_id;
-
-  IF current_status = 'QUOTE' THEN
-    RETURN 'QUOTE';
-  END IF;
-
-  SELECT status INTO target_status
-  FROM sub_orders
-  WHERE order_id = target_order_id
-    AND is_cancelled = false
-  ORDER BY CASE status
-    WHEN 'INCOMPLETE'       THEN 1
-    WHEN 'PREPRESS_READY'   THEN 2
-    WHEN 'PRODUCTION_READY' THEN 3
-    WHEN 'DONE'             THEN 4
-    ELSE 0
-  END ASC
-  LIMIT 1;
-
-  IF target_status IS NULL THEN
-    RETURN 'INCOMPLETE';
-  END IF;
-
-  RETURN target_status;
-END;
-$$;
-
-ALTER FUNCTION "public"."fn_calculate_order_status"("target_order_id" "uuid") OWNER TO "postgres";
-
-COMMENT ON FUNCTION "public"."fn_calculate_order_status"("target_order_id" "uuid") IS 'Lowest status of all non-cancelled sub-orders using an explicit CASE ordering. QUOTE at order level is never changed automatically. When adding enum values: update the CASE block here.';
-
 CREATE OR REPLACE FUNCTION "public"."fn_check_file_versioning_order"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$
@@ -480,7 +441,7 @@ CREATE TABLE IF NOT EXISTS "public"."orders" (
 
 ALTER TABLE "public"."orders" OWNER TO "postgres";
 
-COMMENT ON TABLE "public"."orders" IS 'Central aggregate. status is set by application convention via fn_calculate_order_status() — the DB does not enforce this. Direct SQL updates to status are intentionally allowed for emergency migrations.';
+COMMENT ON TABLE "public"."orders" IS 'Central aggregate. status is set by application convention via calculateOrderStatus() in src/lib/orderStatus.ts — the DB does not enforce this. Direct SQL updates to status are intentionally allowed for emergency migrations.';
 
 COMMENT ON COLUMN "public"."orders"."deadline" IS 'Overall deadline as a commercial frame. sub_orders.deadline is operationally leading and may differ — no automatic sync (V1 domain model, intentional decision).';
 
@@ -1209,10 +1170,6 @@ GRANT ALL ON FUNCTION "public"."check_textile_placement_conflict"() TO "service_
 GRANT ALL ON FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_sub_order_ids" "uuid"[], "created_by_user_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_sub_order_ids" "uuid"[], "created_by_user_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_sub_order_ids" "uuid"[], "created_by_user_id" "uuid") TO "service_role";
-
-GRANT ALL ON FUNCTION "public"."fn_calculate_order_status"("target_order_id" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."fn_calculate_order_status"("target_order_id" "uuid") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."fn_calculate_order_status"("target_order_id" "uuid") TO "service_role";
 
 GRANT ALL ON FUNCTION "public"."fn_check_file_versioning_order"() TO "anon";
 GRANT ALL ON FUNCTION "public"."fn_check_file_versioning_order"() TO "authenticated";

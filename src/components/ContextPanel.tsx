@@ -227,7 +227,7 @@ export function ContextPanel({
         order_id: order.id,
         event_type: 'PROCESSING_STARTED',
       })
-      const updated = await orderService.synchronizeOrderStatus(order.id)
+      const updated = await orderService.recalculateOrderStatus(order.id)
       onOrderUpdated({ ...order, status: updated.status })
     } catch {
       showError('Status could not be changed')
@@ -308,8 +308,8 @@ export function ContextPanel({
     }
   }
 
-  const syncOrderStatusAfterSubOrderAction = async () => {
-    const updated = await orderService.synchronizeOrderStatus(order.id)
+  const recalculateOrderStatusAfterSubOrderAction = async () => {
+    const updated = await orderService.recalculateOrderStatus(order.id)
     onOrderUpdated({ ...order, status: updated.status })
   }
 
@@ -335,7 +335,7 @@ export function ContextPanel({
       onSubOrderUpdated(data as SubOrderRow)
       const pdfOk = await generateAndDownloadPdf(subOrder.id, order.id)
       if (!pdfOk) showError('PDF could not be generated')
-      await syncOrderStatusAfterSubOrderAction()
+      await recalculateOrderStatusAfterSubOrderAction()
     } catch {
       showError('Status could not be changed')
     } finally {
@@ -446,7 +446,7 @@ export function ContextPanel({
       }
 
       onSubOrderUpdated(data)
-      await syncOrderStatusAfterSubOrderAction()
+      await recalculateOrderStatusAfterSubOrderAction()
     } catch {
       showError('Status could not be changed')
     } finally {
@@ -478,7 +478,7 @@ export function ContextPanel({
         event_type: 'MARKED_DONE',
       })
       onSubOrderUpdated(data)
-      await syncOrderStatusAfterSubOrderAction()
+      await recalculateOrderStatusAfterSubOrderAction()
     } catch {
       showError('Status could not be changed')
     } finally {
@@ -520,7 +520,7 @@ export function ContextPanel({
         reason: reason,
       })
       onSubOrderUpdated(data)
-      await syncOrderStatusAfterSubOrderAction()
+      await recalculateOrderStatusAfterSubOrderAction()
     } catch {
       showError('Status could not be changed')
     } finally {
@@ -543,7 +543,7 @@ export function ContextPanel({
         event_type: 'ROLLED_BACK',
       })
       onSubOrderUpdated(data)
-      await syncOrderStatusAfterSubOrderAction()
+      await recalculateOrderStatusAfterSubOrderAction()
     } catch {
       showError('Status could not be changed')
     } finally {
@@ -573,7 +573,7 @@ export function ContextPanel({
         meta: { aktiv: enabled } as unknown as Record<string, unknown>,
       })
       onSubOrderUpdated(data)
-      await syncOrderStatusAfterSubOrderAction()
+      await recalculateOrderStatusAfterSubOrderAction()
     } catch {
       showError('Status could not be changed')
     } finally {
@@ -603,7 +603,7 @@ export function ContextPanel({
         meta: { datei_id: customerApprovalFileId } as unknown as Record<string, unknown>,
       })
       onSubOrderUpdated(data)
-      await syncOrderStatusAfterSubOrderAction()
+      await recalculateOrderStatusAfterSubOrderAction()
       showSuccess('Approval granted')
     } catch {
       showError('Status could not be changed')
@@ -620,7 +620,7 @@ export function ContextPanel({
       await subOrderService.cancelSubOrder(subOrder.id)
       onSubOrderRemoved(subOrder.id)
       try {
-        await syncOrderStatusAfterSubOrderAction()
+        await recalculateOrderStatusAfterSubOrderAction()
       } catch {
         showError('Status could not be changed')
       }
@@ -639,7 +639,7 @@ export function ContextPanel({
       await subOrderService.deleteSubOrder(subOrder.id)
       onSubOrderRemoved(subOrder.id)
       try {
-        await syncOrderStatusAfterSubOrderAction()
+        await recalculateOrderStatusAfterSubOrderAction()
       } catch {
         showError('Status could not be changed')
       }

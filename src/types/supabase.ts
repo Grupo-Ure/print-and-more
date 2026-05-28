@@ -1146,10 +1146,6 @@ export type Database = {
         }
         Returns: string
       }
-      fn_calculate_order_status: {
-        Args: { target_order_id: string }
-        Returns: Database["public"]["Enums"]["order_status"]
-      }
     }
     Enums: {
       delivery_type: "PICKUP" | "SHIPPING"

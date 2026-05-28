@@ -1,7 +1,8 @@
 import { supabase } from '../supabase'
 import type { Database } from '../types/supabase'
 import { ORDER_COLUMNS } from '../const/orderSelect'
-import { ORDER_STATUS_LIST, type Auftrag, type DuplicateOrderArgs, type OrderStatus, type OrderSummaryRow } from '../types/database'
+import { calculateOrderStatus } from '../lib/orderStatus'
+import { type Auftrag, type DuplicateOrderArgs, type OrderStatus, type OrderSummaryRow } from '../types/database'
 
 type OrderInsert = Database['public']['Tables']['orders']['Insert']
 type OrderUpdate = Database['public']['Tables']['orders']['Update']
@@ -47,29 +48,6 @@ export type OrderListParams = {
 }
 
 const ORDER_LIST_COLUMNS = 'id, order_number, status, created_at, customers(name)'
-
-function parseStatusString(raw: string): OrderStatus {
-  if (!(ORDER_STATUS_LIST as readonly string[]).includes(raw)) {
-    throw new Error(`fn_calculate_order_status: invalid status "${raw}"`)
-  }
-  return raw as OrderStatus
-}
-
-function parseStatusFromRpc(data: unknown): OrderStatus {
-  if (data == null) throw new Error('fn_calculate_order_status: empty result')
-  if (typeof data === 'string') return parseStatusString(data)
-  if (typeof data === 'object' && 'status' in (data as object)) {
-    const v = (data as { status: unknown }).status
-    if (typeof v === 'string') return parseStatusString(v)
-    throw new Error('fn_calculate_order_status: field status is not a string')
-  }
-  if (typeof data === 'object' && 'fn_calculate_order_status' in (data as object)) {
-    const v = (data as { fn_calculate_order_status: unknown }).fn_calculate_order_status
-    if (typeof v === 'string') return parseStatusString(v)
-    throw new Error('fn_calculate_order_status: field fn_calculate_order_status is not a string')
-  }
-  throw new Error('fn_calculate_order_status: unexpected format')
-}
 
 class OrderService {
   async getOrdersForList(params: OrderListParams): Promise<OrderListEntry[]> {
@@ -177,20 +155,27 @@ class OrderService {
     if (error) throw error
   }
 
-  async synchronizeOrderStatus(auftragId: string): Promise<Auftrag> {
-    const { data: raw, error: rpcError } = await supabase.rpc('fn_calculate_order_status', {
-      target_order_id: auftragId,
-    })
-    if (rpcError) throw rpcError
-    const status = parseStatusFromRpc(raw)
+  async recalculateOrderStatus(orderId: string): Promise<Auftrag> {
+    const { data: inputs, error: readError } = await supabase
+      .from('orders')
+      .select('status, sub_orders(status, is_cancelled)')
+      .eq('id', orderId)
+      .single()
+    if (readError) throw readError
+    if (inputs == null) throw new Error('recalculateOrderStatus: order not found')
+
+    const currentStatus = inputs.status as OrderStatus
+    const subOrders = (inputs.sub_orders ?? []) as { status: OrderStatus; is_cancelled: boolean }[]
+    const nextStatus = calculateOrderStatus(currentStatus, subOrders)
+
     const { data, error } = await supabase
       .from('orders')
-      .update({ status })
-      .eq('id', auftragId)
+      .update({ status: nextStatus })
+      .eq('id', orderId)
       .select(ORDER_COLUMNS)
       .single()
     if (error) throw error
-    if (data == null) throw new Error('synchronizeOrderStatus: no row returned after update')
+    if (data == null) throw new Error('recalculateOrderStatus: no row returned after update')
     return flattenCustomerJoin(data as unknown as Auftrag)
   }
 

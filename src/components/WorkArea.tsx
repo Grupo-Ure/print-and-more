@@ -267,7 +267,7 @@ export function WorkArea({
     setActiveSubOrder(data.id)
 
     try {
-      const statusResult = await orderService.synchronizeOrderStatus(order.id)
+      const statusResult = await orderService.recalculateOrderStatus(order.id)
       setOrder(current => (current ? { ...current, status: statusResult.status } : current))
       onOrderUpdated({ ...order, status: statusResult.status })
     } catch {
