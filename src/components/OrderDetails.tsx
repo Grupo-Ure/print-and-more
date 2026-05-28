@@ -29,7 +29,7 @@ type Props = {
   onOrderFilesChanged: (d: FileRow[]) => void
 }
 
-export function WorkArea({
+export function OrderDetails({
   contextRefreshTick,
   onActiveSubOrderChanged,
   onOrderCustomerLoaded,

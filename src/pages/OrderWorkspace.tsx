@@ -3,7 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { authService } from '../services/authService'
 import { Login } from '../components/Login'
 import { OrderSidebar } from '../components/OrderSidebar'
-import { WorkArea } from '../components/WorkArea'
+import { OrderDetails } from '../components/OrderDetails'
 import { ContextPanel } from '../components/ContextPanel'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { OrderWorkspaceProvider, useOrderWorkspace } from '../context/order.context'
@@ -128,7 +128,7 @@ function WorkspaceShell() {
           <SidebarTrigger />
         </div>
         <div className="grid grid-cols-[1fr_300px] flex-1 min-h-0">
-          <WorkArea
+          <OrderDetails
             contextRefreshTick={contextRefreshTick}
             onActiveSubOrderChanged={handleActiveSubOrderChanged}
             onOrderCustomerLoaded={handleOrderCustomerLoaded}
