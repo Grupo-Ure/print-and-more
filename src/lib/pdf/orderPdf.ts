@@ -9,44 +9,11 @@ import type { DeliveryChoice, OrderPdfRow, Priority, SubOrderRow } from '../../t
 
 type PdfDoc = jsPDF & { lastAutoTable?: { finalY: number } }
 
-const KNOWN_DETAIL_KEYS: string[] = [
-  'typ',
-  'stueckzahl',
-  'material',
-  'material_freitext',
-  'material_sonstige',
-  'format_breite',
-  'format_hoehe',
-  'ecken_runden',
-  'selbstklebend',
-  'motiv',
-  'herkunft',
-  'besonderheiten',
-  'beschreibung',
-]
-
 function asDetailRecord(detail: unknown): Record<string, unknown> {
   if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
     return detail as Record<string, unknown>
   }
   return {}
-}
-
-function detailRows(detail: Record<string, unknown>): { label: string; value: string }[] {
-  const detailRecord = asDetailRecord(detail)
-  const keys = Object.keys(detailRecord).filter(key => key !== 'hat_produkte' && key !== 'datei_id')
-  const ordered = [
-    ...KNOWN_DETAIL_KEYS.filter(key => keys.includes(key)),
-    ...keys.filter(key => !KNOWN_DETAIL_KEYS.includes(key)).sort(),
-  ]
-
-  const entries: { label: string; value: string }[] = []
-  for (const key of ordered) {
-    const fieldValue = detailRecord[key]
-    const entry = detailEntry(key, fieldValue)
-    if (entry) entries.push(entry)
-  }
-  return entries
 }
 
 function fieldToLabel(key: string): string {
@@ -90,19 +57,6 @@ function valueAsString(value: unknown): string {
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'
   if (typeof value === 'object') return JSON.stringify(value)
   return String(value)
-}
-
-function detailEntry(key: string, value: unknown): { label: string; value: string } | null {
-  if (key === 'hat_produkte' || key === 'datei_id') return null
-  if (isEmpty(value)) return null
-
-  if (key === 'ecken_runden' || key === 'selbstklebend') {
-    if (value === true) return { label: fieldToLabel(key), value: 'Yes' }
-    if (value === false) return { label: fieldToLabel(key), value: 'No' }
-    return { label: fieldToLabel(key), value: String(value) }
-  }
-
-  return { label: fieldToLabel(key), value: valueAsString(value) }
 }
 
 function normalizeFileNameSegment(input: string): string {
@@ -292,22 +246,6 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
     doc.setDrawColor(60)
     doc.line(marginLeft, cursorY, 210 - marginRight, cursorY)
     cursorY += 5
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(10)
-    cursorY = addText(doc, 'Details', marginLeft, cursorY, 6)
-    doc.setFont('helvetica', 'normal')
-
-    autoTable(doc, {
-      startY: cursorY,
-      margin: { left: marginLeft, right: marginRight },
-      head: [],
-      body: detailRows(asDetailRecord(subOrder.detail)).map(entry => [entry.label, entry.value]),
-      styles: { fontSize: 9, cellPadding: 2 },
-      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 }, 1: { cellWidth: 130 } },
-      theme: 'plain',
-    })
-    cursorY = ((doc as PdfDoc).lastAutoTable?.finalY ?? cursorY) + 8
 
     if (products.length > 0 && subOrder.department !== 'TEXTILE') {
       cursorY = checkNewPage(doc, cursorY, 30)
