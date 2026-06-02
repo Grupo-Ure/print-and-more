@@ -46,12 +46,12 @@ type StampFormContext = {
   saveDetail: (newDetail: StampDetailJson) => void
 }
 
-const EXTRA_TYPES = ['NACHFUELLFARBE', 'STEMPELKISSEN', 'STEMPELPLATTE', 'TRODAT_KISSEN'] as const
+const EXTRA_TYPES = ['REFILL_INK', 'INK_PAD', 'STAMP_PLATE', 'TRODAT_PAD'] as const
 const EXTRA_TYPE_LABELS: Record<(typeof EXTRA_TYPES)[number], string> = {
-  NACHFUELLFARBE: 'Refill Ink',
-  STEMPELKISSEN: 'Stamp Pad',
-  STEMPELPLATTE: 'Stamp Plate',
-  TRODAT_KISSEN: 'Trodat Replacement Pad',
+  REFILL_INK: 'Refill Ink',
+  INK_PAD: 'Stamp Pad',
+  STAMP_PLATE: 'Stamp Plate',
+  TRODAT_PAD: 'Trodat Replacement Pad',
 }
 
 const REFILL_INK_COLORS = ['SCHWARZ', 'ROT', 'BLAU', 'GRUEN'] as const
@@ -272,12 +272,12 @@ export function StampDetail({
   const heightValue = toPositiveIntOrNull(detail.format_hoehe)
   const hasDimensions = (widthValue ?? 0) > 0 || (heightValue ?? 0) > 0
 
-  const showDimensions = stampType !== 'NACHFUELLFARBE' && stampType !== 'STEMPELKISSEN' && stampType !== 'TRODAT_KISSEN'
+  const showDimensions = stampType !== 'REFILL_INK' && stampType !== 'INK_PAD' && stampType !== 'TRODAT_PAD'
   const showDescription =
-    stampType !== 'NACHFUELLFARBE' &&
-    stampType !== 'STEMPELKISSEN' &&
-    stampType !== 'TRODAT_KISSEN' &&
-    stampType !== 'STEMPELPLATTE' &&
+    stampType !== 'REFILL_INK' &&
+    stampType !== 'INK_PAD' &&
+    stampType !== 'TRODAT_PAD' &&
+    stampType !== 'STAMP_PLATE' &&
     !!stampType
   const showColor = showDescription // alle "klassischen" Typen
   const showQuantity = !!stampType
@@ -318,7 +318,7 @@ export function StampDetail({
     const width = toPositiveIntOrNull(currentDetail.format_breite)
     const height = toPositiveIntOrNull(currentDetail.format_hoehe)
     const hasDimensions = (width ?? 0) > 0 || (height ?? 0) > 0
-    const isModelSuggestionType = currentType === 'TRODAT_PRINTY' || currentType === 'HOLZSTEMPEL'
+    const isModelSuggestionType = currentType === 'TRODAT_PRINTY' || currentType === 'WOODEN_STAMP'
     if (!isModelSuggestionType || !hasDimensions) {
       setModels([])
       setModelError(null)
@@ -426,13 +426,13 @@ export function StampDetail({
   }, [selectedModelId, models])
 
   useEffect(() => {
-    if (stampType !== 'TRODAT_KISSEN') return
+    if (stampType !== 'TRODAT_PAD') return
     const timer = setTimeout(() => setCushionSearchDebounced(cushionSearchInput), 350)
     return () => clearTimeout(timer)
   }, [cushionSearchInput, stampType])
 
   useEffect(() => {
-    if (stampType !== 'TRODAT_KISSEN') {
+    if (stampType !== 'TRODAT_PAD') {
       setCushionSearchResults([])
       setCushionSearchError(null)
       setCushionSearchLoading(false)
@@ -481,7 +481,7 @@ export function StampDetail({
   }, [cushionSearchDebounced, stampType])
 
   useEffect(() => {
-    if (stampType !== 'TRODAT_KISSEN') {
+    if (stampType !== 'TRODAT_PAD') {
       setCushionSearchInput('')
       setCushionSearchDebounced('')
       setCushionSearchResults([])
@@ -492,7 +492,7 @@ export function StampDetail({
   }, [stampType])
 
   useEffect(() => {
-    if (stampType !== 'TRODAT_KISSEN') {
+    if (stampType !== 'TRODAT_PAD') {
       setCushionColorOptions([])
       return
     }
@@ -675,7 +675,7 @@ export function StampDetail({
   return (
     <div className="ber-lfp">
       <h3 className="ber-h3">Stamp Details</h3>
-      {stampType === 'SONSTIGE_STEMPEL' && (
+      {stampType === 'OTHER_STAMP' && (
         <p className="ber-hinweis">
           For &apos;Other Stamps&apos;, PREPRESS_READY is set manually only.
         </p>
@@ -712,7 +712,7 @@ export function StampDetail({
         }
       />
 
-      {stampType === 'TRODAT_KISSEN' && (
+      {stampType === 'TRODAT_PAD' && (
         <>
           <FormRow
             label="Search"
@@ -862,11 +862,11 @@ export function StampDetail({
         </>
       )}
 
-      {showQuantity && stampType !== 'TRODAT_KISSEN' && (
-        <QuantityInput {...formContext} label={stampType === 'NACHFUELLFARBE' || stampType === 'STEMPELKISSEN' ? 'Count' : 'Quantity'} />
+      {showQuantity && stampType !== 'TRODAT_PAD' && (
+        <QuantityInput {...formContext} label={stampType === 'REFILL_INK' || stampType === 'INK_PAD' ? 'Count' : 'Quantity'} />
       )}
 
-      {stampType === 'STEMPELKISSEN' && (
+      {stampType === 'INK_PAD' && (
         <FormRow label="Size" error={shouldValidate && stampErrors.groesse ? stampErrors.groesse : undefined}>
           <select
             className={'ber-inp' + fieldErrorClass('groesse')}
@@ -885,9 +885,9 @@ export function StampDetail({
         </FormRow>
       )}
 
-      {(showColor || stampType === 'NACHFUELLFARBE' || stampType === 'STEMPELKISSEN') &&
-        stampType !== 'STEMPELPLATTE' &&
-        stampType !== 'TRODAT_KISSEN' && (
+      {(showColor || stampType === 'REFILL_INK' || stampType === 'INK_PAD') &&
+        stampType !== 'STAMP_PLATE' &&
+        stampType !== 'TRODAT_PAD' && (
         <FormRow
           label="Colour"
           error={
@@ -908,7 +908,7 @@ export function StampDetail({
                 }}
               >
                 <option value="">—</option>
-                {(stampType === 'NACHFUELLFARBE' || stampType === 'STEMPELKISSEN' ? REFILL_INK_COLORS : STAMP_COLORS).map(
+                {(stampType === 'REFILL_INK' || stampType === 'INK_PAD' ? REFILL_INK_COLORS : STAMP_COLORS).map(
                   fv => (
                     <option key={fv} value={fv}>
                       {STAMP_COLOR_LABELS[fv as (typeof STAMP_COLORS)[number]]}
@@ -916,7 +916,7 @@ export function StampDetail({
                   )
                 )}
               </select>
-              {String(detail['farbe'] ?? '') === 'SONSTIGE' && stampType !== 'NACHFUELLFARBE' && (
+              {String(detail['farbe'] ?? '') === 'SONSTIGE' && stampType !== 'REFILL_INK' && (
                 <div style={{ marginTop: 8 }}>
                   <input
                     type="text"
@@ -933,7 +933,7 @@ export function StampDetail({
         />
       )}
 
-      {stampType === 'NACHFUELLFARBE' && (
+      {stampType === 'REFILL_INK' && (
         <FormRow label="Type" error={shouldValidate && stampErrors.tinte_typ ? stampErrors.tinte_typ : undefined}>
           <select
             className={'ber-inp' + fieldErrorClass('tinte_typ')}
@@ -995,7 +995,7 @@ export function StampDetail({
         />
       )}
 
-      {(stampType === 'TRODAT_PRINTY' || stampType === 'HOLZSTEMPEL') && showDimensions && hasDimensions && (
+      {(stampType === 'TRODAT_PRINTY' || stampType === 'WOODEN_STAMP') && showDimensions && hasDimensions && (
         <FormRow label="Suggested model">
           <div>
             {selectedModelId && (
@@ -1136,7 +1136,7 @@ export function StampDetail({
         />
       )}
 
-      {(stampType === 'NACHFUELLFARBE' || stampType === 'STEMPELKISSEN') && (
+      {(stampType === 'REFILL_INK' || stampType === 'INK_PAD') && (
         <FormRow label="Note" error={undefined}>
           <textarea
             className="ber-inp"

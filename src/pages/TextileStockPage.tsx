@@ -299,7 +299,7 @@ export function TextileStockPage() {
 
   const bookMovement = async (
     variant: VariantRow,
-    movementType: 'ZUGANG' | 'ABGANG',
+    movementType: 'INBOUND' | 'OUTBOUND',
     onSuccess?: (nextStock: number) => void
   ) => {
     if (!session?.user) return
@@ -311,7 +311,7 @@ export function TextileStockPage() {
       setBookingErrors(m => ({ ...m, [variant.id]: 'Quantity: integer ≥ 1' }))
       return
     }
-    const stockDelta = movementType === 'ZUGANG' ? quantity : -quantity
+    const stockDelta = movementType === 'INBOUND' ? quantity : -quantity
     const nextStock = (variant.stock ?? 0) + stockDelta
     if (nextStock < 0) {
       setBookingErrors(m => ({ ...m, [variant.id]: 'Quantity exceeds current stock' }))
@@ -341,7 +341,7 @@ export function TextileStockPage() {
     }
   }
 
-  const bookMovementStockTab = async (variant: VariantRow, movementType: 'ZUGANG' | 'ABGANG') => {
+  const bookMovementStockTab = async (variant: VariantRow, movementType: 'INBOUND' | 'OUTBOUND') => {
     await bookMovement(variant, movementType, nextStock => {
       setAllVariants(list => list.map(x => (x.id === variant.id ? { ...x, stock: nextStock } : x)))
     })
@@ -892,7 +892,7 @@ export function TextileStockPage() {
   const currentBrandName = brands.find(m => m.id === brandIdForProducts)?.name ?? '—'
   const productBreadcrumbName = products.find(p => p.id === productIdForVariants)?.name ?? '—'
 
-  const bookingField = (variant: VariantRow, onBook: (x: VariantRow, t: 'ZUGANG' | 'ABGANG') => void) => {
+  const bookingField = (variant: VariantRow, onBook: (x: VariantRow, t: 'INBOUND' | 'OUTBOUND') => void) => {
     const quantityStr = (bookingQuantity[variant.id] ?? '').slice(0, 3)
     const quantity = quantityStr.trim() === '' ? null : parseInt(quantityStr, 10)
     const quantityValid = quantity != null && Number.isInteger(quantity) && quantity >= 1
@@ -924,7 +924,7 @@ export function TextileStockPage() {
           className="cp-btn cp-btn-grau"
           style={{ width: 34, padding: '6px 0' }}
           disabled={!quantityValid || bookingBusyId != null}
-          onClick={() => void onBook(variant, 'ZUGANG')}
+          onClick={() => void onBook(variant, 'INBOUND')}
           title="Stock in"
         >
           +
@@ -934,7 +934,7 @@ export function TextileStockPage() {
           className="cp-btn cp-btn-grau"
           style={{ width: 34, padding: '6px 0' }}
           disabled={outboundDisabled}
-          onClick={() => void onBook(variant, 'ABGANG')}
+          onClick={() => void onBook(variant, 'OUTBOUND')}
           title="Stock out"
         >
           −

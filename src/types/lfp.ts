@@ -14,37 +14,37 @@
 
 /** Discriminator for the kind of LFP work, stored in `teilauftraege.typ`. */
 export type LfpType =
-  | 'AUFKLEBER'
-  | 'SCHILD_UV'
-  | 'SCHILD_FOLIE'
-  | 'FOLIENPLOTT'
+  | 'STICKER'
+  | 'SIGN_UV'
+  | 'SIGN_FOIL'
+  | 'FOIL_PLOTTER'
   | 'BANNER'
   | 'ROLLUP'
-  | 'FAHRZEUGBESCHRIFTUNG'
-  | 'SONSTIGE_LFP'
+  | 'VEHICLE_LETTERING'
+  | 'OTHER_LFP'
 
 /** All LFP typen in the order they appear in dropdowns. */
 export const LFP_TYPES: LfpType[] = [
-  'AUFKLEBER',
-  'SCHILD_UV',
-  'SCHILD_FOLIE',
-  'FOLIENPLOTT',
+  'STICKER',
+  'SIGN_UV',
+  'SIGN_FOIL',
+  'FOIL_PLOTTER',
   'BANNER',
   'ROLLUP',
-  'FAHRZEUGBESCHRIFTUNG',
-  'SONSTIGE_LFP',
+  'VEHICLE_LETTERING',
+  'OTHER_LFP',
 ]
 
 /** Display labels for {@link LfpType}, rendered in tabs and dropdowns. */
 export const LFP_TYPE_LABELS: Record<LfpType, string> = {
-  AUFKLEBER: 'Sticker',
-  SCHILD_UV: 'Sign (UV)',
-  SCHILD_FOLIE: 'Sign (Foil)',
-  FOLIENPLOTT: 'Vinyl Plot',
+  STICKER: 'Sticker',
+  SIGN_UV: 'Sign (UV)',
+  SIGN_FOIL: 'Sign (Foil)',
+  FOIL_PLOTTER: 'Vinyl Plot',
   BANNER: 'Banner',
   ROLLUP: 'Roll-up',
-  FAHRZEUGBESCHRIFTUNG: 'Vehicle Wrap',
-  SONSTIGE_LFP: 'Other (LFP)',
+  VEHICLE_LETTERING: 'Vehicle Wrap',
+  OTHER_LFP: 'Other (LFP)',
 }
 
 /**

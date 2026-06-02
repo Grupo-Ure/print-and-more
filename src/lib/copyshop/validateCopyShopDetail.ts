@@ -197,20 +197,20 @@ export function validateCopyShopDetail(
   if (!isValidQuantity(detail.stueckzahl)) addError(errors, 'stueckzahl', 'Integer ≥ 1')
   const copyShopType = typ as CopyShopType
   const productionPath = detail.produktionsweg
-  if (copyShopType === 'KARTE_FLYER' || copyShopType === 'FALZFLYER' || copyShopType === 'BROSCHUERE') {
+  if (copyShopType === 'CARD_FLYER' || copyShopType === 'FOLDED_FLYER' || copyShopType === 'BROCHURE') {
     if (!['CC', 'OFFSET', 'OFFEN'].includes(parseRequiredString(productionPath) ?? '')) addError(errors, 'produktionsweg', 'Required')
-  } else if (copyShopType !== 'PLAKAT_POSTER' && copyShopType !== 'AUSDRUCK' && copyShopType !== 'VISITENKARTE' && copyShopType !== 'BINDUNG') {
+  } else if (copyShopType !== 'POSTER' && copyShopType !== 'PRINTOUT' && copyShopType !== 'BUSINESS_CARD' && copyShopType !== 'BINDING') {
     if (productionPath != null && productionPath !== '' && productionPath !== 'COPYSHOP' && productionPath !== 'OFFSET') addError(errors, 'produktionsweg', 'Invalid')
   }
 
-  if (copyShopType === 'PLAKAT_POSTER') {
+  if (copyShopType === 'POSTER') {
     const posterFormat = parseRequiredString((detail as Record<string, string>).format)
     if (!['A4', 'A3', 'A2', 'A1', 'A0', 'FREI'].includes(posterFormat ?? '')) addError(errors, 'format', 'Required')
     if (!['120G_AFFICHEN', '200G_SEIDENGLANZ', '200G_GLANZ'].includes(parseRequiredString(detail.material) ?? '')) addError(errors, 'material', 'Required')
     if (!['NEIN', 'MATT', 'GLAENZEND'].includes(parseRequiredString(detail.laminat) ?? '')) addError(errors, 'laminat', 'Required')
     if (posterFormat === 'FREI' && !hasDimension(detail.format_breite, detail.format_hoehe)) addError(errors, 'format_masse', MSG_MASSE)
     else if (posterFormat && posterFormat !== 'FREI' && !hasDimension(detail.format_breite, detail.format_hoehe)) addError(errors, 'format_masse', MSG_MASSE)
-  } else if (copyShopType === 'KARTE_FLYER') {
+  } else if (copyShopType === 'CARD_FLYER') {
     if (!['1_0', '1_1', '4_0', '4_4'].includes(parseRequiredString(detail.farbigkeit) ?? '')) addError(errors, 'farbigkeit', 'Required')
     validateCardFoldFormat(false, detail, errors)
     if (requireBoolPresent(detail.randabfallend) === 'missing') addError(errors, 'randabfallend', 'Required')
@@ -220,7 +220,7 @@ export function validateCopyShopDetail(
     } else if (productionPathStr === 'OFFSET') {
       validateOffsetMaterial(detail, errors)
     }
-  } else if (copyShopType === 'FALZFLYER') {
+  } else if (copyShopType === 'FOLDED_FLYER') {
     if (!['1_1', '4_4'].includes(parseRequiredString(detail.farbigkeit) ?? '')) addError(errors, 'farbigkeit', 'Required')
     if (!['MITTELFALZ', 'WICKELFALZ', 'ZICKZACK'].includes(parseRequiredString(detail.falzart) ?? '')) addError(errors, 'falzart', 'Required')
     validateCardFoldFormat(true, detail, errors)
@@ -232,7 +232,7 @@ export function validateCopyShopDetail(
     } else if (productionPathStr === 'OFFSET') {
       validateOffsetMaterial(detail, errors)
     }
-  } else if (copyShopType === 'BROSCHUERE') {
+  } else if (copyShopType === 'BROCHURE') {
     validateBrochureFormat(detail, errors)
     if (!['HOCHFORMAT', 'QUERFORMAT'].includes(parseRequiredString((detail as Record<string, string>).orientierung) ?? '')) {
       addError(errors, 'orientierung', 'Required')
@@ -250,7 +250,7 @@ export function validateCopyShopDetail(
       validateBrochureOffsetOrOpen(detail, errors)
     }
     if (requireBoolPresent(detail.randabfallend) === 'missing') addError(errors, 'randabfallend', 'Required')
-  } else if (copyShopType === 'VISITENKARTE') {
+  } else if (copyShopType === 'BUSINESS_CARD') {
     const material = parseRequiredString((detail as Record<string, string>).material)
     const visitMat = [
       '300G_CC',
@@ -290,7 +290,7 @@ export function validateCopyShopDetail(
       if (!multiloftColors.includes(parseRequiredString((detail as Record<string, string>).multiloft_farbkern) ?? '')) addError(errors, 'multiloft_farbkern', 'Required')
     }
     if (requireBoolPresent(detail.randabfallend) === 'missing') addError(errors, 'randabfallend', 'Required')
-  } else if (copyShopType === 'BINDUNG') {
+  } else if (copyShopType === 'BINDING') {
     const material = parseRequiredString((detail as Record<string, string>).material)
     if (!['80G', '100G', '120G', 'SONSTIGE'].includes(material ?? '')) addError(errors, 'material', 'Required')
     if (material === 'SONSTIGE' && !parseRequiredString((detail as Record<string, string>).material_sonstige)) addError(errors, 'material_sonstige', 'Required')
@@ -330,7 +330,7 @@ export function validateCopyShopDetail(
       }
     }
     if (requireBoolPresent(detail.randabfallend) === 'missing') addError(errors, 'randabfallend', 'Required')
-  } else if (copyShopType === 'AUSDRUCK') {
+  } else if (copyShopType === 'PRINTOUT') {
     if (!['A5', 'A4', 'A3'].includes(parseRequiredString((detail as Record<string, string>).format) ?? '')) addError(errors, 'format', 'Required')
     const material = parseRequiredString((detail as Record<string, string>).material)
     if (!['80G', '100G', '120G', '160G', '200G', '250G', '300G', 'SONSTIGE'].includes(material ?? '')) addError(errors, 'material', 'Required')

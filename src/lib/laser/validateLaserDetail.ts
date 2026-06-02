@@ -6,13 +6,13 @@
  * the detail is valid.
  *
  * Per-typ rules at a glance:
- * - Sign typen (SCHILD / POKALSCHILD / NAMENSSCHILD): material from
+ * - Sign typen (SIGN / TROPHY_PLATE / NAME_TAG): material from
  *   {@link LASER_SIGN_MATERIALS}, at least one dimension, corner-rounding
- *   flag, motif. SCHILD and POKALSCHILD additionally need the
+ *   flag, motif. SIGN and TROPHY_PLATE additionally need the
  *   self-adhesive flag.
- * - GESCHENKARTIKEL: free-text material, origin (customer / in-house),
+ * - GIFT_ITEM: free-text material, origin (customer / in-house),
  *   motif.
- * - SONSTIGE_LASER: self-adhesive flag, origin, motif.
+ * - OTHER_LASER: self-adhesive flag, origin, motif.
  *
  * In `ANGEBOT` (quote stage) nothing is required regardless of typ.
  */
@@ -90,7 +90,7 @@ export function validateLaserDetail(
 
   const laserType = typ as LaserType
 
-  if (laserType === 'SCHILD' || laserType === 'POKALSCHILD' || laserType === 'NAMENSSCHILD') {
+  if (laserType === 'SIGN' || laserType === 'TROPHY_PLATE' || laserType === 'NAME_TAG') {
     const material = parseRequiredString(detail?.material) as (typeof LASER_SIGN_MATERIALS)[number] | null
     if (!material || !LASER_SIGN_MATERIALS.includes(material as (typeof LASER_SIGN_MATERIALS)[number])) {
       addError(errors, 'material', 'Required')
@@ -98,16 +98,16 @@ export function validateLaserDetail(
     if (material === 'SONSTIGE' && !parseRequiredString(detail?.material_sonstige)) addError(errors, 'material_sonstige', 'Required')
     if (!hasDimension(detail?.format_breite, detail?.format_hoehe)) addError(errors, 'format_masse', MSG_FORMAT_MASSE)
     if (requireBoolPresent(detail?.ecken_runden) === 'missing') addError(errors, 'ecken_runden', 'Required')
-    if ((laserType === 'SCHILD' || laserType === 'POKALSCHILD') && requireBoolPresent(detail?.selbstklebend) === 'missing') {
+    if ((laserType === 'SIGN' || laserType === 'TROPHY_PLATE') && requireBoolPresent(detail?.selbstklebend) === 'missing') {
       addError(errors, 'selbstklebend', 'Required')
     }
     if (!parseRequiredString(detail?.motiv)) addError(errors, 'motiv', 'Required')
-  } else if (laserType === 'GESCHENKARTIKEL') {
+  } else if (laserType === 'GIFT_ITEM') {
     if (!parseRequiredString(detail?.material_freitext)) addError(errors, 'material_freitext', 'Required')
     const origin = parseRequiredString(detail?.herkunft)
     if (!origin || !LASER_ORIGINS.includes(origin as (typeof LASER_ORIGINS)[number])) addError(errors, 'herkunft', 'Required')
     if (!parseRequiredString(detail?.motiv)) addError(errors, 'motiv', 'Required')
-  } else if (laserType === 'SONSTIGE_LASER') {
+  } else if (laserType === 'OTHER_LASER') {
     if (requireBoolPresent(detail?.selbstklebend) === 'missing') addError(errors, 'selbstklebend', 'Required')
     const origin = parseRequiredString(detail?.herkunft)
     if (!origin || !LASER_ORIGINS.includes(origin as (typeof LASER_ORIGINS)[number])) addError(errors, 'herkunft', 'Required')

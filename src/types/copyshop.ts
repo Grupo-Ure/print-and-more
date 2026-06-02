@@ -15,13 +15,13 @@
 
 /** All CopyShop typen, in dropdown order. */
 export const COPY_SHOP_TYPES = [
-  'PLAKAT_POSTER',
-  'KARTE_FLYER',
-  'FALZFLYER',
-  'BROSCHUERE',
-  'VISITENKARTE',
-  'BINDUNG',
-  'AUSDRUCK',
+  'POSTER',
+  'CARD_FLYER',
+  'FOLDED_FLYER',
+  'BROCHURE',
+  'BUSINESS_CARD',
+  'BINDING',
+  'PRINTOUT',
 ] as const
 
 /** Discriminator for the kind of CopyShop work, stored in `teilauftraege.typ`. */
@@ -29,13 +29,13 @@ export type CopyShopType = (typeof COPY_SHOP_TYPES)[number]
 
 /** Display labels for {@link CopyShopType}, rendered in dropdowns and tabs. */
 export const COPY_SHOP_TYPE_LABELS: Record<CopyShopType, string> = {
-  PLAKAT_POSTER: 'Poster',
-  KARTE_FLYER: 'Card & Flyer',
-  FALZFLYER: 'Folded Flyer',
-  BROSCHUERE: 'Brochure',
-  VISITENKARTE: 'Business Card',
-  BINDUNG: 'Binding',
-  AUSDRUCK: 'Print-out',
+  POSTER: 'Poster',
+  CARD_FLYER: 'Card & Flyer',
+  FOLDED_FLYER: 'Folded Flyer',
+  BROCHURE: 'Brochure',
+  BUSINESS_CARD: 'Business Card',
+  BINDING: 'Binding',
+  PRINTOUT: 'Print-out',
 }
 
 /**

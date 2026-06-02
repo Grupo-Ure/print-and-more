@@ -12,7 +12,7 @@
  *
  * The shape of a Stamp sub-order's `detail` JSONB column varies by typ.
  * See `validateStampDetail` in `src/lib/stamp/` for the per-typ field
- * requirements; for `TRODAT_PRINTY` and `HOLZSTEMPEL` the `detail` also
+ * requirements; for `TRODAT_PRINTY` and `WOODEN_STAMP` the `detail` also
  * carries a `modell_id` selected from the Stamp catalog
  * (`stempel_modelle` table).
  */
@@ -21,10 +21,10 @@
  * accepts a few "extra" typen for consumables — see the validator. */
 export const STAMP_TYPES = [
   'TRODAT_PRINTY',
-  'HOLZSTEMPEL',
-  'STATIVSTEMPEL',
-  'DATUMSSTEMPEL',
-  'SONSTIGE_STEMPEL',
+  'WOODEN_STAMP',
+  'STAND_STAMP',
+  'DATE_STAMP',
+  'OTHER_STAMP',
 ] as const
 
 /** Discriminator for the kind of stamp work, stored in `teilauftraege.typ`. */
@@ -33,10 +33,10 @@ export type StampType = (typeof STAMP_TYPES)[number]
 /** Display labels for {@link StampType}, rendered in dropdowns and tabs. */
 export const STAMP_TYPE_LABELS: Record<StampType, string> = {
   TRODAT_PRINTY: 'Trodat Printy',
-  HOLZSTEMPEL: 'Wooden Stamp',
-  STATIVSTEMPEL: 'Tripod Stamp',
-  DATUMSSTEMPEL: 'Date Stamp',
-  SONSTIGE_STEMPEL: 'Other Stamps',
+  WOODEN_STAMP: 'Wooden Stamp',
+  STAND_STAMP: 'Tripod Stamp',
+  DATE_STAMP: 'Date Stamp',
+  OTHER_STAMP: 'Other Stamps',
 }
 
 /** Standard ink colors for stamps. `SONSTIGE` requires a free-text spec. */

@@ -3,19 +3,19 @@
  *
  * The Stamp validator accepts both the core stamp typen ({@link STAMP_TYPES})
  * and a set of "extra" typen for consumables: refill ink
- * (`NACHFUELLFARBE`), stamp pads (`STEMPELKISSEN`), Trodat replacement
- * pads (`TRODAT_KISSEN`), and replacement plates (`STEMPELPLATTE`).
+ * (`REFILL_INK`), stamp pads (`INK_PAD`), Trodat replacement
+ * pads (`TRODAT_PAD`), and replacement plates (`STAMP_PLATE`).
  * Each typ has its own required fields:
  *
- * - `TRODAT_PRINTY`, `HOLZSTEMPEL`: dimensions optional; require
+ * - `TRODAT_PRINTY`, `WOODEN_STAMP`: dimensions optional; require
  *   `modell_id` from the catalog of stamp models.
- * - `STATIVSTEMPEL`, `DATUMSSTEMPEL`, `SONSTIGE_STEMPEL`: at least one
+ * - `STAND_STAMP`, `DATE_STAMP`, `OTHER_STAMP`: at least one
  *   dimension; ink color; description.
- * - `NACHFUELLFARBE`: ink color + ink type (NORMAL / HAUTVERTRAEGLICH /
+ * - `REFILL_INK`: ink color + ink type (NORMAL / HAUTVERTRAEGLICH /
  *   TEXTIL).
- * - `STEMPELKISSEN`: pad size (KLEIN / MITTEL / GROSS) + ink color.
- * - `TRODAT_KISSEN`: article number, ink color, and selected variant.
- * - `STEMPELPLATTE`: dimensions only (no color, no description).
+ * - `INK_PAD`: pad size (KLEIN / MITTEL / GROSS) + ink color.
+ * - `TRODAT_PAD`: article number, ink color, and selected variant.
+ * - `STAMP_PLATE`: dimensions only (no color, no description).
  *
  * In `ANGEBOT` (quote stage) nothing is required regardless of typ.
  *
@@ -68,7 +68,7 @@ const addError = (errors: Err, field: string, message: string) => {
   errors[field] = message
 }
 
-const EXTRA_TYPES = ['NACHFUELLFARBE', 'STEMPELKISSEN', 'STEMPELPLATTE', 'TRODAT_KISSEN'] as const
+const EXTRA_TYPES = ['REFILL_INK', 'INK_PAD', 'STAMP_PLATE', 'TRODAT_PAD'] as const
 type ExtraType = (typeof EXTRA_TYPES)[number]
 type AnyType = StampType | ExtraType
 
@@ -92,19 +92,19 @@ export function validateStampDetail(
   const stampType = typ as AnyType
 
   // Anzahl / Stückzahl
-  if (stampType === 'TRODAT_KISSEN') {
+  if (stampType === 'TRODAT_PAD') {
     if (!isValidQuantity(detail.stueckzahl)) addError(errors, 'stueckzahl', 'Integer ≥ 1')
   } else {
     if (!hasValidCount(detail)) addError(errors, 'stueckzahl', 'Integer ≥ 1')
   }
 
-  // Maße (OR-Pflicht) für alle außer NACHFUELLFARBE, STEMPELKISSEN, TRODAT_KISSEN, TRODAT_PRINTY, HOLZSTEMPEL
+  // Maße (OR-Pflicht) für alle außer REFILL_INK, INK_PAD, TRODAT_PAD, TRODAT_PRINTY, WOODEN_STAMP
   const needsFormat =
-    stampType !== 'NACHFUELLFARBE' &&
-    stampType !== 'STEMPELKISSEN' &&
-    stampType !== 'TRODAT_KISSEN' &&
+    stampType !== 'REFILL_INK' &&
+    stampType !== 'INK_PAD' &&
+    stampType !== 'TRODAT_PAD' &&
     stampType !== 'TRODAT_PRINTY' &&
-    stampType !== 'HOLZSTEMPEL'
+    stampType !== 'WOODEN_STAMP'
   if (needsFormat) {
     const width = parsePositiveInt(detail.format_breite)
     const height = parsePositiveInt(detail.format_hoehe)
@@ -114,29 +114,29 @@ export function validateStampDetail(
     if (detail.format_hoehe != null && detail.format_hoehe !== '' && height == null) addError(errors, 'format_hoehe', 'Integer > 0')
   }
 
-  if (stampType === 'TRODAT_PRINTY' || stampType === 'HOLZSTEMPEL') {
+  if (stampType === 'TRODAT_PRINTY' || stampType === 'WOODEN_STAMP') {
     if (!parseRequiredString(detail?.modell_id)) {
       addError(errors, 'modell_id', 'Please select a stamp model')
     }
   }
 
   // Typ-spezifische Pflichtfelder
-  if (stampType === 'NACHFUELLFARBE') {
+  if (stampType === 'REFILL_INK') {
     const inkColor = parseEnum(detail.farbe, REFILL_INK_COLORS)
     if (!inkColor) addError(errors, 'farbe', 'Required')
     const inkType = parseEnum(detail.tinte_typ, REFILL_INK_TYPES)
     if (!inkType) addError(errors, 'tinte_typ', 'Required')
-  } else if (stampType === 'STEMPELKISSEN') {
+  } else if (stampType === 'INK_PAD') {
     const padSize = parseEnum(detail.groesse, STAMP_PAD_SIZES)
     if (!padSize) addError(errors, 'groesse', 'Required')
     const inkColor = parseEnum(detail.farbe, REFILL_INK_COLORS)
     if (!inkColor) addError(errors, 'farbe', 'Required')
-  } else if (stampType === 'TRODAT_KISSEN') {
+  } else if (stampType === 'TRODAT_PAD') {
     if (!parseRequiredString((detail as Record<string, unknown>).kissen_artikelnummer)) addError(errors, 'kissen_artikelnummer', 'Required')
     const inkColor = parseEnum(detail.farbe, REFILL_INK_COLORS)
     if (!inkColor) addError(errors, 'farbe', 'Required')
     if (!parseRequiredString((detail as Record<string, unknown>).kissen_modell_id)) addError(errors, 'kissen_modell_id', 'Select colour variant')
-  } else if (stampType === 'STEMPELPLATTE') {
+  } else if (stampType === 'STAMP_PLATE') {
     // Keine Farbe, keine Beschreibung.
   } else {
     // Standard-Stempel: Farbe + Beschreibung

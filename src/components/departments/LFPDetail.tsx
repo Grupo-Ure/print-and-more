@@ -349,10 +349,10 @@ export function LFPDetail({
       <div className="td-bereich-hd" aria-hidden>
         LFP
       </div>
-      {selectedType === 'SONSTIGE_LFP' && (
+      {selectedType === 'OTHER_LFP' && (
         <p className="ber-hinweis">For "Other (LFP)" sub-orders, PREPRESS_READY is set manually only, not automatically.</p>
       )}
-      {selectedType === 'SCHILD_FOLIE' && detail.material === 'ACRYLGLAS' && (
+      {selectedType === 'SIGN_FOIL' && detail.material === 'ACRYLGLAS' && (
         <p className="ber-hinweis">For acrylic glass: rear lamination included, no extra field needed.</p>
       )}
 
@@ -391,14 +391,14 @@ export function LFPDetail({
         <QuantityInput {...detailBlock} stack />
       </div>
 
-      {selectedType === 'AUFKLEBER' && <StickerSection {...detailBlock} />}
-      {selectedType === 'SCHILD_UV' && <UvSignSection {...detailBlock} />}
-      {selectedType === 'SCHILD_FOLIE' && <FoilSignSection {...detailBlock} />}
-      {selectedType === 'FOLIENPLOTT' && <FoilPlottSection {...detailBlock} />}
+      {selectedType === 'STICKER' && <StickerSection {...detailBlock} />}
+      {selectedType === 'SIGN_UV' && <UvSignSection {...detailBlock} />}
+      {selectedType === 'SIGN_FOIL' && <FoilSignSection {...detailBlock} />}
+      {selectedType === 'FOIL_PLOTTER' && <FoilPlottSection {...detailBlock} />}
       {selectedType === 'BANNER' && <BannerSection {...detailBlock} />}
       {selectedType === 'ROLLUP' && <RollupSection {...detailBlock} />}
-      {selectedType === 'FAHRZEUGBESCHRIFTUNG' && <VehicleWrapSection {...detailBlock} />}
-      {selectedType === 'SONSTIGE_LFP' && <OtherSection {...detailBlock} />}
+      {selectedType === 'VEHICLE_LETTERING' && <VehicleWrapSection {...detailBlock} />}
+      {selectedType === 'OTHER_LFP' && <OtherSection {...detailBlock} />}
 
       {orderFiles.length > 0 && (
         <FieldRow label="Files">

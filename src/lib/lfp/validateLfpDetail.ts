@@ -94,13 +94,13 @@ export function validateLfpDetail(
   if (!isValidQuantity(detail.stueckzahl)) addError(errors, 'stueckzahl', 'Integer ≥ 1')
 
   const lfpType = typ as LfpType
-  if (lfpType === 'AUFKLEBER') {
+  if (lfpType === 'STICKER') {
     if (!['3551', 'ULTRATACK', 'MONSTERTACK', '3162'].includes(parseRequiredString(detail.material) ?? '')) addError(errors, 'material', 'Required')
     if (!['FREIFORM', 'RECHTECK'].includes(parseRequiredString(detail.konturschnitt) ?? '')) addError(errors, 'konturschnitt', 'Required')
     if (!['NEIN', 'MATT', 'GLAENZEND'].includes(parseRequiredString(detail.laminat) ?? '')) addError(errors, 'laminat', 'Required')
     if (!['EINZEL', 'BOGEN'].includes(parseRequiredString(detail.ausgabe) ?? '')) addError(errors, 'ausgabe', 'Required')
     if (!hasDimension(detail.format_breite, detail.format_hoehe)) addError(errors, 'format_masse', MSG_MASSE)
-  } else if (lfpType === 'SCHILD_UV') {
+  } else if (lfpType === 'SIGN_UV') {
     if (!['ALUVERBUND', 'PVC', 'ACRYLGLAS'].includes(parseRequiredString(detail.material) ?? '')) addError(errors, 'material', 'Required')
     if (!['EINSEITIG', 'BEIDSEITIG'].includes(parseRequiredString(detail.druckseite) ?? '')) addError(errors, 'druckseite', 'Required')
     if (detail.material === 'ACRYLGLAS') {
@@ -113,7 +113,7 @@ export function validateLfpDetail(
       if (!parseRequiredString(detail.bohrungen_position)) addError(errors, 'bohrungen_position', 'Required')
     }
     if (!hasDimension(detail.format_breite, detail.format_hoehe)) addError(errors, 'format_masse', MSG_MASSE)
-  } else if (lfpType === 'SCHILD_FOLIE') {
+  } else if (lfpType === 'SIGN_FOIL') {
     if (!['ALUVERBUND', 'PVC', 'ACRYLGLAS'].includes(parseRequiredString(detail.material) ?? '')) addError(errors, 'material', 'Required')
     if (!['EINSEITIG', 'BEIDSEITIG'].includes(parseRequiredString(detail.druckseite) ?? '')) addError(errors, 'druckseite', 'Required')
     if (!['NEIN', 'MATT', 'GLAENZEND'].includes(parseRequiredString(detail.laminat) ?? '')) addError(errors, 'laminat', 'Required')
@@ -124,7 +124,7 @@ export function validateLfpDetail(
       if (!parseRequiredString(detail.bohrungen_position)) addError(errors, 'bohrungen_position', 'Required')
     }
     if (!hasDimension(detail.format_breite, detail.format_hoehe)) addError(errors, 'format_masse', MSG_MASSE)
-  } else if (lfpType === 'FOLIENPLOTT') {
+  } else if (lfpType === 'FOIL_PLOTTER') {
     if (!['751C', '631', '8510'].includes(parseRequiredString(detail.material) ?? '')) addError(errors, 'material', 'Required')
     if (!['EINZEL', 'BOGEN'].includes(parseRequiredString(detail.ausgabe) ?? '')) addError(errors, 'ausgabe', 'Required')
   } else if (lfpType === 'BANNER') {
@@ -140,7 +140,7 @@ export function validateLfpDetail(
     if (!['NEUE_KASSETTE', 'MOTIVTAUSCH'].includes(parseRequiredString(detail.system) ?? '')) addError(errors, 'system', 'Required')
     const width = Number(detail.breite)
     if (width !== 85 && width !== 100) addError(errors, 'breite', 'Select width 85 or 100 cm')
-  } else if (lfpType === 'FAHRZEUGBESCHRIFTUNG') {
+  } else if (lfpType === 'VEHICLE_LETTERING') {
     if (!parseRequiredString(detail.marke)) addError(errors, 'marke', 'Required')
     if (!parseRequiredString(detail.modell)) addError(errors, 'modell', 'Required')
     if (requireBoolPresent(detail.bereiche_seiten) === 'missing') addError(errors, 'bereiche_seiten', 'Required')
@@ -149,7 +149,7 @@ export function validateLfpDetail(
     if (!['MIT', 'OHNE'].includes(parseRequiredString(detail.montage) ?? '')) addError(errors, 'montage', 'Required')
     if (detail.montage === 'MIT' && requireBoolPresent(detail.altbeklebung) === 'missing') addError(errors, 'altbeklebung', 'Required')
     if (detail.montage === 'MIT' && !parseIsoDate(detail.montagetermin)) addError(errors, 'montagetermin', 'Valid date')
-  } else if (lfpType === 'SONSTIGE_LFP') {
+  } else if (lfpType === 'OTHER_LFP') {
     if (!parseRequiredString(detail.beschreibung)) addError(errors, 'beschreibung', 'Required')
   }
   return errors

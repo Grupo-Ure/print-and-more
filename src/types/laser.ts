@@ -16,11 +16,11 @@
 
 /** All laser typen, in dropdown order. */
 export const LASER_TYPES = [
-  'SCHILD',
-  'POKALSCHILD',
-  'NAMENSSCHILD',
-  'GESCHENKARTIKEL',
-  'SONSTIGE_LASER',
+  'SIGN',
+  'TROPHY_PLATE',
+  'NAME_TAG',
+  'GIFT_ITEM',
+  'OTHER_LASER',
 ] as const
 
 /** Discriminator for the kind of laser work, stored in `teilauftraege.typ`. */
@@ -28,14 +28,14 @@ export type LaserType = (typeof LASER_TYPES)[number]
 
 /** Display labels for {@link LaserType}, rendered in dropdowns and tabs. */
 export const LASER_TYPE_LABELS: Record<LaserType, string> = {
-  SCHILD: 'Sign',
-  POKALSCHILD: 'Trophy Plate',
-  NAMENSSCHILD: 'Name Tag',
-  GESCHENKARTIKEL: 'Gift Item',
-  SONSTIGE_LASER: 'Other (Laser)',
+  SIGN: 'Sign',
+  TROPHY_PLATE: 'Trophy Plate',
+  NAME_TAG: 'Name Tag',
+  GIFT_ITEM: 'Gift Item',
+  OTHER_LASER: 'Other (Laser)',
 }
 
-/** Material options for sign typen (SCHILD / POKALSCHILD / NAMENSSCHILD). */
+/** Material options for sign typen (SIGN / TROPHY_PLATE / NAME_TAG). */
 export const LASER_SIGN_MATERIALS = [
   'ABS_SW',
   'ABS_WS',

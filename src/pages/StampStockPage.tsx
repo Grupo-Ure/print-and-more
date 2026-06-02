@@ -11,19 +11,19 @@ import type { Json } from '../types/supabase'
 
 type StampType =
   | 'TRODAT_PRINTY'
-  | 'HOLZSTEMPEL'
-  | 'STATIVSTEMPEL'
-  | 'DATUMSSTEMPEL'
-  | 'STEMPELKISSEN_PRODUKT'
-  | 'TRODAT_KISSEN'
+  | 'WOODEN_STAMP'
+  | 'STAND_STAMP'
+  | 'DATE_STAMP'
+  | 'INK_PAD_PRODUCT'
+  | 'TRODAT_PAD'
 
 const STAMP_TYPE_LABELS: Record<StampType, string> = {
   TRODAT_PRINTY: 'Trodat Printy',
-  HOLZSTEMPEL: 'Wooden Stamp',
-  STATIVSTEMPEL: 'Tripod Stamp',
-  DATUMSSTEMPEL: 'Date Stamp',
-  STEMPELKISSEN_PRODUKT: 'Stamp Pad',
-  TRODAT_KISSEN: 'Trodat Pad',
+  WOODEN_STAMP: 'Wooden Stamp',
+  STAND_STAMP: 'Tripod Stamp',
+  DATE_STAMP: 'Date Stamp',
+  INK_PAD_PRODUCT: 'Stamp Pad',
+  TRODAT_PAD: 'Trodat Pad',
 }
 
 function typeLabel(type: string): string {
@@ -32,11 +32,11 @@ function typeLabel(type: string): string {
 
 const STAMP_TYPE_FILTER_OPTIONS: { value: StampType; label: string }[] = [
   { value: 'TRODAT_PRINTY', label: STAMP_TYPE_LABELS.TRODAT_PRINTY },
-  { value: 'HOLZSTEMPEL', label: STAMP_TYPE_LABELS.HOLZSTEMPEL },
-  { value: 'STATIVSTEMPEL', label: STAMP_TYPE_LABELS.STATIVSTEMPEL },
-  { value: 'DATUMSSTEMPEL', label: STAMP_TYPE_LABELS.DATUMSSTEMPEL },
-  { value: 'TRODAT_KISSEN', label: STAMP_TYPE_LABELS.TRODAT_KISSEN },
-  { value: 'STEMPELKISSEN_PRODUKT', label: STAMP_TYPE_LABELS.STEMPELKISSEN_PRODUKT },
+  { value: 'WOODEN_STAMP', label: STAMP_TYPE_LABELS.WOODEN_STAMP },
+  { value: 'STAND_STAMP', label: STAMP_TYPE_LABELS.STAND_STAMP },
+  { value: 'DATE_STAMP', label: STAMP_TYPE_LABELS.DATE_STAMP },
+  { value: 'TRODAT_PAD', label: STAMP_TYPE_LABELS.TRODAT_PAD },
+  { value: 'INK_PAD_PRODUCT', label: STAMP_TYPE_LABELS.INK_PAD_PRODUCT },
 ]
 
 function formatNetRetailPrice(value: number | null | undefined): string {
@@ -49,13 +49,13 @@ function formatNetRetailPrice(value: number | null | undefined): string {
   }).format(value)
 }
 
-type StampColorDb = 'SCHWARZ' | 'ROT' | 'BLAU' | 'GRUEN'
+type StampColorDb = 'BLACK' | 'RED' | 'BLUE' | 'GREEN'
 
 const STAMP_COLOR_LABELS: Record<StampColorDb, string> = {
-  SCHWARZ: 'Black',
-  ROT: 'Red',
-  BLAU: 'Blue',
-  GRUEN: 'Green',
+  BLACK: 'Black',
+  RED: 'Red',
+  BLUE: 'Blue',
+  GREEN: 'Green',
 }
 
 function colorLabel(colorCode: string | null | undefined): string {
@@ -83,7 +83,7 @@ type StampModelRow = {
   created_at: string
 }
 
-type MovementType = 'ZUGANG' | 'ABGANG' | 'AUTOABGANG'
+type MovementType = 'INBOUND' | 'OUTBOUND' | 'AUTO_DEDUCTION'
 
 type StockMovementRow = {
   id: string
@@ -296,7 +296,7 @@ export function StampStockPage() {
     if (filterType !== 'ALL') list = list.filter(model => model.type === filterType)
     if (
       filterColor !== 'ALL' &&
-      (filterType === 'TRODAT_KISSEN' || filterType === 'STEMPELKISSEN_PRODUKT')
+      (filterType === 'TRODAT_PAD' || filterType === 'INK_PAD_PRODUCT')
     ) {
       list = list.filter(model => model.color === filterColor)
     }
@@ -367,7 +367,7 @@ export function StampStockPage() {
   const [bookingBusyId, setBookingBusyId] = useState<string | null>(null)
   const [bookingErrors, setBookingErrors] = useState<Record<string, string | null>>({})
 
-  const bookMovement = async (model: StampModelRow, movementType: 'ZUGANG' | 'ABGANG') => {
+  const bookMovement = async (model: StampModelRow, movementType: 'INBOUND' | 'OUTBOUND') => {
     if (!session?.user) return
     if (bookingBusyId) return
     const rawQuantity = (bookingQuantity[model.id] ?? '').trim()
@@ -377,7 +377,7 @@ export function StampStockPage() {
       setBookingErrors(prev => ({ ...prev, [model.id]: 'Quantity: integer ≥ 1' }))
       return
     }
-    const stockDelta = movementType === 'ZUGANG' ? quantity : -quantity
+    const stockDelta = movementType === 'INBOUND' ? quantity : -quantity
     const nextStock = (model.stock ?? 0) + stockDelta
     if (nextStock < 0) {
       setBookingErrors(prev => ({ ...prev, [model.id]: 'Quantity exceeds current stock' }))
@@ -616,7 +616,7 @@ export function StampStockPage() {
               onChange={e => {
                 const selectedValue = e.target.value
                 setFilterType(selectedValue)
-                if (selectedValue !== 'TRODAT_KISSEN' && selectedValue !== 'STEMPELKISSEN_PRODUKT') setFilterColor('ALL')
+                if (selectedValue !== 'TRODAT_PAD' && selectedValue !== 'INK_PAD_PRODUCT') setFilterColor('ALL')
               }}
               style={{ maxWidth: 260 }}
             >
@@ -627,7 +627,7 @@ export function StampStockPage() {
                 </option>
               ))}
             </select>
-            {(filterType === 'TRODAT_KISSEN' || filterType === 'STEMPELKISSEN_PRODUKT') && (
+            {(filterType === 'TRODAT_PAD' || filterType === 'INK_PAD_PRODUCT') && (
               <select
                 className="cp-select"
                 value={filterColor}
@@ -769,7 +769,7 @@ export function StampStockPage() {
                               className="cp-btn cp-btn-grau"
                               style={{ width: 34, padding: '6px 0', textAlign: 'center' }}
                               disabled={inboundDisabled}
-                              onClick={() => void bookMovement(model, 'ZUGANG')}
+                              onClick={() => void bookMovement(model, 'INBOUND')}
                               title="Book stock in"
                             >
                               +
@@ -779,7 +779,7 @@ export function StampStockPage() {
                               className="cp-btn cp-btn-grau"
                               style={{ width: 34, padding: '6px 0', textAlign: 'center' }}
                               disabled={outboundDisabled}
-                              onClick={() => void bookMovement(model, 'ABGANG')}
+                              onClick={() => void bookMovement(model, 'OUTBOUND')}
                               title="Book stock out"
                             >
                               -
@@ -806,14 +806,14 @@ export function StampStockPage() {
               onChange={e => {
                 const selectedValue = (e.target as HTMLSelectElement).value
                 if (selectedValue === 'ALL') setMovementTypeFilter('ALL')
-                else if (selectedValue === 'ZUGANG' || selectedValue === 'ABGANG' || selectedValue === 'AUTOABGANG') setMovementTypeFilter(selectedValue)
+                else if (selectedValue === 'INBOUND' || selectedValue === 'OUTBOUND' || selectedValue === 'AUTO_DEDUCTION') setMovementTypeFilter(selectedValue)
               }}
               style={{ maxWidth: 220 }}
             >
               <option value="ALL">All</option>
-              <option value="ZUGANG">Stock in</option>
-              <option value="ABGANG">Stock out</option>
-              <option value="AUTOABGANG">Auto stock-out</option>
+              <option value="INBOUND">Stock in</option>
+              <option value="OUTBOUND">Stock out</option>
+              <option value="AUTO_DEDUCTION">Auto stock-out</option>
             </select>
             <input
               type="text"
@@ -846,9 +846,9 @@ export function StampStockPage() {
               <tbody>
                 {filteredMovements.map(movement => {
                   const movementBadge =
-                    movement.type === 'ZUGANG'
+                    movement.type === 'INBOUND'
                       ? { cls: 'badge-gruen', label: 'Stock in' }
-                      : movement.type === 'ABGANG'
+                      : movement.type === 'OUTBOUND'
                       ? { cls: 'badge-grau', label: 'Stock out' }
                       : { cls: 'badge-blau', label: 'Auto stock-out' }
                   const personEmail = movement.user_id ? staffEmailById.get(movement.user_id) ?? movement.user_id : ''

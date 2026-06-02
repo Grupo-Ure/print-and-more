@@ -336,8 +336,8 @@ export function SubOrderDetail({
         customerMeetsPrepressContact(orderCustomer) === false &&
         (local.department === 'LFP' ||
           local.department === 'COPYSHOP' ||
-          (local.department === 'STAMP' && local.type !== 'SONSTIGE_STEMPEL') ||
-          (local.department === 'LASER_ENGRAVING' && local.type !== 'SONSTIGE_LASER')) && (
+          (local.department === 'STAMP' && local.type !== 'OTHER_STAMP') ||
+          (local.department === 'LASER_ENGRAVING' && local.type !== 'OTHER_LASER')) && (
           <p className="ber-hinweis">For auto-PREPRESS: Customer needs name and email or phone.</p>
         )}
 

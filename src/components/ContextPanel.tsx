@@ -373,13 +373,13 @@ export function ContextPanel({
           await stampService.createStockMovement({
             model_id: modelId,
             quantity,
-            type: 'AUTOABGANG',
+            type: 'AUTO_DEDUCTION',
             note,
             user_id: user?.id ?? null,
           })
         }
 
-        if (subOrder.type === 'TRODAT_KISSEN' && stampDetail.kissen_modell_id) {
+        if (subOrder.type === 'TRODAT_PAD' && stampDetail.kissen_modell_id) {
           await bookStampStockDeduction(String(stampDetail.kissen_modell_id), quantity, stampNote)
         } else if (stampDetail.modell_id) {
           const stampId = String(stampDetail.modell_id)
@@ -426,7 +426,7 @@ export function ContextPanel({
           await textileMasterDataService.createTextileStockMovement({
             variant_id: variantId,
             quantity: quantity,
-            type: 'AUTOABGANG',
+            type: 'AUTO_DEDUCTION',
             note: textileNote,
             user_id: userId,
           })

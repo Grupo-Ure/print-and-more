@@ -20,7 +20,7 @@
  *   applies dirty-detection rules and per-Bereich auto-prepress
  *   eligibility, and returns the status the sub-order should land in.
  *
- * String values like `'STAMP'`, `'SONSTIGE_STEMPEL'`, status enums,
+ * String values like `'STAMP'`, `'OTHER_STAMP'`, status enums,
  * etc. mirror the Postgres enums and stay German; only the TypeScript
  * identifier surface is English here.
  */
@@ -36,29 +36,29 @@ const UUID_LOOSE = /^[0-9a-fA-F-]{30,40}$/
  * sub-order into PREPRESS_BEREIT without an explicit user action.
  *
  * Default is allowed; explicitly excluded:
- * - Stamp `SONSTIGE_STEMPEL` (free-form descriptions need manual review).
+ * - Stamp `OTHER_STAMP` (free-form descriptions need manual review).
  * - Anything in the Other (`SONSTIGE`) Bereich.
- * - Laser `SONSTIGE_LASER` and LFP `SONSTIGE_LFP` (same reason).
+ * - Laser `OTHER_LASER` and LFP `OTHER_LFP` (same reason).
  *
  * Inside Stamp, only the structured typen are auto-advanced.
  */
 function autoPrepressAllowed(merged: SubOrderRow): boolean {
   if (merged.department === 'STAMP') {
-    if (merged.type === 'SONSTIGE_STEMPEL') return false
+    if (merged.type === 'OTHER_STAMP') return false
     return (
       merged.type === 'TRODAT_PRINTY' ||
-      merged.type === 'HOLZSTEMPEL' ||
-      merged.type === 'STATIVSTEMPEL' ||
-      merged.type === 'DATUMSSTEMPEL' ||
-      merged.type === 'NACHFUELLFARBE' ||
-      merged.type === 'STEMPELKISSEN' ||
-      merged.type === 'TRODAT_KISSEN' ||
-      merged.type === 'STEMPELPLATTE'
+      merged.type === 'WOODEN_STAMP' ||
+      merged.type === 'STAND_STAMP' ||
+      merged.type === 'DATE_STAMP' ||
+      merged.type === 'REFILL_INK' ||
+      merged.type === 'INK_PAD' ||
+      merged.type === 'TRODAT_PAD' ||
+      merged.type === 'STAMP_PLATE'
     )
   }
   if (merged.department === 'OTHER') return false
-  if (merged.department === 'LASER_ENGRAVING' && merged.type === 'SONSTIGE_LASER') return false
-  if (merged.department === 'LFP' && merged.type === 'SONSTIGE_LFP') return false
+  if (merged.department === 'LASER_ENGRAVING' && merged.type === 'OTHER_LASER') return false
+  if (merged.department === 'LFP' && merged.type === 'OTHER_LFP') return false
   return true
 }
 
@@ -245,17 +245,17 @@ export function nextSubOrderStatus(
     if (before === 'PREPRESS_READY') return capPrepress('PREPRESS_READY')
     return 'INCOMPLETE'
   }
-  if (laser && merged.type === 'SONSTIGE_LASER') {
+  if (laser && merged.type === 'OTHER_LASER') {
     if (!complete) return 'INCOMPLETE'
     if (before === 'PREPRESS_READY') return capPrepress('PREPRESS_READY')
     return 'INCOMPLETE'
   }
-  if (lfp && merged.type === 'SONSTIGE_LFP') {
+  if (lfp && merged.type === 'OTHER_LFP') {
     if (!complete) return 'INCOMPLETE'
     if (before === 'PREPRESS_READY') return capPrepress('PREPRESS_READY')
     return 'INCOMPLETE'
   }
-  if (stamp && merged.type === 'SONSTIGE_STEMPEL') {
+  if (stamp && merged.type === 'OTHER_STAMP') {
     if (!complete) return 'INCOMPLETE'
     if (before === 'PREPRESS_READY') return capPrepress('PREPRESS_READY')
     return 'INCOMPLETE'

@@ -394,7 +394,7 @@ export function CopyShopDetail({
   }, [productFiles])
 
   useEffect(() => {
-    if (selectedType !== 'BINDUNG') return
+    if (selectedType !== 'BINDING') return
     const currentDetail = detailRef.current
     const detailRecord = currentDetail as Record<string, string | number | null | boolean | undefined>
     const bindingType = String(detailRecord.bindungsart ?? '')
@@ -442,7 +442,7 @@ export function CopyShopDetail({
   }, [selectedType, subOrder.id, subOrder.detail, applyDetail])
 
   useEffect(() => {
-    if (selectedType !== 'PLAKAT_POSTER') return
+    if (selectedType !== 'POSTER') return
     const currentDetail = detailRef.current
     const formatStr = String((currentDetail as Record<string, string>).format ?? '').trim()
     if (!formatStr) {
@@ -460,7 +460,7 @@ export function CopyShopDetail({
   }, [selectedType, subOrder.id, subOrder.detail, applyDetail])
 
   useEffect(() => {
-    if (selectedType === 'KARTE_FLYER') {
+    if (selectedType === 'CARD_FLYER') {
       const currentDetail = detailRef.current
       const formatStr = String((currentDetail as Record<string, string>).format ?? '').trim()
       if (formatStr && formatStr !== 'FREI' && formatStr in CARD_DIN) {
@@ -469,7 +469,7 @@ export function CopyShopDetail({
           applyDetail({ ...currentDetail, format: formatStr, format_breite: dinDimensions.b, format_hoehe: dinDimensions.h } as CopyShopDetailJson)
         }
       }
-    } else if (selectedType === 'FALZFLYER') {
+    } else if (selectedType === 'FOLDED_FLYER') {
       const currentDetail = detailRef.current
       const formatStr = String((currentDetail as Record<string, string>).format ?? '').trim()
       if (formatStr && formatStr !== 'FREI' && formatStr in FOLD_DIN) {
@@ -478,7 +478,7 @@ export function CopyShopDetail({
           applyDetail({ ...currentDetail, format: formatStr, format_breite: dinDimensions.b, format_hoehe: dinDimensions.h } as CopyShopDetailJson)
         }
       }
-    } else if (selectedType === 'BROSCHUERE') {
+    } else if (selectedType === 'BROCHURE') {
       const currentDetail = detailRef.current
       const formatStr = String((currentDetail as Record<string, string>).format ?? '').trim()
       if (formatStr && formatStr !== 'FREI' && formatStr in BROCHURE_DIN) {
@@ -507,12 +507,12 @@ export function CopyShopDetail({
             onChange={e => {
               const selected = e.target.value
               if (selected !== (selectedType ?? '')) {
-                if (selected === 'PLAKAT_POSTER') {
-                  setSelectedType('PLAKAT_POSTER')
+                if (selected === 'POSTER') {
+                  setSelectedType('POSTER')
                   setDetail(POSTER_DEFAULT)
                   detailRef.current = POSTER_DEFAULT
-                  typeRef.current = 'PLAKAT_POSTER'
-                  if (editingId === null) void saveDetail('PLAKAT_POSTER', { ...POSTER_DEFAULT } as CopyShopDetailJson)
+                  typeRef.current = 'POSTER'
+                  if (editingId === null) void saveDetail('POSTER', { ...POSTER_DEFAULT } as CopyShopDetailJson)
                 } else {
                   setSelectedType(selected || null)
                   setDetail({})
@@ -538,21 +538,21 @@ export function CopyShopDetail({
 
       <QuantityInput {...detailBlock} />
       {selectedType &&
-        selectedType !== 'PLAKAT_POSTER' &&
-        selectedType !== 'AUSDRUCK' &&
-        selectedType !== 'KARTE_FLYER' &&
-        selectedType !== 'FALZFLYER' &&
-        selectedType !== 'BROSCHUERE' &&
-        selectedType !== 'VISITENKARTE' &&
-        selectedType !== 'BINDUNG' && <ProductionPathSelect {...detailBlock} />}
+        selectedType !== 'POSTER' &&
+        selectedType !== 'PRINTOUT' &&
+        selectedType !== 'CARD_FLYER' &&
+        selectedType !== 'FOLDED_FLYER' &&
+        selectedType !== 'BROCHURE' &&
+        selectedType !== 'BUSINESS_CARD' &&
+        selectedType !== 'BINDING' && <ProductionPathSelect {...detailBlock} />}
 
-      {selectedType === 'PLAKAT_POSTER' && <PlakatPoster {...detailBlock} />}
-      {selectedType === 'KARTE_FLYER' && <CardFlyerSection {...detailBlock} />}
-      {selectedType === 'FALZFLYER' && <FoldFlyerSection {...detailBlock} />}
-      {selectedType === 'BROSCHUERE' && <BrochureSection {...detailBlock} />}
-      {selectedType === 'VISITENKARTE' && <BusinessCardSection {...detailBlock} />}
-      {selectedType === 'BINDUNG' && <BindingSection {...detailBlock} />}
-      {selectedType === 'AUSDRUCK' && <PrintSection {...detailBlock} />}
+      {selectedType === 'POSTER' && <PlakatPoster {...detailBlock} />}
+      {selectedType === 'CARD_FLYER' && <CardFlyerSection {...detailBlock} />}
+      {selectedType === 'FOLDED_FLYER' && <FoldFlyerSection {...detailBlock} />}
+      {selectedType === 'BROCHURE' && <BrochureSection {...detailBlock} />}
+      {selectedType === 'BUSINESS_CARD' && <BusinessCardSection {...detailBlock} />}
+      {selectedType === 'BINDING' && <BindingSection {...detailBlock} />}
+      {selectedType === 'PRINTOUT' && <PrintSection {...detailBlock} />}
 
       {orderFiles.length > 0 && (
         <FieldRow label="Files">

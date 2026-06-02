@@ -47,7 +47,7 @@ type DetailBlockProps = {
   applyDetail: (newDetail: LaserDetailJson) => void
 }
 
-const SIGN_TYPES = new Set(['SCHILD', 'POKALSCHILD', 'NAMENSSCHILD'])
+const SIGN_TYPES = new Set(['SIGN', 'TROPHY_PLATE', 'NAME_TAG'])
 
 type ProductFileAssignment = { assignmentId: string; fileId: string }
 
@@ -201,7 +201,7 @@ export function LaserDetail({
   const saveDetail = useCallback(
     async (nextType: string | null, json: LaserDetailJson) => {
       let prepared: LaserDetailJson = json
-      if (nextType === 'NAMENSSCHILD' && json && typeof json === 'object') {
+      if (nextType === 'NAME_TAG' && json && typeof json === 'object') {
         prepared = { ...json }
         delete (prepared as Record<string, unknown>).selbstklebend
       }
@@ -250,7 +250,7 @@ export function LaserDetail({
     if (Object.keys(errors).length > 0) return
 
     let filteredDetail = currentDetail
-    if (currentType === 'NAMENSSCHILD' && filteredDetail && typeof filteredDetail === 'object') {
+    if (currentType === 'NAME_TAG' && filteredDetail && typeof filteredDetail === 'object') {
       filteredDetail = { ...currentDetail }
       delete (filteredDetail as Record<string, unknown>).selbstklebend
     }
@@ -362,7 +362,7 @@ export function LaserDetail({
   return (
     <div className="ber-lfp">
       <h3 className="ber-h3">Laser Engraving Details</h3>
-      {selectedType === 'SONSTIGE_LASER' && (
+      {selectedType === 'OTHER_LASER' && (
         <p className="ber-hinweis">For &apos;Other (Laser)&apos;, PREPRESS_READY is set manually only.</p>
       )}
 
@@ -400,8 +400,8 @@ export function LaserDetail({
       <QuantityInput {...detailBlock} />
 
       {selectedType && SIGN_TYPES.has(selectedType) && <SignGroup props={detailBlock} signType={selectedType} />}
-      {selectedType === 'GESCHENKARTIKEL' && <GiftGroup props={detailBlock} />}
-      {selectedType === 'SONSTIGE_LASER' && <OtherLaserGroup props={detailBlock} />}
+      {selectedType === 'GIFT_ITEM' && <GiftGroup props={detailBlock} />}
+      {selectedType === 'OTHER_LASER' && <OtherLaserGroup props={detailBlock} />}
 
       <TextField
         {...detailBlock}
@@ -789,7 +789,7 @@ function SignGroup({ props, signType }: { props: DetailBlockProps; signType: str
       />
       <DimensionInputsMm {...props} />
       {BooleanSelect({ ...props, fieldKey: 'ecken_runden', label: 'Round corners' })}
-      {signType !== 'NAMENSSCHILD' && BooleanSelect({ ...props, fieldKey: 'selbstklebend', label: 'Self-adhesive' })}
+      {signType !== 'NAME_TAG' && BooleanSelect({ ...props, fieldKey: 'selbstklebend', label: 'Self-adhesive' })}
       <TextField {...props} fieldKey="motiv" label="Motif / Content" rows={5} />
     </>
   )
