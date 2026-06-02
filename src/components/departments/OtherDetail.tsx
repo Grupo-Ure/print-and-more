@@ -12,7 +12,6 @@ export type OtherDetailJson = Record<string, unknown>
 type Props = {
   subOrder: SubOrderRow
   subOrderStatus: OrderStatus
-  onDetailPatch: (patch: { typ?: string | null; detail: OtherDetailJson | null }) => Promise<void>
   orderFiles?: FileRow[]
 }
 
@@ -26,11 +25,6 @@ type ProductRow = {
 }
 
 const SONSTIGE_TYPE = 'OTHER' as const
-
-function extractOtherRaw(subOrder: SubOrderRow): OtherDetailJson {
-  const rawDetail = subOrder.detail
-  return rawDetail && typeof rawDetail === 'object' && !Array.isArray(rawDetail) ? { ...rawDetail } : {}
-}
 
 type DetailBlockProps = {
   detail: OtherDetailJson
@@ -47,7 +41,6 @@ type ProductFileAssignment = { assignmentId: string; fileId: string }
 export function OtherDetail({
   subOrder,
   subOrderStatus,
-  onDetailPatch,
   orderFiles = [],
 }: Props) {
   const { showError } = useToast()
@@ -61,7 +54,7 @@ export function OtherDetail({
   const [unlocked, setUnlocked] = useState(false)
   const [formFileRecordIds, setFormFileRecordIds] = useState<string[]>([])
 
-  const [detail, setDetail] = useState<OtherDetailJson>(extractOtherRaw(subOrder))
+  const [detail, setDetail] = useState<OtherDetailJson>({})
   const detailRef = useRef(detail)
   useEffect(() => {
     detailRef.current = detail
@@ -70,18 +63,10 @@ export function OtherDetail({
   useEffect(() => {
     setEditingId(null)
     setFormFileRecordIds([])
-  }, [subOrder.id])
-
-  useEffect(() => {
     setUnlocked(false)
+    setDetail({})
+    detailRef.current = {}
   }, [subOrder.id])
-
-  useEffect(() => {
-    if (editingId !== null) return
-    const extracted = extractOtherRaw(subOrder)
-    setDetail(extracted)
-    detailRef.current = extracted
-  }, [subOrder, editingId])
 
   const loadFilesForProducts = useCallback(
     async (productRows: ProductRow[]) => {
@@ -173,23 +158,20 @@ export function OtherDetail({
   const resetForm = useCallback(() => {
     setEditingId(null)
     setFormFileRecordIds([])
-    const extracted = extractOtherRaw(subOrder)
-    setDetail(extracted)
-    detailRef.current = extracted
-  }, [subOrder])
+    setDetail({})
+    detailRef.current = {}
+  }, [])
 
   const validationErrors = validateOtherDetail(detail, subOrderStatus)
   const shouldValidate = subOrderStatus !== 'QUOTE'
   const fieldErrorClass = (fieldKey: string) => (shouldValidate && validationErrors[fieldKey] ? ' ber-inp--err' : '')
 
   const saveDetail = useCallback(
-    async (json: OtherDetailJson) => {
+    (json: OtherDetailJson) => {
       setDetail(json)
       detailRef.current = json
-      if (editingId !== null) return
-      await onDetailPatch({ typ: subOrder.type?.trim() ? subOrder.type : SONSTIGE_TYPE, detail: json })
     },
-    [onDetailPatch, subOrder.type, editingId]
+    []
   )
 
   const patchLocal = useCallback((patch: OtherDetailJson) => {
@@ -220,8 +202,6 @@ export function OtherDetail({
   const requiresUnlock =
     (subOrderStatus === 'PREPRESS_READY' || subOrderStatus === 'PRODUCTION_READY') && !unlocked
 
-  const patchType = subOrder.type?.trim() ? subOrder.type : SONSTIGE_TYPE
-
   const handleAddOrSave = useCallback(async () => {
     const currentDetail = { ...detailRef.current }
     const errors = validateOtherDetail(currentDetail, subOrderStatus)
@@ -245,14 +225,7 @@ export function OtherDetail({
       for (const fid of formFileRecordIds) {
         await assignFileToProduct(editingId, fid)
       }
-      const list = await reloadProducts()
-      await onDetailPatch({
-        typ: patchType,
-        detail: {
-          ...extractOtherRaw(subOrder),
-          hat_products: list.length > 0,
-        },
-      })
+      await reloadProducts()
       resetForm()
       return
     }
@@ -271,18 +244,11 @@ export function OtherDetail({
       return
     }
     const newId = insertedRow.id
-    let list = await reloadProducts()
+    const list = await reloadProducts()
     for (const fid of formFileRecordIds) {
       await assignFileToProduct(newId, fid, list)
     }
-    list = await reloadProducts()
-    await onDetailPatch({
-      typ: patchType,
-      detail: {
-        ...extractOtherRaw(subOrder),
-        hat_products: list.length > 0,
-      },
-    })
+    await reloadProducts()
     resetForm()
   }, [
     subOrder,
@@ -294,8 +260,6 @@ export function OtherDetail({
     showError,
     reloadProducts,
     resetForm,
-    onDetailPatch,
-    patchType,
     assignFileToProduct,
     removeFileFromProduct,
   ])
@@ -308,17 +272,10 @@ export function OtherDetail({
         showError('Product could not be deleted')
         return
       }
-      const list = await reloadProducts()
-      await onDetailPatch({
-        typ: patchType,
-        detail: {
-          ...extractOtherRaw(subOrder),
-          hat_products: list.length > 0,
-        },
-      })
+      await reloadProducts()
       if (editingId === id) resetForm()
     },
-    [showError, reloadProducts, editingId, resetForm, onDetailPatch, subOrder, patchType]
+    [showError, reloadProducts, editingId, resetForm]
   )
 
   const handleEdit = useCallback((row: ProductRow) => {

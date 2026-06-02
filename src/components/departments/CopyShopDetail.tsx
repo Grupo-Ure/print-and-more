@@ -21,7 +21,6 @@ import '../WorkArea.css'
 type Props = {
   subOrder: SubOrderRow
   subOrderStatus: OrderStatus
-  onDetailPatch: (patch: { typ?: string | null; detail: CopyShopDetailJson | null }) => Promise<void>
   orderFiles?: FileRow[]
 }
 
@@ -38,12 +37,6 @@ function stripFileRecordId(json: CopyShopDetailJson): CopyShopDetailJson {
   const copy = { ...json } as Record<string, unknown>
   delete copy.datei_id
   return copy as CopyShopDetailJson
-}
-
-function extractCopyShopRaw(subOrder: SubOrderRow): CopyShopDetailJson {
-  const rawDetail = subOrder.detail
-  const base = rawDetail && typeof rawDetail === 'object' && !Array.isArray(rawDetail) ? { ...rawDetail } : {}
-  return stripFileRecordId(base)
 }
 
 const POSTER_DIN: Record<'A0' | 'A1' | 'A2' | 'A3' | 'A4', { b: number; h: number }> = {
@@ -101,7 +94,6 @@ type ProductFileAssignment = { assignmentId: string; fileId: string } // assignm
 export function CopyShopDetail({
   subOrder,
   subOrderStatus,
-  onDetailPatch,
   orderFiles = [],
 }: Props) {
   const { showError } = useToast()
@@ -115,8 +107,8 @@ export function CopyShopDetail({
   const [unlocked, setUnlocked] = useState(false)
   const [formFileRecordIds, setFormFileRecordIds] = useState<string[]>([])
 
-  const [selectedType, setSelectedType] = useState<string | null>(subOrder.type)
-  const [detail, setDetail] = useState<CopyShopDetailJson>(extractCopyShopRaw(subOrder))
+  const [selectedType, setSelectedType] = useState<string | null>(null)
+  const [detail, setDetail] = useState<CopyShopDetailJson>({})
   const detailRef = useRef(detail)
   const typeRef = useRef(selectedType)
   useEffect(() => {
@@ -130,16 +122,11 @@ export function CopyShopDetail({
     setEditingId(null)
     setFormFileRecordIds([])
     setUnlocked(false)
+    setSelectedType(null)
+    setDetail({})
+    detailRef.current = {}
+    typeRef.current = null
   }, [subOrder.id])
-
-  useEffect(() => {
-    if (editingId !== null) return
-    setSelectedType(subOrder.type)
-    const extracted = extractCopyShopRaw(subOrder)
-    setDetail(extracted)
-    detailRef.current = extracted
-    typeRef.current = subOrder.type
-  }, [subOrder, editingId])
 
   const loadFilesForProducts = useCallback(
     async (productRows: ProductRow[]) => {
@@ -231,27 +218,24 @@ export function CopyShopDetail({
   const resetForm = useCallback(() => {
     setEditingId(null)
     setFormFileRecordIds([])
-    setSelectedType(subOrder.type)
-    const extracted = extractCopyShopRaw(subOrder)
-    setDetail(extracted)
-    detailRef.current = extracted
-    typeRef.current = subOrder.type
-  }, [subOrder])
+    setSelectedType(null)
+    setDetail({})
+    detailRef.current = {}
+    typeRef.current = null
+  }, [])
 
   const validationErrors = validateCopyShopDetail(selectedType, detail, subOrderStatus)
   const shouldValidate = subOrderStatus !== 'QUOTE'
   const fieldErrorClass = (fieldKey: string) => (shouldValidate && validationErrors[fieldKey] ? ' ber-inp--err' : '')
 
   const saveDetail = useCallback(
-    async (nextType: string | null, json: CopyShopDetailJson) => {
+    (nextType: string | null, json: CopyShopDetailJson) => {
       const clean = stripFileRecordId(json)
       setDetail(clean)
       detailRef.current = clean
       setSelectedType(nextType)
-      if (editingId !== null) return
-      await onDetailPatch({ typ: nextType, detail: clean })
     },
-    [onDetailPatch, editingId]
+    []
   )
 
   const patchLocal = useCallback((patch: CopyShopDetailJson) => {
@@ -305,14 +289,7 @@ export function CopyShopDetail({
       for (const fid of formFileRecordIds) {
         await assignFileToProduct(editingId, fid)
       }
-      const list = await reloadProducts()
-      await onDetailPatch({
-        typ: subOrder.type,
-        detail: {
-          ...extractCopyShopRaw(subOrder),
-          hat_produkte: list.length > 0,
-        } as CopyShopDetailJson,
-      })
+      await reloadProducts()
       resetForm()
       return
     }
@@ -331,18 +308,11 @@ export function CopyShopDetail({
       return
     }
     const newId = insertedRow.id
-    let list = await reloadProducts()
+    const list = await reloadProducts()
     for (const fid of formFileRecordIds) {
       await assignFileToProduct(newId, fid, list)
     }
-    list = await reloadProducts()
-    await onDetailPatch({
-      typ: subOrder.type,
-      detail: {
-        ...extractCopyShopRaw(subOrder),
-        hat_produkte: list.length > 0,
-      } as CopyShopDetailJson,
-    })
+    await reloadProducts()
     resetForm()
   }, [
     subOrder,
@@ -354,7 +324,6 @@ export function CopyShopDetail({
     showError,
     reloadProducts,
     resetForm,
-    onDetailPatch,
     assignFileToProduct,
     removeFileFromProduct,
   ])
@@ -367,17 +336,10 @@ export function CopyShopDetail({
         showError('Product could not be deleted')
         return
       }
-      const list = await reloadProducts()
-      await onDetailPatch({
-        typ: subOrder.type,
-        detail: {
-          ...extractCopyShopRaw(subOrder),
-          hat_produkte: list.length > 0,
-        } as CopyShopDetailJson,
-      })
+      await reloadProducts()
       if (editingId === id) resetForm()
     },
-    [showError, reloadProducts, editingId, resetForm, onDetailPatch, subOrder]
+    [showError, reloadProducts, editingId, resetForm]
   )
 
   const handleEdit = useCallback((row: ProductRow) => {
@@ -439,7 +401,7 @@ export function CopyShopDetail({
         applyDetail({ ...currentDetail, orientierung: 'QUERFORMAT' } as CopyShopDetailJson)
       }
     }
-  }, [selectedType, subOrder.id, subOrder.detail, applyDetail])
+  }, [selectedType, subOrder.id, detail, applyDetail])
 
   useEffect(() => {
     if (selectedType !== 'POSTER') return
@@ -457,7 +419,7 @@ export function CopyShopDetail({
         applyDetail({ ...currentDetail, format: formatStr, format_breite: dinDimensions.b, format_hoehe: dinDimensions.h } as CopyShopDetailJson)
       }
     }
-  }, [selectedType, subOrder.id, subOrder.detail, applyDetail])
+  }, [selectedType, subOrder.id, detail, applyDetail])
 
   useEffect(() => {
     if (selectedType === 'CARD_FLYER') {
@@ -491,7 +453,7 @@ export function CopyShopDetail({
         applyDetail({ ...currentDetail, brosch_bindung: 'DRAHTHEFTUNG' } as CopyShopDetailJson)
       }
     }
-  }, [selectedType, subOrder.id, subOrder.detail, applyDetail])
+  }, [selectedType, subOrder.id, detail, applyDetail])
 
   return (
     <div className="ber-lfp">

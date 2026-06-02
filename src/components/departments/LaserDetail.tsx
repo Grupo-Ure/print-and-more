@@ -19,7 +19,6 @@ import '../WorkArea.css'
 type Props = {
   subOrder: SubOrderRow
   subOrderStatus: OrderStatus
-  onDetailPatch: (patch: { typ?: string | null; detail: LaserDetailJson | null }) => Promise<void>
   orderFiles?: FileRow[]
 }
 
@@ -30,11 +29,6 @@ type ProductRow = {
   detail: LaserDetailJson
   sort_order: number | null
   created_at: string | null
-}
-
-function extractLaserRaw(subOrder: SubOrderRow): LaserDetailJson {
-  const rawDetail = subOrder.detail
-  return rawDetail && typeof rawDetail === 'object' && !Array.isArray(rawDetail) ? { ...rawDetail } : {}
 }
 
 type DetailBlockProps = {
@@ -54,7 +48,6 @@ type ProductFileAssignment = { assignmentId: string; fileId: string }
 export function LaserDetail({
   subOrder,
   subOrderStatus,
-  onDetailPatch,
   orderFiles = [],
 }: Props) {
   const { showError } = useToast()
@@ -68,8 +61,8 @@ export function LaserDetail({
   const [unlocked, setUnlocked] = useState(false)
   const [formFileRecordIds, setFormFileRecordIds] = useState<string[]>([])
 
-  const [selectedType, setSelectedType] = useState<string | null>(subOrder.type)
-  const [detail, setDetail] = useState<LaserDetailJson>(extractLaserRaw(subOrder))
+  const [selectedType, setSelectedType] = useState<string | null>(null)
+  const [detail, setDetail] = useState<LaserDetailJson>({})
   const detailRef = useRef(detail)
   const typeRef = useRef(selectedType)
   useEffect(() => {
@@ -82,20 +75,12 @@ export function LaserDetail({
   useEffect(() => {
     setEditingId(null)
     setFormFileRecordIds([])
-  }, [subOrder.id])
-
-  useEffect(() => {
     setUnlocked(false)
+    setSelectedType(null)
+    setDetail({})
+    detailRef.current = {}
+    typeRef.current = null
   }, [subOrder.id])
-
-  useEffect(() => {
-    if (editingId !== null) return
-    setSelectedType(subOrder.type)
-    const extracted = extractLaserRaw(subOrder)
-    setDetail(extracted)
-    detailRef.current = extracted
-    typeRef.current = subOrder.type
-  }, [subOrder, editingId])
 
   const loadFilesForProducts = useCallback(
     async (productRows: ProductRow[]) => {
@@ -187,19 +172,18 @@ export function LaserDetail({
   const resetForm = useCallback(() => {
     setEditingId(null)
     setFormFileRecordIds([])
-    setSelectedType(subOrder.type)
-    const extracted = extractLaserRaw(subOrder)
-    setDetail(extracted)
-    detailRef.current = extracted
-    typeRef.current = subOrder.type
-  }, [subOrder])
+    setSelectedType(null)
+    setDetail({})
+    detailRef.current = {}
+    typeRef.current = null
+  }, [])
 
   const validationErrors = validateLaserDetail(selectedType, detail, subOrderStatus)
   const shouldValidate = subOrderStatus !== 'QUOTE'
   const fieldErrorClass = (fieldKey: string) => (shouldValidate && validationErrors[fieldKey] ? ' ber-inp--err' : '')
 
   const saveDetail = useCallback(
-    async (nextType: string | null, json: LaserDetailJson) => {
+    (nextType: string | null, json: LaserDetailJson) => {
       let prepared: LaserDetailJson = json
       if (nextType === 'NAME_TAG' && json && typeof json === 'object') {
         prepared = { ...json }
@@ -208,10 +192,8 @@ export function LaserDetail({
       setDetail(prepared)
       detailRef.current = prepared
       setSelectedType(nextType)
-      if (editingId !== null) return
-      await onDetailPatch({ typ: nextType, detail: prepared })
     },
-    [onDetailPatch, editingId]
+    []
   )
 
   const patchLocal = useCallback((patch: LaserDetailJson) => {
@@ -271,14 +253,7 @@ export function LaserDetail({
       for (const fid of formFileRecordIds) {
         await assignFileToProduct(editingId, fid)
       }
-      const list = await reloadProducts()
-      await onDetailPatch({
-        typ: subOrder.type,
-        detail: {
-          ...extractLaserRaw(subOrder),
-          hat_produkte: list.length > 0,
-        } as LaserDetailJson,
-      })
+      await reloadProducts()
       resetForm()
       return
     }
@@ -297,18 +272,11 @@ export function LaserDetail({
       return
     }
     const newId = insertedRow.id
-    let list = await reloadProducts()
+    const list = await reloadProducts()
     for (const fid of formFileRecordIds) {
       await assignFileToProduct(newId, fid, list)
     }
-    list = await reloadProducts()
-    await onDetailPatch({
-      typ: subOrder.type,
-      detail: {
-        ...extractLaserRaw(subOrder),
-        hat_produkte: list.length > 0,
-      } as LaserDetailJson,
-    })
+    await reloadProducts()
     resetForm()
   }, [
     subOrder,
@@ -320,7 +288,6 @@ export function LaserDetail({
     showError,
     reloadProducts,
     resetForm,
-    onDetailPatch,
     assignFileToProduct,
     removeFileFromProduct,
   ])
@@ -333,17 +300,10 @@ export function LaserDetail({
         showError('Product could not be deleted')
         return
       }
-      const list = await reloadProducts()
-      await onDetailPatch({
-        typ: subOrder.type,
-        detail: {
-          ...extractLaserRaw(subOrder),
-          hat_produkte: list.length > 0,
-        } as LaserDetailJson,
-      })
+      await reloadProducts()
       if (editingId === id) resetForm()
     },
-    [showError, reloadProducts, editingId, resetForm, onDetailPatch, subOrder]
+    [showError, reloadProducts, editingId, resetForm]
   )
 
   const handleEdit = useCallback((row: ProductRow) => {

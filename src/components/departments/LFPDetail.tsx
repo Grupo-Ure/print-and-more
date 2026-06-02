@@ -26,13 +26,7 @@ type ProductRow = {
 type Props = {
   subOrder: SubOrderRow
   subOrderStatus: OrderStatus
-  onDetailPatch: (patch: { typ?: string | null; detail: LfpDetail | null }) => Promise<void>
   orderFiles?: FileRow[]
-}
-
-function extractLfpRaw(subOrder: SubOrderRow): LfpDetail {
-  const rawDetail = subOrder.detail
-  return rawDetail && typeof rawDetail === 'object' && !Array.isArray(rawDetail) ? { ...rawDetail } : {}
 }
 
 type DetailBlockProps = {
@@ -50,7 +44,6 @@ type ProductFileAssignment = { assignmentId: string; fileId: string }
 export function LFPDetail({
   subOrder,
   subOrderStatus,
-  onDetailPatch,
   orderFiles = [],
 }: Props) {
   const { showError } = useToast()
@@ -64,8 +57,8 @@ export function LFPDetail({
   const [unlocked, setUnlocked] = useState(false)
   const [formFileRecordIds, setFormFileRecordIds] = useState<string[]>([])
 
-  const [selectedType, setSelectedType] = useState<string | null>(subOrder.type)
-  const [detail, setDetail] = useState<LfpDetail>(extractLfpRaw(subOrder))
+  const [selectedType, setSelectedType] = useState<string | null>(null)
+  const [detail, setDetail] = useState<LfpDetail>({})
   const detailRef = useRef(detail)
   const typeRef = useRef(selectedType)
   useEffect(() => {
@@ -78,20 +71,12 @@ export function LFPDetail({
   useEffect(() => {
     setEditingId(null)
     setFormFileRecordIds([])
-  }, [subOrder.id])
-
-  useEffect(() => {
     setUnlocked(false)
+    setSelectedType(null)
+    setDetail({})
+    detailRef.current = {}
+    typeRef.current = null
   }, [subOrder.id])
-
-  useEffect(() => {
-    if (editingId !== null) return
-    setSelectedType(subOrder.type)
-    const extracted = extractLfpRaw(subOrder)
-    setDetail(extracted)
-    detailRef.current = extracted
-    typeRef.current = subOrder.type
-  }, [subOrder, editingId])
 
   const loadFilesForProducts = useCallback(
     async (productRows: ProductRow[]) => {
@@ -183,26 +168,23 @@ export function LFPDetail({
   const resetForm = useCallback(() => {
     setEditingId(null)
     setFormFileRecordIds([])
-    setSelectedType(subOrder.type)
-    const extracted = extractLfpRaw(subOrder)
-    setDetail(extracted)
-    detailRef.current = extracted
-    typeRef.current = subOrder.type
-  }, [subOrder])
+    setSelectedType(null)
+    setDetail({})
+    detailRef.current = {}
+    typeRef.current = null
+  }, [])
 
   const validationErrors = validateLfpDetail(selectedType, detail, subOrderStatus)
   const shouldValidate = subOrderStatus !== 'QUOTE'
   const fieldErrorClass = (fieldKey: string) => (shouldValidate && validationErrors[fieldKey] ? ' ber-inp--err' : '')
 
   const saveDetail = useCallback(
-    async (nextType: string | null, json: LfpDetail) => {
+    (nextType: string | null, json: LfpDetail) => {
       setDetail(json)
       detailRef.current = json
       setSelectedType(nextType)
-      if (editingId !== null) return
-      await onDetailPatch({ typ: nextType, detail: json })
     },
-    [onDetailPatch, editingId]
+    []
   )
 
   const patchLocal = useCallback((patch: LfpDetail) => {
@@ -256,14 +238,7 @@ export function LFPDetail({
       for (const fid of formFileRecordIds) {
         await assignFileToProduct(editingId, fid)
       }
-      const list = await reloadProducts()
-      await onDetailPatch({
-        typ: subOrder.type,
-        detail: {
-          ...extractLfpRaw(subOrder),
-          hat_produkte: list.length > 0,
-        } as LfpDetail,
-      })
+      await reloadProducts()
       resetForm()
       return
     }
@@ -282,18 +257,11 @@ export function LFPDetail({
       return
     }
     const newId = insertedRow.id
-    let list = await reloadProducts()
+    const list = await reloadProducts()
     for (const fid of formFileRecordIds) {
       await assignFileToProduct(newId, fid, list)
     }
-    list = await reloadProducts()
-    await onDetailPatch({
-      typ: subOrder.type,
-      detail: {
-        ...extractLfpRaw(subOrder),
-        hat_produkte: list.length > 0,
-      } as LfpDetail,
-    })
+    await reloadProducts()
     resetForm()
   }, [
     subOrder,
@@ -305,7 +273,6 @@ export function LFPDetail({
     showError,
     reloadProducts,
     resetForm,
-    onDetailPatch,
     assignFileToProduct,
     removeFileFromProduct,
   ])
@@ -318,17 +285,10 @@ export function LFPDetail({
         showError('Product could not be deleted')
         return
       }
-      const list = await reloadProducts()
-      await onDetailPatch({
-        typ: subOrder.type,
-        detail: {
-          ...extractLfpRaw(subOrder),
-          hat_produkte: list.length > 0,
-        } as LfpDetail,
-      })
+      await reloadProducts()
       if (editingId === id) resetForm()
     },
-    [showError, reloadProducts, editingId, resetForm, onDetailPatch, subOrder]
+    [showError, reloadProducts, editingId, resetForm]
   )
 
   const handleEdit = useCallback((row: ProductRow) => {

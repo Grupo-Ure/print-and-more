@@ -26,14 +26,10 @@ import { useToast } from './Toast'
 import { CopyShopDetail } from './departments/CopyShopDetail'
 import { LFPDetail } from './departments/LFPDetail'
 import { StampDetail } from './departments/StampDetail'
-import { OtherDetail, type OtherDetailJson } from './departments/OtherDetail'
+import { OtherDetail } from './departments/OtherDetail'
 import { LaserDetail } from './departments/LaserDetail'
 import { TextileDetail } from './departments/TextileDetail'
 import type { FileRow } from '../services/fileService'
-import type { LfpDetail } from '../types/lfp'
-import type { CopyShopDetailJson } from '../types/copyshop'
-import type { StampDetailJson } from '../types/stamp'
-import type { LaserDetailJson } from '../types/laser'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import { StatusBadge } from './StatusBadge'
 import './WorkArea.css'
@@ -167,56 +163,6 @@ export function SubOrderDetail({
       }
     },
     [orderDeliveryMode, subOrder.id, subOrder.order_id, orderStatus, onUpdated, customerMeetsPrepressRequirements, showError]
-  )
-
-  const onLfpPatch = useCallback(
-    async (patch: { typ?: string | null; detail: LfpDetail | null }) => {
-      await save({
-        type: patch.typ,
-        detail: (patch.detail ?? {}) as LfpDetail,
-      } as Partial<SubOrderRow>)
-    },
-    [save]
-  )
-
-  const onCopyShopPatch = useCallback(
-    async (patch: { typ?: string | null; detail: CopyShopDetailJson | null }) => {
-      await save({
-        type: patch.typ,
-        detail: (patch.detail ?? {}) as CopyShopDetailJson,
-      } as Partial<SubOrderRow>)
-    },
-    [save]
-  )
-
-  const onStampPatch = useCallback(
-    async (patch: { typ?: string | null; detail: StampDetailJson | null }) => {
-      await save({
-        type: patch.typ,
-        detail: (patch.detail ?? {}) as StampDetailJson,
-      } as Partial<SubOrderRow>)
-    },
-    [save]
-  )
-
-  const onOtherPatch = useCallback(
-    async (patch: { typ?: string | null; detail: OtherDetailJson | null }) => {
-      await save({
-        type: patch.typ,
-        detail: (patch.detail ?? {}) as OtherDetailJson,
-      } as Partial<SubOrderRow>)
-    },
-    [save]
-  )
-
-  const onLaserPatch = useCallback(
-    async (patch: { typ?: string | null; detail: LaserDetailJson | null }) => {
-      await save({
-        type: patch.typ,
-        detail: (patch.detail ?? {}) as LaserDetailJson,
-      } as Partial<SubOrderRow>)
-    },
-    [save]
   )
 
   const onTextileSubOrderUpdated = useCallback(
@@ -495,23 +441,23 @@ export function SubOrderDetail({
       </div>
 
       {local.department === 'LFP' && (
-        <LFPDetail subOrder={local} subOrderStatus={local.status} onDetailPatch={onLfpPatch} orderFiles={orderFiles} />
+        <LFPDetail subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} />
       )}
 
       {local.department === 'COPYSHOP' && (
-        <CopyShopDetail subOrder={local} subOrderStatus={local.status} onDetailPatch={onCopyShopPatch} orderFiles={orderFiles} />
+        <CopyShopDetail subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} />
       )}
 
       {local.department === 'STAMP' && (
-        <StampDetail subOrder={local} subOrderStatus={local.status} onDetailPatch={onStampPatch} orderFiles={orderFiles} />
+        <StampDetail subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} />
       )}
 
       {local.department === 'OTHER' && (
-        <OtherDetail subOrder={local} subOrderStatus={local.status} onDetailPatch={onOtherPatch} orderFiles={orderFiles} />
+        <OtherDetail subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} />
       )}
 
       {local.department === 'LASER_ENGRAVING' && (
-        <LaserDetail subOrder={local} subOrderStatus={local.status} onDetailPatch={onLaserPatch} orderFiles={orderFiles} />
+        <LaserDetail subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} />
       )}
 
       {local.department === 'TEXTILE' && (

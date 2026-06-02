@@ -8,7 +8,6 @@ import {
 } from '../../types/stamp'
 import { validateStampDetail } from '../../lib/stamp/validateStampDetail'
 import { type OrderStatus, type SubOrderRow } from '../../types/database'
-import { subOrderDetailToFieldMap } from '../../lib/utils'
 import type { Database, Json } from '../../types/supabase'
 import { subOrderProductService, type SubOrderProductRow } from '../../services/subOrderProductService'
 import { stampService } from '../../services/stampService'
@@ -19,7 +18,6 @@ import '../WorkArea.css'
 type Props = {
   subOrder: SubOrderRow
   subOrderStatus: OrderStatus
-  onDetailPatch: (patch: { typ?: string | null; detail: StampDetailJson | null }) => Promise<void>
   orderFiles?: FileRow[]
 }
 
@@ -30,10 +28,6 @@ type ProductRow = {
   detail: StampDetailJson
   sort_order: number | null
   created_at: string | null
-}
-
-function rawStampDetail(subOrder: SubOrderRow): StampDetailJson {
-  return { ...subOrderDetailToFieldMap(subOrder.detail) }
 }
 
 type StampFormContext = {
@@ -124,7 +118,6 @@ type ProductFileAssignment = { assignmentId: string; fileId: string }
 export function StampDetail({
   subOrder,
   subOrderStatus,
-  onDetailPatch,
   orderFiles = [],
 }: Props) {
   const { showError } = useToast()
@@ -138,8 +131,8 @@ export function StampDetail({
   const [unlocked, setUnlocked] = useState(false)
   const [formFileRecordIds, setFormFileRecordIds] = useState<string[]>([])
 
-  const [stampType, setStampType] = useState<string | null>(subOrder.type)
-  const [detail, setDetail] = useState<StampDetailJson>(rawStampDetail(subOrder))
+  const [stampType, setStampType] = useState<string | null>(null)
+  const [detail, setDetail] = useState<StampDetailJson>({})
   const detailRef = useRef(detail)
   const stampTypeRef = useRef(stampType)
   useEffect(() => {
@@ -152,20 +145,14 @@ export function StampDetail({
   useEffect(() => {
     setEditingId(null)
     setFormFileRecordIds([])
-  }, [subOrder.id])
-
-  useEffect(() => {
     setUnlocked(false)
+    setStampType(null)
+    setDetail({})
+    detailRef.current = {}
+    stampTypeRef.current = null
+    setSelectedModelId(null)
+    setSelectedModelName(null)
   }, [subOrder.id])
-
-  useEffect(() => {
-    if (editingId !== null) return
-    setStampType(subOrder.type)
-    const freshDetail = rawStampDetail(subOrder)
-    setDetail(freshDetail)
-    detailRef.current = freshDetail
-    stampTypeRef.current = subOrder.type
-  }, [subOrder, editingId])
 
   const loadFilesForProducts = useCallback(
     async (productRows: ProductRow[]) => {
@@ -257,12 +244,13 @@ export function StampDetail({
   const resetForm = useCallback(() => {
     setEditingId(null)
     setFormFileRecordIds([])
-    setStampType(subOrder.type)
-    const freshDetail = rawStampDetail(subOrder)
-    setDetail(freshDetail)
-    detailRef.current = freshDetail
-    stampTypeRef.current = subOrder.type
-  }, [subOrder])
+    setStampType(null)
+    setDetail({})
+    detailRef.current = {}
+    stampTypeRef.current = null
+    setSelectedModelId(null)
+    setSelectedModelName(null)
+  }, [])
 
   const stampErrors = validateStampDetail(stampType, detail, subOrderStatus)
   const shouldValidate = subOrderStatus !== 'QUOTE'
@@ -288,14 +276,8 @@ export function StampDetail({
 
   const modelName = String(detail['modell_name'] ?? '')
 
-  const [selectedModelId, setSelectedModelId] = useState<string | null>(() => {
-    const td = subOrderDetailToFieldMap(subOrder.detail)
-    return String(td['modell_id'] ?? '') || null
-  })
-  const [selectedModelName, setSelectedModelName] = useState<string | null>(() => {
-    const td = subOrderDetailToFieldMap(subOrder.detail)
-    return String(td['modell_name'] ?? '') || null
-  })
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null)
+  const [selectedModelName, setSelectedModelName] = useState<string | null>(null)
 
   const [replacementCushions, setReplacementCushions] = useState<ReplacementCushionRow[] | null>(null)
 
@@ -305,12 +287,6 @@ export function StampDetail({
   const [cushionSearchLoading, setCushionSearchLoading] = useState(false)
   const [cushionSearchError, setCushionSearchError] = useState<string | null>(null)
   const [cushionColorOptions, setCushionColorOptions] = useState<CushionColorButton[]>([])
-
-  useEffect(() => {
-    const td = subOrderDetailToFieldMap(subOrder.detail)
-    setSelectedModelId(String(td['modell_id'] ?? '') || null)
-    setSelectedModelName(String(td['modell_name'] ?? '') || null)
-  }, [subOrder])
 
   useEffect(() => {
     const currentType = stampTypeRef.current
@@ -511,14 +487,12 @@ export function StampDetail({
   }, [stampType, detail, subOrder.id])
 
   const save = useCallback(
-    async (nextTyp: string | null, newDetail: StampDetailJson) => {
+    (nextTyp: string | null, newDetail: StampDetailJson) => {
       setDetail(newDetail)
       detailRef.current = newDetail
       setStampType(nextTyp)
-      if (editingId !== null) return
-      await onDetailPatch({ typ: nextTyp, detail: newDetail })
     },
-    [onDetailPatch, editingId]
+    []
   )
 
   const patchLocal = useCallback((patch: StampDetailJson) => {
@@ -572,14 +546,7 @@ export function StampDetail({
       for (const fid of formFileRecordIds) {
         await assignFileToProduct(editingId, fid)
       }
-      const updatedProducts = await reloadProducts()
-      await onDetailPatch({
-        typ: subOrder.type,
-        detail: {
-          ...rawStampDetail(subOrder),
-          hat_products: updatedProducts.length > 0,
-        } as StampDetailJson,
-      })
+      await reloadProducts()
       resetForm()
       return
     }
@@ -598,18 +565,11 @@ export function StampDetail({
       return
     }
     const newId = insRow.id
-    let updatedProducts = await reloadProducts()
+    const updatedProducts = await reloadProducts()
     for (const fid of formFileRecordIds) {
       await assignFileToProduct(newId, fid, updatedProducts)
     }
-    updatedProducts = await reloadProducts()
-    await onDetailPatch({
-      typ: subOrder.type,
-      detail: {
-        ...rawStampDetail(subOrder),
-        hat_products: updatedProducts.length > 0,
-      } as StampDetailJson,
-    })
+    await reloadProducts()
     resetForm()
   }, [
     subOrder,
@@ -621,7 +581,6 @@ export function StampDetail({
     showError,
     reloadProducts,
     resetForm,
-    onDetailPatch,
     assignFileToProduct,
     removeFileFromProduct,
   ])
@@ -634,17 +593,10 @@ export function StampDetail({
         showError('Product could not be deleted')
         return
       }
-      const updatedProducts = await reloadProducts()
-      await onDetailPatch({
-        typ: subOrder.type,
-        detail: {
-          ...rawStampDetail(subOrder),
-          hat_products: updatedProducts.length > 0,
-        } as StampDetailJson,
-      })
+      await reloadProducts()
       if (editingId === id) resetForm()
     },
-    [showError, reloadProducts, editingId, resetForm, onDetailPatch, subOrder]
+    [showError, reloadProducts, editingId, resetForm]
   )
 
   const handleEdit = useCallback((row: ProductRow) => {
@@ -658,6 +610,8 @@ export function StampDetail({
     setDetail(editDetail)
     detailRef.current = editDetail
     stampTypeRef.current = editType
+    setSelectedModelId(String(detailRecord.modell_id ?? '') || null)
+    setSelectedModelName(String(detailRecord.modell_name ?? '') || null)
   }, [productFiles])
 
   const typeOptions = [...STAMP_TYPES, ...EXTRA_TYPES] as readonly string[]
