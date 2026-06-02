@@ -188,7 +188,9 @@ export function TextileDetail({
       const newDetail = { ...existingDetail, textil: { voll: allowsPrepress } }
       const merged: SubOrderRow = { ...currentSubOrder, detail: newDetail } as SubOrderRow
       const customerContactOk = customerMeetsPrepressContact(orderCustomer)
-      const isComplete = isSubOrderComplete(merged, currentSubOrder.status)
+      // Textile completeness is driven by its own related tables (textil.voll);
+      // the hasProducts arg is ignored on the Textile path.
+      const isComplete = isSubOrderComplete(merged, currentSubOrder.status, false)
       let nextStatus: OrderStatus
       if (afterProdMutation && (currentSubOrder.status === 'PRODUCTION_READY' || currentSubOrder.status === 'DONE')) {
         nextStatus = 'INCOMPLETE'

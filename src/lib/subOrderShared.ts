@@ -152,11 +152,12 @@ function subOrderHasContentChange(snap: SubOrderRow, merged: SubOrderRow): boole
 /**
  * Whether the sub-order is complete enough to advance from
  * UNVOLLSTAENDIG. In `ANGEBOT` always true. Otherwise: common header
- * fields must be valid, and the per-Bereich completeness flag must be
- * set — the JSON `detail.hat_produkte` flag for most Bereiche, or the
- * related-table check for Textile.
+ * fields must be valid, and the per-Bereich content check must pass —
+ * for the JSONB Bereiche that means at least one product exists
+ * (`hasProducts`, derived by the caller from `sub_order_products`); for
+ * Textile it's the related-table check.
  */
-export function isSubOrderComplete(subOrder: SubOrderRow, status: OrderStatus): boolean {
+export function isSubOrderComplete(subOrder: SubOrderRow, status: OrderStatus, hasProducts: boolean): boolean {
   if (status === 'QUOTE') return true
   const errors = validateSubOrderCommonFields(subOrder, status)
   if (Object.keys(errors).length > 0) return false
@@ -167,8 +168,7 @@ export function isSubOrderComplete(subOrder: SubOrderRow, status: OrderStatus): 
     subOrder.department === 'LASER_ENGRAVING' ||
     subOrder.department === 'OTHER'
   ) {
-    const detailFields = subOrderDetailToFieldMap(subOrder.detail)
-    return detailFields?.hat_produkte === true
+    return hasProducts
   }
   if (subOrder.department === 'TEXTILE') {
     if (Object.keys(validateSubOrderCommonFields(subOrder, status)).length > 0) return false

@@ -3,6 +3,7 @@ import { authService } from '../services/authService'
 import { historyService, type HistoryEvent } from '../services/historyService'
 import { orderService } from '../services/orderService'
 import { subOrderService } from '../services/subOrderService'
+import { subOrderProductService } from '../services/subOrderProductService'
 import { stampService } from '../services/stampService'
 import { textileService } from '../services/textileService'
 import { textileMasterDataService } from '../services/textileMasterDataService'
@@ -319,7 +320,8 @@ export function ContextPanel({
       showError('Order must be started before releasing to PrePress')
       return
     }
-    const isComplete = isSubOrderComplete(subOrder, subOrder.status)
+    const products = await subOrderProductService.getProductsBySubOrderId(subOrder.id)
+    const isComplete = isSubOrderComplete(subOrder, subOrder.status, products.length > 0)
     if (!isComplete) {
       showError('Sub-order is not yet complete')
       return

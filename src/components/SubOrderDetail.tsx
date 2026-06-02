@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { subOrderService } from '../services/subOrderService'
+import { subOrderProductService } from '../services/subOrderProductService'
 import { departmentAbbreviation } from '../const/departmentAbbreviation'
 import { customerMeetsPrepressContact } from '../lib/customer'
 import {
@@ -71,6 +72,10 @@ export function SubOrderDetail({
   const localRef = useRef(subOrder)
   const [local, setLocal] = useState(subOrder)
   const [savePending, setSavePending] = useState(false)
+  // Whether the active sub-order has at least one product. Drives completeness
+  // for the JSONB departments (replaces the old detail.hat_produkte flag).
+  // A ref so `save` always reads the latest value without re-memoising.
+  const hasProductsRef = useRef(false)
   const { showError } = useToast()
 
   const orderDeliveryMode = (orderDelivery ?? 'PICKUP') as DeliveryChoice
@@ -130,7 +135,7 @@ export function SubOrderDetail({
         ...merged,
         delivery: (merged.delivery ?? orderDeliveryMode) as DeliveryChoice,
       }
-      const isComplete = isSubOrderComplete(mergedWithDefaults, serverSnapshot.status)
+      const isComplete = isSubOrderComplete(mergedWithDefaults, serverSnapshot.status, hasProductsRef.current)
       const nextStatus = nextSubOrderStatus(serverSnapshot.status, serverSnapshot, merged, isComplete, customerMeetsPrepressRequirements, orderStatus)
       const previousStatus = serverSnapshotRef.current.status
       setSavePending(true)
@@ -165,6 +170,18 @@ export function SubOrderDetail({
     [orderDeliveryMode, subOrder.id, subOrder.order_id, orderStatus, onUpdated, customerMeetsPrepressRequirements, showError]
   )
 
+  // A department component added/edited/deleted a product: refresh the count
+  // and recompute the sub-order status (the in-memory replacement for the old
+  // detail.hat_produkte write). save({}) recomputes status from the fresh
+  // hasProducts, persists it, and fires the PREPRESS_READY PDF.
+  const onProductsChanged = useCallback(
+    (hasProducts: boolean) => {
+      hasProductsRef.current = hasProducts
+      void save({})
+    },
+    [save]
+  )
+
   const onTextileSubOrderUpdated = useCallback(
     (row: SubOrderRow) => {
       serverSnapshotRef.current = row
@@ -174,6 +191,33 @@ export function SubOrderDetail({
     },
     [onUpdated]
   )
+
+  // Seed hasProducts when the active sub-order loads, for the JSONB departments.
+  // Seeds the ref only — no status recompute on load (load reads persisted status).
+  useEffect(() => {
+    hasProductsRef.current = false
+    const department = subOrder.department
+    const isJsonbDepartment =
+      department === 'LFP' ||
+      department === 'COPYSHOP' ||
+      department === 'STAMP' ||
+      department === 'LASER_ENGRAVING' ||
+      department === 'OTHER'
+    if (!subOrder.id || !isJsonbDepartment) return
+    let alive = true
+    void (async () => {
+      try {
+        const rows = await subOrderProductService.getProductsBySubOrderId(subOrder.id)
+        if (!alive) return
+        hasProductsRef.current = rows.length > 0
+      } catch {
+        // Leave hasProducts as false on failure; the user can retry by editing.
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [subOrder.id, subOrder.department])
 
   const effectiveDeadline = local.deadline ?? orderDeadline
   const deadlineIso = effectiveDeadline
@@ -441,23 +485,23 @@ export function SubOrderDetail({
       </div>
 
       {local.department === 'LFP' && (
-        <LFPDetail subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} />
+        <LFPDetail subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
       )}
 
       {local.department === 'COPYSHOP' && (
-        <CopyShopDetail subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} />
+        <CopyShopDetail subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
       )}
 
       {local.department === 'STAMP' && (
-        <StampDetail subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} />
+        <StampDetail subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
       )}
 
       {local.department === 'OTHER' && (
-        <OtherDetail subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} />
+        <OtherDetail subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
       )}
 
       {local.department === 'LASER_ENGRAVING' && (
-        <LaserDetail subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} />
+        <LaserDetail subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
       )}
 
       {local.department === 'TEXTILE' && (

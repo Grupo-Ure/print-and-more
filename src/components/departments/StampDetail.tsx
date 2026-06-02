@@ -19,6 +19,7 @@ type Props = {
   subOrder: SubOrderRow
   subOrderStatus: OrderStatus
   orderFiles?: FileRow[]
+  onProductsChanged?: (hasProducts: boolean) => void
 }
 
 type ProductRow = {
@@ -119,6 +120,7 @@ export function StampDetail({
   subOrder,
   subOrderStatus,
   orderFiles = [],
+  onProductsChanged,
 }: Props) {
   const { showError } = useToast()
 
@@ -546,7 +548,8 @@ export function StampDetail({
       for (const fid of formFileRecordIds) {
         await assignFileToProduct(editingId, fid)
       }
-      await reloadProducts()
+      const updatedProducts = await reloadProducts()
+      onProductsChanged?.(updatedProducts.length > 0)
       resetForm()
       return
     }
@@ -569,7 +572,8 @@ export function StampDetail({
     for (const fid of formFileRecordIds) {
       await assignFileToProduct(newId, fid, updatedProducts)
     }
-    await reloadProducts()
+    const finalProducts = await reloadProducts()
+    onProductsChanged?.(finalProducts.length > 0)
     resetForm()
   }, [
     subOrder,
@@ -583,6 +587,7 @@ export function StampDetail({
     resetForm,
     assignFileToProduct,
     removeFileFromProduct,
+    onProductsChanged,
   ])
 
   const handleDelete = useCallback(
@@ -593,10 +598,11 @@ export function StampDetail({
         showError('Product could not be deleted')
         return
       }
-      await reloadProducts()
+      const updatedProducts = await reloadProducts()
+      onProductsChanged?.(updatedProducts.length > 0)
       if (editingId === id) resetForm()
     },
-    [showError, reloadProducts, editingId, resetForm]
+    [showError, reloadProducts, editingId, resetForm, onProductsChanged]
   )
 
   const handleEdit = useCallback((row: ProductRow) => {
