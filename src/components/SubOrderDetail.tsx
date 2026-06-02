@@ -18,7 +18,10 @@ import {
   type SubOrderUpdate,
 } from '../types/database'
 import { subOrderDepartmentLabel } from '../const/departmentAbbreviation'
-import { DateInput } from './DateInput'
+import { DeadlinePicker } from './fields/DeadlinePicker'
+import { DeliverySelect } from './fields/DeliverySelect'
+import { PrioritySelect } from './fields/PrioritySelect'
+import { Input } from './ui/input'
 import { useToast } from './Toast'
 import { CopyShopDetail } from './departments/CopyShopDetail'
 import { LFPDetail } from './departments/LFPDetail'
@@ -115,8 +118,6 @@ export function SubOrderDetail({
     },
     subOrderStatus
   )
-  const fieldErrorClass = (fieldName: string) => (shouldValidate && validationErrors[fieldName] ? ' ber-inp--err' : '')
-
   const customerMeetsPrepressRequirements = customerMeetsPrepressContact(orderCustomer)
 
   const save = useCallback(
@@ -343,11 +344,11 @@ export function SubOrderDetail({
       <h2 className="sec-h2" style={{ marginTop: 8 }}>
         General
       </h2>
-      <div className="ber-grid-2">
-        <div className="ber-zeile-stack">
-          <span className="ber-lbl">Delivery date</span>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mb-1.5">
+        <div className="flex flex-col min-w-0">
+          <span className="text-[11px] font-medium text-muted-foreground mb-0.5">Delivery date</span>
           <div>
-            <label className="cp-toggle" style={{ marginTop: 4 }}>
+            <label className="flex items-center gap-2 text-[13px] select-none mt-1">
               <input
                 type="checkbox"
                 checked={separateDeadline}
@@ -374,32 +375,25 @@ export function SubOrderDetail({
               <span>Separate delivery date</span>
             </label>
             {separateDeadline && (
-              <div style={{ marginTop: 8 }}>
-                <DateInput
-                  className={'ber-inp' + fieldErrorClass('termin')}
+              <div className="mt-2">
+                <DeadlinePicker
                   value={local.deadline ? (local.deadline.length > 10 ? local.deadline.slice(0, 10) : local.deadline) : deadlineIso}
-                  onChange={e => {
-                    const value = e.target.value
-                    setLocal(s => ({ ...s, deadline: value || null }))
-                  }}
-                  onBlur={e => {
-                    const value = e.target.value || null
+                  onChange={value => {
+                    setLocal(s => ({ ...s, deadline: value }))
                     const snapshotIso = serverSnapshotRef.current.deadline ? serverSnapshotRef.current.deadline.slice(0, 10) : ''
-                    if ((value ?? '') !== (snapshotIso ?? '')) {
-                      void save({ deadline: value })
-                    }
+                    if ((value ?? '') !== (snapshotIso ?? '')) void save({ deadline: value })
                   }}
                 />
-                {shouldValidate && validationErrors.termin && <p className="td-feld-err">{validationErrors.termin}</p>}
+                {shouldValidate && validationErrors.termin && <p className="text-destructive text-xs mt-1">{validationErrors.termin}</p>}
               </div>
             )}
-            {!separateDeadline && shouldValidate && validationErrors.termin && <p className="td-feld-err">{validationErrors.termin}</p>}
+            {!separateDeadline && shouldValidate && validationErrors.termin && <p className="text-destructive text-xs mt-1">{validationErrors.termin}</p>}
           </div>
         </div>
-        <div className="ber-zeile-stack">
-          <span className="ber-lbl">Delivery type</span>
+        <div className="flex flex-col min-w-0">
+          <span className="text-[11px] font-medium text-muted-foreground mb-0.5">Delivery type</span>
           <div>
-            <label className="cp-toggle" style={{ marginTop: 4 }}>
+            <label className="flex items-center gap-2 text-[13px] select-none mt-1">
               <input
                 type="checkbox"
                 checked={hasSeparateDelivery}
@@ -417,37 +411,29 @@ export function SubOrderDetail({
               <span>Separate delivery type</span>
             </label>
             {hasSeparateDelivery ? (
-              <div style={{ marginTop: 8 }}>
-                <select
-                  className={'ber-inp' + fieldErrorClass('lieferung')}
+              <div className="mt-2">
+                <DeliverySelect
                   value={local.delivery ?? orderDeliveryMode}
-                  onChange={e => {
-                    const value = e.target.value as 'PICKUP' | 'SHIPPING'
+                  onChange={value => {
                     setLocal(s => ({ ...s, delivery: value }))
-                  }}
-                  onBlur={e => {
-                    const value = (e.target.value as 'PICKUP' | 'SHIPPING') || orderDeliveryMode
                     if (value !== serverSnapshotRef.current.delivery) void save({ delivery: value })
                   }}
-                >
-                  <option value="PICKUP">Pickup</option>
-                  <option value="SHIPPING">Shipping</option>
-                </select>
-                {shouldValidate && validationErrors.lieferung && <p className="td-feld-err">{validationErrors.lieferung}</p>}
+                />
+                {shouldValidate && validationErrors.lieferung && <p className="text-destructive text-xs mt-1">{validationErrors.lieferung}</p>}
               </div>
             ) : (
-              <div className="cp-hinweis" style={{ marginTop: 6, marginBottom: 0 }}>
+              <div className="text-xs text-muted-foreground leading-snug mt-1.5 mb-0">
                 {effectiveDelivery === 'PICKUP' ? 'Pickup' : 'Shipping'}
-                {shouldValidate && validationErrors.lieferung && <p className="td-feld-err">{validationErrors.lieferung}</p>}
+                {shouldValidate && validationErrors.lieferung && <p className="text-destructive text-xs mt-1">{validationErrors.lieferung}</p>}
               </div>
             )}
           </div>
         </div>
       </div>
-      <div className="ber-zeile-stack" style={{ marginTop: 0, maxWidth: '22rem' }}>
-        <span className="ber-lbl">Priority</span>
+      <div className="flex flex-col min-w-0 mt-0 max-w-88">
+        <span className="text-[11px] font-medium text-muted-foreground mb-0.5">Priority</span>
         <div>
-          <label className="cp-toggle" style={{ marginTop: 4 }}>
+          <label className="flex items-center gap-2 text-[13px] select-none mt-1">
             <input
               type="checkbox"
               checked={hasSeparatePriority}
@@ -464,40 +450,31 @@ export function SubOrderDetail({
             <span>Separate priority</span>
           </label>
           {hasSeparatePriority ? (
-            <div style={{ marginTop: 8 }}>
-              <select
-                className={'ber-inp' + fieldErrorClass('prioritaet')}
+            <div className="mt-2">
+              <PrioritySelect
                 value={local.priority}
-                onChange={e => {
-                  const value = e.target.value
-                  if (value === 'NORMAL' || value === 'HIGH') setLocal(s => ({ ...s, priority: value }))
+                onChange={value => {
+                  setLocal(s => ({ ...s, priority: value }))
+                  if (value !== serverSnapshotRef.current.priority) void save({ priority: value })
                 }}
-                onBlur={e => {
-                  const value = e.target.value
-                  if ((value === 'NORMAL' || value === 'HIGH') && value !== serverSnapshotRef.current.priority) {
-                    void save({ priority: value })
-                  }
-                }}
-              >
-                <option value="NORMAL">Normal</option>
-                <option value="HIGH">High</option>
-              </select>
-              {shouldValidate && validationErrors.prioritaet && <p className="td-feld-err">{validationErrors.prioritaet}</p>}
+              />
+              {shouldValidate && validationErrors.prioritaet && <p className="text-destructive text-xs mt-1">{validationErrors.prioritaet}</p>}
             </div>
           ) : (
-            <div className="cp-hinweis" style={{ marginTop: 6, marginBottom: 0 }}>
+            <div className="text-xs text-muted-foreground leading-snug mt-1.5 mb-0">
               {effectivePriority === 'HIGH' ? 'High' : 'Normal'}
-              {shouldValidate && validationErrors.prioritaet && <p className="td-feld-err">{validationErrors.prioritaet}</p>}
+              {shouldValidate && validationErrors.prioritaet && <p className="text-destructive text-xs mt-1">{validationErrors.prioritaet}</p>}
             </div>
           )}
         </div>
       </div>
-      <div className="ber-zeile-stack" style={{ marginBottom: 6, maxWidth: '16rem' }}>
-        <span className="ber-lbl">Typesetting time (min)</span>
+      <div className="flex flex-col min-w-0 mb-1.5 max-w-[16rem]">
+        <span className="text-[11px] font-medium text-muted-foreground mb-0.5">Typesetting time (min)</span>
         <div>
-          <input
+          <Input
             type="number"
-            className={'ber-inp' + fieldErrorClass('satzzeit_minuten')}
+            className="max-w-48 h-9 text-sm"
+            aria-invalid={shouldValidate && !!validationErrors.satzzeit_minuten}
             value={local.typesetting_minutes ?? ''}
             onChange={e => {
               const rawValue = e.target.value
@@ -512,9 +489,8 @@ export function SubOrderDetail({
               if (parsedValue !== serverSnapshotRef.current.typesetting_minutes) void save({ typesetting_minutes: parsedValue })
             }}
             min={1}
-            style={{ maxWidth: '12rem' }}
           />
-          {shouldValidate && validationErrors.satzzeit_minuten && <p className="td-feld-err">{validationErrors.satzzeit_minuten}</p>}
+          {shouldValidate && validationErrors.satzzeit_minuten && <p className="text-destructive text-xs mt-1">{validationErrors.satzzeit_minuten}</p>}
         </div>
       </div>
 
