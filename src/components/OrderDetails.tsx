@@ -281,7 +281,7 @@ type OrderSettingsProps = {
 
 function OrderSettings({ order, onSave }: OrderSettingsProps) {
   const [headerDeadline, setHeaderDeadline] = useState('')
-  const [headerDelivery, setHeaderDelivery] = useState<DeliveryChoice | ''>('')
+  const [headerDelivery, setHeaderDelivery] = useState<DeliveryChoice>('PICKUP')
   const [headerPriority, setHeaderPriority] = useState<Priority>('NORMAL')
   const headerSnapshot = useRef<{
     deadline: string | null
@@ -299,7 +299,7 @@ function OrderSettings({ order, onSave }: OrderSettingsProps) {
         : ''
     // eslint-disable-next-line react-hooks/set-state-in-effect -- form mirrors server row
     setHeaderDeadline(isoDate)
-    setHeaderDelivery(order.delivery ?? '')
+    setHeaderDelivery(order.delivery ?? 'PICKUP')
     setHeaderPriority(order.priority)
     headerSnapshot.current = {
       deadline: rawDeadline,
@@ -326,7 +326,7 @@ function OrderSettings({ order, onSave }: OrderSettingsProps) {
       <DeliverySelect
         value={headerDelivery}
         onChange={value => {
-          setHeaderDelivery(value ?? '')
+          setHeaderDelivery(value)
           if (value !== headerSnapshot.current.delivery) {
             onSave({ delivery: value })
           }

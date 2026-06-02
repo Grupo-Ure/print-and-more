@@ -7,31 +7,24 @@ import {
   SelectValue,
 } from '../ui/select'
 
-const DELIVERY_NONE = '__NONE__'
-
 type DeliverySelectProps = {
-  value: DeliveryChoice | ''
-  onChange: (value: DeliveryChoice | null) => void
+  value: DeliveryChoice
+  onChange: (value: DeliveryChoice) => void
 }
 
 export function DeliverySelect({ value, onChange }: DeliverySelectProps) {
   return (
     <label className="meta-pill" title="Delivery">
       <Select
-        value={value === '' ? DELIVERY_NONE : value}
+        value={value}
         onValueChange={next => {
-          if (next === 'PICKUP' || next === 'SHIPPING') {
-            onChange(next)
-          } else {
-            onChange(null)
-          }
+          if (next === 'PICKUP' || next === 'SHIPPING') onChange(next)
         }}
       >
         <SelectTrigger size="sm">
-          <SelectValue placeholder="—" />
+          <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={DELIVERY_NONE}>—</SelectItem>
           <SelectItem value="PICKUP">Pickup</SelectItem>
           <SelectItem value="SHIPPING">Shipping</SelectItem>
         </SelectContent>
