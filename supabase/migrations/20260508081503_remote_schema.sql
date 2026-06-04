@@ -107,6 +107,14 @@ CREATE TYPE "public"."textile_font_class" AS ENUM (
 
 ALTER TYPE "public"."textile_font_class" OWNER TO "postgres";
 
+/**
+ * Trigger guard: blocks placing two motifs on the same spot of one garment.
+ * Rejects an assignment whose motif shares a `placement` with another motif
+ * already assigned to the same `position_id`.
+ *
+ * @trigger BEFORE INSERT OR UPDATE ON textile_assignments (per row)
+ * @raises PLACEMENT_CONFLICT when the placement is already occupied.
+ */
 CREATE OR REPLACE FUNCTION "public"."check_textile_placement_conflict"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$
@@ -128,6 +136,26 @@ $$;
 
 ALTER FUNCTION "public"."check_textile_placement_conflict"() OWNER TO "postgres";
 
+/**
+ * Clone an existing order into a new draft order. The whole function body runs
+ * as a single transaction (Postgres functions are atomic), so any failure rolls
+ * the entire clone back.
+ *
+ * Copies the source order's customer into a new order with status QUOTE, then
+ * clones each selected sub-order (status reset to INCOMPLETE). For TEXTILE
+ * sub-orders it deep-copies motifs, positions, and assignments, remapping old
+ * row ids to the new ones; for every other department it copies the
+ * sub_order_products rows and their product_files links. Finally writes one
+ * ORDER_CREATED history row tagged with `duplicated_from`. SECURITY DEFINER.
+ *
+ * @param source_order_id        order to clone
+ * @param new_priority           priority for the new order
+ * @param new_delivery           delivery type for the new order
+ * @param new_deadline           deadline for the new order
+ * @param selected_sub_order_ids which of the source sub-orders to copy
+ * @param created_by_user_id     user recorded on the history row
+ * @returns the new order's id
+ */
 CREATE OR REPLACE FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_sub_order_ids" "uuid"[], "created_by_user_id" "uuid") RETURNS "uuid"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
@@ -233,6 +261,14 @@ $$;
 
 ALTER FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_sub_order_ids" "uuid"[], "created_by_user_id" "uuid") OWNER TO "postgres";
 
+/**
+ * Trigger guard: a file's version chain must stay within one order.
+ * If `replaces_file_id` is set, the replaced file must belong to the same
+ * `order_id` as the new file.
+ *
+ * @trigger BEFORE INSERT OR UPDATE OF replaces_file_id, order_id ON files (per row)
+ * @raises when the replaced file belongs to a different order.
+ */
 CREATE OR REPLACE FUNCTION "public"."fn_check_file_versioning_order"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$
@@ -254,6 +290,14 @@ $$;
 
 ALTER FUNCTION "public"."fn_check_file_versioning_order"() OWNER TO "postgres";
 
+/**
+ * Trigger guard: a sub-order's customer-approval file must come from its own order.
+ * If `customer_approval_file_id` is set, that file must belong to the sub-order's
+ * `order_id`.
+ *
+ * @trigger BEFORE INSERT OR UPDATE OF customer_approval_file_id, order_id ON sub_orders (per row)
+ * @raises when the approval file belongs to a different order.
+ */
 CREATE OR REPLACE FUNCTION "public"."fn_check_approval_file_order"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$
@@ -275,6 +319,14 @@ $$;
 
 ALTER FUNCTION "public"."fn_check_approval_file_order"() OWNER TO "postgres";
 
+/**
+ * Trigger guard: a referenced sub-order must belong to the referenced order.
+ * For rows that carry both `order_id` and an optional `sub_order_id` (errors,
+ * history): if `sub_order_id` is set, it must belong to that `order_id`.
+ *
+ * @trigger BEFORE INSERT OR UPDATE OF sub_order_id, order_id ON errors and history (per row)
+ * @raises when the sub-order does not belong to the order.
+ */
 CREATE OR REPLACE FUNCTION "public"."fn_check_sub_order_belongs_to_order"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$
@@ -294,6 +346,15 @@ $$;
 
 ALTER FUNCTION "public"."fn_check_sub_order_belongs_to_order"() OWNER TO "postgres";
 
+/**
+ * Trigger guard: validates `sub_orders.type` against the department's allowed set
+ * (e.g. COPYSHOP → POSTER/CARD_FLYER/…; STAMP → TRODAT_PRINTY/…; LFP, LASER_ENGRAVING
+ * each have their own list). TEXTILE must have a NULL type; OTHER allows only
+ * 'OTHER' or NULL.
+ *
+ * @trigger BEFORE INSERT OR UPDATE OF department, type ON sub_orders (per row)
+ * @raises when the type is not valid for the department.
+ */
 CREATE OR REPLACE FUNCTION "public"."fn_check_sub_order_type"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$
@@ -342,6 +403,14 @@ $$;
 
 ALTER FUNCTION "public"."fn_check_sub_order_type"() OWNER TO "postgres";
 
+/**
+ * Trigger guard: a textile motif's file must come from the motif's order.
+ * If `file_id` is set, the file's `order_id` must match the order of the
+ * motif's parent sub-order.
+ *
+ * @trigger BEFORE INSERT OR UPDATE OF file_id, sub_order_id ON textile_motifs (per row)
+ * @raises when the file belongs to a different order.
+ */
 CREATE OR REPLACE FUNCTION "public"."fn_check_textile_motif_file"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$
@@ -367,6 +436,14 @@ $$;
 
 ALTER FUNCTION "public"."fn_check_textile_motif_file"() OWNER TO "postgres";
 
+/**
+ * Trigger guard: an assignment's motif and position must belong to the same
+ * sub-order as the assignment itself — both `motif_id` and `position_id` must
+ * share the assignment's `sub_order_id`.
+ *
+ * @trigger BEFORE INSERT OR UPDATE ON textile_assignments (per row)
+ * @raises when the motif or position belongs to a different sub-order.
+ */
 CREATE OR REPLACE FUNCTION "public"."fn_check_textile_assignment_consistency"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$
@@ -393,6 +470,14 @@ $$;
 
 ALTER FUNCTION "public"."fn_check_textile_assignment_consistency"() OWNER TO "postgres";
 
+/**
+ * Trigger: assigns `orders.order_number` as `YYYY-MM-NNNN`, where NNNN is a
+ * per-month sequence. Uses an atomic INSERT ... ON CONFLICT DO UPDATE on
+ * `order_number_counter`, so concurrent inserts never collide; the counter
+ * restarts at 1 each calendar month.
+ *
+ * @trigger BEFORE INSERT ON orders (per row)
+ */
 CREATE OR REPLACE FUNCTION "public"."fn_generate_order_number"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$
