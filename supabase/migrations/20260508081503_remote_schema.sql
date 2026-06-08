@@ -73,7 +73,7 @@ CREATE TYPE "public"."priority_type" AS ENUM (
 
 ALTER TYPE "public"."priority_type" OWNER TO "postgres";
 
-CREATE TYPE "public"."sub_order_department" AS ENUM (
+CREATE TYPE "public"."department" AS ENUM (
     'LFP',
     'COPYSHOP',
     'TEXTILE',
@@ -82,7 +82,7 @@ CREATE TYPE "public"."sub_order_department" AS ENUM (
     'OTHER'
 );
 
-ALTER TYPE "public"."sub_order_department" OWNER TO "postgres";
+ALTER TYPE "public"."department" OWNER TO "postgres";
 
 CREATE TYPE "public"."textile_origin" AS ENUM (
     'CUSTOMER_STOCK',
@@ -145,30 +145,30 @@ ALTER FUNCTION "public"."check_textile_placement_conflict"() OWNER TO "postgres"
  * clones each selected sub-order (status reset to INCOMPLETE). For TEXTILE
  * sub-orders it deep-copies motifs, positions, and assignments, remapping old
  * row ids to the new ones; for every other department it copies the
- * sub_order_products rows and their product_files links. Finally writes one
+ * department_products rows and their product_files links. Finally writes one
  * ORDER_CREATED history row tagged with `duplicated_from`. SECURITY DEFINER.
  *
  * @param source_order_id        order to clone
  * @param new_priority           priority for the new order
  * @param new_delivery           delivery type for the new order
  * @param new_deadline           deadline for the new order
- * @param selected_sub_order_ids which of the source sub-orders to copy
+ * @param selected_department_order_ids which of the source sub-orders to copy
  * @param created_by_user_id     user recorded on the history row
  * @returns the new order's id
  */
-CREATE OR REPLACE FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_sub_order_ids" "uuid"[], "created_by_user_id" "uuid") RETURNS "uuid"
+CREATE OR REPLACE FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_department_order_ids" "uuid"[], "created_by_user_id" "uuid") RETURNS "uuid"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 DECLARE
   source_customer_id    UUID;
   new_order_id          UUID;
-  new_sub_order_id      UUID;
+  new_department_order_id      UUID;
   new_product_id        UUID;
   source_product        RECORD;
   source_motif          RECORD;
   source_position       RECORD;
   source_assignment     RECORD;
-  source_sub_order      RECORD;
+  source_department_order      RECORD;
   motif_id_map          JSONB := '{}'::JSONB;
   position_id_map       JSONB := '{}'::JSONB;
   new_motif_id          UUID;
@@ -186,21 +186,21 @@ BEGIN
   RETURNING id INTO new_order_id;
 
   -- Sub-orders
-  FOR source_sub_order IN
-    SELECT * FROM sub_orders WHERE id = ANY(selected_sub_order_ids)
+  FOR source_department_order IN
+    SELECT * FROM department_orders WHERE id = ANY(selected_department_order_ids)
   LOOP
-    INSERT INTO sub_orders (order_id, department, type, status, priority, delivery, detail)
-    VALUES (new_order_id, source_sub_order.department, source_sub_order.type, 'INCOMPLETE', source_sub_order.priority, source_sub_order.delivery, source_sub_order.detail)
-    RETURNING id INTO new_sub_order_id;
+    INSERT INTO department_orders (order_id, department, type, status, priority, delivery, detail)
+    VALUES (new_order_id, source_department_order.department, source_department_order.type, 'INCOMPLETE', source_department_order.priority, source_department_order.delivery, source_department_order.detail)
+    RETURNING id INTO new_department_order_id;
 
-    IF source_sub_order.department = 'TEXTILE' THEN
+    IF source_department_order.department = 'TEXTILE' THEN
       -- Copy motifs
       motif_id_map := '{}'::JSONB;
       FOR source_motif IN
-        SELECT * FROM textile_motifs WHERE sub_order_id = source_sub_order.id
+        SELECT * FROM textile_motifs WHERE department_order_id = source_department_order.id
       LOOP
-        INSERT INTO textile_motifs (sub_order_id, type, content, color, font_class, font_name, file_id, placement, size, print_method)
-        VALUES (new_sub_order_id, source_motif.type, source_motif.content, source_motif.color, source_motif.font_class, source_motif.font_name, source_motif.file_id, source_motif.placement, source_motif.size, source_motif.print_method)
+        INSERT INTO textile_motifs (department_order_id, type, content, color, font_class, font_name, file_id, placement, size, print_method)
+        VALUES (new_department_order_id, source_motif.type, source_motif.content, source_motif.color, source_motif.font_class, source_motif.font_name, source_motif.file_id, source_motif.placement, source_motif.size, source_motif.print_method)
         RETURNING id INTO new_motif_id;
         motif_id_map := motif_id_map || jsonb_build_object(source_motif.id::TEXT, new_motif_id::TEXT);
       END LOOP;
@@ -208,21 +208,21 @@ BEGIN
       -- Copy positions
       position_id_map := '{}'::JSONB;
       FOR source_position IN
-        SELECT * FROM textile_positions WHERE sub_order_id = source_sub_order.id
+        SELECT * FROM textile_positions WHERE department_order_id = source_department_order.id
       LOOP
-        INSERT INTO textile_positions (sub_order_id, origin, type, color, quantity, brand, model, size, variant_id)
-        VALUES (new_sub_order_id, source_position.origin, source_position.type, source_position.color, source_position.quantity, source_position.brand, source_position.model, source_position.size, source_position.variant_id)
+        INSERT INTO textile_positions (department_order_id, origin, type, color, quantity, brand, model, size, variant_id)
+        VALUES (new_department_order_id, source_position.origin, source_position.type, source_position.color, source_position.quantity, source_position.brand, source_position.model, source_position.size, source_position.variant_id)
         RETURNING id INTO new_position_id;
         position_id_map := position_id_map || jsonb_build_object(source_position.id::TEXT, new_position_id::TEXT);
       END LOOP;
 
       -- Copy assignments
       FOR source_assignment IN
-        SELECT * FROM textile_assignments WHERE sub_order_id = source_sub_order.id
+        SELECT * FROM textile_assignments WHERE department_order_id = source_department_order.id
       LOOP
-        INSERT INTO textile_assignments (sub_order_id, motif_id, position_id)
+        INSERT INTO textile_assignments (department_order_id, motif_id, position_id)
         VALUES (
-          new_sub_order_id,
+          new_department_order_id,
           (motif_id_map->>source_assignment.motif_id::TEXT)::UUID,
           (position_id_map->>source_assignment.position_id::TEXT)::UUID
         );
@@ -231,17 +231,111 @@ BEGIN
     ELSE
       -- Copy products
       FOR source_product IN
-        SELECT * FROM sub_order_products WHERE sub_order_id = source_sub_order.id ORDER BY sort_order
+        SELECT * FROM department_products WHERE department_order_id = source_department_order.id ORDER BY sort_order
       LOOP
-        INSERT INTO sub_order_products (sub_order_id, department, detail, sort_order)
-        VALUES (new_sub_order_id, source_product.department, source_product.detail, source_product.sort_order)
+        INSERT INTO department_products (department_order_id, department, type, quantity, notes, sort_order)
+        VALUES (new_department_order_id, source_product.department, source_product.type, source_product.quantity, source_product.notes, source_product.sort_order)
         RETURNING id INTO new_product_id;
 
+        -- Copy the typed child row (one arm per product type)
+        CASE source_product.type
+          WHEN 'POSTER' THEN
+            INSERT INTO poster_products (department_product_id, format, width, height, material, laminate)
+            SELECT new_product_id, format, width, height, material, laminate FROM poster_products WHERE department_product_id = source_product.id;
+          WHEN 'CARD_FLYER' THEN
+            INSERT INTO card_flyer_products (department_product_id, format, width, height, color_mode, full_bleed, production_path, cc_material, cc_material_other, offset_type, offset_weight, offset_finish, special_paper, special_paper_other, lamination_finish, lamination_sides, recycling_weight)
+            SELECT new_product_id, format, width, height, color_mode, full_bleed, production_path, cc_material, cc_material_other, offset_type, offset_weight, offset_finish, special_paper, special_paper_other, lamination_finish, lamination_sides, recycling_weight FROM card_flyer_products WHERE department_product_id = source_product.id;
+          WHEN 'FOLDED_FLYER' THEN
+            INSERT INTO folded_flyer_products (department_product_id, format, width, height, color_mode, full_bleed, production_path, cc_material, cc_material_other, offset_type, offset_weight, offset_finish, special_paper, special_paper_other, lamination_finish, lamination_sides, recycling_weight, fold_type, page_count)
+            SELECT new_product_id, format, width, height, color_mode, full_bleed, production_path, cc_material, cc_material_other, offset_type, offset_weight, offset_finish, special_paper, special_paper_other, lamination_finish, lamination_sides, recycling_weight, fold_type, page_count FROM folded_flyer_products WHERE department_product_id = source_product.id;
+          WHEN 'BROCHURE' THEN
+            INSERT INTO brochure_products (department_product_id, format, width, height, orientation, page_count, full_bleed, production_path, cover_material, cover_material_other, inner_material, inner_material_other, binding, cover_weight, cover_finish, inner_weight, inner_finish)
+            SELECT new_product_id, format, width, height, orientation, page_count, full_bleed, production_path, cover_material, cover_material_other, inner_material, inner_material_other, binding, cover_weight, cover_finish, inner_weight, inner_finish FROM brochure_products WHERE department_product_id = source_product.id;
+          WHEN 'BUSINESS_CARD' THEN
+            INSERT INTO business_card_products (department_product_id, format, width, height, orientation, color_mode, material, film_laminated, multiloft_color, full_bleed)
+            SELECT new_product_id, format, width, height, orientation, color_mode, material, film_laminated, multiloft_color, full_bleed FROM business_card_products WHERE department_product_id = source_product.id;
+          WHEN 'BINDING' THEN
+            INSERT INTO binding_products (department_product_id, format, width, height, orientation, material, material_other, color_mode, binding_type, binding_color, full_bleed, hardcover_print, hardcover_cover)
+            SELECT new_product_id, format, width, height, orientation, material, material_other, color_mode, binding_type, binding_color, full_bleed, hardcover_print, hardcover_cover FROM binding_products WHERE department_product_id = source_product.id;
+          WHEN 'PRINTOUT' THEN
+            INSERT INTO printout_products (department_product_id, format, material, material_other, color_mode, punching, staple, laminate)
+            SELECT new_product_id, format, material, material_other, color_mode, punching, staple, laminate FROM printout_products WHERE department_product_id = source_product.id;
+          WHEN 'TRODAT_PRINTY' THEN
+            INSERT INTO trodat_printy_products (department_product_id, model_id)
+            SELECT new_product_id, model_id FROM trodat_printy_products WHERE department_product_id = source_product.id;
+          WHEN 'WOODEN_STAMP' THEN
+            INSERT INTO wooden_stamp_products (department_product_id, model_id)
+            SELECT new_product_id, model_id FROM wooden_stamp_products WHERE department_product_id = source_product.id;
+          WHEN 'STAND_STAMP' THEN
+            INSERT INTO stand_stamp_products (department_product_id, width, height, color, color_other, description)
+            SELECT new_product_id, width, height, color, color_other, description FROM stand_stamp_products WHERE department_product_id = source_product.id;
+          WHEN 'DATE_STAMP' THEN
+            INSERT INTO date_stamp_products (department_product_id, width, height, color, color_other, description)
+            SELECT new_product_id, width, height, color, color_other, description FROM date_stamp_products WHERE department_product_id = source_product.id;
+          WHEN 'OTHER_STAMP' THEN
+            INSERT INTO other_stamp_products (department_product_id, width, height, color, color_other, description)
+            SELECT new_product_id, width, height, color, color_other, description FROM other_stamp_products WHERE department_product_id = source_product.id;
+          WHEN 'STAMP_PLATE' THEN
+            INSERT INTO stamp_plate_products (department_product_id, width, height)
+            SELECT new_product_id, width, height FROM stamp_plate_products WHERE department_product_id = source_product.id;
+          WHEN 'REFILL_INK' THEN
+            INSERT INTO refill_ink_products (department_product_id, color, ink_type)
+            SELECT new_product_id, color, ink_type FROM refill_ink_products WHERE department_product_id = source_product.id;
+          WHEN 'INK_PAD' THEN
+            INSERT INTO ink_pad_products (department_product_id, pad_size, color)
+            SELECT new_product_id, pad_size, color FROM ink_pad_products WHERE department_product_id = source_product.id;
+          WHEN 'TRODAT_PAD' THEN
+            INSERT INTO trodat_pad_products (department_product_id, pad_article_number, pad_variant_id, color)
+            SELECT new_product_id, pad_article_number, pad_variant_id, color FROM trodat_pad_products WHERE department_product_id = source_product.id;
+          WHEN 'STICKER' THEN
+            INSERT INTO sticker_products (department_product_id, material, material_variant, contour_cut, laminate, output, width, height)
+            SELECT new_product_id, material, material_variant, contour_cut, laminate, output, width, height FROM sticker_products WHERE department_product_id = source_product.id;
+          WHEN 'SIGN_UV' THEN
+            INSERT INTO sign_uv_products (department_product_id, material, print_side, acrylic_print_direction, width, height, round_corners, drill_holes, drill_hole_diameter, drill_hole_position)
+            SELECT new_product_id, material, print_side, acrylic_print_direction, width, height, round_corners, drill_holes, drill_hole_diameter, drill_hole_position FROM sign_uv_products WHERE department_product_id = source_product.id;
+          WHEN 'SIGN_FOIL' THEN
+            INSERT INTO sign_foil_products (department_product_id, material, laminate, print_side, width, height, round_corners, drill_holes, drill_hole_diameter, drill_hole_position)
+            SELECT new_product_id, material, laminate, print_side, width, height, round_corners, drill_holes, drill_hole_diameter, drill_hole_position FROM sign_foil_products WHERE department_product_id = source_product.id;
+          WHEN 'FOIL_PLOTTER' THEN
+            INSERT INTO foil_plotter_products (department_product_id, material, output, width, height)
+            SELECT new_product_id, material, output, width, height FROM foil_plotter_products WHERE department_product_id = source_product.id;
+          WHEN 'BANNER' THEN
+            INSERT INTO banner_products (department_product_id, material, width, height, hem, hem_sides, eyelets, eyelet_detail)
+            SELECT new_product_id, material, width, height, hem, hem_sides, eyelets, eyelet_detail FROM banner_products WHERE department_product_id = source_product.id;
+          WHEN 'ROLLUP' THEN
+            INSERT INTO rollup_products (department_product_id, material, rollup_system, rollup_width)
+            SELECT new_product_id, material, rollup_system, rollup_width FROM rollup_products WHERE department_product_id = source_product.id;
+          WHEN 'VEHICLE_LETTERING' THEN
+            INSERT INTO vehicle_lettering_products (department_product_id, vehicle_make, vehicle_model, area_sides, area_front, area_rear, installation, existing_wrap, installation_date)
+            SELECT new_product_id, vehicle_make, vehicle_model, area_sides, area_front, area_rear, installation, existing_wrap, installation_date FROM vehicle_lettering_products WHERE department_product_id = source_product.id;
+          WHEN 'OTHER_LFP' THEN
+            INSERT INTO other_lfp_products (department_product_id, description)
+            SELECT new_product_id, description FROM other_lfp_products WHERE department_product_id = source_product.id;
+          WHEN 'SIGN' THEN
+            INSERT INTO sign_products (department_product_id, motif, material, material_other, width, height, round_corners, self_adhesive)
+            SELECT new_product_id, motif, material, material_other, width, height, round_corners, self_adhesive FROM sign_products WHERE department_product_id = source_product.id;
+          WHEN 'TROPHY_PLATE' THEN
+            INSERT INTO trophy_plate_products (department_product_id, motif, material, material_other, width, height, round_corners, self_adhesive)
+            SELECT new_product_id, motif, material, material_other, width, height, round_corners, self_adhesive FROM trophy_plate_products WHERE department_product_id = source_product.id;
+          WHEN 'NAME_TAG' THEN
+            INSERT INTO name_tag_products (department_product_id, motif, material, material_other, width, height, round_corners)
+            SELECT new_product_id, motif, material, material_other, width, height, round_corners FROM name_tag_products WHERE department_product_id = source_product.id;
+          WHEN 'GIFT_ITEM' THEN
+            INSERT INTO gift_item_products (department_product_id, motif, material_free_text, origin)
+            SELECT new_product_id, motif, material_free_text, origin FROM gift_item_products WHERE department_product_id = source_product.id;
+          WHEN 'OTHER_LASER' THEN
+            INSERT INTO other_laser_products (department_product_id, motif, material_free_text, origin, self_adhesive)
+            SELECT new_product_id, motif, material_free_text, origin, self_adhesive FROM other_laser_products WHERE department_product_id = source_product.id;
+          WHEN 'OTHER' THEN
+            INSERT INTO other_products (department_product_id, description)
+            SELECT new_product_id, description FROM other_products WHERE department_product_id = source_product.id;
+        END CASE;
+
         -- Copy file assignments
-        INSERT INTO product_files (product_id, file_id)
+        INSERT INTO product_files (department_product_id, file_id)
         SELECT new_product_id, file_id
         FROM product_files
-        WHERE product_id = source_product.id;
+        WHERE department_product_id = source_product.id;
       END LOOP;
     END IF;
   END LOOP;
@@ -259,7 +353,7 @@ BEGIN
 END;
 $$;
 
-ALTER FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_sub_order_ids" "uuid"[], "created_by_user_id" "uuid") OWNER TO "postgres";
+ALTER FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_department_order_ids" "uuid"[], "created_by_user_id" "uuid") OWNER TO "postgres";
 
 /**
  * Trigger guard: a file's version chain must stay within one order.
@@ -295,7 +389,7 @@ ALTER FUNCTION "public"."fn_check_file_versioning_order"() OWNER TO "postgres";
  * If `customer_approval_file_id` is set, that file must belong to the sub-order's
  * `order_id`.
  *
- * @trigger BEFORE INSERT OR UPDATE OF customer_approval_file_id, order_id ON sub_orders (per row)
+ * @trigger BEFORE INSERT OR UPDATE OF customer_approval_file_id, order_id ON department_orders (per row)
  * @raises when the approval file belongs to a different order.
  */
 CREATE OR REPLACE FUNCTION "public"."fn_check_approval_file_order"() RETURNS "trigger"
@@ -321,41 +415,41 @@ ALTER FUNCTION "public"."fn_check_approval_file_order"() OWNER TO "postgres";
 
 /**
  * Trigger guard: a referenced sub-order must belong to the referenced order.
- * For rows that carry both `order_id` and an optional `sub_order_id` (errors,
- * history): if `sub_order_id` is set, it must belong to that `order_id`.
+ * For rows that carry both `order_id` and an optional `department_order_id` (errors,
+ * history): if `department_order_id` is set, it must belong to that `order_id`.
  *
- * @trigger BEFORE INSERT OR UPDATE OF sub_order_id, order_id ON errors and history (per row)
+ * @trigger BEFORE INSERT OR UPDATE OF department_order_id, order_id ON errors and history (per row)
  * @raises when the sub-order does not belong to the order.
  */
-CREATE OR REPLACE FUNCTION "public"."fn_check_sub_order_belongs_to_order"() RETURNS "trigger"
+CREATE OR REPLACE FUNCTION "public"."fn_check_department_order_belongs_to_order"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$
 BEGIN
-  IF NEW.sub_order_id IS NOT NULL THEN
+  IF NEW.department_order_id IS NOT NULL THEN
     IF NOT EXISTS (
-      SELECT 1 FROM sub_orders
-      WHERE id = NEW.sub_order_id AND order_id = NEW.order_id
+      SELECT 1 FROM department_orders
+      WHERE id = NEW.department_order_id AND order_id = NEW.order_id
     ) THEN
       RAISE EXCEPTION 'Sub-order (%) does not belong to order (%)',
-        NEW.sub_order_id, NEW.order_id;
+        NEW.department_order_id, NEW.order_id;
     END IF;
   END IF;
   RETURN NEW;
 END;
 $$;
 
-ALTER FUNCTION "public"."fn_check_sub_order_belongs_to_order"() OWNER TO "postgres";
+ALTER FUNCTION "public"."fn_check_department_order_belongs_to_order"() OWNER TO "postgres";
 
 /**
- * Trigger guard: validates `sub_orders.type` against the department's allowed set
+ * Trigger guard: validates `department_orders.type` against the department's allowed set
  * (e.g. COPYSHOP → POSTER/CARD_FLYER/…; STAMP → TRODAT_PRINTY/…; LFP, LASER_ENGRAVING
  * each have their own list). TEXTILE must have a NULL type; OTHER allows only
  * 'OTHER' or NULL.
  *
- * @trigger BEFORE INSERT OR UPDATE OF department, type ON sub_orders (per row)
+ * @trigger BEFORE INSERT OR UPDATE OF department, type ON department_orders (per row)
  * @raises when the type is not valid for the department.
  */
-CREATE OR REPLACE FUNCTION "public"."fn_check_sub_order_type"() RETURNS "trigger"
+CREATE OR REPLACE FUNCTION "public"."fn_check_department_order_type"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$
 BEGIN
@@ -401,14 +495,14 @@ BEGIN
 END;
 $$;
 
-ALTER FUNCTION "public"."fn_check_sub_order_type"() OWNER TO "postgres";
+ALTER FUNCTION "public"."fn_check_department_order_type"() OWNER TO "postgres";
 
 /**
  * Trigger guard: a textile motif's file must come from the motif's order.
  * If `file_id` is set, the file's `order_id` must match the order of the
  * motif's parent sub-order.
  *
- * @trigger BEFORE INSERT OR UPDATE OF file_id, sub_order_id ON textile_motifs (per row)
+ * @trigger BEFORE INSERT OR UPDATE OF file_id, department_order_id ON textile_motifs (per row)
  * @raises when the file belongs to a different order.
  */
 CREATE OR REPLACE FUNCTION "public"."fn_check_textile_motif_file"() RETURNS "trigger"
@@ -419,7 +513,7 @@ DECLARE
 BEGIN
   IF NEW.file_id IS NOT NULL THEN
     SELECT order_id INTO parent_order_id
-    FROM sub_orders WHERE id = NEW.sub_order_id;
+    FROM department_orders WHERE id = NEW.department_order_id;
 
     IF NOT EXISTS (
       SELECT 1 FROM files
@@ -439,7 +533,7 @@ ALTER FUNCTION "public"."fn_check_textile_motif_file"() OWNER TO "postgres";
 /**
  * Trigger guard: an assignment's motif and position must belong to the same
  * sub-order as the assignment itself — both `motif_id` and `position_id` must
- * share the assignment's `sub_order_id`.
+ * share the assignment's `department_order_id`.
  *
  * @trigger BEFORE INSERT OR UPDATE ON textile_assignments (per row)
  * @raises when the motif or position belongs to a different sub-order.
@@ -450,18 +544,18 @@ CREATE OR REPLACE FUNCTION "public"."fn_check_textile_assignment_consistency"() 
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM textile_motifs
-    WHERE id = NEW.motif_id AND sub_order_id = NEW.sub_order_id
+    WHERE id = NEW.motif_id AND department_order_id = NEW.department_order_id
   ) THEN
     RAISE EXCEPTION 'Motif (%) does not belong to sub-order (%)',
-      NEW.motif_id, NEW.sub_order_id;
+      NEW.motif_id, NEW.department_order_id;
   END IF;
 
   IF NOT EXISTS (
     SELECT 1 FROM textile_positions
-    WHERE id = NEW.position_id AND sub_order_id = NEW.sub_order_id
+    WHERE id = NEW.position_id AND department_order_id = NEW.department_order_id
   ) THEN
     RAISE EXCEPTION 'Position (%) does not belong to sub-order (%)',
-      NEW.position_id, NEW.sub_order_id;
+      NEW.position_id, NEW.department_order_id;
   END IF;
 
   RETURN NEW;
@@ -528,7 +622,7 @@ ALTER TABLE "public"."orders" OWNER TO "postgres";
 
 COMMENT ON TABLE "public"."orders" IS 'Central aggregate. status is set by application convention via calculateOrderStatus() in src/lib/orderStatus.ts — the DB does not enforce this. Direct SQL updates to status are intentionally allowed for emergency migrations.';
 
-COMMENT ON COLUMN "public"."orders"."deadline" IS 'Overall deadline as a commercial frame. sub_orders.deadline is operationally leading and may differ — no automatic sync (V1 domain model, intentional decision).';
+COMMENT ON COLUMN "public"."orders"."deadline" IS 'Overall deadline as a commercial frame. department_orders.deadline is operationally leading and may differ — no automatic sync (V1 domain model, intentional decision).';
 
 CREATE TABLE IF NOT EXISTS "public"."order_number_counter" (
     "year" integer NOT NULL,
@@ -622,7 +716,7 @@ ALTER TABLE "public"."erp_exports" OWNER TO "postgres";
 CREATE TABLE IF NOT EXISTS "public"."errors" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "order_id" "uuid" NOT NULL,
-    "sub_order_id" "uuid",
+    "department_order_id" "uuid",
     "text" "text" NOT NULL,
     "user_id" "uuid",
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
@@ -633,7 +727,7 @@ ALTER TABLE "public"."errors" OWNER TO "postgres";
 CREATE TABLE IF NOT EXISTS "public"."history" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "order_id" "uuid" NOT NULL,
-    "sub_order_id" "uuid",
+    "department_order_id" "uuid",
     "event_type" "public"."history_event" NOT NULL,
     "user_id" "uuid",
     "reason" "text",
@@ -687,7 +781,7 @@ ALTER VIEW "public"."employees" OWNER TO "postgres";
 
 CREATE TABLE IF NOT EXISTS "public"."product_files" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "product_id" "uuid" NOT NULL,
+    "department_product_id" "uuid" NOT NULL,
     "file_id" "uuid" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
 );
@@ -725,10 +819,10 @@ CREATE TABLE IF NOT EXISTS "public"."stamp_models" (
 
 ALTER TABLE "public"."stamp_models" OWNER TO "postgres";
 
-CREATE TABLE IF NOT EXISTS "public"."sub_orders" (
+CREATE TABLE IF NOT EXISTS "public"."department_orders" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "order_id" "uuid" NOT NULL,
-    "department" "public"."sub_order_department" NOT NULL,
+    "department" "public"."department" NOT NULL,
     "type" "text",
     "status" "public"."order_status" DEFAULT 'INCOMPLETE'::"public"."order_status" NOT NULL,
     "deadline" "date",
@@ -749,25 +843,593 @@ CREATE TABLE IF NOT EXISTS "public"."sub_orders" (
     CONSTRAINT "approval_consistency" CHECK (((NOT (("customer_approval_granted" = true) AND ("customer_approval_required" = false))) AND (NOT (("customer_approval_granted" = true) AND ("customer_approval_file_id" IS NULL))) AND (NOT (("customer_approval_file_id" IS NOT NULL) AND ("customer_approval_required" = false))))),
     CONSTRAINT "emergency_reason_required" CHECK (((NOT "is_emergency") OR (("emergency_reason" IS NOT NULL) AND (TRIM(BOTH FROM "emergency_reason") <> ''::"text")))),
     CONSTRAINT "typesetting_time_positive" CHECK ((("typesetting_minutes" IS NULL) OR ("typesetting_minutes" > 0))),
-    CONSTRAINT "sub_order_status_no_quote" CHECK (("status" <> 'QUOTE'::"public"."order_status"))
+    CONSTRAINT "department_order_status_no_quote" CHECK (("status" <> 'QUOTE'::"public"."order_status"))
 );
 
-ALTER TABLE "public"."sub_orders" OWNER TO "postgres";
+ALTER TABLE "public"."department_orders" OWNER TO "postgres";
 
-COMMENT ON TABLE "public"."sub_orders" IS 'Core operational unit. Status must never be QUOTE (CHECK constraint). detail (JSONB): required-field logic lives in application code (Zod), not the DB. All type values are ASCII without diacritics (e.g. BROCHURE).';
+COMMENT ON TABLE "public"."department_orders" IS 'Core operational unit. Status must never be QUOTE (CHECK constraint). detail (JSONB): required-field logic lives in application code (Zod), not the DB. All type values are ASCII without diacritics (e.g. BROCHURE).';
 
-COMMENT ON COLUMN "public"."sub_orders"."detail" IS 'Department-specific fields as JSONB. Validation in application code, not the DB. Intentional: allows new departments without a DB migration.';
+COMMENT ON COLUMN "public"."department_orders"."detail" IS 'Department-specific fields as JSONB. Validation in application code, not the DB. Intentional: allows new departments without a DB migration.';
 
-CREATE TABLE IF NOT EXISTS "public"."sub_order_products" (
+CREATE TABLE IF NOT EXISTS "public"."department_products" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "sub_order_id" "uuid" NOT NULL,
+    "department_order_id" "uuid" NOT NULL,
     "department" "text" NOT NULL,
-    "detail" "jsonb" DEFAULT '{}'::"jsonb" NOT NULL,
+    "type" "text" NOT NULL,
+    "quantity" integer,
+    "notes" "text",
     "sort_order" integer DEFAULT 0 NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
 );
 
-ALTER TABLE "public"."sub_order_products" OWNER TO "postgres";
+ALTER TABLE "public"."department_products" OWNER TO "postgres";
+
+-- ============================================================================
+-- Per-product-type child tables (Class Table Inheritance under
+-- department_products). PK = FK to department_products(id). No `type` column
+-- (the parent's `type` selects the child). All spec columns nullable;
+-- required-field logic stays in application code (Zod). See
+-- PROPOSED_DEPARTMENT_TABLES.md for the column-level spec.
+-- ============================================================================
+
+-- --- CopyShop (7) ---
+
+CREATE TABLE IF NOT EXISTS "public"."poster_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "format" "text",
+    "width" integer,
+    "height" integer,
+    "material" "text",
+    "laminate" "text",
+    CONSTRAINT "poster_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "poster_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."poster_products" OWNER TO "postgres";
+ALTER TABLE "public"."poster_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."poster_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."poster_products" TO "anon";
+GRANT ALL ON TABLE "public"."poster_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."poster_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."card_flyer_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "format" "text",
+    "width" integer,
+    "height" integer,
+    "color_mode" "text",
+    "full_bleed" boolean,
+    "production_path" "text",
+    "cc_material" "text",
+    "cc_material_other" "text",
+    "offset_type" "text",
+    "offset_weight" "text",
+    "offset_finish" "text",
+    "special_paper" "text",
+    "special_paper_other" "text",
+    "lamination_finish" "text",
+    "lamination_sides" "text",
+    "recycling_weight" "text",
+    CONSTRAINT "card_flyer_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "card_flyer_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."card_flyer_products" OWNER TO "postgres";
+ALTER TABLE "public"."card_flyer_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."card_flyer_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."card_flyer_products" TO "anon";
+GRANT ALL ON TABLE "public"."card_flyer_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."card_flyer_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."folded_flyer_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "format" "text",
+    "width" integer,
+    "height" integer,
+    "color_mode" "text",
+    "full_bleed" boolean,
+    "production_path" "text",
+    "cc_material" "text",
+    "cc_material_other" "text",
+    "offset_type" "text",
+    "offset_weight" "text",
+    "offset_finish" "text",
+    "special_paper" "text",
+    "special_paper_other" "text",
+    "lamination_finish" "text",
+    "lamination_sides" "text",
+    "recycling_weight" "text",
+    "fold_type" "text",
+    "page_count" integer,
+    CONSTRAINT "folded_flyer_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "folded_flyer_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."folded_flyer_products" OWNER TO "postgres";
+ALTER TABLE "public"."folded_flyer_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."folded_flyer_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."folded_flyer_products" TO "anon";
+GRANT ALL ON TABLE "public"."folded_flyer_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."folded_flyer_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."brochure_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "format" "text",
+    "width" integer,
+    "height" integer,
+    "orientation" "text",
+    "page_count" integer,
+    "full_bleed" boolean,
+    "production_path" "text",
+    "cover_material" "text",
+    "cover_material_other" "text",
+    "inner_material" "text",
+    "inner_material_other" "text",
+    "binding" "text",
+    "cover_weight" "text",
+    "cover_finish" "text",
+    "inner_weight" "text",
+    "inner_finish" "text",
+    CONSTRAINT "brochure_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "brochure_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."brochure_products" OWNER TO "postgres";
+ALTER TABLE "public"."brochure_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."brochure_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."brochure_products" TO "anon";
+GRANT ALL ON TABLE "public"."brochure_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."brochure_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."business_card_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "format" "text",
+    "width" integer,
+    "height" integer,
+    "orientation" "text",
+    "color_mode" "text",
+    "material" "text",
+    "film_laminated" boolean,
+    "multiloft_color" "text",
+    "full_bleed" boolean,
+    CONSTRAINT "business_card_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "business_card_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."business_card_products" OWNER TO "postgres";
+ALTER TABLE "public"."business_card_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."business_card_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."business_card_products" TO "anon";
+GRANT ALL ON TABLE "public"."business_card_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."business_card_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."binding_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "format" "text",
+    "width" integer,
+    "height" integer,
+    "orientation" "text",
+    "material" "text",
+    "material_other" "text",
+    "color_mode" "text",
+    "binding_type" "text",
+    "binding_color" "text",
+    "full_bleed" boolean,
+    "hardcover_print" boolean,
+    "hardcover_cover" "text",
+    CONSTRAINT "binding_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "binding_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."binding_products" OWNER TO "postgres";
+ALTER TABLE "public"."binding_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."binding_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."binding_products" TO "anon";
+GRANT ALL ON TABLE "public"."binding_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."binding_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."printout_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "format" "text",
+    "material" "text",
+    "material_other" "text",
+    "color_mode" "text",
+    "punching" "text",
+    "staple" boolean,
+    "laminate" "text",
+    CONSTRAINT "printout_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "printout_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."printout_products" OWNER TO "postgres";
+ALTER TABLE "public"."printout_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."printout_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."printout_products" TO "anon";
+GRANT ALL ON TABLE "public"."printout_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."printout_products" TO "service_role";
+
+-- --- Stamp (9) ---
+
+CREATE TABLE IF NOT EXISTS "public"."trodat_printy_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "model_id" "uuid",
+    CONSTRAINT "trodat_printy_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "trodat_printy_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE,
+    CONSTRAINT "trodat_printy_products_model_id_fkey" FOREIGN KEY ("model_id") REFERENCES "public"."stamp_models"("id") ON DELETE SET NULL
+);
+ALTER TABLE "public"."trodat_printy_products" OWNER TO "postgres";
+ALTER TABLE "public"."trodat_printy_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."trodat_printy_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."trodat_printy_products" TO "anon";
+GRANT ALL ON TABLE "public"."trodat_printy_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."trodat_printy_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."wooden_stamp_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "model_id" "uuid",
+    CONSTRAINT "wooden_stamp_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "wooden_stamp_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE,
+    CONSTRAINT "wooden_stamp_products_model_id_fkey" FOREIGN KEY ("model_id") REFERENCES "public"."stamp_models"("id") ON DELETE SET NULL
+);
+ALTER TABLE "public"."wooden_stamp_products" OWNER TO "postgres";
+ALTER TABLE "public"."wooden_stamp_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."wooden_stamp_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."wooden_stamp_products" TO "anon";
+GRANT ALL ON TABLE "public"."wooden_stamp_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."wooden_stamp_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."stand_stamp_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "width" integer,
+    "height" integer,
+    "color" "text",
+    "color_other" "text",
+    "description" "text",
+    CONSTRAINT "stand_stamp_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "stand_stamp_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."stand_stamp_products" OWNER TO "postgres";
+ALTER TABLE "public"."stand_stamp_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."stand_stamp_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."stand_stamp_products" TO "anon";
+GRANT ALL ON TABLE "public"."stand_stamp_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."stand_stamp_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."date_stamp_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "width" integer,
+    "height" integer,
+    "color" "text",
+    "color_other" "text",
+    "description" "text",
+    CONSTRAINT "date_stamp_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "date_stamp_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."date_stamp_products" OWNER TO "postgres";
+ALTER TABLE "public"."date_stamp_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."date_stamp_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."date_stamp_products" TO "anon";
+GRANT ALL ON TABLE "public"."date_stamp_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."date_stamp_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."other_stamp_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "width" integer,
+    "height" integer,
+    "color" "text",
+    "color_other" "text",
+    "description" "text",
+    CONSTRAINT "other_stamp_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "other_stamp_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."other_stamp_products" OWNER TO "postgres";
+ALTER TABLE "public"."other_stamp_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."other_stamp_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."other_stamp_products" TO "anon";
+GRANT ALL ON TABLE "public"."other_stamp_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."other_stamp_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."stamp_plate_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "width" integer,
+    "height" integer,
+    CONSTRAINT "stamp_plate_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "stamp_plate_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."stamp_plate_products" OWNER TO "postgres";
+ALTER TABLE "public"."stamp_plate_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."stamp_plate_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."stamp_plate_products" TO "anon";
+GRANT ALL ON TABLE "public"."stamp_plate_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."stamp_plate_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."refill_ink_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "color" "text",
+    "ink_type" "text",
+    CONSTRAINT "refill_ink_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "refill_ink_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."refill_ink_products" OWNER TO "postgres";
+ALTER TABLE "public"."refill_ink_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."refill_ink_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."refill_ink_products" TO "anon";
+GRANT ALL ON TABLE "public"."refill_ink_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."refill_ink_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."ink_pad_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "pad_size" "text",
+    "color" "text",
+    CONSTRAINT "ink_pad_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "ink_pad_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."ink_pad_products" OWNER TO "postgres";
+ALTER TABLE "public"."ink_pad_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."ink_pad_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."ink_pad_products" TO "anon";
+GRANT ALL ON TABLE "public"."ink_pad_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."ink_pad_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."trodat_pad_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "pad_article_number" "text",
+    "pad_variant_id" "uuid",
+    "color" "text",
+    CONSTRAINT "trodat_pad_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "trodat_pad_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE,
+    CONSTRAINT "trodat_pad_products_pad_variant_id_fkey" FOREIGN KEY ("pad_variant_id") REFERENCES "public"."stamp_models"("id") ON DELETE SET NULL
+);
+ALTER TABLE "public"."trodat_pad_products" OWNER TO "postgres";
+ALTER TABLE "public"."trodat_pad_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."trodat_pad_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."trodat_pad_products" TO "anon";
+GRANT ALL ON TABLE "public"."trodat_pad_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."trodat_pad_products" TO "service_role";
+
+-- --- LFP (8) ---
+
+CREATE TABLE IF NOT EXISTS "public"."sticker_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "material" "text",
+    "material_variant" "text",
+    "contour_cut" "text",
+    "laminate" "text",
+    "output" "text",
+    "width" numeric,
+    "height" numeric,
+    CONSTRAINT "sticker_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "sticker_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."sticker_products" OWNER TO "postgres";
+ALTER TABLE "public"."sticker_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."sticker_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."sticker_products" TO "anon";
+GRANT ALL ON TABLE "public"."sticker_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."sticker_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."sign_uv_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "material" "text",
+    "print_side" "text",
+    "acrylic_print_direction" "text",
+    "width" numeric,
+    "height" numeric,
+    "round_corners" boolean,
+    "drill_holes" boolean,
+    "drill_hole_diameter" integer,
+    "drill_hole_position" "text",
+    CONSTRAINT "sign_uv_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "sign_uv_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."sign_uv_products" OWNER TO "postgres";
+ALTER TABLE "public"."sign_uv_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."sign_uv_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."sign_uv_products" TO "anon";
+GRANT ALL ON TABLE "public"."sign_uv_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."sign_uv_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."sign_foil_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "material" "text",
+    "laminate" "text",
+    "print_side" "text",
+    "width" numeric,
+    "height" numeric,
+    "round_corners" boolean,
+    "drill_holes" boolean,
+    "drill_hole_diameter" integer,
+    "drill_hole_position" "text",
+    CONSTRAINT "sign_foil_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "sign_foil_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."sign_foil_products" OWNER TO "postgres";
+ALTER TABLE "public"."sign_foil_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."sign_foil_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."sign_foil_products" TO "anon";
+GRANT ALL ON TABLE "public"."sign_foil_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."sign_foil_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."foil_plotter_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "material" "text",
+    "output" "text",
+    "width" numeric,
+    "height" numeric,
+    CONSTRAINT "foil_plotter_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "foil_plotter_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."foil_plotter_products" OWNER TO "postgres";
+ALTER TABLE "public"."foil_plotter_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."foil_plotter_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."foil_plotter_products" TO "anon";
+GRANT ALL ON TABLE "public"."foil_plotter_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."foil_plotter_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."banner_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "material" "text",
+    "width" numeric,
+    "height" numeric,
+    "hem" boolean,
+    "hem_sides" "text",
+    "eyelets" boolean,
+    "eyelet_detail" "text",
+    CONSTRAINT "banner_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "banner_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."banner_products" OWNER TO "postgres";
+ALTER TABLE "public"."banner_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."banner_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."banner_products" TO "anon";
+GRANT ALL ON TABLE "public"."banner_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."banner_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."rollup_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "material" "text",
+    "rollup_system" "text",
+    "rollup_width" integer,
+    CONSTRAINT "rollup_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "rollup_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."rollup_products" OWNER TO "postgres";
+ALTER TABLE "public"."rollup_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."rollup_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."rollup_products" TO "anon";
+GRANT ALL ON TABLE "public"."rollup_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."rollup_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."vehicle_lettering_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "vehicle_make" "text",
+    "vehicle_model" "text",
+    "area_sides" boolean,
+    "area_front" boolean,
+    "area_rear" boolean,
+    "installation" "text",
+    "existing_wrap" boolean,
+    "installation_date" date,
+    CONSTRAINT "vehicle_lettering_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "vehicle_lettering_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."vehicle_lettering_products" OWNER TO "postgres";
+ALTER TABLE "public"."vehicle_lettering_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."vehicle_lettering_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."vehicle_lettering_products" TO "anon";
+GRANT ALL ON TABLE "public"."vehicle_lettering_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."vehicle_lettering_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."other_lfp_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "description" "text",
+    CONSTRAINT "other_lfp_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "other_lfp_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."other_lfp_products" OWNER TO "postgres";
+ALTER TABLE "public"."other_lfp_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."other_lfp_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."other_lfp_products" TO "anon";
+GRANT ALL ON TABLE "public"."other_lfp_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."other_lfp_products" TO "service_role";
+
+-- --- Laser (5) ---
+
+CREATE TABLE IF NOT EXISTS "public"."sign_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "motif" "text",
+    "material" "text",
+    "material_other" "text",
+    "width" integer,
+    "height" integer,
+    "round_corners" boolean,
+    "self_adhesive" boolean,
+    CONSTRAINT "sign_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "sign_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."sign_products" OWNER TO "postgres";
+ALTER TABLE "public"."sign_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."sign_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."sign_products" TO "anon";
+GRANT ALL ON TABLE "public"."sign_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."sign_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."trophy_plate_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "motif" "text",
+    "material" "text",
+    "material_other" "text",
+    "width" integer,
+    "height" integer,
+    "round_corners" boolean,
+    "self_adhesive" boolean,
+    CONSTRAINT "trophy_plate_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "trophy_plate_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."trophy_plate_products" OWNER TO "postgres";
+ALTER TABLE "public"."trophy_plate_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."trophy_plate_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."trophy_plate_products" TO "anon";
+GRANT ALL ON TABLE "public"."trophy_plate_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."trophy_plate_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."name_tag_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "motif" "text",
+    "material" "text",
+    "material_other" "text",
+    "width" integer,
+    "height" integer,
+    "round_corners" boolean,
+    CONSTRAINT "name_tag_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "name_tag_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."name_tag_products" OWNER TO "postgres";
+ALTER TABLE "public"."name_tag_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."name_tag_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."name_tag_products" TO "anon";
+GRANT ALL ON TABLE "public"."name_tag_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."name_tag_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."gift_item_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "motif" "text",
+    "material_free_text" "text",
+    "origin" "text",
+    CONSTRAINT "gift_item_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "gift_item_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."gift_item_products" OWNER TO "postgres";
+ALTER TABLE "public"."gift_item_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."gift_item_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."gift_item_products" TO "anon";
+GRANT ALL ON TABLE "public"."gift_item_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."gift_item_products" TO "service_role";
+
+CREATE TABLE IF NOT EXISTS "public"."other_laser_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "motif" "text",
+    "material_free_text" "text",
+    "origin" "text",
+    "self_adhesive" boolean,
+    CONSTRAINT "other_laser_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "other_laser_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."other_laser_products" OWNER TO "postgres";
+ALTER TABLE "public"."other_laser_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."other_laser_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."other_laser_products" TO "anon";
+GRANT ALL ON TABLE "public"."other_laser_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."other_laser_products" TO "service_role";
+
+-- --- Other (1) ---
+
+CREATE TABLE IF NOT EXISTS "public"."other_products" (
+    "department_product_id" "uuid" NOT NULL,
+    "description" "text",
+    CONSTRAINT "other_products_pkey" PRIMARY KEY ("department_product_id"),
+    CONSTRAINT "other_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+);
+ALTER TABLE "public"."other_products" OWNER TO "postgres";
+ALTER TABLE "public"."other_products" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Employees: full access" ON "public"."other_products" TO "authenticated" USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE "public"."other_products" TO "anon";
+GRANT ALL ON TABLE "public"."other_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."other_products" TO "service_role";
 
 CREATE TABLE IF NOT EXISTS "public"."textile_stock_movements" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
@@ -794,7 +1456,7 @@ ALTER TABLE "public"."textile_brands" OWNER TO "postgres";
 
 CREATE TABLE IF NOT EXISTS "public"."textile_motifs" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "sub_order_id" "uuid" NOT NULL,
+    "department_order_id" "uuid" NOT NULL,
     "type" "public"."textile_motif_type" NOT NULL,
     "content" "text",
     "color" "text",
@@ -817,7 +1479,7 @@ COMMENT ON TABLE "public"."textile_motifs" IS 'type=TEXT and type=FILE are fully
 
 CREATE TABLE IF NOT EXISTS "public"."textile_positions" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "sub_order_id" "uuid" NOT NULL,
+    "department_order_id" "uuid" NOT NULL,
     "origin" "public"."textile_origin" NOT NULL,
     "quantity" integer NOT NULL,
     "type" "text",
@@ -867,7 +1529,7 @@ ALTER TABLE "public"."textile_variants" OWNER TO "postgres";
 
 CREATE TABLE IF NOT EXISTS "public"."textile_assignments" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "sub_order_id" "uuid" NOT NULL,
+    "department_order_id" "uuid" NOT NULL,
     "motif_id" "uuid" NOT NULL,
     "position_id" "uuid" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
@@ -921,7 +1583,7 @@ ALTER TABLE ONLY "public"."product_files"
     ADD CONSTRAINT "product_files_pkey" PRIMARY KEY ("id");
 
 ALTER TABLE ONLY "public"."product_files"
-    ADD CONSTRAINT "product_files_product_id_file_id_key" UNIQUE ("product_id", "file_id");
+    ADD CONSTRAINT "product_files_department_product_id_file_id_key" UNIQUE ("department_product_id", "file_id");
 
 ALTER TABLE ONLY "public"."profiles"
     ADD CONSTRAINT "profiles_pkey" PRIMARY KEY ("id");
@@ -929,11 +1591,11 @@ ALTER TABLE ONLY "public"."profiles"
 ALTER TABLE ONLY "public"."stamp_models"
     ADD CONSTRAINT "stamp_models_pkey" PRIMARY KEY ("id");
 
-ALTER TABLE ONLY "public"."sub_orders"
-    ADD CONSTRAINT "sub_orders_pkey" PRIMARY KEY ("id");
+ALTER TABLE ONLY "public"."department_orders"
+    ADD CONSTRAINT "department_orders_pkey" PRIMARY KEY ("id");
 
-ALTER TABLE ONLY "public"."sub_order_products"
-    ADD CONSTRAINT "sub_order_products_pkey" PRIMARY KEY ("id");
+ALTER TABLE ONLY "public"."department_products"
+    ADD CONSTRAINT "department_products_pkey" PRIMARY KEY ("id");
 
 ALTER TABLE ONLY "public"."textile_stock_movements"
     ADD CONSTRAINT "textile_stock_movements_pkey" PRIMARY KEY ("id");
@@ -982,7 +1644,7 @@ CREATE INDEX "idx_history_order_id" ON "public"."history" USING "btree" ("order_
 
 CREATE INDEX "idx_history_created_at" ON "public"."history" USING "btree" ("created_at");
 
-CREATE INDEX "idx_history_sub_order_id" ON "public"."history" USING "btree" ("sub_order_id");
+CREATE INDEX "idx_history_department_order_id" ON "public"."history" USING "btree" ("department_order_id");
 
 CREATE INDEX "idx_customers_archived" ON "public"."customers" USING "btree" ("is_archived");
 
@@ -996,25 +1658,25 @@ CREATE INDEX "idx_stamp_models_active" ON "public"."stamp_models" USING "btree" 
 
 CREATE INDEX "idx_stamp_models_type" ON "public"."stamp_models" USING "btree" ("type");
 
-CREATE INDEX "idx_sub_order_products_sub_order" ON "public"."sub_order_products" USING "btree" ("sub_order_id");
+CREATE INDEX "idx_department_products_order" ON "public"."department_products" USING "btree" ("department_order_id");
 
-CREATE INDEX "idx_sub_orders_order_id" ON "public"."sub_orders" USING "btree" ("order_id");
+CREATE INDEX "idx_department_orders_order_id" ON "public"."department_orders" USING "btree" ("order_id");
 
-CREATE INDEX "idx_sub_orders_department" ON "public"."sub_orders" USING "btree" ("department");
+CREATE INDEX "idx_department_orders_department" ON "public"."department_orders" USING "btree" ("department");
 
-CREATE INDEX "idx_sub_orders_status" ON "public"."sub_orders" USING "btree" ("status");
+CREATE INDEX "idx_department_orders_status" ON "public"."department_orders" USING "btree" ("status");
 
 CREATE INDEX "idx_textile_stock_movements_created" ON "public"."textile_stock_movements" USING "btree" ("created_at");
 
 CREATE INDEX "idx_textile_stock_movements_variant" ON "public"."textile_stock_movements" USING "btree" ("variant_id");
 
-CREATE INDEX "idx_textile_motifs_sub_order" ON "public"."textile_motifs" USING "btree" ("sub_order_id");
+CREATE INDEX "idx_textile_motifs_department_order" ON "public"."textile_motifs" USING "btree" ("department_order_id");
 
-CREATE INDEX "idx_textile_positions_sub_order" ON "public"."textile_positions" USING "btree" ("sub_order_id");
+CREATE INDEX "idx_textile_positions_department_order" ON "public"."textile_positions" USING "btree" ("department_order_id");
 
 CREATE INDEX "product_files_file_id_idx" ON "public"."product_files" USING "btree" ("file_id");
 
-CREATE INDEX "product_files_product_id_idx" ON "public"."product_files" USING "btree" ("product_id");
+CREATE INDEX "product_files_department_product_id_idx" ON "public"."product_files" USING "btree" ("department_product_id");
 
 CREATE OR REPLACE TRIGGER "textile_placement_conflict_trigger" BEFORE INSERT OR UPDATE ON "public"."textile_assignments" FOR EACH ROW EXECUTE FUNCTION "public"."check_textile_placement_conflict"();
 
@@ -1022,15 +1684,15 @@ CREATE OR REPLACE TRIGGER "trg_order_number" BEFORE INSERT ON "public"."orders" 
 
 CREATE OR REPLACE TRIGGER "trg_file_versioning_order_check" BEFORE INSERT OR UPDATE OF "replaces_file_id", "order_id" ON "public"."files" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_file_versioning_order"();
 
-CREATE OR REPLACE TRIGGER "trg_error_sub_order_check" BEFORE INSERT OR UPDATE OF "sub_order_id", "order_id" ON "public"."errors" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_sub_order_belongs_to_order"();
+CREATE OR REPLACE TRIGGER "trg_error_department_order_check" BEFORE INSERT OR UPDATE OF "department_order_id", "order_id" ON "public"."errors" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_department_order_belongs_to_order"();
 
-CREATE OR REPLACE TRIGGER "trg_history_sub_order_check" BEFORE INSERT OR UPDATE OF "sub_order_id", "order_id" ON "public"."history" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_sub_order_belongs_to_order"();
+CREATE OR REPLACE TRIGGER "trg_history_department_order_check" BEFORE INSERT OR UPDATE OF "department_order_id", "order_id" ON "public"."history" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_department_order_belongs_to_order"();
 
-CREATE OR REPLACE TRIGGER "trg_approval_file_order_check" BEFORE INSERT OR UPDATE OF "customer_approval_file_id", "order_id" ON "public"."sub_orders" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_approval_file_order"();
+CREATE OR REPLACE TRIGGER "trg_approval_file_order_check" BEFORE INSERT OR UPDATE OF "customer_approval_file_id", "order_id" ON "public"."department_orders" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_approval_file_order"();
 
-CREATE OR REPLACE TRIGGER "trg_sub_order_type_check" BEFORE INSERT OR UPDATE OF "department", "type" ON "public"."sub_orders" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_sub_order_type"();
+CREATE OR REPLACE TRIGGER "trg_department_order_type_check" BEFORE INSERT OR UPDATE OF "department", "type" ON "public"."department_orders" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_department_order_type"();
 
-CREATE OR REPLACE TRIGGER "trg_textile_motif_file_check" BEFORE INSERT OR UPDATE OF "file_id", "sub_order_id" ON "public"."textile_motifs" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_textile_motif_file"();
+CREATE OR REPLACE TRIGGER "trg_textile_motif_file_check" BEFORE INSERT OR UPDATE OF "file_id", "department_order_id" ON "public"."textile_motifs" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_textile_motif_file"();
 
 CREATE OR REPLACE TRIGGER "trg_textile_assignment_consistency" BEFORE INSERT OR UPDATE ON "public"."textile_assignments" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_textile_assignment_consistency"();
 
@@ -1074,9 +1736,9 @@ ALTER TABLE ONLY "public"."errors"
     ADD CONSTRAINT "errors_person_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
 
 ALTER TABLE ONLY "public"."errors"
-    ADD CONSTRAINT "errors_sub_order_id_fkey" FOREIGN KEY ("sub_order_id") REFERENCES "public"."sub_orders"("id");
+    ADD CONSTRAINT "errors_department_order_id_fkey" FOREIGN KEY ("department_order_id") REFERENCES "public"."department_orders"("id");
 
-ALTER TABLE ONLY "public"."sub_orders"
+ALTER TABLE ONLY "public"."department_orders"
     ADD CONSTRAINT "fk_approval_file" FOREIGN KEY ("customer_approval_file_id") REFERENCES "public"."files"("id");
 
 ALTER TABLE ONLY "public"."history"
@@ -1086,7 +1748,7 @@ ALTER TABLE ONLY "public"."history"
     ADD CONSTRAINT "history_person_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
 
 ALTER TABLE ONLY "public"."history"
-    ADD CONSTRAINT "history_sub_order_id_fkey" FOREIGN KEY ("sub_order_id") REFERENCES "public"."sub_orders"("id");
+    ADD CONSTRAINT "history_department_order_id_fkey" FOREIGN KEY ("department_order_id") REFERENCES "public"."department_orders"("id");
 
 ALTER TABLE ONLY "public"."stamp_stock_movements"
     ADD CONSTRAINT "stamp_stock_movements_model_id_fkey" FOREIGN KEY ("model_id") REFERENCES "public"."stamp_models"("id");
@@ -1098,19 +1760,19 @@ ALTER TABLE ONLY "public"."product_files"
     ADD CONSTRAINT "product_files_file_id_fkey" FOREIGN KEY ("file_id") REFERENCES "public"."files"("id") ON DELETE CASCADE;
 
 ALTER TABLE ONLY "public"."product_files"
-    ADD CONSTRAINT "product_files_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "public"."sub_order_products"("id") ON DELETE CASCADE;
+    ADD CONSTRAINT "product_files_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE;
 
 ALTER TABLE ONLY "public"."profiles"
     ADD CONSTRAINT "profiles_id_fkey" FOREIGN KEY ("id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
 
-ALTER TABLE ONLY "public"."sub_orders"
-    ADD CONSTRAINT "sub_orders_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE CASCADE;
+ALTER TABLE ONLY "public"."department_orders"
+    ADD CONSTRAINT "department_orders_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE CASCADE;
 
-ALTER TABLE ONLY "public"."sub_orders"
-    ADD CONSTRAINT "sub_orders_assignee_id_fkey" FOREIGN KEY ("assignee_id") REFERENCES "auth"."users"("id");
+ALTER TABLE ONLY "public"."department_orders"
+    ADD CONSTRAINT "department_orders_assignee_id_fkey" FOREIGN KEY ("assignee_id") REFERENCES "auth"."users"("id");
 
-ALTER TABLE ONLY "public"."sub_order_products"
-    ADD CONSTRAINT "sub_order_products_sub_order_id_fkey" FOREIGN KEY ("sub_order_id") REFERENCES "public"."sub_orders"("id") ON DELETE CASCADE;
+ALTER TABLE ONLY "public"."department_products"
+    ADD CONSTRAINT "department_products_department_order_id_fkey" FOREIGN KEY ("department_order_id") REFERENCES "public"."department_orders"("id") ON DELETE CASCADE;
 
 ALTER TABLE ONLY "public"."textile_stock_movements"
     ADD CONSTRAINT "textile_stock_movements_person_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
@@ -1122,10 +1784,10 @@ ALTER TABLE ONLY "public"."textile_motifs"
     ADD CONSTRAINT "textile_motifs_file_id_fkey" FOREIGN KEY ("file_id") REFERENCES "public"."files"("id");
 
 ALTER TABLE ONLY "public"."textile_motifs"
-    ADD CONSTRAINT "textile_motifs_sub_order_id_fkey" FOREIGN KEY ("sub_order_id") REFERENCES "public"."sub_orders"("id") ON DELETE CASCADE;
+    ADD CONSTRAINT "textile_motifs_department_order_id_fkey" FOREIGN KEY ("department_order_id") REFERENCES "public"."department_orders"("id") ON DELETE CASCADE;
 
 ALTER TABLE ONLY "public"."textile_positions"
-    ADD CONSTRAINT "textile_positions_sub_order_id_fkey" FOREIGN KEY ("sub_order_id") REFERENCES "public"."sub_orders"("id") ON DELETE CASCADE;
+    ADD CONSTRAINT "textile_positions_department_order_id_fkey" FOREIGN KEY ("department_order_id") REFERENCES "public"."department_orders"("id") ON DELETE CASCADE;
 
 ALTER TABLE ONLY "public"."textile_positions"
     ADD CONSTRAINT "textile_positions_variant_id_fkey" FOREIGN KEY ("variant_id") REFERENCES "public"."textile_variants"("id");
@@ -1143,7 +1805,7 @@ ALTER TABLE ONLY "public"."textile_assignments"
     ADD CONSTRAINT "textile_assignments_position_id_fkey" FOREIGN KEY ("position_id") REFERENCES "public"."textile_positions"("id");
 
 ALTER TABLE ONLY "public"."textile_assignments"
-    ADD CONSTRAINT "textile_assignments_sub_order_id_fkey" FOREIGN KEY ("sub_order_id") REFERENCES "public"."sub_orders"("id") ON DELETE CASCADE;
+    ADD CONSTRAINT "textile_assignments_department_order_id_fkey" FOREIGN KEY ("department_order_id") REFERENCES "public"."department_orders"("id") ON DELETE CASCADE;
 
 CREATE POLICY "Employees: full access" ON "public"."orders" TO "authenticated" USING (true) WITH CHECK (true);
 
@@ -1167,9 +1829,9 @@ CREATE POLICY "Employees: full access" ON "public"."profiles" TO "authenticated"
 
 CREATE POLICY "Employees: full access" ON "public"."stamp_models" TO "authenticated" USING (true) WITH CHECK (true);
 
-CREATE POLICY "Employees: full access" ON "public"."sub_orders" TO "authenticated" USING (true) WITH CHECK (true);
+CREATE POLICY "Employees: full access" ON "public"."department_orders" TO "authenticated" USING (true) WITH CHECK (true);
 
-CREATE POLICY "Employees: full access" ON "public"."sub_order_products" TO "authenticated" USING (true) WITH CHECK (true);
+CREATE POLICY "Employees: full access" ON "public"."department_products" TO "authenticated" USING (true) WITH CHECK (true);
 
 CREATE POLICY "Employees: full access" ON "public"."textile_stock_movements" TO "authenticated" USING (true) WITH CHECK (true);
 
@@ -1223,9 +1885,9 @@ ALTER TABLE "public"."profiles" ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE "public"."stamp_models" ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE "public"."sub_orders" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."department_orders" ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE "public"."sub_order_products" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."department_products" ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE "public"."textile_stock_movements" ENABLE ROW LEVEL SECURITY;
 
@@ -1252,9 +1914,9 @@ GRANT ALL ON FUNCTION "public"."check_textile_placement_conflict"() TO "anon";
 GRANT ALL ON FUNCTION "public"."check_textile_placement_conflict"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."check_textile_placement_conflict"() TO "service_role";
 
-GRANT ALL ON FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_sub_order_ids" "uuid"[], "created_by_user_id" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_sub_order_ids" "uuid"[], "created_by_user_id" "uuid") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_sub_order_ids" "uuid"[], "created_by_user_id" "uuid") TO "service_role";
+GRANT ALL ON FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_department_order_ids" "uuid"[], "created_by_user_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_department_order_ids" "uuid"[], "created_by_user_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_department_order_ids" "uuid"[], "created_by_user_id" "uuid") TO "service_role";
 
 GRANT ALL ON FUNCTION "public"."fn_check_file_versioning_order"() TO "anon";
 GRANT ALL ON FUNCTION "public"."fn_check_file_versioning_order"() TO "authenticated";
@@ -1264,13 +1926,13 @@ GRANT ALL ON FUNCTION "public"."fn_check_approval_file_order"() TO "anon";
 GRANT ALL ON FUNCTION "public"."fn_check_approval_file_order"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."fn_check_approval_file_order"() TO "service_role";
 
-GRANT ALL ON FUNCTION "public"."fn_check_sub_order_belongs_to_order"() TO "anon";
-GRANT ALL ON FUNCTION "public"."fn_check_sub_order_belongs_to_order"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."fn_check_sub_order_belongs_to_order"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."fn_check_department_order_belongs_to_order"() TO "anon";
+GRANT ALL ON FUNCTION "public"."fn_check_department_order_belongs_to_order"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."fn_check_department_order_belongs_to_order"() TO "service_role";
 
-GRANT ALL ON FUNCTION "public"."fn_check_sub_order_type"() TO "anon";
-GRANT ALL ON FUNCTION "public"."fn_check_sub_order_type"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."fn_check_sub_order_type"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."fn_check_department_order_type"() TO "anon";
+GRANT ALL ON FUNCTION "public"."fn_check_department_order_type"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."fn_check_department_order_type"() TO "service_role";
 
 GRANT ALL ON FUNCTION "public"."fn_check_textile_motif_file"() TO "anon";
 GRANT ALL ON FUNCTION "public"."fn_check_textile_motif_file"() TO "authenticated";
@@ -1348,13 +2010,13 @@ GRANT ALL ON TABLE "public"."stamp_models" TO "anon";
 GRANT ALL ON TABLE "public"."stamp_models" TO "authenticated";
 GRANT ALL ON TABLE "public"."stamp_models" TO "service_role";
 
-GRANT ALL ON TABLE "public"."sub_orders" TO "anon";
-GRANT ALL ON TABLE "public"."sub_orders" TO "authenticated";
-GRANT ALL ON TABLE "public"."sub_orders" TO "service_role";
+GRANT ALL ON TABLE "public"."department_orders" TO "anon";
+GRANT ALL ON TABLE "public"."department_orders" TO "authenticated";
+GRANT ALL ON TABLE "public"."department_orders" TO "service_role";
 
-GRANT ALL ON TABLE "public"."sub_order_products" TO "anon";
-GRANT ALL ON TABLE "public"."sub_order_products" TO "authenticated";
-GRANT ALL ON TABLE "public"."sub_order_products" TO "service_role";
+GRANT ALL ON TABLE "public"."department_products" TO "anon";
+GRANT ALL ON TABLE "public"."department_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."department_products" TO "service_role";
 
 GRANT ALL ON TABLE "public"."textile_stock_movements" TO "anon";
 GRANT ALL ON TABLE "public"."textile_stock_movements" TO "authenticated";
