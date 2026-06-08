@@ -54,6 +54,63 @@ CREATE TABLE IF NOT EXISTS "public"."erp_exports" (
 
 ALTER TABLE "public"."erp_exports" OWNER TO "postgres";
 
+/**
+ * Trigger guard: a file's version chain must stay within one order.
+ * If `replaces_file_id` is set, the replaced file must belong to the same
+ * `order_id` as the new file.
+ *
+ * @trigger BEFORE INSERT OR UPDATE OF replaces_file_id, order_id ON files (per row)
+ * @raises when the replaced file belongs to a different order.
+ */
+CREATE OR REPLACE FUNCTION "public"."fn_check_file_versioning_order"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+  IF NEW.replaces_file_id IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM files
+      WHERE id = NEW.replaces_file_id
+        AND order_id = NEW.order_id
+    ) THEN
+      RAISE EXCEPTION
+        'Replaced file (%) does not belong to the same order (%)',
+        NEW.replaces_file_id, NEW.order_id;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+/**
+ * Trigger: assigns `orders.order_number` as `YYYY-MM-NNNN`, where NNNN is a
+ * per-month sequence. Uses an atomic INSERT ... ON CONFLICT DO UPDATE on
+ * `order_number_counter`, so concurrent inserts never collide; the counter
+ * restarts at 1 each calendar month.
+ *
+ * @trigger BEFORE INSERT ON orders (per row)
+ */
+CREATE OR REPLACE FUNCTION "public"."fn_generate_order_number"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+DECLARE
+  counter_year   integer := EXTRACT(YEAR  FROM now())::integer;
+  counter_month  integer := EXTRACT(MONTH FROM now())::integer;
+  seq_value      integer;
+BEGIN
+  INSERT INTO order_number_counter (year, month, last_value)
+  VALUES (counter_year, counter_month, 1)
+  ON CONFLICT (year, month) DO UPDATE
+    SET last_value = order_number_counter.last_value + 1
+  RETURNING last_value INTO seq_value;
+
+  NEW.order_number :=
+    to_char(now(), 'YYYY-MM') || '-' ||
+    lpad(seq_value::text, 4, '0');
+
+  RETURN NEW;
+END;
+$$;
+
 ALTER FUNCTION "public"."fn_check_file_versioning_order"() OWNER TO "postgres";
 
 ALTER FUNCTION "public"."fn_generate_order_number"() OWNER TO "postgres";
@@ -127,63 +184,6 @@ ALTER TABLE "public"."order_number_counter" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."files" ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE "public"."erp_exports" ENABLE ROW LEVEL SECURITY;
-
-/**
- * Trigger guard: a file's version chain must stay within one order.
- * If `replaces_file_id` is set, the replaced file must belong to the same
- * `order_id` as the new file.
- *
- * @trigger BEFORE INSERT OR UPDATE OF replaces_file_id, order_id ON files (per row)
- * @raises when the replaced file belongs to a different order.
- */
-CREATE OR REPLACE FUNCTION "public"."fn_check_file_versioning_order"() RETURNS "trigger"
-    LANGUAGE "plpgsql"
-    AS $$
-BEGIN
-  IF NEW.replaces_file_id IS NOT NULL THEN
-    IF NOT EXISTS (
-      SELECT 1 FROM files
-      WHERE id = NEW.replaces_file_id
-        AND order_id = NEW.order_id
-    ) THEN
-      RAISE EXCEPTION
-        'Replaced file (%) does not belong to the same order (%)',
-        NEW.replaces_file_id, NEW.order_id;
-    END IF;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
-/**
- * Trigger: assigns `orders.order_number` as `YYYY-MM-NNNN`, where NNNN is a
- * per-month sequence. Uses an atomic INSERT ... ON CONFLICT DO UPDATE on
- * `order_number_counter`, so concurrent inserts never collide; the counter
- * restarts at 1 each calendar month.
- *
- * @trigger BEFORE INSERT ON orders (per row)
- */
-CREATE OR REPLACE FUNCTION "public"."fn_generate_order_number"() RETURNS "trigger"
-    LANGUAGE "plpgsql"
-    AS $$
-DECLARE
-  counter_year   integer := EXTRACT(YEAR  FROM now())::integer;
-  counter_month  integer := EXTRACT(MONTH FROM now())::integer;
-  seq_value      integer;
-BEGIN
-  INSERT INTO order_number_counter (year, month, last_value)
-  VALUES (counter_year, counter_month, 1)
-  ON CONFLICT (year, month) DO UPDATE
-    SET last_value = order_number_counter.last_value + 1
-  RETURNING last_value INTO seq_value;
-
-  NEW.order_number :=
-    to_char(now(), 'YYYY-MM') || '-' ||
-    lpad(seq_value::text, 4, '0');
-
-  RETURN NEW;
-END;
-$$;
 
 GRANT ALL ON FUNCTION "public"."fn_check_file_versioning_order"() TO "anon";
 

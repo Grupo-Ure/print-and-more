@@ -1,8 +1,6 @@
 -- 20260508081518_duplicate_order.sql — duplicate_order RPC (loads last; references everything)
 -- Split from baseline 20260508081503_remote_schema.sql (delete that file once verified).
 
-ALTER FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_department_order_ids" "uuid"[], "created_by_user_id" "uuid") OWNER TO "postgres";
-
 /**
  * Clone an existing order into a new draft order. The whole function body runs
  * as a single transaction (Postgres functions are atomic), so any failure rolls
@@ -219,6 +217,8 @@ BEGIN
   RETURN new_order_id;
 END;
 $$;
+
+ALTER FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_department_order_ids" "uuid"[], "created_by_user_id" "uuid") OWNER TO "postgres";
 
 GRANT ALL ON FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_department_order_ids" "uuid"[], "created_by_user_id" "uuid") TO "anon";
 

@@ -30,36 +30,6 @@ CREATE TABLE IF NOT EXISTS "public"."department_orders" (
 
 ALTER TABLE "public"."department_orders" OWNER TO "postgres";
 
-ALTER FUNCTION "public"."fn_check_approval_file_order"() OWNER TO "postgres";
-
-ALTER FUNCTION "public"."fn_check_department_order_type"() OWNER TO "postgres";
-
-ALTER TABLE ONLY "public"."department_orders"
-    ADD CONSTRAINT "department_orders_pkey" PRIMARY KEY ("id");
-
-ALTER TABLE ONLY "public"."department_orders"
-    ADD CONSTRAINT "fk_approval_file" FOREIGN KEY ("customer_approval_file_id") REFERENCES "public"."files"("id");
-
-ALTER TABLE ONLY "public"."department_orders"
-    ADD CONSTRAINT "department_orders_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE CASCADE;
-
-ALTER TABLE ONLY "public"."department_orders"
-    ADD CONSTRAINT "department_orders_assignee_id_fkey" FOREIGN KEY ("assignee_id") REFERENCES "auth"."users"("id");
-
-CREATE INDEX "idx_department_orders_order_id" ON "public"."department_orders" USING "btree" ("order_id");
-
-CREATE INDEX "idx_department_orders_department" ON "public"."department_orders" USING "btree" ("department");
-
-CREATE INDEX "idx_department_orders_status" ON "public"."department_orders" USING "btree" ("status");
-
-CREATE OR REPLACE TRIGGER "trg_approval_file_order_check" BEFORE INSERT OR UPDATE OF "customer_approval_file_id", "order_id" ON "public"."department_orders" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_approval_file_order"();
-
-CREATE OR REPLACE TRIGGER "trg_department_order_type_check" BEFORE INSERT OR UPDATE OF "department", "type" ON "public"."department_orders" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_department_order_type"();
-
-CREATE POLICY "Employees: full access" ON "public"."department_orders" TO "authenticated" USING (true) WITH CHECK (true);
-
-ALTER TABLE "public"."department_orders" ENABLE ROW LEVEL SECURITY;
-
 /**
  * Trigger guard: a sub-order's customer-approval file must come from its own order.
  * If `customer_approval_file_id` is set, that file must belong to the sub-order's
@@ -141,6 +111,36 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+ALTER FUNCTION "public"."fn_check_approval_file_order"() OWNER TO "postgres";
+
+ALTER FUNCTION "public"."fn_check_department_order_type"() OWNER TO "postgres";
+
+ALTER TABLE ONLY "public"."department_orders"
+    ADD CONSTRAINT "department_orders_pkey" PRIMARY KEY ("id");
+
+ALTER TABLE ONLY "public"."department_orders"
+    ADD CONSTRAINT "fk_approval_file" FOREIGN KEY ("customer_approval_file_id") REFERENCES "public"."files"("id");
+
+ALTER TABLE ONLY "public"."department_orders"
+    ADD CONSTRAINT "department_orders_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE CASCADE;
+
+ALTER TABLE ONLY "public"."department_orders"
+    ADD CONSTRAINT "department_orders_assignee_id_fkey" FOREIGN KEY ("assignee_id") REFERENCES "auth"."users"("id");
+
+CREATE INDEX "idx_department_orders_order_id" ON "public"."department_orders" USING "btree" ("order_id");
+
+CREATE INDEX "idx_department_orders_department" ON "public"."department_orders" USING "btree" ("department");
+
+CREATE INDEX "idx_department_orders_status" ON "public"."department_orders" USING "btree" ("status");
+
+CREATE OR REPLACE TRIGGER "trg_approval_file_order_check" BEFORE INSERT OR UPDATE OF "customer_approval_file_id", "order_id" ON "public"."department_orders" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_approval_file_order"();
+
+CREATE OR REPLACE TRIGGER "trg_department_order_type_check" BEFORE INSERT OR UPDATE OF "department", "type" ON "public"."department_orders" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_department_order_type"();
+
+CREATE POLICY "Employees: full access" ON "public"."department_orders" TO "authenticated" USING (true) WITH CHECK (true);
+
+ALTER TABLE "public"."department_orders" ENABLE ROW LEVEL SECURITY;
 
 GRANT ALL ON FUNCTION "public"."fn_check_approval_file_order"() TO "anon";
 

@@ -51,64 +51,6 @@ CREATE TABLE IF NOT EXISTS "public"."textile_assignments" (
 
 ALTER TABLE "public"."textile_assignments" OWNER TO "postgres";
 
-ALTER FUNCTION "public"."check_textile_placement_conflict"() OWNER TO "postgres";
-
-ALTER FUNCTION "public"."fn_check_textile_motif_file"() OWNER TO "postgres";
-
-ALTER FUNCTION "public"."fn_check_textile_assignment_consistency"() OWNER TO "postgres";
-
-ALTER TABLE ONLY "public"."textile_motifs"
-    ADD CONSTRAINT "textile_motifs_pkey" PRIMARY KEY ("id");
-
-ALTER TABLE ONLY "public"."textile_positions"
-    ADD CONSTRAINT "textile_positions_pkey" PRIMARY KEY ("id");
-
-ALTER TABLE ONLY "public"."textile_assignments"
-    ADD CONSTRAINT "textile_assignments_pkey" PRIMARY KEY ("id");
-
-ALTER TABLE ONLY "public"."textile_motifs"
-    ADD CONSTRAINT "textile_motifs_file_id_fkey" FOREIGN KEY ("file_id") REFERENCES "public"."files"("id");
-
-ALTER TABLE ONLY "public"."textile_motifs"
-    ADD CONSTRAINT "textile_motifs_department_order_id_fkey" FOREIGN KEY ("department_order_id") REFERENCES "public"."department_orders"("id") ON DELETE CASCADE;
-
-ALTER TABLE ONLY "public"."textile_positions"
-    ADD CONSTRAINT "textile_positions_department_order_id_fkey" FOREIGN KEY ("department_order_id") REFERENCES "public"."department_orders"("id") ON DELETE CASCADE;
-
-ALTER TABLE ONLY "public"."textile_positions"
-    ADD CONSTRAINT "textile_positions_variant_id_fkey" FOREIGN KEY ("variant_id") REFERENCES "public"."textile_variants"("id");
-
-ALTER TABLE ONLY "public"."textile_assignments"
-    ADD CONSTRAINT "textile_assignments_motif_id_fkey" FOREIGN KEY ("motif_id") REFERENCES "public"."textile_motifs"("id");
-
-ALTER TABLE ONLY "public"."textile_assignments"
-    ADD CONSTRAINT "textile_assignments_position_id_fkey" FOREIGN KEY ("position_id") REFERENCES "public"."textile_positions"("id");
-
-ALTER TABLE ONLY "public"."textile_assignments"
-    ADD CONSTRAINT "textile_assignments_department_order_id_fkey" FOREIGN KEY ("department_order_id") REFERENCES "public"."department_orders"("id") ON DELETE CASCADE;
-
-CREATE INDEX "idx_textile_motifs_department_order" ON "public"."textile_motifs" USING "btree" ("department_order_id");
-
-CREATE INDEX "idx_textile_positions_department_order" ON "public"."textile_positions" USING "btree" ("department_order_id");
-
-CREATE OR REPLACE TRIGGER "textile_placement_conflict_trigger" BEFORE INSERT OR UPDATE ON "public"."textile_assignments" FOR EACH ROW EXECUTE FUNCTION "public"."check_textile_placement_conflict"();
-
-CREATE OR REPLACE TRIGGER "trg_textile_motif_file_check" BEFORE INSERT OR UPDATE OF "file_id", "department_order_id" ON "public"."textile_motifs" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_textile_motif_file"();
-
-CREATE OR REPLACE TRIGGER "trg_textile_assignment_consistency" BEFORE INSERT OR UPDATE ON "public"."textile_assignments" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_textile_assignment_consistency"();
-
-CREATE POLICY "Employees: full access" ON "public"."textile_motifs" TO "authenticated" USING (true) WITH CHECK (true);
-
-CREATE POLICY "Employees: full access" ON "public"."textile_positions" TO "authenticated" USING (true) WITH CHECK (true);
-
-CREATE POLICY "Employees: full access" ON "public"."textile_assignments" TO "authenticated" USING (true) WITH CHECK (true);
-
-ALTER TABLE "public"."textile_motifs" ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE "public"."textile_positions" ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE "public"."textile_assignments" ENABLE ROW LEVEL SECURITY;
-
 /**
  * Trigger guard: blocks placing two motifs on the same spot of one garment.
  * Rejects an assignment whose motif shares a `placement` with another motif
@@ -198,6 +140,64 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+ALTER FUNCTION "public"."check_textile_placement_conflict"() OWNER TO "postgres";
+
+ALTER FUNCTION "public"."fn_check_textile_motif_file"() OWNER TO "postgres";
+
+ALTER FUNCTION "public"."fn_check_textile_assignment_consistency"() OWNER TO "postgres";
+
+ALTER TABLE ONLY "public"."textile_motifs"
+    ADD CONSTRAINT "textile_motifs_pkey" PRIMARY KEY ("id");
+
+ALTER TABLE ONLY "public"."textile_positions"
+    ADD CONSTRAINT "textile_positions_pkey" PRIMARY KEY ("id");
+
+ALTER TABLE ONLY "public"."textile_assignments"
+    ADD CONSTRAINT "textile_assignments_pkey" PRIMARY KEY ("id");
+
+ALTER TABLE ONLY "public"."textile_motifs"
+    ADD CONSTRAINT "textile_motifs_file_id_fkey" FOREIGN KEY ("file_id") REFERENCES "public"."files"("id");
+
+ALTER TABLE ONLY "public"."textile_motifs"
+    ADD CONSTRAINT "textile_motifs_department_order_id_fkey" FOREIGN KEY ("department_order_id") REFERENCES "public"."department_orders"("id") ON DELETE CASCADE;
+
+ALTER TABLE ONLY "public"."textile_positions"
+    ADD CONSTRAINT "textile_positions_department_order_id_fkey" FOREIGN KEY ("department_order_id") REFERENCES "public"."department_orders"("id") ON DELETE CASCADE;
+
+ALTER TABLE ONLY "public"."textile_positions"
+    ADD CONSTRAINT "textile_positions_variant_id_fkey" FOREIGN KEY ("variant_id") REFERENCES "public"."textile_variants"("id");
+
+ALTER TABLE ONLY "public"."textile_assignments"
+    ADD CONSTRAINT "textile_assignments_motif_id_fkey" FOREIGN KEY ("motif_id") REFERENCES "public"."textile_motifs"("id");
+
+ALTER TABLE ONLY "public"."textile_assignments"
+    ADD CONSTRAINT "textile_assignments_position_id_fkey" FOREIGN KEY ("position_id") REFERENCES "public"."textile_positions"("id");
+
+ALTER TABLE ONLY "public"."textile_assignments"
+    ADD CONSTRAINT "textile_assignments_department_order_id_fkey" FOREIGN KEY ("department_order_id") REFERENCES "public"."department_orders"("id") ON DELETE CASCADE;
+
+CREATE INDEX "idx_textile_motifs_department_order" ON "public"."textile_motifs" USING "btree" ("department_order_id");
+
+CREATE INDEX "idx_textile_positions_department_order" ON "public"."textile_positions" USING "btree" ("department_order_id");
+
+CREATE OR REPLACE TRIGGER "textile_placement_conflict_trigger" BEFORE INSERT OR UPDATE ON "public"."textile_assignments" FOR EACH ROW EXECUTE FUNCTION "public"."check_textile_placement_conflict"();
+
+CREATE OR REPLACE TRIGGER "trg_textile_motif_file_check" BEFORE INSERT OR UPDATE OF "file_id", "department_order_id" ON "public"."textile_motifs" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_textile_motif_file"();
+
+CREATE OR REPLACE TRIGGER "trg_textile_assignment_consistency" BEFORE INSERT OR UPDATE ON "public"."textile_assignments" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_textile_assignment_consistency"();
+
+CREATE POLICY "Employees: full access" ON "public"."textile_motifs" TO "authenticated" USING (true) WITH CHECK (true);
+
+CREATE POLICY "Employees: full access" ON "public"."textile_positions" TO "authenticated" USING (true) WITH CHECK (true);
+
+CREATE POLICY "Employees: full access" ON "public"."textile_assignments" TO "authenticated" USING (true) WITH CHECK (true);
+
+ALTER TABLE "public"."textile_motifs" ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE "public"."textile_positions" ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE "public"."textile_assignments" ENABLE ROW LEVEL SECURITY;
 
 GRANT ALL ON FUNCTION "public"."check_textile_placement_conflict"() TO "anon";
 

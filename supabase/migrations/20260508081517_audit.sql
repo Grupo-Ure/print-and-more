@@ -25,6 +25,31 @@ CREATE TABLE IF NOT EXISTS "public"."history" (
 
 ALTER TABLE "public"."history" OWNER TO "postgres";
 
+/**
+ * Trigger guard: a referenced sub-order must belong to the referenced order.
+ * For rows that carry both `order_id` and an optional `department_order_id` (errors,
+ * history): if `department_order_id` is set, it must belong to that `order_id`.
+ *
+ * @trigger BEFORE INSERT OR UPDATE OF department_order_id, order_id ON errors and history (per row)
+ * @raises when the sub-order does not belong to the order.
+ */
+CREATE OR REPLACE FUNCTION "public"."fn_check_department_order_belongs_to_order"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+  IF NEW.department_order_id IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM department_orders
+      WHERE id = NEW.department_order_id AND order_id = NEW.order_id
+    ) THEN
+      RAISE EXCEPTION 'Sub-order (%) does not belong to order (%)',
+        NEW.department_order_id, NEW.order_id;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
 ALTER FUNCTION "public"."fn_check_department_order_belongs_to_order"() OWNER TO "postgres";
 
 ALTER TABLE ONLY "public"."errors"
@@ -70,31 +95,6 @@ CREATE POLICY "Employees: full access" ON "public"."history" TO "authenticated" 
 ALTER TABLE "public"."errors" ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE "public"."history" ENABLE ROW LEVEL SECURITY;
-
-/**
- * Trigger guard: a referenced sub-order must belong to the referenced order.
- * For rows that carry both `order_id` and an optional `department_order_id` (errors,
- * history): if `department_order_id` is set, it must belong to that `order_id`.
- *
- * @trigger BEFORE INSERT OR UPDATE OF department_order_id, order_id ON errors and history (per row)
- * @raises when the sub-order does not belong to the order.
- */
-CREATE OR REPLACE FUNCTION "public"."fn_check_department_order_belongs_to_order"() RETURNS "trigger"
-    LANGUAGE "plpgsql"
-    AS $$
-BEGIN
-  IF NEW.department_order_id IS NOT NULL THEN
-    IF NOT EXISTS (
-      SELECT 1 FROM department_orders
-      WHERE id = NEW.department_order_id AND order_id = NEW.order_id
-    ) THEN
-      RAISE EXCEPTION 'Sub-order (%) does not belong to order (%)',
-        NEW.department_order_id, NEW.order_id;
-    END IF;
-  END IF;
-  RETURN NEW;
-END;
-$$;
 
 GRANT ALL ON FUNCTION "public"."fn_check_department_order_belongs_to_order"() TO "anon";
 
