@@ -34,6 +34,103 @@ export type Database = {
   }
   public: {
     Tables: {
+      banner_products: {
+        Row: {
+          department_product_id: string
+          eyelet_detail: string | null
+          eyelets: boolean | null
+          height: number | null
+          hem: boolean | null
+          hem_sides: string | null
+          material: string | null
+          width: number | null
+        }
+        Insert: {
+          department_product_id: string
+          eyelet_detail?: string | null
+          eyelets?: boolean | null
+          height?: number | null
+          hem?: boolean | null
+          hem_sides?: string | null
+          material?: string | null
+          width?: number | null
+        }
+        Update: {
+          department_product_id?: string
+          eyelet_detail?: string | null
+          eyelets?: boolean | null
+          height?: number | null
+          hem?: boolean | null
+          hem_sides?: string | null
+          material?: string | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "banner_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      binding_products: {
+        Row: {
+          binding_color: string | null
+          binding_type: string | null
+          color_mode: string | null
+          department_product_id: string
+          format: string | null
+          full_bleed: boolean | null
+          hardcover_cover: string | null
+          hardcover_print: boolean | null
+          height: number | null
+          material: string | null
+          material_other: string | null
+          orientation: string | null
+          width: number | null
+        }
+        Insert: {
+          binding_color?: string | null
+          binding_type?: string | null
+          color_mode?: string | null
+          department_product_id: string
+          format?: string | null
+          full_bleed?: boolean | null
+          hardcover_cover?: string | null
+          hardcover_print?: boolean | null
+          height?: number | null
+          material?: string | null
+          material_other?: string | null
+          orientation?: string | null
+          width?: number | null
+        }
+        Update: {
+          binding_color?: string | null
+          binding_type?: string | null
+          color_mode?: string | null
+          department_product_id?: string
+          format?: string | null
+          full_bleed?: boolean | null
+          hardcover_cover?: string | null
+          hardcover_print?: boolean | null
+          height?: number | null
+          material?: string | null
+          material_other?: string | null
+          orientation?: string | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "binding_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blueprint_customers: {
         Row: {
           created_at: string
@@ -176,6 +273,189 @@ export type Database = {
           },
         ]
       }
+      brochure_products: {
+        Row: {
+          binding: string | null
+          cover_finish: string | null
+          cover_material: string | null
+          cover_material_other: string | null
+          cover_weight: string | null
+          department_product_id: string
+          format: string | null
+          full_bleed: boolean | null
+          height: number | null
+          inner_finish: string | null
+          inner_material: string | null
+          inner_material_other: string | null
+          inner_weight: string | null
+          orientation: string | null
+          page_count: number | null
+          production_path: string | null
+          width: number | null
+        }
+        Insert: {
+          binding?: string | null
+          cover_finish?: string | null
+          cover_material?: string | null
+          cover_material_other?: string | null
+          cover_weight?: string | null
+          department_product_id: string
+          format?: string | null
+          full_bleed?: boolean | null
+          height?: number | null
+          inner_finish?: string | null
+          inner_material?: string | null
+          inner_material_other?: string | null
+          inner_weight?: string | null
+          orientation?: string | null
+          page_count?: number | null
+          production_path?: string | null
+          width?: number | null
+        }
+        Update: {
+          binding?: string | null
+          cover_finish?: string | null
+          cover_material?: string | null
+          cover_material_other?: string | null
+          cover_weight?: string | null
+          department_product_id?: string
+          format?: string | null
+          full_bleed?: boolean | null
+          height?: number | null
+          inner_finish?: string | null
+          inner_material?: string | null
+          inner_material_other?: string | null
+          inner_weight?: string | null
+          orientation?: string | null
+          page_count?: number | null
+          production_path?: string | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brochure_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_card_products: {
+        Row: {
+          color_mode: string | null
+          department_product_id: string
+          film_laminated: boolean | null
+          format: string | null
+          full_bleed: boolean | null
+          height: number | null
+          material: string | null
+          multiloft_color: string | null
+          orientation: string | null
+          width: number | null
+        }
+        Insert: {
+          color_mode?: string | null
+          department_product_id: string
+          film_laminated?: boolean | null
+          format?: string | null
+          full_bleed?: boolean | null
+          height?: number | null
+          material?: string | null
+          multiloft_color?: string | null
+          orientation?: string | null
+          width?: number | null
+        }
+        Update: {
+          color_mode?: string | null
+          department_product_id?: string
+          film_laminated?: boolean | null
+          format?: string | null
+          full_bleed?: boolean | null
+          height?: number | null
+          material?: string | null
+          multiloft_color?: string | null
+          orientation?: string | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_card_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      card_flyer_products: {
+        Row: {
+          cc_material: string | null
+          cc_material_other: string | null
+          color_mode: string | null
+          department_product_id: string
+          format: string | null
+          full_bleed: boolean | null
+          height: number | null
+          lamination_finish: string | null
+          lamination_sides: string | null
+          offset_finish: string | null
+          offset_type: string | null
+          offset_weight: string | null
+          production_path: string | null
+          recycling_weight: string | null
+          special_paper: string | null
+          special_paper_other: string | null
+          width: number | null
+        }
+        Insert: {
+          cc_material?: string | null
+          cc_material_other?: string | null
+          color_mode?: string | null
+          department_product_id: string
+          format?: string | null
+          full_bleed?: boolean | null
+          height?: number | null
+          lamination_finish?: string | null
+          lamination_sides?: string | null
+          offset_finish?: string | null
+          offset_type?: string | null
+          offset_weight?: string | null
+          production_path?: string | null
+          recycling_weight?: string | null
+          special_paper?: string | null
+          special_paper_other?: string | null
+          width?: number | null
+        }
+        Update: {
+          cc_material?: string | null
+          cc_material_other?: string | null
+          color_mode?: string | null
+          department_product_id?: string
+          format?: string | null
+          full_bleed?: boolean | null
+          height?: number | null
+          lamination_finish?: string | null
+          lamination_sides?: string | null
+          offset_finish?: string | null
+          offset_type?: string | null
+          offset_weight?: string | null
+          production_path?: string | null
+          recycling_weight?: string | null
+          special_paper?: string | null
+          special_paper_other?: string | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "card_flyer_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           city: string | null
@@ -217,6 +497,173 @@ export type Database = {
           street?: string | null
         }
         Relationships: []
+      }
+      date_stamp_products: {
+        Row: {
+          color: string | null
+          color_other: string | null
+          department_product_id: string
+          description: string | null
+          height: number | null
+          width: number | null
+        }
+        Insert: {
+          color?: string | null
+          color_other?: string | null
+          department_product_id: string
+          description?: string | null
+          height?: number | null
+          width?: number | null
+        }
+        Update: {
+          color?: string | null
+          color_other?: string | null
+          department_product_id?: string
+          description?: string | null
+          height?: number | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "date_stamp_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      department_orders: {
+        Row: {
+          assignee_id: string | null
+          created_at: string
+          customer_approval_file_id: string | null
+          customer_approval_granted: boolean
+          customer_approval_required: boolean
+          data_status: string | null
+          deadline: string | null
+          delivery: Database["public"]["Enums"]["delivery_type"] | null
+          department: Database["public"]["Enums"]["department"]
+          detail: Json
+          emergency_reason: string | null
+          id: string
+          is_cancelled: boolean
+          is_emergency: boolean
+          order_id: string
+          priority: Database["public"]["Enums"]["priority_type"]
+          sort_order: number
+          status: Database["public"]["Enums"]["order_status"]
+          type: string | null
+          typesetting_minutes: number | null
+        }
+        Insert: {
+          assignee_id?: string | null
+          created_at?: string
+          customer_approval_file_id?: string | null
+          customer_approval_granted?: boolean
+          customer_approval_required?: boolean
+          data_status?: string | null
+          deadline?: string | null
+          delivery?: Database["public"]["Enums"]["delivery_type"] | null
+          department: Database["public"]["Enums"]["department"]
+          detail?: Json
+          emergency_reason?: string | null
+          id?: string
+          is_cancelled?: boolean
+          is_emergency?: boolean
+          order_id: string
+          priority?: Database["public"]["Enums"]["priority_type"]
+          sort_order?: number
+          status?: Database["public"]["Enums"]["order_status"]
+          type?: string | null
+          typesetting_minutes?: number | null
+        }
+        Update: {
+          assignee_id?: string | null
+          created_at?: string
+          customer_approval_file_id?: string | null
+          customer_approval_granted?: boolean
+          customer_approval_required?: boolean
+          data_status?: string | null
+          deadline?: string | null
+          delivery?: Database["public"]["Enums"]["delivery_type"] | null
+          department?: Database["public"]["Enums"]["department"]
+          detail?: Json
+          emergency_reason?: string | null
+          id?: string
+          is_cancelled?: boolean
+          is_emergency?: boolean
+          order_id?: string
+          priority?: Database["public"]["Enums"]["priority_type"]
+          sort_order?: number
+          status?: Database["public"]["Enums"]["order_status"]
+          type?: string | null
+          typesetting_minutes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "department_orders_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "department_orders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_approval_file"
+            columns: ["customer_approval_file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      department_products: {
+        Row: {
+          created_at: string
+          department: string
+          department_order_id: string
+          id: string
+          notes: string | null
+          quantity: number | null
+          sort_order: number
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          department: string
+          department_order_id: string
+          id?: string
+          notes?: string | null
+          quantity?: number | null
+          sort_order?: number
+          type: string
+        }
+        Update: {
+          created_at?: string
+          department?: string
+          department_order_id?: string
+          id?: string
+          notes?: string | null
+          quantity?: number | null
+          sort_order?: number
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "department_products_department_order_id_fkey"
+            columns: ["department_order_id"]
+            isOneToOne: false
+            referencedRelation: "department_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       erp_exports: {
         Row: {
@@ -263,29 +710,36 @@ export type Database = {
       errors: {
         Row: {
           created_at: string
+          department_order_id: string | null
           id: string
           order_id: string
-          sub_order_id: string | null
           text: string
           user_id: string | null
         }
         Insert: {
           created_at?: string
+          department_order_id?: string | null
           id?: string
           order_id: string
-          sub_order_id?: string | null
           text: string
           user_id?: string | null
         }
         Update: {
           created_at?: string
+          department_order_id?: string | null
           id?: string
           order_id?: string
-          sub_order_id?: string | null
           text?: string
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "errors_department_order_id_fkey"
+            columns: ["department_order_id"]
+            isOneToOne: false
+            referencedRelation: "department_orders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "errors_order_id_fkey"
             columns: ["order_id"]
@@ -298,13 +752,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "errors_sub_order_id_fkey"
-            columns: ["sub_order_id"]
-            isOneToOne: false
-            referencedRelation: "sub_orders"
             referencedColumns: ["id"]
           },
         ]
@@ -370,38 +817,180 @@ export type Database = {
           },
         ]
       }
+      foil_plotter_products: {
+        Row: {
+          department_product_id: string
+          height: number | null
+          material: string | null
+          output: string | null
+          width: number | null
+        }
+        Insert: {
+          department_product_id: string
+          height?: number | null
+          material?: string | null
+          output?: string | null
+          width?: number | null
+        }
+        Update: {
+          department_product_id?: string
+          height?: number | null
+          material?: string | null
+          output?: string | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "foil_plotter_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      folded_flyer_products: {
+        Row: {
+          cc_material: string | null
+          cc_material_other: string | null
+          color_mode: string | null
+          department_product_id: string
+          fold_type: string | null
+          format: string | null
+          full_bleed: boolean | null
+          height: number | null
+          lamination_finish: string | null
+          lamination_sides: string | null
+          offset_finish: string | null
+          offset_type: string | null
+          offset_weight: string | null
+          page_count: number | null
+          production_path: string | null
+          recycling_weight: string | null
+          special_paper: string | null
+          special_paper_other: string | null
+          width: number | null
+        }
+        Insert: {
+          cc_material?: string | null
+          cc_material_other?: string | null
+          color_mode?: string | null
+          department_product_id: string
+          fold_type?: string | null
+          format?: string | null
+          full_bleed?: boolean | null
+          height?: number | null
+          lamination_finish?: string | null
+          lamination_sides?: string | null
+          offset_finish?: string | null
+          offset_type?: string | null
+          offset_weight?: string | null
+          page_count?: number | null
+          production_path?: string | null
+          recycling_weight?: string | null
+          special_paper?: string | null
+          special_paper_other?: string | null
+          width?: number | null
+        }
+        Update: {
+          cc_material?: string | null
+          cc_material_other?: string | null
+          color_mode?: string | null
+          department_product_id?: string
+          fold_type?: string | null
+          format?: string | null
+          full_bleed?: boolean | null
+          height?: number | null
+          lamination_finish?: string | null
+          lamination_sides?: string | null
+          offset_finish?: string | null
+          offset_type?: string | null
+          offset_weight?: string | null
+          page_count?: number | null
+          production_path?: string | null
+          recycling_weight?: string | null
+          special_paper?: string | null
+          special_paper_other?: string | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folded_flyer_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gift_item_products: {
+        Row: {
+          department_product_id: string
+          material_free_text: string | null
+          motif: string | null
+          origin: string | null
+        }
+        Insert: {
+          department_product_id: string
+          material_free_text?: string | null
+          motif?: string | null
+          origin?: string | null
+        }
+        Update: {
+          department_product_id?: string
+          material_free_text?: string | null
+          motif?: string | null
+          origin?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gift_item_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       history: {
         Row: {
           created_at: string
+          department_order_id: string | null
           event_type: Database["public"]["Enums"]["history_event"]
           id: string
           meta: Json | null
           order_id: string
           reason: string | null
-          sub_order_id: string | null
           user_id: string | null
         }
         Insert: {
           created_at?: string
+          department_order_id?: string | null
           event_type: Database["public"]["Enums"]["history_event"]
           id?: string
           meta?: Json | null
           order_id: string
           reason?: string | null
-          sub_order_id?: string | null
           user_id?: string | null
         }
         Update: {
           created_at?: string
+          department_order_id?: string | null
           event_type?: Database["public"]["Enums"]["history_event"]
           id?: string
           meta?: Json | null
           order_id?: string
           reason?: string | null
-          sub_order_id?: string | null
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "history_department_order_id_fkey"
+            columns: ["department_order_id"]
+            isOneToOne: false
+            referencedRelation: "department_orders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "history_order_id_fkey"
             columns: ["order_id"]
@@ -416,11 +1005,68 @@ export type Database = {
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      ink_pad_products: {
+        Row: {
+          color: string | null
+          department_product_id: string
+          pad_size: string | null
+        }
+        Insert: {
+          color?: string | null
+          department_product_id: string
+          pad_size?: string | null
+        }
+        Update: {
+          color?: string | null
+          department_product_id?: string
+          pad_size?: string | null
+        }
+        Relationships: [
           {
-            foreignKeyName: "history_sub_order_id_fkey"
-            columns: ["sub_order_id"]
-            isOneToOne: false
-            referencedRelation: "sub_orders"
+            foreignKeyName: "ink_pad_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      name_tag_products: {
+        Row: {
+          department_product_id: string
+          height: number | null
+          material: string | null
+          material_other: string | null
+          motif: string | null
+          round_corners: boolean | null
+          width: number | null
+        }
+        Insert: {
+          department_product_id: string
+          height?: number | null
+          material?: string | null
+          material_other?: string | null
+          motif?: string | null
+          round_corners?: boolean | null
+          width?: number | null
+        }
+        Update: {
+          department_product_id?: string
+          height?: number | null
+          material?: string | null
+          material_other?: string | null
+          motif?: string | null
+          round_corners?: boolean | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "name_tag_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
             referencedColumns: ["id"]
           },
         ]
@@ -506,38 +1152,227 @@ export type Database = {
           },
         ]
       }
+      other_laser_products: {
+        Row: {
+          department_product_id: string
+          material_free_text: string | null
+          motif: string | null
+          origin: string | null
+          self_adhesive: boolean | null
+        }
+        Insert: {
+          department_product_id: string
+          material_free_text?: string | null
+          motif?: string | null
+          origin?: string | null
+          self_adhesive?: boolean | null
+        }
+        Update: {
+          department_product_id?: string
+          material_free_text?: string | null
+          motif?: string | null
+          origin?: string | null
+          self_adhesive?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "other_laser_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      other_lfp_products: {
+        Row: {
+          department_product_id: string
+          description: string | null
+        }
+        Insert: {
+          department_product_id: string
+          description?: string | null
+        }
+        Update: {
+          department_product_id?: string
+          description?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "other_lfp_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      other_products: {
+        Row: {
+          department_product_id: string
+          description: string | null
+        }
+        Insert: {
+          department_product_id: string
+          description?: string | null
+        }
+        Update: {
+          department_product_id?: string
+          description?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "other_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      other_stamp_products: {
+        Row: {
+          color: string | null
+          color_other: string | null
+          department_product_id: string
+          description: string | null
+          height: number | null
+          width: number | null
+        }
+        Insert: {
+          color?: string | null
+          color_other?: string | null
+          department_product_id: string
+          description?: string | null
+          height?: number | null
+          width?: number | null
+        }
+        Update: {
+          color?: string | null
+          color_other?: string | null
+          department_product_id?: string
+          description?: string | null
+          height?: number | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "other_stamp_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      poster_products: {
+        Row: {
+          department_product_id: string
+          format: string | null
+          height: number | null
+          laminate: string | null
+          material: string | null
+          width: number | null
+        }
+        Insert: {
+          department_product_id: string
+          format?: string | null
+          height?: number | null
+          laminate?: string | null
+          material?: string | null
+          width?: number | null
+        }
+        Update: {
+          department_product_id?: string
+          format?: string | null
+          height?: number | null
+          laminate?: string | null
+          material?: string | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poster_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      printout_products: {
+        Row: {
+          color_mode: string | null
+          department_product_id: string
+          format: string | null
+          laminate: string | null
+          material: string | null
+          material_other: string | null
+          punching: string | null
+          staple: boolean | null
+        }
+        Insert: {
+          color_mode?: string | null
+          department_product_id: string
+          format?: string | null
+          laminate?: string | null
+          material?: string | null
+          material_other?: string | null
+          punching?: string | null
+          staple?: boolean | null
+        }
+        Update: {
+          color_mode?: string | null
+          department_product_id?: string
+          format?: string | null
+          laminate?: string | null
+          material?: string | null
+          material_other?: string | null
+          punching?: string | null
+          staple?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "printout_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_files: {
         Row: {
           created_at: string
+          department_product_id: string
           file_id: string
           id: string
-          product_id: string
         }
         Insert: {
           created_at?: string
+          department_product_id: string
           file_id: string
           id?: string
-          product_id: string
         }
         Update: {
           created_at?: string
+          department_product_id?: string
           file_id?: string
           id?: string
-          product_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "product_files_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: false
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "product_files_file_id_fkey"
             columns: ["file_id"]
             isOneToOne: false
             referencedRelation: "files"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "product_files_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "sub_order_products"
             referencedColumns: ["id"]
           },
         ]
@@ -561,6 +1396,196 @@ export type Database = {
             columns: ["id"]
             isOneToOne: true
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      refill_ink_products: {
+        Row: {
+          color: string | null
+          department_product_id: string
+          ink_type: string | null
+        }
+        Insert: {
+          color?: string | null
+          department_product_id: string
+          ink_type?: string | null
+        }
+        Update: {
+          color?: string | null
+          department_product_id?: string
+          ink_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "refill_ink_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rollup_products: {
+        Row: {
+          department_product_id: string
+          material: string | null
+          rollup_system: string | null
+          rollup_width: number | null
+        }
+        Insert: {
+          department_product_id: string
+          material?: string | null
+          rollup_system?: string | null
+          rollup_width?: number | null
+        }
+        Update: {
+          department_product_id?: string
+          material?: string | null
+          rollup_system?: string | null
+          rollup_width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rollup_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sign_foil_products: {
+        Row: {
+          department_product_id: string
+          drill_hole_diameter: number | null
+          drill_hole_position: string | null
+          drill_holes: boolean | null
+          height: number | null
+          laminate: string | null
+          material: string | null
+          print_side: string | null
+          round_corners: boolean | null
+          width: number | null
+        }
+        Insert: {
+          department_product_id: string
+          drill_hole_diameter?: number | null
+          drill_hole_position?: string | null
+          drill_holes?: boolean | null
+          height?: number | null
+          laminate?: string | null
+          material?: string | null
+          print_side?: string | null
+          round_corners?: boolean | null
+          width?: number | null
+        }
+        Update: {
+          department_product_id?: string
+          drill_hole_diameter?: number | null
+          drill_hole_position?: string | null
+          drill_holes?: boolean | null
+          height?: number | null
+          laminate?: string | null
+          material?: string | null
+          print_side?: string | null
+          round_corners?: boolean | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sign_foil_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sign_products: {
+        Row: {
+          department_product_id: string
+          height: number | null
+          material: string | null
+          material_other: string | null
+          motif: string | null
+          round_corners: boolean | null
+          self_adhesive: boolean | null
+          width: number | null
+        }
+        Insert: {
+          department_product_id: string
+          height?: number | null
+          material?: string | null
+          material_other?: string | null
+          motif?: string | null
+          round_corners?: boolean | null
+          self_adhesive?: boolean | null
+          width?: number | null
+        }
+        Update: {
+          department_product_id?: string
+          height?: number | null
+          material?: string | null
+          material_other?: string | null
+          motif?: string | null
+          round_corners?: boolean | null
+          self_adhesive?: boolean | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sign_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sign_uv_products: {
+        Row: {
+          acrylic_print_direction: string | null
+          department_product_id: string
+          drill_hole_diameter: number | null
+          drill_hole_position: string | null
+          drill_holes: boolean | null
+          height: number | null
+          material: string | null
+          print_side: string | null
+          round_corners: boolean | null
+          width: number | null
+        }
+        Insert: {
+          acrylic_print_direction?: string | null
+          department_product_id: string
+          drill_hole_diameter?: number | null
+          drill_hole_position?: string | null
+          drill_holes?: boolean | null
+          height?: number | null
+          material?: string | null
+          print_side?: string | null
+          round_corners?: boolean | null
+          width?: number | null
+        }
+        Update: {
+          acrylic_print_direction?: string | null
+          department_product_id?: string
+          drill_hole_diameter?: number | null
+          drill_hole_position?: string | null
+          drill_holes?: boolean | null
+          height?: number | null
+          material?: string | null
+          print_side?: string | null
+          round_corners?: boolean | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sign_uv_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
             referencedColumns: ["id"]
           },
         ]
@@ -622,6 +1647,32 @@ export type Database = {
         }
         Relationships: []
       }
+      stamp_plate_products: {
+        Row: {
+          department_product_id: string
+          height: number | null
+          width: number | null
+        }
+        Insert: {
+          department_product_id: string
+          height?: number | null
+          width?: number | null
+        }
+        Update: {
+          department_product_id?: string
+          height?: number | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stamp_plate_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stamp_stock_movements: {
         Row: {
           created_at: string
@@ -667,128 +1718,78 @@ export type Database = {
           },
         ]
       }
-      sub_order_products: {
+      stand_stamp_products: {
         Row: {
-          created_at: string
-          department: string
-          detail: Json
-          id: string
-          sort_order: number
-          sub_order_id: string
+          color: string | null
+          color_other: string | null
+          department_product_id: string
+          description: string | null
+          height: number | null
+          width: number | null
         }
         Insert: {
-          created_at?: string
-          department: string
-          detail?: Json
-          id?: string
-          sort_order?: number
-          sub_order_id: string
+          color?: string | null
+          color_other?: string | null
+          department_product_id: string
+          description?: string | null
+          height?: number | null
+          width?: number | null
         }
         Update: {
-          created_at?: string
-          department?: string
-          detail?: Json
-          id?: string
-          sort_order?: number
-          sub_order_id?: string
+          color?: string | null
+          color_other?: string | null
+          department_product_id?: string
+          description?: string | null
+          height?: number | null
+          width?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "sub_order_products_sub_order_id_fkey"
-            columns: ["sub_order_id"]
-            isOneToOne: false
-            referencedRelation: "sub_orders"
+            foreignKeyName: "stand_stamp_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
             referencedColumns: ["id"]
           },
         ]
       }
-      sub_orders: {
+      sticker_products: {
         Row: {
-          assignee_id: string | null
-          created_at: string
-          customer_approval_file_id: string | null
-          customer_approval_granted: boolean
-          customer_approval_required: boolean
-          data_status: string | null
-          deadline: string | null
-          delivery: Database["public"]["Enums"]["delivery_type"] | null
-          department: Database["public"]["Enums"]["sub_order_department"]
-          detail: Json
-          emergency_reason: string | null
-          id: string
-          is_cancelled: boolean
-          is_emergency: boolean
-          order_id: string
-          priority: Database["public"]["Enums"]["priority_type"]
-          sort_order: number
-          status: Database["public"]["Enums"]["order_status"]
-          type: string | null
-          typesetting_minutes: number | null
+          contour_cut: string | null
+          department_product_id: string
+          height: number | null
+          laminate: string | null
+          material: string | null
+          material_variant: string | null
+          output: string | null
+          width: number | null
         }
         Insert: {
-          assignee_id?: string | null
-          created_at?: string
-          customer_approval_file_id?: string | null
-          customer_approval_granted?: boolean
-          customer_approval_required?: boolean
-          data_status?: string | null
-          deadline?: string | null
-          delivery?: Database["public"]["Enums"]["delivery_type"] | null
-          department: Database["public"]["Enums"]["sub_order_department"]
-          detail?: Json
-          emergency_reason?: string | null
-          id?: string
-          is_cancelled?: boolean
-          is_emergency?: boolean
-          order_id: string
-          priority?: Database["public"]["Enums"]["priority_type"]
-          sort_order?: number
-          status?: Database["public"]["Enums"]["order_status"]
-          type?: string | null
-          typesetting_minutes?: number | null
+          contour_cut?: string | null
+          department_product_id: string
+          height?: number | null
+          laminate?: string | null
+          material?: string | null
+          material_variant?: string | null
+          output?: string | null
+          width?: number | null
         }
         Update: {
-          assignee_id?: string | null
-          created_at?: string
-          customer_approval_file_id?: string | null
-          customer_approval_granted?: boolean
-          customer_approval_required?: boolean
-          data_status?: string | null
-          deadline?: string | null
-          delivery?: Database["public"]["Enums"]["delivery_type"] | null
-          department?: Database["public"]["Enums"]["sub_order_department"]
-          detail?: Json
-          emergency_reason?: string | null
-          id?: string
-          is_cancelled?: boolean
-          is_emergency?: boolean
-          order_id?: string
-          priority?: Database["public"]["Enums"]["priority_type"]
-          sort_order?: number
-          status?: Database["public"]["Enums"]["order_status"]
-          type?: string | null
-          typesetting_minutes?: number | null
+          contour_cut?: string | null
+          department_product_id?: string
+          height?: number | null
+          laminate?: string | null
+          material?: string | null
+          material_variant?: string | null
+          output?: string | null
+          width?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "fk_approval_file"
-            columns: ["customer_approval_file_id"]
-            isOneToOne: false
-            referencedRelation: "files"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sub_orders_assignee_id_fkey"
-            columns: ["assignee_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sub_orders_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
+            foreignKeyName: "sticker_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
             referencedColumns: ["id"]
           },
         ]
@@ -796,26 +1797,33 @@ export type Database = {
       textile_assignments: {
         Row: {
           created_at: string
+          department_order_id: string
           id: string
           motif_id: string
           position_id: string
-          sub_order_id: string
         }
         Insert: {
           created_at?: string
+          department_order_id: string
           id?: string
           motif_id: string
           position_id: string
-          sub_order_id: string
         }
         Update: {
           created_at?: string
+          department_order_id?: string
           id?: string
           motif_id?: string
           position_id?: string
-          sub_order_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "textile_assignments_department_order_id_fkey"
+            columns: ["department_order_id"]
+            isOneToOne: false
+            referencedRelation: "department_orders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "textile_assignments_motif_id_fkey"
             columns: ["motif_id"]
@@ -828,13 +1836,6 @@ export type Database = {
             columns: ["position_id"]
             isOneToOne: false
             referencedRelation: "textile_positions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "textile_assignments_sub_order_id_fkey"
-            columns: ["sub_order_id"]
-            isOneToOne: false
-            referencedRelation: "sub_orders"
             referencedColumns: ["id"]
           },
         ]
@@ -865,6 +1866,7 @@ export type Database = {
           color: string | null
           content: string | null
           created_at: string
+          department_order_id: string
           file_id: string | null
           font_class: Database["public"]["Enums"]["textile_font_class"] | null
           font_name: string | null
@@ -872,13 +1874,13 @@ export type Database = {
           placement: string
           print_method: string | null
           size: string
-          sub_order_id: string
           type: Database["public"]["Enums"]["textile_motif_type"]
         }
         Insert: {
           color?: string | null
           content?: string | null
           created_at?: string
+          department_order_id: string
           file_id?: string | null
           font_class?: Database["public"]["Enums"]["textile_font_class"] | null
           font_name?: string | null
@@ -886,13 +1888,13 @@ export type Database = {
           placement?: string
           print_method?: string | null
           size?: string
-          sub_order_id: string
           type: Database["public"]["Enums"]["textile_motif_type"]
         }
         Update: {
           color?: string | null
           content?: string | null
           created_at?: string
+          department_order_id?: string
           file_id?: string | null
           font_class?: Database["public"]["Enums"]["textile_font_class"] | null
           font_name?: string | null
@@ -900,22 +1902,21 @@ export type Database = {
           placement?: string
           print_method?: string | null
           size?: string
-          sub_order_id?: string
           type?: Database["public"]["Enums"]["textile_motif_type"]
         }
         Relationships: [
+          {
+            foreignKeyName: "textile_motifs_department_order_id_fkey"
+            columns: ["department_order_id"]
+            isOneToOne: false
+            referencedRelation: "department_orders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "textile_motifs_file_id_fkey"
             columns: ["file_id"]
             isOneToOne: false
             referencedRelation: "files"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "textile_motifs_sub_order_id_fkey"
-            columns: ["sub_order_id"]
-            isOneToOne: false
-            referencedRelation: "sub_orders"
             referencedColumns: ["id"]
           },
         ]
@@ -925,12 +1926,12 @@ export type Database = {
           brand: string | null
           color: string | null
           created_at: string
+          department_order_id: string
           id: string
           model: string | null
           origin: Database["public"]["Enums"]["textile_origin"]
           quantity: number
           size: string | null
-          sub_order_id: string
           type: string | null
           variant_id: string | null
         }
@@ -938,12 +1939,12 @@ export type Database = {
           brand?: string | null
           color?: string | null
           created_at?: string
+          department_order_id: string
           id?: string
           model?: string | null
           origin: Database["public"]["Enums"]["textile_origin"]
           quantity: number
           size?: string | null
-          sub_order_id: string
           type?: string | null
           variant_id?: string | null
         }
@@ -951,21 +1952,21 @@ export type Database = {
           brand?: string | null
           color?: string | null
           created_at?: string
+          department_order_id?: string
           id?: string
           model?: string | null
           origin?: Database["public"]["Enums"]["textile_origin"]
           quantity?: number
           size?: string | null
-          sub_order_id?: string
           type?: string | null
           variant_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "textile_positions_sub_order_id_fkey"
-            columns: ["sub_order_id"]
+            foreignKeyName: "textile_positions_department_order_id_fkey"
+            columns: ["department_order_id"]
             isOneToOne: false
-            referencedRelation: "sub_orders"
+            referencedRelation: "department_orders"
             referencedColumns: ["id"]
           },
           {
@@ -1116,6 +2117,187 @@ export type Database = {
           },
         ]
       }
+      trodat_pad_products: {
+        Row: {
+          color: string | null
+          department_product_id: string
+          pad_article_number: string | null
+          pad_variant_id: string | null
+        }
+        Insert: {
+          color?: string | null
+          department_product_id: string
+          pad_article_number?: string | null
+          pad_variant_id?: string | null
+        }
+        Update: {
+          color?: string | null
+          department_product_id?: string
+          pad_article_number?: string | null
+          pad_variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trodat_pad_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trodat_pad_products_pad_variant_id_fkey"
+            columns: ["pad_variant_id"]
+            isOneToOne: false
+            referencedRelation: "stamp_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trodat_printy_products: {
+        Row: {
+          department_product_id: string
+          model_id: string | null
+        }
+        Insert: {
+          department_product_id: string
+          model_id?: string | null
+        }
+        Update: {
+          department_product_id?: string
+          model_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trodat_printy_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trodat_printy_products_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "stamp_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trophy_plate_products: {
+        Row: {
+          department_product_id: string
+          height: number | null
+          material: string | null
+          material_other: string | null
+          motif: string | null
+          round_corners: boolean | null
+          self_adhesive: boolean | null
+          width: number | null
+        }
+        Insert: {
+          department_product_id: string
+          height?: number | null
+          material?: string | null
+          material_other?: string | null
+          motif?: string | null
+          round_corners?: boolean | null
+          self_adhesive?: boolean | null
+          width?: number | null
+        }
+        Update: {
+          department_product_id?: string
+          height?: number | null
+          material?: string | null
+          material_other?: string | null
+          motif?: string | null
+          round_corners?: boolean | null
+          self_adhesive?: boolean | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trophy_plate_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_lettering_products: {
+        Row: {
+          area_front: boolean | null
+          area_rear: boolean | null
+          area_sides: boolean | null
+          department_product_id: string
+          existing_wrap: boolean | null
+          installation: string | null
+          installation_date: string | null
+          vehicle_make: string | null
+          vehicle_model: string | null
+        }
+        Insert: {
+          area_front?: boolean | null
+          area_rear?: boolean | null
+          area_sides?: boolean | null
+          department_product_id: string
+          existing_wrap?: boolean | null
+          installation?: string | null
+          installation_date?: string | null
+          vehicle_make?: string | null
+          vehicle_model?: string | null
+        }
+        Update: {
+          area_front?: boolean | null
+          area_rear?: boolean | null
+          area_sides?: boolean | null
+          department_product_id?: string
+          existing_wrap?: boolean | null
+          installation?: string | null
+          installation_date?: string | null
+          vehicle_make?: string | null
+          vehicle_model?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_lettering_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wooden_stamp_products: {
+        Row: {
+          department_product_id: string
+          model_id: string | null
+        }
+        Insert: {
+          department_product_id: string
+          model_id?: string | null
+        }
+        Update: {
+          department_product_id?: string
+          model_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wooden_stamp_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wooden_stamp_products_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "stamp_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       employees: {
@@ -1139,9 +2321,9 @@ export type Database = {
         Args: {
           created_by_user_id: string
           new_deadline: string
-          new_delivery: string
-          new_priority: string
-          selected_sub_order_ids: string[]
+          new_delivery: Database["public"]["Enums"]["delivery_type"]
+          new_priority: Database["public"]["Enums"]["priority_type"]
+          selected_department_order_ids: string[]
           source_order_id: string
         }
         Returns: string
@@ -1149,6 +2331,13 @@ export type Database = {
     }
     Enums: {
       delivery_type: "PICKUP" | "SHIPPING"
+      department:
+        | "LFP"
+        | "COPYSHOP"
+        | "TEXTILE"
+        | "STAMP"
+        | "LASER_ENGRAVING"
+        | "OTHER"
       file_role:
         | "PRODUCTION_FILE"
         | "PREVIEW"
@@ -1177,13 +2366,6 @@ export type Database = {
         | "DONE"
         | "INVOICED"
       priority_type: "NORMAL" | "HIGH"
-      sub_order_department:
-        | "LFP"
-        | "COPYSHOP"
-        | "TEXTILE"
-        | "STAMP"
-        | "LASER_ENGRAVING"
-        | "OTHER"
       textile_font_class: "SANS_SERIF" | "SERIF" | "ELEGANT" | "PLAYFUL"
       textile_motif_type: "TEXT" | "FILE"
       textile_origin: "CUSTOMER_STOCK" | "OWN_STOCK"
@@ -1318,6 +2500,14 @@ export const Constants = {
   public: {
     Enums: {
       delivery_type: ["PICKUP", "SHIPPING"],
+      department: [
+        "LFP",
+        "COPYSHOP",
+        "TEXTILE",
+        "STAMP",
+        "LASER_ENGRAVING",
+        "OTHER",
+      ],
       file_role: [
         "PRODUCTION_FILE",
         "PREVIEW",
@@ -1349,14 +2539,6 @@ export const Constants = {
         "INVOICED",
       ],
       priority_type: ["NORMAL", "HIGH"],
-      sub_order_department: [
-        "LFP",
-        "COPYSHOP",
-        "TEXTILE",
-        "STAMP",
-        "LASER_ENGRAVING",
-        "OTHER",
-      ],
       textile_font_class: ["SANS_SERIF", "SERIF", "ELEGANT", "PLAYFUL"],
       textile_motif_type: ["TEXT", "FILE"],
       textile_origin: ["CUSTOMER_STOCK", "OWN_STOCK"],
