@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { subOrderProductService } from '../../services/subOrderProductService'
-import { validateOtherDetail } from '../../lib/other/validateOtherDetail'
+import { validateProduct } from '../../lib/products/registry'
 import type { OrderStatus, SubOrderRow } from '../../types/database'
 import type { LoadedProduct, ProductWriteInput } from '../../types/product'
 import type { FileRow } from '../../services/fileService'
@@ -153,7 +153,7 @@ export function OtherDetail({
   }, [])
 
   const validationErrors = useMemo(
-    () => validateOtherDetail(fields as unknown as Record<string, unknown>, subOrderStatus),
+    () => validateProduct('OTHER', fields, subOrderStatus),
     [fields, subOrderStatus],
   )
   const shouldValidate = subOrderStatus !== 'QUOTE'
@@ -180,7 +180,7 @@ export function OtherDetail({
 
   const handleAddOrSave = useCallback(async () => {
     const currentFields = { ...fieldsRef.current }
-    const errors = validateOtherDetail(currentFields as unknown as Record<string, unknown>, subOrderStatus)
+    const errors = validateProduct('OTHER', currentFields, subOrderStatus)
     if (Object.keys(errors).length > 0) return
 
     const buildInput = (sortOrder: number, id?: string): ProductWriteInput => ({

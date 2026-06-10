@@ -9,7 +9,7 @@ import {
   LASER_TYPES,
   LASER_TYPE_LABELS,
 } from '../../types/laser'
-import { validateLaserDetail } from '../../lib/laser/validateLaserDetail'
+import { validateProduct } from '../../lib/products/registry'
 import type { OrderStatus, SubOrderRow } from '../../types/database'
 import type { FileRow } from '../../services/fileService'
 import { useToast } from '../Toast'
@@ -187,7 +187,7 @@ export function LaserDetail({
     typeRef.current = null
   }, [])
 
-  const validationErrors = validateLaserDetail(selectedType, { ...fields, quantity: fields.quantity }, subOrderStatus)
+  const validationErrors = validateProduct(selectedType, { ...fields, quantity: fields.quantity }, subOrderStatus)
   const shouldValidate = subOrderStatus !== 'QUOTE'
   const fieldErrorClass = (fieldKey: string) => (shouldValidate && validationErrors[fieldKey] ? ' ber-inp--err' : '')
 
@@ -280,7 +280,7 @@ export function LaserDetail({
     const currentType = typeRef.current
     const currentFields = { ...fieldsRef.current }
     if (!currentType) return
-    const errors = validateLaserDetail(currentType, { ...currentFields, quantity: currentFields.quantity }, subOrderStatus)
+    const errors = validateProduct(currentType, { ...currentFields, quantity: currentFields.quantity }, subOrderStatus)
     if (Object.keys(errors).length > 0) return
 
     const rawQuantity = currentFields.quantity

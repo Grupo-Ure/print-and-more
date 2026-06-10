@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { LFP_TYPE_LABELS, LFP_TYPES } from '../../types/lfp'
-import { validateLfpDetail } from '../../lib/lfp/validateLfpDetail'
+import { validateProduct } from '../../lib/products/registry'
 import type { OrderStatus, SubOrderRow } from '../../types/database'
 import { subOrderProductService } from '../../services/subOrderProductService'
 import type { LoadedProduct, ProductChildInsert, ProductWriteInput } from '../../types/product'
@@ -241,7 +241,7 @@ export function LFPDetail({
     typeRef.current = null
   }, [])
 
-  const validationErrors = validateLfpDetail(selectedType, detail, subOrderStatus)
+  const validationErrors = validateProduct(selectedType, detail, subOrderStatus)
   const shouldValidate = subOrderStatus !== 'QUOTE'
   const fieldErrorClass = (fieldKey: string) => (shouldValidate && validationErrors[fieldKey] ? ' ber-inp--err' : '')
 
@@ -286,7 +286,7 @@ export function LFPDetail({
     const currentType = typeRef.current
     const currentFields = { ...detailRef.current }
     if (!currentType) return
-    const errors = validateLfpDetail(currentType, currentFields, subOrderStatus)
+    const errors = validateProduct(currentType, currentFields, subOrderStatus)
     if (Object.keys(errors).length > 0) return
 
     const quantity =

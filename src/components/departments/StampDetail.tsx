@@ -5,7 +5,7 @@ import {
   STAMP_TYPES,
   STAMP_TYPE_LABELS,
 } from '../../types/stamp'
-import { validateStampDetail } from '../../lib/stamp/validateStampDetail'
+import { validateProduct } from '../../lib/products/registry'
 import { type OrderStatus, type SubOrderRow } from '../../types/database'
 import type { LoadedProduct, ProductChildInsert, ProductWriteInput } from '../../types/product'
 import { subOrderProductService } from '../../services/subOrderProductService'
@@ -307,7 +307,7 @@ export function StampDetail({
     setPadName(null)
   }, [])
 
-  const stampErrors = validateStampDetail(stampType, fields, subOrderStatus)
+  const stampErrors = validateProduct(stampType, fields, subOrderStatus)
   const shouldValidate = subOrderStatus !== 'QUOTE'
   const fieldErrorClass = (fieldKey: string) => (shouldValidate && stampErrors[fieldKey] ? ' ber-inp--err' : '')
 
@@ -577,7 +577,7 @@ export function StampDetail({
     const currentType = stampTypeRef.current
     const currentFields = { ...fieldsRef.current }
     if (!currentType) return
-    const errors = validateStampDetail(currentType, currentFields, subOrderStatus)
+    const errors = validateProduct(currentType, currentFields, subOrderStatus)
     if (Object.keys(errors).length > 0) return
 
     const quantity = toPositiveIntOrNull(currentFields.quantity)

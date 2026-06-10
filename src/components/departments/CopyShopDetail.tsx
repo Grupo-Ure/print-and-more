@@ -3,7 +3,7 @@ import { subOrderProductService } from '../../services/subOrderProductService'
 import type { LoadedProduct, ProductChildInsert, ProductWriteInput } from '../../types/product'
 import { COPY_SHOP_TYPES, COPY_SHOP_TYPE_LABELS, type CopyShopDetailJson } from '../../types/copyshop'
 import { BROCHURE_DIN, FOLD_DIN, CARD_DIN, CARD_FORMAT_ORDER, FOLD_FORMAT_ORDER, BROCHURE_FORMAT_ORDER } from '../../lib/copyshop/dinCfbFormats'
-import { validateCopyShopDetail } from '../../lib/copyshop/validateCopyShopDetail'
+import { validateProduct } from '../../lib/products/registry'
 import type { OrderStatus, SubOrderRow } from '../../types/database'
 import type { FileRow } from '../../services/fileService'
 import { useToast } from '../Toast'
@@ -277,7 +277,7 @@ export function CopyShopDetail({
     typeRef.current = null
   }, [])
 
-  const validationErrors = validateCopyShopDetail(selectedType, detail, subOrderStatus)
+  const validationErrors = validateProduct(selectedType, detail, subOrderStatus)
   const shouldValidate = subOrderStatus !== 'QUOTE'
   const fieldErrorClass = (fieldKey: string) => (shouldValidate && validationErrors[fieldKey] ? ' ber-inp--err' : '')
 
@@ -322,7 +322,7 @@ export function CopyShopDetail({
     const currentType = typeRef.current
     const currentDetail = { ...detailRef.current } as Record<string, unknown>
     if (!currentType) return
-    const errors = validateCopyShopDetail(currentType, currentDetail, subOrderStatus)
+    const errors = validateProduct(currentType, currentDetail, subOrderStatus)
     if (Object.keys(errors).length > 0) return
 
     const quantityRaw = currentDetail.quantity
