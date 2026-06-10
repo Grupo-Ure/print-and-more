@@ -110,7 +110,7 @@ export function DuplicateDialog({ order, teilauftraege, onSuccess, onCancel }: P
         new_priority: order.priority ?? null,
         new_delivery: order.delivery ?? null,
         new_deadline: newDeadline ? newDeadline : null,
-        selected_sub_order_ids: selectedSubOrders.map(subOrder => subOrder.id),
+        selected_department_order_ids: selectedSubOrders.map(subOrder => subOrder.id),
         created_by_user_id: (await authService.getUser())?.id ?? null,
       })
 

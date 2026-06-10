@@ -5,9 +5,9 @@ export type OrderStatus = Enums<'order_status'>
 
 export const ORDER_STATUS_LIST: readonly OrderStatus[] = Constants.public.Enums.order_status
 
-export type SubOrderDepartment = Enums<'sub_order_department'>
+export type SubOrderDepartment = Enums<'department'>
 
-export const SUB_ORDER_DEPARTMENTS: readonly SubOrderDepartment[] = Constants.public.Enums.sub_order_department
+export const SUB_ORDER_DEPARTMENTS: readonly SubOrderDepartment[] = Constants.public.Enums.department
 
 export type Department = SubOrderDepartment
 
@@ -52,10 +52,10 @@ export type OrderPdfRow = Pick<Tables<'orders'>, 'order_number' | 'deadline' | '
 
 export type DeliveryChoice = Enums<'delivery_type'>
 
-export type SubOrderRow = Tables<'sub_orders'>
+export type SubOrderRow = Tables<'department_orders'>
 
-export type SubOrderUpdate = TablesUpdate<'sub_orders'>
+export type SubOrderUpdate = TablesUpdate<'department_orders'>
 
-export type NewSubOrderEntry = Pick<TablesInsert<'sub_orders'>, 'order_id' | 'department' | 'status' | 'priority'>
+export type NewSubOrderEntry = Pick<TablesInsert<'department_orders'>, 'order_id' | 'department' | 'status' | 'priority'>
 
 export type DuplicateOrderArgs = Database['public']['Functions']['duplicate_order']['Args']

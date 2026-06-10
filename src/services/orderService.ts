@@ -35,7 +35,7 @@ function flattenCustomerJoin<T extends { customers: unknown }>(row: T): T {
 }
 
 const ORDER_LIST_SELECT =
-  'id, order_number, status, created_at, deadline, priority, is_emergency, customer_id, customers(name), sub_orders(department, status)'
+  'id, order_number, status, created_at, deadline, priority, is_emergency, customer_id, customers(name), sub_orders:department_orders(department, status)'
 
 export type OrderListParams = {
   is_archived?: boolean
@@ -130,7 +130,7 @@ class OrderService {
 
   async archiveOrderWithCancelledSubOrders(orderId: string): Promise<void> {
     const { error: subError } = await supabase
-      .from('sub_orders')
+      .from('department_orders')
       .update({ is_cancelled: true })
       .eq('order_id', orderId)
       .neq('is_cancelled', true)
@@ -158,7 +158,7 @@ class OrderService {
   async recalculateOrderStatus(orderId: string): Promise<Auftrag> {
     const { data: inputs, error: readError } = await supabase
       .from('orders')
-      .select('status, sub_orders(status, is_cancelled)')
+      .select('status, sub_orders:department_orders(status, is_cancelled)')
       .eq('id', orderId)
       .single()
     if (readError) throw readError
@@ -184,7 +184,7 @@ class OrderService {
     new_priority: PriorityEnum | null
     new_delivery: DeliveryEnum | null
     new_deadline: string | null
-    selected_sub_order_ids: string[]
+    selected_department_order_ids: string[]
     created_by_user_id: string | null
   }): Promise<string> {
     const { data, error } = await supabase.rpc('duplicate_order', params as unknown as DuplicateOrderArgs)

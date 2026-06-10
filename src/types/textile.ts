@@ -53,7 +53,7 @@ export type TextileSize = 'KLEIN' | 'MITTEL' | 'GROSS' | 'FREI'
 /** Row from `textile_motifs`: the artwork to be applied. */
 export type TextileMotifRow = {
   id: string
-  sub_order_id: string
+  department_order_id: string
   type: TextileMotifType
   placement: TextilePlacement
   size: string
@@ -68,7 +68,7 @@ export type TextileMotifRow = {
 /** Row from `textile_positions`: one garment configuration with quantity. */
 export type TextilePositionRow = {
   id: string
-  sub_order_id: string
+  department_order_id: string
   origin: TextileOrigin
   type: string | null
   color: string | null
@@ -107,7 +107,7 @@ export type TextileNestedPosition = {
  */
 export type TextileAssignmentRow = {
   id: string
-  sub_order_id: string
+  department_order_id: string
   motif_id: string
   position_id: string
   /** PostgREST embed; may be an object or a single-element array. */

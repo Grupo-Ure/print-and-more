@@ -198,7 +198,7 @@ export function TextileDetail({
         nextStatus = nextSubOrderStatus(currentSubOrder.status, currentSubOrder, merged, isComplete, customerContactOk, orderStatus)
       }
       setIsSaving(true)
-      const subOrderSyncPatch: Database['public']['Tables']['sub_orders']['Update'] = {
+      const subOrderSyncPatch: Database['public']['Tables']['department_orders']['Update'] = {
         status: nextStatus,
         detail: newDetail as Json,
       }
@@ -326,7 +326,7 @@ export function TextileDetail({
       const existingDetail = currentDetail && typeof currentDetail === 'object' && !Array.isArray(currentDetail) ? { ...(currentDetail as Record<string, unknown>) } : {}
       const newDetail = { ...existingDetail, eigenware_modus: mode }
       setIsSaving(true)
-      const detailPatch: Database['public']['Tables']['sub_orders']['Update'] = {
+      const detailPatch: Database['public']['Tables']['department_orders']['Update'] = {
         detail: newDetail as Json,
       }
       let updatedSubOrder: SubOrderRow
@@ -573,7 +573,7 @@ export function TextileDetail({
       if (existingMotifIds.has(motifId)) continue
       try {
         const newAssignment = await textileService.createAssignment({
-          sub_order_id: subOrder.id,
+          department_order_id: subOrder.id,
           motif_id: motifId,
           position_id: positionId,
         })
@@ -620,7 +620,7 @@ export function TextileDetail({
         }
         motifRow = editId
           ? await textileService.updateMotif(editId, textPatch)
-          : await textileService.createMotif({ sub_order_id: subOrderId, ...textPatch })
+          : await textileService.createMotif({ department_order_id: subOrderId, ...textPatch })
       } catch (err) {
         setIsSaving(false)
         setError(err instanceof Error ? err.message : 'Save failed')
@@ -656,7 +656,7 @@ export function TextileDetail({
         }
         motifRow = editId
           ? await textileService.updateMotif(editId, filePatch)
-          : await textileService.createMotif({ sub_order_id: subOrderId, ...filePatch })
+          : await textileService.createMotif({ department_order_id: subOrderId, ...filePatch })
       } catch (err) {
         setIsSaving(false)
         setError(err instanceof Error ? err.message : 'Save failed')
@@ -853,7 +853,7 @@ export function TextileDetail({
       let positionRow: TextilePositionRow
       try {
         positionRow = await textileService.createPosition({
-          sub_order_id: subOrderId,
+          department_order_id: subOrderId,
           origin: 'CUSTOMER_STOCK',
           type: positionGarmentType,
           color: positionColor.trim(),
@@ -880,7 +880,7 @@ export function TextileDetail({
             for (const mid of newMotifIds) {
               try {
                 const assignmentData = await textileService.createAssignment({
-                  sub_order_id: subOrder.id,
+                  department_order_id: subOrder.id,
                   motif_id: mid,
                   position_id: positionRow.id,
                 })
@@ -936,7 +936,7 @@ export function TextileDetail({
       let positionRow: TextilePositionRow
       try {
         positionRow = await textileService.createPosition({
-          sub_order_id: subOrderId,
+          department_order_id: subOrderId,
           origin: 'OWN_STOCK',
           type: null,
           color: positionColor.trim(),
@@ -983,7 +983,7 @@ export function TextileDetail({
             for (const mid of ownGoodsMotifIds) {
               try {
                 const assignmentData = await textileService.createAssignment({
-                  sub_order_id: subOrder.id,
+                  department_order_id: subOrder.id,
                   motif_id: mid,
                   position_id: positionRow.id,
                 })

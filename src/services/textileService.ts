@@ -13,7 +13,7 @@ type PositionUpdate = Database['public']['Tables']['textile_positions']['Update'
 type AssignmentInsert = Database['public']['Tables']['textile_assignments']['Insert']
 
 const ASSIGNMENT_EMBED_SELECT =
-  'id, sub_order_id, motif_id, position_id, textile_motifs(type, content, file_id, placement, size, print_method), textile_positions(origin, type, color, brand, model, size)'
+  'id, department_order_id, motif_id, position_id, textile_motifs(type, content, file_id, placement, size, print_method), textile_positions(origin, type, color, brand, model, size)'
 
 export type VariantWithProduct = {
   id: string
@@ -47,9 +47,9 @@ class TextileService {
     assignments: TextileAssignmentRow[]
   }> {
     const [motifResult, positionResult, assignmentResult] = await Promise.all([
-      supabase.from('textile_motifs').select('*').eq('sub_order_id', subOrderId),
-      supabase.from('textile_positions').select('*').eq('sub_order_id', subOrderId),
-      supabase.from('textile_assignments').select(ASSIGNMENT_EMBED_SELECT).eq('sub_order_id', subOrderId),
+      supabase.from('textile_motifs').select('*').eq('department_order_id', subOrderId),
+      supabase.from('textile_positions').select('*').eq('department_order_id', subOrderId),
+      supabase.from('textile_assignments').select(ASSIGNMENT_EMBED_SELECT).eq('department_order_id', subOrderId),
     ])
     if (motifResult.error) throw motifResult.error
     if (positionResult.error) throw positionResult.error
@@ -130,7 +130,7 @@ class TextileService {
     const { data, error } = await supabase
       .from('textile_positions')
       .select('id, variant_id, quantity, origin')
-      .eq('sub_order_id', subOrderId)
+      .eq('department_order_id', subOrderId)
       .eq('origin', 'OWN_STOCK')
       .not('variant_id', 'is', null)
     if (error) throw error
@@ -234,7 +234,7 @@ class TextileService {
     const { data, error } = await supabase
       .from('textile_positions')
       .select('*, textile_variants(id, textile_products(name))')
-      .eq('sub_order_id', subOrderId)
+      .eq('department_order_id', subOrderId)
       .order('id')
     if (error) throw error
     return (data ?? []) as unknown as PositionWithVariant[]

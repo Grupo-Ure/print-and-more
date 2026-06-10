@@ -142,7 +142,7 @@ class TextileMasterDataService {
       .select('variant_id, quantity')
       .eq('origin', 'OWN_STOCK')
       .not('variant_id', 'is', null)
-      .in('sub_order_id', subOrderIds)
+      .in('department_order_id', subOrderIds)
     if (error) throw error
     return (data ?? []) as { variant_id: string | null; quantity: number }[]
   }
@@ -223,10 +223,10 @@ class TextileMasterDataService {
   async getSubOrdersUsingVariant(varianteId: string): Promise<string[]> {
     const { data, error } = await supabase
       .from('textile_positions')
-      .select('sub_order_id')
+      .select('department_order_id')
       .eq('variant_id', varianteId)
     if (error) throw error
-    return [...new Set((data ?? []).map(r => r.sub_order_id))]
+    return [...new Set((data ?? []).map(r => r.department_order_id))]
   }
 
   async getVariantUsageBySubOrder(
@@ -235,7 +235,7 @@ class TextileMasterDataService {
     const { data, error } = await supabase
       .from('textile_positions')
       .select('variant_id, quantity')
-      .eq('sub_order_id', subOrderId)
+      .eq('department_order_id', subOrderId)
     if (error) throw error
     return (data ?? []) as { variant_id: string | null; quantity: number }[]
   }

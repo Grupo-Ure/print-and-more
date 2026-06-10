@@ -6,8 +6,8 @@ import type { OrderDetailRow, SubOrderRow } from '../types/database'
 import type { Database } from '../types/supabase'
 import { orderKeys, patchOrderStatusInCache } from './orderQueries'
 
-type SubOrderInsert = Database['public']['Tables']['sub_orders']['Insert']
-type SubOrderUpdate = Database['public']['Tables']['sub_orders']['Update']
+type SubOrderInsert = Database['public']['Tables']['department_orders']['Insert']
+type SubOrderUpdate = Database['public']['Tables']['department_orders']['Update']
 
 export const subOrderKeys = {
   all: ['subOrders'] as const,
