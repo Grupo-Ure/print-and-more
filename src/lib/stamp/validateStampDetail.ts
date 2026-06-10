@@ -1,35 +1,24 @@
 /**
- * Validation for Stamp (Stempel) sub-order detail.
+ * Validation for Stamp (Stempel) products.
  *
- * The Stamp validator accepts both the core stamp typen ({@link STAMP_TYPES})
- * and a set of "extra" typen for consumables: refill ink
- * (`REFILL_INK`), stamp pads (`INK_PAD`), Trodat replacement
- * pads (`TRODAT_PAD`), and replacement plates (`STAMP_PLATE`).
- * Each typ has its own required fields:
+ * Operates on the English typed fields of a stamp product (the child columns
+ * plus the parent `quantity`), keyed by `type`. Field keys are English; the
+ * stored enum VALUE strings (SCHWARZ, KLEIN, …) are kept as-is for now (the
+ * value→English pass is deferred, shop-confirmed).
  *
- * - `TRODAT_PRINTY`, `WOODEN_STAMP`: dimensions optional; require
- *   `modell_id` from the catalog of stamp models.
- * - `STAND_STAMP`, `DATE_STAMP`, `OTHER_STAMP`: at least one
- *   dimension; ink color; description.
- * - `REFILL_INK`: ink color + ink type (NORMAL / HAUTVERTRAEGLICH /
- *   TEXTIL).
- * - `INK_PAD`: pad size (KLEIN / MITTEL / GROSS) + ink color.
- * - `TRODAT_PAD`: article number, ink color, and selected variant.
- * - `STAMP_PLATE`: dimensions only (no color, no description).
+ * Per type:
+ * - `TRODAT_PRINTY`, `WOODEN_STAMP`: dimensions optional; require `model_id`.
+ * - `STAND_STAMP`, `DATE_STAMP`, `OTHER_STAMP`: at least one dimension; color;
+ *   description.
+ * - `REFILL_INK`: color + ink_type.
+ * - `INK_PAD`: pad_size + color.
+ * - `TRODAT_PAD`: pad_article_number, color, pad_variant_id.
+ * - `STAMP_PLATE`: dimensions only.
  *
- * In `ANGEBOT` (quote stage) nothing is required regardless of typ.
- *
- * Returns a map of field-key → German error message; an empty map means
- * the detail is valid.
+ * In `QUOTE` stage nothing is required. Returns a map of field-key → message.
  */
 
-import {
-  STAMP_COLORS,
-  type StampDetailJson,
-  type StampColor,
-  type StampType,
-  STAMP_TYPES,
-} from '../../types/stamp'
+import { STAMP_COLORS, type StampColor, type StampType, STAMP_TYPES } from '../../types/stamp'
 import type { OrderStatus } from '../../types/database'
 
 function parseRequiredString(value: unknown): string | null {
@@ -51,11 +40,6 @@ function isValidQuantity(value: unknown): boolean {
   return Number.isInteger(parsed) && parsed >= 1
 }
 
-function hasValidCount(detail: StampDetailJson): boolean {
-  // Both `anzahl` and `stueckzahl` are accepted depending on the typ.
-  return isValidQuantity(detail.anzahl) || isValidQuantity(detail.stueckzahl)
-}
-
 function parsePositiveInt(value: unknown): number | null {
   if (value == null || value === '') return null
   const parsed = typeof value === 'number' ? value : parseInt(String(value), 10)
@@ -72,33 +56,34 @@ const EXTRA_TYPES = ['REFILL_INK', 'INK_PAD', 'STAMP_PLATE', 'TRODAT_PAD'] as co
 type ExtraType = (typeof EXTRA_TYPES)[number]
 type AnyType = StampType | ExtraType
 
+// Stored value strings (kept German for now — deferred value-rename pass).
 const REFILL_INK_COLORS = ['SCHWARZ', 'ROT', 'BLAU', 'GRUEN'] as const
 const REFILL_INK_TYPES = ['NORMAL', 'HAUTVERTRAEGLICH', 'TEXTIL'] as const
 const STAMP_PAD_SIZES = ['KLEIN', 'MITTEL', 'GROSS'] as const
 
+/**
+ * @param type   the product type discriminator
+ * @param fields English child columns + the parent `quantity`
+ */
 export function validateStampDetail(
-  typ: string | null,
-  detail: StampDetailJson,
-  subOrderStatus: OrderStatus
+  type: string | null,
+  fields: Record<string, unknown>,
+  subOrderStatus: OrderStatus,
 ): Record<string, string> {
   const errors: Err = {}
   if (subOrderStatus === 'QUOTE') return errors
-  const isKnownTyp =
-    !!typ && ((STAMP_TYPES as readonly string[]).includes(typ) || (EXTRA_TYPES as readonly string[]).includes(typ))
-  if (!typ || !isKnownTyp) {
-    addError(errors, 'typ', 'Select type')
+  const isKnownType =
+    !!type && ((STAMP_TYPES as readonly string[]).includes(type) || (EXTRA_TYPES as readonly string[]).includes(type))
+  if (!type || !isKnownType) {
+    addError(errors, 'type', 'Select type')
     return errors
   }
-  const stampType = typ as AnyType
+  const stampType = type as AnyType
 
-  // Anzahl / Stückzahl
-  if (stampType === 'TRODAT_PAD') {
-    if (!isValidQuantity(detail.stueckzahl)) addError(errors, 'stueckzahl', 'Integer ≥ 1')
-  } else {
-    if (!hasValidCount(detail)) addError(errors, 'stueckzahl', 'Integer ≥ 1')
-  }
+  // quantity
+  if (!isValidQuantity(fields.quantity)) addError(errors, 'quantity', 'Integer ≥ 1')
 
-  // Maße (OR-Pflicht) für alle außer REFILL_INK, INK_PAD, TRODAT_PAD, TRODAT_PRINTY, WOODEN_STAMP
+  // dimensions (OR-required) for all except the model stamps and consumables
   const needsFormat =
     stampType !== 'REFILL_INK' &&
     stampType !== 'INK_PAD' &&
@@ -106,44 +91,39 @@ export function validateStampDetail(
     stampType !== 'TRODAT_PRINTY' &&
     stampType !== 'WOODEN_STAMP'
   if (needsFormat) {
-    const width = parsePositiveInt(detail.format_breite)
-    const height = parsePositiveInt(detail.format_hoehe)
+    const width = parsePositiveInt(fields.width)
+    const height = parsePositiveInt(fields.height)
     const hasOne = (width ?? 0) > 0 || (height ?? 0) > 0
     if (!hasOne) addError(errors, 'format', 'Provide at least width or height')
-    if (detail.format_breite != null && detail.format_breite !== '' && width == null) addError(errors, 'format_breite', 'Integer > 0')
-    if (detail.format_hoehe != null && detail.format_hoehe !== '' && height == null) addError(errors, 'format_hoehe', 'Integer > 0')
+    if (fields.width != null && fields.width !== '' && width == null) addError(errors, 'width', 'Integer > 0')
+    if (fields.height != null && fields.height !== '' && height == null) addError(errors, 'height', 'Integer > 0')
   }
 
   if (stampType === 'TRODAT_PRINTY' || stampType === 'WOODEN_STAMP') {
-    if (!parseRequiredString(detail?.modell_id)) {
-      addError(errors, 'modell_id', 'Please select a stamp model')
+    if (!parseRequiredString(fields.model_id)) {
+      addError(errors, 'model_id', 'Please select a stamp model')
     }
   }
 
-  // Typ-spezifische Pflichtfelder
+  // type-specific required fields
   if (stampType === 'REFILL_INK') {
-    const inkColor = parseEnum(detail.farbe, REFILL_INK_COLORS)
-    if (!inkColor) addError(errors, 'farbe', 'Required')
-    const inkType = parseEnum(detail.tinte_typ, REFILL_INK_TYPES)
-    if (!inkType) addError(errors, 'tinte_typ', 'Required')
+    if (!parseEnum(fields.color, REFILL_INK_COLORS)) addError(errors, 'color', 'Required')
+    if (!parseEnum(fields.ink_type, REFILL_INK_TYPES)) addError(errors, 'ink_type', 'Required')
   } else if (stampType === 'INK_PAD') {
-    const padSize = parseEnum(detail.groesse, STAMP_PAD_SIZES)
-    if (!padSize) addError(errors, 'groesse', 'Required')
-    const inkColor = parseEnum(detail.farbe, REFILL_INK_COLORS)
-    if (!inkColor) addError(errors, 'farbe', 'Required')
+    if (!parseEnum(fields.pad_size, STAMP_PAD_SIZES)) addError(errors, 'pad_size', 'Required')
+    if (!parseEnum(fields.color, REFILL_INK_COLORS)) addError(errors, 'color', 'Required')
   } else if (stampType === 'TRODAT_PAD') {
-    if (!parseRequiredString((detail as Record<string, unknown>).kissen_artikelnummer)) addError(errors, 'kissen_artikelnummer', 'Required')
-    const inkColor = parseEnum(detail.farbe, REFILL_INK_COLORS)
-    if (!inkColor) addError(errors, 'farbe', 'Required')
-    if (!parseRequiredString((detail as Record<string, unknown>).kissen_modell_id)) addError(errors, 'kissen_modell_id', 'Select colour variant')
+    if (!parseRequiredString(fields.pad_article_number)) addError(errors, 'pad_article_number', 'Required')
+    if (!parseEnum(fields.color, REFILL_INK_COLORS)) addError(errors, 'color', 'Required')
+    if (!parseRequiredString(fields.pad_variant_id)) addError(errors, 'pad_variant_id', 'Select colour variant')
   } else if (stampType === 'STAMP_PLATE') {
-    // Keine Farbe, keine Beschreibung.
+    // no color, no description
   } else {
-    // Standard-Stempel: Farbe + Beschreibung
-    const color = parseRequiredString(detail.farbe) as StampColor | null
-    if (!color || !STAMP_COLORS.includes(color as StampColor)) addError(errors, 'farbe', 'Required')
-    if (color === 'SONSTIGE' && !parseRequiredString(detail.farbe_sonstige)) addError(errors, 'farbe_sonstige', 'Required')
-    if (!parseRequiredString(detail.beschreibung)) addError(errors, 'beschreibung', 'Required')
+    // classic stamps: color + description
+    const color = parseRequiredString(fields.color) as StampColor | null
+    if (!color || !STAMP_COLORS.includes(color as StampColor)) addError(errors, 'color', 'Required')
+    if (color === 'SONSTIGE' && !parseRequiredString(fields.color_other)) addError(errors, 'color_other', 'Required')
+    if (!parseRequiredString(fields.description)) addError(errors, 'description', 'Required')
   }
   return errors
 }

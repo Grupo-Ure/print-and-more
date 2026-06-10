@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { subOrderProductService, type SubOrderProductRow } from '../../services/subOrderProductService'
+import { subOrderProductService } from '../../services/subOrderProductService'
+import type { LoadedProduct, ProductWriteInput } from '../../types/product'
 import {
   LASER_ORIGINS,
   LASER_ORIGIN_LABELS,
@@ -7,11 +8,9 @@ import {
   LASER_SIGN_MATERIAL_LABELS,
   LASER_TYPES,
   LASER_TYPE_LABELS,
-  type LaserDetailJson,
 } from '../../types/laser'
 import { validateLaserDetail } from '../../lib/laser/validateLaserDetail'
 import type { OrderStatus, SubOrderRow } from '../../types/database'
-import type { Database, Json } from '../../types/supabase'
 import type { FileRow } from '../../services/fileService'
 import { useToast } from '../Toast'
 import '../WorkArea.css'
@@ -23,23 +22,30 @@ type Props = {
   onProductsChanged?: (hasProducts: boolean) => void
 }
 
+/**
+ * Flat form state: the English child columns plus the parent `quantity`.
+ * (`notes`/`type` live in dedicated state, not in this record.)
+ */
+type LaserFields = Record<string, unknown>
+
 type ProductRow = {
   id: string
-  sub_order_id: string
-  department: string
-  detail: LaserDetailJson
+  type: string
+  quantity: number | null
+  notes: string | null
+  child: Record<string, unknown>
   sort_order: number | null
   created_at: string | null
 }
 
 type DetailBlockProps = {
-  detail: LaserDetailJson
+  fields: LaserFields
   fieldErrorClass: (fieldKey: string) => string
   shouldValidate: boolean
   validationErrors: Record<string, string>
-  patchLocal: (patch: LaserDetailJson) => void
+  patchLocal: (patch: LaserFields) => void
   commit: () => void
-  applyDetail: (newDetail: LaserDetailJson) => void
+  applyFields: (newFields: LaserFields) => void
 }
 
 const SIGN_TYPES = new Set(['SIGN', 'TROPHY_PLATE', 'NAME_TAG'])
@@ -64,12 +70,12 @@ export function LaserDetail({
   const [formFileRecordIds, setFormFileRecordIds] = useState<string[]>([])
 
   const [selectedType, setSelectedType] = useState<string | null>(null)
-  const [detail, setDetail] = useState<LaserDetailJson>({})
-  const detailRef = useRef(detail)
+  const [fields, setFields] = useState<LaserFields>({})
+  const fieldsRef = useRef(fields)
   const typeRef = useRef(selectedType)
   useEffect(() => {
-    detailRef.current = detail
-  }, [detail])
+    fieldsRef.current = fields
+  }, [fields])
   useEffect(() => {
     typeRef.current = selectedType
   }, [selectedType])
@@ -79,8 +85,8 @@ export function LaserDetail({
     setFormFileRecordIds([])
     setUnlocked(false)
     setSelectedType(null)
-    setDetail({})
-    detailRef.current = {}
+    setFields({})
+    fieldsRef.current = {}
     typeRef.current = null
   }, [subOrder.id])
 
@@ -101,7 +107,7 @@ export function LaserDetail({
       }
       const next: Record<string, ProductFileAssignment[]> = {}
       for (const row of rows) {
-        const list = next[row.product_id] ?? (next[row.product_id] = [])
+        const list = next[row.department_product_id] ?? (next[row.department_product_id] = [])
         list.push({ assignmentId: row.id, fileId: row.file_id })
       }
       setProductFiles(next)
@@ -115,7 +121,7 @@ export function LaserDetail({
       return []
     }
     setProductsLoading(true)
-    let rows: SubOrderProductRow[]
+    let rows: LoadedProduct[]
     try {
       rows = await subOrderProductService.getProductsBySubOrderId(subOrder.id)
     } catch {
@@ -128,9 +134,10 @@ export function LaserDetail({
     setProductsLoading(false)
     const mapped: ProductRow[] = rows.map(row => ({
       id: row.id,
-      sub_order_id: row.sub_order_id,
-      department: row.department,
-      detail: (row.detail ?? {}) as LaserDetailJson,
+      type: row.type,
+      quantity: row.quantity,
+      notes: row.notes,
+      child: (row.child ?? {}) as Record<string, unknown>,
       sort_order: row.sort_order,
       created_at: row.created_at,
     }))
@@ -175,76 +182,128 @@ export function LaserDetail({
     setEditingId(null)
     setFormFileRecordIds([])
     setSelectedType(null)
-    setDetail({})
-    detailRef.current = {}
+    setFields({})
+    fieldsRef.current = {}
     typeRef.current = null
   }, [])
 
-  const validationErrors = validateLaserDetail(selectedType, detail, subOrderStatus)
+  const validationErrors = validateLaserDetail(selectedType, { ...fields, quantity: fields.quantity }, subOrderStatus)
   const shouldValidate = subOrderStatus !== 'QUOTE'
   const fieldErrorClass = (fieldKey: string) => (shouldValidate && validationErrors[fieldKey] ? ' ber-inp--err' : '')
 
-  const saveDetail = useCallback(
-    (nextType: string | null, json: LaserDetailJson) => {
-      let prepared: LaserDetailJson = json
-      if (nextType === 'NAME_TAG' && json && typeof json === 'object') {
-        prepared = { ...json }
-        delete (prepared as Record<string, unknown>).selbstklebend
+  const saveFields = useCallback(
+    (nextType: string | null, next: LaserFields) => {
+      let prepared: LaserFields = next
+      if (nextType === 'NAME_TAG' && next && typeof next === 'object') {
+        prepared = { ...next }
+        delete (prepared as Record<string, unknown>).self_adhesive
       }
-      setDetail(prepared)
-      detailRef.current = prepared
+      setFields(prepared)
+      fieldsRef.current = prepared
       setSelectedType(nextType)
     },
     []
   )
 
-  const patchLocal = useCallback((patch: LaserDetailJson) => {
-    setDetail(currentDetail => {
-      const merged = { ...currentDetail, ...patch }
-      detailRef.current = merged
+  const patchLocal = useCallback((patch: LaserFields) => {
+    setFields(currentFields => {
+      const merged = { ...currentFields, ...patch }
+      fieldsRef.current = merged
       return merged
     })
   }, [])
 
   const commit = useCallback(() => {
-    void saveDetail(typeRef.current, { ...detailRef.current })
-  }, [saveDetail])
+    void saveFields(typeRef.current, { ...fieldsRef.current })
+  }, [saveFields])
 
-  const applyDetail = useCallback(
-    (newDetail: LaserDetailJson) => {
-      setDetail(newDetail)
-      detailRef.current = newDetail
-      void saveDetail(typeRef.current, newDetail)
+  const applyFields = useCallback(
+    (newFields: LaserFields) => {
+      setFields(newFields)
+      fieldsRef.current = newFields
+      void saveFields(typeRef.current, newFields)
     },
-    [saveDetail]
+    [saveFields]
   )
 
-  const detailBlock: DetailBlockProps = { detail, fieldErrorClass, shouldValidate, validationErrors, patchLocal, commit, applyDetail }
+  const detailBlock: DetailBlockProps = { fields, fieldErrorClass, shouldValidate, validationErrors, patchLocal, commit, applyFields }
 
   const formOk = useMemo(() => Object.keys(validationErrors).length === 0, [validationErrors])
 
   const requiresUnlock =
     (subOrderStatus === 'PREPRESS_READY' || subOrderStatus === 'PRODUCTION_READY') && !unlocked
 
+  /**
+   * Build the typed child column object for the given type from the flat
+   * form state. `quantity` is a parent column and is not part of the child.
+   */
+  const buildChild = useCallback((type: string, src: LaserFields): Record<string, unknown> => {
+    const f = src as Record<string, unknown>
+    if (type === 'SIGN' || type === 'TROPHY_PLATE') {
+      return {
+        motif: f.motif ?? null,
+        material: f.material ?? null,
+        material_other: f.material === 'SONSTIGE' ? (f.material_other ?? null) : null,
+        width: f.width ?? null,
+        height: f.height ?? null,
+        round_corners: f.round_corners ?? null,
+        self_adhesive: f.self_adhesive ?? null,
+      }
+    }
+    if (type === 'NAME_TAG') {
+      return {
+        motif: f.motif ?? null,
+        material: f.material ?? null,
+        material_other: f.material === 'SONSTIGE' ? (f.material_other ?? null) : null,
+        width: f.width ?? null,
+        height: f.height ?? null,
+        round_corners: f.round_corners ?? null,
+      }
+    }
+    if (type === 'GIFT_ITEM') {
+      return {
+        motif: f.motif ?? null,
+        material_free_text: f.material_free_text ?? null,
+        origin: f.origin ?? null,
+      }
+    }
+    // OTHER_LASER
+    return {
+      motif: f.motif ?? null,
+      material_free_text: f.material_free_text ?? null,
+      origin: f.origin ?? null,
+      self_adhesive: f.self_adhesive ?? null,
+    }
+  }, [])
+
   const handleAddOrSave = useCallback(async () => {
     const currentType = typeRef.current
-    const currentDetail = { ...detailRef.current }
+    const currentFields = { ...fieldsRef.current }
     if (!currentType) return
-    const errors = validateLaserDetail(currentType, currentDetail, subOrderStatus)
+    const errors = validateLaserDetail(currentType, { ...currentFields, quantity: currentFields.quantity }, subOrderStatus)
     if (Object.keys(errors).length > 0) return
 
-    let filteredDetail = currentDetail
-    if (currentType === 'NAME_TAG' && filteredDetail && typeof filteredDetail === 'object') {
-      filteredDetail = { ...currentDetail }
-      delete (filteredDetail as Record<string, unknown>).selbstklebend
-    }
+    const rawQuantity = currentFields.quantity
+    const quantity =
+      typeof rawQuantity === 'number'
+        ? rawQuantity
+        : rawQuantity == null || rawQuantity === ''
+          ? null
+          : parseInt(String(rawQuantity), 10)
 
     if (editingId) {
-      const patch: Database['public']['Tables']['sub_order_products']['Update'] = {
-        detail: { ...filteredDetail, typ: currentType } as Json,
+      const input: ProductWriteInput = {
+        id: editingId,
+        department_order_id: subOrder.id,
+        department: 'LASER_ENGRAVING',
+        type: currentType,
+        quantity: Number.isNaN(quantity as number) ? null : quantity,
+        notes: null,
+        sort_order: products.find(p => p.id === editingId)?.sort_order ?? products.length,
+        child: buildChild(currentType, currentFields) as ProductWriteInput['child'],
       }
       try {
-        await subOrderProductService.updateProduct(editingId, patch)
+        await subOrderProductService.updateProduct(editingId, input)
       } catch {
         showError('Product could not be saved')
         return
@@ -261,20 +320,22 @@ export function LaserDetail({
       return
     }
 
-    const productInsert: Database['public']['Tables']['sub_order_products']['Insert'] = {
-      sub_order_id: subOrder.id,
+    const input: ProductWriteInput = {
+      department_order_id: subOrder.id,
       department: 'LASER_ENGRAVING',
-      detail: { ...filteredDetail, typ: currentType } as Json,
+      type: currentType,
+      quantity: Number.isNaN(quantity as number) ? null : quantity,
+      notes: null,
       sort_order: products.length,
+      child: buildChild(currentType, currentFields) as ProductWriteInput['child'],
     }
-    let insertedRow: SubOrderProductRow
+    let newId: string
     try {
-      insertedRow = await subOrderProductService.createProduct(productInsert)
+      newId = await subOrderProductService.createProduct(input)
     } catch {
       showError('Product could not be added')
       return
     }
-    const newId = insertedRow.id
     const list = await reloadProducts()
     for (const fid of formFileRecordIds) {
       await assignFileToProduct(newId, fid, list)
@@ -286,7 +347,7 @@ export function LaserDetail({
     subOrder,
     subOrderStatus,
     editingId,
-    products.length,
+    products,
     productFiles,
     formFileRecordIds,
     showError,
@@ -295,6 +356,7 @@ export function LaserDetail({
     assignFileToProduct,
     removeFileFromProduct,
     onProductsChanged,
+    buildChild,
   ])
 
   const handleDelete = useCallback(
@@ -315,13 +377,11 @@ export function LaserDetail({
   const handleEdit = useCallback((row: ProductRow) => {
     setEditingId(row.id)
     setFormFileRecordIds(productFiles[row.id]?.map(assignment => assignment.fileId) ?? [])
-    const rowDetail = row.detail ?? {}
-    const detailRecord = rowDetail as Record<string, unknown>
-    const rowType = typeof detailRecord.typ === 'string' ? detailRecord.typ : null
+    const rowType = row.type || null
     setSelectedType(rowType)
-    const cleanDetail = { ...(rowDetail as LaserDetailJson) }
-    setDetail(cleanDetail)
-    detailRef.current = cleanDetail
+    const nextFields: LaserFields = { ...(row.child ?? {}), quantity: row.quantity }
+    setFields(nextFields)
+    fieldsRef.current = nextFields
     typeRef.current = rowType
   }, [productFiles])
 
@@ -334,19 +394,19 @@ export function LaserDetail({
 
       <FieldRow
         label="Type"
-        error={shouldValidate && validationErrors.typ ? validationErrors.typ : undefined}
+        error={shouldValidate && validationErrors.type ? validationErrors.type : undefined}
         content={
           <select
-            className={'ber-inp' + fieldErrorClass('typ')}
+            className={'ber-inp' + fieldErrorClass('type')}
             value={selectedType ?? ''}
             onChange={e => {
               const selected = e.target.value
               if (selected !== (selectedType ?? '')) {
                 setSelectedType(selected || null)
-                setDetail({})
-                detailRef.current = {}
+                setFields({})
+                fieldsRef.current = {}
                 typeRef.current = selected || null
-                if (editingId === null) void saveDetail(selected || null, {})
+                if (editingId === null) void saveFields(selected || null, {})
               } else {
                 setSelectedType(selected || null)
                 typeRef.current = selected || null
@@ -368,14 +428,6 @@ export function LaserDetail({
       {selectedType && SIGN_TYPES.has(selectedType) && <SignGroup props={detailBlock} signType={selectedType} />}
       {selectedType === 'GIFT_ITEM' && <GiftGroup props={detailBlock} />}
       {selectedType === 'OTHER_LASER' && <OtherLaserGroup props={detailBlock} />}
-
-      <TextField
-        {...detailBlock}
-        fieldKey="besonderheiten"
-        label="Notes (optional)"
-        rows={3}
-        optional
-      />
 
       {orderFiles.length > 0 && (
         <FieldRow label="Files">
@@ -497,7 +549,7 @@ export function LaserDetail({
                     Material
                   </th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                    Description
+                    Motif
                   </th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
                     Actions
@@ -506,12 +558,12 @@ export function LaserDetail({
               </thead>
               <tbody>
                 {products.map(product => {
-                  const productDetail = (product.detail ?? {}) as Record<string, unknown>
-                  const productType = typeof productDetail.typ === 'string' ? productDetail.typ : ''
-                  const quantity = productDetail.stueckzahl ?? ''
-                  const rawMaterial = productDetail.material_schild ?? productDetail.material
+                  const child = product.child ?? {}
+                  const productType = product.type ?? ''
+                  const quantity = product.quantity ?? ''
+                  const rawMaterial = child.material ?? child.material_free_text
                   const material = rawMaterial != null ? String(rawMaterial) : '—'
-                  const description = productDetail.beschreibung != null ? String(productDetail.beschreibung).slice(0, 48) : '—'
+                  const motif = child.motif != null ? String(child.motif).slice(0, 48) : '—'
                   const typeLabel = (LASER_TYPE_LABELS as Record<string, string>)[productType] ?? productType
                   const fileAssignments = productFiles[product.id] ?? []
                   return (
@@ -523,7 +575,7 @@ export function LaserDetail({
                         {String(quantity || '—')}
                       </td>
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{material}</td>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{description}</td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{motif}</td>
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                           <button type="button" className="cp-btn cp-btn-grau" onClick={() => handleEdit(product)}>
@@ -576,8 +628,8 @@ function FieldRow({ label, content, error, children }: { label: string; content?
 }
 
 function QuantityInput(props: DetailBlockProps) {
-  const { detail, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit } = props
-  const rawQuantity = detail.stueckzahl
+  const { fields, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit } = props
+  const rawQuantity = fields.quantity
   let numForInput: number | '' = ''
   if (typeof rawQuantity === 'number' && Number.isInteger(rawQuantity) && rawQuantity >= 1) numForInput = rawQuantity
   else if (typeof rawQuantity === 'string' && (rawQuantity as string).trim() !== '') {
@@ -585,14 +637,14 @@ function QuantityInput(props: DetailBlockProps) {
     if (Number.isInteger(parsed) && parsed >= 1) numForInput = parsed
   }
   return (
-    <FieldRow label="Quantity" error={shouldValidate && validationErrors.stueckzahl ? validationErrors.stueckzahl : undefined}>
+    <FieldRow label="Quantity" error={shouldValidate && validationErrors.quantity ? validationErrors.quantity : undefined}>
       <input
         type="number"
-        className={'ber-inp' + fieldErrorClass('stueckzahl')}
+        className={'ber-inp' + fieldErrorClass('quantity')}
         value={numForInput}
         onChange={e => {
           const inputValue = e.target.value
-          patchLocal({ stueckzahl: inputValue === '' ? null : parseInt(inputValue, 10) } as LaserDetailJson)
+          patchLocal({ quantity: inputValue === '' ? null : parseInt(inputValue, 10) })
         }}
         onBlur={commit}
         min={1}
@@ -602,8 +654,8 @@ function QuantityInput(props: DetailBlockProps) {
 }
 
 function BooleanSelect(props: DetailBlockProps & { fieldKey: string; label: string }) {
-  const { fieldKey, detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail, label } = props
-  const rawValue = (detail as Record<string, unknown>)[fieldKey]
+  const { fieldKey, fields, fieldErrorClass, validationErrors, shouldValidate, applyFields, label } = props
+  const rawValue = (fields as Record<string, unknown>)[fieldKey]
   const selectValue = rawValue === true ? 'true' : rawValue === false ? 'false' : ''
   return (
     <FieldRow label={label} error={shouldValidate ? validationErrors[fieldKey] : undefined}>
@@ -613,7 +665,7 @@ function BooleanSelect(props: DetailBlockProps & { fieldKey: string; label: stri
         onChange={e => {
           const selected = e.target.value
           const boolValue: true | false | undefined = selected === 'true' ? true : selected === 'false' ? false : undefined
-          applyDetail({ ...detail, [fieldKey]: boolValue } as LaserDetailJson)
+          applyFields({ ...fields, [fieldKey]: boolValue })
         }}
       >
         <option value="">—</option>
@@ -627,8 +679,8 @@ function BooleanSelect(props: DetailBlockProps & { fieldKey: string; label: stri
 function TextField(
   props: DetailBlockProps & { fieldKey: string; label: string; rows?: number; optional?: boolean },
 ) {
-  const { fieldKey, label, detail, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit, rows = 1, optional } = props
-  const fieldValue = String((detail as Record<string, string>)[fieldKey] ?? '')
+  const { fieldKey, label, fields, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit, rows = 1, optional } = props
+  const fieldValue = String((fields as Record<string, unknown>)[fieldKey] ?? '')
   const errorMessage = shouldValidate && validationErrors[fieldKey] && !optional ? validationErrors[fieldKey] : undefined
   return (
     <FieldRow label={label} error={errorMessage}>
@@ -637,7 +689,7 @@ function TextField(
           className={'ber-inp' + (shouldValidate && validationErrors[fieldKey] && !optional ? fieldErrorClass(fieldKey) : '')}
           rows={rows}
           value={fieldValue}
-          onChange={e => patchLocal({ [fieldKey]: e.target.value } as LaserDetailJson)}
+          onChange={e => patchLocal({ [fieldKey]: e.target.value })}
           onBlur={commit}
         />
       ) : (
@@ -645,7 +697,7 @@ function TextField(
           type="text"
           className={'ber-inp' + (shouldValidate && validationErrors[fieldKey] && !optional ? fieldErrorClass(fieldKey) : '')}
           value={fieldValue}
-          onChange={e => patchLocal({ [fieldKey]: e.target.value } as LaserDetailJson)}
+          onChange={e => patchLocal({ [fieldKey]: e.target.value })}
           onBlur={commit}
         />
       )}
@@ -654,11 +706,11 @@ function TextField(
 }
 
 function DimensionInputsMm(props: DetailBlockProps) {
-  const { detail, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit } = props
-  const errorMessage = shouldValidate ? validationErrors.format_masse : undefined
-  const detailRecord = detail as Record<string, number | null | undefined>
-  const width = detailRecord.format_breite
-  const height = detailRecord.format_hoehe
+  const { fields, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit } = props
+  const errorMessage = shouldValidate ? validationErrors.format : undefined
+  const fieldsRecord = fields as Record<string, number | null | undefined>
+  const width = fieldsRecord.width
+  const height = fieldsRecord.height
   const widthValue = width === null || width === undefined ? '' : String(width)
   const heightValue = height === null || height === undefined ? '' : String(height)
   return (
@@ -668,7 +720,7 @@ function DimensionInputsMm(props: DetailBlockProps) {
         <div>
           <input
             type="number"
-            className={'ber-inp' + fieldErrorClass('format_masse')}
+            className={'ber-inp' + fieldErrorClass('format')}
             min={1}
             step={1}
             value={widthValue}
@@ -676,8 +728,8 @@ function DimensionInputsMm(props: DetailBlockProps) {
               const raw = e.target.value
               const parsed = raw === '' ? null : parseInt(raw, 10)
               patchLocal({
-                format_breite: parsed === null || Number.isNaN(parsed) ? null : parsed,
-              } as LaserDetailJson)
+                width: parsed === null || Number.isNaN(parsed) ? null : parsed,
+              })
             }}
             onBlur={commit}
           />
@@ -688,7 +740,7 @@ function DimensionInputsMm(props: DetailBlockProps) {
         <div>
           <input
             type="number"
-            className={'ber-inp' + fieldErrorClass('format_masse')}
+            className={'ber-inp' + fieldErrorClass('format')}
             min={1}
             step={1}
             value={heightValue}
@@ -696,8 +748,8 @@ function DimensionInputsMm(props: DetailBlockProps) {
               const raw = e.target.value
               const parsed = raw === '' ? null : parseInt(raw, 10)
               patchLocal({
-                format_hoehe: parsed === null || Number.isNaN(parsed) ? null : parsed,
-              } as LaserDetailJson)
+                height: parsed === null || Number.isNaN(parsed) ? null : parsed,
+              })
             }}
             onBlur={commit}
           />
@@ -709,14 +761,14 @@ function DimensionInputsMm(props: DetailBlockProps) {
 }
 
 function SignGroup({ props, signType }: { props: DetailBlockProps; signType: string }) {
-  const { detail, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit, applyDetail } = props
-  const detailRecord = detail as Record<string, string | null | boolean | number | undefined>
-  const material = String(detailRecord.material ?? '')
+  const { fields, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit, applyFields } = props
+  const fieldsRecord = fields as Record<string, string | null | boolean | number | undefined>
+  const material = String(fieldsRecord.material ?? '')
   return (
     <>
       <FieldRow
         label="Material"
-        error={shouldValidate && (validationErrors.material || validationErrors.material_sonstige) ? validationErrors.material || validationErrors.material_sonstige : undefined}
+        error={shouldValidate && (validationErrors.material || validationErrors.material_other) ? validationErrors.material || validationErrors.material_other : undefined}
         content={
           <div>
             <select
@@ -724,11 +776,11 @@ function SignGroup({ props, signType }: { props: DetailBlockProps; signType: str
               value={material}
               onChange={e => {
                 const selected = e.target.value
-                applyDetail({
-                  ...detail,
+                applyFields({
+                  ...fields,
                   material: selected || null,
-                  material_sonstige: selected === 'SONSTIGE' ? detailRecord.material_sonstige : null,
-                } as LaserDetailJson)
+                  material_other: selected === 'SONSTIGE' ? fieldsRecord.material_other : null,
+                })
               }}
             >
               <option value="">—</option>
@@ -742,10 +794,10 @@ function SignGroup({ props, signType }: { props: DetailBlockProps; signType: str
               <div style={{ marginTop: 8 }}>
                 <input
                   type="text"
-                  className={'ber-inp' + fieldErrorClass('material_sonstige')}
+                  className={'ber-inp' + fieldErrorClass('material_other')}
                   placeholder="Material (free text)"
-                  value={String(detailRecord.material_sonstige ?? '')}
-                  onChange={e => patchLocal({ material_sonstige: e.target.value || null } as LaserDetailJson)}
+                  value={String(fieldsRecord.material_other ?? '')}
+                  onChange={e => patchLocal({ material_other: e.target.value || null })}
                   onBlur={commit}
                 />
               </div>
@@ -754,28 +806,28 @@ function SignGroup({ props, signType }: { props: DetailBlockProps; signType: str
         }
       />
       <DimensionInputsMm {...props} />
-      {BooleanSelect({ ...props, fieldKey: 'ecken_runden', label: 'Round corners' })}
-      {signType !== 'NAME_TAG' && BooleanSelect({ ...props, fieldKey: 'selbstklebend', label: 'Self-adhesive' })}
-      <TextField {...props} fieldKey="motiv" label="Motif / Content" rows={5} />
+      {BooleanSelect({ ...props, fieldKey: 'round_corners', label: 'Round corners' })}
+      {signType !== 'NAME_TAG' && BooleanSelect({ ...props, fieldKey: 'self_adhesive', label: 'Self-adhesive' })}
+      <TextField {...props} fieldKey="motif" label="Motif / Content" rows={5} />
     </>
   )
 }
 
 function GiftGroup({ props }: { props: DetailBlockProps }) {
-  const { detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail } = props
-  const detailRecord = detail as Record<string, string>
+  const { fields, fieldErrorClass, validationErrors, shouldValidate, applyFields } = props
+  const fieldsRecord = fields as Record<string, string>
   return (
     <>
-      <TextField {...props} fieldKey="material_freitext" label="Material" rows={2} />
+      <TextField {...props} fieldKey="material_free_text" label="Material" rows={2} />
       <FieldRow
         label="Origin"
-        error={shouldValidate && validationErrors.herkunft ? validationErrors.herkunft : undefined}
+        error={shouldValidate && validationErrors.origin ? validationErrors.origin : undefined}
         content={
           <select
-            className={'ber-inp' + fieldErrorClass('herkunft')}
-            value={detailRecord.herkunft ?? ''}
+            className={'ber-inp' + fieldErrorClass('origin')}
+            value={fieldsRecord.origin ?? ''}
             onChange={e =>
-              applyDetail({ ...detail, herkunft: e.target.value || null } as LaserDetailJson)
+              applyFields({ ...fields, origin: e.target.value || null })
             }
           >
             <option value="">—</option>
@@ -787,27 +839,27 @@ function GiftGroup({ props }: { props: DetailBlockProps }) {
           </select>
         }
       />
-      <TextField {...props} fieldKey="motiv" label="Motif / Content" rows={5} />
+      <TextField {...props} fieldKey="motif" label="Motif / Content" rows={5} />
     </>
   )
 }
 
 function OtherLaserGroup({ props }: { props: DetailBlockProps }) {
-  const { detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail } = props
-  const detailRecord = detail as Record<string, string>
+  const { fields, fieldErrorClass, validationErrors, shouldValidate, applyFields } = props
+  const fieldsRecord = fields as Record<string, string>
   return (
     <>
-      <TextField {...props} fieldKey="material_freitext" label="Material (optional)" optional rows={2} />
-      {BooleanSelect({ ...props, fieldKey: 'selbstklebend', label: 'Self-adhesive' })}
+      <TextField {...props} fieldKey="material_free_text" label="Material (optional)" optional rows={2} />
+      {BooleanSelect({ ...props, fieldKey: 'self_adhesive', label: 'Self-adhesive' })}
       <FieldRow
         label="Origin"
-        error={shouldValidate && validationErrors.herkunft ? validationErrors.herkunft : undefined}
+        error={shouldValidate && validationErrors.origin ? validationErrors.origin : undefined}
         content={
           <select
-            className={'ber-inp' + fieldErrorClass('herkunft')}
-            value={detailRecord.herkunft ?? ''}
+            className={'ber-inp' + fieldErrorClass('origin')}
+            value={fieldsRecord.origin ?? ''}
             onChange={e =>
-              applyDetail({ ...detail, herkunft: e.target.value || null } as LaserDetailJson)
+              applyFields({ ...fields, origin: e.target.value || null })
             }
           >
             <option value="">—</option>
@@ -819,7 +871,7 @@ function OtherLaserGroup({ props }: { props: DetailBlockProps }) {
           </select>
         }
       />
-      <TextField {...props} fieldKey="motiv" label="Motif / Content" rows={5} />
+      <TextField {...props} fieldKey="motif" label="Motif / Content" rows={5} />
     </>
   )
 }

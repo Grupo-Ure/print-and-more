@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { subOrderProductService, type SubOrderProductRow } from '../../services/subOrderProductService'
+import { subOrderProductService } from '../../services/subOrderProductService'
 import { validateOtherDetail } from '../../lib/other/validateOtherDetail'
 import type { OrderStatus, SubOrderRow } from '../../types/database'
-import type { Database, Json } from '../../types/supabase'
+import type { LoadedProduct, ProductWriteInput } from '../../types/product'
 import type { FileRow } from '../../services/fileService'
 import { useToast } from '../Toast'
 import '../WorkArea.css'
-
-export type OtherDetailJson = Record<string, unknown>
 
 type Props = {
   subOrder: SubOrderRow
@@ -16,28 +14,26 @@ type Props = {
   onProductsChanged?: (hasProducts: boolean) => void
 }
 
-type ProductRow = {
-  id: string
-  sub_order_id: string
-  department: string
-  detail: OtherDetailJson
-  sort_order: number | null
-  created_at: string | null
+const OTHER_TYPE = 'OTHER' as const
+
+/** English form fields for an Other product: child `description` + parent `quantity`. */
+type OtherFields = {
+  description: string | null
+  quantity: number | null
 }
 
-const SONSTIGE_TYPE = 'OTHER' as const
-
 type DetailBlockProps = {
-  detail: OtherDetailJson
+  fields: OtherFields
   fieldErrorClass: (fieldKey: string) => string
   shouldValidate: boolean
   validationErrors: Record<string, string>
-  patchLocal: (patch: OtherDetailJson) => void
+  patchLocal: (patch: Partial<OtherFields>) => void
   commit: () => void
-  applyDetail: (newDetail: OtherDetailJson) => void
 }
 
 type ProductFileAssignment = { assignmentId: string; fileId: string }
+
+const emptyFields = (): OtherFields => ({ description: null, quantity: null })
 
 export function OtherDetail({
   subOrder,
@@ -47,7 +43,7 @@ export function OtherDetail({
 }: Props) {
   const { showError } = useToast()
 
-  const [products, setProducts] = useState<ProductRow[]>([])
+  const [products, setProducts] = useState<LoadedProduct[]>([])
   const [productFiles, setProductFiles] = useState<Record<string, ProductFileAssignment[]>>({})
   const productFilesRef = useRef(productFiles)
   productFilesRef.current = productFiles
@@ -56,22 +52,22 @@ export function OtherDetail({
   const [unlocked, setUnlocked] = useState(false)
   const [formFileRecordIds, setFormFileRecordIds] = useState<string[]>([])
 
-  const [detail, setDetail] = useState<OtherDetailJson>({})
-  const detailRef = useRef(detail)
+  const [fields, setFields] = useState<OtherFields>(emptyFields())
+  const fieldsRef = useRef(fields)
   useEffect(() => {
-    detailRef.current = detail
-  }, [detail])
+    fieldsRef.current = fields
+  }, [fields])
 
   useEffect(() => {
     setEditingId(null)
     setFormFileRecordIds([])
     setUnlocked(false)
-    setDetail({})
-    detailRef.current = {}
+    setFields(emptyFields())
+    fieldsRef.current = emptyFields()
   }, [subOrder.id])
 
   const loadFilesForProducts = useCallback(
-    async (productRows: ProductRow[]) => {
+    async (productRows: LoadedProduct[]) => {
       const ids = productRows.map(productRow => productRow.id)
       if (ids.length === 0) {
         setProductFiles({})
@@ -87,7 +83,7 @@ export function OtherDetail({
       }
       const next: Record<string, ProductFileAssignment[]> = {}
       for (const row of rows) {
-        const list = next[row.product_id] ?? (next[row.product_id] = [])
+        const list = next[row.department_product_id] ?? (next[row.department_product_id] = [])
         list.push({ assignmentId: row.id, fileId: row.file_id })
       }
       setProductFiles(next)
@@ -95,13 +91,13 @@ export function OtherDetail({
     [showError],
   )
 
-  const reloadProducts = useCallback(async (): Promise<ProductRow[]> => {
+  const reloadProducts = useCallback(async (): Promise<LoadedProduct[]> => {
     if (!subOrder.id) {
       await loadFilesForProducts([])
       return []
     }
     setProductsLoading(true)
-    let rows: SubOrderProductRow[]
+    let rows: LoadedProduct[]
     try {
       rows = await subOrderProductService.getProductsBySubOrderId(subOrder.id)
     } catch {
@@ -112,17 +108,9 @@ export function OtherDetail({
       return []
     }
     setProductsLoading(false)
-    const mapped: ProductRow[] = rows.map(row => ({
-      id: row.id,
-      sub_order_id: row.sub_order_id,
-      department: row.department,
-      detail: (row.detail ?? {}) as OtherDetailJson,
-      sort_order: row.sort_order,
-      created_at: row.created_at,
-    }))
-    setProducts(mapped)
-    await loadFilesForProducts(mapped)
-    return mapped
+    setProducts(rows)
+    await loadFilesForProducts(rows)
+    return rows
   }, [subOrder.id, showError, loadFilesForProducts])
 
   useEffect(() => {
@@ -130,7 +118,7 @@ export function OtherDetail({
   }, [reloadProducts])
 
   const assignFileToProduct = useCallback(
-    async (productId: string, fileId: string, productRowsForReload?: ProductRow[]) => {
+    async (productId: string, fileId: string, productRowsForReload?: LoadedProduct[]) => {
       const reloadRows = productRowsForReload ?? products
       if (productFilesRef.current[productId]?.some(assignment => assignment.fileId === fileId)) return
       try {
@@ -145,7 +133,7 @@ export function OtherDetail({
   )
 
   const removeFileFromProduct = useCallback(
-    async (assignmentId: string, productRowsForReload?: ProductRow[]) => {
+    async (assignmentId: string, productRowsForReload?: LoadedProduct[]) => {
       try {
         await subOrderProductService.removeFileFromProduct(assignmentId)
       } catch {
@@ -160,44 +148,30 @@ export function OtherDetail({
   const resetForm = useCallback(() => {
     setEditingId(null)
     setFormFileRecordIds([])
-    setDetail({})
-    detailRef.current = {}
+    setFields(emptyFields())
+    fieldsRef.current = emptyFields()
   }, [])
 
-  const validationErrors = validateOtherDetail(detail, subOrderStatus)
+  const validationErrors = useMemo(
+    () => validateOtherDetail(fields as unknown as Record<string, unknown>, subOrderStatus),
+    [fields, subOrderStatus],
+  )
   const shouldValidate = subOrderStatus !== 'QUOTE'
   const fieldErrorClass = (fieldKey: string) => (shouldValidate && validationErrors[fieldKey] ? ' ber-inp--err' : '')
 
-  const saveDetail = useCallback(
-    (json: OtherDetailJson) => {
-      setDetail(json)
-      detailRef.current = json
-    },
-    []
-  )
-
-  const patchLocal = useCallback((patch: OtherDetailJson) => {
-    setDetail(currentDetail => {
-      const merged = { ...currentDetail, ...patch }
-      detailRef.current = merged
+  const patchLocal = useCallback((patch: Partial<OtherFields>) => {
+    setFields(current => {
+      const merged = { ...current, ...patch }
+      fieldsRef.current = merged
       return merged
     })
   }, [])
 
   const commit = useCallback(() => {
-    void saveDetail({ ...detailRef.current })
-  }, [saveDetail])
+    setFields({ ...fieldsRef.current })
+  }, [])
 
-  const applyDetail = useCallback(
-    (newDetail: OtherDetailJson) => {
-      setDetail(newDetail)
-      detailRef.current = newDetail
-      void saveDetail(newDetail)
-    },
-    [saveDetail]
-  )
-
-  const detailBlock: DetailBlockProps = { detail, fieldErrorClass, shouldValidate, validationErrors, patchLocal, commit, applyDetail }
+  const detailBlock: DetailBlockProps = { fields, fieldErrorClass, shouldValidate, validationErrors, patchLocal, commit }
 
   const formOk = useMemo(() => Object.keys(validationErrors).length === 0, [validationErrors])
 
@@ -205,18 +179,25 @@ export function OtherDetail({
     (subOrderStatus === 'PREPRESS_READY' || subOrderStatus === 'PRODUCTION_READY') && !unlocked
 
   const handleAddOrSave = useCallback(async () => {
-    const currentDetail = { ...detailRef.current }
-    const errors = validateOtherDetail(currentDetail, subOrderStatus)
+    const currentFields = { ...fieldsRef.current }
+    const errors = validateOtherDetail(currentFields as unknown as Record<string, unknown>, subOrderStatus)
     if (Object.keys(errors).length > 0) return
 
-    const detailWithType = { ...currentDetail, typ: SONSTIGE_TYPE }
+    const buildInput = (sortOrder: number, id?: string): ProductWriteInput => ({
+      ...(id ? { id } : {}),
+      department_order_id: subOrder.id,
+      department: 'OTHER',
+      type: OTHER_TYPE,
+      quantity: currentFields.quantity,
+      notes: null,
+      sort_order: sortOrder,
+      child: { description: currentFields.description },
+    })
 
     if (editingId) {
-      const patch: Database['public']['Tables']['sub_order_products']['Update'] = {
-        detail: detailWithType as Json,
-      }
+      const existing = products.find(product => product.id === editingId)
       try {
-        await subOrderProductService.updateProduct(editingId, patch)
+        await subOrderProductService.updateProduct(editingId, buildInput(existing?.sort_order ?? 0, editingId))
       } catch {
         showError('Product could not be saved')
         return
@@ -233,20 +214,13 @@ export function OtherDetail({
       return
     }
 
-    const productInsert: Database['public']['Tables']['sub_order_products']['Insert'] = {
-      sub_order_id: subOrder.id,
-      department: 'OTHER',
-      detail: detailWithType as Json,
-      sort_order: products.length,
-    }
-    let insertedRow: SubOrderProductRow
+    let newId: string
     try {
-      insertedRow = await subOrderProductService.createProduct(productInsert)
+      newId = await subOrderProductService.createProduct(buildInput(products.length))
     } catch {
       showError('Product could not be added')
       return
     }
-    const newId = insertedRow.id
     const list = await reloadProducts()
     for (const fid of formFileRecordIds) {
       await assignFileToProduct(newId, fid, list)
@@ -258,7 +232,7 @@ export function OtherDetail({
     subOrder,
     subOrderStatus,
     editingId,
-    products.length,
+    products,
     productFiles,
     formFileRecordIds,
     showError,
@@ -284,12 +258,16 @@ export function OtherDetail({
     [showError, reloadProducts, editingId, resetForm, onProductsChanged]
   )
 
-  const handleEdit = useCallback((row: ProductRow) => {
+  const handleEdit = useCallback((row: LoadedProduct) => {
     setEditingId(row.id)
     setFormFileRecordIds(productFiles[row.id]?.map(assignment => assignment.fileId) ?? [])
-    const cleanDetail = { ...(row.detail ?? {}) as OtherDetailJson }
-    setDetail(cleanDetail)
-    detailRef.current = cleanDetail
+    const child = (row.child ?? {}) as { description?: string | null }
+    const loaded: OtherFields = {
+      description: child.description ?? null,
+      quantity: row.quantity,
+    }
+    setFields(loaded)
+    fieldsRef.current = loaded
   }, [productFiles])
 
   return (
@@ -300,20 +278,20 @@ export function OtherDetail({
       <div className="ber-zeile" style={{ marginBottom: 8 }}>
         <span className="ber-lbl">Type</span>
         <p className="td-wert td-mono" style={{ margin: 0 }}>
-          {SONSTIGE_TYPE}
+          {OTHER_TYPE}
         </p>
       </div>
 
       <FieldRow
         label="Description / Content"
-        error={shouldValidate && validationErrors.beschreibung ? validationErrors.beschreibung : undefined}
+        error={shouldValidate && validationErrors.description ? validationErrors.description : undefined}
         content={
           <div>
             <textarea
-              className={'ber-inp' + fieldErrorClass('beschreibung')}
+              className={'ber-inp' + fieldErrorClass('description')}
               rows={8}
-              value={String(detail['beschreibung'] ?? '')}
-              onChange={e => patchLocal({ beschreibung: e.target.value || null } as OtherDetailJson)}
+              value={String(fields.description ?? '')}
+              onChange={e => patchLocal({ description: e.target.value || null })}
               onBlur={commit}
             />
             <p className="ber-hinweis" style={{ marginTop: 6, marginBottom: 0 }}>
@@ -451,16 +429,16 @@ export function OtherDetail({
               </thead>
               <tbody>
                 {products.map(product => {
-                  const productDetail = (product.detail ?? {}) as Record<string, unknown>
-                  const quantity = productDetail.stueckzahl ?? ''
+                  const child = (product.child ?? {}) as { description?: string | null }
+                  const quantity = product.quantity ?? ''
                   const description =
-                    String(productDetail.beschreibung ?? '')
+                    String(child.description ?? '')
                       .trim()
                       .slice(0, 72) || '—'
                   const fileAssignments = productFiles[product.id] ?? []
                   return (
                     <tr key={product.id}>
-                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{SONSTIGE_TYPE}</td>
+                      <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{OTHER_TYPE}</td>
                       <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
                         {String(quantity || '—')}
                       </td>
@@ -516,27 +494,23 @@ function FieldRow({ label, content, error, children }: { label: string; content?
   )
 }
 
-function OptionalQuantityInput({ detail, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit }: DetailBlockProps) {
-  const rawValue = detail.stueckzahl
+function OptionalQuantityInput({ fields, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit }: DetailBlockProps) {
+  const rawValue = fields.quantity
   let numForInput: number | '' = ''
   if (typeof rawValue === 'number' && Number.isInteger(rawValue) && rawValue >= 1) numForInput = rawValue
-  else if (typeof rawValue === 'string' && rawValue.trim() !== '') {
-    const parsed = parseInt(rawValue, 10)
-    if (Number.isInteger(parsed) && parsed >= 1) numForInput = parsed
-  }
   return (
     <FieldRow
       label="Quantity (optional)"
-      error={shouldValidate && validationErrors.stueckzahl ? validationErrors.stueckzahl : undefined}
+      error={shouldValidate && validationErrors.quantity ? validationErrors.quantity : undefined}
       content={
         <div>
           <input
             type="number"
-            className={'ber-inp' + fieldErrorClass('stueckzahl')}
+            className={'ber-inp' + fieldErrorClass('quantity')}
             value={numForInput}
             onChange={e => {
               const inputValue = e.target.value
-              patchLocal({ stueckzahl: inputValue === '' ? null : parseInt(inputValue, 10) } as OtherDetailJson)
+              patchLocal({ quantity: inputValue === '' ? null : parseInt(inputValue, 10) })
             }}
             onBlur={commit}
             min={1}

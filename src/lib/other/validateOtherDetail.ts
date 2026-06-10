@@ -1,10 +1,13 @@
 /**
- * Validation for the "Other" (Sonstige) department's sub-order detail.
+ * Validation for the "Other" (Sonstige) department product.
  *
- * The Other department is the catch-all bucket for sub-orders that don't
- * fit one of the specialized departments (Stamp, Textile, LFP, CopyShop,
- * Laser). Its detail shape is intentionally minimal: a free-text
- * description and an optional integer quantity.
+ * The Other department is the catch-all bucket for products that don't fit one
+ * of the specialized departments (Stamp, Textile, LFP, CopyShop, Laser). It has
+ * a single product type, `OTHER`, mapped to the `other_products` child table.
+ *
+ * Operates on the English typed fields of an Other product: the child column
+ * `description` plus the parent `quantity`. Field keys are English; returned
+ * error keys are English too. There is no type discriminator beyond OTHER.
  */
 
 import type { OrderStatus } from '../../types/database'
@@ -32,25 +35,26 @@ const addError = (errors: Err, field: string, message: string) => {
 }
 
 /**
- * Validate an Other sub-order's detail JSON against its current status.
+ * Validate an Other product's English fields against its current status.
  *
- * Returns a map of field-key → German error message (rendered inline next
- * to the form field). An empty map means the detail is valid.
+ * Returns a map of field-key → error message (rendered inline next to the form
+ * field). An empty map means the product is valid.
  *
  * Status-dependent rules:
- * - `ANGEBOT` (quote stage): nothing required, returns empty.
- * - Any later status: `beschreibung` becomes mandatory.
+ * - `QUOTE` (quote stage): nothing required, returns empty.
+ * - Any later status: `description` becomes mandatory.
  *
- * `stueckzahl` is always optional but, if provided, must be a positive
- * integer.
+ * `quantity` is always optional but, if provided, must be a positive integer.
+ *
+ * @param fields English child columns + the parent `quantity`
  */
 export function validateOtherDetail(
-  detail: Record<string, unknown> | null,
-  subOrderStatus: OrderStatus
+  fields: Record<string, unknown>,
+  subOrderStatus: OrderStatus,
 ): Record<string, string> {
   const errors: Err = {}
   if (subOrderStatus === 'QUOTE') return errors
-  if (!parseRequiredString(detail?.beschreibung)) addError(errors, 'beschreibung', 'Required')
-  if (detail && !isQuantityValidIfPresent(detail.stueckzahl)) addError(errors, 'stueckzahl', 'Integer ≥ 1')
+  if (!parseRequiredString(fields.description)) addError(errors, 'description', 'Required')
+  if (!isQuantityValidIfPresent(fields.quantity)) addError(errors, 'quantity', 'Integer ≥ 1')
   return errors
 }

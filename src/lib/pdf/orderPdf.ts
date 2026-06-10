@@ -136,13 +136,13 @@ function checkNewPage(doc: jsPDF, cursorY: number, required = 20): number {
 }
 
 function productDetailKeys(products: Record<string, unknown>[]): string[] {
-  const seen = new Set<string>()
-  const order: string[] = []
-  const skip = new Set(['typ', 'hat_produkte', 'datei_id'])
+  const seen = new Set<string>(['quantity'])
+  const order: string[] = ['quantity']
+  const skip = new Set(['department_product_id'])
 
   for (const row of products) {
-    const detail = asDetailRecord(row.detail)
-    for (const key of Object.keys(detail)) {
+    const child = asDetailRecord(row.child)
+    for (const key of Object.keys(child)) {
       if (skip.has(key)) continue
       if (!seen.has(key)) {
         seen.add(key)
@@ -154,13 +154,9 @@ function productDetailKeys(products: Record<string, unknown>[]): string[] {
 }
 
 function cellValueForKey(row: Record<string, unknown>, key: string): string {
-  const detail = asDetailRecord(row.detail)
-  const fieldValue = detail[key]
+  const fieldValue = key === 'quantity' ? row.quantity : asDetailRecord(row.child)[key]
   if (isEmpty(fieldValue)) return ''
-  if (key === 'ecken_runden' || key === 'selbstklebend') {
-    if (fieldValue === true) return 'Yes'
-    if (fieldValue === false) return 'No'
-  }
+  if (typeof fieldValue === 'boolean') return fieldValue ? 'Yes' : 'No'
   return valueAsString(fieldValue)
 }
 
@@ -257,8 +253,7 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
       const detailKeys = productDetailKeys(products)
       const header = ['#', 'Type', ...detailKeys.map(fieldToLabel)]
       const rows = products.map((product, idx) => {
-        const detail = asDetailRecord(product.detail)
-        const typeValue = String(product.typ ?? detail.typ ?? '—')
+        const typeValue = String(product.type ?? '—')
         return [String(idx + 1), typeValue, ...detailKeys.map(key => cellValueForKey(product, key))]
       })
 

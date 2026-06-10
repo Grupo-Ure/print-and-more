@@ -1,18 +1,21 @@
 /**
- * Validation for CopyShop sub-order detail.
+ * Validation for CopyShop products.
  *
- * Each CopyShop `typ` (poster, card/flyer, folded flyer, brochure,
- * business card, binding, ad-hoc print) has its own required fields
- * inside the `detail` JSONB column. {@link validateCopyShopDetail}
- * returns a map of field-key → German error message (rendered inline
- * next to the form field). An empty map means the detail is valid.
+ * Operates on the English typed fields of a CopyShop product (the child columns
+ * plus the parent `quantity`), keyed by `type`. Field keys and error keys are
+ * English; the stored enum VALUE strings (A4, DIN_LANG, FREI, 1_0, 4_4, CC,
+ * OFFSET, OFFEN, MITTELFALZ, …) are kept as-is for now (the value→English pass
+ * is deferred, shop-confirmed).
  *
- * The validator handles two production paths (Copy-Center vs offset)
- * with different material and format rules. In `ANGEBOT` (quote stage)
- * nothing is required regardless of typ.
+ * Each CopyShop `type` (poster, card/flyer, folded flyer, brochure, business
+ * card, binding, ad-hoc print-out) has its own required child columns. The
+ * validator handles two production paths (Copy-Center vs offset) with different
+ * material and format rules. In `QUOTE` (quote stage) nothing is required.
+ *
+ * Returns a map of field-key → message; an empty map means the product is valid.
  */
 
-import { COPY_SHOP_TYPES, type CopyShopDetailJson, type CopyShopType } from '../../types/copyshop'
+import { COPY_SHOP_TYPES, type CopyShopType } from '../../types/copyshop'
 import type { OrderStatus } from '../../types/database'
 
 function parseRequiredString(value: unknown): string | null {
@@ -54,113 +57,104 @@ function parseIntWithMin(value: unknown, min: number): number | null {
 }
 
 type Err = Record<string, string>
+type Fields = Record<string, unknown>
 const addError = (errors: Err, field: string, message: string) => {
   errors[field] = message
 }
 
 const CC_G = ['80G', '100G', '120G', '160G', '200G', '250G', '300G', 'SONSTIGE'] as const
 
-function validateCcMaterialPair(detail: CopyShopDetailJson, errors: Err, materialKey: string, sonstigeKey: string) {
-  const material = parseRequiredString((detail as Record<string, unknown>)[materialKey] as string)
+function validateCcMaterialPair(fields: Fields, errors: Err, materialKey: string, otherKey: string) {
+  const material = parseRequiredString(fields[materialKey])
   if (!material || !(CC_G as readonly string[]).includes(material)) addError(errors, materialKey, 'Required')
-  if (material === 'SONSTIGE' && !parseRequiredString((detail as Record<string, unknown>)[sonstigeKey] as string)) addError(errors, sonstigeKey, 'Required')
+  if (material === 'SONSTIGE' && !parseRequiredString(fields[otherKey])) addError(errors, otherKey, 'Required')
 }
 
-function validateCardFoldFormat(isFolded: boolean, detail: CopyShopDetailJson, errors: Err) {
-  const format = parseRequiredString((detail as Record<string, string>).format)
-  const validCardFormats = [
-    'DIN_LANG',
-    'A7',
-    'A6',
-    'A5',
-    'A4',
-    'A3',
-    'FREI',
-  ]
+function validateCardFoldFormat(isFolded: boolean, fields: Fields, errors: Err) {
+  const format = parseRequiredString(fields.format)
+  const validCardFormats = ['DIN_LANG', 'A7', 'A6', 'A5', 'A4', 'A3', 'FREI']
   const validFoldFormats = ['DIN_LANG', 'A7', 'A6', 'A5', 'A4', 'FREI']
   if (isFolded) {
     if (!validFoldFormats.includes(format ?? '')) addError(errors, 'format', 'Required')
   } else {
     if (!validCardFormats.includes(format ?? '')) addError(errors, 'format', 'Required')
   }
-  if (format === 'FREI' && !hasDimension(detail.format_breite, detail.format_hoehe)) addError(errors, 'format_masse', MSG_MASSE)
-  else if (format && format !== 'FREI' && !hasDimension(detail.format_breite, detail.format_hoehe)) addError(errors, 'format_masse', MSG_MASSE)
+  if (format === 'FREI' && !hasDimension(fields.width, fields.height)) addError(errors, 'format_masse', MSG_MASSE)
+  else if (format && format !== 'FREI' && !hasDimension(fields.width, fields.height)) addError(errors, 'format_masse', MSG_MASSE)
 }
 
-function validateOffsetMaterial(detail: CopyShopDetailJson, errors: Err) {
-  const offsetType = parseRequiredString((detail as Record<string, string>).offset_art)
-  if (!['STANDARD', 'OFFSET', 'SPEZIAL'].includes(offsetType ?? '')) addError(errors, 'offset_art', 'Required')
+function validateOffsetMaterial(fields: Fields, errors: Err) {
+  const offsetType = parseRequiredString(fields.offset_type)
+  if (!['STANDARD', 'OFFSET', 'SPEZIAL'].includes(offsetType ?? '')) addError(errors, 'offset_type', 'Required')
   if (offsetType === 'STANDARD') {
-    if (!['115G', '135G', '170G', '250G', '300G', '350G', '400G'].includes(parseRequiredString((detail as Record<string, string>).offset_grammatur) ?? '')) {
-      addError(errors, 'offset_grammatur', 'Required')
+    if (!['115G', '135G', '170G', '250G', '300G', '350G', '400G'].includes(parseRequiredString(fields.offset_weight) ?? '')) {
+      addError(errors, 'offset_weight', 'Required')
     }
-    if (!['MATT', 'GLAENZEND'].includes(parseRequiredString((detail as Record<string, string>).offset_oberflaeche) ?? '')) {
-      addError(errors, 'offset_oberflaeche', 'Required')
+    if (!['MATT', 'GLAENZEND'].includes(parseRequiredString(fields.offset_finish) ?? '')) {
+      addError(errors, 'offset_finish', 'Required')
     }
   } else if (offsetType === 'OFFSET') {
-    if (!['80G', '90G', '100G', '120G', '150G', '250G'].includes(parseRequiredString((detail as Record<string, string>).offset_grammatur) ?? '')) {
-      addError(errors, 'offset_grammatur', 'Required')
+    if (!['80G', '90G', '100G', '120G', '150G', '250G'].includes(parseRequiredString(fields.offset_weight) ?? '')) {
+      addError(errors, 'offset_weight', 'Required')
     }
   } else if (offsetType === 'SPEZIAL') {
-    const specialPaper = parseRequiredString((detail as Record<string, string>).spezial_papier)
+    const specialPaper = parseRequiredString(fields.special_paper)
     if (!['300G_FOLIENKASCHIERT', 'RECYCLING', '250G_LEINENSTRUKTUR', 'SONSTIGE'].includes(specialPaper ?? '')) {
-      addError(errors, 'spezial_papier', 'Required')
+      addError(errors, 'special_paper', 'Required')
     } else if (specialPaper === '300G_FOLIENKASCHIERT') {
-      if (!['MATT', 'GLAENZEND'].includes(parseRequiredString((detail as Record<string, string>).kaschierung) ?? '')) addError(errors, 'kaschierung', 'Required')
-      if (!['EINSEITIG', 'BEIDSEITIG'].includes(parseRequiredString((detail as Record<string, string>).kaschierung_seiten) ?? '')) {
-        addError(errors, 'kaschierung_seiten', 'Required')
+      if (!['MATT', 'GLAENZEND'].includes(parseRequiredString(fields.lamination_finish) ?? '')) addError(errors, 'lamination_finish', 'Required')
+      if (!['EINSEITIG', 'BEIDSEITIG'].includes(parseRequiredString(fields.lamination_sides) ?? '')) {
+        addError(errors, 'lamination_sides', 'Required')
       }
     } else if (specialPaper === 'RECYCLING') {
-      if (!['80G', '135G', '150G', '300G'].includes(parseRequiredString((detail as Record<string, string>).recycling_grammatur) ?? '')) {
-        addError(errors, 'recycling_grammatur', 'Required')
+      if (!['80G', '135G', '150G', '300G'].includes(parseRequiredString(fields.recycling_weight) ?? '')) {
+        addError(errors, 'recycling_weight', 'Required')
       }
     } else if (specialPaper === 'SONSTIGE') {
-      if (!parseRequiredString((detail as Record<string, string>).spezial_sonstige)) addError(errors, 'spezial_sonstige', 'Required')
+      if (!parseRequiredString(fields.special_paper_other)) addError(errors, 'special_paper_other', 'Required')
     }
   }
 }
 
-function validateBrochureOffsetOrOpen(detail: CopyShopDetailJson, errors: Err) {
+function validateBrochureOffsetOrOpen(fields: Fields, errors: Err) {
   if (
-    !['DRAHTHEFTUNG', 'RINGSÖSEN', 'KLEBEBINDUNG', 'SPIRALBINDUNG'].includes(
-      parseRequiredString((detail as Record<string, string>).brosch_bindung) ?? '',
-    )
+    !['DRAHTHEFTUNG', 'RINGSÖSEN', 'KLEBEBINDUNG', 'SPIRALBINDUNG'].includes(parseRequiredString(fields.binding) ?? '')
   ) {
-    addError(errors, 'brosch_bindung', 'Required')
+    addError(errors, 'binding', 'Required')
   }
-  if (!['135G', '170G', '250G', '300G'].includes(parseRequiredString((detail as Record<string, string>).brosch_u_gramm) ?? '')) {
-    addError(errors, 'brosch_u_gramm', 'Required')
+  if (!['135G', '170G', '250G', '300G'].includes(parseRequiredString(fields.cover_weight) ?? '')) {
+    addError(errors, 'cover_weight', 'Required')
   }
-  if (!['MATT', 'GLAENZEND'].includes(parseRequiredString((detail as Record<string, string>).brosch_u_ober) ?? '')) {
-    addError(errors, 'brosch_u_ober', 'Required')
+  if (!['MATT', 'GLAENZEND'].includes(parseRequiredString(fields.cover_finish) ?? '')) {
+    addError(errors, 'cover_finish', 'Required')
   }
-  if (!['90G', '135G', '170G'].includes(parseRequiredString((detail as Record<string, string>).brosch_i_gramm) ?? '')) {
-    addError(errors, 'brosch_i_gramm', 'Required')
+  if (!['90G', '135G', '170G'].includes(parseRequiredString(fields.inner_weight) ?? '')) {
+    addError(errors, 'inner_weight', 'Required')
   }
-  if (!['MATT', 'GLAENZEND'].includes(parseRequiredString((detail as Record<string, string>).brosch_i_ober) ?? '')) {
-    addError(errors, 'brosch_i_ober', 'Required')
+  if (!['MATT', 'GLAENZEND'].includes(parseRequiredString(fields.inner_finish) ?? '')) {
+    addError(errors, 'inner_finish', 'Required')
   }
 }
 
-function validateFoldPageCount(detail: CopyShopDetailJson, errors: Err) {
-  const pageCount = parseIntWithMin(detail.seitenzahl, 2)
-  if (pageCount == null) addError(errors, 'seitenzahl', 'Required')
-  else if (pageCount > 100) addError(errors, 'seitenzahl', 'Max. 100')
-  else if (pageCount % 2 !== 0) addError(errors, 'seitenzahl', 'Even numbers only (2–100)')
+function validateFoldPageCount(fields: Fields, errors: Err) {
+  const pageCount = parseIntWithMin(fields.page_count, 2)
+  if (pageCount == null) addError(errors, 'page_count', 'Required')
+  else if (pageCount > 100) addError(errors, 'page_count', 'Max. 100')
+  else if (pageCount % 2 !== 0) addError(errors, 'page_count', 'Even numbers only (2–100)')
 }
 
-function validateBrochurePageCount(detail: CopyShopDetailJson, errors: Err) {
-  const pageCount = parseIntWithMin(detail.seitenzahl, 4)
-  if (pageCount == null) addError(errors, 'seitenzahl', 'Required')
-  else if (pageCount > 152) addError(errors, 'seitenzahl', 'Max. 152')
-  else if (pageCount % 4 !== 0) addError(errors, 'seitenzahl', 'Page count must be divisible by 4')
+function validateBrochurePageCount(fields: Fields, errors: Err) {
+  const pageCount = parseIntWithMin(fields.page_count, 4)
+  if (pageCount == null) addError(errors, 'page_count', 'Required')
+  else if (pageCount > 152) addError(errors, 'page_count', 'Max. 152')
+  else if (pageCount % 4 !== 0) addError(errors, 'page_count', 'Page count must be divisible by 4')
 }
 
-function validateBrochureFormat(detail: CopyShopDetailJson, errors: Err) {
-  const format = parseRequiredString((detail as Record<string, string>).format)
+function validateBrochureFormat(fields: Fields, errors: Err) {
+  const format = parseRequiredString(fields.format)
   if (!['A6', 'A5', 'A4', 'FREI'].includes(format ?? '')) addError(errors, 'format', 'Required')
-  if (format === 'FREI' && !hasDimension(detail.format_breite, detail.format_hoehe)) addError(errors, 'format_masse', MSG_MASSE)
-  else if (format && format !== 'FREI' && !hasDimension(detail.format_breite, detail.format_hoehe)) addError(errors, 'format_masse', MSG_MASSE)
+  if (format === 'FREI' && !hasDimension(fields.width, fields.height)) addError(errors, 'format_masse', MSG_MASSE)
+  else if (format && format !== 'FREI' && !hasDimension(fields.width, fields.height)) addError(errors, 'format_masse', MSG_MASSE)
 }
 
 function isBindingColorValid(bindingType: string | null, color: string | null): boolean {
@@ -175,83 +169,85 @@ function isBindingColorValid(bindingType: string | null, color: string | null): 
 }
 
 /**
- * Validate a CopyShop sub-order's typ + detail against its current status.
+ * Validate a CopyShop product's type + fields against its current status.
  *
- * Returns a map of field-key → German error message; empty map means
- * valid. In `ANGEBOT` no fields are required. Otherwise the typ must be
- * one of {@link COPY_SHOP_TYPES}, `stueckzahl` must be a positive integer,
- * and the typ-specific keys (production path, format, material, paper
- * weight, finishing options, etc.) must be set.
+ * @param type   the product type discriminator
+ * @param fields English child columns + the parent `quantity`
+ *
+ * Returns a map of field-key → message; empty map means valid. In `QUOTE` no
+ * fields are required. Otherwise the type must be one of {@link COPY_SHOP_TYPES},
+ * `quantity` must be a positive integer, and the type-specific keys (production
+ * path, format, material, paper weight, finishing options, etc.) must be set.
  */
 export function validateCopyShopDetail(
-  typ: string | null,
-  detail: CopyShopDetailJson,
+  type: string | null,
+  fields: Record<string, unknown>,
   subOrderStatus: OrderStatus,
 ): Record<string, string> {
   const errors: Err = {}
   if (subOrderStatus === 'QUOTE') return errors
-  if (!typ || !COPY_SHOP_TYPES.includes(typ as CopyShopType)) {
-    addError(errors, 'typ', 'Select type')
+  if (!type || !COPY_SHOP_TYPES.includes(type as CopyShopType)) {
+    addError(errors, 'type', 'Select type')
     return errors
   }
-  if (!isValidQuantity(detail.stueckzahl)) addError(errors, 'stueckzahl', 'Integer ≥ 1')
-  const copyShopType = typ as CopyShopType
-  const productionPath = detail.produktionsweg
+  if (!isValidQuantity(fields.quantity)) addError(errors, 'quantity', 'Integer ≥ 1')
+  const copyShopType = type as CopyShopType
+  const productionPath = fields.production_path
   if (copyShopType === 'CARD_FLYER' || copyShopType === 'FOLDED_FLYER' || copyShopType === 'BROCHURE') {
-    if (!['CC', 'OFFSET', 'OFFEN'].includes(parseRequiredString(productionPath) ?? '')) addError(errors, 'produktionsweg', 'Required')
+    if (!['CC', 'OFFSET', 'OFFEN'].includes(parseRequiredString(productionPath) ?? '')) addError(errors, 'production_path', 'Required')
   } else if (copyShopType !== 'POSTER' && copyShopType !== 'PRINTOUT' && copyShopType !== 'BUSINESS_CARD' && copyShopType !== 'BINDING') {
-    if (productionPath != null && productionPath !== '' && productionPath !== 'COPYSHOP' && productionPath !== 'OFFSET') addError(errors, 'produktionsweg', 'Invalid')
+    if (productionPath != null && productionPath !== '' && productionPath !== 'COPYSHOP' && productionPath !== 'OFFSET') addError(errors, 'production_path', 'Invalid')
   }
 
   if (copyShopType === 'POSTER') {
-    const posterFormat = parseRequiredString((detail as Record<string, string>).format)
+    const posterFormat = parseRequiredString(fields.format)
     if (!['A4', 'A3', 'A2', 'A1', 'A0', 'FREI'].includes(posterFormat ?? '')) addError(errors, 'format', 'Required')
-    if (!['120G_AFFICHEN', '200G_SEIDENGLANZ', '200G_GLANZ'].includes(parseRequiredString(detail.material) ?? '')) addError(errors, 'material', 'Required')
-    if (!['NEIN', 'MATT', 'GLAENZEND'].includes(parseRequiredString(detail.laminat) ?? '')) addError(errors, 'laminat', 'Required')
-    if (posterFormat === 'FREI' && !hasDimension(detail.format_breite, detail.format_hoehe)) addError(errors, 'format_masse', MSG_MASSE)
-    else if (posterFormat && posterFormat !== 'FREI' && !hasDimension(detail.format_breite, detail.format_hoehe)) addError(errors, 'format_masse', MSG_MASSE)
+    if (!['120G_AFFICHEN', '200G_SEIDENGLANZ', '200G_GLANZ'].includes(parseRequiredString(fields.material) ?? '')) addError(errors, 'material', 'Required')
+    if (!['NEIN', 'MATT', 'GLAENZEND'].includes(parseRequiredString(fields.laminate) ?? '')) addError(errors, 'laminate', 'Required')
+    if (posterFormat === 'FREI' && !hasDimension(fields.width, fields.height)) addError(errors, 'format_masse', MSG_MASSE)
+    else if (posterFormat && posterFormat !== 'FREI' && !hasDimension(fields.width, fields.height)) addError(errors, 'format_masse', MSG_MASSE)
   } else if (copyShopType === 'CARD_FLYER') {
-    if (!['1_0', '1_1', '4_0', '4_4'].includes(parseRequiredString(detail.farbigkeit) ?? '')) addError(errors, 'farbigkeit', 'Required')
-    validateCardFoldFormat(false, detail, errors)
-    if (requireBoolPresent(detail.randabfallend) === 'missing') addError(errors, 'randabfallend', 'Required')
+    if (!['1_0', '1_1', '4_0', '4_4'].includes(parseRequiredString(fields.color_mode) ?? '')) addError(errors, 'color_mode', 'Required')
+    validateCardFoldFormat(false, fields, errors)
+    if (requireBoolPresent(fields.full_bleed) === 'missing') addError(errors, 'full_bleed', 'Required')
     const productionPathStr = parseRequiredString(productionPath)
     if (productionPathStr === 'CC') {
-      validateCcMaterialPair(detail, errors, 'material_cc', 'material_cc_sonstige')
+      validateCcMaterialPair(fields, errors, 'cc_material', 'cc_material_other')
     } else if (productionPathStr === 'OFFSET') {
-      validateOffsetMaterial(detail, errors)
+      validateOffsetMaterial(fields, errors)
     }
   } else if (copyShopType === 'FOLDED_FLYER') {
-    if (!['1_1', '4_4'].includes(parseRequiredString(detail.farbigkeit) ?? '')) addError(errors, 'farbigkeit', 'Required')
-    if (!['MITTELFALZ', 'WICKELFALZ', 'ZICKZACK'].includes(parseRequiredString(detail.falzart) ?? '')) addError(errors, 'falzart', 'Required')
-    validateCardFoldFormat(true, detail, errors)
-    validateFoldPageCount(detail, errors)
-    if (requireBoolPresent(detail.randabfallend) === 'missing') addError(errors, 'randabfallend', 'Required')
+    if (!['1_1', '4_4'].includes(parseRequiredString(fields.color_mode) ?? '')) addError(errors, 'color_mode', 'Required')
+    if (!['MITTELFALZ', 'WICKELFALZ', 'ZICKZACK'].includes(parseRequiredString(fields.fold_type) ?? '')) addError(errors, 'fold_type', 'Required')
+    validateCardFoldFormat(true, fields, errors)
+    validateFoldPageCount(fields, errors)
+    if (requireBoolPresent(fields.full_bleed) === 'missing') addError(errors, 'full_bleed', 'Required')
     const productionPathStr = parseRequiredString(productionPath)
     if (productionPathStr === 'CC') {
-      validateCcMaterialPair(detail, errors, 'material_cc', 'material_cc_sonstige')
+      validateCcMaterialPair(fields, errors, 'cc_material', 'cc_material_other')
     } else if (productionPathStr === 'OFFSET') {
-      validateOffsetMaterial(detail, errors)
+      validateOffsetMaterial(fields, errors)
     }
   } else if (copyShopType === 'BROCHURE') {
-    validateBrochureFormat(detail, errors)
-    if (!['HOCHFORMAT', 'QUERFORMAT'].includes(parseRequiredString((detail as Record<string, string>).orientierung) ?? '')) {
-      addError(errors, 'orientierung', 'Required')
+    validateBrochureFormat(fields, errors)
+    if (!['HOCHFORMAT', 'QUERFORMAT'].includes(parseRequiredString(fields.orientation) ?? '')) {
+      addError(errors, 'orientation', 'Required')
     }
-    validateBrochurePageCount(detail, errors)
+    validateBrochurePageCount(fields, errors)
     const productionPathStr = parseRequiredString(productionPath)
-    const orientation = parseRequiredString((detail as Record<string, string>).orientierung)
+    const orientation = parseRequiredString(fields.orientation)
     if (orientation === 'QUERFORMAT' && productionPathStr === 'CC') {
-      addError(errors, 'brosch_quer_cc', 'Landscape only for Offset or Open')
+      addError(errors, 'brochure_landscape_cc', 'Landscape only for Offset or Open')
     }
     if (productionPathStr === 'CC') {
-      validateCcMaterialPair(detail, errors, 'cc_umschlag', 'cc_umschlag_sonstige')
-      validateCcMaterialPair(detail, errors, 'cc_inhalt', 'cc_inhalt_sonstige')
+      validateCcMaterialPair(fields, errors, 'cover_material', 'cover_material_other')
+      validateCcMaterialPair(fields, errors, 'inner_material', 'inner_material_other')
     } else if (productionPathStr === 'OFFSET' || productionPathStr === 'OFFEN') {
-      validateBrochureOffsetOrOpen(detail, errors)
+      validateBrochureOffsetOrOpen(fields, errors)
     }
-    if (requireBoolPresent(detail.randabfallend) === 'missing') addError(errors, 'randabfallend', 'Required')
+    if (requireBoolPresent(fields.full_bleed) === 'missing') addError(errors, 'full_bleed', 'Required')
   } else if (copyShopType === 'BUSINESS_CARD') {
-    const material = parseRequiredString((detail as Record<string, string>).material)
+    const material = parseRequiredString(fields.material)
     const visitMat = [
       '300G_CC',
       '350G_OFFSET',
@@ -261,15 +257,15 @@ export function validateCopyShopDetail(
       'MULTILOFT',
     ]
     if (!material || !visitMat.includes(material)) addError(errors, 'material', 'Required')
-    if (!['4_0', '4_4'].includes(parseRequiredString(detail.farbigkeit) ?? '')) addError(errors, 'farbigkeit', 'Required')
-    const format = parseRequiredString((detail as Record<string, string>).format)
+    if (!['4_0', '4_4'].includes(parseRequiredString(fields.color_mode) ?? '')) addError(errors, 'color_mode', 'Required')
+    const format = parseRequiredString(fields.format)
     if (!['STANDARD_85_55', 'STANDARD_90_50', 'FREI'].includes(format ?? '')) addError(errors, 'format', 'Required')
-    if (format === 'FREI' && !hasDimension(detail.format_breite, detail.format_hoehe)) addError(errors, 'format_masse', MSG_MASSE)
-    if (!['HOCHFORMAT', 'QUERFORMAT'].includes(parseRequiredString((detail as Record<string, string>).orientierung) ?? '')) {
-      addError(errors, 'orientierung', 'Required')
+    if (format === 'FREI' && !hasDimension(fields.width, fields.height)) addError(errors, 'format_masse', MSG_MASSE)
+    if (!['HOCHFORMAT', 'QUERFORMAT'].includes(parseRequiredString(fields.orientation) ?? '')) {
+      addError(errors, 'orientation', 'Required')
     }
-    if (material === '350G_OFFSET' && requireBoolPresent((detail as Record<string, unknown>).folienkaschiert) === 'missing') {
-      addError(errors, 'folienkaschiert', 'Required')
+    if (material === '350G_OFFSET' && requireBoolPresent(fields.film_laminated) === 'missing') {
+      addError(errors, 'film_laminated', 'Required')
     }
     if (material === 'MULTILOFT') {
       const multiloftColors = [
@@ -287,58 +283,58 @@ export function validateCopyShopDetail(
         'ROSA',
         'BLAU',
       ]
-      if (!multiloftColors.includes(parseRequiredString((detail as Record<string, string>).multiloft_farbkern) ?? '')) addError(errors, 'multiloft_farbkern', 'Required')
+      if (!multiloftColors.includes(parseRequiredString(fields.multiloft_color) ?? '')) addError(errors, 'multiloft_color', 'Required')
     }
-    if (requireBoolPresent(detail.randabfallend) === 'missing') addError(errors, 'randabfallend', 'Required')
+    if (requireBoolPresent(fields.full_bleed) === 'missing') addError(errors, 'full_bleed', 'Required')
   } else if (copyShopType === 'BINDING') {
-    const material = parseRequiredString((detail as Record<string, string>).material)
+    const material = parseRequiredString(fields.material)
     if (!['80G', '100G', '120G', 'SONSTIGE'].includes(material ?? '')) addError(errors, 'material', 'Required')
-    if (material === 'SONSTIGE' && !parseRequiredString((detail as Record<string, string>).material_sonstige)) addError(errors, 'material_sonstige', 'Required')
-    if (!['1_0', '1_1', '4_0', '4_1'].includes(parseRequiredString(detail.farbigkeit) ?? '')) addError(errors, 'farbigkeit', 'Required')
-    const bindingType = parseRequiredString(detail.bindungsart) as 'WIRE_O' | 'KUNSTSTOFFSPIRALE' | 'SOFTCOVER' | 'HARDCOVER' | null
-    if (!['WIRE_O', 'KUNSTSTOFFSPIRALE', 'SOFTCOVER', 'HARDCOVER'].includes(bindingType ?? '')) addError(errors, 'bindungsart', 'Required')
-    const bindingColor = parseRequiredString(detail.bindungsart_farbe)
-    if (!bindingType || !bindingColor || !isBindingColorValid(bindingType, bindingColor)) addError(errors, 'bindungsart_farbe', 'Required')
+    if (material === 'SONSTIGE' && !parseRequiredString(fields.material_other)) addError(errors, 'material_other', 'Required')
+    if (!['1_0', '1_1', '4_0', '4_1'].includes(parseRequiredString(fields.color_mode) ?? '')) addError(errors, 'color_mode', 'Required')
+    const bindingType = parseRequiredString(fields.binding_type) as 'WIRE_O' | 'KUNSTSTOFFSPIRALE' | 'SOFTCOVER' | 'HARDCOVER' | null
+    if (!['WIRE_O', 'KUNSTSTOFFSPIRALE', 'SOFTCOVER', 'HARDCOVER'].includes(bindingType ?? '')) addError(errors, 'binding_type', 'Required')
+    const bindingColor = parseRequiredString(fields.binding_color)
+    if (!bindingType || !bindingColor || !isBindingColorValid(bindingType, bindingColor)) addError(errors, 'binding_color', 'Required')
     if (bindingType === 'WIRE_O' || bindingType === 'KUNSTSTOFFSPIRALE') {
-      const wireFormat = parseRequiredString((detail as Record<string, string>).format)
+      const wireFormat = parseRequiredString(fields.format)
       if (!['A5', 'A4', 'A3', 'FREI'].includes(wireFormat ?? '')) addError(errors, 'format', 'Required')
-      const orientation = parseRequiredString((detail as Record<string, string>).orientierung)
+      const orientation = parseRequiredString(fields.orientation)
       if (wireFormat === 'A5' || wireFormat === 'A4') {
-        if (!['HOCHFORMAT', 'QUERFORMAT'].includes(orientation ?? '')) addError(errors, 'orientierung', 'Required')
+        if (!['HOCHFORMAT', 'QUERFORMAT'].includes(orientation ?? '')) addError(errors, 'orientation', 'Required')
       }
-      if (wireFormat === 'A3' && orientation !== 'QUERFORMAT') addError(errors, 'orientierung', 'A3 nur Querformat')
+      if (wireFormat === 'A3' && orientation !== 'QUERFORMAT') addError(errors, 'orientation', 'A3 nur Querformat')
       if (wireFormat === 'FREI') {
-        const height = parseMmDimension(detail.format_hoehe)
-        if (height != null && height > 300) addError(errors, 'format_hoehe', 'Height max. 300 mm (binding edge)')
+        const height = parseMmDimension(fields.height)
+        if (height != null && height > 300) addError(errors, 'height', 'Height max. 300 mm (binding edge)')
       }
     } else if (bindingType === 'SOFTCOVER' || bindingType === 'HARDCOVER') {
-      if (parseRequiredString((detail as Record<string, string>).format) !== 'A4') addError(errors, 'format', 'A4 Hochformat 210×297 mm')
-      else if (parseRequiredString((detail as Record<string, string>).orientierung) !== 'HOCHFORMAT') {
-        addError(errors, 'orientierung', 'Required')
+      if (parseRequiredString(fields.format) !== 'A4') addError(errors, 'format', 'A4 Hochformat 210×297 mm')
+      else if (parseRequiredString(fields.orientation) !== 'HOCHFORMAT') {
+        addError(errors, 'orientation', 'Required')
       } else {
-        const width = parseMmDimension(detail.format_breite)
-        const height = parseMmDimension(detail.format_hoehe)
+        const width = parseMmDimension(fields.width)
+        const height = parseMmDimension(fields.height)
         if (width == null || height == null || Math.abs(width - 210) > 0.5 || Math.abs(height - 297) > 0.5) {
           addError(errors, 'format', 'A4 Hochformat 210×297 mm')
         }
       }
     }
     if (bindingType === 'HARDCOVER') {
-      if (requireBoolPresent((detail as Record<string, unknown>).hardcover_druck) === 'missing') addError(errors, 'hardcover_druck', 'Required')
-      if (detail.hardcover_druck === true && !parseRequiredString((detail as Record<string, string>).hardcover_einband)) {
-        addError(errors, 'hardcover_einband', 'Required')
+      if (requireBoolPresent(fields.hardcover_print) === 'missing') addError(errors, 'hardcover_print', 'Required')
+      if (fields.hardcover_print === true && !parseRequiredString(fields.hardcover_cover)) {
+        addError(errors, 'hardcover_cover', 'Required')
       }
     }
-    if (requireBoolPresent(detail.randabfallend) === 'missing') addError(errors, 'randabfallend', 'Required')
+    if (requireBoolPresent(fields.full_bleed) === 'missing') addError(errors, 'full_bleed', 'Required')
   } else if (copyShopType === 'PRINTOUT') {
-    if (!['A5', 'A4', 'A3'].includes(parseRequiredString((detail as Record<string, string>).format) ?? '')) addError(errors, 'format', 'Required')
-    const material = parseRequiredString((detail as Record<string, string>).material)
+    if (!['A5', 'A4', 'A3'].includes(parseRequiredString(fields.format) ?? '')) addError(errors, 'format', 'Required')
+    const material = parseRequiredString(fields.material)
     if (!['80G', '100G', '120G', '160G', '200G', '250G', '300G', 'SONSTIGE'].includes(material ?? '')) addError(errors, 'material', 'Required')
-    if (material === 'SONSTIGE' && !parseRequiredString((detail as Record<string, string>).material_sonstige)) addError(errors, 'material_sonstige', 'Required')
-    if (!['1_0', '1_1', '4_0', '4_1'].includes(parseRequiredString(detail.farbigkeit) ?? '')) addError(errors, 'farbigkeit', 'Required')
-    if (!['NEIN', '2_LOCH', '4_LOCH'].includes(parseRequiredString(detail.lochen) ?? '')) addError(errors, 'lochen', 'Required')
-    if (requireBoolPresent(detail.heften) === 'missing') addError(errors, 'heften', 'Required')
-    if (!['NEIN', 'MATT', 'GLAENZEND'].includes(parseRequiredString(detail.laminieren) ?? '')) addError(errors, 'laminieren', 'Required')
+    if (material === 'SONSTIGE' && !parseRequiredString(fields.material_other)) addError(errors, 'material_other', 'Required')
+    if (!['1_0', '1_1', '4_0', '4_1'].includes(parseRequiredString(fields.color_mode) ?? '')) addError(errors, 'color_mode', 'Required')
+    if (!['NEIN', '2_LOCH', '4_LOCH'].includes(parseRequiredString(fields.punching) ?? '')) addError(errors, 'punching', 'Required')
+    if (requireBoolPresent(fields.staple) === 'missing') addError(errors, 'staple', 'Required')
+    if (!['NEIN', 'MATT', 'GLAENZEND'].includes(parseRequiredString(fields.laminate) ?? '')) addError(errors, 'laminate', 'Required')
   }
   return errors
 }

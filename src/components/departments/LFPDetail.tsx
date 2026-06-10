@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { LFP_TYPE_LABELS, LFP_TYPES, type LfpDetail } from '../../types/lfp'
+import { LFP_TYPE_LABELS, LFP_TYPES } from '../../types/lfp'
 import { validateLfpDetail } from '../../lib/lfp/validateLfpDetail'
 import type { OrderStatus, SubOrderRow } from '../../types/database'
-import type { Json } from '../../types/supabase'
-import { subOrderProductService, type SubOrderProductRow } from '../../services/subOrderProductService'
+import { subOrderProductService } from '../../services/subOrderProductService'
+import type { LoadedProduct, ProductChildInsert, ProductWriteInput } from '../../types/product'
 import {
   LFP_3551_VARIANTEN,
   LFP_AUFKLEBER_MATERIALIEN,
@@ -14,11 +14,21 @@ import { DateInput } from '../DateInput'
 import { useToast } from '../Toast'
 import '../WorkArea.css'
 
+/**
+ * Form state for the LFP product mask: the English child columns plus the
+ * parent `quantity` and `notes`. The stored enum VALUE strings stay German
+ * (FREIFORM, NEIN, MATT, MIT, …); only the keys are English.
+ */
+type Fields = Record<string, unknown>
+
 type ProductRow = {
   id: string
   sub_order_id: string
   department: string
-  detail: LfpDetail
+  type: string
+  quantity: number | null
+  notes: string | null
+  fields: Fields
   sort_order: number | null
   created_at: string | null
 }
@@ -31,16 +41,64 @@ type Props = {
 }
 
 type DetailBlockProps = {
-  detail: LfpDetail
+  detail: Fields
   fieldErrorClass: (fieldKey: string) => string
   shouldValidate: boolean
   validationErrors: Record<string, string>
-  patchLocal: (patch: LfpDetail) => void
+  patchLocal: (patch: Fields) => void
   commit: () => void
-  applyDetail: (newDetail: LfpDetail) => void
+  applyDetail: (newDetail: Fields) => void
 }
 
 type ProductFileAssignment = { assignmentId: string; fileId: string }
+
+/** Build the typed child insert (English columns) for a given type from form fields. */
+function buildChild(type: string, fields: Fields): ProductChildInsert {
+  const pick = (keys: string[]): Record<string, unknown> => {
+    const out: Record<string, unknown> = {}
+    for (const key of keys) out[key] = fields[key] ?? null
+    return out
+  }
+  let child: Record<string, unknown>
+  switch (type) {
+    case 'STICKER':
+      child = pick(['material', 'material_variant', 'contour_cut', 'laminate', 'output', 'width', 'height'])
+      break
+    case 'SIGN_UV':
+      child = pick([
+        'material', 'print_side', 'acrylic_print_direction', 'width', 'height',
+        'round_corners', 'drill_holes', 'drill_hole_diameter', 'drill_hole_position',
+      ])
+      break
+    case 'SIGN_FOIL':
+      child = pick([
+        'material', 'laminate', 'print_side', 'width', 'height',
+        'round_corners', 'drill_holes', 'drill_hole_diameter', 'drill_hole_position',
+      ])
+      break
+    case 'FOIL_PLOTTER':
+      child = pick(['material', 'output', 'width', 'height'])
+      break
+    case 'BANNER':
+      child = pick(['material', 'width', 'height', 'hem', 'hem_sides', 'eyelets', 'eyelet_detail'])
+      break
+    case 'ROLLUP':
+      child = pick(['material', 'rollup_system', 'rollup_width'])
+      break
+    case 'VEHICLE_LETTERING':
+      child = pick([
+        'vehicle_make', 'vehicle_model', 'area_sides', 'area_front', 'area_rear',
+        'installation', 'existing_wrap', 'installation_date',
+      ])
+      break
+    case 'OTHER_LFP':
+      child = pick(['description'])
+      break
+    default:
+      child = {}
+  }
+  return child as ProductChildInsert
+}
 
 export function LFPDetail({
   subOrder,
@@ -60,7 +118,7 @@ export function LFPDetail({
   const [formFileRecordIds, setFormFileRecordIds] = useState<string[]>([])
 
   const [selectedType, setSelectedType] = useState<string | null>(null)
-  const [detail, setDetail] = useState<LfpDetail>({})
+  const [detail, setDetail] = useState<Fields>({})
   const detailRef = useRef(detail)
   const typeRef = useRef(selectedType)
   useEffect(() => {
@@ -97,7 +155,7 @@ export function LFPDetail({
       }
       const next: Record<string, ProductFileAssignment[]> = {}
       for (const row of rows) {
-        const list = next[row.product_id] ?? (next[row.product_id] = [])
+        const list = next[row.department_product_id] ?? (next[row.department_product_id] = [])
         list.push({ assignmentId: row.id, fileId: row.file_id })
       }
       setProductFiles(next)
@@ -111,7 +169,7 @@ export function LFPDetail({
       return []
     }
     setProductsLoading(true)
-    let rows: SubOrderProductRow[]
+    let rows: LoadedProduct[]
     try {
       rows = await subOrderProductService.getProductsBySubOrderId(subOrder.id)
     } catch {
@@ -122,14 +180,21 @@ export function LFPDetail({
       return []
     }
     setProductsLoading(false)
-    const mapped: ProductRow[] = rows.map(row => ({
-      id: row.id,
-      sub_order_id: row.sub_order_id,
-      department: row.department,
-      detail: (row.detail ?? {}) as LfpDetail,
-      sort_order: row.sort_order,
-      created_at: row.created_at,
-    }))
+    const mapped: ProductRow[] = rows.map(row => {
+      const child = { ...(row.child as Record<string, unknown>) }
+      delete child.department_product_id
+      return {
+        id: row.id,
+        sub_order_id: row.department_order_id,
+        department: row.department,
+        type: row.type,
+        quantity: row.quantity,
+        notes: row.notes,
+        fields: child,
+        sort_order: row.sort_order,
+        created_at: row.created_at,
+      }
+    })
     setProducts(mapped)
     await loadFilesForProducts(mapped)
     return mapped
@@ -181,7 +246,7 @@ export function LFPDetail({
   const fieldErrorClass = (fieldKey: string) => (shouldValidate && validationErrors[fieldKey] ? ' ber-inp--err' : '')
 
   const saveDetail = useCallback(
-    (nextType: string | null, json: LfpDetail) => {
+    (nextType: string | null, json: Fields) => {
       setDetail(json)
       detailRef.current = json
       setSelectedType(nextType)
@@ -189,7 +254,7 @@ export function LFPDetail({
     []
   )
 
-  const patchLocal = useCallback((patch: LfpDetail) => {
+  const patchLocal = useCallback((patch: Fields) => {
     setDetail(currentDetail => {
       const merged = { ...currentDetail, ...patch }
       detailRef.current = merged
@@ -202,7 +267,7 @@ export function LFPDetail({
   }, [saveDetail])
 
   const applyDetail = useCallback(
-    (newDetail: LfpDetail) => {
+    (newDetail: Fields) => {
       setDetail(newDetail)
       detailRef.current = newDetail
       void saveDetail(typeRef.current, newDetail)
@@ -219,17 +284,31 @@ export function LFPDetail({
 
   const handleAddOrSave = useCallback(async () => {
     const currentType = typeRef.current
-    const currentDetail = { ...detailRef.current }
+    const currentFields = { ...detailRef.current }
     if (!currentType) return
-    const errors = validateLfpDetail(currentType, currentDetail, subOrderStatus)
+    const errors = validateLfpDetail(currentType, currentFields, subOrderStatus)
     if (Object.keys(errors).length > 0) return
 
+    const quantity =
+      currentFields.quantity == null || currentFields.quantity === ''
+        ? null
+        : Number(currentFields.quantity)
+    const notesRaw = currentFields.notes
+    const notes = typeof notesRaw === 'string' && notesRaw.trim() !== '' ? notesRaw : null
+
     if (editingId) {
-      const patch = {
-        detail: { ...currentDetail, typ: currentType } as Json,
+      const input: ProductWriteInput = {
+        id: editingId,
+        department_order_id: subOrder.id,
+        department: 'LFP',
+        type: currentType,
+        quantity,
+        notes,
+        sort_order: products.find(p => p.id === editingId)?.sort_order ?? products.length,
+        child: buildChild(currentType, currentFields),
       }
       try {
-        await subOrderProductService.updateProduct(editingId, patch)
+        await subOrderProductService.updateProduct(editingId, input)
       } catch {
         showError('Product could not be saved')
         return
@@ -246,20 +325,22 @@ export function LFPDetail({
       return
     }
 
-    const productInsert = {
-      sub_order_id: subOrder.id,
+    const input: ProductWriteInput = {
+      department_order_id: subOrder.id,
       department: 'LFP',
-      detail: { ...currentDetail, typ: currentType } as Json,
+      type: currentType,
+      quantity,
+      notes,
       sort_order: products.length,
+      child: buildChild(currentType, currentFields),
     }
-    let insertedRow: SubOrderProductRow
+    let newId: string
     try {
-      insertedRow = await subOrderProductService.createProduct(productInsert)
+      newId = await subOrderProductService.createProduct(input)
     } catch {
       showError('Product could not be added')
       return
     }
-    const newId = insertedRow.id
     const list = await reloadProducts()
     for (const fid of formFileRecordIds) {
       await assignFileToProduct(newId, fid, list)
@@ -271,7 +352,7 @@ export function LFPDetail({
     subOrder,
     subOrderStatus,
     editingId,
-    products.length,
+    products,
     productFiles,
     formFileRecordIds,
     showError,
@@ -300,13 +381,11 @@ export function LFPDetail({
   const handleEdit = useCallback((row: ProductRow) => {
     setEditingId(row.id)
     setFormFileRecordIds(productFiles[row.id]?.map(assignment => assignment.fileId) ?? [])
-    const rowDetail = row.detail ?? {}
-    const detailRecord = rowDetail as Record<string, unknown>
-    const rowType = typeof detailRecord.typ === 'string' ? detailRecord.typ : null
+    const rowType = row.type || null
     setSelectedType(rowType)
-    const cleanDetail = { ...(rowDetail as LfpDetail) }
-    setDetail(cleanDetail)
-    detailRef.current = cleanDetail
+    const cleanFields: Fields = { ...row.fields, quantity: row.quantity, notes: row.notes ?? '' }
+    setDetail(cleanFields)
+    detailRef.current = cleanFields
     typeRef.current = rowType
   }, [productFiles])
 
@@ -326,10 +405,10 @@ export function LFPDetail({
         <FieldRow
           stack
           label="Type"
-          error={shouldValidate && validationErrors.typ ? validationErrors.typ : undefined}
+          error={shouldValidate && validationErrors.type ? validationErrors.type : undefined}
           content={
             <select
-              className={'ber-inp' + fieldErrorClass('typ')}
+              className={'ber-inp' + fieldErrorClass('type')}
               value={selectedType ?? ''}
               onChange={e => {
                 const selected = e.target.value
@@ -495,12 +574,12 @@ export function LFPDetail({
               </thead>
               <tbody>
                 {products.map(product => {
-                  const productDetail = (product.detail ?? {}) as Record<string, unknown>
-                  const productType = typeof productDetail.typ === 'string' ? productDetail.typ : ''
-                  const quantity = productDetail.stueckzahl ?? ''
-                  const material = productDetail.material ?? '—'
-                  const formatWidth = productDetail.format_breite
-                  const formatHeight = productDetail.format_hoehe
+                  const productFields = product.fields
+                  const productType = product.type
+                  const quantity = product.quantity ?? ''
+                  const material = productFields.material ?? '—'
+                  const formatWidth = productFields.width
+                  const formatHeight = productFields.height
                   const formatDisplay = formatWidth && formatHeight ? `${formatWidth}×${formatHeight} mm` : '—'
                   const typeLabel = (LFP_TYPE_LABELS as Record<string, string>)[productType] ?? productType
                   const fileAssignments = productFiles[product.id] ?? []
@@ -587,21 +666,21 @@ function FieldRow({
 
 function QuantityInput(props: DetailBlockProps & { stack?: boolean }) {
   const { detail, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit, stack } = props
-  const rawQuantity = detail.stueckzahl
+  const rawQuantity = detail.quantity
   const displayValue = rawQuantity === null || rawQuantity === undefined ? '' : String(rawQuantity)
   return (
-    <FieldRow stack={stack} label="Quantity" error={shouldValidate && validationErrors.stueckzahl ? validationErrors.stueckzahl : undefined}>
+    <FieldRow stack={stack} label="Quantity" error={shouldValidate && validationErrors.quantity ? validationErrors.quantity : undefined}>
       <input
         type="number"
-        className={'ber-inp' + fieldErrorClass('stueckzahl')}
+        className={'ber-inp' + fieldErrorClass('quantity')}
         min={1}
         step={1}
         value={displayValue}
         onChange={e => {
           const rawInput = e.target.value
           patchLocal({
-            stueckzahl: rawInput === '' ? null : parseInt(rawInput, 10),
-          } as LfpDetail)
+            quantity: rawInput === '' ? null : parseInt(rawInput, 10),
+          })
         }}
         onBlur={commit}
       />
@@ -620,7 +699,7 @@ function SelectField(
         value={String((detail as Record<string, string>)[fieldKey] ?? '')}
         onChange={e => {
           const selected = e.target.value
-          applyDetail({ ...detail, [fieldKey]: selected } as LfpDetail)
+          applyDetail({ ...detail, [fieldKey]: selected })
         }}
       >
         <option value="">—</option>
@@ -646,7 +725,7 @@ function BooleanSelect(props: DetailBlockProps & { fieldKey: string; label?: str
         onChange={e => {
           const selected = e.target.value
           const boolValue: true | false | undefined = selected === 'true' ? true : selected === 'false' ? false : undefined
-          applyDetail({ ...detail, [fieldKey]: boolValue } as LfpDetail)
+          applyDetail({ ...detail, [fieldKey]: boolValue })
         }}
       >
         <option value="">—</option>
@@ -704,7 +783,7 @@ function IntegerInput(
           onChange={e => {
             const rawInput = e.target.value
             const parsedValue = rawInput === '' ? null : parseInt(rawInput, 10)
-            patchLocal({ [fieldKey]: Number.isNaN(parsedValue as number) ? null : parsedValue } as LfpDetail)
+            patchLocal({ [fieldKey]: Number.isNaN(parsedValue as number) ? null : parsedValue })
           }}
           onBlur={commit}
         />
@@ -714,12 +793,12 @@ function IntegerInput(
   )
 }
 
-/** Width/Height: at least one > 0 — shared error format_masse */
+/** Width/Height: at least one > 0 — shared error `format` */
 function DimensionInputs(props: DetailBlockProps) {
   const { detail, fieldErrorClass, validationErrors, shouldValidate, patchLocal, commit } = props
-  const errorMsg = shouldValidate ? validationErrors.format_masse : undefined
-  const widthValue = detail.format_breite
-  const heightValue = detail.format_hoehe
+  const errorMsg = shouldValidate ? validationErrors.format : undefined
+  const widthValue = detail.width
+  const heightValue = detail.height
   const widthDisplay = widthValue === null || widthValue === undefined ? '' : String(widthValue)
   const heightDisplay = heightValue === null || heightValue === undefined ? '' : String(heightValue)
   return (
@@ -730,15 +809,15 @@ function DimensionInputs(props: DetailBlockProps) {
           <div>
             <input
               type="number"
-              className={'ber-inp' + fieldErrorClass('format_masse')}
+              className={'ber-inp' + fieldErrorClass('format')}
               min={0.01}
               step={0.01}
               value={widthDisplay}
               onChange={e => {
                 const rawInput = e.target.value
                 patchLocal({
-                  format_breite: rawInput === '' ? null : parseFloat(rawInput),
-                } as LfpDetail)
+                  width: rawInput === '' ? null : parseFloat(rawInput),
+                })
               }}
               onBlur={commit}
             />
@@ -749,15 +828,15 @@ function DimensionInputs(props: DetailBlockProps) {
           <div>
             <input
               type="number"
-              className={'ber-inp' + fieldErrorClass('format_masse')}
+              className={'ber-inp' + fieldErrorClass('format')}
               min={0.01}
               step={0.01}
               value={heightDisplay}
               onChange={e => {
                 const rawInput = e.target.value
                 patchLocal({
-                  format_hoehe: rawInput === '' ? null : parseFloat(rawInput),
-                } as LfpDetail)
+                  height: rawInput === '' ? null : parseFloat(rawInput),
+                })
               }}
               onBlur={commit}
             />
@@ -786,7 +865,7 @@ function DateField(props: DetailBlockProps & { fieldKey: string; label: string }
 }
 
 function NotesField(props: DetailBlockProps) {
-  return <TextField {...props} fieldKey="besonderheiten" label="Notes" rows={3} />
+  return <TextField {...props} fieldKey="notes" label="Notes" rows={3} />
 }
 
 function StickerSection(props: DetailBlockProps) {
@@ -800,8 +879,8 @@ function StickerSection(props: DetailBlockProps) {
             value={String((detail as Record<string, string>).material ?? '')}
             onChange={e => {
               const selected = e.target.value
-              const updatedDetail: LfpDetail = { ...detail, material: selected }
-              if (selected !== '3551') updatedDetail.material_3551_variante = null
+              const updatedDetail: Fields = { ...detail, material: selected }
+              if (selected !== '3551') updatedDetail.material_variant = null
               applyDetail(updatedDetail)
             }}
           >
@@ -816,7 +895,7 @@ function StickerSection(props: DetailBlockProps) {
         <SelectField
           {...props}
           stack
-          fieldKey="konturschnitt"
+          fieldKey="contour_cut"
           label="Contour cut"
           options={[
             { value: 'FREIFORM', text: 'Freeform' },
@@ -829,12 +908,12 @@ function StickerSection(props: DetailBlockProps) {
           <FieldRow stack label="3551 Variant">
             <select
               className="ber-inp"
-              value={String((detail as Record<string, string | null>).material_3551_variante ?? '')}
+              value={String((detail as Record<string, string | null>).material_variant ?? '')}
               onChange={e =>
                 applyDetail({
                   ...detail,
-                  material_3551_variante: e.target.value || null,
-                } as LfpDetail)
+                  material_variant: e.target.value || null,
+                })
               }
             >
               {LFP_3551_VARIANTEN.map(variant => (
@@ -850,7 +929,7 @@ function StickerSection(props: DetailBlockProps) {
         <SelectField
           {...props}
           stack
-          fieldKey="laminat"
+          fieldKey="laminate"
           label="Laminate"
           options={[
             { value: 'NEIN', text: 'No' },
@@ -861,7 +940,7 @@ function StickerSection(props: DetailBlockProps) {
         <SelectField
           {...props}
           stack
-          fieldKey="ausgabe"
+          fieldKey="output"
           label="Output"
           options={[
             { value: 'EINZEL', text: 'Single' },
@@ -893,7 +972,7 @@ function UvSignSection(props: DetailBlockProps) {
         <SelectField
           {...props}
           stack
-          fieldKey="druckseite"
+          fieldKey="print_side"
           label="Print side"
           options={[
             { value: 'EINSEITIG', text: 'Single-sided' },
@@ -904,7 +983,7 @@ function UvSignSection(props: DetailBlockProps) {
       {props.detail.material === 'ACRYLGLAS' && (
         <SelectField
           {...props}
-          fieldKey="acryl_druckrichtung"
+          fieldKey="acrylic_print_direction"
           label="Acrylic print direction"
           options={[
             { value: 'VORDERSEITE', text: 'Front' },
@@ -913,12 +992,12 @@ function UvSignSection(props: DetailBlockProps) {
         />
       )}
       <DimensionInputs {...props} />
-      {BooleanSelect({ ...props, fieldKey: 'ecken_runden', label: 'Round corners' })}
-      {BooleanSelect({ ...props, fieldKey: 'bohrungen', label: 'Drill holes' })}
-      {props.detail.bohrungen === true && (
+      {BooleanSelect({ ...props, fieldKey: 'round_corners', label: 'Round corners' })}
+      {BooleanSelect({ ...props, fieldKey: 'drill_holes', label: 'Drill holes' })}
+      {props.detail.drill_holes === true && (
         <>
-          <IntegerInput {...props} fieldKey="bohrungen_durchmesser" label="Drill diameter Ø (mm)" errorKey="bohrungen_durchmesser" min={1} />
-          <TextField {...props} fieldKey="bohrungen_position" label="Drill hole position" />
+          <IntegerInput {...props} fieldKey="drill_hole_diameter" label="Drill diameter Ø (mm)" errorKey="drill_hole_diameter" min={1} />
+          <TextField {...props} fieldKey="drill_hole_position" label="Drill hole position" />
         </>
       )}
       <NotesField {...props} />
@@ -944,7 +1023,7 @@ function FoilSignSection(props: DetailBlockProps) {
         <SelectField
           {...props}
           stack
-          fieldKey="druckseite"
+          fieldKey="print_side"
           label="Print side"
           options={[
             { value: 'EINSEITIG', text: 'Single-sided' },
@@ -956,7 +1035,7 @@ function FoilSignSection(props: DetailBlockProps) {
         <SelectField
           {...props}
           stack
-          fieldKey="laminat"
+          fieldKey="laminate"
           label="Laminate"
           options={[
             { value: 'NEIN', text: 'No' },
@@ -966,12 +1045,12 @@ function FoilSignSection(props: DetailBlockProps) {
         />
       </div>
       <DimensionInputs {...props} />
-      {BooleanSelect({ ...props, fieldKey: 'ecken_runden', label: 'Round corners' })}
-      {BooleanSelect({ ...props, fieldKey: 'bohrungen', label: 'Drill holes' })}
-      {props.detail.bohrungen === true && (
+      {BooleanSelect({ ...props, fieldKey: 'round_corners', label: 'Round corners' })}
+      {BooleanSelect({ ...props, fieldKey: 'drill_holes', label: 'Drill holes' })}
+      {props.detail.drill_holes === true && (
         <>
-          <IntegerInput {...props} fieldKey="bohrungen_durchmesser" label="Drill diameter Ø (mm)" errorKey="bohrungen_durchmesser" min={1} />
-          <TextField {...props} fieldKey="bohrungen_position" label="Drill hole position" />
+          <IntegerInput {...props} fieldKey="drill_hole_diameter" label="Drill diameter Ø (mm)" errorKey="drill_hole_diameter" min={1} />
+          <TextField {...props} fieldKey="drill_hole_position" label="Drill hole position" />
         </>
       )}
       <NotesField {...props} />
@@ -993,7 +1072,7 @@ function FoilPlottSection(props: DetailBlockProps) {
         <SelectField
           {...props}
           stack
-          fieldKey="ausgabe"
+          fieldKey="output"
           label="Output"
           options={[
             { value: 'EINZEL', text: 'Single' },
@@ -1020,10 +1099,10 @@ function BannerSection(props: DetailBlockProps) {
               applyDetail({
                 ...detail,
                 material: 'BAUZAUNBANNER',
-                format_hoehe: 1730,
-                format_breite: 3400,
-                saum: true,
-                oesen: true,
+                height: 1730,
+                width: 3400,
+                hem: true,
+                eyelets: true,
               })
             } else {
               applyDetail({ ...detail, material: materialValue })
@@ -1043,17 +1122,17 @@ function BannerSection(props: DetailBlockProps) {
         </select>
       </FieldRow>
       <DimensionInputs {...props} />
-      {BooleanSelect({ ...props, fieldKey: 'saum', label: 'Hem' })}
-      {props.detail.saum === true && <TextField {...props} fieldKey="saum_seiten" label="Hem (sides)" />}
-      {BooleanSelect({ ...props, fieldKey: 'oesen', label: 'Eyelets' })}
-      {props.detail.oesen === true && <TextField {...props} fieldKey="oesen_detail" label="Eyelet detail" />}
+      {BooleanSelect({ ...props, fieldKey: 'hem', label: 'Hem' })}
+      {props.detail.hem === true && <TextField {...props} fieldKey="hem_sides" label="Hem (sides)" />}
+      {BooleanSelect({ ...props, fieldKey: 'eyelets', label: 'Eyelets' })}
+      {props.detail.eyelets === true && <TextField {...props} fieldKey="eyelet_detail" label="Eyelet detail" />}
       <NotesField {...props} />
     </>
   )
 }
 
 function RollupSection(props: DetailBlockProps) {
-  const rollupWidth = (props.detail as Record<string, number>).breite
+  const rollupWidth = (props.detail as Record<string, number>).rollup_width
   return (
     <>
       <SelectField
@@ -1067,20 +1146,20 @@ function RollupSection(props: DetailBlockProps) {
       />
       <SelectField
         {...props}
-        fieldKey="system"
+        fieldKey="rollup_system"
         label="System"
         options={[
           { value: 'NEUE_KASSETTE', text: 'New cassette' },
           { value: 'MOTIVTAUSCH', text: 'Motif swap' },
         ]}
       />
-      <FieldRow label="Width" error={props.shouldValidate ? props.validationErrors.breite : undefined}>
+      <FieldRow label="Width" error={props.shouldValidate ? props.validationErrors.rollup_width : undefined}>
         <select
-          className={'ber-inp' + props.fieldErrorClass('breite')}
+          className={'ber-inp' + props.fieldErrorClass('rollup_width')}
           value={rollupWidth === 85 || rollupWidth === 100 ? String(rollupWidth) : ''}
           onChange={e => {
             const widthValue = e.target.value === '' ? null : parseInt(e.target.value, 10)
-            props.applyDetail({ ...props.detail, breite: widthValue } as LfpDetail)
+            props.applyDetail({ ...props.detail, rollup_width: widthValue })
           }}
         >
           <option value="">—</option>
@@ -1097,26 +1176,26 @@ function VehicleWrapSection(props: DetailBlockProps) {
   const { detail, fieldErrorClass, validationErrors, shouldValidate, applyDetail } = props
   return (
     <>
-      <TextField {...props} fieldKey="marke" label="Make" />
-      <TextField {...props} fieldKey="modell" label="Model" />
-      {BooleanSelect({ ...props, fieldKey: 'bereiche_seiten', label: 'Side panels' })}
-      {BooleanSelect({ ...props, fieldKey: 'bereiche_front', label: 'Front area' })}
-      {BooleanSelect({ ...props, fieldKey: 'bereiche_heck', label: 'Rear area' })}
-      <FieldRow label="Installation" error={shouldValidate ? validationErrors.montage : undefined}>
+      <TextField {...props} fieldKey="vehicle_make" label="Make" />
+      <TextField {...props} fieldKey="vehicle_model" label="Model" />
+      {BooleanSelect({ ...props, fieldKey: 'area_sides', label: 'Side panels' })}
+      {BooleanSelect({ ...props, fieldKey: 'area_front', label: 'Front area' })}
+      {BooleanSelect({ ...props, fieldKey: 'area_rear', label: 'Rear area' })}
+      <FieldRow label="Installation" error={shouldValidate ? validationErrors.installation : undefined}>
         <select
-          className={'ber-inp' + fieldErrorClass('montage')}
-          value={String((detail as Record<string, string>).montage ?? '')}
+          className={'ber-inp' + fieldErrorClass('installation')}
+          value={String((detail as Record<string, string>).installation ?? '')}
           onChange={e => {
-            const montageValue = e.target.value
-            if (montageValue === 'OHNE') {
+            const installationValue = e.target.value
+            if (installationValue === 'OHNE') {
               applyDetail({
                 ...detail,
-                montage: 'OHNE',
-                montagetermin: null,
-                altbeklebung: null,
-              } as LfpDetail)
+                installation: 'OHNE',
+                installation_date: null,
+                existing_wrap: null,
+              })
             } else {
-              applyDetail({ ...detail, montage: montageValue } as LfpDetail)
+              applyDetail({ ...detail, installation: installationValue })
             }
           }}
         >
@@ -1125,13 +1204,13 @@ function VehicleWrapSection(props: DetailBlockProps) {
           <option value="OHNE">Without</option>
         </select>
       </FieldRow>
-      {detail.montage === 'MIT' && BooleanSelect({ ...props, fieldKey: 'altbeklebung', label: 'Existing wrap' })}
-      {detail.montage === 'MIT' && <DateField {...props} fieldKey="montagetermin" label="Installation date" />}
-      <TextField {...props} fieldKey="besonderheiten" label="Notes" rows={3} />
+      {detail.installation === 'MIT' && BooleanSelect({ ...props, fieldKey: 'existing_wrap', label: 'Existing wrap' })}
+      {detail.installation === 'MIT' && <DateField {...props} fieldKey="installation_date" label="Installation date" />}
+      <NotesField {...props} />
     </>
   )
 }
 
 function OtherSection(props: DetailBlockProps) {
-  return <TextField {...props} fieldKey="beschreibung" label="Description" rows={6} />
+  return <TextField {...props} fieldKey="description" label="Description" rows={6} />
 }

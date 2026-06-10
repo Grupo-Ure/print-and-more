@@ -1,20 +1,21 @@
 /**
- * Validation for laser-engraving sub-order detail.
+ * Validation for laser-engraving products.
  *
- * {@link validateLaserDetail} returns a map of field-key → German error
- * message (rendered inline next to the form field). An empty map means
- * the detail is valid.
+ * Operates on the English typed fields of a laser product (the child columns
+ * plus the parent `quantity`), keyed by `type`. Field keys are English; the
+ * stored enum VALUE strings (ABS_SW, KUNDENMATERIAL, …) are kept as-is for now
+ * (the value→English pass is deferred, shop-confirmed).
  *
- * Per-typ rules at a glance:
- * - Sign typen (SIGN / TROPHY_PLATE / NAME_TAG): material from
- *   {@link LASER_SIGN_MATERIALS}, at least one dimension, corner-rounding
+ * Per-type rules at a glance:
+ * - Sign types (SIGN / TROPHY_PLATE / NAME_TAG): material from
+ *   {@link LASER_SIGN_MATERIALS}, at least one dimension, round-corners
  *   flag, motif. SIGN and TROPHY_PLATE additionally need the
  *   self-adhesive flag.
- * - GIFT_ITEM: free-text material, origin (customer / in-house),
- *   motif.
+ * - GIFT_ITEM: free-text material, origin (customer / in-house), motif.
  * - OTHER_LASER: self-adhesive flag, origin, motif.
  *
- * In `ANGEBOT` (quote stage) nothing is required regardless of typ.
+ * In `QUOTE` (quote stage) nothing is required regardless of type. Returns a
+ * map of field-key → message; empty map means valid.
  */
 
 import {
@@ -67,51 +68,54 @@ const addError = (errors: Err, field: string, message: string) => {
 const MSG_FORMAT_MASSE = 'Provide at least width or height'
 
 /**
- * Validate a laser sub-order's typ + detail against its current status.
+ * Validate a laser product's type + English child fields against its current
+ * status.
  *
- * Returns a map of field-key → German error message; empty map means
- * valid. In `ANGEBOT` no fields are required. Otherwise the typ must be
- * one of {@link LASER_TYPES}, `stueckzahl` must be a positive integer,
- * and the typ-specific keys (material, dimensions, options, etc.) must
- * be set.
+ * @param type   the product type discriminator
+ * @param fields English child columns + the parent `quantity`
+ *
+ * Returns a map of field-key → message; empty map means valid. In `QUOTE` no
+ * fields are required. Otherwise the type must be one of {@link LASER_TYPES},
+ * `quantity` must be a positive integer, and the type-specific keys
+ * (material, dimensions, options, etc.) must be set.
  */
 export function validateLaserDetail(
-  typ: string | null,
-  detail: Record<string, unknown> | null,
+  type: string | null,
+  fields: Record<string, unknown>,
   subOrderStatus: OrderStatus
 ): Record<string, string> {
   const errors: Err = {}
   if (subOrderStatus === 'QUOTE') return errors
-  if (!typ || !LASER_TYPES.includes(typ as LaserType)) {
-    addError(errors, 'typ', 'Select type')
+  if (!type || !LASER_TYPES.includes(type as LaserType)) {
+    addError(errors, 'type', 'Select type')
     return errors
   }
-  if (!isValidQuantity(detail?.stueckzahl)) addError(errors, 'stueckzahl', 'Integer ≥ 1')
+  if (!isValidQuantity(fields.quantity)) addError(errors, 'quantity', 'Integer ≥ 1')
 
-  const laserType = typ as LaserType
+  const laserType = type as LaserType
 
   if (laserType === 'SIGN' || laserType === 'TROPHY_PLATE' || laserType === 'NAME_TAG') {
-    const material = parseRequiredString(detail?.material) as (typeof LASER_SIGN_MATERIALS)[number] | null
+    const material = parseRequiredString(fields.material) as (typeof LASER_SIGN_MATERIALS)[number] | null
     if (!material || !LASER_SIGN_MATERIALS.includes(material as (typeof LASER_SIGN_MATERIALS)[number])) {
       addError(errors, 'material', 'Required')
     }
-    if (material === 'SONSTIGE' && !parseRequiredString(detail?.material_sonstige)) addError(errors, 'material_sonstige', 'Required')
-    if (!hasDimension(detail?.format_breite, detail?.format_hoehe)) addError(errors, 'format_masse', MSG_FORMAT_MASSE)
-    if (requireBoolPresent(detail?.ecken_runden) === 'missing') addError(errors, 'ecken_runden', 'Required')
-    if ((laserType === 'SIGN' || laserType === 'TROPHY_PLATE') && requireBoolPresent(detail?.selbstklebend) === 'missing') {
-      addError(errors, 'selbstklebend', 'Required')
+    if (material === 'SONSTIGE' && !parseRequiredString(fields.material_other)) addError(errors, 'material_other', 'Required')
+    if (!hasDimension(fields.width, fields.height)) addError(errors, 'format', MSG_FORMAT_MASSE)
+    if (requireBoolPresent(fields.round_corners) === 'missing') addError(errors, 'round_corners', 'Required')
+    if ((laserType === 'SIGN' || laserType === 'TROPHY_PLATE') && requireBoolPresent(fields.self_adhesive) === 'missing') {
+      addError(errors, 'self_adhesive', 'Required')
     }
-    if (!parseRequiredString(detail?.motiv)) addError(errors, 'motiv', 'Required')
+    if (!parseRequiredString(fields.motif)) addError(errors, 'motif', 'Required')
   } else if (laserType === 'GIFT_ITEM') {
-    if (!parseRequiredString(detail?.material_freitext)) addError(errors, 'material_freitext', 'Required')
-    const origin = parseRequiredString(detail?.herkunft)
-    if (!origin || !LASER_ORIGINS.includes(origin as (typeof LASER_ORIGINS)[number])) addError(errors, 'herkunft', 'Required')
-    if (!parseRequiredString(detail?.motiv)) addError(errors, 'motiv', 'Required')
+    if (!parseRequiredString(fields.material_free_text)) addError(errors, 'material_free_text', 'Required')
+    const origin = parseRequiredString(fields.origin)
+    if (!origin || !LASER_ORIGINS.includes(origin as (typeof LASER_ORIGINS)[number])) addError(errors, 'origin', 'Required')
+    if (!parseRequiredString(fields.motif)) addError(errors, 'motif', 'Required')
   } else if (laserType === 'OTHER_LASER') {
-    if (requireBoolPresent(detail?.selbstklebend) === 'missing') addError(errors, 'selbstklebend', 'Required')
-    const origin = parseRequiredString(detail?.herkunft)
-    if (!origin || !LASER_ORIGINS.includes(origin as (typeof LASER_ORIGINS)[number])) addError(errors, 'herkunft', 'Required')
-    if (!parseRequiredString(detail?.motiv)) addError(errors, 'motiv', 'Required')
+    if (requireBoolPresent(fields.self_adhesive) === 'missing') addError(errors, 'self_adhesive', 'Required')
+    const origin = parseRequiredString(fields.origin)
+    if (!origin || !LASER_ORIGINS.includes(origin as (typeof LASER_ORIGINS)[number])) addError(errors, 'origin', 'Required')
+    if (!parseRequiredString(fields.motif)) addError(errors, 'motif', 'Required')
   }
 
   return errors

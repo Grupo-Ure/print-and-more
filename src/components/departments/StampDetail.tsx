@@ -4,12 +4,11 @@ import {
   STAMP_COLOR_LABELS,
   STAMP_TYPES,
   STAMP_TYPE_LABELS,
-  type StampDetailJson,
 } from '../../types/stamp'
 import { validateStampDetail } from '../../lib/stamp/validateStampDetail'
 import { type OrderStatus, type SubOrderRow } from '../../types/database'
-import type { Database, Json } from '../../types/supabase'
-import { subOrderProductService, type SubOrderProductRow } from '../../services/subOrderProductService'
+import type { LoadedProduct, ProductChildInsert, ProductWriteInput } from '../../types/product'
+import { subOrderProductService } from '../../services/subOrderProductService'
 import { stampService } from '../../services/stampService'
 import type { FileRow } from '../../services/fileService'
 import { useToast } from '../Toast'
@@ -22,23 +21,28 @@ type Props = {
   onProductsChanged?: (hasProducts: boolean) => void
 }
 
+/** English child fields (per type) plus the parent `quantity`. */
+type StampFields = Record<string, unknown>
+
 type ProductRow = {
   id: string
-  sub_order_id: string
   department: string
-  detail: StampDetailJson
-  sort_order: number | null
-  created_at: string | null
+  type: string
+  quantity: number | null
+  notes: string | null
+  child: Record<string, unknown>
+  sort_order: number
+  created_at: string
 }
 
 type StampFormContext = {
-  detail: StampDetailJson
+  fields: StampFields
   fieldErrorClass: (fieldKey: string) => string
   shouldValidate: boolean
   errors: Record<string, string>
-  patchLocal: (patch: StampDetailJson) => void
+  patchLocal: (patch: StampFields) => void
   commitChanges: () => void
-  saveDetail: (newDetail: StampDetailJson) => void
+  saveFields: (newFields: StampFields) => void
 }
 
 const EXTRA_TYPES = ['REFILL_INK', 'INK_PAD', 'STAMP_PLATE', 'TRODAT_PAD'] as const
@@ -114,6 +118,46 @@ function typeLabel(t: string): string {
   return t
 }
 
+/** Build the typed child insert for the given type from the English form fields. */
+function buildChildForType(type: string, fields: StampFields): ProductChildInsert {
+  const width = toPositiveIntOrNull(fields.width)
+  const height = toPositiveIntOrNull(fields.height)
+  const str = (v: unknown): string | null => {
+    if (v == null) return null
+    const s = String(v).trim()
+    return s === '' ? null : s
+  }
+  switch (type) {
+    case 'TRODAT_PRINTY':
+    case 'WOODEN_STAMP':
+      return { model_id: str(fields.model_id) }
+    case 'STAND_STAMP':
+    case 'DATE_STAMP':
+    case 'OTHER_STAMP':
+      return {
+        width,
+        height,
+        color: str(fields.color),
+        color_other: str(fields.color_other),
+        description: str(fields.description),
+      }
+    case 'STAMP_PLATE':
+      return { width, height }
+    case 'REFILL_INK':
+      return { color: str(fields.color), ink_type: str(fields.ink_type) }
+    case 'INK_PAD':
+      return { pad_size: str(fields.pad_size), color: str(fields.color) }
+    case 'TRODAT_PAD':
+      return {
+        pad_article_number: str(fields.pad_article_number),
+        pad_variant_id: str(fields.pad_variant_id),
+        color: str(fields.color),
+      }
+    default:
+      return {} as ProductChildInsert
+  }
+}
+
 type ProductFileAssignment = { assignmentId: string; fileId: string }
 
 export function StampDetail({
@@ -134,26 +178,32 @@ export function StampDetail({
   const [formFileRecordIds, setFormFileRecordIds] = useState<string[]>([])
 
   const [stampType, setStampType] = useState<string | null>(null)
-  const [detail, setDetail] = useState<StampDetailJson>({})
-  const detailRef = useRef(detail)
+  const [fields, setFields] = useState<StampFields>({})
+  const fieldsRef = useRef(fields)
   const stampTypeRef = useRef(stampType)
   useEffect(() => {
-    detailRef.current = detail
-  }, [detail])
+    fieldsRef.current = fields
+  }, [fields])
   useEffect(() => {
     stampTypeRef.current = stampType
   }, [stampType])
+
+  // Display-only caches (dropped from storage; re-derived from selections).
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null)
+  const [selectedModelName, setSelectedModelName] = useState<string | null>(null)
+  const [padName, setPadName] = useState<string | null>(null)
 
   useEffect(() => {
     setEditingId(null)
     setFormFileRecordIds([])
     setUnlocked(false)
     setStampType(null)
-    setDetail({})
-    detailRef.current = {}
+    setFields({})
+    fieldsRef.current = {}
     stampTypeRef.current = null
     setSelectedModelId(null)
     setSelectedModelName(null)
+    setPadName(null)
   }, [subOrder.id])
 
   const loadFilesForProducts = useCallback(
@@ -173,7 +223,7 @@ export function StampDetail({
       }
       const fileMap: Record<string, ProductFileAssignment[]> = {}
       for (const row of rows) {
-        const assignmentList = fileMap[row.product_id] ?? (fileMap[row.product_id] = [])
+        const assignmentList = fileMap[row.department_product_id] ?? (fileMap[row.department_product_id] = [])
         assignmentList.push({ assignmentId: row.id, fileId: row.file_id })
       }
       setProductFiles(fileMap)
@@ -187,7 +237,7 @@ export function StampDetail({
       return []
     }
     setProductsLoading(true)
-    let rows: SubOrderProductRow[]
+    let rows: LoadedProduct[]
     try {
       rows = await subOrderProductService.getProductsBySubOrderId(subOrder.id)
     } catch {
@@ -200,9 +250,11 @@ export function StampDetail({
     setProductsLoading(false)
     const mapped: ProductRow[] = rows.map(r => ({
       id: r.id,
-      sub_order_id: r.sub_order_id,
       department: r.department,
-      detail: (r.detail ?? {}) as StampDetailJson,
+      type: r.type,
+      quantity: r.quantity,
+      notes: r.notes,
+      child: (r.child ?? {}) as Record<string, unknown>,
       sort_order: r.sort_order,
       created_at: r.created_at,
     }))
@@ -247,19 +299,20 @@ export function StampDetail({
     setEditingId(null)
     setFormFileRecordIds([])
     setStampType(null)
-    setDetail({})
-    detailRef.current = {}
+    setFields({})
+    fieldsRef.current = {}
     stampTypeRef.current = null
     setSelectedModelId(null)
     setSelectedModelName(null)
+    setPadName(null)
   }, [])
 
-  const stampErrors = validateStampDetail(stampType, detail, subOrderStatus)
+  const stampErrors = validateStampDetail(stampType, fields, subOrderStatus)
   const shouldValidate = subOrderStatus !== 'QUOTE'
   const fieldErrorClass = (fieldKey: string) => (shouldValidate && stampErrors[fieldKey] ? ' ber-inp--err' : '')
 
-  const widthValue = toPositiveIntOrNull(detail.format_breite)
-  const heightValue = toPositiveIntOrNull(detail.format_hoehe)
+  const widthValue = toPositiveIntOrNull(fields.width)
+  const heightValue = toPositiveIntOrNull(fields.height)
   const hasDimensions = (widthValue ?? 0) > 0 || (heightValue ?? 0) > 0
 
   const showDimensions = stampType !== 'REFILL_INK' && stampType !== 'INK_PAD' && stampType !== 'TRODAT_PAD'
@@ -276,11 +329,6 @@ export function StampDetail({
   const [modelsLoading, setModelsLoading] = useState(false)
   const [modelError, setModelError] = useState<string | null>(null)
 
-  const modelName = String(detail['modell_name'] ?? '')
-
-  const [selectedModelId, setSelectedModelId] = useState<string | null>(null)
-  const [selectedModelName, setSelectedModelName] = useState<string | null>(null)
-
   const [replacementCushions, setReplacementCushions] = useState<ReplacementCushionRow[] | null>(null)
 
   const [cushionSearchInput, setCushionSearchInput] = useState('')
@@ -292,9 +340,9 @@ export function StampDetail({
 
   useEffect(() => {
     const currentType = stampTypeRef.current
-    const currentDetail = detailRef.current
-    const width = toPositiveIntOrNull(currentDetail.format_breite)
-    const height = toPositiveIntOrNull(currentDetail.format_hoehe)
+    const currentFields = fieldsRef.current
+    const width = toPositiveIntOrNull(currentFields.width)
+    const height = toPositiveIntOrNull(currentFields.height)
     const hasDimensions = (width ?? 0) > 0 || (height ?? 0) > 0
     const isModelSuggestionType = currentType === 'TRODAT_PRINTY' || currentType === 'WOODEN_STAMP'
     if (!isModelSuggestionType || !hasDimensions) {
@@ -313,8 +361,8 @@ export function StampDetail({
         const data = await stampService.getStampModelsByType(currentType as string)
         if (!alive) return
         {
-          const width = toPositiveIntOrNull(detailRef.current.format_breite)
-          const height = toPositiveIntOrNull(detailRef.current.format_hoehe)
+          const width = toPositiveIntOrNull(fieldsRef.current.width)
+          const height = toPositiveIntOrNull(fieldsRef.current.height)
           const baseWidth = width ?? 0
           const baseHeight = height ?? 0
 
@@ -474,7 +522,7 @@ export function StampDetail({
       setCushionColorOptions([])
       return
     }
-    const art = String(detail['kissen_artikelnummer'] ?? '').trim()
+    const art = String(fields['pad_article_number'] ?? '').trim()
     if (!art) {
       setCushionColorOptions([])
       return
@@ -486,39 +534,39 @@ export function StampDetail({
     return () => {
       alive = false
     }
-  }, [stampType, detail, subOrder.id])
+  }, [stampType, fields, subOrder.id])
 
   const save = useCallback(
-    (nextTyp: string | null, newDetail: StampDetailJson) => {
-      setDetail(newDetail)
-      detailRef.current = newDetail
+    (nextTyp: string | null, newFields: StampFields) => {
+      setFields(newFields)
+      fieldsRef.current = newFields
       setStampType(nextTyp)
     },
     []
   )
 
-  const patchLocal = useCallback((patch: StampDetailJson) => {
-    setDetail(current => {
+  const patchLocal = useCallback((patch: StampFields) => {
+    setFields(current => {
       const patched = { ...current, ...patch }
-      detailRef.current = patched
+      fieldsRef.current = patched
       return patched
     })
   }, [])
 
   const commitChanges = useCallback(() => {
-    void save(stampTypeRef.current, { ...detailRef.current })
+    void save(stampTypeRef.current, { ...fieldsRef.current })
   }, [save])
 
-  const saveDetail = useCallback(
-    (newDetail: StampDetailJson) => {
-      setDetail(newDetail)
-      detailRef.current = newDetail
-      void save(stampTypeRef.current, newDetail)
+  const saveFields = useCallback(
+    (newFields: StampFields) => {
+      setFields(newFields)
+      fieldsRef.current = newFields
+      void save(stampTypeRef.current, newFields)
     },
     [save]
   )
 
-  const formContext: StampFormContext = { detail, fieldErrorClass, shouldValidate, errors: stampErrors, patchLocal, commitChanges, saveDetail }
+  const formContext: StampFormContext = { fields, fieldErrorClass, shouldValidate, errors: stampErrors, patchLocal, commitChanges, saveFields }
 
   const formValid = useMemo(() => Object.keys(stampErrors).length === 0, [stampErrors])
 
@@ -527,17 +575,26 @@ export function StampDetail({
 
   const handleAddOrSave = useCallback(async () => {
     const currentType = stampTypeRef.current
-    const currentDetail = { ...detailRef.current }
+    const currentFields = { ...fieldsRef.current }
     if (!currentType) return
-    const errors = validateStampDetail(currentType, currentDetail, subOrderStatus)
+    const errors = validateStampDetail(currentType, currentFields, subOrderStatus)
     if (Object.keys(errors).length > 0) return
 
+    const quantity = toPositiveIntOrNull(currentFields.quantity)
+    const child = buildChildForType(currentType, currentFields)
+
     if (editingId) {
-      const patch: Database['public']['Tables']['sub_order_products']['Update'] = {
-        detail: { ...currentDetail, typ: currentType } as Json,
+      const input: ProductWriteInput = {
+        department_order_id: subOrder.id,
+        department: 'STAMP',
+        type: currentType,
+        quantity,
+        notes: null,
+        sort_order: products.find(p => p.id === editingId)?.sort_order ?? products.length,
+        child,
       }
       try {
-        await subOrderProductService.updateProduct(editingId, patch)
+        await subOrderProductService.updateProduct(editingId, input)
       } catch {
         showError('Product could not be saved')
         return
@@ -554,20 +611,22 @@ export function StampDetail({
       return
     }
 
-    const insertRow: Database['public']['Tables']['sub_order_products']['Insert'] = {
-      sub_order_id: subOrder.id,
+    const input: ProductWriteInput = {
+      department_order_id: subOrder.id,
       department: 'STAMP',
-      detail: { ...currentDetail, typ: currentType } as Json,
+      type: currentType,
+      quantity,
+      notes: null,
       sort_order: products.length,
+      child,
     }
-    let insRow: SubOrderProductRow
+    let newId: string
     try {
-      insRow = await subOrderProductService.createProduct(insertRow)
+      newId = await subOrderProductService.createProduct(input)
     } catch {
       showError('Product could not be added')
       return
     }
-    const newId = insRow.id
     const updatedProducts = await reloadProducts()
     for (const fid of formFileRecordIds) {
       await assignFileToProduct(newId, fid, updatedProducts)
@@ -579,7 +638,7 @@ export function StampDetail({
     subOrder,
     subOrderStatus,
     editingId,
-    products.length,
+    products,
     productFiles,
     formFileRecordIds,
     showError,
@@ -608,29 +667,79 @@ export function StampDetail({
   const handleEdit = useCallback((row: ProductRow) => {
     setEditingId(row.id)
     setFormFileRecordIds(productFiles[row.id]?.map(z => z.fileId) ?? [])
-    const rawDetail = row.detail ?? {}
-    const detailRecord = rawDetail as Record<string, unknown>
-    const editType = typeof detailRecord.typ === 'string' ? detailRecord.typ : null
+    const child = (row.child ?? {}) as Record<string, unknown>
+    const editType = row.type || null
     setStampType(editType)
-    const editDetail = { ...(rawDetail as StampDetailJson) }
-    setDetail(editDetail)
-    detailRef.current = editDetail
+    const editFields: StampFields = { ...child, quantity: row.quantity }
+    setFields(editFields)
+    fieldsRef.current = editFields
     stampTypeRef.current = editType
-    setSelectedModelId(String(detailRecord.modell_id ?? '') || null)
-    setSelectedModelName(String(detailRecord.modell_name ?? '') || null)
+    setSelectedModelId(String(child.model_id ?? '') || null)
+    setSelectedModelName(null)
+    setPadName(null)
   }, [productFiles])
+
+  // Re-derive the selected model's display name from the stamp catalog when
+  // editing an existing TRODAT_PRINTY / WOODEN_STAMP (the cache is not stored).
+  useEffect(() => {
+    if (!selectedModelId) {
+      setSelectedModelName(null)
+      return
+    }
+    const fromList = models.find(m => m.id === selectedModelId)
+    if (fromList) {
+      setSelectedModelName(fromList.name)
+      return
+    }
+    let alive = true
+    const type = stampTypeRef.current
+    if (type !== 'TRODAT_PRINTY' && type !== 'WOODEN_STAMP') return
+    void stampService
+      .getStampModelsByType(type)
+      .then(rows => {
+        if (!alive) return
+        const found = (rows as unknown as StampModel[]).find(m => m.id === selectedModelId)
+        if (found) setSelectedModelName(found.name)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [selectedModelId, models])
+
+  // Re-derive the selected pad colour-variant name for the TRODAT_PAD badge
+  // from the cushion catalog (the display cache is no longer stored).
+  useEffect(() => {
+    const variantId = String(fields['pad_variant_id'] ?? '').trim()
+    const articleNumber = String(fields['pad_article_number'] ?? '').trim()
+    if (stampType !== 'TRODAT_PAD' || !variantId || !articleNumber || padName) {
+      if (stampType !== 'TRODAT_PAD' || !variantId) setPadName(null)
+      return
+    }
+    let alive = true
+    void stampService
+      .getCushionsByArticleNumber(articleNumber)
+      .then(rows => {
+        if (!alive) return
+        const found = (rows ?? []).find(r => String(r.id) === variantId)
+        if (found) setPadName(found.name ?? null)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [stampType, fields, padName])
 
   const typeOptions = [...STAMP_TYPES, ...EXTRA_TYPES] as readonly string[]
 
-  const detailRecord = detail
-  const cushionArticleNumber = String(detailRecord['kissen_artikelnummer'] ?? '').trim()
-  const cushionModelId = String(detailRecord['kissen_modell_id'] ?? '').trim()
+  const cushionArticleNumber = String(fields['pad_article_number'] ?? '').trim()
+  const cushionModelId = String(fields['pad_variant_id'] ?? '').trim()
   const cushionBadgeStock =
     (cushionModelId && cushionColorOptions.find(f => f.id === cushionModelId)?.stock) ?? null
   const cushionColorLabel =
-    detailRecord['farbe'] && typeof detailRecord['farbe'] === 'string' && detailRecord['farbe'] in STAMP_COLOR_LABELS
-      ? STAMP_COLOR_LABELS[detailRecord['farbe'] as keyof typeof STAMP_COLOR_LABELS]
-      : String(detailRecord['farbe'] ?? '—')
+    fields['color'] && typeof fields['color'] === 'string' && fields['color'] in STAMP_COLOR_LABELS
+      ? STAMP_COLOR_LABELS[fields['color'] as keyof typeof STAMP_COLOR_LABELS]
+      : String(fields['color'] ?? '—')
 
   return (
     <div className="ber-lfp">
@@ -643,18 +752,21 @@ export function StampDetail({
 
       <FormRow
         label="Type"
-        error={shouldValidate && stampErrors.typ ? stampErrors.typ : undefined}
+        error={shouldValidate && stampErrors.type ? stampErrors.type : undefined}
         content={
           <select
-            className={'ber-inp' + fieldErrorClass('typ')}
+            className={'ber-inp' + fieldErrorClass('type')}
             value={stampType ?? ''}
             onChange={e => {
               const v = e.target.value
               if (v !== (stampType ?? '')) {
                 setStampType(v || null)
-                setDetail({})
-                detailRef.current = {}
+                setFields({})
+                fieldsRef.current = {}
                 stampTypeRef.current = v || null
+                setSelectedModelId(null)
+                setSelectedModelName(null)
+                setPadName(null)
                 if (editingId === null) void save(v || null, {})
               } else {
                 setStampType(v || null)
@@ -677,15 +789,15 @@ export function StampDetail({
           <FormRow
             label="Search"
             error={
-              shouldValidate && (stampErrors.kissen_artikelnummer || stampErrors.kissen_modell_id)
-                ? [stampErrors.kissen_artikelnummer, stampErrors.kissen_modell_id].filter(Boolean).join(' — ')
+              shouldValidate && (stampErrors.pad_article_number || stampErrors.pad_variant_id)
+                ? [stampErrors.pad_article_number, stampErrors.pad_variant_id].filter(Boolean).join(' — ')
                 : undefined
             }
             content={
               <div>
                 <input
                   type="search"
-                  className={'ber-inp' + fieldErrorClass('kissen_artikelnummer')}
+                  className={'ber-inp' + fieldErrorClass('pad_article_number')}
                   placeholder="Model or article number…"
                   value={cushionSearchInput}
                   onChange={e => setCushionSearchInput(e.target.value)}
@@ -705,15 +817,15 @@ export function StampDetail({
                         type="button"
                         className="wa-btn wa-btn--ghost"
                         onClick={() => {
+                          setPadName(result.name)
                           void loadCushionColorRows(result.article_number).then(rows => {
                             setCushionColorOptions(rows)
-                            saveDetail({
-                              ...detailRef.current,
-                              kissen_artikelnummer: result.article_number,
-                              kissen_name: result.name,
-                              farbe: null,
-                              kissen_modell_id: null,
-                            } as StampDetailJson)
+                            saveFields({
+                              ...fieldsRef.current,
+                              pad_article_number: result.article_number,
+                              color: null,
+                              pad_variant_id: null,
+                            })
                           })
                         }}
                         style={{ textAlign: 'left', padding: '6px 8px' }}
@@ -730,7 +842,7 @@ export function StampDetail({
           {!!cushionArticleNumber && cushionColorOptions.length > 0 && (
             <FormRow
               label="Colour"
-              error={shouldValidate && (stampErrors.farbe || stampErrors.kissen_modell_id) ? [stampErrors.farbe, stampErrors.kissen_modell_id].filter(Boolean).join(' — ') : undefined}
+              error={shouldValidate && (stampErrors.color || stampErrors.pad_variant_id) ? [stampErrors.color, stampErrors.pad_variant_id].filter(Boolean).join(' — ') : undefined}
               content={
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexWrap: 'wrap' }}>
                   {cushionColorOptions.map(fv => {
@@ -744,11 +856,11 @@ export function StampDetail({
                         disabled={!fv.id}
                         onClick={() => {
                           if (!fv.id) return
-                          saveDetail({
-                            ...detailRef.current,
-                            farbe: fv.color,
-                            kissen_modell_id: fv.id,
-                          } as StampDetailJson)
+                          saveFields({
+                            ...fieldsRef.current,
+                            color: fv.color,
+                            pad_variant_id: fv.id,
+                          })
                         }}
                         style={{
                           textAlign: 'left',
@@ -782,7 +894,7 @@ export function StampDetail({
                   fontSize: 12,
                 }}
               >
-                {detailRecord.kissen_artikelnummer != null && String(detailRecord.kissen_artikelnummer) !== '' ? String(detailRecord.kissen_artikelnummer) : '—'} {String(detailRecord.kissen_name ?? '')} · {cushionColorLabel} ·
+                {cushionArticleNumber !== '' ? cushionArticleNumber : '—'} {padName ?? ''} · {cushionColorLabel} ·
                 Stock: {cushionBadgeStock == null ? '—' : cushionBadgeStock}
                 <span
                   role="button"
@@ -790,25 +902,25 @@ export function StampDetail({
                   onClick={() => {
                     setCushionColorOptions([])
                     setCushionSearchInput('')
-                    saveDetail({
-                      ...detailRef.current,
-                      kissen_artikelnummer: null,
-                      kissen_name: null,
-                      kissen_modell_id: null,
-                      farbe: null,
-                    } as StampDetailJson)
+                    setPadName(null)
+                    saveFields({
+                      ...fieldsRef.current,
+                      pad_article_number: null,
+                      pad_variant_id: null,
+                      color: null,
+                    })
                   }}
                   onKeyDown={e => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       setCushionColorOptions([])
                       setCushionSearchInput('')
-                      saveDetail({
-                        ...detailRef.current,
-                        kissen_artikelnummer: null,
-                        kissen_name: null,
-                        kissen_modell_id: null,
-                        farbe: null,
-                      } as StampDetailJson)
+                      setPadName(null)
+                      saveFields({
+                        ...fieldsRef.current,
+                        pad_article_number: null,
+                        pad_variant_id: null,
+                        color: null,
+                      })
                     }
                   }}
                   style={{ cursor: 'pointer', padding: '0 6px', userSelect: 'none', fontWeight: 700 }}
@@ -827,12 +939,12 @@ export function StampDetail({
       )}
 
       {stampType === 'INK_PAD' && (
-        <FormRow label="Size" error={shouldValidate && stampErrors.groesse ? stampErrors.groesse : undefined}>
+        <FormRow label="Size" error={shouldValidate && stampErrors.pad_size ? stampErrors.pad_size : undefined}>
           <select
-            className={'ber-inp' + fieldErrorClass('groesse')}
-            value={String(detail['groesse'] ?? '')}
+            className={'ber-inp' + fieldErrorClass('pad_size')}
+            value={String(fields['pad_size'] ?? '')}
             onChange={e =>
-              saveDetail({ ...detail, groesse: e.target.value || null } as StampDetailJson)
+              saveFields({ ...fields, pad_size: e.target.value || null })
             }
           >
             <option value="">—</option>
@@ -851,20 +963,20 @@ export function StampDetail({
         <FormRow
           label="Colour"
           error={
-            (shouldValidate && stampErrors.farbe) || (shouldValidate && stampErrors.farbe_sonstige)
-              ? [stampErrors.farbe, stampErrors.farbe_sonstige].filter(Boolean).join(' — ')
+            (shouldValidate && stampErrors.color) || (shouldValidate && stampErrors.color_other)
+              ? [stampErrors.color, stampErrors.color_other].filter(Boolean).join(' — ')
               : undefined
           }
           content={
             <div>
               <select
-                className={'ber-inp' + fieldErrorClass('farbe')}
-                value={String(detail['farbe'] ?? '')}
+                className={'ber-inp' + fieldErrorClass('color')}
+                value={String(fields['color'] ?? '')}
                 onChange={e => {
                   const v = e.target.value
-                  const next: StampDetailJson = { ...detail, farbe: v || null }
-                  if (v !== 'SONSTIGE') next.farbe_sonstige = null
-                  saveDetail(next)
+                  const next: StampFields = { ...fields, color: v || null }
+                  if (v !== 'SONSTIGE') next.color_other = null
+                  saveFields(next)
                 }}
               >
                 <option value="">—</option>
@@ -876,14 +988,14 @@ export function StampDetail({
                   )
                 )}
               </select>
-              {String(detail['farbe'] ?? '') === 'SONSTIGE' && stampType !== 'REFILL_INK' && (
+              {String(fields['color'] ?? '') === 'SONSTIGE' && stampType !== 'REFILL_INK' && (
                 <div style={{ marginTop: 8 }}>
                   <input
                     type="text"
-                    className={'ber-inp' + fieldErrorClass('farbe_sonstige')}
+                    className={'ber-inp' + fieldErrorClass('color_other')}
                     placeholder="Colour (free text)"
-                    value={String(detail['farbe_sonstige'] ?? '')}
-                    onChange={e => patchLocal({ farbe_sonstige: e.target.value || null } as StampDetailJson)}
+                    value={String(fields['color_other'] ?? '')}
+                    onChange={e => patchLocal({ color_other: e.target.value || null })}
                     onBlur={commitChanges}
                   />
                 </div>
@@ -894,12 +1006,12 @@ export function StampDetail({
       )}
 
       {stampType === 'REFILL_INK' && (
-        <FormRow label="Type" error={shouldValidate && stampErrors.tinte_typ ? stampErrors.tinte_typ : undefined}>
+        <FormRow label="Type" error={shouldValidate && stampErrors.ink_type ? stampErrors.ink_type : undefined}>
           <select
-            className={'ber-inp' + fieldErrorClass('tinte_typ')}
-            value={String(detail['tinte_typ'] ?? '')}
+            className={'ber-inp' + fieldErrorClass('ink_type')}
+            value={String(fields['ink_type'] ?? '')}
             onChange={e =>
-              saveDetail({ ...detail, tinte_typ: e.target.value || null } as StampDetailJson)
+              saveFields({ ...fields, ink_type: e.target.value || null })
             }
           >
             <option value="">—</option>
@@ -916,8 +1028,8 @@ export function StampDetail({
         <FormRow
           label="Format (mm)"
           error={
-            shouldValidate && (stampErrors.format || stampErrors.format_breite || stampErrors.format_hoehe)
-              ? [stampErrors.format, stampErrors.format_breite, stampErrors.format_hoehe].filter(Boolean).join(' — ')
+            shouldValidate && (stampErrors.format || stampErrors.width || stampErrors.height)
+              ? [stampErrors.format, stampErrors.width, stampErrors.height].filter(Boolean).join(' — ')
               : undefined
           }
           content={
@@ -925,12 +1037,12 @@ export function StampDetail({
               <div style={{ flex: '1 1 140px', minWidth: 140 }}>
                 <input
                   type="number"
-                  className={'ber-inp' + fieldErrorClass('format_breite')}
+                  className={'ber-inp' + fieldErrorClass('width')}
                   placeholder="Width"
                   value={widthValue ?? ''}
                   onChange={e => {
                     const raw = e.target.value
-                    patchLocal({ format_breite: raw === '' ? null : parseInt(raw, 10) } as StampDetailJson)
+                    patchLocal({ width: raw === '' ? null : parseInt(raw, 10) })
                   }}
                   onBlur={commitChanges}
                   min={1}
@@ -939,12 +1051,12 @@ export function StampDetail({
               <div style={{ flex: '1 1 140px', minWidth: 140 }}>
                 <input
                   type="number"
-                  className={'ber-inp' + fieldErrorClass('format_hoehe')}
+                  className={'ber-inp' + fieldErrorClass('height')}
                   placeholder="Height"
                   value={heightValue ?? ''}
                   onChange={e => {
                     const raw = e.target.value
-                    patchLocal({ format_hoehe: raw === '' ? null : parseInt(raw, 10) } as StampDetailJson)
+                    patchLocal({ height: raw === '' ? null : parseInt(raw, 10) })
                   }}
                   onBlur={commitChanges}
                   min={1}
@@ -973,20 +1085,20 @@ export function StampDetail({
                     fontSize: 12,
                   }}
                 >
-                  Selected: {selectedModelName || modelName || 'Model'}
+                  Selected: {selectedModelName || 'Model'}
                   <span
                     role="button"
                     tabIndex={0}
                     onClick={() => {
                       setSelectedModelId(null)
                       setSelectedModelName(null)
-                      saveDetail({ ...detailRef.current, modell_id: null, modell_name: null })
+                      saveFields({ ...fieldsRef.current, model_id: null })
                     }}
                     onKeyDown={e => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         setSelectedModelId(null)
                         setSelectedModelName(null)
-                        saveDetail({ ...detailRef.current, modell_id: null, modell_name: null })
+                        saveFields({ ...fieldsRef.current, model_id: null })
                       }
                     }}
                     style={{ cursor: 'pointer', padding: '0 6px', userSelect: 'none', fontWeight: 700 }}
@@ -1036,12 +1148,12 @@ export function StampDetail({
                         if (isSelected) {
                           setSelectedModelId(null)
                           setSelectedModelName(null)
-                          saveDetail({ ...detailRef.current, modell_id: null, modell_name: null })
+                          saveFields({ ...fieldsRef.current, model_id: null })
                           return
                         }
                         setSelectedModelId(m.id)
                         setSelectedModelName(m.name)
-                        saveDetail({ ...detailRef.current, modell_id: m.id, modell_name: m.name })
+                        saveFields({ ...fieldsRef.current, model_id: m.id })
                       }}
                       style={{
                         textAlign: 'left',
@@ -1078,14 +1190,14 @@ export function StampDetail({
       {showDescription && (
         <FormRow
           label="Description / Content"
-          error={shouldValidate && stampErrors.beschreibung ? stampErrors.beschreibung : undefined}
+          error={shouldValidate && stampErrors.description ? stampErrors.description : undefined}
           content={
             <div>
               <textarea
-                className={'ber-inp' + fieldErrorClass('beschreibung')}
+                className={'ber-inp' + fieldErrorClass('description')}
                 rows={6}
-                value={String(detail['beschreibung'] ?? '')}
-                onChange={e => patchLocal({ beschreibung: e.target.value || null } as StampDetailJson)}
+                value={String(fields['description'] ?? '')}
+                onChange={e => patchLocal({ description: e.target.value || null })}
                 onBlur={commitChanges}
               />
               <p className="ber-hinweis" style={{ marginTop: 6, marginBottom: 0 }}>
@@ -1094,19 +1206,6 @@ export function StampDetail({
             </div>
           }
         />
-      )}
-
-      {(stampType === 'REFILL_INK' || stampType === 'INK_PAD') && (
-        <FormRow label="Note" error={undefined}>
-          <textarea
-            className="ber-inp"
-            rows={2}
-            placeholder="Notes, remarks..."
-            value={String(detail['hinweis'] ?? '')}
-            onChange={e => patchLocal({ hinweis: e.target.value || null } as StampDetailJson)}
-            onBlur={commitChanges}
-          />
-        </FormRow>
       )}
 
       {orderFiles.length > 0 && (
@@ -1235,11 +1334,11 @@ export function StampDetail({
               </thead>
               <tbody>
                 {products.map(r => {
-                  const productDetail = (r.detail ?? {}) as Record<string, unknown>
-                  const productType = typeof productDetail.typ === 'string' ? productDetail.typ : ''
-                  const quantity = productDetail.stueckzahl ?? ''
+                  const child = (r.child ?? {}) as Record<string, unknown>
+                  const productType = r.type || ''
+                  const quantity = r.quantity ?? ''
                   const shortDescription =
-                    String(productDetail.beschreibung ?? '')
+                    String(child.description ?? '')
                       .trim()
                       .slice(0, 60) || '—'
                   const typeDisplay = typeLabel(productType)
@@ -1305,8 +1404,8 @@ function FormRow({ label, content, error, children }: { label: string; content?:
 }
 
 function QuantityInput(context: StampFormContext & { label: string }) {
-  const { detail, fieldErrorClass, errors, shouldValidate, patchLocal, commitChanges, label } = context
-  const rawQuantity = detail.stueckzahl
+  const { fields, fieldErrorClass, errors, shouldValidate, patchLocal, commitChanges, label } = context
+  const rawQuantity = fields.quantity
   let numForInput: number | '' = ''
   if (typeof rawQuantity === 'number' && Number.isInteger(rawQuantity) && rawQuantity >= 1) numForInput = rawQuantity
   else if (typeof rawQuantity === 'string' && rawQuantity.trim() !== '') {
@@ -1314,14 +1413,14 @@ function QuantityInput(context: StampFormContext & { label: string }) {
     if (Number.isInteger(parsed) && parsed >= 1) numForInput = parsed
   }
   return (
-    <FormRow label={label} error={shouldValidate && errors.stueckzahl ? errors.stueckzahl : undefined}>
+    <FormRow label={label} error={shouldValidate && errors.quantity ? errors.quantity : undefined}>
       <input
         type="number"
-        className={'ber-inp' + fieldErrorClass('stueckzahl')}
+        className={'ber-inp' + fieldErrorClass('quantity')}
         value={numForInput}
         onChange={e => {
           const raw = e.target.value
-          patchLocal({ stueckzahl: raw === '' ? null : parseInt(raw, 10) } as StampDetailJson)
+          patchLocal({ quantity: raw === '' ? null : parseInt(raw, 10) })
         }}
         onBlur={commitChanges}
         min={1}

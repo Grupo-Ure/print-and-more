@@ -9,7 +9,7 @@ export type MatCcProps = {
   patchLocal: (patch: CopyShopDetailJson) => void
   commit: () => void
   applyDetail: (detail: CopyShopDetailJson) => void
-  /** e.g. material_cc / cc_umschlag */
+  /** e.g. cc_material / cover_material */
   materialKey: string
   customKey: string
   label: string
