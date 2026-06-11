@@ -1,9 +1,9 @@
 /**
  * Shared form-field components on TanStack Form + Shadcn primitives.
  *
- * Each field component receives a TanStack `field` (the render-prop API from
- * `<form.Field>`) and binds a Shadcn input to it, surfacing the field's error via
- * `fieldError(field.state.meta)` — the same idiom as `CustomerDialog`.
+ * Each widget binds a Shadcn input to a TanStack `field` (for value state) and
+ * shows an explicit `error` string. The error map comes from the form calling
+ * `validateProduct(...)` directly — the widgets do no validation themselves.
  */
 
 import { type AnyFieldApi } from '@tanstack/react-form'
@@ -21,7 +21,6 @@ import {
   SelectValue,
 } from '../../ui/select'
 import type { FileRow } from '../../../services/fileService'
-import { fieldError, firstErrorMessage } from './shared'
 
 export function FieldRow({
   label,
@@ -49,9 +48,9 @@ export function FieldRow({
 const asString = (v: unknown): string => (v == null ? '' : String(v))
 
 /** Single-line text (or numeric-as-text, to allow comma decimals). */
-export function TextField({ field, label, hint, autoFocus }: { field: AnyFieldApi; label: string; hint?: string; autoFocus?: boolean }) {
+export function TextField({ field, label, error, hint, autoFocus }: { field: AnyFieldApi; label: string; error?: string; hint?: string; autoFocus?: boolean }) {
   return (
-    <FieldRow label={label} htmlFor={field.name} error={fieldError(field.state.meta)} hint={hint}>
+    <FieldRow label={label} htmlFor={field.name} error={error} hint={hint}>
       <Input
         id={field.name}
         name={field.name}
@@ -59,15 +58,15 @@ export function TextField({ field, label, hint, autoFocus }: { field: AnyFieldAp
         onChange={e => field.handleChange(e.target.value)}
         onBlur={field.handleBlur}
         autoFocus={autoFocus}
-        aria-invalid={fieldError(field.state.meta) ? true : undefined}
+        aria-invalid={error ? true : undefined}
       />
     </FieldRow>
   )
 }
 
-export function TextareaField({ field, label, rows = 6, hint }: { field: AnyFieldApi; label: string; rows?: number; hint?: string }) {
+export function TextareaField({ field, label, error, rows = 6, hint }: { field: AnyFieldApi; label: string; error?: string; rows?: number; hint?: string }) {
   return (
-    <FieldRow label={label} htmlFor={field.name} error={fieldError(field.state.meta)} hint={hint}>
+    <FieldRow label={label} htmlFor={field.name} error={error} hint={hint}>
       <Textarea
         id={field.name}
         name={field.name}
@@ -75,16 +74,16 @@ export function TextareaField({ field, label, rows = 6, hint }: { field: AnyFiel
         value={asString(field.state.value)}
         onChange={e => field.handleChange(e.target.value || null)}
         onBlur={field.handleBlur}
-        aria-invalid={fieldError(field.state.meta) ? true : undefined}
+        aria-invalid={error ? true : undefined}
       />
     </FieldRow>
   )
 }
 
 /** Optional integer input (e.g. quantity). Stores the raw string; the schema coerces. */
-export function QuantityField({ field, label = 'Quantity', hint }: { field: AnyFieldApi; label?: string; hint?: string }) {
+export function QuantityField({ field, label = 'Quantity', error, hint }: { field: AnyFieldApi; label?: string; error?: string; hint?: string }) {
   return (
-    <FieldRow label={label} htmlFor={field.name} error={fieldError(field.state.meta)} hint={hint}>
+    <FieldRow label={label} htmlFor={field.name} error={error} hint={hint}>
       <Input
         id={field.name}
         name={field.name}
@@ -94,7 +93,7 @@ export function QuantityField({ field, label = 'Quantity', hint }: { field: AnyF
         onChange={e => field.handleChange(e.target.value === '' ? null : e.target.value)}
         onBlur={field.handleBlur}
         placeholder="—"
-        aria-invalid={fieldError(field.state.meta) ? true : undefined}
+        aria-invalid={error ? true : undefined}
       />
     </FieldRow>
   )
@@ -103,8 +102,7 @@ export function QuantityField({ field, label = 'Quantity', hint }: { field: AnyF
 export type Option = { value: string; label: string }
 
 /** Shadcn Select bound to a string field. */
-export function SelectField({ field, label, options, placeholder = '—' }: { field: AnyFieldApi; label: string; options: Option[]; placeholder?: string }) {
-  const error = fieldError(field.state.meta)
+export function SelectField({ field, label, options, error, placeholder = '—' }: { field: AnyFieldApi; label: string; options: Option[]; error?: string; placeholder?: string }) {
   const current = asString(field.state.value)
   return (
     <FieldRow label={label} htmlFor={field.name} error={error}>
@@ -125,8 +123,7 @@ export function SelectField({ field, label, options, placeholder = '—' }: { fi
 }
 
 /** Tri-state boolean (— / Yes / No) — preserves the explicit-unset semantics. */
-export function BooleanField({ field, label }: { field: AnyFieldApi; label: string }) {
-  const error = fieldError(field.state.meta)
+export function BooleanField({ field, label, error }: { field: AnyFieldApi; label: string; error?: string }) {
   const v = field.state.value
   const current = v === true ? 'true' : v === false ? 'false' : undefined
   return (
@@ -144,21 +141,21 @@ export function BooleanField({ field, label }: { field: AnyFieldApi; label: stri
   )
 }
 
-/** Width × height pair. `formatField` is a registered (input-less) field that
- *  receives the synthetic OR-required `format` error; it's shown untouched. */
+/** Width × height pair. The OR-required message comes from the validator's
+ *  synthetic `format` key, passed in as `formatError`. */
 export function DimensionFields({
   widthField,
   heightField,
-  formatField,
+  formatError,
   unit = 'mm',
 }: {
   widthField: AnyFieldApi
   heightField: AnyFieldApi
-  formatField: AnyFieldApi
+  formatError?: string
   unit?: string
 }) {
   return (
-    <FieldRow label={`Dimensions (${unit})`} error={firstErrorMessage(formatField.state.meta.errors)}>
+    <FieldRow label={`Dimensions (${unit})`} error={formatError}>
       <div className="flex items-center gap-2">
         <Input
           aria-label="Width"

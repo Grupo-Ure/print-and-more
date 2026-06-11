@@ -5,8 +5,9 @@ import { useState } from 'react'
 import { useSaveProduct } from '../../../queries/productQueries'
 import type { ProductChildInsert, ProductWriteInput } from '../../../types/product'
 import { strOut, qtyOut } from '../../../lib/products/schemas/_shared'
+import { validateProduct } from '../../../lib/products/registry'
 import { useToast } from '../../Toast'
-import { productFormValidator, valuesFromProduct, type FormValues, type ProductFormProps } from './shared'
+import { valuesFromProduct, type FormValues, type ProductFormProps } from './shared'
 import { FilePickerField, FormActions, QuantityField, TextareaField } from './fields'
 
 function buildChild(values: FormValues): ProductChildInsert {
@@ -20,8 +21,8 @@ export function OtherForm({ subOrder, subOrderStatus, product, orderFiles, initi
 
   const form = useForm({
     defaultValues: { description: '', quantity: '', ...valuesFromProduct(product) } as FormValues,
-    validators: { onChange: productFormValidator('OTHER', subOrderStatus) },
     onSubmit: ({ value }) => {
+      if (Object.keys(validateProduct('OTHER', value, subOrderStatus)).length > 0) return
       const input: ProductWriteInput = {
         ...(product ? { id: product.id } : {}),
         department_order_id: subOrder.id,
@@ -48,18 +49,25 @@ export function OtherForm({ subOrder, subOrderStatus, product, orderFiles, initi
       }}
       className="flex flex-col gap-3"
     >
-      <form.Field name="description">
-        {field => <TextareaField field={field} label="Description / Content" hint="Changes after production release will reset the status" />}
-      </form.Field>
+      <form.Subscribe selector={s => s.values}>
+        {values => {
+          const errors = validateProduct('OTHER', values, subOrderStatus)
+          return (
+            <>
+              <form.Field name="description">
+                {field => <TextareaField field={field} label="Description / Content" error={errors.description} hint="Changes after production release will reset the status" />}
+              </form.Field>
 
-      <form.Field name="quantity">
-        {field => <QuantityField field={field} label="Quantity (optional)" hint="If relevant, enter quantity here or in the description" />}
-      </form.Field>
+              <form.Field name="quantity">
+                {field => <QuantityField field={field} label="Quantity (optional)" error={errors.quantity} hint="If relevant, enter quantity here or in the description" />}
+              </form.Field>
 
-      <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={orderFiles} />
+              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={orderFiles} />
 
-      <form.Subscribe selector={s => s.canSubmit}>
-        {canSubmit => <FormActions canSubmit={canSubmit} submitting={saveProduct.isPending} editing={!!product} onCancel={onCancel} />}
+              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={saveProduct.isPending} editing={!!product} onCancel={onCancel} />
+            </>
+          )
+        }}
       </form.Subscribe>
     </form>
   )
