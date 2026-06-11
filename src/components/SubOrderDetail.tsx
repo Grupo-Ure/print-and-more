@@ -24,7 +24,7 @@ import { DeliverySelect } from './fields/DeliverySelect'
 import { PrioritySelect } from './fields/PrioritySelect'
 import { Input } from './ui/input'
 import { useToast } from './Toast'
-import { CopyShopDetail } from './departments/CopyShopDetail'
+import { CopyShopProducts } from './products/departments/CopyShopProducts'
 import { LfpProducts } from './products/departments/LfpProducts'
 import { StampDetail } from './departments/StampDetail'
 import { OtherProducts } from './products/departments/OtherProducts'
@@ -489,7 +489,7 @@ export function SubOrderDetail({
       )}
 
       {local.department === 'COPYSHOP' && (
-        <CopyShopDetail subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        <CopyShopProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
       )}
 
       {local.department === 'STAMP' && (

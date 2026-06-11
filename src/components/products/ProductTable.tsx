@@ -17,6 +17,7 @@ import type { ProductFileAssignment } from '../../services/subOrderProductServic
 import { actionsColumn, firstOfColumn, formatColumn, quantityColumn, textColumn, typeColumn } from './columns'
 import { LASER_TYPE_LABELS } from '../../types/laser'
 import { LFP_TYPE_LABELS } from '../../types/lfp'
+import { COPY_SHOP_TYPE_LABELS } from '../../types/copyshop'
 
 export type ProductTableMeta = {
   onEdit: (product: LoadedProduct) => void
@@ -109,4 +110,16 @@ const lfpColumns = [
 
 export function LfpProductsTable({ data, meta }: DeptTableProps) {
   return <ProductTable data={data} columns={lfpColumns} meta={meta} />
+}
+
+const copyShopColumns = [
+  typeColumn(COPY_SHOP_TYPE_LABELS as Record<string, string>),
+  quantityColumn(),
+  firstOfColumn('process', 'Process / Material', ['production_path', 'material']),
+  formatColumn(),
+  actionsColumn(),
+]
+
+export function CopyShopProductsTable({ data, meta }: DeptTableProps) {
+  return <ProductTable data={data} columns={copyShopColumns} meta={meta} />
 }
