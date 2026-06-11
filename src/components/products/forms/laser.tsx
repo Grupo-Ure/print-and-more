@@ -1,10 +1,7 @@
 /** Laser-engraving department forms (5 types). */
 
 import { useForm } from '@tanstack/react-form'
-import { useState } from 'react'
-import { useSaveProduct } from '../../../queries/productQueries'
 import { validateProduct } from '../../../lib/products/registry'
-import { qtyOut } from '../../../lib/products/schemas/_shared'
 import {
   signToChild,
   trophyPlateToChild,
@@ -14,38 +11,18 @@ import {
 } from '../../../lib/products/schemas/laser'
 import { LASER_SIGN_MATERIALS, LASER_SIGN_MATERIAL_LABELS, LASER_ORIGINS, LASER_ORIGIN_LABELS } from '../../../types/laser'
 import type { ProductChildInsert } from '../../../types/product'
-import { useToast } from '../../Toast'
-import { buildWriteInput, valuesFromProduct, type FormValues, type ProductFormProps } from './shared'
+import { useProductSubmit, valuesFromProduct, type FormValues, type ProductFormProps } from './shared'
 import { BooleanField, DimensionFields, FilePickerField, FormActions, QuantityField, SelectField, TextField, type Option } from './fields'
 
 const MATERIAL_OPTIONS: Option[] = LASER_SIGN_MATERIALS.map(m => ({ value: m, label: LASER_SIGN_MATERIAL_LABELS[m] }))
 const ORIGIN_OPTIONS: Option[] = LASER_ORIGINS.map(o => ({ value: o, label: LASER_ORIGIN_LABELS[o] }))
-
-/** Shared submit wiring used by every Laser form. */
-function useLaserSubmit(p: ProductFormProps, type: string, toChild: (v: FormValues) => ProductChildInsert, fileIds: string[]) {
-  const saveProduct = useSaveProduct()
-  const { showError } = useToast()
-  const submit = (value: FormValues) => {
-    if (Object.keys(validateProduct(type, value, p.subOrderStatus)).length > 0) return
-    saveProduct.mutate(
-      {
-        input: buildWriteInput({ product: p.product, subOrder: p.subOrder, type, sortOrder: p.sortOrder, quantity: qtyOut(value.quantity), child: toChild(value) }),
-        fileIds,
-        subOrderId: p.subOrder.id,
-      },
-      { onSuccess: ({ products }) => p.onSaved(products), onError: () => showError(p.product ? 'Product could not be saved' : 'Product could not be added') },
-    )
-  }
-  return { submit, submitting: saveProduct.isPending }
-}
 
 // ---------------------------------------------------------------------------
 // SIGN / TROPHY_PLATE / NAME_TAG — shared sign body.
 // ---------------------------------------------------------------------------
 
 function SignLikeForm(p: ProductFormProps & { type: string; toChild: (v: FormValues) => ProductChildInsert; withSelfAdhesive: boolean }) {
-  const [fileIds, setFileIds] = useState<string[]>(p.initialFileIds)
-  const { submit, submitting } = useLaserSubmit(p, p.type, p.toChild, fileIds)
+  const { fileIds, setFileIds, submit, submitting } = useProductSubmit(p, p.type, p.toChild)
   const form = useForm({
     defaultValues: { material: '', material_other: '', width: '', height: '', round_corners: null, self_adhesive: null, motif: '', quantity: '', ...valuesFromProduct(p.product) } as FormValues,
     onSubmit: ({ value }) => submit(value),
@@ -88,8 +65,7 @@ export const NameTagForm = (p: ProductFormProps) => <SignLikeForm {...p} type="N
 // ---------------------------------------------------------------------------
 
 export function GiftItemForm(p: ProductFormProps) {
-  const [fileIds, setFileIds] = useState<string[]>(p.initialFileIds)
-  const { submit, submitting } = useLaserSubmit(p, 'GIFT_ITEM', giftItemToChild, fileIds)
+  const { fileIds, setFileIds, submit, submitting } = useProductSubmit(p, 'GIFT_ITEM', giftItemToChild)
   const form = useForm({
     defaultValues: { material_free_text: '', origin: '', motif: '', quantity: '', ...valuesFromProduct(p.product) } as FormValues,
     onSubmit: ({ value }) => submit(value),
@@ -120,8 +96,7 @@ export function GiftItemForm(p: ProductFormProps) {
 // ---------------------------------------------------------------------------
 
 export function OtherLaserForm(p: ProductFormProps) {
-  const [fileIds, setFileIds] = useState<string[]>(p.initialFileIds)
-  const { submit, submitting } = useLaserSubmit(p, 'OTHER_LASER', otherLaserToChild, fileIds)
+  const { fileIds, setFileIds, submit, submitting } = useProductSubmit(p, 'OTHER_LASER', otherLaserToChild)
   const form = useForm({
     defaultValues: { self_adhesive: null, origin: '', motif: '', material_free_text: '', quantity: '', ...valuesFromProduct(p.product) } as FormValues,
     onSubmit: ({ value }) => submit(value),

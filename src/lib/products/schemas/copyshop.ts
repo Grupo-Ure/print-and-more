@@ -132,6 +132,59 @@ function isBindingColorValid(bindingType: string | null, color: string | null): 
 }
 
 // ---------------------------------------------------------------------------
+// toChild coercers (the transform value-mappings, reused by the form layer).
+// ---------------------------------------------------------------------------
+
+export function posterToChild(d: Fields): Omit<TablesInsert<'poster_products'>, 'department_product_id'> {
+  return { format: strOut(d.format), material: strOut(d.material), laminate: strOut(d.laminate), width: mmOut(d.width), height: mmOut(d.height) }
+}
+export function cardFlyerToChild(d: Fields): Omit<TablesInsert<'card_flyer_products'>, 'department_product_id'> {
+  return {
+    production_path: strOut(d.production_path), color_mode: strOut(d.color_mode), format: strOut(d.format), width: mmOut(d.width), height: mmOut(d.height),
+    full_bleed: boolOut(d.full_bleed), cc_material: strOut(d.cc_material), cc_material_other: strOut(d.cc_material_other),
+    offset_type: strOut(d.offset_type), offset_weight: strOut(d.offset_weight), offset_finish: strOut(d.offset_finish),
+    special_paper: strOut(d.special_paper), special_paper_other: strOut(d.special_paper_other), recycling_weight: strOut(d.recycling_weight),
+    lamination_finish: strOut(d.lamination_finish), lamination_sides: strOut(d.lamination_sides),
+  }
+}
+export function foldedFlyerToChild(d: Fields): Omit<TablesInsert<'folded_flyer_products'>, 'department_product_id'> {
+  return {
+    production_path: strOut(d.production_path), color_mode: strOut(d.color_mode), fold_type: strOut(d.fold_type), format: strOut(d.format), width: mmOut(d.width), height: mmOut(d.height),
+    page_count: numOut(d.page_count), full_bleed: boolOut(d.full_bleed), cc_material: strOut(d.cc_material), cc_material_other: strOut(d.cc_material_other),
+    offset_type: strOut(d.offset_type), offset_weight: strOut(d.offset_weight), offset_finish: strOut(d.offset_finish),
+    special_paper: strOut(d.special_paper), special_paper_other: strOut(d.special_paper_other), recycling_weight: strOut(d.recycling_weight),
+    lamination_finish: strOut(d.lamination_finish), lamination_sides: strOut(d.lamination_sides),
+  }
+}
+export function brochureToChild(d: Fields): Omit<TablesInsert<'brochure_products'>, 'department_product_id'> {
+  return {
+    production_path: strOut(d.production_path), format: strOut(d.format), width: mmOut(d.width), height: mmOut(d.height), orientation: strOut(d.orientation),
+    page_count: numOut(d.page_count), full_bleed: boolOut(d.full_bleed), cover_material: strOut(d.cover_material), cover_material_other: strOut(d.cover_material_other),
+    inner_material: strOut(d.inner_material), inner_material_other: strOut(d.inner_material_other), binding: strOut(d.binding),
+    cover_weight: strOut(d.cover_weight), cover_finish: strOut(d.cover_finish), inner_weight: strOut(d.inner_weight), inner_finish: strOut(d.inner_finish),
+  }
+}
+export function businessCardToChild(d: Fields): Omit<TablesInsert<'business_card_products'>, 'department_product_id'> {
+  return {
+    material: strOut(d.material), color_mode: strOut(d.color_mode), format: strOut(d.format), width: mmOut(d.width), height: mmOut(d.height),
+    orientation: strOut(d.orientation), film_laminated: boolOut(d.film_laminated), multiloft_color: strOut(d.multiloft_color), full_bleed: boolOut(d.full_bleed),
+  }
+}
+export function bindingToChild(d: Fields): Omit<TablesInsert<'binding_products'>, 'department_product_id'> {
+  return {
+    material: strOut(d.material), material_other: strOut(d.material_other), color_mode: strOut(d.color_mode), binding_type: strOut(d.binding_type), binding_color: strOut(d.binding_color),
+    format: strOut(d.format), orientation: strOut(d.orientation), width: mmOut(d.width), height: mmOut(d.height),
+    hardcover_print: boolOut(d.hardcover_print), hardcover_cover: strOut(d.hardcover_cover), full_bleed: boolOut(d.full_bleed),
+  }
+}
+export function printoutToChild(d: Fields): Omit<TablesInsert<'printout_products'>, 'department_product_id'> {
+  return {
+    format: strOut(d.format), material: strOut(d.material), material_other: strOut(d.material_other), color_mode: strOut(d.color_mode),
+    punching: strOut(d.punching), staple: boolOut(d.staple), laminate: strOut(d.laminate),
+  }
+}
+
+// ---------------------------------------------------------------------------
 // POSTER
 // ---------------------------------------------------------------------------
 
@@ -149,14 +202,7 @@ export const posterSchema = loose([
   if (!POSTER_LAMINATES.includes(parseRequiredString(d.laminate) ?? '')) ctx.addIssue({ code: 'custom', path: ['laminate'], message: 'Required' })
   if (format === 'FREI' && !hasDimensionFloat(d.width, d.height)) ctx.addIssue({ code: 'custom', path: ['format_masse'], message: MSG_FORMAT_MASSE })
   else if (format && format !== 'FREI' && !hasDimensionFloat(d.width, d.height)) ctx.addIssue({ code: 'custom', path: ['format_masse'], message: MSG_FORMAT_MASSE })
-  return {
-    quantity: qtyOut(d.quantity),
-    format: strOut(d.format),
-    material: strOut(d.material),
-    laminate: strOut(d.laminate),
-    width: mmOut(d.width),
-    height: mmOut(d.height),
-  }
+  return { quantity: qtyOut(d.quantity), ...posterToChild(d as Fields) }
 })
 export type PosterFields = z.infer<typeof posterSchema>
 true satisfies PosterFields extends Omit<TablesInsert<'poster_products'>, 'department_product_id'> ? true : never
@@ -182,25 +228,7 @@ export const cardFlyerSchema = loose([
   const pp = parseRequiredString(d.production_path)
   if (pp === 'CC') validateCcMaterialPair(f, ctx, 'cc_material', 'cc_material_other')
   else if (pp === 'OFFSET') validateOffsetMaterial(f, ctx)
-  return {
-    quantity: qtyOut(d.quantity),
-    production_path: strOut(d.production_path),
-    color_mode: strOut(d.color_mode),
-    format: strOut(d.format),
-    width: mmOut(d.width),
-    height: mmOut(d.height),
-    full_bleed: boolOut(d.full_bleed),
-    cc_material: strOut(d.cc_material),
-    cc_material_other: strOut(d.cc_material_other),
-    offset_type: strOut(d.offset_type),
-    offset_weight: strOut(d.offset_weight),
-    offset_finish: strOut(d.offset_finish),
-    special_paper: strOut(d.special_paper),
-    special_paper_other: strOut(d.special_paper_other),
-    recycling_weight: strOut(d.recycling_weight),
-    lamination_finish: strOut(d.lamination_finish),
-    lamination_sides: strOut(d.lamination_sides),
-  }
+  return { quantity: qtyOut(d.quantity), ...cardFlyerToChild(d as Fields) }
 })
 export type CardFlyerFields = z.infer<typeof cardFlyerSchema>
 true satisfies CardFlyerFields extends Omit<TablesInsert<'card_flyer_products'>, 'department_product_id'> ? true : never
@@ -229,27 +257,7 @@ export const foldedFlyerSchema = loose([
   const pp = parseRequiredString(d.production_path)
   if (pp === 'CC') validateCcMaterialPair(f, ctx, 'cc_material', 'cc_material_other')
   else if (pp === 'OFFSET') validateOffsetMaterial(f, ctx)
-  return {
-    quantity: qtyOut(d.quantity),
-    production_path: strOut(d.production_path),
-    color_mode: strOut(d.color_mode),
-    fold_type: strOut(d.fold_type),
-    format: strOut(d.format),
-    width: mmOut(d.width),
-    height: mmOut(d.height),
-    page_count: numOut(d.page_count),
-    full_bleed: boolOut(d.full_bleed),
-    cc_material: strOut(d.cc_material),
-    cc_material_other: strOut(d.cc_material_other),
-    offset_type: strOut(d.offset_type),
-    offset_weight: strOut(d.offset_weight),
-    offset_finish: strOut(d.offset_finish),
-    special_paper: strOut(d.special_paper),
-    special_paper_other: strOut(d.special_paper_other),
-    recycling_weight: strOut(d.recycling_weight),
-    lamination_finish: strOut(d.lamination_finish),
-    lamination_sides: strOut(d.lamination_sides),
-  }
+  return { quantity: qtyOut(d.quantity), ...foldedFlyerToChild(d as Fields) }
 })
 export type FoldedFlyerFields = z.infer<typeof foldedFlyerSchema>
 true satisfies FoldedFlyerFields extends Omit<TablesInsert<'folded_flyer_products'>, 'department_product_id'> ? true : never
@@ -281,25 +289,7 @@ export const brochureSchema = loose([
     validateBrochureOffsetOrOpen(f, ctx)
   }
   if (requireBoolPresent(d.full_bleed) === 'missing') ctx.addIssue({ code: 'custom', path: ['full_bleed'], message: 'Required' })
-  return {
-    quantity: qtyOut(d.quantity),
-    production_path: strOut(d.production_path),
-    format: strOut(d.format),
-    width: mmOut(d.width),
-    height: mmOut(d.height),
-    orientation: strOut(d.orientation),
-    page_count: numOut(d.page_count),
-    full_bleed: boolOut(d.full_bleed),
-    cover_material: strOut(d.cover_material),
-    cover_material_other: strOut(d.cover_material_other),
-    inner_material: strOut(d.inner_material),
-    inner_material_other: strOut(d.inner_material_other),
-    binding: strOut(d.binding),
-    cover_weight: strOut(d.cover_weight),
-    cover_finish: strOut(d.cover_finish),
-    inner_weight: strOut(d.inner_weight),
-    inner_finish: strOut(d.inner_finish),
-  }
+  return { quantity: qtyOut(d.quantity), ...brochureToChild(d as Fields) }
 })
 export type BrochureFields = z.infer<typeof brochureSchema>
 true satisfies BrochureFields extends Omit<TablesInsert<'brochure_products'>, 'department_product_id'> ? true : never
@@ -330,18 +320,7 @@ export const businessCardSchema = loose([
     if (!MULTILOFT_COLORS.includes(parseRequiredString(d.multiloft_color) ?? '')) ctx.addIssue({ code: 'custom', path: ['multiloft_color'], message: 'Required' })
   }
   if (requireBoolPresent(d.full_bleed) === 'missing') ctx.addIssue({ code: 'custom', path: ['full_bleed'], message: 'Required' })
-  return {
-    quantity: qtyOut(d.quantity),
-    material: strOut(d.material),
-    color_mode: strOut(d.color_mode),
-    format: strOut(d.format),
-    width: mmOut(d.width),
-    height: mmOut(d.height),
-    orientation: strOut(d.orientation),
-    film_laminated: boolOut(d.film_laminated),
-    multiloft_color: strOut(d.multiloft_color),
-    full_bleed: boolOut(d.full_bleed),
-  }
+  return { quantity: qtyOut(d.quantity), ...businessCardToChild(d as Fields) }
 })
 export type BusinessCardFields = z.infer<typeof businessCardSchema>
 true satisfies BusinessCardFields extends Omit<TablesInsert<'business_card_products'>, 'department_product_id'> ? true : never
@@ -395,21 +374,7 @@ export const bindingSchema = loose([
     if (d.hardcover_print === true && !parseRequiredString(d.hardcover_cover)) ctx.addIssue({ code: 'custom', path: ['hardcover_cover'], message: 'Required' })
   }
   if (requireBoolPresent(d.full_bleed) === 'missing') ctx.addIssue({ code: 'custom', path: ['full_bleed'], message: 'Required' })
-  return {
-    quantity: qtyOut(d.quantity),
-    material: strOut(d.material),
-    material_other: strOut(d.material_other),
-    color_mode: strOut(d.color_mode),
-    binding_type: strOut(d.binding_type),
-    binding_color: strOut(d.binding_color),
-    format: strOut(d.format),
-    orientation: strOut(d.orientation),
-    width: mmOut(d.width),
-    height: mmOut(d.height),
-    hardcover_print: boolOut(d.hardcover_print),
-    hardcover_cover: strOut(d.hardcover_cover),
-    full_bleed: boolOut(d.full_bleed),
-  }
+  return { quantity: qtyOut(d.quantity), ...bindingToChild(d as Fields) }
 })
 export type BindingFields = z.infer<typeof bindingSchema>
 true satisfies BindingFields extends Omit<TablesInsert<'binding_products'>, 'department_product_id'> ? true : never
@@ -436,16 +401,7 @@ export const printoutSchema = loose([
   if (!PRINTOUT_PUNCHING.includes(parseRequiredString(d.punching) ?? '')) ctx.addIssue({ code: 'custom', path: ['punching'], message: 'Required' })
   if (requireBoolPresent(d.staple) === 'missing') ctx.addIssue({ code: 'custom', path: ['staple'], message: 'Required' })
   if (!PRINTOUT_LAMINATE.includes(parseRequiredString(d.laminate) ?? '')) ctx.addIssue({ code: 'custom', path: ['laminate'], message: 'Required' })
-  return {
-    quantity: qtyOut(d.quantity),
-    format: strOut(d.format),
-    material: strOut(d.material),
-    material_other: strOut(d.material_other),
-    color_mode: strOut(d.color_mode),
-    punching: strOut(d.punching),
-    staple: boolOut(d.staple),
-    laminate: strOut(d.laminate),
-  }
+  return { quantity: qtyOut(d.quantity), ...printoutToChild(d as Fields) }
 })
 export type PrintoutFields = z.infer<typeof printoutSchema>
 true satisfies PrintoutFields extends Omit<TablesInsert<'printout_products'>, 'department_product_id'> ? true : never

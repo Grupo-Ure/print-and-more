@@ -25,7 +25,7 @@ import { PrioritySelect } from './fields/PrioritySelect'
 import { Input } from './ui/input'
 import { useToast } from './Toast'
 import { CopyShopDetail } from './departments/CopyShopDetail'
-import { LFPDetail } from './departments/LFPDetail'
+import { LfpProducts } from './products/departments/LfpProducts'
 import { StampDetail } from './departments/StampDetail'
 import { OtherProducts } from './products/departments/OtherProducts'
 import { LaserProducts } from './products/departments/LaserProducts'
@@ -485,7 +485,7 @@ export function SubOrderDetail({
       </div>
 
       {local.department === 'LFP' && (
-        <LFPDetail subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        <LfpProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
       )}
 
       {local.department === 'COPYSHOP' && (

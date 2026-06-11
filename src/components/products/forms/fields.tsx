@@ -99,6 +99,22 @@ export function QuantityField({ field, label = 'Quantity', error, hint }: { fiel
   )
 }
 
+export function DateField({ field, label, error }: { field: AnyFieldApi; label: string; error?: string }) {
+  return (
+    <FieldRow label={label} htmlFor={field.name} error={error}>
+      <Input
+        id={field.name}
+        name={field.name}
+        type="date"
+        value={asString(field.state.value)}
+        onChange={e => field.handleChange(e.target.value || null)}
+        onBlur={field.handleBlur}
+        aria-invalid={error ? true : undefined}
+      />
+    </FieldRow>
+  )
+}
+
 export type Option = { value: string; label: string }
 
 /** Shadcn Select bound to a string field. */

@@ -6,9 +6,14 @@
  * department detail component, which picks which form to render.
  */
 
+import { useState } from 'react'
 import type { OrderStatus, SubOrderRow } from '../../../types/database'
 import type { LoadedProduct, ProductChildInsert, ProductWriteInput } from '../../../types/product'
 import type { FileRow } from '../../../services/fileService'
+import { validateProduct } from '../../../lib/products/registry'
+import { qtyOut } from '../../../lib/products/schemas/_shared'
+import { useSaveProduct } from '../../../queries/productQueries'
+import { useToast } from '../../Toast'
 
 /** Props every per-type form component receives from the department detail. */
 export type ProductFormProps = {
@@ -50,6 +55,29 @@ export function buildWriteInput(args: {
     sort_order: args.sortOrder,
     child: args.child,
   }
+}
+
+/**
+ * Shared submit wiring for every per-type form: owns the file-id state and the
+ * `useSaveProduct` mutation, guards on `validateProduct`, builds the input from
+ * the type's `toChild` coercer, and fires `onSaved` with the fresh list.
+ */
+export function useProductSubmit(p: ProductFormProps, type: string, toChild: (v: FormValues) => ProductChildInsert) {
+  const saveProduct = useSaveProduct()
+  const { showError } = useToast()
+  const [fileIds, setFileIds] = useState<string[]>(p.initialFileIds)
+  const submit = (value: FormValues) => {
+    if (Object.keys(validateProduct(type, value, p.subOrderStatus)).length > 0) return
+    saveProduct.mutate(
+      {
+        input: buildWriteInput({ product: p.product, subOrder: p.subOrder, type, sortOrder: p.sortOrder, quantity: qtyOut(value.quantity), child: toChild(value) }),
+        fileIds,
+        subOrderId: p.subOrder.id,
+      },
+      { onSuccess: ({ products }) => p.onSaved(products), onError: () => showError(p.product ? 'Product could not be saved' : 'Product could not be added') },
+    )
+  }
+  return { fileIds, setFileIds, submit, submitting: saveProduct.isPending }
 }
 
 /** Map a LoadedProduct to flat form values (child columns + parent quantity). */

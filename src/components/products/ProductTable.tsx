@@ -14,8 +14,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import type { LoadedProduct } from '../../types/product'
 import type { FileRow } from '../../services/fileService'
 import type { ProductFileAssignment } from '../../services/subOrderProductService'
-import { actionsColumn, firstOfColumn, quantityColumn, textColumn, typeColumn } from './columns'
+import { actionsColumn, firstOfColumn, formatColumn, quantityColumn, textColumn, typeColumn } from './columns'
 import { LASER_TYPE_LABELS } from '../../types/laser'
+import { LFP_TYPE_LABELS } from '../../types/lfp'
 
 export type ProductTableMeta = {
   onEdit: (product: LoadedProduct) => void
@@ -96,4 +97,16 @@ const laserColumns = [
 
 export function LaserProductsTable({ data, meta }: DeptTableProps) {
   return <ProductTable data={data} columns={laserColumns} meta={meta} />
+}
+
+const lfpColumns = [
+  typeColumn(LFP_TYPE_LABELS as Record<string, string>),
+  quantityColumn(),
+  textColumn('material', 'Material', 'material'),
+  formatColumn(),
+  actionsColumn(),
+]
+
+export function LfpProductsTable({ data, meta }: DeptTableProps) {
+  return <ProductTable data={data} columns={lfpColumns} meta={meta} />
 }
