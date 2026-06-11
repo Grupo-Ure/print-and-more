@@ -18,6 +18,7 @@ import { actionsColumn, firstOfColumn, formatColumn, quantityColumn, textColumn,
 import { LASER_TYPE_LABELS } from '../../types/laser'
 import { LFP_TYPE_LABELS } from '../../types/lfp'
 import { COPY_SHOP_TYPE_LABELS } from '../../types/copyshop'
+import { STAMP_ALL_LABELS } from './forms/stampTypes'
 
 export type ProductTableMeta = {
   onEdit: (product: LoadedProduct) => void
@@ -122,4 +123,15 @@ const copyShopColumns = [
 
 export function CopyShopProductsTable({ data, meta }: DeptTableProps) {
   return <ProductTable data={data} columns={copyShopColumns} meta={meta} />
+}
+
+const stampColumns = [
+  typeColumn(STAMP_ALL_LABELS),
+  quantityColumn(),
+  textColumn('description', 'Summary', 'description'),
+  actionsColumn(),
+]
+
+export function StampProductsTable({ data, meta }: DeptTableProps) {
+  return <ProductTable data={data} columns={stampColumns} meta={meta} />
 }

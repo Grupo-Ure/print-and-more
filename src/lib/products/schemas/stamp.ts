@@ -46,6 +46,28 @@ function checkClassicStamp(color: unknown, colorOther: unknown, description: unk
   if (!parseRequiredString(description)) ctx.addIssue({ code: 'custom', path: ['description'], message: 'Required' })
 }
 
+// --- toChild coercers (reused by the form layer) ---------------------------
+type Vals = Record<string, unknown>
+export function modelStampToChild(d: Vals): Omit<TablesInsert<'trodat_printy_products'>, 'department_product_id'> {
+  return { model_id: strOut(d.model_id) }
+}
+/** stand/date/other stamps share the same child columns. */
+export function classicStampToChild(d: Vals): Omit<TablesInsert<'stand_stamp_products'>, 'department_product_id'> {
+  return { width: intMmOut(d.width), height: intMmOut(d.height), color: strOut(d.color), color_other: strOut(d.color_other), description: strOut(d.description) }
+}
+export function stampPlateToChild(d: Vals): Omit<TablesInsert<'stamp_plate_products'>, 'department_product_id'> {
+  return { width: intMmOut(d.width), height: intMmOut(d.height) }
+}
+export function refillInkToChild(d: Vals): Omit<TablesInsert<'refill_ink_products'>, 'department_product_id'> {
+  return { color: strOut(d.color), ink_type: strOut(d.ink_type) }
+}
+export function inkPadToChild(d: Vals): Omit<TablesInsert<'ink_pad_products'>, 'department_product_id'> {
+  return { pad_size: strOut(d.pad_size), color: strOut(d.color) }
+}
+export function trodatPadToChild(d: Vals): Omit<TablesInsert<'trodat_pad_products'>, 'department_product_id'> {
+  return { pad_article_number: strOut(d.pad_article_number), color: strOut(d.color), pad_variant_id: strOut(d.pad_variant_id) }
+}
+
 // ---------------------------------------------------------------------------
 // TRODAT_PRINTY / WOODEN_STAMP — model_id + classic color/description.
 // ---------------------------------------------------------------------------
@@ -56,7 +78,7 @@ export const trodatPrintySchema = loose([
   if (!isValidQuantity(d.quantity)) ctx.addIssue({ code: 'custom', path: ['quantity'], message: 'Integer ≥ 1' })
   if (!parseRequiredString(d.model_id)) ctx.addIssue({ code: 'custom', path: ['model_id'], message: 'Please select a stamp model' })
   checkClassicStamp(d.color, d.color_other, d.description, ctx)
-  return { quantity: qtyOut(d.quantity), model_id: strOut(d.model_id) }
+  return { quantity: qtyOut(d.quantity), ...modelStampToChild(d as Vals) }
 })
 export type TrodatPrintyFields = z.infer<typeof trodatPrintySchema>
 true satisfies TrodatPrintyFields extends Omit<TablesInsert<'trodat_printy_products'>, 'department_product_id'> ? true : never
@@ -67,7 +89,7 @@ export const woodenStampSchema = loose([
   if (!isValidQuantity(d.quantity)) ctx.addIssue({ code: 'custom', path: ['quantity'], message: 'Integer ≥ 1' })
   if (!parseRequiredString(d.model_id)) ctx.addIssue({ code: 'custom', path: ['model_id'], message: 'Please select a stamp model' })
   checkClassicStamp(d.color, d.color_other, d.description, ctx)
-  return { quantity: qtyOut(d.quantity), model_id: strOut(d.model_id) }
+  return { quantity: qtyOut(d.quantity), ...modelStampToChild(d as Vals) }
 })
 export type WoodenStampFields = z.infer<typeof woodenStampSchema>
 true satisfies WoodenStampFields extends Omit<TablesInsert<'wooden_stamp_products'>, 'department_product_id'> ? true : never
@@ -82,14 +104,7 @@ export const standStampSchema = loose([
   if (!isValidQuantity(d.quantity)) ctx.addIssue({ code: 'custom', path: ['quantity'], message: 'Integer ≥ 1' })
   checkStampDimensions(d.width, d.height, ctx)
   checkClassicStamp(d.color, d.color_other, d.description, ctx)
-  return {
-    quantity: qtyOut(d.quantity),
-    width: intMmOut(d.width),
-    height: intMmOut(d.height),
-    color: strOut(d.color),
-    color_other: strOut(d.color_other),
-    description: strOut(d.description),
-  }
+  return { quantity: qtyOut(d.quantity), ...classicStampToChild(d as Vals) }
 })
 export type StandStampFields = z.infer<typeof standStampSchema>
 true satisfies StandStampFields extends Omit<TablesInsert<'stand_stamp_products'>, 'department_product_id'> ? true : never
@@ -100,14 +115,7 @@ export const dateStampSchema = loose([
   if (!isValidQuantity(d.quantity)) ctx.addIssue({ code: 'custom', path: ['quantity'], message: 'Integer ≥ 1' })
   checkStampDimensions(d.width, d.height, ctx)
   checkClassicStamp(d.color, d.color_other, d.description, ctx)
-  return {
-    quantity: qtyOut(d.quantity),
-    width: intMmOut(d.width),
-    height: intMmOut(d.height),
-    color: strOut(d.color),
-    color_other: strOut(d.color_other),
-    description: strOut(d.description),
-  }
+  return { quantity: qtyOut(d.quantity), ...classicStampToChild(d as Vals) }
 })
 export type DateStampFields = z.infer<typeof dateStampSchema>
 true satisfies DateStampFields extends Omit<TablesInsert<'date_stamp_products'>, 'department_product_id'> ? true : never
@@ -118,14 +126,7 @@ export const otherStampSchema = loose([
   if (!isValidQuantity(d.quantity)) ctx.addIssue({ code: 'custom', path: ['quantity'], message: 'Integer ≥ 1' })
   checkStampDimensions(d.width, d.height, ctx)
   checkClassicStamp(d.color, d.color_other, d.description, ctx)
-  return {
-    quantity: qtyOut(d.quantity),
-    width: intMmOut(d.width),
-    height: intMmOut(d.height),
-    color: strOut(d.color),
-    color_other: strOut(d.color_other),
-    description: strOut(d.description),
-  }
+  return { quantity: qtyOut(d.quantity), ...classicStampToChild(d as Vals) }
 })
 export type OtherStampFields = z.infer<typeof otherStampSchema>
 true satisfies OtherStampFields extends Omit<TablesInsert<'other_stamp_products'>, 'department_product_id'> ? true : never
@@ -139,7 +140,7 @@ export const stampPlateSchema = loose([
 ]).transform((d, ctx) => {
   if (!isValidQuantity(d.quantity)) ctx.addIssue({ code: 'custom', path: ['quantity'], message: 'Integer ≥ 1' })
   checkStampDimensions(d.width, d.height, ctx)
-  return { quantity: qtyOut(d.quantity), width: intMmOut(d.width), height: intMmOut(d.height) }
+  return { quantity: qtyOut(d.quantity), ...stampPlateToChild(d as Vals) }
 })
 export type StampPlateFields = z.infer<typeof stampPlateSchema>
 true satisfies StampPlateFields extends Omit<TablesInsert<'stamp_plate_products'>, 'department_product_id'> ? true : never
@@ -154,7 +155,7 @@ export const refillInkSchema = loose([
   if (!isValidQuantity(d.quantity)) ctx.addIssue({ code: 'custom', path: ['quantity'], message: 'Integer ≥ 1' })
   if (!parseEnum(d.color, REFILL_INK_COLORS)) ctx.addIssue({ code: 'custom', path: ['color'], message: 'Required' })
   if (!parseEnum(d.ink_type, REFILL_INK_TYPES)) ctx.addIssue({ code: 'custom', path: ['ink_type'], message: 'Required' })
-  return { quantity: qtyOut(d.quantity), color: strOut(d.color), ink_type: strOut(d.ink_type) }
+  return { quantity: qtyOut(d.quantity), ...refillInkToChild(d as Vals) }
 })
 export type RefillInkFields = z.infer<typeof refillInkSchema>
 true satisfies RefillInkFields extends Omit<TablesInsert<'refill_ink_products'>, 'department_product_id'> ? true : never
@@ -165,7 +166,7 @@ export const inkPadSchema = loose([
   if (!isValidQuantity(d.quantity)) ctx.addIssue({ code: 'custom', path: ['quantity'], message: 'Integer ≥ 1' })
   if (!parseEnum(d.pad_size, STAMP_PAD_SIZES)) ctx.addIssue({ code: 'custom', path: ['pad_size'], message: 'Required' })
   if (!parseEnum(d.color, REFILL_INK_COLORS)) ctx.addIssue({ code: 'custom', path: ['color'], message: 'Required' })
-  return { quantity: qtyOut(d.quantity), pad_size: strOut(d.pad_size), color: strOut(d.color) }
+  return { quantity: qtyOut(d.quantity), ...inkPadToChild(d as Vals) }
 })
 export type InkPadFields = z.infer<typeof inkPadSchema>
 true satisfies InkPadFields extends Omit<TablesInsert<'ink_pad_products'>, 'department_product_id'> ? true : never
@@ -177,12 +178,7 @@ export const trodatPadSchema = loose([
   if (!parseRequiredString(d.pad_article_number)) ctx.addIssue({ code: 'custom', path: ['pad_article_number'], message: 'Required' })
   if (!parseEnum(d.color, REFILL_INK_COLORS)) ctx.addIssue({ code: 'custom', path: ['color'], message: 'Required' })
   if (!parseRequiredString(d.pad_variant_id)) ctx.addIssue({ code: 'custom', path: ['pad_variant_id'], message: 'Select colour variant' })
-  return {
-    quantity: qtyOut(d.quantity),
-    pad_article_number: strOut(d.pad_article_number),
-    color: strOut(d.color),
-    pad_variant_id: strOut(d.pad_variant_id),
-  }
+  return { quantity: qtyOut(d.quantity), ...trodatPadToChild(d as Vals) }
 })
 export type TrodatPadFields = z.infer<typeof trodatPadSchema>
 true satisfies TrodatPadFields extends Omit<TablesInsert<'trodat_pad_products'>, 'department_product_id'> ? true : never

@@ -26,7 +26,7 @@ import { Input } from './ui/input'
 import { useToast } from './Toast'
 import { CopyShopProducts } from './products/departments/CopyShopProducts'
 import { LfpProducts } from './products/departments/LfpProducts'
-import { StampDetail } from './departments/StampDetail'
+import { StampProducts } from './products/departments/StampProducts'
 import { OtherProducts } from './products/departments/OtherProducts'
 import { LaserProducts } from './products/departments/LaserProducts'
 import { TextileDetail } from './departments/TextileDetail'
@@ -493,7 +493,7 @@ export function SubOrderDetail({
       )}
 
       {local.department === 'STAMP' && (
-        <StampDetail subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        <StampProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
       )}
 
       {local.department === 'OTHER' && (
