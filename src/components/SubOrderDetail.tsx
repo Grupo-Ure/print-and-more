@@ -28,7 +28,7 @@ import { CopyShopDetail } from './departments/CopyShopDetail'
 import { LFPDetail } from './departments/LFPDetail'
 import { StampDetail } from './departments/StampDetail'
 import { OtherProducts } from './products/departments/OtherProducts'
-import { LaserDetail } from './departments/LaserDetail'
+import { LaserProducts } from './products/departments/LaserProducts'
 import { TextileDetail } from './departments/TextileDetail'
 import type { FileRow } from '../services/fileService'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
@@ -501,7 +501,7 @@ export function SubOrderDetail({
       )}
 
       {local.department === 'LASER_ENGRAVING' && (
-        <LaserDetail subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        <LaserProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
       )}
 
       {local.department === 'TEXTILE' && (

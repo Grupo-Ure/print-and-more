@@ -7,7 +7,7 @@
  */
 
 import type { OrderStatus, SubOrderRow } from '../../../types/database'
-import type { LoadedProduct } from '../../../types/product'
+import type { LoadedProduct, ProductChildInsert, ProductWriteInput } from '../../../types/product'
 import type { FileRow } from '../../../services/fileService'
 
 /** Props every per-type form component receives from the department detail. */
@@ -29,6 +29,28 @@ export type ProductFormProps = {
 
 /** Flat form values are a loose record; each form types its own via `z.infer`. */
 export type FormValues = Record<string, unknown>
+
+/** Assemble the parent `ProductWriteInput` from a form's split result. */
+export function buildWriteInput(args: {
+  product: LoadedProduct | null
+  subOrder: SubOrderRow
+  type: string
+  sortOrder: number
+  quantity: number | null
+  notes?: string | null
+  child: ProductChildInsert
+}): ProductWriteInput {
+  return {
+    ...(args.product ? { id: args.product.id } : {}),
+    department_order_id: args.subOrder.id,
+    department: args.subOrder.department,
+    type: args.type,
+    quantity: args.quantity,
+    notes: args.notes ?? null,
+    sort_order: args.sortOrder,
+    child: args.child,
+  }
+}
 
 /** Map a LoadedProduct to flat form values (child columns + parent quantity). */
 export function valuesFromProduct(product: LoadedProduct | null): FormValues {

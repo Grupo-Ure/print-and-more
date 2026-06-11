@@ -14,7 +14,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import type { LoadedProduct } from '../../types/product'
 import type { FileRow } from '../../services/fileService'
 import type { ProductFileAssignment } from '../../services/subOrderProductService'
-import { actionsColumn, quantityColumn, textColumn, typeColumn } from './columns'
+import { actionsColumn, firstOfColumn, quantityColumn, textColumn, typeColumn } from './columns'
+import { LASER_TYPE_LABELS } from '../../types/laser'
 
 export type ProductTableMeta = {
   onEdit: (product: LoadedProduct) => void
@@ -83,4 +84,16 @@ const otherColumns = [typeColumn(OTHER_LABELS), quantityColumn(), textColumn('de
 
 export function OtherProductsTable({ data, meta }: DeptTableProps) {
   return <ProductTable data={data} columns={otherColumns} meta={meta} />
+}
+
+const laserColumns = [
+  typeColumn(LASER_TYPE_LABELS as Record<string, string>),
+  quantityColumn(),
+  firstOfColumn('material', 'Material', ['material', 'material_free_text']),
+  textColumn('motif', 'Motif', 'motif', 48),
+  actionsColumn(),
+]
+
+export function LaserProductsTable({ data, meta }: DeptTableProps) {
+  return <ProductTable data={data} columns={laserColumns} meta={meta} />
 }
