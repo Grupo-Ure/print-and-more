@@ -27,7 +27,7 @@ import { useToast } from './Toast'
 import { CopyShopDetail } from './departments/CopyShopDetail'
 import { LFPDetail } from './departments/LFPDetail'
 import { StampDetail } from './departments/StampDetail'
-import { OtherDetail } from './departments/OtherDetail'
+import { OtherProducts } from './products/departments/OtherProducts'
 import { LaserDetail } from './departments/LaserDetail'
 import { TextileDetail } from './departments/TextileDetail'
 import type { FileRow } from '../services/fileService'
@@ -497,7 +497,7 @@ export function SubOrderDetail({
       )}
 
       {local.department === 'OTHER' && (
-        <OtherDetail subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        <OtherProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
       )}
 
       {local.department === 'LASER_ENGRAVING' && (
