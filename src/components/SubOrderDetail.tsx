@@ -29,7 +29,7 @@ import { LfpProducts } from './products/departments/LfpProducts'
 import { StampProducts } from './products/departments/StampProducts'
 import { OtherProducts } from './products/departments/OtherProducts'
 import { LaserProducts } from './products/departments/LaserProducts'
-import { TextileDetail } from './departments/TextileDetail'
+import { TextileProducts } from './products/departments/TextileProducts'
 import type { FileRow } from '../services/fileService'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import { StatusBadge } from './StatusBadge'
@@ -182,28 +182,19 @@ export function SubOrderDetail({
     [save]
   )
 
-  const onTextileSubOrderUpdated = useCallback(
-    (row: SubOrderRow) => {
-      serverSnapshotRef.current = row
-      localRef.current = row
-      setLocal(row)
-      onUpdated(row)
-    },
-    [onUpdated]
-  )
-
-  // Seed hasProducts when the active sub-order loads, for the JSONB departments.
+  // Seed hasProducts when the active sub-order loads, for the product departments.
   // Seeds the ref only — no status recompute on load (load reads persisted status).
   useEffect(() => {
     hasProductsRef.current = false
     const department = subOrder.department
-    const isJsonbDepartment =
+    const isProductDepartment =
       department === 'LFP' ||
       department === 'COPYSHOP' ||
       department === 'STAMP' ||
       department === 'LASER_ENGRAVING' ||
-      department === 'OTHER'
-    if (!subOrder.id || !isJsonbDepartment) return
+      department === 'OTHER' ||
+      department === 'TEXTILE'
+    if (!subOrder.id || !isProductDepartment) return
     let alive = true
     void (async () => {
       try {
@@ -505,14 +496,7 @@ export function SubOrderDetail({
       )}
 
       {local.department === 'TEXTILE' && (
-        <TextileDetail
-          subOrder={local}
-          subOrderStatus={local.status}
-          orderStatus={orderStatus}
-          orderFiles={orderFiles}
-          orderCustomer={orderCustomer}
-          onUpdated={onTextileSubOrderUpdated}
-        />
+        <TextileProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
       )}
 
       {local.department !== 'LFP' &&

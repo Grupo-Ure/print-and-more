@@ -412,12 +412,12 @@ export function ContextPanel({
         const user = await authService.getUser()
         const userId = user?.id ?? null
 
-        const positionList = await textileService.getEigenwarePositionsBySubOrder(subOrder.id)
+        const garmentUsage = await textileService.getTextileGarmentStockUsageBySubOrder(subOrder.id)
 
-        for (const position of positionList) {
-          const variantId = position.variant_id ? String(position.variant_id) : ''
+        for (const usage of garmentUsage) {
+          const variantId = usage.variant_id
           if (!variantId) continue
-          const quantity = Number.isFinite(position.quantity) && position.quantity >= 1 ? Math.floor(position.quantity) : 1
+          const quantity = Number.isFinite(usage.quantity) && usage.quantity >= 1 ? Math.floor(usage.quantity) : 1
 
           const variantRow = await textileMasterDataService.getVariantStockById(variantId)
           const currentStock = variantRow?.stock ?? 0

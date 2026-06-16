@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { subOrderProductService, type ProductFileAssignment } from '../services/subOrderProductService'
 import type { LoadedProduct, ProductWriteInput } from '../types/product'
+import type { TextileMotifLinkInput } from '../types/textile'
+import { textileKeys } from './textileQueries'
 
 export const productKeys = {
   all: ['products'] as const,
@@ -55,9 +57,9 @@ export function useSaveProduct() {
   return useMutation<
     { products: LoadedProduct[]; files: ProductFileAssignment[] },
     Error,
-    { input: ProductWriteInput; fileIds: string[]; subOrderId: string }
+    { input: ProductWriteInput; fileIds: string[]; subOrderId: string; links?: TextileMotifLinkInput[] }
   >({
-    mutationFn: async ({ input, fileIds, subOrderId }) => {
+    mutationFn: async ({ input, fileIds, subOrderId, links }) => {
       // 1. Product write (create or update).
       const productId = input.id ?? (await subOrderProductService.createProduct(input))
       if (input.id) await subOrderProductService.updateProduct(input.id, input)
@@ -75,14 +77,29 @@ export function useSaveProduct() {
         }
       }
 
+      // 2b. Textile design-link reconcile (only when the caller passes links).
+      if (links) {
+        const existingLinks = input.id ? await subOrderProductService.getMotifLinksByProductIds([productId]) : []
+        const keptIds = new Set(links.filter(l => l.id).map(l => l.id))
+        for (const e of existingLinks) {
+          if (!keptIds.has(e.id)) await subOrderProductService.removeMotifLink(e.id)
+        }
+        for (const l of links) {
+          const fields = { motif_id: l.motif_id, placement: l.placement, size: l.size, print_method: l.print_method }
+          if (l.id) await subOrderProductService.updateMotifLink(l.id, fields)
+          else await subOrderProductService.createMotifLink({ department_product_id: productId, ...fields })
+        }
+      }
+
       // 3. Reload authoritative state for the cache patch.
       const products = await subOrderProductService.getProductsBySubOrderId(subOrderId)
       const files = await subOrderProductService.getFilesByProductIds(products.map(p => p.id))
       return { products, files }
     },
-    onSuccess: ({ products, files }, { subOrderId }) => {
+    onSuccess: ({ products, files }, { subOrderId, links }) => {
       queryClient.setQueryData(productKeys.bySubOrderId(subOrderId), products)
       queryClient.setQueryData(productKeys.filesBySubOrderId(subOrderId), files)
+      if (links) void queryClient.invalidateQueries({ queryKey: textileKeys.links(subOrderId) })
     },
   })
 }

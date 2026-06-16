@@ -1,6 +1,7 @@
 import { supabase } from '../supabase'
 import type { ChildTable, LoadedProduct, ProductWriteInput } from '../types/product'
 import { childTableForType } from '../types/product'
+import type { TextileMotifLinkRow } from '../types/textile'
 
 export type ProductFileAssignment = {
   id: string
@@ -150,6 +151,38 @@ class SubOrderProductService {
 
   async removeFileFromProduct(id: string): Promise<void> {
     const { error } = await supabase.from('product_files').delete().eq('id', id)
+    if (error) throw error
+  }
+
+  // --- textile design links (textile_motif_links) ---
+  // Attributed M:N on a TEXTILE_GARMENT product — like product_files, but each
+  // link also carries placement/size/method, so it supports update (not just
+  // add/remove). The save layer reconciles these the way it reconciles files.
+  async getMotifLinksByProductIds(ids: string[]): Promise<TextileMotifLinkRow[]> {
+    if (ids.length === 0) return []
+    const { data, error } = await supabase
+      .from('textile_motif_links')
+      .select('id, department_product_id, motif_id, placement, size, print_method')
+      .in('department_product_id', ids)
+    if (error) throw error
+    return (data ?? []) as TextileMotifLinkRow[]
+  }
+
+  async createMotifLink(payload: Omit<TextileMotifLinkRow, 'id'>): Promise<void> {
+    const { error } = await supabase.from('textile_motif_links').insert(payload)
+    if (error) throw error
+  }
+
+  async updateMotifLink(
+    id: string,
+    patch: Partial<Omit<TextileMotifLinkRow, 'id' | 'department_product_id'>>,
+  ): Promise<void> {
+    const { error } = await supabase.from('textile_motif_links').update(patch).eq('id', id)
+    if (error) throw error
+  }
+
+  async removeMotifLink(id: string): Promise<void> {
+    const { error } = await supabase.from('textile_motif_links').delete().eq('id', id)
     if (error) throw error
   }
 }

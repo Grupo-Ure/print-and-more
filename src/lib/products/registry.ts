@@ -48,6 +48,7 @@ import {
   otherLaserSchema,
 } from './schemas/laser'
 import { otherSchema } from './schemas/other'
+import { textileGarmentSchema } from './schemas/textile'
 
 /** type discriminator → its Zod schema. Keys mirror `CHILD_TABLE_BY_TYPE`. */
 export const SCHEMA_BY_TYPE: Record<string, z.ZodTypeAny> = {
@@ -86,6 +87,8 @@ export const SCHEMA_BY_TYPE: Record<string, z.ZodTypeAny> = {
   OTHER_LASER: otherLaserSchema,
   // Other
   OTHER: otherSchema,
+  // Textile
+  TEXTILE_GARMENT: textileGarmentSchema,
 }
 
 /**

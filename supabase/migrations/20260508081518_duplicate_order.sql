@@ -7,11 +7,13 @@
  * the entire clone back.
  *
  * Copies the source order's customer into a new order with status QUOTE, then
- * clones each selected sub-order (status reset to INCOMPLETE). For TEXTILE
- * sub-orders it deep-copies motifs, positions, and assignments, remapping old
- * row ids to the new ones; for every other department it copies the
- * department_products rows and their product_files links. Finally writes one
- * ORDER_CREATED history row tagged with `duplicated_from`. SECURITY DEFINER.
+ * clones each selected sub-order (status reset to INCOMPLETE). Every department
+ * — TEXTILE included — copies its department_products rows, their typed child,
+ * and their product_files links through one generic loop. For TEXTILE it also
+ * pre-copies the per-sub-order designs drawer (textile_motifs, remapping ids)
+ * and the garment products' textile_motif_links (remapping motif ids). Finally
+ * writes one ORDER_CREATED history row tagged with `duplicated_from`.
+ * SECURITY DEFINER.
  *
  * @param source_order_id        order to clone
  * @param new_priority           priority for the new order
@@ -31,13 +33,9 @@ DECLARE
   new_product_id        UUID;
   source_product        RECORD;
   source_motif          RECORD;
-  source_position       RECORD;
-  source_assignment     RECORD;
   source_department_order      RECORD;
   motif_id_map          JSONB := '{}'::JSONB;
-  position_id_map       JSONB := '{}'::JSONB;
   new_motif_id          UUID;
-  new_position_id       UUID;
 BEGIN
   -- Customer of the source order
   SELECT customer_id INTO source_customer_id FROM orders WHERE id = source_order_id;
@@ -58,46 +56,24 @@ BEGIN
     VALUES (new_order_id, source_department_order.department, source_department_order.type, 'INCOMPLETE', source_department_order.priority, source_department_order.delivery, source_department_order.detail)
     RETURNING id INTO new_department_order_id;
 
+    -- TEXTILE: copy the per-sub-order designs drawer first, remapping motif ids
+    -- so the garment products' links below can point at the new designs.
+    motif_id_map := '{}'::JSONB;
     IF source_department_order.department = 'TEXTILE' THEN
-      -- Copy motifs
-      motif_id_map := '{}'::JSONB;
       FOR source_motif IN
         SELECT * FROM textile_motifs WHERE department_order_id = source_department_order.id
       LOOP
-        INSERT INTO textile_motifs (department_order_id, type, content, color, font_class, font_name, file_id, placement, size, print_method)
-        VALUES (new_department_order_id, source_motif.type, source_motif.content, source_motif.color, source_motif.font_class, source_motif.font_name, source_motif.file_id, source_motif.placement, source_motif.size, source_motif.print_method)
+        INSERT INTO textile_motifs (department_order_id, type, content, color, font_class, font_name, file_id)
+        VALUES (new_department_order_id, source_motif.type, source_motif.content, source_motif.color, source_motif.font_class, source_motif.font_name, source_motif.file_id)
         RETURNING id INTO new_motif_id;
         motif_id_map := motif_id_map || jsonb_build_object(source_motif.id::TEXT, new_motif_id::TEXT);
       END LOOP;
+    END IF;
 
-      -- Copy positions
-      position_id_map := '{}'::JSONB;
-      FOR source_position IN
-        SELECT * FROM textile_positions WHERE department_order_id = source_department_order.id
-      LOOP
-        INSERT INTO textile_positions (department_order_id, origin, type, color, quantity, brand, model, size, variant_id)
-        VALUES (new_department_order_id, source_position.origin, source_position.type, source_position.color, source_position.quantity, source_position.brand, source_position.model, source_position.size, source_position.variant_id)
-        RETURNING id INTO new_position_id;
-        position_id_map := position_id_map || jsonb_build_object(source_position.id::TEXT, new_position_id::TEXT);
-      END LOOP;
-
-      -- Copy assignments
-      FOR source_assignment IN
-        SELECT * FROM textile_assignments WHERE department_order_id = source_department_order.id
-      LOOP
-        INSERT INTO textile_assignments (department_order_id, motif_id, position_id)
-        VALUES (
-          new_department_order_id,
-          (motif_id_map->>source_assignment.motif_id::TEXT)::UUID,
-          (position_id_map->>source_assignment.position_id::TEXT)::UUID
-        );
-      END LOOP;
-
-    ELSE
-      -- Copy products
-      FOR source_product IN
-        SELECT * FROM department_products WHERE department_order_id = source_department_order.id ORDER BY sort_order
-      LOOP
+    -- Products (every department, including TEXTILE garment lines)
+    FOR source_product IN
+      SELECT * FROM department_products WHERE department_order_id = source_department_order.id ORDER BY sort_order
+    LOOP
         INSERT INTO department_products (department_order_id, department, type, quantity, notes, sort_order)
         VALUES (new_department_order_id, source_product.department, source_product.type, source_product.quantity, source_product.notes, source_product.sort_order)
         RETURNING id INTO new_product_id;
@@ -194,6 +170,9 @@ BEGIN
           WHEN 'OTHER' THEN
             INSERT INTO other_products (department_product_id, description)
             SELECT new_product_id, description FROM other_products WHERE department_product_id = source_product.id;
+          WHEN 'TEXTILE_GARMENT' THEN
+            INSERT INTO textile_garment_products (department_product_id, origin, variant_id, garment_type, brand, model, color, size)
+            SELECT new_product_id, origin, variant_id, garment_type, brand, model, color, size FROM textile_garment_products WHERE department_product_id = source_product.id;
         END CASE;
 
         -- Copy file assignments
@@ -201,8 +180,16 @@ BEGIN
         SELECT new_product_id, file_id
         FROM product_files
         WHERE department_product_id = source_product.id;
+
+        -- TEXTILE: copy the attributed design links, remapping motif ids to the
+        -- designs copied above (department_product_id → the new garment product).
+        IF source_product.type = 'TEXTILE_GARMENT' THEN
+          INSERT INTO textile_motif_links (department_product_id, motif_id, placement, size, print_method)
+          SELECT new_product_id, (motif_id_map->>(l.motif_id::TEXT))::UUID, l.placement, l.size, l.print_method
+          FROM textile_motif_links l
+          WHERE l.department_product_id = source_product.id;
+        END IF;
       END LOOP;
-    END IF;
   END LOOP;
 
   -- History

@@ -48,6 +48,8 @@ export type ChildTable =
   | 'other_laser_products'
   // Other
   | 'other_products'
+  // Textile
+  | 'textile_garment_products'
 
 /** Union of all child Row types (the spec columns, incl. department_product_id). */
 export type ProductChildRow = { [K in ChildTable]: Tables<K> }[ChildTable]
@@ -109,6 +111,8 @@ export const CHILD_TABLE_BY_TYPE: Record<string, ChildTable> = {
   OTHER_LASER: 'other_laser_products',
   // Other
   OTHER: 'other_products',
+  // Textile
+  TEXTILE_GARMENT: 'textile_garment_products',
 }
 
 export function childTableForType(type: string): ChildTable {

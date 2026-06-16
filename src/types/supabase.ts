@@ -1794,52 +1794,6 @@ export type Database = {
           },
         ]
       }
-      textile_assignments: {
-        Row: {
-          created_at: string
-          department_order_id: string
-          id: string
-          motif_id: string
-          position_id: string
-        }
-        Insert: {
-          created_at?: string
-          department_order_id: string
-          id?: string
-          motif_id: string
-          position_id: string
-        }
-        Update: {
-          created_at?: string
-          department_order_id?: string
-          id?: string
-          motif_id?: string
-          position_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "textile_assignments_department_order_id_fkey"
-            columns: ["department_order_id"]
-            isOneToOne: false
-            referencedRelation: "department_orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "textile_assignments_motif_id_fkey"
-            columns: ["motif_id"]
-            isOneToOne: false
-            referencedRelation: "textile_motifs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "textile_assignments_position_id_fkey"
-            columns: ["position_id"]
-            isOneToOne: false
-            referencedRelation: "textile_positions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       textile_brands: {
         Row: {
           created_at: string
@@ -1861,6 +1815,99 @@ export type Database = {
         }
         Relationships: []
       }
+      textile_garment_products: {
+        Row: {
+          brand: string | null
+          color: string | null
+          department_product_id: string
+          garment_type: string | null
+          model: string | null
+          origin: string | null
+          size: string | null
+          variant_id: string | null
+        }
+        Insert: {
+          brand?: string | null
+          color?: string | null
+          department_product_id: string
+          garment_type?: string | null
+          model?: string | null
+          origin?: string | null
+          size?: string | null
+          variant_id?: string | null
+        }
+        Update: {
+          brand?: string | null
+          color?: string | null
+          department_product_id?: string
+          garment_type?: string | null
+          model?: string | null
+          origin?: string | null
+          size?: string | null
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "textile_garment_products_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: true
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "textile_garment_products_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "textile_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      textile_motif_links: {
+        Row: {
+          created_at: string
+          department_product_id: string
+          id: string
+          motif_id: string
+          placement: string
+          print_method: string | null
+          size: string
+        }
+        Insert: {
+          created_at?: string
+          department_product_id: string
+          id?: string
+          motif_id: string
+          placement: string
+          print_method?: string | null
+          size: string
+        }
+        Update: {
+          created_at?: string
+          department_product_id?: string
+          id?: string
+          motif_id?: string
+          placement?: string
+          print_method?: string | null
+          size?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "textile_motif_links_department_product_id_fkey"
+            columns: ["department_product_id"]
+            isOneToOne: false
+            referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "textile_motif_links_motif_id_fkey"
+            columns: ["motif_id"]
+            isOneToOne: false
+            referencedRelation: "textile_motifs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       textile_motifs: {
         Row: {
           color: string | null
@@ -1871,9 +1918,6 @@ export type Database = {
           font_class: Database["public"]["Enums"]["textile_font_class"] | null
           font_name: string | null
           id: string
-          placement: string
-          print_method: string | null
-          size: string
           type: Database["public"]["Enums"]["textile_motif_type"]
         }
         Insert: {
@@ -1885,9 +1929,6 @@ export type Database = {
           font_class?: Database["public"]["Enums"]["textile_font_class"] | null
           font_name?: string | null
           id?: string
-          placement?: string
-          print_method?: string | null
-          size?: string
           type: Database["public"]["Enums"]["textile_motif_type"]
         }
         Update: {
@@ -1899,9 +1940,6 @@ export type Database = {
           font_class?: Database["public"]["Enums"]["textile_font_class"] | null
           font_name?: string | null
           id?: string
-          placement?: string
-          print_method?: string | null
-          size?: string
           type?: Database["public"]["Enums"]["textile_motif_type"]
         }
         Relationships: [
@@ -1917,63 +1955,6 @@ export type Database = {
             columns: ["file_id"]
             isOneToOne: false
             referencedRelation: "files"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      textile_positions: {
-        Row: {
-          brand: string | null
-          color: string | null
-          created_at: string
-          department_order_id: string
-          id: string
-          model: string | null
-          origin: Database["public"]["Enums"]["textile_origin"]
-          quantity: number
-          size: string | null
-          type: string | null
-          variant_id: string | null
-        }
-        Insert: {
-          brand?: string | null
-          color?: string | null
-          created_at?: string
-          department_order_id: string
-          id?: string
-          model?: string | null
-          origin: Database["public"]["Enums"]["textile_origin"]
-          quantity: number
-          size?: string | null
-          type?: string | null
-          variant_id?: string | null
-        }
-        Update: {
-          brand?: string | null
-          color?: string | null
-          created_at?: string
-          department_order_id?: string
-          id?: string
-          model?: string | null
-          origin?: Database["public"]["Enums"]["textile_origin"]
-          quantity?: number
-          size?: string | null
-          type?: string | null
-          variant_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "textile_positions_department_order_id_fkey"
-            columns: ["department_order_id"]
-            isOneToOne: false
-            referencedRelation: "department_orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "textile_positions_variant_id_fkey"
-            columns: ["variant_id"]
-            isOneToOne: false
-            referencedRelation: "textile_variants"
             referencedColumns: ["id"]
           },
         ]

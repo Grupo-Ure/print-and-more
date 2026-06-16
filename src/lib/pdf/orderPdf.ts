@@ -4,7 +4,6 @@ import { formatDateDe } from '../formatDate'
 import { orderService } from '../../services/orderService'
 import { subOrderService } from '../../services/subOrderService'
 import { subOrderProductService } from '../../services/subOrderProductService'
-import { textileService } from '../../services/textileService'
 import type { DeliveryChoice, OrderPdfRow, Priority, SubOrderRow } from '../../types/database'
 
 type PdfDoc = jsPDF & { lastAutoTable?: { finalY: number } }
@@ -162,11 +161,10 @@ function cellValueForKey(row: Record<string, unknown>, key: string): string {
 
 export async function generateAndDownloadPdf(subOrderId: string, orderId: string): Promise<boolean> {
   try {
-    const [order, subOrderResult, rawProducts, textilePositions] = await Promise.all([
+    const [order, subOrderResult, rawProducts] = await Promise.all([
       orderService.getOrderById(orderId),
       subOrderService.getSubOrderById(subOrderId),
       subOrderProductService.getProductsBySubOrderId(subOrderId),
-      textileService.getPositionsWithVariants(subOrderId),
     ])
 
     if (!order || !subOrderResult) return false
@@ -243,7 +241,7 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
     doc.line(marginLeft, cursorY, 210 - marginRight, cursorY)
     cursorY += 5
 
-    if (products.length > 0 && subOrder.department !== 'TEXTILE') {
+    if (products.length > 0) {
       cursorY = checkNewPage(doc, cursorY, 30)
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(10)
@@ -262,40 +260,6 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
         margin: { left: marginLeft, right: marginRight },
         head: [header],
         body: rows,
-        styles: { fontSize: 8, cellPadding: 2 },
-        headStyles: { fillColor: [60, 60, 60], textColor: 255, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [245, 245, 245] },
-      })
-      cursorY = ((doc as PdfDoc).lastAutoTable?.finalY ?? cursorY) + 8
-    }
-
-    if (subOrder.department === 'TEXTILE' && textilePositions.length > 0) {
-      cursorY = checkNewPage(doc, cursorY, 30)
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(10)
-      cursorY = addText(doc, 'Positions', marginLeft, cursorY, 6)
-      doc.setFont('helvetica', 'normal')
-
-      autoTable(doc, {
-        startY: cursorY,
-        margin: { left: marginLeft, right: marginRight },
-        head: [['Product', 'Colour', 'Size', 'Quantity', 'Origin', 'Note']],
-        body: textilePositions.map(position => {
-          const positionRecord = position as Record<string, unknown>
-          const variantEmbed = positionRecord.textile_variants as {
-            textile_products: { name: string | null } | null
-          } | null
-          const productName =
-            variantEmbed?.textile_products?.name ?? String(positionRecord.model ?? positionRecord.variant_id ?? '—')
-          return [
-            productName,
-            String(position.color ?? '—'),
-            String(position.size ?? '—'),
-            String(position.quantity ?? '—'),
-            String(position.origin ?? '—'),
-            String(positionRecord.note ?? ''),
-          ]
-        }),
         styles: { fontSize: 8, cellPadding: 2 },
         headStyles: { fillColor: [60, 60, 60], textColor: 255, fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [245, 245, 245] },

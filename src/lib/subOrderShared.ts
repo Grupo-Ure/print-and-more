@@ -27,7 +27,6 @@
 
 import { type OrderStatus, type SubOrderRow } from '../types/database'
 import { subOrderDetailToFieldMap } from './utils'
-import { textileDetailMarkedComplete } from './textile/validateTextileDetail'
 
 const UUID_LOOSE = /^[0-9a-fA-F-]{30,40}$/
 
@@ -166,13 +165,10 @@ export function isSubOrderComplete(subOrder: SubOrderRow, status: OrderStatus, h
     subOrder.department === 'COPYSHOP' ||
     subOrder.department === 'STAMP' ||
     subOrder.department === 'LASER_ENGRAVING' ||
-    subOrder.department === 'OTHER'
+    subOrder.department === 'OTHER' ||
+    subOrder.department === 'TEXTILE'
   ) {
     return hasProducts
-  }
-  if (subOrder.department === 'TEXTILE') {
-    if (Object.keys(validateSubOrderCommonFields(subOrder, status)).length > 0) return false
-    return textileDetailMarkedComplete(subOrder.detail)
   }
   return true
 }
@@ -230,13 +226,10 @@ export function nextSubOrderStatus(
   const other = merged.department === 'OTHER'
   const laser = merged.department === 'LASER_ENGRAVING'
   const textile = merged.department === 'TEXTILE'
-  if (textile) {
-    if (!complete) return 'INCOMPLETE'
-    if (customerPrepressOk) return capPrepress('PREPRESS_READY')
-    return 'INCOMPLETE'
-  }
+  // Textile is a normal auto-prepress product department (handled by the generic
+  // path below; autoPrepressAllowed returns true for it).
   // Unknown department → always INCOMPLETE.
-  if (!lfp && !copyShop && !stamp && !other && !laser) {
+  if (!lfp && !copyShop && !stamp && !other && !laser && !textile) {
     if (!complete) return 'INCOMPLETE'
     return 'INCOMPLETE'
   }

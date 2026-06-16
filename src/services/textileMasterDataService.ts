@@ -25,6 +25,13 @@ export type VariantWithDetails = VariantRow & {
   } | null
 }
 
+/** Flatten a textile_garment_products row embedding its parent into {variant_id, quantity}. */
+function toVariantUsage(row: unknown): { variant_id: string | null; quantity: number } {
+  const r = row as { variant_id: string | null; department_products: { quantity: number | null } | { quantity: number | null }[] | null }
+  const parent = Array.isArray(r.department_products) ? r.department_products[0] : r.department_products
+  return { variant_id: r.variant_id ?? null, quantity: Number(parent?.quantity ?? 0) }
+}
+
 class TextileMasterDataService {
   async getBrands(): Promise<BrandRow[]> {
     const { data, error } = await supabase
@@ -138,13 +145,13 @@ class TextileMasterDataService {
   ): Promise<{ variant_id: string | null; quantity: number }[]> {
     if (subOrderIds.length === 0) return []
     const { data, error } = await supabase
-      .from('textile_positions')
-      .select('variant_id, quantity')
+      .from('textile_garment_products')
+      .select('variant_id, department_products!inner(quantity, department_order_id)')
       .eq('origin', 'OWN_STOCK')
       .not('variant_id', 'is', null)
-      .in('department_order_id', subOrderIds)
+      .in('department_products.department_order_id', subOrderIds)
     if (error) throw error
-    return (data ?? []) as { variant_id: string | null; quantity: number }[]
+    return (data ?? []).map(toVariantUsage)
   }
 
   async getMaxSortOrderForProduct(produktId: string): Promise<number | null> {
@@ -222,22 +229,27 @@ class TextileMasterDataService {
 
   async getSubOrdersUsingVariant(varianteId: string): Promise<string[]> {
     const { data, error } = await supabase
-      .from('textile_positions')
-      .select('department_order_id')
+      .from('textile_garment_products')
+      .select('department_products!inner(department_order_id)')
       .eq('variant_id', varianteId)
     if (error) throw error
-    return [...new Set((data ?? []).map(r => r.department_order_id))]
+    const ids = (data ?? []).map(row => {
+      const dp = (row as { department_products: { department_order_id: string } | { department_order_id: string }[] | null }).department_products
+      const parent = Array.isArray(dp) ? dp[0] : dp
+      return parent?.department_order_id ?? ''
+    })
+    return [...new Set(ids.filter(Boolean))]
   }
 
   async getVariantUsageBySubOrder(
     subOrderId: string,
   ): Promise<{ variant_id: string | null; quantity: number }[]> {
     const { data, error } = await supabase
-      .from('textile_positions')
-      .select('variant_id, quantity')
-      .eq('department_order_id', subOrderId)
+      .from('textile_garment_products')
+      .select('variant_id, department_products!inner(quantity, department_order_id)')
+      .eq('department_products.department_order_id', subOrderId)
     if (error) throw error
-    return (data ?? []) as { variant_id: string | null; quantity: number }[]
+    return (data ?? []).map(toVariantUsage)
   }
 }
 
