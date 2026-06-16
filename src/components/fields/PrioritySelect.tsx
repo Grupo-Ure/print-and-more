@@ -10,13 +10,15 @@ import {
 type PrioritySelectProps = {
   value: Priority
   onChange: (value: Priority) => void
+  disabled?: boolean
 }
 
-export function PrioritySelect({ value, onChange }: PrioritySelectProps) {
+export function PrioritySelect({ value, onChange, disabled = false }: PrioritySelectProps) {
   return (
     <label className="meta-pill" title="Priority">
       <Select
         value={value}
+        disabled={disabled}
         onValueChange={next => {
           if (next === 'NORMAL' || next === 'HIGH') onChange(next)
         }}

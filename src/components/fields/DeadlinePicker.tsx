@@ -7,9 +7,10 @@ import { Calendar } from '../ui/calendar'
 type DeadlinePickerProps = {
   value: string
   onChange: (value: string | null) => void
+  disabled?: boolean
 }
 
-export function DeadlinePicker({ value, onChange }: DeadlinePickerProps) {
+export function DeadlinePicker({ value, onChange, disabled = false }: DeadlinePickerProps) {
   const [open, setOpen] = useState(false)
   const selectedDate = value ? parse(value, 'yyyy-MM-dd', new Date()) : undefined
   const triggerLabel = selectedDate ? format(selectedDate, 'PPP') : 'No deadline'
@@ -18,7 +19,7 @@ export function DeadlinePicker({ value, onChange }: DeadlinePickerProps) {
     <label className="meta-pill" title="Deadline">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="sm">
+          <Button variant="ghost" size="sm" disabled={disabled}>
             {triggerLabel}
           </Button>
         </PopoverTrigger>

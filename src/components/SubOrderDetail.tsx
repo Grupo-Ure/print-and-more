@@ -23,6 +23,7 @@ import { DeadlinePicker } from './fields/DeadlinePicker'
 import { DeliverySelect } from './fields/DeliverySelect'
 import { PrioritySelect } from './fields/PrioritySelect'
 import { Input } from './ui/input'
+import { Switch } from './ui/switch'
 import { useToast } from './Toast'
 import { CopyShopProducts } from './products/departments/CopyShopProducts'
 import { LfpProducts } from './products/departments/LfpProducts'
@@ -106,7 +107,15 @@ export function SubOrderDetail({
   }, [local])
 
   const subOrderStatus = local.status
+  const customerMeetsPrepressRequirements = customerMeetsPrepressContact(orderCustomer)
   const shouldValidate = subOrderStatus !== 'QUOTE'
+  shouldValidate &&
+        local.department !== 'OTHER' &&
+        !customerMeetsPrepressRequirements &&
+        (local.department === 'LFP' ||
+          local.department === 'COPYSHOP' ||
+          (local.department === 'STAMP' && local.type !== 'OTHER_STAMP') ||
+          (local.department === 'LASER_ENGRAVING' && local.type !== 'OTHER_LASER'))
   const hasSeparateDelivery = local.delivery != null && local.delivery !== orderDeliveryMode
   const hasSeparatePriority = local.priority !== orderPriorityMode
   const effectiveDelivery = (hasSeparateDelivery ? local.delivery! : orderDeliveryMode) as DeliveryChoice
@@ -119,7 +128,6 @@ export function SubOrderDetail({
     },
     subOrderStatus
   )
-  const customerMeetsPrepressRequirements = customerMeetsPrepressContact(orderCustomer)
 
   const save = useCallback(
     async (patch: Partial<SubOrderRow>) => {
@@ -321,20 +329,17 @@ export function SubOrderDetail({
           (local.department === 'LASER_ENGRAVING' && local.type !== 'OTHER_LASER')) && (
           <p className="ber-hinweis">For auto-PREPRESS: Customer needs name and email or phone.</p>
         )}
-
-      <h2 className="sec-h2" style={{ marginTop: 8 }}>
-        General
-      </h2>
-      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mb-1.5">
-        <div className="flex flex-col min-w-0">
-          <span className="text-[11px] font-medium text-muted-foreground mb-0.5">Delivery date</span>
-          <div>
+      <section>
+        <h2 className="" style={{ marginTop: 8 }}>
+          Department Settings
+        </h2>
+        <div className="flex items-start gap-8">
+          <div className="flex flex-col min-w-0 gap-2">
             <label className="flex items-center gap-2 text-[13px] select-none mt-1">
-              <input
-                type="checkbox"
+              <Switch
                 checked={separateDeadline}
-                onChange={e => {
-                  const isChecked = e.target.checked
+                onCheckedChange={checked => {
+                  const isChecked = checked === true
                   setSeparateDeadline(isChecked)
                   if (!isChecked) {
                     const resetIso = orderDeadlineIso || ''
@@ -342,7 +347,7 @@ export function SubOrderDetail({
                     setLocal(s => ({ ...s, deadline: resetDeadline }))
                     void save({ deadline: resetDeadline })
                   } else {
-                    // Beim Aktivieren: Eingabefeld soll den aktuellen Wert (Teilauftrag oder Auftrag) zeigen.
+                    // On enable: the input should show the current value (sub-order or order).
                     const currentLocal = localRef.current
                     const currentIso = currentLocal.deadline
                       ? currentLocal.deadline.length > 10
@@ -355,31 +360,23 @@ export function SubOrderDetail({
               />
               <span>Separate delivery date</span>
             </label>
-            {separateDeadline && (
-              <div className="mt-2">
-                <DeadlinePicker
-                  value={local.deadline ? (local.deadline.length > 10 ? local.deadline.slice(0, 10) : local.deadline) : deadlineIso}
-                  onChange={value => {
-                    setLocal(s => ({ ...s, deadline: value }))
-                    const snapshotIso = serverSnapshotRef.current.deadline ? serverSnapshotRef.current.deadline.slice(0, 10) : ''
-                    if ((value ?? '') !== (snapshotIso ?? '')) void save({ deadline: value })
-                  }}
-                />
-                {shouldValidate && validationErrors.termin && <p className="text-destructive text-xs mt-1">{validationErrors.termin}</p>}
-              </div>
-            )}
-            {!separateDeadline && shouldValidate && validationErrors.termin && <p className="text-destructive text-xs mt-1">{validationErrors.termin}</p>}
+            <DeadlinePicker
+              disabled={!separateDeadline}
+              value={local.deadline ? (local.deadline.length > 10 ? local.deadline.slice(0, 10) : local.deadline) : deadlineIso}
+              onChange={value => {
+                setLocal(s => ({ ...s, deadline: value }))
+                const snapshotIso = serverSnapshotRef.current.deadline ? serverSnapshotRef.current.deadline.slice(0, 10) : ''
+                if ((value ?? '') !== (snapshotIso ?? '')) void save({ deadline: value })
+              }}
+            />
+            {shouldValidate && validationErrors.termin && <p className="text-destructive text-xs mt-1">{validationErrors.termin}</p>}
           </div>
-        </div>
-        <div className="flex flex-col min-w-0">
-          <span className="text-[11px] font-medium text-muted-foreground mb-0.5">Delivery type</span>
-          <div>
+          <div className="flex flex-col min-w-0 gap-2">
             <label className="flex items-center gap-2 text-[13px] select-none mt-1">
-              <input
-                type="checkbox"
+              <Switch
                 checked={hasSeparateDelivery}
-                onChange={e => {
-                  const isChecked = e.target.checked
+                onCheckedChange={checked => {
+                  const isChecked = checked === true
                   if (!isChecked) {
                     void save({ delivery: orderDeliveryMode })
                   } else {
@@ -391,130 +388,95 @@ export function SubOrderDetail({
               />
               <span>Separate delivery type</span>
             </label>
-            {hasSeparateDelivery ? (
-              <div className="mt-2">
-                <DeliverySelect
-                  value={local.delivery ?? orderDeliveryMode}
-                  onChange={value => {
-                    setLocal(s => ({ ...s, delivery: value }))
-                    if (value !== serverSnapshotRef.current.delivery) void save({ delivery: value })
-                  }}
-                />
-                {shouldValidate && validationErrors.lieferung && <p className="text-destructive text-xs mt-1">{validationErrors.lieferung}</p>}
-              </div>
-            ) : (
-              <div className="text-xs text-muted-foreground leading-snug mt-1.5 mb-0">
-                {effectiveDelivery === 'PICKUP' ? 'Pickup' : 'Shipping'}
-                {shouldValidate && validationErrors.lieferung && <p className="text-destructive text-xs mt-1">{validationErrors.lieferung}</p>}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-      <div className="flex flex-col min-w-0 mt-0 max-w-88">
-        <span className="text-[11px] font-medium text-muted-foreground mb-0.5">Priority</span>
-        <div>
-          <label className="flex items-center gap-2 text-[13px] select-none mt-1">
-            <input
-              type="checkbox"
-              checked={hasSeparatePriority}
-              onChange={e => {
-                const isChecked = e.target.checked
-                if (!isChecked) {
-                  void save({ priority: orderPriorityMode })
-                } else {
-                  const alternativePriority: Priority = orderPriorityMode === 'HIGH' ? 'NORMAL' : 'HIGH'
-                  void save({ priority: alternativePriority })
-                }
+            <DeliverySelect
+              disabled={!hasSeparateDelivery}
+              value={effectiveDelivery}
+              onChange={value => {
+                setLocal(s => ({ ...s, delivery: value }))
+                if (value !== serverSnapshotRef.current.delivery) void save({ delivery: value })
               }}
             />
-            <span>Separate priority</span>
-          </label>
-          {hasSeparatePriority ? (
-            <div className="mt-2">
-              <PrioritySelect
-                value={local.priority}
-                onChange={value => {
-                  setLocal(s => ({ ...s, priority: value }))
-                  if (value !== serverSnapshotRef.current.priority) void save({ priority: value })
+            {shouldValidate && validationErrors.lieferung && <p className="text-destructive text-xs mt-1">{validationErrors.lieferung}</p>}
+          </div>
+          <div className="flex flex-col min-w-0 gap-2">
+            <label className="flex items-center gap-2 text-[13px] select-none mt-1">
+              <Switch
+                checked={hasSeparatePriority}
+                onCheckedChange={checked => {
+                  const isChecked = checked === true
+                  if (!isChecked) {
+                    void save({ priority: orderPriorityMode })
+                  } else {
+                    const alternativePriority: Priority = orderPriorityMode === 'HIGH' ? 'NORMAL' : 'HIGH'
+                    void save({ priority: alternativePriority })
+                  }
                 }}
               />
-              {shouldValidate && validationErrors.prioritaet && <p className="text-destructive text-xs mt-1">{validationErrors.prioritaet}</p>}
-            </div>
-          ) : (
-            <div className="text-xs text-muted-foreground leading-snug mt-1.5 mb-0">
-              {effectivePriority === 'HIGH' ? 'High' : 'Normal'}
-              {shouldValidate && validationErrors.prioritaet && <p className="text-destructive text-xs mt-1">{validationErrors.prioritaet}</p>}
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="flex flex-col min-w-0 mb-1.5 max-w-[16rem]">
-        <span className="text-[11px] font-medium text-muted-foreground mb-0.5">Typesetting time (min)</span>
-        <div>
-          <Input
-            type="number"
-            className="max-w-48 h-9 text-sm"
-            aria-invalid={shouldValidate && !!validationErrors.satzzeit_minuten}
-            value={local.typesetting_minutes ?? ''}
-            onChange={e => {
-              const rawValue = e.target.value
-              setLocal(s => ({
-                ...s,
-                typesetting_minutes: rawValue === '' ? null : parseInt(rawValue, 10),
-              }))
-            }}
-            onBlur={e => {
-              const rawValue = e.target.value
-              const parsedValue = rawValue === '' ? null : parseInt(rawValue, 10)
-              if (parsedValue !== serverSnapshotRef.current.typesetting_minutes) void save({ typesetting_minutes: parsedValue })
-            }}
-            min={1}
-          />
-          {shouldValidate && validationErrors.satzzeit_minuten && <p className="text-destructive text-xs mt-1">{validationErrors.satzzeit_minuten}</p>}
-        </div>
-      </div>
-
-      {local.department === 'LFP' && (
-        <LfpProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
-      )}
-
-      {local.department === 'COPYSHOP' && (
-        <CopyShopProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
-      )}
-
-      {local.department === 'STAMP' && (
-        <StampProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
-      )}
-
-      {local.department === 'OTHER' && (
-        <OtherProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
-      )}
-
-      {local.department === 'LASER_ENGRAVING' && (
-        <LaserProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
-      )}
-
-      {local.department === 'TEXTILE' && (
-        <TextileProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
-      )}
-
-      {local.department !== 'LFP' &&
-        local.department !== 'COPYSHOP' &&
-        local.department !== 'STAMP' &&
-        local.department !== 'OTHER' &&
-        local.department !== 'LASER_ENGRAVING' &&
-        local.department !== 'TEXTILE' && (
-        <>
-          <div className="td-zeile" style={{ marginTop: 8 }}>
-            <p className="td-label">Type</p>
-            <p className="td-wert td-mono">{local.type?.trim() ? local.type : '—'}</p>
+              <span>Separate priority</span>
+            </label>
+            <PrioritySelect
+              disabled={!hasSeparatePriority}
+              value={effectivePriority}
+              onChange={value => {
+                setLocal(s => ({ ...s, priority: value }))
+                if (value !== serverSnapshotRef.current.priority) void save({ priority: value })
+              }}
+            />
+            {shouldValidate && validationErrors.prioritaet && <p className="text-destructive text-xs mt-1">{validationErrors.prioritaet}</p>}
           </div>
-          <p className="wa-hint" style={{ marginTop: 8 }}>
-            Department {subOrderDepartmentLabel(local.department)}: detail form coming soon (like LFP).
-          </p>
-        </>
-      )}
+        <div className="flex flex-col min-w-0">
+          <span className="text-[11px] font-medium text-muted-foreground mb-0.5">Typesetting time (min)</span>
+          <div>
+            <Input
+              type="number"
+              className="max-w-48 h-9 text-sm"
+              aria-invalid={shouldValidate && !!validationErrors.satzzeit_minuten}
+              value={local.typesetting_minutes ?? ''}
+              onChange={e => {
+                const rawValue = e.target.value
+                setLocal(s => ({
+                  ...s,
+                  typesetting_minutes: rawValue === '' ? null : parseInt(rawValue, 10),
+                }))
+              }}
+              onBlur={e => {
+                const rawValue = e.target.value
+                const parsedValue = rawValue === '' ? null : parseInt(rawValue, 10)
+                if (parsedValue !== serverSnapshotRef.current.typesetting_minutes) void save({ typesetting_minutes: parsedValue })
+              }}
+              min={1}
+            />
+            {shouldValidate && validationErrors.satzzeit_minuten && <p className="text-destructive text-xs mt-1">{validationErrors.satzzeit_minuten}</p>}
+          </div>
+        </div>
+        </div>
+      </section>
+
+      <section>
+        {local.department === 'LFP' && (
+          <LfpProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        )}
+
+        {local.department === 'COPYSHOP' && (
+          <CopyShopProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        )}
+
+        {local.department === 'STAMP' && (
+          <StampProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        )}
+
+        {local.department === 'OTHER' && (
+          <OtherProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        )}
+
+        {local.department === 'LASER_ENGRAVING' && (
+          <LaserProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        )}
+
+        {local.department === 'TEXTILE' && (
+          <TextileProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        )}
+      </section>
     </div>
   )
 }
