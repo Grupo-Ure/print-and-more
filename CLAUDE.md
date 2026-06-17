@@ -17,349 +17,216 @@ authoritative source for UI dimensions is the relevant CSS file.
 
 ## Working with this project
 
-**Language**
+**Language — the repo is being Anglicized; English is the target.**
 
-- All documentation, comments, commit messages, PR descriptions, and other
-  prose must be written in **English**. The project owner is not German.
-- The **codebase itself is German** — table names, enum values (`ANGEBOT`,
-  `PREPRESS_BEREIT`, `FERTIG`, …), domain nouns (`Auftrag`, `Teilauftrag`,
-  `Kunde`, `bereich`), file names, and UI labels — and stays German. Do not
-  translate identifiers that exist in the source. When mentioning a German
-  identifier in English prose, use it as-is (e.g. "the `Auftrag` header").
-- Existing files written in German may be left as-is; switch to English only
-  when creating or substantially rewriting something.
+The goal is to remove German from the codebase. German is legacy, not a
+convention to preserve. Do **not** introduce or re-introduce German
+identifiers, names, or strings.
 
-**Issue tracking**
+- All prose (docs, comments, commit messages, PRs) is **English**.
+- **Code is English** — table/column names, enum types, function/RPC names,
+  TypeScript identifiers, file names. When you touch code with leftover German,
+  translate it; don't preserve it "to match the source."
+- **Authoritative rename maps** (use these; don't invent parallel names):
+  [.plans/DB_RENAME_MAP.md](.plans/DB_RENAME_MAP.md) (schema identifiers, enum
+  types, enum/check values, functions) and [.plans/I18N_MAP.md](.plans/I18N_MAP.md)
+  (UI display strings → i18next).
+- **Known remaining German** (deferred, tracked — not "the convention"):
+  1. **Stored enum VALUE strings** (e.g. stamp `color='SCHWARZ'`, fold
+     `'MITTELFALZ'`, installation `'MIT'`). Columns are plain `text`; UI labels
+     already show English. Deferred to a shop-confirmed value-rename pass.
+  2. **UI display strings** still hardcoded in components — the i18next pass
+     ([I18N_MAP.md](.plans/I18N_MAP.md)) is not yet done.
+  3. **TypeScript identifiers** for the sub-order concept still read `subOrder` /
+     `sub_order` (e.g. `subOrderService`, `SubOrderDetail`) even though the DB
+     table is now `department_orders`. The DB-facing rename is done via PostgREST
+     aliases / boundary mapping; the TS-identifier rename is a separate deferred
+     pass.
+- The product name **"Auftragssystem"** is a proper noun (repo/product name) and
+  is left as-is.
 
-Work for this project is tracked in **Jira**, in the project/space called
-**Markus**. When asked to check tasks, tickets, or work items, look there
-first — no further disambiguation is needed.
+**Issue tracking** — work is tracked in **Jira**, project/space **Markus**. When
+asked about tasks/tickets, look there first.
 
 **Where things go**
-
-- **README.md** (this file) — stable architecture, domain model, workflows.
-  No version pins, no pixel widths, no current-state info.
-- **[current_state.md](current_state.md)** — moving-target stuff: what's
-  done, what's pending, known technical debt.
-- **`package.json`** is the source of truth for library versions; CSS files
-  are the source of truth for UI dimensions. Don't duplicate those values
-  into prose.
+- **README.md** (this file) — stable architecture, domain model, workflows. No
+  version pins, no pixel widths, no current-state info.
+- **[current_state.md](current_state.md)** — what's done/pending, known debt.
+- **`package.json`** = library versions; CSS files = UI dimensions. Don't
+  duplicate those into prose.
 
 ## Tech Stack
 
 - **Frontend:** React + TypeScript + Vite
 - **Styling:** Tailwind CSS + CSS variables (colour system in `index.css`)
-- **Backend:** Supabase — PostgreSQL with Auth and Row-Level Security; RLS policies live in Supabase, not in this repo
-- **Client:** [src/supabase.ts](src/supabase.ts) (`createClient`)
+- **Backend:** Supabase — PostgreSQL with Auth and Row-Level Security; RLS
+  policies live in Supabase. The base schema is split into domain migration
+  files under `supabase/migrations/` (types, core, orders, department_orders,
+  catalog, products_core, the per-department product tables, textile, audit,
+  duplicate_order).
+- **Client:** [src/supabase.ts](src/supabase.ts) (`createClient`); generated
+  types in [src/types/supabase.ts](src/types/supabase.ts).
+- **Service layer:** DB access goes through `src/services/*`; components avoid
+  calling `supabase` directly (textile / PDF are the few exceptions).
 - **Target platform:** desktop browser
 
-## UI Layout ([App.tsx](src/App.tsx))
+## UI Layout
 
 Three-column layout, full height:
 
 | Column | Component | Role |
 |--------|-----------|------|
-| Left   | [`OrderSidebar`](src/components/OrderSidebar.tsx) | "+ Neuer Auftrag" button (opens `NeuerAuftragDialog`); order list with selection; archived orders excluded (`.eq('archiviert', false)`) |
-| Centre | [`WorkArea`](src/components/WorkArea.tsx) | Order header, files, sub-order tabs, active sub-order detail mask |
-| Right  | [`ContextPanel`](src/components/ContextPanel.tsx) | Status, workflow actions, hints (Auftrag and Teilauftrag workflow) |
+| Left   | [`OrderSidebar`](src/components/OrderSidebar.tsx) | "+ New order" ([`NewOrderDialog`](src/components/NewOrderDialog.tsx)); order list with selection; archived orders excluded |
+| Centre | [`WorkArea`](src/components/WorkArea.tsx) | Order header, files, sub-order tabs ([`SubOrderTabs`](src/components/SubOrderTabs.tsx)), active sub-order detail mask ([`SubOrderDetail`](src/components/SubOrderDetail.tsx)) |
+| Right  | [`ContextPanel`](src/components/ContextPanel.tsx) | Status, workflow actions, hints (order + sub-order workflow) |
 
-**Shared state in `App`:** `aktiverAuftragId`, `aktiverAuftrag` (full Auftrag
-including header fields, `kunden` join, `erp_exportiert`, `archiviert`),
-`aktiverTeilauftrag`, `auftragKunde`, `auftragDateien`, `kontextAktualisiert`
-(triggers a refetch in `WorkArea` after actions in the context),
-`orderSidebarKey` (remount/refresh of `OrderSidebar` after archiving, creating a new
-order, or saving a customer), `neuerAuftragOffen` (modal flag), `kundeDialog`
-(edit via `KundeDialog`).
+**Global dialogs:** [`NewOrderDialog`](src/components/NewOrderDialog.tsx),
+[`CustomerDialog`](src/components/CustomerDialog.tsx),
+[`DuplicateDialog`](src/components/DuplicateDialog.tsx),
+[`DeleteOrderDialog`](src/components/DeleteOrderDialog.tsx).
+[`HistoryPanel`](src/components/HistoryPanel.tsx) shows order history;
+[`FileList`](src/components/FileList.tsx) the order-wide file links.
 
-`WorkArea` synchronises back to the context via callbacks:
-`onAuftragVomArbeitsbereich`, `onAuftragKundeGeladen`,
-`onAktiverTeilauftragGeaendert`, `onAuftragDateienGeaendert`,
-`onKundeBearbeiten` (opens `KundeDialog` with the customer from `auftragKunde`
-or the join).
+**Auth:** [`Login`](src/components/Login.tsx) calls
+`supabase.auth.signInWithPassword`; without a session the app renders only the
+login layout.
 
-**Global dialogs (mounted in `App`):** `NeuerAuftragDialog` (create order),
-`KundeDialog` (edit customer — invoked from the `WorkArea` pencil icon or the
-`ContextPanel` while an Auftrag is in `ANGEBOT`). On success: bump
-`orderListKey`, optionally `kontextAktualisiert`, and `setAktiverAuftragId`
-for a newly created Auftrag.
+**Full-page routes:** `StampStockPage` ([src/pages/StampStockPage.tsx](src/pages/StampStockPage.tsx))
+— stamp inventory; `TextileStockPage` ([src/pages/TextileStockPage.tsx](src/pages/TextileStockPage.tsx))
+— textile master data + variant stock. [`OrderWorkspace`](src/pages/OrderWorkspace.tsx)
+hosts the three-column shell.
 
-**Auth:** `Login` calls `supabase.auth.signInWithPassword`; the session type
-is `Session | null`. Without a session the app renders only the login layout.
+## Production Departments (`department` enum)
 
-**Full-page routes (outside the three-column shell):**
-`/bestandspflege` → [`BestandspflegeSeite`](src/pages/BestandspflegeSeite.tsx)
-(stamp inventory); `/textil-bestand` →
-[`TextilBestandSeite`](src/pages/TextilBestandSeite.tsx) (textile master data
-and variant stock). Both are opened from `ContextPanel` in a new tab.
+Every order has 1…n sub-orders, each assigned to one production department.
+Enum `department`: `LFP`, `COPYSHOP`, `TEXTILE`, `STAMP`, `LASER_ENGRAVING`,
+`OTHER`. Each has a detail mask under `src/components/departments/` and a
+validator under `src/lib/<dept>/`.
 
-## Production Departments (Teilauftrag-Bereiche)
-
-Every `Auftrag` has 1…n `Teilaufträge`, each assigned to one production
-department (`bereich`). Each department has a detail mask under
-`src/components/bereiche/` and a validator under `src/lib/<bereich>/`.
-
-| Bereich | Component |
+| Department | Component |
 |---------|-----------|
-| Großformatdruck (LFP) | [`LFPDetail.tsx`](src/components/bereiche/LFPDetail.tsx) |
-| CopyShop | [`CopyShopDetail.tsx`](src/components/bereiche/CopyShopDetail.tsx) |
-| Textil | [`TextilDetail.tsx`](src/components/bereiche/TextilDetail.tsx) |
-| Stempel | [`StempelDetail.tsx`](src/components/bereiche/StempelDetail.tsx) |
-| Lasergravur | [`LaserDetail.tsx`](src/components/bereiche/LaserDetail.tsx) |
-| Sonstige | [`SonstigeDetail.tsx`](src/components/bereiche/SonstigeDetail.tsx) |
+| LFP (Großformatdruck) | [`LFPDetail.tsx`](src/components/departments/LFPDetail.tsx) |
+| CopyShop | [`CopyShopDetail.tsx`](src/components/departments/CopyShopDetail.tsx) |
+| Textile | [`TextileDetail.tsx`](src/components/departments/TextileDetail.tsx) |
+| Stamp | [`StampDetail.tsx`](src/components/departments/StampDetail.tsx) |
+| Laser | [`LaserDetail.tsx`](src/components/departments/LaserDetail.tsx) |
+| Other | [`OtherDetail.tsx`](src/components/departments/OtherDetail.tsx) |
 
-## `ContextPanel` ([src/components/ContextPanel.tsx](src/components/ContextPanel.tsx))
+## Domain Model
 
-- **Status section:** colour-coded badges for Auftrag and (where applicable)
-  Teilauftrag status; an **NOTFALL** banner with `notfall_begruendung` when
-  `notfall_aktiv` is set.
-- **Aktionen section (excerpt):** order-level workflow — in `ANGEBOT` e.g.
-  *In Bearbeitung nehmen* alongside *Kunde bearbeiten* (`onKundeBearbeiten`);
-  *ERP exportieren* with mode, *Archivieren*. Teilauftrag workflow: release
-  prepress / production, mark done, raise emergency, toggle and grant
-  customer approval, cancel, delete. **Customer approval** blocks only
-  *Produktion freigeben* (`prodDisabled`); cancel and delete have their own
-  busy flags (`stornoLaeuft` / `loeschenLaeuft`) and are not gated by the
-  global `busy` lock.
-- **Produktion freigeben** (`PREPRESS_BEREIT` → `PRODUKTION_BEREIT`): after
-  the status update succeeds, **automatic stock deductions** are booked here
-  (and only here, not on Fertig melden):
-  - **STEMPEL:** decrement stamp- and (where relevant) Stempelkissen-stock,
-    insert a `lager_bewegungen` row with `typ: 'AUTOABGANG'` and a note
-    "Automatisch bei Produktionsfreigabe …" plus the Auftragsnummer. Before
-    the release dialog: a warning modal if stamp- and/or Kissen-stock is
-    **0**.
-  - **TEXTIL:** every `textil_position` of the Teilauftrag with
-    `herkunft = 'EIGENWARE'` and a set `variante_id` reduces the variant's
-    `bestand` by the position's `stueckzahl` (floored at 0); each non-zero
-    deduction is logged in **`textil_lager_bewegungen`** (`AUTOABGANG`,
-    same note format).
-- **Fertig melden** (`PRODUKTION_BEREIT` → `FERTIG`): no stamp-stock
-  deduction, no stock check that would block FERTIG.
-- **Hinweise section:** context-aware messages (pending customer approval,
-  emergency state, ERP not yet exported, …).
-- **Supabase calls** include `schreibeHistorie`
-  ([src/lib/historie.ts](src/lib/historie.ts)) and
-  `synchronisiereAuftragsstatus` via the RPC `fn_berechne_auftragsstatus`
-  ([src/lib/auftragsStatus.ts](src/lib/auftragsStatus.ts)). `auftraege`
-  selects use `AUFTRAG_SPALTEN`
-  ([src/const/auftragSelect.ts](src/const/auftragSelect.ts)) including
-  `kunden(id, name, email, telefon, notiz)`.
+- **Customer** — table `customers` (`name`, `email`, `phone`, `note`, address,
+  `is_archived`). Created/edited via `CustomerDialog`; searched by `ilike` on
+  `name` (only `is_archived = false`).
+- **Order** — table `orders` (`customer_id`, `status`, `deadline`, `delivery`
+  (`PICKUP`|`SHIPPING`), `priority` (`HIGH`|`NORMAL`), `is_emergency`,
+  `is_erp_exported`, `is_archived`, `created_at`). Status kept in sync via
+  `orderService.recalculateOrderStatus` (TS `calculateOrderStatus`). Has 1…n
+  sub-orders.
+- **Sub-order** — table `department_orders` (the per-department production unit;
+  TS code still calls it `subOrder`). Carries `department`, `type`, `status`,
+  schedule fields, `assignee_id`, `typesetting_minutes`, emergency fields,
+  `is_cancelled`, customer-approval fields. It still has its own legacy `detail`
+  JSONB + `type` + type-check trigger (used by Textile's `eigenware_modus` and
+  the type guard) — a later cleanup, out of scope of the product redesign.
+- **Files** — table `files` (`order_id`, `display_name`, `role`, …). Attached at
+  the **order** level, loaded in `WorkArea`, selectable for customer approval in
+  `ContextPanel`. UNC-path **linking**, not upload.
+- **Products** — see below (the typed per-type model).
+- **Textile** — relational, not in the product hierarchy: `textile_brands` →
+  `textile_products` → `textile_variants` (master data, with `color_hex`,
+  `stock`, `min_stock`); plus `textile_motifs`, `textile_positions`,
+  `textile_assignments` (per-order); `textile_stock_movements`. Eigenware mode
+  (`STAMMDATEN` | `FREITEXT`) lives in the sub-order detail.
 
-`ContextPanel.css` — styles for sections, badges, and modals.
+### Products — typed per-type tables (post-refactor)
 
-## `WorkArea` ([src/components/WorkArea.tsx](src/components/WorkArea.tsx)) — top-to-bottom flow
+Products no longer use a JSONB `detail` blob. The model is supertype/subtype
+(class-table inheritance):
 
-1. **Order header:** customer name with a pencil icon "Kunde bearbeiten"
-   (`onKundeBearbeiten`); Auftragsnummer; Auftragsstatus. **Inline-editable**
-   fields with `onBlur` save: `termin` (optional date), `lieferung`
-   (`ABHOLUNG` / `VERSAND` / empty), `prioritaet` (e.g. `NORMAL` / `HOCH`,
-   with `NIEDRIG` shown if present in DB). Update writes to `auftraege`.
-2. **Dateien** ([`DateiListe`](src/components/DateiListe.tsx)): order-wide
-   file links; UI title "Dateien".
-3. Divider.
-4. **Teilauftrag tabs** (cancelled rows hidden) plus a **+** button
-   ([`AddTeilauftragOverlay`](src/components/AddTeilauftragOverlay.tsx)).
-5. **Active detail** ([`TeilauftragDetail`](src/components/TeilauftragDetail.tsx)
-   per `bereich`).
+- **Parent `department_products`** — `id`, `department_order_id`, `department`,
+  `type` (discriminator), `quantity`, `notes`, `sort_order`, `created_at`.
+- **One typed child table per product type** (30 total: 7 CopyShop, 9 Stamp,
+  8 LFP, 5 Laser, 1 Other), PK = FK to `department_products`
+  (`department_product_id`), holding that type's English spec columns. The
+  `type` value selects the child (e.g. `POSTER` → `poster_products`,
+  `TRODAT_PRINTY` → `trodat_printy_products`). Textile is **not** in this
+  hierarchy.
+- **`product_files`** — M:N file links on the parent (`department_product_id` →
+  `department_products`, `file_id` → `files`).
 
-**Centralised file state:** `dateien: Datei[]`, `dateienLaden`,
-`reloadDateien()`; reloads on `aktiverAuftragId` change and when `App` raises
-`kontextAktualisiert`.
+**Code contract:** [src/types/product.ts](src/types/product.ts) defines
+`LoadedProduct` (parent + typed `child`), `ProductWriteInput`, the `ChildTable`
+union, and `childTableForType()`.
+[`subOrderProductService`](src/services/subOrderProductService.ts) is the only
+product service: `getProductsBySubOrderId` (parent + child), `createProduct` /
+`updateProduct` (TS two-step — insert/update parent then child, no RPC),
+`deleteProduct` (cascade), and the `product_files` helpers. Per-department
+validators (`src/lib/<dept>/validate*Detail.ts`) are pure functions over the
+typed fields. The detail components hold a flat English form object and split it
+into parent (`type`/`quantity`/`notes`) + typed child via a `buildChild`-style
+mapper on save.
 
-**Data load:** `ladeAuftragUndTeilauftraege(auftragId)` reads `auftraege`
-using `AUFTRAG_SPALTEN` (incl. `kunden(id, name, email, telefon, notiz)`,
-`termin`, `lieferung`, `prioritaet`, `notfall_aktiv`, `erstellt_am`,
-`erp_exportiert`, `archiviert`) plus `teilauftraege` (full
-`TEILAUFTRAG_SPALTEN`); the first non-cancelled tab is selected, or the
-previously active id if still valid.
+### Status (Order & Sub-order)
 
-**New Teilauftrag (insert):** defaults include `notfall_aktiv: false`,
-`storniert: false`, customer-approval fields off — see `WorkArea`.
+Flow: `QUOTE` → `INCOMPLETE` → `PREPRESS_READY` → `PRODUCTION_READY` → `DONE`
+(orders may also reach `INVOICED`).
+
+- **Aggregate order status is derived from the sub-orders** by
+  `calculateOrderStatus` ([src/lib/orderStatus.ts](src/lib/orderStatus.ts)) — the
+  lowest status across non-cancelled sub-orders. `orderService.recalculateOrderStatus`
+  reads the order + sub-orders, computes this, and writes `orders.status`. (This
+  was formerly a Postgres RPC; it now lives entirely in the client/service layer.)
+- **Per-sub-order transitions** are governed by `nextSubOrderStatus()` /
+  completeness logic in [src/lib/subOrderShared.ts](src/lib/subOrderShared.ts)
+  and the per-department validators (`OTHER_STAMP`, `OTHER_LFP`, `OTHER_LASER`,
+  and the `OTHER` department are auto-prepress-ineligible — manual only).
+- **`ContextPanel`** is the single point of manual workflow control: set status,
+  toggle emergency, ERP insert, archive, write `history` entries.
+
+## Workflow specifics
+
+- **Release to production** (`PREPRESS_READY` → `PRODUCTION_READY`) books
+  **automatic stock deductions** (only here, not on "mark done"):
+  - **STAMP:** decrement stamp / pad stock; insert a `stamp_stock_movements` row
+    with `type: 'AUTO_DEDUCTION'` and a note incl. the order number. A warning
+    modal shows first if stamp/pad stock is 0.
+  - **TEXTILE:** every `textile_positions` row with `origin = 'OWN_STOCK'` and a
+    set `variant_id` reduces the variant's `stock` by its `quantity` (floored at
+    0); each non-zero deduction logged in `textile_stock_movements`
+    (`AUTO_DEDUCTION`).
+- **Customer approval** blocks only *release to production* (cancel/delete have
+  their own busy flags).
+- **ERP export** — `erp_exports` (`order_id`, `mode` (`SINGLE`|`BULK`),
+  `export_data`).
+- **Duplicate order** — RPC `duplicate_order` deep-copies an order (sub-orders,
+  products incl. the typed child by `type`, `product_files`, textile rows) in one
+  transaction; called from [`DuplicateDialog`](src/components/DuplicateDialog.tsx).
 
 ## Key Files (selection)
 
 | Path | Role |
 |------|------|
-| [`src/types/database.ts`](src/types/database.ts) | `Auftrag` / `AuftragDetailRow` incl. `termin`, `lieferung`, `prioritaet`, `notfall_aktiv`, `erstellt_am`, `erp_exportiert`, `archiviert`; `KundeKontaktRow` incl. `id`, `notiz`; `TeilauftragRow` incl. emergency, cancel, customer approval; enums; `TEILAUFTRAG_BEREICHE` / `teilauftragBereichLabel()` |
-| [`src/lib/historie.ts`](src/lib/historie.ts) | `schreibeHistorie()`, `HistorieEreignis` |
-| [`src/lib/auftragsStatus.ts`](src/lib/auftragsStatus.ts) | `synchronisiereAuftragsstatus(auftragId)` → RPC + update of `auftraege.status` |
-| [`src/const/teilauftragSelect.ts`](src/const/teilauftragSelect.ts) | `TEILAUFTRAG_SPALTEN` (see below) |
-| [`src/const/auftragSelect.ts`](src/const/auftragSelect.ts) | `AUFTRAG_SPALTEN` — `auftraege` plus customer join, used uniformly by `WorkArea`, `ContextPanel`, `auftragsStatus` |
-| [`src/lib/kunden.ts`](src/lib/kunden.ts) | `Kunde` (table type), `kontaktJoinZuKunde()` |
-| [`src/components/NeuerAuftragDialog.tsx`](src/components/NeuerAuftragDialog.tsx) | New order: customer search, `KundeDialog`, insert into `auftraege` (`kunde_id`, status `ANGEBOT`, optional Termin / Lieferung / Priorität) |
-| [`src/components/KundeDialog.tsx`](src/components/KundeDialog.tsx) | Create/edit Kunde (`kunden` insert/update) |
-| [`src/types/lfp.ts`](src/types/lfp.ts) | LFP sub-types, `LfpDetailJson` |
-| [`src/types/copyshop.ts`](src/types/copyshop.ts) | CopyShop sub-types, `CopyShopDetailJson` |
-| [`src/types/textil.ts`](src/types/textil.ts) | Textil enums, row types (Motive, Positionen, Zuordnungen) |
-| [`src/lib/kunde.ts`](src/lib/kunde.ts) | `kundenName()`; `kundeErfuelltPrepressKontakt()` |
-| [`src/lib/teilGlobal.ts`](src/lib/teilGlobal.ts) | Global mandatory-field validation, `istTeilAuftragVollstaendig`, `nextTeilStatus` incl. `automatischesPrepressErlaubt()` (e.g. `SONSTIGE_STEMPEL` is manual-only; STEMPEL covers the new typen) |
-| [`src/lib/lfp/validateLfpDetail.ts`](src/lib/lfp/validateLfpDetail.ts) | LFP `detail` validation |
-| [`src/lib/copyshop/validateCopyShopDetail.ts`](src/lib/copyshop/validateCopyShopDetail.ts) | CopyShop `detail` |
-| [`src/lib/stempel/validateStempelDetail.ts`](src/lib/stempel/validateStempelDetail.ts) | Stempel `detail` |
-| [`src/lib/sonstige/validateSonstigeDetail.ts`](src/lib/sonstige/validateSonstigeDetail.ts) | Sonstige `detail` |
-| [`src/lib/laser/validateLaserDetail.ts`](src/lib/laser/validateLaserDetail.ts) | Laser `detail` |
-| [`src/lib/textil/validateTextilDetail.ts`](src/lib/textil/validateTextilDetail.ts) | Textil: `textil.voll` / table logic |
-| [`src/App.tsx`](src/App.tsx) | Layout, shared state, mounts `OrderSidebar` / `WorkArea` / `ContextPanel` |
-| [`src/components/OrderSidebar.tsx`](src/components/OrderSidebar.tsx) | `auftraege` (join `kunden(name)`); "+ Neuer Auftrag"; selection / active row; archived filter |
-| [`src/components/ContextPanel.tsx`](src/components/ContextPanel.tsx) | Right column: status, actions, history integration |
-| [`src/components/WorkArea.tsx`](src/components/WorkArea.tsx) | Auftrag, Teilaufträge, file state, `DateiListe`, tabs, callbacks for the context panel; cancelled rows hidden from tabs |
-| [`src/components/DateiListe.tsx`](src/components/DateiListe.tsx) | Files UI; exports `Datei` type |
-| [`src/components/TeilauftragDetail.tsx`](src/components/TeilauftragDetail.tsx) | Cross-cutting Teilauftrag fields; dispatches per-Bereich; passes `auftragDateien` to e.g. Textil |
-| [`src/components/bereiche/TextilDetail.tsx`](src/components/bereiche/TextilDetail.tsx) | Textil tables; `detail.textil` plus status; Eigenware **STAMMDATEN** (Marke / Produkt / Farbe + Größe → `variante_id`, joined fields) vs **FREITEXT**; `detail.eigenware_modus` (`STAMMDATEN` \| `FREITEXT`); colours from `textil_varianten.farbe_hex` |
-| [`src/pages/BestandspflegeSeite.tsx`](src/pages/BestandspflegeSeite.tsx) | Stamp inventory page (own route) |
-| [`src/pages/TextilBestandSeite.tsx`](src/pages/TextilBestandSeite.tsx) | Textile master data (Marken / Produkte / Varianten), stock, reorder list (own route) |
-| [`src/components/AddTeilauftragOverlay.tsx`](src/components/AddTeilauftragOverlay.tsx) | Add Teilauftrag |
-| [`src/components/Login.tsx`](src/components/Login.tsx) | Login form |
-
-## Domain Model (in brief)
-
-- **Kunde** — table `kunden` (`name`, `email`, `telefon`, `notiz`,
-  `archiviert`, …). Created/edited via `KundeDialog`. `NeuerAuftragDialog`
-  searches by free-text `ilike` on `name` (only `archiviert = false`). Joined
-  on order rows as `KundeKontaktRow` (incl. `id`, `notiz`) for display and
-  forms.
-- **Auftrag** — `kunde_id` → Kunde, `status` (kept in sync via
-  `fn_berechne_auftragsstatus`). Header: optional `termin`, `lieferung`
-  (`ABHOLUNG` \| `VERSAND`), `prioritaet` (e.g. `NORMAL` \| `HOCH`),
-  `notfall_aktiv`, `erstellt_am`, `erp_exportiert`, `archiviert`.
-  Has 1…n **Teilaufträge**. New orders are created from `NeuerAuftragDialog`
-  with status `ANGEBOT`. Centre and right columns read/update `auftraege`
-  including the customer join.
-- **Dateien** — attached at the **Auftrag** level (`dateien.auftrag_id`),
-  loaded centrally in `WorkArea`, selectable for customer approval in
-  `ContextPanel`. UNC-path linking, **not upload**.
-- **Teilauftrag** — per-department production unit. Carries `bereich`,
-  `typ`, `status`, schedule fields, `verantwortlicher_id`,
-  `satzzeit_minuten`, emergency fields (`notfall_aktiv`,
-  `notfall_begruendung`), `storniert`, customer-approval fields, plus a
-  `detail` JSONB column whose shape is per-`bereich` (validated by
-  `src/lib/<bereich>/validate*Detail.ts`). **TEXTIL** uses the related
-  tables `textil_motive`, `textil_positionen`, `textil_zuordnungen`;
-  `detail.eigenware_modus` switches Eigenware between `STAMMDATEN` and
-  `FREITEXT`. Positions can carry a `variante_id` (FK to
-  `textil_varianten`).
-
-### Status (Auftrag & Teilauftrag)
-
-Order: `ANGEBOT` → `UNVOLLSTAENDIG` → `PREPRESS_BEREIT` →
-`PRODUKTION_BEREIT` → `FERTIG`.
-
-- **Aggregate Auftrag status is server-derived**: the client calls
-  `synchronisiereAuftragsstatus()`, which invokes `fn_berechne_auftragsstatus`
-  and writes the result back to `auftraege.status`. The client never composes
-  the aggregate locally.
-- **Per-Teilauftrag transitions** are governed by `nextTeilStatus()` in
-  [`teilGlobal`](src/lib/teilGlobal.ts) and the per-Bereich validators.
-- **`ContextPanel`** is the single point of manual workflow control: set
-  status, toggle emergency, trigger ERP insert, archive, write history
-  entries.
-
-### Teilauftrag-Bereich (enum `teilauftrag_bereich`)
-
-DB enum strings; display labels via `teilauftragBereichLabel()`.
-
-## Teilauftrag — Columns & Persistence (Client)
-
-**`TEILAUFTRAG_SPALTEN`:**
-`id`, `auftrag_id`, `bereich`, `typ`, `status`, `termin`, `lieferung`,
-`prioritaet`, `verantwortlicher_id`, `satzzeit_minuten`, `detail`,
-`notfall_aktiv`, `notfall_begruendung`, `storniert`,
-`kundenfreigabe_erforderlich`, `kundenfreigabe_liegt_vor`,
-`kundenfreigabe_datei_id`.
-
-- **Auftrag in the work area / context:** see `AUFTRAG_SPALTEN` —
-  `kunden(id, name, email, telefon, notiz)`, `termin`, `lieferung`,
-  `prioritaet`, `notfall_aktiv`, `erstellt_am`, `erp_exportiert`,
-  `archiviert` ([src/const/auftragSelect.ts](src/const/auftragSelect.ts)).
-
-## Supabase — Tables and Functions
-
-Actively used by the client:
-
-- **`kunden`** — `insert` / `update` / name search from `NeuerAuftragDialog` /
-  `KundeDialog`.
-- **`auftraege`** — incl. `kunde_id`, `status`, `termin`, `lieferung`,
-  `prioritaet`, `notfall_aktiv`, `erp_exportiert`, `archiviert`, plus
-  `kunden(…)` join.
-- **`teilauftraege`** — full `TEILAUFTRAG_SPALTEN`.
-- **`dateien`** — `id`, `auftrag_id`, `anzeigename`, `rolle`, …
-- **`historie`** — events with `ereignisart`, `person_id` (auth user),
-  optional `teilauftrag_id`, `begruendung`, `meta`.
-- **`erp_exporte`** — `auftrag_id`, `modus` (`EINZELN` \| `GESAMMELT`),
-  `exportdaten` (JSON), …
-- **`textil_motive`**, **`textil_positionen`**, **`textil_zuordnungen`** —
-  Textil detail. `textil_positionen` optionally carries `variante_id` (UUID)
-  for Eigenware sourced from master data.
-- **`textil_marken`**, **`textil_produkte`**, **`textil_varianten`** —
-  Textil master data (variants carry `farbe_hex`, `bestand`,
-  `mindestbestand`); used by `TextilBestandSeite` and Eigenware-Stammdaten in
-  `TextilDetail`.
-- **`textil_lager_bewegungen`** — per-variant stock movements
-  (`variante_id`, `typ`, `menge`, `notiz`, `person_id`).
-- **`stempel_modelle`** — master data for **model suggestions** in the
-  Stempel domain (`id`, `name`, `typ`, `max_breite_mm`, `max_hoehe_mm`,
-  `druckflaeche`, `bestand`, `aktiv`, …); RLS active, access for
-  `authenticated`.
-- **`lager_bewegungen`** — Stempel stock movements (auto-deductions on
-  production release plus manual bookings from Bestandspflege).
-- **`mitarbeiter`** — `id`, `email` (Verantwortlicher).
-- **RPC `fn_berechne_auftragsstatus(p_auftrag_id)`** — returns the target
-  aggregate status; the client writes it back to `auftraege.status` via
-  `synchronisiereAuftragsstatus`.
-
-## STEMPEL Bereich — Detail Mask & Logic
-
-### Typen (`teilauftraege.typ`)
-
-`TRODAT_PRINTY`, `HOLZSTEMPEL`, `STATIVSTEMPEL`, `DATUMSSTEMPEL`,
-`SONSTIGE_STEMPEL`, `NACHFUELLFARBE`, `STEMPELKISSEN`, `STEMPELPLATTE`.
-
-### `detail` (JSONB) shape — selected fields
-
-- **Format size (OR-mandatory):** `detail.format_breite`,
-  `detail.format_hoehe` (positive integer; at least one must be set).
-  - Required for all typen **except** `NACHFUELLFARBE` and `STEMPELKISSEN`.
-- **Model selection (only `TRODAT_PRINTY` / `HOLZSTEMPEL`):**
-  `detail.modell_id`, `detail.modell_name`.
-- **`NACHFUELLFARBE`:** `detail.farbe` (no `SONSTIGE`),
-  `detail.tinte_typ` (`NORMAL` | `HAUTVERTRAEGLICH` | `TEXTIL`),
-  quantity (see below), optional `detail.hinweis`.
-- **`STEMPELKISSEN`:** `detail.groesse` (`KLEIN` | `MITTEL` | `GROSS`),
-  `detail.farbe` (no `SONSTIGE`), quantity, optional `detail.hinweis`.
-- **Classic stamp typen:** `detail.farbe` (incl. `SONSTIGE` plus
-  `detail.farbe_sonstige`), `detail.beschreibung`.
-
-**Quantity field name:** the validator accepts either `detail.anzahl` or
-`detail.stueckzahl` (the UI persists `stueckzahl` and re-labels per typ).
-
-### Modellvorschlag (`TRODAT_PRINTY` / `HOLZSTEMPEL`)
-
-- Query: `stempel_modelle` filtered by `typ`, `aktiv = true`, and
-  `gte(max_*)` for each given dimension.
-- Display: full result list; selection persists (badge "Gewählt: …" plus
-  list highlight). Models with `bestand = 0` are flagged orange but remain
-  selectable.
-- UI sort:
-  1. **Exact matches first** (both dimensions equal),
-  2. then by combined slack: \(|max\_breite - breite| + |max\_hoehe - hoehe|\).
-
-### Prepress automatic eligibility
-
-`nextTeilStatus()` consults `automatischesPrepressErlaubt()`:
-
-- **STEMPEL — auto-advance allowed:** `TRODAT_PRINTY`, `HOLZSTEMPEL`,
-  `STATIVSTEMPEL`, `DATUMSSTEMPEL`, `NACHFUELLFARBE`, `STEMPELKISSEN`,
-  `STEMPELPLATTE`.
-- **STEMPEL — manual only:** `SONSTIGE_STEMPEL`.
+| [`src/types/product.ts`](src/types/product.ts) | Typed product model: `LoadedProduct`, `ProductWriteInput`, `ChildTable`, `childTableForType()` |
+| [`src/types/database.ts`](src/types/database.ts) | App-facing row/enum aliases over the generated `supabase.ts` |
+| [`src/types/supabase.ts`](src/types/supabase.ts) | Generated DB types (regenerate after migrations) |
+| [`src/services/subOrderProductService.ts`](src/services/subOrderProductService.ts) | Product CRUD (parent + typed child), file links |
+| [`src/services/orderService.ts`](src/services/orderService.ts) | Orders, list, `recalculateOrderStatus`, `duplicate_order` |
+| [`src/services/subOrderService.ts`](src/services/subOrderService.ts) | Sub-orders (`department_orders`) |
+| [`src/services/textileService.ts`](src/services/textileService.ts) / [`textileMasterDataService.ts`](src/services/textileMasterDataService.ts) | Textile per-order + master data |
+| [`src/services/historyService.ts`](src/services/historyService.ts) | History events |
+| [`src/lib/subOrderShared.ts`](src/lib/subOrderShared.ts) | Cross-cutting completeness + `nextSubOrderStatus` |
+| [`src/lib/pdf/orderPdf.ts`](src/lib/pdf/orderPdf.ts) | PDF production sheet (German output is intentional) |
+| [`.plans/DB_RENAME_MAP.md`](.plans/DB_RENAME_MAP.md) | German→English schema map (authoritative) |
 
 ## Notes for Developers
 
-- All UI strings, form fields, status texts, and DB enum values are in
-  **German**. Keep the convention when adding code.
-- The colour system is centralised in `src/index.css` as CSS variables —
-  consume those tokens, do not hardcode colour literals in components.
-- The application architecture (three-column shell, per-Bereich modules,
-  server-derived aggregate status, file linking instead of upload) is fixed;
-  no restructuring is intended.
-- For the **current implementation status** and known technical debt, see
-  [current_state.md](current_state.md).
+- The application architecture (three-column shell, per-department modules,
+  server-derived aggregate status, file linking instead of upload, products as
+  parent + typed child tables) is fixed; no restructuring intended.
+- The colour system is centralised in `src/index.css` as CSS variables — consume
+  the tokens, don't hardcode colours.
+- **Open refactor streams** (see `.plans/`): value-rename of stored enum strings
+  to English; the i18next UI-string pass; per-type Zod validation schemas (to
+  replace the per-department validators); the TS-identifier `subOrder` →
+  `departmentOrder` rename. Don't fold these into unrelated work.
+- For current status / known debt see [current_state.md](current_state.md).

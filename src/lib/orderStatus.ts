@@ -1,10 +1,9 @@
 import type { OrderStatus, SubOrderRow } from '../types/database'
 
-// Mirrors the explicit CASE ordering of the former Postgres fn_calculate_order_status.
-// Statuses not in the production workflow (QUOTE, INVOICED) rank as 0 so they sort
-// alongside the SQL function's ELSE branch — i.e. they would "win" as the lowest if
-// they ever appeared in a non-cancelled sub-order. In practice sub-orders only carry
-// INCOMPLETE / PREPRESS_READY / PRODUCTION_READY / DONE.
+// Statuses not in the production workflow (QUOTE, INVOICED) rank as 0 so they
+// would "win" as the lowest if they ever appeared in a non-cancelled sub-order.
+// In practice sub-orders only carry INCOMPLETE / PREPRESS_READY /
+// PRODUCTION_READY / DONE.
 const STATUS_RANK: Record<OrderStatus, number> = {
   QUOTE: 0,
   INVOICED: 0,
