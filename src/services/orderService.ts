@@ -49,7 +49,18 @@ export type OrderListParams = {
 
 const ORDER_LIST_COLUMNS = 'id, order_number, status, created_at, customers(name)'
 
+/**
+ * Service layer for the `orders` table. All DB access goes through here so
+ * components/queries don't touch `supabase` directly. Read methods that select a
+ * `customers(...)` join return it flattened to a single row via
+ * {@link flattenCustomerJoin}.
+ *
+ * Note on status: order status is *derived* from the sub-orders, never set by the
+ * user directly except for terminal transitions. Two collaborators do this work —
+ * see {@link recalculateOrderStatus} for the calculate-vs-recalculate split.
+ */
 class OrderService {
+  /** Filtered order list for the sidebar (archived flag, customer, status, deadline/intake ranges). Newest first. */
   async getOrdersForList(params: OrderListParams): Promise<OrderListEntry[]> {
     let query = supabase
       .from('orders')
@@ -67,6 +78,7 @@ class OrderService {
     return ((data ?? []) as unknown as OrderListEntry[]).map(flattenCustomerJoin)
   }
 
+  /** Lightweight, non-archived order summaries (id, number, status, created, customer name). Newest first. */
   async getOrders(): Promise<OrderSummaryRow[]> {
     const { data, error } = await supabase
       .from('orders')
@@ -77,6 +89,7 @@ class OrderService {
     return ((data ?? []) as unknown as OrderSummaryRow[]).map(flattenCustomerJoin)
   }
 
+  /** Full order row by id, or `null` if not found. */
   async getOrderById(id: string): Promise<Auftrag | null> {
     const { data, error } = await supabase
       .from('orders')
@@ -88,6 +101,7 @@ class OrderService {
     return flattenCustomerJoin(data as unknown as Auftrag)
   }
 
+  /** Insert a new order and return the created row. */
   async createOrder(payload: OrderInsert): Promise<Auftrag> {
     const { data, error } = await supabase
       .from('orders')
@@ -98,6 +112,7 @@ class OrderService {
     return flattenCustomerJoin(data as unknown as Auftrag)
   }
 
+  /** Patch arbitrary order fields and return the updated row. */
   async updateOrder(id: string, patch: OrderUpdate): Promise<Auftrag> {
     const { data, error } = await supabase
       .from('orders')
@@ -109,6 +124,12 @@ class OrderService {
     return flattenCustomerJoin(data as unknown as Auftrag)
   }
 
+  /**
+   * Write an explicit status to the order — a *direct* set, no derivation.
+   * Use this only for deliberate manual transitions where the caller already knows
+   * the target status. To re-derive status from the sub-orders, use
+   * {@link recalculateOrderStatus} instead.
+   */
   async setOrderStatus(id: string, status: OrderStatus): Promise<Auftrag> {
     const { data, error } = await supabase
       .from('orders')
@@ -120,6 +141,7 @@ class OrderService {
     return flattenCustomerJoin(data as unknown as Auftrag)
   }
 
+  /** Soft-archive an order (`is_archived = true`); excludes it from the sidebar list. */
   async archiveOrder(id: string): Promise<void> {
     const { error } = await supabase
       .from('orders')
@@ -128,6 +150,7 @@ class OrderService {
     if (error) throw error
   }
 
+  /** Cancel all not-yet-cancelled sub-orders, then archive the order. Two writes, not transactional. */
   async archiveOrderWithCancelledSubOrders(orderId: string): Promise<void> {
     const { error: subError } = await supabase
       .from('department_orders')
@@ -142,6 +165,7 @@ class OrderService {
     if (error) throw error
   }
 
+  /** Terminal transition: mark `INVOICED` and archive in one update. */
   async markOrderBilled(id: string): Promise<void> {
     const { error } = await supabase
       .from('orders')
@@ -150,11 +174,47 @@ class OrderService {
     if (error) throw error
   }
 
+  /** Hard-delete an order row (cascades per FK constraints). Prefer {@link archiveOrder} for normal flow. */
   async deleteOrder(id: string): Promise<void> {
     const { error } = await supabase.from('orders').delete().eq('id', id)
     if (error) throw error
   }
 
+  /**
+   * Re-derive and persist the order's aggregate status from its sub-orders via a
+   * DB-round-trip: reads the order + its sub-orders fresh from the database,
+   * computes the next status with the pure {@link calculateOrderStatus}, and writes
+   * it back. It re-reads from the DB rather than trusting the client cache.
+   *
+   * @deprecated TRANSITIONAL — to be removed. This is the legacy "distrust the cache,
+   * re-read from the DB" strategy for keeping order status fresh. The refactor is
+   * converging on the optimistic alternative: compute from the already-authoritative
+   * React Query cache and persist directly — `calculateOrderStatus` + `setOrderStatus`
+   * + `patchOrderStatusInCache`. See `useCreateSubOrder` (src/queries/subOrderQueries.ts)
+   * for the canonical example of that pattern.
+   *
+   * The pure {@link calculateOrderStatus} is NOT deprecated — both strategies depend on
+   * it. Only this DB-round-trip wrapper is going away.
+   *
+   * DO NOT add new callers. Removal blockers — the only thing keeping it alive:
+   *   - `ContextPanel` is the sole live consumer (not yet migrated): one direct call
+   *     plus the `recalculateOrderStatusAfterSubOrderAction` helper used after each
+   *     manual workflow action (~11 call sites total).
+   *   - The `useRecalculateOrderStatus` wrapper in src/queries/orderQueries.ts is
+   *     ALREADY orphaned (zero callers) and can be deleted immediately.
+   *
+   * Removal checklist:
+   *   1. Migrate each `ContextPanel` action to the optimistic trio above. Note the
+   *      multi-row actions (e.g. `archiveOrderWithCancelledSubOrders`, which cancels
+   *      all sub-orders at once) need their cache writes in place first, so the
+   *      cached sub-order list reflects the change before `calculateOrderStatus` runs.
+   *   2. Delete `useRecalculateOrderStatus` (already unused).
+   *   3. Delete this method.
+   *
+   * Historical: this replaced the former Postgres RPC `fn_calculate_order_status`
+   * (reimplemented in TS); it is the cache-independent safety net only until the
+   * migration above completes.
+   */
   async recalculateOrderStatus(orderId: string): Promise<Auftrag> {
     const { data: inputs, error: readError } = await supabase
       .from('orders')
@@ -179,6 +239,13 @@ class OrderService {
     return flattenCustomerJoin(data as unknown as Auftrag)
   }
 
+  /**
+   * Deep-copy an order via the `duplicate_order` Postgres RPC — sub-orders, products
+   * (incl. typed child by `type`), `product_files`, and textile rows — in one
+   * transaction. This stays server-side *because* it must be atomic; it's the one
+   * status/data RPC deliberately kept (unlike the retired `fn_calculate_order_status`).
+   * Returns the new order id.
+   */
   async duplicateOrder(params: {
     source_order_id: string
     new_priority: PriorityEnum | null
@@ -192,6 +259,11 @@ class OrderService {
     return data as string
   }
 
+  /**
+   * Realtime subscription: fires `onChanged(customerId)` on any customers
+   * INSERT/UPDATE/DELETE so the order list can refresh denormalized customer names.
+   * Returns an unsubscribe function.
+   */
   subscribeToCustomerChanges(onChanged: (customerId: string) => void): () => void {
     const channel = supabase
       .channel('orderlist-kunden-refresh')

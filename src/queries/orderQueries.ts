@@ -160,6 +160,14 @@ export function useUpdateOrder() {
   })
 }
 
+/**
+ * @deprecated ORPHANED — zero callers; safe to delete now. Thin wrapper over the
+ * transitional `orderService.recalculateOrderStatus` (the DB-round-trip status path).
+ * `ContextPanel` calls the service method directly, not this hook. Kept only so the
+ * deprecation is visible; remove it together with the service method once
+ * `ContextPanel` migrates to the optimistic pattern (`calculateOrderStatus` +
+ * `setOrderStatus` + `patchOrderStatusInCache`, as in `useCreateSubOrder`).
+ */
 export function useRecalculateOrderStatus() {
   const queryClient = useQueryClient()
   return useMutation<Auftrag, Error, string>({
