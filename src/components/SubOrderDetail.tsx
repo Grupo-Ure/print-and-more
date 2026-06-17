@@ -18,7 +18,6 @@ import {
   type SubOrderRow,
   type SubOrderUpdate,
 } from '../types/database'
-import { subOrderDepartmentLabel } from '../const/departmentAbbreviation'
 import { DeadlinePicker } from './fields/DeadlinePicker'
 import { DeliverySelect } from './fields/DeliverySelect'
 import { PrioritySelect } from './fields/PrioritySelect'
@@ -117,9 +116,9 @@ export function SubOrderDetail({
           (local.department === 'STAMP' && local.type !== 'OTHER_STAMP') ||
           (local.department === 'LASER_ENGRAVING' && local.type !== 'OTHER_LASER'))
   const hasSeparateDelivery = local.delivery != null && local.delivery !== orderDeliveryMode
-  const hasSeparatePriority = local.priority !== orderPriorityMode
+  const hasSeparatePriority = local.priority != null && local.priority !== orderPriorityMode
   const effectiveDelivery = (hasSeparateDelivery ? local.delivery! : orderDeliveryMode) as DeliveryChoice
-  const effectivePriority = hasSeparatePriority ? local.priority : orderPriorityMode
+  const effectivePriority = hasSeparatePriority ? local.priority! : orderPriorityMode
   const validationErrors = validateSubOrderCommonFields(
     {
       ...local,
@@ -142,6 +141,7 @@ export function SubOrderDetail({
       const mergedWithDefaults: SubOrderRow = {
         ...merged,
         delivery: (merged.delivery ?? orderDeliveryMode) as DeliveryChoice,
+        priority: merged.priority ?? orderPriorityMode,
       }
       const isComplete = isSubOrderComplete(mergedWithDefaults, serverSnapshot.status, hasProductsRef.current)
       const nextStatus = nextSubOrderStatus(serverSnapshot.status, serverSnapshot, merged, isComplete, customerMeetsPrepressRequirements, orderStatus)
@@ -175,7 +175,7 @@ export function SubOrderDetail({
         if (!pdfOk) showError('PDF could not be generated')
       }
     },
-    [orderDeliveryMode, subOrder.id, subOrder.order_id, orderStatus, onUpdated, customerMeetsPrepressRequirements, showError]
+    [orderDeliveryMode, orderPriorityMode, subOrder.id, subOrder.order_id, orderStatus, onUpdated, customerMeetsPrepressRequirements, showError]
   )
 
   // A department component added/edited/deleted a product: refresh the count
@@ -405,7 +405,7 @@ export function SubOrderDetail({
                 onCheckedChange={checked => {
                   const isChecked = checked === true
                   if (!isChecked) {
-                    void save({ priority: orderPriorityMode })
+                    void save({ priority: null })
                   } else {
                     const alternativePriority: Priority = orderPriorityMode === 'HIGH' ? 'NORMAL' : 'HIGH'
                     void save({ priority: alternativePriority })

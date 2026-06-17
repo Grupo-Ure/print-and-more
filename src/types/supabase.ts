@@ -550,7 +550,7 @@ export type Database = {
           is_cancelled: boolean
           is_emergency: boolean
           order_id: string
-          priority: Database["public"]["Enums"]["priority_type"]
+          priority: Database["public"]["Enums"]["priority_type"] | null
           sort_order: number
           status: Database["public"]["Enums"]["order_status"]
           type: string | null
@@ -572,7 +572,7 @@ export type Database = {
           is_cancelled?: boolean
           is_emergency?: boolean
           order_id: string
-          priority?: Database["public"]["Enums"]["priority_type"]
+          priority?: Database["public"]["Enums"]["priority_type"] | null
           sort_order?: number
           status?: Database["public"]["Enums"]["order_status"]
           type?: string | null
@@ -594,7 +594,7 @@ export type Database = {
           is_cancelled?: boolean
           is_emergency?: boolean
           order_id?: string
-          priority?: Database["public"]["Enums"]["priority_type"]
+          priority?: Database["public"]["Enums"]["priority_type"] | null
           sort_order?: number
           status?: Database["public"]["Enums"]["order_status"]
           type?: string | null

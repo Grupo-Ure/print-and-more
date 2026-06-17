@@ -9,7 +9,9 @@ CREATE TABLE IF NOT EXISTS "public"."department_orders" (
     "status" "public"."order_status" DEFAULT 'INCOMPLETE'::"public"."order_status" NOT NULL,
     "deadline" "date",
     "delivery" "public"."delivery_type",
-    "priority" "public"."priority_type" DEFAULT 'NORMAL'::"public"."priority_type" NOT NULL,
+    -- Nullable, no default: NULL means "inherit the parent order's priority"
+    -- (mirrors delivery above). Resolution happens in application code.
+    "priority" "public"."priority_type",
     "assignee_id" "uuid",
     "typesetting_minutes" integer,
     "data_status" "text",

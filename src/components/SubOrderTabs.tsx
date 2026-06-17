@@ -109,7 +109,7 @@ function AddSubOrderDialog({ open, onOpenChange }: AddSubOrderDialogProps) {
           order_id: activeOrderId,
           department,
           status: 'INCOMPLETE',
-          priority: order?.priority ?? 'NORMAL',
+          priority: null,
           detail: {},
           deadline,
           delivery: order?.delivery ?? 'PICKUP',
