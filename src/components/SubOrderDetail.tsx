@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { subOrderService } from '../services/subOrderService'
-import { subOrderProductService } from '../services/subOrderProductService'
+import { useQueryClient } from '@tanstack/react-query'
+import { useUpdateSubOrder } from '../queries/subOrderQueries'
+import { useProductsBySubOrderId, productKeys } from '../queries/productQueries'
+import type { LoadedProduct } from '../types/product'
 import { departmentAbbreviation } from '../const/departmentAbbreviation'
 import { customerMeetsPrepressContact } from '../lib/customer'
 import {
@@ -71,12 +73,13 @@ export function SubOrderDetail({
   const serverSnapshotRef = useRef(subOrder)
   const localRef = useRef(subOrder)
   const [local, setLocal] = useState(subOrder)
-  const [savePending, setSavePending] = useState(false)
-  // Whether the active sub-order has at least one product. Drives completeness
-  // for the JSONB departments (replaces the old detail.hat_produkte flag).
-  // A ref so `save` always reads the latest value without re-memoising.
-  const hasProductsRef = useRef(false)
   const { showError } = useToast()
+  const queryClient = useQueryClient()
+  const updateSubOrder = useUpdateSubOrder()
+  // Subscribe to the shared products cache (same key the department product
+  // components use — no extra fetch). `save` reads the latest count imperatively
+  // from this cache to drive completeness, replacing the old hasProducts ref.
+  useProductsBySubOrderId(subOrder.id)
 
   const orderDeliveryMode = (orderDelivery ?? 'PICKUP') as DeliveryChoice
   const orderPriorityMode: Priority = orderPriority
@@ -143,10 +146,12 @@ export function SubOrderDetail({
         delivery: (merged.delivery ?? orderDeliveryMode) as DeliveryChoice,
         priority: merged.priority ?? orderPriorityMode,
       }
-      const isComplete = isSubOrderComplete(mergedWithDefaults, serverSnapshot.status, hasProductsRef.current)
+      // Read product presence fresh from the cache (kept authoritative by the
+      // product save/delete mutations) — avoids a stale closure on hasProducts.
+      const cachedProducts = queryClient.getQueryData<LoadedProduct[]>(productKeys.bySubOrderId(subOrder.id)) ?? []
+      const isComplete = isSubOrderComplete(mergedWithDefaults, serverSnapshot.status, cachedProducts.length > 0)
       const nextStatus = nextSubOrderStatus(serverSnapshot.status, serverSnapshot, merged, isComplete, customerMeetsPrepressRequirements, orderStatus)
       const previousStatus = serverSnapshotRef.current.status
-      setSavePending(true)
       const { department: departmentPatch, ...patchWithoutDepartment } = patch
       const isValidDepartment =
         departmentPatch != null && (SUB_ORDER_DEPARTMENTS as readonly string[]).includes(departmentPatch)
@@ -159,13 +164,11 @@ export function SubOrderDetail({
       }
       let row: SubOrderRow
       try {
-        row = await subOrderService.updateSubOrder(subOrder.id, subOrderUpdate)
+        row = await updateSubOrder.mutateAsync({ id: subOrder.id, patch: subOrderUpdate })
       } catch {
-        setSavePending(false)
         showError('Save failed')
         return
       }
-      setSavePending(false)
       serverSnapshotRef.current = row
       localRef.current = row
       setLocal(row)
@@ -175,48 +178,20 @@ export function SubOrderDetail({
         if (!pdfOk) showError('PDF could not be generated')
       }
     },
-    [orderDeliveryMode, orderPriorityMode, subOrder.id, subOrder.order_id, orderStatus, onUpdated, customerMeetsPrepressRequirements, showError]
+    [orderDeliveryMode, orderPriorityMode, subOrder.id, subOrder.order_id, orderStatus, onUpdated, customerMeetsPrepressRequirements, showError, updateSubOrder, queryClient]
   )
 
-  // A department component added/edited/deleted a product: refresh the count
-  // and recompute the sub-order status (the in-memory replacement for the old
-  // detail.hat_produkte write). save({}) recomputes status from the fresh
-  // hasProducts, persists it, and fires the PREPRESS_READY PDF.
+  // A department component added/edited/deleted a product: recompute and persist
+  // the sub-order status (the replacement for the old detail.hat_produkte write).
+  // The products cache is already authoritative (patched by the product
+  // save/delete mutations); save({}) recomputes status from the fresh count,
+  // persists it, and fires the PREPRESS_READY PDF.
   const onProductsChanged = useCallback(
-    (hasProducts: boolean) => {
-      hasProductsRef.current = hasProducts
+    () => {
       void save({})
     },
     [save]
   )
-
-  // Seed hasProducts when the active sub-order loads, for the product departments.
-  // Seeds the ref only — no status recompute on load (load reads persisted status).
-  useEffect(() => {
-    hasProductsRef.current = false
-    const department = subOrder.department
-    const isProductDepartment =
-      department === 'LFP' ||
-      department === 'COPYSHOP' ||
-      department === 'STAMP' ||
-      department === 'LASER_ENGRAVING' ||
-      department === 'OTHER' ||
-      department === 'TEXTILE'
-    if (!subOrder.id || !isProductDepartment) return
-    let alive = true
-    void (async () => {
-      try {
-        const rows = await subOrderProductService.getProductsBySubOrderId(subOrder.id)
-        if (!alive) return
-        hasProductsRef.current = rows.length > 0
-      } catch {
-        // Leave hasProducts as false on failure; the user can retry by editing.
-      }
-    })()
-    return () => {
-      alive = false
-    }
-  }, [subOrder.id, subOrder.department])
 
   const effectiveDeadline = local.deadline ?? orderDeadline
   const deadlineIso = effectiveDeadline
@@ -236,7 +211,7 @@ export function SubOrderDetail({
   }, [subOrder.id, subOrder.deadline, orderDeadline])
 
   useEffect(() => {
-    // Vererbung beim Laden: wenn Teilauftrag-Termin null und Auftrag hat Termin → im Hintergrund speichern.
+    // Inheritance on load: if the sub-order deadline is null and the order has one → save in the background.
     if (!subOrder.id) return
     if (serverSnapshotRef.current.deadline != null) return
     if (!orderDeadlineIso) return
@@ -244,7 +219,7 @@ export function SubOrderDetail({
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
-          const row = await subOrderService.updateSubOrder(subOrder.id, { deadline: orderDeadlineIso })
+          const row = await updateSubOrder.mutateAsync({ id: subOrder.id, patch: { deadline: orderDeadlineIso } })
           if (!alive) return
           serverSnapshotRef.current = row
           localRef.current = row
@@ -260,7 +235,7 @@ export function SubOrderDetail({
       alive = false
       window.clearTimeout(timer)
     }
-  }, [orderDeadlineIso, onUpdated, subOrder.id, showError])
+  }, [orderDeadlineIso, onUpdated, subOrder.id, showError, updateSubOrder])
 
   useEffect(() => {
     if (!subOrder.id) return
@@ -269,7 +244,7 @@ export function SubOrderDetail({
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
-          const row = await subOrderService.updateSubOrder(subOrder.id, { delivery: orderDeliveryMode })
+          const row = await updateSubOrder.mutateAsync({ id: subOrder.id, patch: { delivery: orderDeliveryMode } })
           if (!alive) return
           serverSnapshotRef.current = row
           localRef.current = row
@@ -285,40 +260,14 @@ export function SubOrderDetail({
       alive = false
       window.clearTimeout(timer)
     }
-  }, [orderDeliveryMode, local.delivery, onUpdated, subOrder.id, showError])
-
-  useEffect(() => {
-    if (!subOrder.id) return
-    if (local.priority !== 'NORMAL') return
-    if (!orderPriorityMode || orderPriorityMode === 'NORMAL') return
-    let alive = true
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        try {
-          const row = await subOrderService.updateSubOrder(subOrder.id, { priority: orderPriorityMode })
-          if (!alive) return
-          serverSnapshotRef.current = row
-          localRef.current = row
-          setLocal(row)
-          onUpdated(row)
-        } catch {
-          if (!alive) return
-          showError('Save failed')
-        }
-      })()
-    }, 300)
-    return () => {
-      alive = false
-      window.clearTimeout(timer)
-    }
-  }, [orderPriorityMode, local.priority, onUpdated, subOrder.id, showError])
+  }, [orderDeliveryMode, local.delivery, onUpdated, subOrder.id, showError, updateSubOrder])
 
   return (
     <div className="td">
       <div className="td-kopf" aria-label="Sub-order">
         <span className="td-bkz">[{departmentAbbreviation(local.department)}]</span>
         <StatusBadge status={local.status} />
-        {savePending && <span aria-label="Saving">…</span>}
+        {updateSubOrder.isPending && <span aria-label="Saving">…</span>}
       </div>
       {shouldValidate &&
         local.department !== 'OTHER' &&
