@@ -68,12 +68,15 @@ export function SubOrderDetail({
   orderFiles: FileRow[]
   onUpdated: (updatedSubOrder: SubOrderRow) => void
 }) {
-  const serverSnapshotRef = useRef(subOrder)
-  const localRef = useRef(subOrder)
-  const [local, setLocal] = useState(subOrder)
-  const { showError } = useToast()
   const queryClient = useQueryClient()
   const updateSubOrder = useUpdateSubOrder()
+  const { showError } = useToast()
+
+  const savedRef = useRef(subOrder)
+  const draftRef = useRef(subOrder)
+
+  const [draft, setDraft] = useState(subOrder)
+  
   
   // Subscribe to the shared products cache (same key the department product
   // components use — no extra fetch). `save` reads the latest count imperatively
