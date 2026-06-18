@@ -37,22 +37,7 @@ import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import { StatusBadge } from './StatusBadge'
 import './WorkArea.css'
 
-type Props = {
-  subOrder: SubOrderRow
-  orderStatus: OrderStatus
-  /** Order deadline (fallback/inheritance for sub-order) */
-  orderDeadline: string | null
-  /** Order delivery mode (inheritance) */
-  orderDelivery: DeliveryChoice | null
-  /** Order priority (inheritance) */
-  orderPriority: Priority
-  /** Customer contact for the active order (name, email, phone, address). */
-  orderCustomer: Customer | null
-  orderFiles: FileRow[]
-  onUpdated: (updatedSubOrder: SubOrderRow) => void
-}
-
-/** YYYY-MM-DD für Vergleich (Lieferdatum vs. Auftrags-Deadline) */
+/** YYYY-MM-DD for comparison (delivery date vs. order deadline) */
 function normalizeSubOrderDeadline(value: string | null | undefined): string | null {
   if (value == null) return null
   const trimmed = String(value).trim()
@@ -69,13 +54,27 @@ export function SubOrderDetail({
   orderCustomer,
   orderFiles,
   onUpdated,
-}: Props) {
+}: {
+  subOrder: SubOrderRow
+  orderStatus: OrderStatus
+  /** Order deadline (fallback/inheritance for sub-order) */
+  orderDeadline: string | null
+  /** Order delivery mode (inheritance) */
+  orderDelivery: DeliveryChoice | null
+  /** Order priority (inheritance) */
+  orderPriority: Priority
+  /** Customer contact for the active order (name, email, phone, address). */
+  orderCustomer: Customer | null
+  orderFiles: FileRow[]
+  onUpdated: (updatedSubOrder: SubOrderRow) => void
+}) {
   const serverSnapshotRef = useRef(subOrder)
   const localRef = useRef(subOrder)
   const [local, setLocal] = useState(subOrder)
   const { showError } = useToast()
   const queryClient = useQueryClient()
   const updateSubOrder = useUpdateSubOrder()
+  
   // Subscribe to the shared products cache (same key the department product
   // components use — no extra fetch). `save` reads the latest count imperatively
   // from this cache to drive completeness, replacing the old hasProducts ref.
@@ -86,13 +85,13 @@ export function SubOrderDetail({
 
   useEffect(() => {
     if (subOrder.id !== localRef.current.id) {
-      // Anderer Teilaufrag — immer neu laden
+      // Different sub-order — always reload
       setLocal(subOrder)
       serverSnapshotRef.current = subOrder
       localRef.current = subOrder
       return
     }
-    // Gleicher Teilaufrag: Sync bei Status- oder Detail-Änderung vom Server; ID-Wechsel oben.
+    // Same sub-order: sync on status or detail change from the server; ID change handled above.
     if (subOrder.status !== localRef.current.status || subOrder.detail !== localRef.current.detail) {
       setLocal(prev => ({
         ...prev,
@@ -140,7 +139,7 @@ export function SubOrderDetail({
         ...patch,
         detail: patch.detail !== undefined ? patch.detail : current.detail,
         type: patch.type !== undefined ? patch.type : current.type,
-      } as SubOrderRow
+      }
       const mergedWithDefaults: SubOrderRow = {
         ...merged,
         delivery: (merged.delivery ?? orderDeliveryMode) as DeliveryChoice,
@@ -209,58 +208,6 @@ export function SubOrderDetail({
     const aNorm = normalizeSubOrderDeadline(orderDeadline)
     setSeparateDeadline(tNorm != null && aNorm != null && tNorm !== aNorm)
   }, [subOrder.id, subOrder.deadline, orderDeadline])
-
-  useEffect(() => {
-    // Inheritance on load: if the sub-order deadline is null and the order has one → save in the background.
-    if (!subOrder.id) return
-    if (serverSnapshotRef.current.deadline != null) return
-    if (!orderDeadlineIso) return
-    let alive = true
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        try {
-          const row = await updateSubOrder.mutateAsync({ id: subOrder.id, patch: { deadline: orderDeadlineIso } })
-          if (!alive) return
-          serverSnapshotRef.current = row
-          localRef.current = row
-          setLocal(row)
-          onUpdated(row)
-        } catch {
-          if (!alive) return
-          showError('Save failed')
-        }
-      })()
-    }, 300)
-    return () => {
-      alive = false
-      window.clearTimeout(timer)
-    }
-  }, [orderDeadlineIso, onUpdated, subOrder.id, showError, updateSubOrder])
-
-  useEffect(() => {
-    if (!subOrder.id) return
-    if (local.delivery != null) return
-    let alive = true
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        try {
-          const row = await updateSubOrder.mutateAsync({ id: subOrder.id, patch: { delivery: orderDeliveryMode } })
-          if (!alive) return
-          serverSnapshotRef.current = row
-          localRef.current = row
-          setLocal(row)
-          onUpdated(row)
-        } catch {
-          if (!alive) return
-          showError('Save failed')
-        }
-      })()
-    }, 300)
-    return () => {
-      alive = false
-      window.clearTimeout(timer)
-    }
-  }, [orderDeliveryMode, local.delivery, onUpdated, subOrder.id, showError, updateSubOrder])
 
   return (
     <div className="td">
