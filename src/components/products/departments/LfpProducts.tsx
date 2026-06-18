@@ -25,7 +25,6 @@ type Props = {
   subOrder: SubOrderRow
   subOrderStatus: OrderStatus
   orderFiles?: FileRow[]
-  onProductsChanged?: (hasProducts: boolean) => void
 }
 
 const FORM_BY_TYPE: Record<string, ComponentType<ProductFormProps>> = {
@@ -39,13 +38,13 @@ const FORM_BY_TYPE: Record<string, ComponentType<ProductFormProps>> = {
   OTHER_LFP: OtherLfpForm,
 }
 
-export function LfpProducts({ subOrder, subOrderStatus, orderFiles = [], onProductsChanged }: Props) {
-  const ed = useProductEditor(subOrder, subOrderStatus, onProductsChanged)
+export function LfpProducts({ subOrder, subOrderStatus, orderFiles = [] }: Props) {
+  const productEditor = useProductEditor(subOrder, subOrderStatus)
   const active =
-    ed.mode.kind === 'edit'
-      ? { type: ed.mode.product.type, product: ed.mode.product }
-      : ed.mode.kind === 'add'
-        ? { type: ed.mode.type, product: null }
+    productEditor.mode.kind === 'edit'
+      ? { type: productEditor.mode.product.type, product: productEditor.mode.product }
+      : productEditor.mode.kind === 'add'
+        ? { type: productEditor.mode.type, product: null }
         : null
   const ActiveForm = active ? FORM_BY_TYPE[active.type] : null
 
@@ -53,16 +52,16 @@ export function LfpProducts({ subOrder, subOrderStatus, orderFiles = [], onProdu
     <div className="flex flex-col gap-4">
       <h3 className="text-sm font-semibold">Large-format print — Details</h3>
 
-      {ed.requiresUnlock ? (
-        <Button type="button" variant="outline" onClick={ed.requestUnlock}>
+      {productEditor.requiresUnlock ? (
+        <Button type="button" variant="outline" onClick={productEditor.requestUnlock}>
           Unlock editing
         </Button>
       ) : (
         <>
-          {ed.mode.kind !== 'edit' && (
+          {productEditor.mode.kind !== 'edit' && (
             <div className="flex flex-col gap-1">
               <Label>Type</Label>
-              <Select value={ed.mode.kind === 'add' ? ed.mode.type : undefined} onValueChange={ed.openAdd}>
+              <Select value={productEditor.mode.kind === 'add' ? productEditor.mode.type : undefined} onValueChange={productEditor.openAdd}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Add a product…" />
                 </SelectTrigger>
@@ -84,10 +83,10 @@ export function LfpProducts({ subOrder, subOrderStatus, orderFiles = [], onProdu
               subOrderStatus={subOrderStatus}
               product={active.product}
               orderFiles={orderFiles}
-              initialFileIds={active.product ? ed.fileIdsFor(active.product.id) : []}
-              sortOrder={active.product ? active.product.sort_order : ed.products.length}
-              onSaved={ed.handleSaved}
-              onCancel={ed.close}
+              initialFileIds={active.product ? productEditor.fileIdsFor(active.product.id) : []}
+              sortOrder={active.product ? active.product.sort_order : productEditor.products.length}
+              onSaved={productEditor.handleSaved}
+              onCancel={productEditor.close}
             />
           )}
         </>
@@ -95,12 +94,12 @@ export function LfpProducts({ subOrder, subOrderStatus, orderFiles = [], onProdu
 
       <div className="border-t pt-3">
         <h3 className="text-sm font-semibold">Products</h3>
-        {ed.productsLoading ? (
+        {productEditor.productsLoading ? (
           <p className="text-xs text-muted-foreground">Loading products…</p>
         ) : (
           <LfpProductsTable
-            data={ed.products}
-            meta={{ onEdit: ed.openEdit, onDelete: ed.handleDelete, orderFiles, filesByProduct: ed.filesByProduct }}
+            data={productEditor.products}
+            meta={{ onEdit: productEditor.openEdit, onDelete: productEditor.handleDelete, orderFiles, filesByProduct: productEditor.filesByProduct }}
           />
         )}
       </div>

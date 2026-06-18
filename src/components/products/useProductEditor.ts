@@ -1,8 +1,7 @@
 /**
  * Shared plumbing for the per-department product detail components: the Stage 4
- * query reads, the add/edit mode machine, delete, unlock gating, and the
- * `onProductsChanged` status-cascade wiring. Each department detail composes this
- * with its own type dropdown, forms, and table.
+ * query reads, the add/edit mode machine, delete, and unlock gating. Each
+ * department detail composes this with its own type dropdown, forms, and table.
  */
 
 import { useCallback, useMemo, useState } from 'react'
@@ -25,7 +24,6 @@ export type EditorMode =
 export function useProductEditor(
   subOrder: SubOrderRow,
   subOrderStatus: OrderStatus,
-  onProductsChanged?: (hasProducts: boolean) => void,
 ) {
   const { showError } = useToast()
 
@@ -58,14 +56,10 @@ export function useProductEditor(
   const openEdit = useCallback((product: LoadedProduct) => setMode({ kind: 'edit', product }), [])
   const close = useCallback(() => setMode({ kind: 'idle' }), [])
 
-  /** Called by a form after a successful save (fresh product list from the mutation). */
-  const handleSaved = useCallback(
-    (saved: LoadedProduct[]) => {
-      onProductsChanged?.(saved.length > 0)
-      setMode({ kind: 'idle' })
-    },
-    [onProductsChanged],
-  )
+  /** Called by a form after a successful save (closes the add/edit form). */
+  const handleSaved = useCallback(() => {
+    setMode({ kind: 'idle' })
+  }, [])
 
   const handleDelete = useCallback(
     (id: string) => {
@@ -73,14 +67,13 @@ export function useProductEditor(
         { id, subOrderId: subOrder.id },
         {
           onSuccess: () => {
-            onProductsChanged?.(products.filter(p => p.id !== id).length > 0)
             setMode(m => (m.kind === 'edit' && m.product.id === id ? { kind: 'idle' } : m))
           },
           onError: () => showError('Product could not be deleted'),
         },
       )
     },
-    [deleteProduct, subOrder.id, products, onProductsChanged, showError],
+    [deleteProduct, subOrder.id, showError],
   )
 
   /** File ids currently assigned to a product (for edit-prefill). */

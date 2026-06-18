@@ -220,7 +220,6 @@ export function OrderDetails({
         {activeSubOrder ? (
           <SubOrderDetail
             subOrder={activeSubOrder}
-            orderStatus={order.status}
             orderDeadline={order.deadline}
             orderDelivery={order.delivery}
             orderPriority={order.priority}

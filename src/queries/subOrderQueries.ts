@@ -52,16 +52,44 @@ export function useCreateSubOrder() {
   })
 }
 
+/**
+ * Optimistic sub-order field update. `orderId` is required so `onMutate` can
+ * locate the cached sibling list and patch the row in place immediately (instant
+ * UI); the snapshot is restored on error. Note: this persists the given fields
+ * only — it does NOT recompute status (status calculation is decoupled; see
+ * STATUS_WORKFLOW_SPEC.md). Status transitions live in ContextPanel.
+ */
 export function useUpdateSubOrder() {
   const queryClient = useQueryClient()
-  return useMutation<SubOrderRow, Error, { id: string; patch: SubOrderUpdate }>({
+  return useMutation<
+    SubOrderRow,
+    Error,
+    { id: string; orderId: string; patch: SubOrderUpdate },
+    { previous?: SubOrderRow[] }
+  >({
     mutationFn: ({ id, patch }) => subOrderService.updateSubOrder(id, patch),
-    onSuccess: updated => {
-      const orderId = updated.order_id
+    onMutate: async ({ id, orderId, patch }) => {
+      await queryClient.cancelQueries({ queryKey: subOrderKeys.byOrderId(orderId) })
+      const previous = queryClient.getQueryData<SubOrderRow[]>(subOrderKeys.byOrderId(orderId))
       queryClient.setQueryData<SubOrderRow[]>(
         subOrderKeys.byOrderId(orderId),
+        old => old?.map(row => (row.id === id ? ({ ...row, ...patch } as SubOrderRow) : row)) ?? old,
+      )
+      return { previous }
+    },
+    onError: (_err, { orderId }, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(subOrderKeys.byOrderId(orderId), context.previous)
+      }
+    },
+    onSuccess: updated => {
+      // Reconcile the optimistic row with the authoritative server row.
+      queryClient.setQueryData<SubOrderRow[]>(
+        subOrderKeys.byOrderId(updated.order_id),
         old => old?.map(row => (row.id === updated.id ? updated : row)) ?? old,
       )
+    },
+    onSettled: (_data, _err, { orderId }) => {
       void queryClient.invalidateQueries({ queryKey: orderKeys.byId(orderId) })
       void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
     },

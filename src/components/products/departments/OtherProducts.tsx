@@ -11,12 +11,11 @@ type Props = {
   subOrder: SubOrderRow
   subOrderStatus: OrderStatus
   orderFiles?: FileRow[]
-  onProductsChanged?: (hasProducts: boolean) => void
 }
 
-export function OtherProducts({ subOrder, subOrderStatus, orderFiles = [], onProductsChanged }: Props) {
-  const ed = useProductEditor(subOrder, subOrderStatus, onProductsChanged)
-  const editing = ed.mode.kind === 'edit' ? ed.mode.product : null
+export function OtherProducts({ subOrder, subOrderStatus, orderFiles = [] }: Props) {
+  const productEditor = useProductEditor(subOrder, subOrderStatus)
+  const editing = productEditor.mode.kind === 'edit' ? productEditor.mode.product : null
 
   return (
     <div className="flex flex-col gap-4">
@@ -25,8 +24,8 @@ export function OtherProducts({ subOrder, subOrderStatus, orderFiles = [], onPro
         <p className="text-xs text-muted-foreground">For ‘Other’, PREPRESS_READY is set manually only.</p>
       </div>
 
-      {ed.requiresUnlock ? (
-        <Button type="button" variant="outline" onClick={ed.requestUnlock}>
+      {productEditor.requiresUnlock ? (
+        <Button type="button" variant="outline" onClick={productEditor.requestUnlock}>
           Unlock editing
         </Button>
       ) : (
@@ -36,21 +35,21 @@ export function OtherProducts({ subOrder, subOrderStatus, orderFiles = [], onPro
           subOrderStatus={subOrderStatus}
           product={editing}
           orderFiles={orderFiles}
-          initialFileIds={editing ? ed.fileIdsFor(editing.id) : []}
-          sortOrder={editing ? editing.sort_order : ed.products.length}
-          onSaved={ed.handleSaved}
-          onCancel={ed.close}
+          initialFileIds={editing ? productEditor.fileIdsFor(editing.id) : []}
+          sortOrder={editing ? editing.sort_order : productEditor.products.length}
+          onSaved={productEditor.handleSaved}
+          onCancel={productEditor.close}
         />
       )}
 
       <div className="border-t pt-3">
         <h3 className="text-sm font-semibold">Products</h3>
-        {ed.productsLoading ? (
+        {productEditor.productsLoading ? (
           <p className="text-xs text-muted-foreground">Loading products…</p>
         ) : (
           <OtherProductsTable
-            data={ed.products}
-            meta={{ onEdit: ed.openEdit, onDelete: ed.handleDelete, orderFiles, filesByProduct: ed.filesByProduct }}
+            data={productEditor.products}
+            meta={{ onEdit: productEditor.openEdit, onDelete: productEditor.handleDelete, orderFiles, filesByProduct: productEditor.filesByProduct }}
           />
         )}
       </div>

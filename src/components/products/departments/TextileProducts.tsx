@@ -29,7 +29,6 @@ type Props = {
   subOrder: SubOrderRow
   subOrderStatus: OrderStatus
   orderFiles?: FileRow[]
-  onProductsChanged?: (hasProducts: boolean) => void
 }
 
 const FONT_CLASS_OPTS = [
@@ -192,8 +191,8 @@ function garmentSummary(product: LoadedProduct): string {
 
 // --- Host -------------------------------------------------------------------
 
-export function TextileProducts({ subOrder, subOrderStatus, orderFiles = [], onProductsChanged }: Props) {
-  const ed = useProductEditor(subOrder, subOrderStatus, onProductsChanged)
+export function TextileProducts({ subOrder, subOrderStatus, orderFiles = [] }: Props) {
+  const productEditor = useProductEditor(subOrder, subOrderStatus)
   const motifsQuery = useTextileMotifs(subOrder.id)
   const motifs = useMemo(() => motifsQuery.data ?? [], [motifsQuery.data])
   const linksQuery = useTextileMotifLinksBySubOrderId(subOrder.id)
@@ -206,9 +205,9 @@ export function TextileProducts({ subOrder, subOrderStatus, orderFiles = [], onP
   }, [linksQuery.data])
 
   const active =
-    ed.mode.kind === 'edit'
-      ? { product: ed.mode.product }
-      : ed.mode.kind === 'add'
+    productEditor.mode.kind === 'edit'
+      ? { product: productEditor.mode.product }
+      : productEditor.mode.kind === 'add'
         ? { product: null as LoadedProduct | null }
         : null
 
@@ -218,13 +217,13 @@ export function TextileProducts({ subOrder, subOrderStatus, orderFiles = [], onP
 
       <DesignsDrawer subOrder={subOrder} motifs={motifs} orderFiles={orderFiles} />
 
-      {ed.requiresUnlock ? (
-        <Button type="button" variant="outline" onClick={ed.requestUnlock}>Unlock editing</Button>
+      {productEditor.requiresUnlock ? (
+        <Button type="button" variant="outline" onClick={productEditor.requestUnlock}>Unlock editing</Button>
       ) : (
         <>
-          {ed.mode.kind === 'idle' && (
+          {productEditor.mode.kind === 'idle' && (
             <div>
-              <Button type="button" variant="outline" onClick={() => ed.openAdd('TEXTILE_GARMENT')}>+ Add garment</Button>
+              <Button type="button" variant="outline" onClick={() => productEditor.openAdd('TEXTILE_GARMENT')}>+ Add garment</Button>
             </div>
           )}
 
@@ -236,9 +235,9 @@ export function TextileProducts({ subOrder, subOrderStatus, orderFiles = [], onP
               product={active.product}
               orderFiles={orderFiles}
               initialFileIds={[]}
-              sortOrder={active.product ? active.product.sort_order : ed.products.length}
-              onSaved={ed.handleSaved}
-              onCancel={ed.close}
+              sortOrder={active.product ? active.product.sort_order : productEditor.products.length}
+              onSaved={productEditor.handleSaved}
+              onCancel={productEditor.close}
               motifs={motifs}
               initialLinks={active.product ? (linksByProduct[active.product.id] ?? []) : []}
             />
@@ -248,9 +247,9 @@ export function TextileProducts({ subOrder, subOrderStatus, orderFiles = [], onP
 
       <div className="border-t pt-3">
         <h3 className="text-sm font-semibold">Garments</h3>
-        {ed.productsLoading ? (
+        {productEditor.productsLoading ? (
           <p className="text-xs text-muted-foreground">Loading garments…</p>
-        ) : ed.products.length === 0 ? (
+        ) : productEditor.products.length === 0 ? (
           <p className="text-xs text-muted-foreground">No garments yet.</p>
         ) : (
           <table className="w-full text-sm">
@@ -263,14 +262,14 @@ export function TextileProducts({ subOrder, subOrderStatus, orderFiles = [], onP
               </tr>
             </thead>
             <tbody>
-              {ed.products.map(prod => (
+              {productEditor.products.map(prod => (
                 <tr key={prod.id} className="border-t">
                   <td className="py-1">{garmentSummary(prod)}</td>
                   <td className="py-1">{prod.quantity ?? '—'}</td>
                   <td className="py-1">{(linksByProduct[prod.id] ?? []).length}</td>
                   <td className="py-1 text-right">
-                    <button type="button" className="cursor-pointer text-muted-foreground hover:text-foreground" title="Edit" onClick={() => ed.openEdit(prod)}>Edit</button>
-                    <button type="button" className="ml-3 cursor-pointer text-muted-foreground hover:text-destructive" title="Delete" onClick={() => ed.handleDelete(prod.id)}>Delete</button>
+                    <button type="button" className="cursor-pointer text-muted-foreground hover:text-foreground" title="Edit" onClick={() => productEditor.openEdit(prod)}>Edit</button>
+                    <button type="button" className="ml-3 cursor-pointer text-muted-foreground hover:text-destructive" title="Delete" onClick={() => productEditor.handleDelete(prod.id)}>Delete</button>
                   </td>
                 </tr>
               ))}

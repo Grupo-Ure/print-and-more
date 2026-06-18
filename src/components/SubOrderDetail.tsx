@@ -1,22 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 import { useUpdateSubOrder } from '../queries/subOrderQueries'
-import { useProductsBySubOrderId, productKeys } from '../queries/productQueries'
-import type { LoadedProduct } from '../types/product'
 import { departmentAbbreviation } from '../const/departmentAbbreviation'
 import { customerMeetsPrepressContact } from '../lib/customer'
+import { validateSubOrderCommonFields } from '../lib/subOrderShared'
 import {
-  isSubOrderComplete,
-  nextSubOrderStatus,
-  validateSubOrderCommonFields,
-} from '../lib/subOrderShared'
-import {
-  SUB_ORDER_DEPARTMENTS,
-  type OrderStatus,
   type Customer,
   type DeliveryChoice,
   type Priority,
-  type SubOrderDepartment,
   type SubOrderRow,
   type SubOrderUpdate,
 } from '../types/database'
@@ -33,14 +23,12 @@ import { OtherProducts } from './products/departments/OtherProducts'
 import { LaserProducts } from './products/departments/LaserProducts'
 import { TextileProducts } from './products/departments/TextileProducts'
 import type { FileRow } from '../services/fileService'
-import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import { toDateOnly } from '../lib/formatDate'
 import { StatusBadge } from './StatusBadge'
 import './WorkArea.css'
 
 export function SubOrderDetail({
   subOrder,
-  orderStatus,
   orderDeadline,
   orderDelivery,
   orderPriority,
@@ -49,172 +37,70 @@ export function SubOrderDetail({
   onUpdated,
 }: {
   subOrder: SubOrderRow
-  orderStatus: OrderStatus
-  /** Order deadline (fallback/inheritance for sub-order) */
   orderDeadline: string | null
-  /** Order delivery mode (inheritance) */
   orderDelivery: DeliveryChoice | null
-  /** Order priority (inheritance) */
   orderPriority: Priority
-  /** Customer contact for the active order (name, email, phone, address). */
   orderCustomer: Customer | null
   orderFiles: FileRow[]
   onUpdated: (updatedSubOrder: SubOrderRow) => void
 }) {
-  const queryClient = useQueryClient()
   const updateSubOrder = useUpdateSubOrder()
   const { showError } = useToast()
 
-  const savedRef = useRef(subOrder)
-  const draftRef = useRef(subOrder)
-
-  const [draft, setDraft] = useState(subOrder)
-  
-  
-  // Subscribe to the shared products cache (same key the department product
-  // components use — no extra fetch). `save` reads the latest count imperatively
-  // from this cache to drive completeness, replacing the old hasProducts ref.
-  useProductsBySubOrderId(subOrder.id)
+  // Persist a field edit straight to the DB (optimistic via useUpdateSubOrder —
+  // instant UI, rollback on error). No status calculation here: status is driven
+  // by ContextPanel (status calc is decoupled — see STATUS_WORKFLOW_SPEC.md).
+  const handleUpdateSuborder = (patch: SubOrderUpdate) => {
+    updateSubOrder.mutate(
+      { id: subOrder.id, orderId: subOrder.order_id, patch },
+      { onSuccess: row => onUpdated(row), onError: () => showError('Save failed') },
+    )
+  }
 
   const orderDeliveryMode = (orderDelivery ?? 'PICKUP') as DeliveryChoice
   const orderPriorityMode: Priority = orderPriority
 
-  useEffect(() => {
-    if (subOrder.id !== draftRef.current.id) {
-      // Different sub-order — always reload
-      setDraft(subOrder)
-      savedRef.current = subOrder
-      draftRef.current = subOrder
-      return
-    }
-    // Same sub-order: sync on status or detail change from the server; ID change handled above.
-    if (subOrder.status !== draftRef.current.status || subOrder.detail !== draftRef.current.detail) {
-      setDraft(prev => ({
-        ...prev,
-        status: subOrder.status,
-        detail: subOrder.detail,
-      }))
-      savedRef.current = subOrder
-      draftRef.current = subOrder
-    }
-  }, [subOrder])
-
-  useEffect(() => {
-    draftRef.current = draft
-  }, [draft])
-
-  const subOrderStatus = draft.status
   const customerMeetsPrepressRequirements = customerMeetsPrepressContact(orderCustomer)
-  const shouldValidate = subOrderStatus !== 'QUOTE'
-  shouldValidate &&
-        draft.department !== 'OTHER' &&
-        !customerMeetsPrepressRequirements &&
-        (draft.department === 'LFP' ||
-          draft.department === 'COPYSHOP' ||
-          (draft.department === 'STAMP' && draft.type !== 'OTHER_STAMP') ||
-          (draft.department === 'LASER_ENGRAVING' && draft.type !== 'OTHER_LASER'))
-  const hasSeparateDelivery = draft.delivery != null && draft.delivery !== orderDeliveryMode
-  const hasSeparatePriority = draft.priority != null && draft.priority !== orderPriorityMode
-  const effectiveDelivery = (hasSeparateDelivery ? draft.delivery! : orderDeliveryMode) as DeliveryChoice
-  const effectivePriority = hasSeparatePriority ? draft.priority! : orderPriorityMode
-  const validationErrors = validateSubOrderCommonFields(
-    {
-      ...draft,
-      delivery: effectiveDelivery,
-      priority: effectivePriority,
-    },
-    subOrderStatus
-  )
+  const shouldValidate = subOrder.status !== 'QUOTE'
 
-  const save = useCallback(
-    async (patch: Partial<SubOrderRow>) => {
-      const serverSnapshot = savedRef.current
-      const current = draftRef.current
-      const merged: SubOrderRow = {
-        ...current,
-        ...patch,
-        detail: patch.detail !== undefined ? patch.detail : current.detail,
-        type: patch.type !== undefined ? patch.type : current.type,
-      }
-      const mergedWithDefaults: SubOrderRow = {
-        ...merged,
-        delivery: (merged.delivery ?? orderDeliveryMode) as DeliveryChoice,
-        priority: merged.priority ?? orderPriorityMode,
-      }
-      // Read product presence fresh from the cache (kept authoritative by the
-      // product save/delete mutations) — avoids a stale closure on hasProducts.
-      const cachedProducts = queryClient.getQueryData<LoadedProduct[]>(productKeys.bySubOrderId(subOrder.id)) ?? []
-      const isComplete = isSubOrderComplete(mergedWithDefaults, serverSnapshot.status, cachedProducts.length > 0)
-      const nextStatus = nextSubOrderStatus(serverSnapshot.status, serverSnapshot, merged, isComplete, customerMeetsPrepressRequirements, orderStatus)
-      const previousStatus = savedRef.current.status
-      const { department: departmentPatch, ...patchWithoutDepartment } = patch
-      const isValidDepartment =
-        departmentPatch != null && (SUB_ORDER_DEPARTMENTS as readonly string[]).includes(departmentPatch)
-      const subOrderUpdate: SubOrderUpdate = {
-        ...patchWithoutDepartment,
-        status: nextStatus,
-        ...(isValidDepartment
-          ? { department: departmentPatch as SubOrderDepartment }
-          : {}),
-      }
-      let row: SubOrderRow
-      try {
-        row = await updateSubOrder.mutateAsync({ id: subOrder.id, patch: subOrderUpdate })
-      } catch {
-        showError('Save failed')
-        return
-      }
-      savedRef.current = row
-      draftRef.current = row
-      setDraft(row)
-      onUpdated(row)
-      if (row.status === 'PREPRESS_READY' && previousStatus !== 'PREPRESS_READY') {
-        const pdfOk = await generateAndDownloadPdf(subOrder.id, subOrder.order_id)
-        if (!pdfOk) showError('PDF could not be generated')
-      }
-    },
-    [orderDeliveryMode, orderPriorityMode, subOrder.id, subOrder.order_id, orderStatus, onUpdated, customerMeetsPrepressRequirements, showError, updateSubOrder, queryClient]
-  )
+  // A field is "separate" when the sub-order overrides the order's value; a null
+  // field inherits the order value (resolved here at read time).
+  const hasSeparateDelivery = subOrder.delivery != null && subOrder.delivery !== orderDeliveryMode
+  const hasSeparatePriority = subOrder.priority != null && subOrder.priority !== orderPriorityMode
+  const effectiveDelivery = (hasSeparateDelivery ? subOrder.delivery! : orderDeliveryMode) as DeliveryChoice
+  const effectivePriority = hasSeparatePriority ? subOrder.priority! : orderPriorityMode
 
-  // A department component added/edited/deleted a product: recompute and persist
-  // the sub-order status (the replacement for the old detail.hat_produkte write).
-  // The products cache is already authoritative (patched by the product
-  // save/delete mutations); save({}) recomputes status from the fresh count,
-  // persists it, and fires the PREPRESS_READY PDF.
-  const onProductsChanged = useCallback(
-    () => {
-      void save({})
-    },
-    [save]
-  )
-
-  const effectiveDeadline = draft.deadline ?? orderDeadline
+  const effectiveDeadline = subOrder.deadline ?? orderDeadline
   const deadlineIso = toDateOnly(effectiveDeadline) ?? ''
 
-  const orderDeadlineIso = toDateOnly(orderDeadline) ?? ''
+  const validationErrors = validateSubOrderCommonFields(
+    { ...subOrder, delivery: effectiveDelivery, priority: effectivePriority },
+    subOrder.status,
+  )
 
+  // The "separate deadline" toggle is user-controllable, so it's local UI state,
+  // seeded from whether the sub-order's deadline differs from the order's.
   const [separateDeadline, setSeparateDeadline] = useState(false)
-
   useEffect(() => {
-    const tNorm = toDateOnly(subOrder.deadline)
-    const aNorm = toDateOnly(orderDeadline)
-    setSeparateDeadline(tNorm != null && aNorm != null && tNorm !== aNorm)
+    const subOrderDate = toDateOnly(subOrder.deadline)
+    const orderDate = toDateOnly(orderDeadline)
+    setSeparateDeadline(subOrderDate != null && orderDate != null && subOrderDate !== orderDate)
   }, [subOrder.id, subOrder.deadline, orderDeadline])
 
   return (
     <div className="td">
       <div className="td-kopf" aria-label="Sub-order">
-        <span className="td-bkz">[{departmentAbbreviation(draft.department)}]</span>
-        <StatusBadge status={draft.status} />
+        <span className="td-bkz">[{departmentAbbreviation(subOrder.department)}]</span>
+        <StatusBadge status={subOrder.status} />
         {updateSubOrder.isPending && <span aria-label="Saving">…</span>}
       </div>
       {shouldValidate &&
-        draft.department !== 'OTHER' &&
-        customerMeetsPrepressContact(orderCustomer) === false &&
-        (draft.department === 'LFP' ||
-          draft.department === 'COPYSHOP' ||
-          (draft.department === 'STAMP' && draft.type !== 'OTHER_STAMP') ||
-          (draft.department === 'LASER_ENGRAVING' && draft.type !== 'OTHER_LASER')) && (
+        subOrder.department !== 'OTHER' &&
+        !customerMeetsPrepressRequirements &&
+        (subOrder.department === 'LFP' ||
+          subOrder.department === 'COPYSHOP' ||
+          (subOrder.department === 'STAMP' && subOrder.type !== 'OTHER_STAMP') ||
+          (subOrder.department === 'LASER_ENGRAVING' && subOrder.type !== 'OTHER_LASER')) && (
           <p className="ber-hinweis">For auto-PREPRESS: Customer needs name and email or phone.</p>
         )}
       <section>
@@ -229,27 +115,17 @@ export function SubOrderDetail({
                 onCheckedChange={checked => {
                   const isChecked = checked === true
                   setSeparateDeadline(isChecked)
-                  if (!isChecked) {
-                    const resetIso = orderDeadlineIso || ''
-                    const resetDeadline = resetIso ? resetIso : null
-                    setDraft(s => ({ ...s, deadline: resetDeadline }))
-                    void save({ deadline: resetDeadline })
-                  } else {
-                    // On enable: the input should show the current value (sub-order or order).
-                    const currentIso = toDateOnly(draftRef.current.deadline) ?? ''
-                    if (!currentIso && orderDeadlineIso) setDraft(s => ({ ...s, deadline: orderDeadlineIso }))
-                  }
+                  if (!isChecked) handleUpdateSuborder({ deadline: null })
                 }}
               />
               <span>Separate delivery date</span>
             </label>
             <DeadlinePicker
               disabled={!separateDeadline}
-              value={toDateOnly(draft.deadline) ?? deadlineIso}
+              value={toDateOnly(subOrder.deadline) ?? deadlineIso}
               onChange={value => {
-                setDraft(s => ({ ...s, deadline: value }))
-                const snapshotIso = toDateOnly(savedRef.current.deadline) ?? ''
-                if ((value ?? '') !== (snapshotIso ?? '')) void save({ deadline: value })
+                const savedIso = toDateOnly(subOrder.deadline) ?? ''
+                if ((value ?? '') !== savedIso) handleUpdateSuborder({ deadline: value })
               }}
             />
             {shouldValidate && validationErrors.termin && <p className="text-destructive text-xs mt-1">{validationErrors.termin}</p>}
@@ -259,13 +135,10 @@ export function SubOrderDetail({
               <Switch
                 checked={hasSeparateDelivery}
                 onCheckedChange={checked => {
-                  const isChecked = checked === true
-                  if (!isChecked) {
-                    void save({ delivery: orderDeliveryMode })
+                  if (checked !== true) {
+                    handleUpdateSuborder({ delivery: null })
                   } else {
-                    const alternativeDelivery = orderDeliveryMode === 'PICKUP' ? 'SHIPPING' : 'PICKUP'
-                    setDraft(s => ({ ...s, delivery: alternativeDelivery }))
-                    void save({ delivery: alternativeDelivery })
+                    handleUpdateSuborder({ delivery: orderDeliveryMode === 'PICKUP' ? 'SHIPPING' : 'PICKUP' })
                   }
                 }}
               />
@@ -275,8 +148,7 @@ export function SubOrderDetail({
               disabled={!hasSeparateDelivery}
               value={effectiveDelivery}
               onChange={value => {
-                setDraft(s => ({ ...s, delivery: value }))
-                if (value !== savedRef.current.delivery) void save({ delivery: value })
+                if (value !== subOrder.delivery) handleUpdateSuborder({ delivery: value })
               }}
             />
             {shouldValidate && validationErrors.lieferung && <p className="text-destructive text-xs mt-1">{validationErrors.lieferung}</p>}
@@ -286,12 +158,10 @@ export function SubOrderDetail({
               <Switch
                 checked={hasSeparatePriority}
                 onCheckedChange={checked => {
-                  const isChecked = checked === true
-                  if (!isChecked) {
-                    void save({ priority: null })
+                  if (checked !== true) {
+                    handleUpdateSuborder({ priority: null })
                   } else {
-                    const alternativePriority: Priority = orderPriorityMode === 'HIGH' ? 'NORMAL' : 'HIGH'
-                    void save({ priority: alternativePriority })
+                    handleUpdateSuborder({ priority: orderPriorityMode === 'HIGH' ? 'NORMAL' : 'HIGH' })
                   }
                 }}
               />
@@ -301,8 +171,7 @@ export function SubOrderDetail({
               disabled={!hasSeparatePriority}
               value={effectivePriority}
               onChange={value => {
-                setDraft(s => ({ ...s, priority: value }))
-                if (value !== savedRef.current.priority) void save({ priority: value })
+                if (value !== subOrder.priority) handleUpdateSuborder({ priority: value })
               }}
             />
             {shouldValidate && validationErrors.prioritaet && <p className="text-destructive text-xs mt-1">{validationErrors.prioritaet}</p>}
@@ -311,21 +180,15 @@ export function SubOrderDetail({
           <span className="text-[11px] font-medium text-muted-foreground mb-0.5">Typesetting time (min)</span>
           <div>
             <Input
+              key={subOrder.id}
               type="number"
               className="max-w-48 h-9 text-sm"
               aria-invalid={shouldValidate && !!validationErrors.satzzeit_minuten}
-              value={draft.typesetting_minutes ?? ''}
-              onChange={e => {
-                const rawValue = e.target.value
-                setDraft(s => ({
-                  ...s,
-                  typesetting_minutes: rawValue === '' ? null : parseInt(rawValue, 10),
-                }))
-              }}
+              defaultValue={subOrder.typesetting_minutes ?? ''}
               onBlur={e => {
                 const rawValue = e.target.value
                 const parsedValue = rawValue === '' ? null : parseInt(rawValue, 10)
-                if (parsedValue !== savedRef.current.typesetting_minutes) void save({ typesetting_minutes: parsedValue })
+                if (parsedValue !== subOrder.typesetting_minutes) handleUpdateSuborder({ typesetting_minutes: parsedValue })
               }}
               min={1}
             />
@@ -336,28 +199,28 @@ export function SubOrderDetail({
       </section>
 
       <section>
-        {draft.department === 'LFP' && (
-          <LfpProducts key={draft.id} subOrder={draft} subOrderStatus={draft.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        {subOrder.department === 'LFP' && (
+          <LfpProducts key={subOrder.id} subOrder={subOrder} subOrderStatus={subOrder.status} orderFiles={orderFiles} />
         )}
 
-        {draft.department === 'COPYSHOP' && (
-          <CopyShopProducts key={draft.id} subOrder={draft} subOrderStatus={draft.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        {subOrder.department === 'COPYSHOP' && (
+          <CopyShopProducts key={subOrder.id} subOrder={subOrder} subOrderStatus={subOrder.status} orderFiles={orderFiles} />
         )}
 
-        {draft.department === 'STAMP' && (
-          <StampProducts key={draft.id} subOrder={draft} subOrderStatus={draft.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        {subOrder.department === 'STAMP' && (
+          <StampProducts key={subOrder.id} subOrder={subOrder} subOrderStatus={subOrder.status} orderFiles={orderFiles} />
         )}
 
-        {draft.department === 'OTHER' && (
-          <OtherProducts key={draft.id} subOrder={draft} subOrderStatus={draft.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        {subOrder.department === 'OTHER' && (
+          <OtherProducts key={subOrder.id} subOrder={subOrder} subOrderStatus={subOrder.status} orderFiles={orderFiles} />
         )}
 
-        {draft.department === 'LASER_ENGRAVING' && (
-          <LaserProducts key={draft.id} subOrder={draft} subOrderStatus={draft.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        {subOrder.department === 'LASER_ENGRAVING' && (
+          <LaserProducts key={subOrder.id} subOrder={subOrder} subOrderStatus={subOrder.status} orderFiles={orderFiles} />
         )}
 
-        {draft.department === 'TEXTILE' && (
-          <TextileProducts key={draft.id} subOrder={draft} subOrderStatus={draft.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        {subOrder.department === 'TEXTILE' && (
+          <TextileProducts key={subOrder.id} subOrder={subOrder} subOrderStatus={subOrder.status} orderFiles={orderFiles} />
         )}
       </section>
     </div>

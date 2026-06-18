@@ -49,8 +49,8 @@ export function useProductFilesBySubOrderId(subOrderId: string | null) {
  * re-add). `createProduct` only returns the new id, so we can't reconstruct the
  * row from the mutation return — hence the reload before the cache patch.
  *
- * Status recompute is intentionally NOT handled here; callers wire their
- * `onProductsChanged` recompute via the mutation's per-call `onSuccess` option.
+ * Sub-order status is not touched here — status calculation is decoupled from
+ * product edits (to be rebuilt; see STATUS_WORKFLOW_SPEC.md).
  */
 export function useSaveProduct() {
   const queryClient = useQueryClient()
