@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react'
 import { subOrderDepartmentLabel } from '../const/departmentAbbreviation'
 import { SUB_ORDER_DEPARTMENTS, type Department } from '../types/database'
 import { authService } from '../services/authService'
+import { toDateOnly } from '../lib/formatDate'
 import { useOrderWorkspace } from '../context/order.context'
 import { useOrderById } from '../queries/orderQueries'
 import { useSubOrdersByOrderId, useCreateSubOrder } from '../queries/subOrderQueries'
@@ -95,8 +96,7 @@ function AddSubOrderDialog({ open, onOpenChange }: AddSubOrderDialogProps) {
   const handleDepartmentSelected = (department: Department) => {
     if (!activeOrderId || createSubOrder.isPending) return
     const order = orderQuery.data
-    const rawDeadline = order?.deadline ?? null
-    const deadline = rawDeadline ? (rawDeadline.length > 10 ? rawDeadline.slice(0, 10) : rawDeadline) : todayIso()
+    const deadline = toDateOnly(order?.deadline) ?? todayIso()
 
     void (async () => {
       const user = await authService.getUser()

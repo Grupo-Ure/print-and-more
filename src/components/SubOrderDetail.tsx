@@ -34,16 +34,9 @@ import { LaserProducts } from './products/departments/LaserProducts'
 import { TextileProducts } from './products/departments/TextileProducts'
 import type { FileRow } from '../services/fileService'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
+import { toDateOnly } from '../lib/formatDate'
 import { StatusBadge } from './StatusBadge'
 import './WorkArea.css'
-
-/** YYYY-MM-DD for comparison (delivery date vs. order deadline) */
-function normalizeSubOrderDeadline(value: string | null | undefined): string | null {
-  if (value == null) return null
-  const trimmed = String(value).trim()
-  if (trimmed === '') return null
-  return trimmed.length > 10 ? trimmed.slice(0, 10) : trimmed
-}
 
 export function SubOrderDetail({
   subOrder,
@@ -196,19 +189,15 @@ export function SubOrderDetail({
   )
 
   const effectiveDeadline = draft.deadline ?? orderDeadline
-  const deadlineIso = effectiveDeadline
-    ? effectiveDeadline.length > 10
-      ? effectiveDeadline.slice(0, 10)
-      : effectiveDeadline
-    : ''
+  const deadlineIso = toDateOnly(effectiveDeadline) ?? ''
 
-  const orderDeadlineIso = orderDeadline ? (orderDeadline.length > 10 ? orderDeadline.slice(0, 10) : orderDeadline) : ''
+  const orderDeadlineIso = toDateOnly(orderDeadline) ?? ''
 
   const [separateDeadline, setSeparateDeadline] = useState(false)
 
   useEffect(() => {
-    const tNorm = normalizeSubOrderDeadline(subOrder.deadline)
-    const aNorm = normalizeSubOrderDeadline(orderDeadline)
+    const tNorm = toDateOnly(subOrder.deadline)
+    const aNorm = toDateOnly(orderDeadline)
     setSeparateDeadline(tNorm != null && aNorm != null && tNorm !== aNorm)
   }, [subOrder.id, subOrder.deadline, orderDeadline])
 
@@ -247,12 +236,7 @@ export function SubOrderDetail({
                     void save({ deadline: resetDeadline })
                   } else {
                     // On enable: the input should show the current value (sub-order or order).
-                    const currentLocal = draftRef.current
-                    const currentIso = currentLocal.deadline
-                      ? currentLocal.deadline.length > 10
-                        ? currentLocal.deadline.slice(0, 10)
-                        : currentLocal.deadline
-                      : ''
+                    const currentIso = toDateOnly(draftRef.current.deadline) ?? ''
                     if (!currentIso && orderDeadlineIso) setDraft(s => ({ ...s, deadline: orderDeadlineIso }))
                   }
                 }}
@@ -261,10 +245,10 @@ export function SubOrderDetail({
             </label>
             <DeadlinePicker
               disabled={!separateDeadline}
-              value={draft.deadline ? (draft.deadline.length > 10 ? draft.deadline.slice(0, 10) : draft.deadline) : deadlineIso}
+              value={toDateOnly(draft.deadline) ?? deadlineIso}
               onChange={value => {
                 setDraft(s => ({ ...s, deadline: value }))
-                const snapshotIso = savedRef.current.deadline ? savedRef.current.deadline.slice(0, 10) : ''
+                const snapshotIso = toDateOnly(savedRef.current.deadline) ?? ''
                 if ((value ?? '') !== (snapshotIso ?? '')) void save({ deadline: value })
               }}
             />

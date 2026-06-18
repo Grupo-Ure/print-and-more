@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { fileService } from '../services/fileService'
+import { toDateOnly } from '../lib/formatDate'
 import {
   type Auftrag,
   type Customer,
@@ -291,12 +292,7 @@ function OrderSettings({ order, onSave }: OrderSettingsProps) {
 
   useEffect(() => {
     const rawDeadline = order.deadline
-    const isoDate =
-      rawDeadline && rawDeadline.length > 0
-        ? rawDeadline.length > 10
-          ? rawDeadline.slice(0, 10)
-          : rawDeadline
-        : ''
+    const isoDate = toDateOnly(rawDeadline) ?? ''
     // eslint-disable-next-line react-hooks/set-state-in-effect -- form mirrors server row
     setHeaderDeadline(isoDate)
     setHeaderDelivery(order.delivery ?? 'PICKUP')
@@ -308,8 +304,6 @@ function OrderSettings({ order, onSave }: OrderSettingsProps) {
     }
   }, [order])
 
-  const trimDeadline = (dateString: string | null) =>
-    dateString && dateString.length > 10 ? dateString.slice(0, 10) : dateString || ''
 
   return (
     <section className="flex items-center gap-4" aria-label="Order meta">
@@ -317,7 +311,7 @@ function OrderSettings({ order, onSave }: OrderSettingsProps) {
         value={headerDeadline}
         onChange={value => {
           setHeaderDeadline(value ?? '')
-          const snapshot = trimDeadline(headerSnapshot.current.deadline)
+          const snapshot = toDateOnly(headerSnapshot.current.deadline) ?? ''
           if ((value || '') !== (snapshot || '')) {
             onSave({ deadline: value })
           }

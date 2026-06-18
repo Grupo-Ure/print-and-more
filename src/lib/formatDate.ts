@@ -1,3 +1,11 @@
+/** `YYYY-MM-DD` date-only portion of an ISO/date string; null for empty input. */
+export function toDateOnly(value: string | null | undefined): string | null {
+  if (value == null) return null
+  const trimmed = value.trim()
+  if (trimmed === '') return null
+  return trimmed.length > 10 ? trimmed.slice(0, 10) : trimmed
+}
+
 export function formatDateDe(iso: string | null | undefined): string {
   if (!iso) return '—'
   const date = new Date(iso)
