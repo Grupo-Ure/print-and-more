@@ -87,46 +87,46 @@ export function SubOrderDetail({
   const orderPriorityMode: Priority = orderPriority
 
   useEffect(() => {
-    if (subOrder.id !== localRef.current.id) {
+    if (subOrder.id !== draftRef.current.id) {
       // Different sub-order — always reload
-      setLocal(subOrder)
-      serverSnapshotRef.current = subOrder
-      localRef.current = subOrder
+      setDraft(subOrder)
+      savedRef.current = subOrder
+      draftRef.current = subOrder
       return
     }
     // Same sub-order: sync on status or detail change from the server; ID change handled above.
-    if (subOrder.status !== localRef.current.status || subOrder.detail !== localRef.current.detail) {
-      setLocal(prev => ({
+    if (subOrder.status !== draftRef.current.status || subOrder.detail !== draftRef.current.detail) {
+      setDraft(prev => ({
         ...prev,
         status: subOrder.status,
         detail: subOrder.detail,
       }))
-      serverSnapshotRef.current = subOrder
-      localRef.current = subOrder
+      savedRef.current = subOrder
+      draftRef.current = subOrder
     }
   }, [subOrder])
 
   useEffect(() => {
-    localRef.current = local
-  }, [local])
+    draftRef.current = draft
+  }, [draft])
 
-  const subOrderStatus = local.status
+  const subOrderStatus = draft.status
   const customerMeetsPrepressRequirements = customerMeetsPrepressContact(orderCustomer)
   const shouldValidate = subOrderStatus !== 'QUOTE'
   shouldValidate &&
-        local.department !== 'OTHER' &&
+        draft.department !== 'OTHER' &&
         !customerMeetsPrepressRequirements &&
-        (local.department === 'LFP' ||
-          local.department === 'COPYSHOP' ||
-          (local.department === 'STAMP' && local.type !== 'OTHER_STAMP') ||
-          (local.department === 'LASER_ENGRAVING' && local.type !== 'OTHER_LASER'))
-  const hasSeparateDelivery = local.delivery != null && local.delivery !== orderDeliveryMode
-  const hasSeparatePriority = local.priority != null && local.priority !== orderPriorityMode
-  const effectiveDelivery = (hasSeparateDelivery ? local.delivery! : orderDeliveryMode) as DeliveryChoice
-  const effectivePriority = hasSeparatePriority ? local.priority! : orderPriorityMode
+        (draft.department === 'LFP' ||
+          draft.department === 'COPYSHOP' ||
+          (draft.department === 'STAMP' && draft.type !== 'OTHER_STAMP') ||
+          (draft.department === 'LASER_ENGRAVING' && draft.type !== 'OTHER_LASER'))
+  const hasSeparateDelivery = draft.delivery != null && draft.delivery !== orderDeliveryMode
+  const hasSeparatePriority = draft.priority != null && draft.priority !== orderPriorityMode
+  const effectiveDelivery = (hasSeparateDelivery ? draft.delivery! : orderDeliveryMode) as DeliveryChoice
+  const effectivePriority = hasSeparatePriority ? draft.priority! : orderPriorityMode
   const validationErrors = validateSubOrderCommonFields(
     {
-      ...local,
+      ...draft,
       delivery: effectiveDelivery,
       priority: effectivePriority,
     },
@@ -135,8 +135,8 @@ export function SubOrderDetail({
 
   const save = useCallback(
     async (patch: Partial<SubOrderRow>) => {
-      const serverSnapshot = serverSnapshotRef.current
-      const current = localRef.current
+      const serverSnapshot = savedRef.current
+      const current = draftRef.current
       const merged: SubOrderRow = {
         ...current,
         ...patch,
@@ -153,7 +153,7 @@ export function SubOrderDetail({
       const cachedProducts = queryClient.getQueryData<LoadedProduct[]>(productKeys.bySubOrderId(subOrder.id)) ?? []
       const isComplete = isSubOrderComplete(mergedWithDefaults, serverSnapshot.status, cachedProducts.length > 0)
       const nextStatus = nextSubOrderStatus(serverSnapshot.status, serverSnapshot, merged, isComplete, customerMeetsPrepressRequirements, orderStatus)
-      const previousStatus = serverSnapshotRef.current.status
+      const previousStatus = savedRef.current.status
       const { department: departmentPatch, ...patchWithoutDepartment } = patch
       const isValidDepartment =
         departmentPatch != null && (SUB_ORDER_DEPARTMENTS as readonly string[]).includes(departmentPatch)
@@ -171,9 +171,9 @@ export function SubOrderDetail({
         showError('Save failed')
         return
       }
-      serverSnapshotRef.current = row
-      localRef.current = row
-      setLocal(row)
+      savedRef.current = row
+      draftRef.current = row
+      setDraft(row)
       onUpdated(row)
       if (row.status === 'PREPRESS_READY' && previousStatus !== 'PREPRESS_READY') {
         const pdfOk = await generateAndDownloadPdf(subOrder.id, subOrder.order_id)
@@ -195,7 +195,7 @@ export function SubOrderDetail({
     [save]
   )
 
-  const effectiveDeadline = local.deadline ?? orderDeadline
+  const effectiveDeadline = draft.deadline ?? orderDeadline
   const deadlineIso = effectiveDeadline
     ? effectiveDeadline.length > 10
       ? effectiveDeadline.slice(0, 10)
@@ -215,17 +215,17 @@ export function SubOrderDetail({
   return (
     <div className="td">
       <div className="td-kopf" aria-label="Sub-order">
-        <span className="td-bkz">[{departmentAbbreviation(local.department)}]</span>
-        <StatusBadge status={local.status} />
+        <span className="td-bkz">[{departmentAbbreviation(draft.department)}]</span>
+        <StatusBadge status={draft.status} />
         {updateSubOrder.isPending && <span aria-label="Saving">…</span>}
       </div>
       {shouldValidate &&
-        local.department !== 'OTHER' &&
+        draft.department !== 'OTHER' &&
         customerMeetsPrepressContact(orderCustomer) === false &&
-        (local.department === 'LFP' ||
-          local.department === 'COPYSHOP' ||
-          (local.department === 'STAMP' && local.type !== 'OTHER_STAMP') ||
-          (local.department === 'LASER_ENGRAVING' && local.type !== 'OTHER_LASER')) && (
+        (draft.department === 'LFP' ||
+          draft.department === 'COPYSHOP' ||
+          (draft.department === 'STAMP' && draft.type !== 'OTHER_STAMP') ||
+          (draft.department === 'LASER_ENGRAVING' && draft.type !== 'OTHER_LASER')) && (
           <p className="ber-hinweis">For auto-PREPRESS: Customer needs name and email or phone.</p>
         )}
       <section>
@@ -243,17 +243,17 @@ export function SubOrderDetail({
                   if (!isChecked) {
                     const resetIso = orderDeadlineIso || ''
                     const resetDeadline = resetIso ? resetIso : null
-                    setLocal(s => ({ ...s, deadline: resetDeadline }))
+                    setDraft(s => ({ ...s, deadline: resetDeadline }))
                     void save({ deadline: resetDeadline })
                   } else {
                     // On enable: the input should show the current value (sub-order or order).
-                    const currentLocal = localRef.current
+                    const currentLocal = draftRef.current
                     const currentIso = currentLocal.deadline
                       ? currentLocal.deadline.length > 10
                         ? currentLocal.deadline.slice(0, 10)
                         : currentLocal.deadline
                       : ''
-                    if (!currentIso && orderDeadlineIso) setLocal(s => ({ ...s, deadline: orderDeadlineIso }))
+                    if (!currentIso && orderDeadlineIso) setDraft(s => ({ ...s, deadline: orderDeadlineIso }))
                   }
                 }}
               />
@@ -261,10 +261,10 @@ export function SubOrderDetail({
             </label>
             <DeadlinePicker
               disabled={!separateDeadline}
-              value={local.deadline ? (local.deadline.length > 10 ? local.deadline.slice(0, 10) : local.deadline) : deadlineIso}
+              value={draft.deadline ? (draft.deadline.length > 10 ? draft.deadline.slice(0, 10) : draft.deadline) : deadlineIso}
               onChange={value => {
-                setLocal(s => ({ ...s, deadline: value }))
-                const snapshotIso = serverSnapshotRef.current.deadline ? serverSnapshotRef.current.deadline.slice(0, 10) : ''
+                setDraft(s => ({ ...s, deadline: value }))
+                const snapshotIso = savedRef.current.deadline ? savedRef.current.deadline.slice(0, 10) : ''
                 if ((value ?? '') !== (snapshotIso ?? '')) void save({ deadline: value })
               }}
             />
@@ -280,7 +280,7 @@ export function SubOrderDetail({
                     void save({ delivery: orderDeliveryMode })
                   } else {
                     const alternativeDelivery = orderDeliveryMode === 'PICKUP' ? 'SHIPPING' : 'PICKUP'
-                    setLocal(s => ({ ...s, delivery: alternativeDelivery }))
+                    setDraft(s => ({ ...s, delivery: alternativeDelivery }))
                     void save({ delivery: alternativeDelivery })
                   }
                 }}
@@ -291,8 +291,8 @@ export function SubOrderDetail({
               disabled={!hasSeparateDelivery}
               value={effectiveDelivery}
               onChange={value => {
-                setLocal(s => ({ ...s, delivery: value }))
-                if (value !== serverSnapshotRef.current.delivery) void save({ delivery: value })
+                setDraft(s => ({ ...s, delivery: value }))
+                if (value !== savedRef.current.delivery) void save({ delivery: value })
               }}
             />
             {shouldValidate && validationErrors.lieferung && <p className="text-destructive text-xs mt-1">{validationErrors.lieferung}</p>}
@@ -317,8 +317,8 @@ export function SubOrderDetail({
               disabled={!hasSeparatePriority}
               value={effectivePriority}
               onChange={value => {
-                setLocal(s => ({ ...s, priority: value }))
-                if (value !== serverSnapshotRef.current.priority) void save({ priority: value })
+                setDraft(s => ({ ...s, priority: value }))
+                if (value !== savedRef.current.priority) void save({ priority: value })
               }}
             />
             {shouldValidate && validationErrors.prioritaet && <p className="text-destructive text-xs mt-1">{validationErrors.prioritaet}</p>}
@@ -330,10 +330,10 @@ export function SubOrderDetail({
               type="number"
               className="max-w-48 h-9 text-sm"
               aria-invalid={shouldValidate && !!validationErrors.satzzeit_minuten}
-              value={local.typesetting_minutes ?? ''}
+              value={draft.typesetting_minutes ?? ''}
               onChange={e => {
                 const rawValue = e.target.value
-                setLocal(s => ({
+                setDraft(s => ({
                   ...s,
                   typesetting_minutes: rawValue === '' ? null : parseInt(rawValue, 10),
                 }))
@@ -341,7 +341,7 @@ export function SubOrderDetail({
               onBlur={e => {
                 const rawValue = e.target.value
                 const parsedValue = rawValue === '' ? null : parseInt(rawValue, 10)
-                if (parsedValue !== serverSnapshotRef.current.typesetting_minutes) void save({ typesetting_minutes: parsedValue })
+                if (parsedValue !== savedRef.current.typesetting_minutes) void save({ typesetting_minutes: parsedValue })
               }}
               min={1}
             />
@@ -352,28 +352,28 @@ export function SubOrderDetail({
       </section>
 
       <section>
-        {local.department === 'LFP' && (
-          <LfpProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        {draft.department === 'LFP' && (
+          <LfpProducts key={draft.id} subOrder={draft} subOrderStatus={draft.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
         )}
 
-        {local.department === 'COPYSHOP' && (
-          <CopyShopProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        {draft.department === 'COPYSHOP' && (
+          <CopyShopProducts key={draft.id} subOrder={draft} subOrderStatus={draft.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
         )}
 
-        {local.department === 'STAMP' && (
-          <StampProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        {draft.department === 'STAMP' && (
+          <StampProducts key={draft.id} subOrder={draft} subOrderStatus={draft.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
         )}
 
-        {local.department === 'OTHER' && (
-          <OtherProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        {draft.department === 'OTHER' && (
+          <OtherProducts key={draft.id} subOrder={draft} subOrderStatus={draft.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
         )}
 
-        {local.department === 'LASER_ENGRAVING' && (
-          <LaserProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        {draft.department === 'LASER_ENGRAVING' && (
+          <LaserProducts key={draft.id} subOrder={draft} subOrderStatus={draft.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
         )}
 
-        {local.department === 'TEXTILE' && (
-          <TextileProducts key={local.id} subOrder={local} subOrderStatus={local.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
+        {draft.department === 'TEXTILE' && (
+          <TextileProducts key={draft.id} subOrder={draft} subOrderStatus={draft.status} orderFiles={orderFiles} onProductsChanged={onProductsChanged} />
         )}
       </section>
     </div>
