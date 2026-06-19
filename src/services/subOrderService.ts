@@ -74,7 +74,7 @@ class SubOrderService {
 
   async setSubOrderEmergency(
     id: string,
-    patch: Pick<SubOrderUpdate, 'is_emergency' | 'emergency_reason' | 'status'>,
+    patch: Pick<SubOrderUpdate, 'is_emergency' | 'emergency_reason'>,
   ): Promise<SubOrderRow> {
     const { data, error } = await supabase
       .from('department_orders')

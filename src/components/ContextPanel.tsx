@@ -11,7 +11,6 @@ import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import {
   type Auftrag,
   type Customer,
-  type OrderStatus,
   type SubOrderRow,
 } from '../types/database'
 import { subOrderDetailToFieldMap } from '../lib/utils'
@@ -35,14 +34,6 @@ type Props = {
   onSubOrderRemoved: (id: string) => void
   contextRefreshTick: number
   onFileChanged?: (newFileRow?: FileRow) => void | Promise<void>
-}
-
-function nextEmergencyStatus(status: OrderStatus): OrderStatus {
-  if (status === 'INVOICED') return status
-  if (status === 'INCOMPLETE') return 'PREPRESS_READY'
-  if (status === 'PREPRESS_READY') return 'PRODUCTION_READY'
-  if (status === 'PRODUCTION_READY') return 'DONE'
-  return status
 }
 
 function hasStampModelLinked(detail: Record<string, unknown>): boolean {
@@ -502,16 +493,10 @@ export function ContextPanel({
       showError('Please enter a reason')
       return
     }
-    const nextStatus = nextEmergencyStatus(subOrder.status)
-    if (nextStatus === subOrder.status) {
-      setEmergencyDialogOpen(false)
-      return
-    }
     setBusy(true)
     setEmergencyDialogOpen(false)
     try {
       const data = await subOrderService.setSubOrderEmergency(subOrder.id, {
-        status: nextStatus,
         is_emergency: true,
         emergency_reason: reason,
       })
@@ -535,7 +520,6 @@ export function ContextPanel({
     setBusy(true)
     try {
       const data = await subOrderService.setSubOrderEmergency(subOrder.id, {
-        status: 'INCOMPLETE',
         is_emergency: false,
         emergency_reason: null,
       })
@@ -662,7 +646,7 @@ export function ContextPanel({
     hasStampModelLinked(currentStampDetail) &&
     isStampStockCritical(stampStock, padStock)
   const emergencyVisible =
-    subOrder && subOrder.status !== 'QUOTE' && subOrder.status !== 'DONE' && nextEmergencyStatus(subOrder.status) !== subOrder.status
+    subOrder && subOrder.status !== 'QUOTE' && subOrder.status !== 'DONE' && !subOrder.is_emergency
   const customerApprovalGrantVisible =
     !!subOrder &&
     subOrder.customer_approval_required &&
