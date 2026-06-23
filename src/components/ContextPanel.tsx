@@ -1,13 +1,24 @@
 import { useEffect, useState } from 'react'
-import { authService } from '../services/authService'
-import { historyService, type HistoryEvent } from '../services/historyService'
-import { orderService } from '../services/orderService'
+import { type HistoryEvent } from '../services/historyService'
 import { subOrderService } from '../services/subOrderService'
 import { subOrderProductService } from '../services/subOrderProductService'
 import { stampService } from '../services/stampService'
-import { textileService } from '../services/textileService'
-import { textileMasterDataService } from '../services/textileMasterDataService'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
+import {
+  useSetOrderStatus,
+  useArchiveOrder,
+  useArchiveOrderWithCancelledSubOrders,
+  useMarkOrderBilled,
+  useDeleteOrder,
+} from '../queries/orderQueries'
+import {
+  useSetSubOrderStatus,
+  useReleaseToProduction,
+  useSetSubOrderEmergency,
+  useSetCustomerApproval,
+  useCancelSubOrder,
+  useDeleteSubOrder,
+} from '../queries/subOrderQueries'
 import {
   type Auftrag,
   type Customer,
@@ -151,6 +162,18 @@ export function ContextPanel({
   const [productionStockZeroDialogOpen, setProductionStockZeroDialogOpen] = useState(false)
   const { showError, showSuccess } = useToast()
 
+  const setOrderStatusMutation = useSetOrderStatus()
+  const archiveOrderMutation = useArchiveOrder()
+  const cancelOrderMutation = useArchiveOrderWithCancelledSubOrders()
+  const markBilledMutation = useMarkOrderBilled()
+  const deleteOrderMutation = useDeleteOrder()
+  const setSubStatusMutation = useSetSubOrderStatus()
+  const releaseToProductionMutation = useReleaseToProduction()
+  const setEmergencyMutation = useSetSubOrderEmergency()
+  const setApprovalMutation = useSetCustomerApproval()
+  const cancelSubMutation = useCancelSubOrder()
+  const deleteSubMutation = useDeleteSubOrder()
+
   useEffect(() => {
     if (!activeSubOrder || activeSubOrder.department !== 'STAMP') {
       setStampStock(null)
@@ -214,12 +237,11 @@ export function ContextPanel({
     if (busy || order.status !== 'QUOTE') return
     setBusy(true)
     try {
-      await orderService.setOrderStatus(order.id, 'INCOMPLETE')
-      await historyService.writeHistory({
-        order_id: order.id,
-        event_type: 'PROCESSING_STARTED',
+      const updated = await setOrderStatusMutation.mutateAsync({
+        id: order.id,
+        status: 'INCOMPLETE',
+        history: { event_type: 'PROCESSING_STARTED' },
       })
-      const updated = await orderService.recalculateOrderStatus(order.id)
       onOrderUpdated({ ...order, status: updated.status })
     } catch {
       showError('Status could not be changed')
@@ -233,7 +255,7 @@ export function ContextPanel({
     if (!window.confirm('Archive order?\nIt will be hidden from the main list.')) return
     setBusy(true)
     try {
-      await orderService.archiveOrder(order.id)
+      await archiveOrderMutation.mutateAsync({ id: order.id })
       onOrderUpdated({ ...order, is_archived: true })
     } catch {
       showError('Status could not be changed')
@@ -247,12 +269,7 @@ export function ContextPanel({
     if (!window.confirm('Mark order as invoiced?\nIt will be hidden from the list.')) return
     setBusy(true)
     try {
-      await orderService.markOrderBilled(order.id)
-      await historyService.writeHistory({
-        order_id: order.id,
-        event_type: 'MARKED_DONE',
-        meta: { abgerechnet_auftrag: true },
-      })
+      await markBilledMutation.mutateAsync({ id: order.id })
       onOrderUpdated({ ...order, status: 'INVOICED', is_archived: true })
     } catch {
       showError('Status could not be changed')
@@ -271,8 +288,7 @@ export function ContextPanel({
       return
     setBusy(true)
     try {
-      await orderService.archiveOrderWithCancelledSubOrders(order.id)
-      await historyService.writeHistory({ order_id: order.id, event_type: 'CANCELLED' })
+      await cancelOrderMutation.mutateAsync({ id: order.id })
       onOrderUpdated({ ...order, is_archived: true })
     } catch {
       showError('Status could not be changed')
@@ -291,18 +307,13 @@ export function ContextPanel({
       return
     setBusy(true)
     try {
-      await orderService.deleteOrder(order.id)
+      await deleteOrderMutation.mutateAsync({ id: order.id })
       onOrderDeleted(order.id)
     } catch {
       showError('Status could not be changed')
     } finally {
       setBusy(false)
     }
-  }
-
-  const recalculateOrderStatusAfterSubOrderAction = async () => {
-    const updated = await orderService.recalculateOrderStatus(order.id)
-    onOrderUpdated({ ...order, status: updated.status })
   }
 
   const handlePrepressFrei = async () => {
@@ -319,16 +330,15 @@ export function ContextPanel({
     }
     setBusy(true)
     try {
-      const data = await subOrderService.setSubOrderStatus(subOrder.id, 'PREPRESS_READY')
-      await historyService.writeHistory({
-        order_id: order.id,
-        sub_order_id: subOrder.id,
-        event_type: 'PREPRESS_READY_MANUAL',
+      const data = await setSubStatusMutation.mutateAsync({
+        id: subOrder.id,
+        orderId: order.id,
+        status: 'PREPRESS_READY',
+        history: { event_type: 'PREPRESS_READY_MANUAL' },
       })
-      onSubOrderUpdated(data as SubOrderRow)
+      onSubOrderUpdated(data)
       const pdfOk = await generateAndDownloadPdf(subOrder.id, order.id)
       if (!pdfOk) showError('PDF could not be generated')
-      await recalculateOrderStatusAfterSubOrderAction()
     } catch {
       showError('Status could not be changed')
     } finally {
@@ -341,105 +351,12 @@ export function ContextPanel({
     if (subOrder.customer_approval_required && !subOrder.customer_approval_granted) return
     setBusy(true)
     try {
-      // Stempel: Automatischer Lagerabgang (vor Status-Update).
-      if (subOrder.department === 'STAMP') {
-        const stampDetail = subOrderDetailToFieldMap(subOrder.detail)
-        const rawQuantity = stampDetail.stueckzahl
-        const parsedQuantity =
-          typeof rawQuantity === 'number'
-            ? rawQuantity
-            : typeof rawQuantity === 'string' && rawQuantity.trim() !== ''
-              ? parseInt(rawQuantity, 10)
-              : 1
-        const quantity = Number.isFinite(parsedQuantity) && parsedQuantity >= 1 ? Math.floor(parsedQuantity) : 1
-
-        const stampNote = 'Automatic on production release ' + (order.order_number ?? '')
-
-        const bookStampStockDeduction = async (modelId: string, quantity: number, note: string) => {
-          const modelRow = await stampService.getStampModelById(modelId)
-          if (!modelRow) return
-          const currentStock = modelRow.stock ?? 0
-          if (currentStock <= 0) return
-          const newStock = Math.max(0, currentStock - quantity)
-          await stampService.updateStampModelStock(modelId, newStock)
-          const user = await authService.getUser()
-          await stampService.createStockMovement({
-            model_id: modelId,
-            quantity,
-            type: 'AUTO_DEDUCTION',
-            note,
-            user_id: user?.id ?? null,
-          })
-        }
-
-        if (subOrder.type === 'TRODAT_PAD' && stampDetail.kissen_modell_id) {
-          await bookStampStockDeduction(String(stampDetail.kissen_modell_id), quantity, stampNote)
-        } else if (stampDetail.modell_id) {
-          const stampId = String(stampDetail.modell_id)
-          await bookStampStockDeduction(stampId, quantity, stampNote)
-
-          const stampColor = stampDetail.farbe
-          if (stampColor != null && String(stampColor).trim() !== '') {
-            const stampModelRow = await stampService.getStampModelForOrder(stampId)
-            if (stampModelRow) {
-              const articleNumber = stampModelRow.replacement_pad_article_number?.trim() || null
-              if (articleNumber) {
-                const padRow = await stampService.findReplacementPad(articleNumber, String(stampColor))
-                if (padRow) {
-                  const padCurrentStock = padRow.stock ?? 0
-                  if (padCurrentStock > 0) {
-                    await bookStampStockDeduction(padRow.id, quantity, stampNote + ' (Pad for stamp)')
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-
-      // Textil: Automatischer Lagerabgang (vor Status-Update).
-      if (subOrder.department === 'TEXTILE') {
-        const textileNote = 'Automatic on production release ' + (order.order_number ?? '')
-        const user = await authService.getUser()
-        const userId = user?.id ?? null
-
-        const garmentUsage = await textileService.getTextileGarmentStockUsageBySubOrder(subOrder.id)
-
-        for (const usage of garmentUsage) {
-          const variantId = usage.variant_id
-          if (!variantId) continue
-          const quantity = Number.isFinite(usage.quantity) && usage.quantity >= 1 ? Math.floor(usage.quantity) : 1
-
-          const variantRow = await textileMasterDataService.getVariantStockById(variantId)
-          const currentStock = variantRow?.stock ?? 0
-          if (currentStock <= 0) continue
-
-          const newStock = Math.max(0, currentStock - quantity)
-          await textileMasterDataService.updateVariantStock(variantId, newStock)
-          await textileMasterDataService.createTextileStockMovement({
-            variant_id: variantId,
-            quantity: quantity,
-            type: 'AUTO_DEDUCTION',
-            note: textileNote,
-            user_id: userId,
-          })
-        }
-      }
-
-      const data = await subOrderService.setSubOrderStatus(subOrder.id, 'PRODUCTION_READY')
-
-      try {
-        await historyService.writeHistory({
-          order_id: order.id,
-          sub_order_id: subOrder.id,
-          event_type: 'PRODUCTION_READY_SET',
-        })
-      } catch {
-        console.error('History production-released failed')
-      }
-
+      const data = await releaseToProductionMutation.mutateAsync({
+        subOrder,
+        orderId: order.id,
+        orderNumber: order.order_number ?? null,
+      })
       onSubOrderUpdated(data)
-      await recalculateOrderStatusAfterSubOrderAction()
     } catch {
       showError('Status could not be changed')
     } finally {
@@ -464,14 +381,13 @@ export function ContextPanel({
     if (!window.confirm('Mark sub-order as done?')) return
     setBusy(true)
     try {
-      const data = await subOrderService.setSubOrderStatus(subOrder.id, 'DONE')
-      await historyService.writeHistory({
-        order_id: order.id,
-        sub_order_id: subOrder.id,
-        event_type: 'MARKED_DONE',
+      const data = await setSubStatusMutation.mutateAsync({
+        id: subOrder.id,
+        orderId: order.id,
+        status: 'DONE',
+        history: { event_type: 'MARKED_DONE' },
       })
       onSubOrderUpdated(data)
-      await recalculateOrderStatusAfterSubOrderAction()
     } catch {
       showError('Status could not be changed')
     } finally {
@@ -496,18 +412,13 @@ export function ContextPanel({
     setBusy(true)
     setEmergencyDialogOpen(false)
     try {
-      const data = await subOrderService.setSubOrderEmergency(subOrder.id, {
-        is_emergency: true,
-        emergency_reason: reason,
-      })
-      await historyService.writeHistory({
-        order_id: order.id,
-        sub_order_id: subOrder.id,
-        event_type: 'EMERGENCY_TRIGGERED',
-        reason: reason,
+      const data = await setEmergencyMutation.mutateAsync({
+        id: subOrder.id,
+        orderId: order.id,
+        patch: { is_emergency: true, emergency_reason: reason },
+        history: { event_type: 'EMERGENCY_TRIGGERED', reason },
       })
       onSubOrderUpdated(data)
-      await recalculateOrderStatusAfterSubOrderAction()
     } catch {
       showError('Status could not be changed')
     } finally {
@@ -519,17 +430,13 @@ export function ContextPanel({
     if (busy || !subOrder || !subOrder.is_emergency) return
     setBusy(true)
     try {
-      const data = await subOrderService.setSubOrderEmergency(subOrder.id, {
-        is_emergency: false,
-        emergency_reason: null,
-      })
-      await historyService.writeHistory({
-        order_id: order.id,
-        sub_order_id: subOrder.id,
-        event_type: 'ROLLED_BACK',
+      const data = await setEmergencyMutation.mutateAsync({
+        id: subOrder.id,
+        orderId: order.id,
+        patch: { is_emergency: false, emergency_reason: null },
+        history: { event_type: 'ROLLED_BACK' },
       })
       onSubOrderUpdated(data)
-      await recalculateOrderStatusAfterSubOrderAction()
     } catch {
       showError('Status could not be changed')
     } finally {
@@ -549,17 +456,15 @@ export function ContextPanel({
             customer_approval_granted: false,
             customer_approval_file_id: null,
           }
-      const data = await subOrderService.setCustomerApproval(subOrder.id, approvalPatch)
       // DB-Enum hat kein KUNDENFREIGABE_DEAKTIVIERT; bei Abschaltung der Anforderung VERFALLEN als nächstliegender Wert.
       const historyEvent: HistoryEvent = enabled ? 'CUSTOMER_APPROVAL_ACTIVATED' : 'CUSTOMER_APPROVAL_EXPIRED'
-      await historyService.writeHistory({
-        order_id: order.id,
-        sub_order_id: subOrder.id,
-        event_type: historyEvent,
-        meta: { aktiv: enabled } as unknown as Record<string, unknown>,
+      const data = await setApprovalMutation.mutateAsync({
+        id: subOrder.id,
+        orderId: order.id,
+        patch: approvalPatch,
+        history: { event_type: historyEvent, meta: { aktiv: enabled } },
       })
       onSubOrderUpdated(data)
-      await recalculateOrderStatusAfterSubOrderAction()
     } catch {
       showError('Status could not be changed')
     } finally {
@@ -578,18 +483,16 @@ export function ContextPanel({
     setBusy(true)
     setDialogCustomerApprovalFile(false)
     try {
-      const data = await subOrderService.setCustomerApproval(subOrder.id, {
-        customer_approval_granted: true,
-        customer_approval_file_id: customerApprovalFileId,
-      })
-      await historyService.writeHistory({
-        order_id: order.id,
-        sub_order_id: subOrder.id,
-        event_type: 'CUSTOMER_APPROVAL_GRANTED',
-        meta: { datei_id: customerApprovalFileId } as unknown as Record<string, unknown>,
+      const data = await setApprovalMutation.mutateAsync({
+        id: subOrder.id,
+        orderId: order.id,
+        patch: {
+          customer_approval_granted: true,
+          customer_approval_file_id: customerApprovalFileId,
+        },
+        history: { event_type: 'CUSTOMER_APPROVAL_GRANTED', meta: { datei_id: customerApprovalFileId } },
       })
       onSubOrderUpdated(data)
-      await recalculateOrderStatusAfterSubOrderAction()
       showSuccess('Approval granted')
     } catch {
       showError('Status could not be changed')
@@ -603,13 +506,8 @@ export function ContextPanel({
     if (!window.confirm('Cancel sub-order? It will be hidden but not deleted.')) return
     setCancelInProgress(true)
     try {
-      await subOrderService.cancelSubOrder(subOrder.id)
+      await cancelSubMutation.mutateAsync({ id: subOrder.id, orderId: order.id })
       onSubOrderRemoved(subOrder.id)
-      try {
-        await recalculateOrderStatusAfterSubOrderAction()
-      } catch {
-        showError('Status could not be changed')
-      }
     } catch {
       showError('Status could not be changed')
     } finally {
@@ -622,13 +520,8 @@ export function ContextPanel({
     if (!window.confirm('Permanently delete sub-order?')) return
     setDeleteInProgress(true)
     try {
-      await subOrderService.deleteSubOrder(subOrder.id)
+      await deleteSubMutation.mutateAsync({ id: subOrder.id, orderId: order.id })
       onSubOrderRemoved(subOrder.id)
-      try {
-        await recalculateOrderStatusAfterSubOrderAction()
-      } catch {
-        showError('Status could not be changed')
-      }
     } catch {
       showError('Status could not be changed')
     } finally {

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { customerService } from '../services/customerService'
-import { historyService } from '../services/historyService'
+import { historyService, type HistoryEvent } from '../services/historyService'
 import { orderService, type OrderListEntry } from '../services/orderService'
 import type { Auftrag, OrderStatus } from '../types/database'
 import type { Database } from '../types/supabase'
@@ -155,6 +155,85 @@ export function useUpdateOrder() {
     mutationFn: ({ id, patch }) => orderService.updateOrder(id, patch),
     onSuccess: updated => {
       queryClient.setQueryData(orderKeys.byId(updated.id), updated)
+      void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
+    },
+  })
+}
+
+type OrderHistoryParams = { event_type: HistoryEvent; reason?: string; meta?: Record<string, unknown> }
+
+/** Direct order-status set (e.g. start-processing QUOTE → INCOMPLETE). Optionally writes history. */
+export function useSetOrderStatus() {
+  const queryClient = useQueryClient()
+  return useMutation<Auftrag, Error, { id: string; status: OrderStatus; history?: OrderHistoryParams }>({
+    mutationFn: async ({ id, status, history }) => {
+      const updated = await orderService.setOrderStatus(id, status)
+      if (history) await historyService.writeHistory({ order_id: id, ...history })
+      return updated
+    },
+    onSuccess: updated => {
+      queryClient.setQueryData(orderKeys.byId(updated.id), updated)
+      patchOrderStatusInCache(queryClient, updated.id, updated.status)
+      void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
+    },
+  })
+}
+
+/** Soft-archive (hidden from list, status unchanged). */
+export function useArchiveOrder() {
+  const queryClient = useQueryClient()
+  return useMutation<void, Error, { id: string }>({
+    mutationFn: ({ id }) => orderService.archiveOrder(id),
+    onSuccess: (_void, { id }) => {
+      void queryClient.invalidateQueries({ queryKey: orderKeys.byId(id) })
+      void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
+    },
+  })
+}
+
+/** Cancel order: cancel all sub-orders + archive. Writes a CANCELLED history entry. */
+export function useArchiveOrderWithCancelledSubOrders() {
+  const queryClient = useQueryClient()
+  return useMutation<void, Error, { id: string }>({
+    mutationFn: async ({ id }) => {
+      await orderService.archiveOrderWithCancelledSubOrders(id)
+      await historyService.writeHistory({ order_id: id, event_type: 'CANCELLED' })
+    },
+    onSuccess: (_void, { id }) => {
+      void queryClient.invalidateQueries({ queryKey: ['subOrders', 'by-order-id', id] })
+      void queryClient.invalidateQueries({ queryKey: orderKeys.byId(id) })
+      void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
+    },
+  })
+}
+
+/** Mark invoiced (INVOICED + archived). Writes a MARKED_DONE history entry. */
+export function useMarkOrderBilled() {
+  const queryClient = useQueryClient()
+  return useMutation<void, Error, { id: string }>({
+    mutationFn: async ({ id }) => {
+      await orderService.markOrderBilled(id)
+      await historyService.writeHistory({
+        order_id: id,
+        event_type: 'MARKED_DONE',
+        meta: { abgerechnet_auftrag: true },
+      })
+    },
+    onSuccess: (_void, { id }) => {
+      patchOrderStatusInCache(queryClient, id, 'INVOICED')
+      void queryClient.invalidateQueries({ queryKey: orderKeys.byId(id) })
+      void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
+    },
+  })
+}
+
+/** Permanently delete an order. */
+export function useDeleteOrder() {
+  const queryClient = useQueryClient()
+  return useMutation<void, Error, { id: string }>({
+    mutationFn: ({ id }) => orderService.deleteOrder(id),
+    onSuccess: (_void, { id }) => {
+      queryClient.removeQueries({ queryKey: orderKeys.byId(id) })
       void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
     },
   })

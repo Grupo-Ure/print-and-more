@@ -1,13 +1,17 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { orderService } from '../services/orderService'
 import { subOrderService } from '../services/subOrderService'
+import { historyService, type HistoryEvent } from '../services/historyService'
+import { deductProductionStock } from '../services/productionReleaseService'
 import { calculateOrderStatus } from '../lib/orderStatus'
-import type { OrderDetailRow, SubOrderRow } from '../types/database'
+import type { OrderDetailRow, SubOrderRow, OrderStatus } from '../types/database'
 import type { Database } from '../types/supabase'
 import { orderKeys, patchOrderStatusInCache } from './orderQueries'
 
 type SubOrderInsert = Database['public']['Tables']['department_orders']['Insert']
 type SubOrderUpdate = Database['public']['Tables']['department_orders']['Update']
+
+type HistoryParams = { event_type: HistoryEvent; reason?: string; meta?: Record<string, unknown> }
 
 export const subOrderKeys = {
   all: ['subOrders'] as const,
@@ -22,32 +26,45 @@ export function useSubOrdersByOrderId(orderId: string | null) {
   })
 }
 
+/**
+ * Re-derive the order's aggregate status from the *cached* sub-order list and
+ * persist it if it changed (the optimistic pattern that replaces the deprecated
+ * `orderService.recalculateOrderStatus` DB round-trip). Always invalidates the
+ * order lists so the sidebar reflects the change. Callers must patch the
+ * sub-order cache *before* invoking this so the aggregation sees the new state.
+ */
+export async function reconcileOrderStatus(queryClient: QueryClient, orderId: string): Promise<void> {
+  const order = queryClient.getQueryData<OrderDetailRow>(orderKeys.byId(orderId))
+  const subOrders = queryClient.getQueryData<SubOrderRow[]>(subOrderKeys.byOrderId(orderId))
+  if (order && subOrders) {
+    const next = calculateOrderStatus(order.status, subOrders)
+    if (next !== order.status) {
+      const updated = await orderService.setOrderStatus(orderId, next)
+      queryClient.setQueryData(orderKeys.byId(orderId), updated)
+      patchOrderStatusInCache(queryClient, orderId, updated.status)
+    }
+  } else {
+    void queryClient.invalidateQueries({ queryKey: orderKeys.byId(orderId) })
+  }
+  void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
+}
+
+function patchSubOrderInCache(queryClient: QueryClient, orderId: string, row: SubOrderRow): void {
+  queryClient.setQueryData<SubOrderRow[]>(
+    subOrderKeys.byOrderId(orderId),
+    old => old?.map(r => (r.id === row.id ? row : r)) ?? old,
+  )
+}
+
 export function useCreateSubOrder() {
   const queryClient = useQueryClient()
   return useMutation<SubOrderRow, Error, SubOrderInsert>({
     mutationFn: payload => subOrderService.createSubOrder(payload),
     onSuccess: async created => {
       const orderId = created.order_id
-
-      // Construct the post-mutation sibling list ourselves; we don't depend on the cache
-      // having been updated yet by an invalidate refetch.
       const cachedSiblings = queryClient.getQueryData<SubOrderRow[]>(subOrderKeys.byOrderId(orderId)) ?? []
-      const postChange = [...cachedSiblings, created]
-      queryClient.setQueryData<SubOrderRow[]>(subOrderKeys.byOrderId(orderId), postChange)
-
-      // Cache-miss skip: the dialog flow always has the order cached. If a future caller
-      // invokes this mutation without a warmed order cache, the recalc is silently skipped.
-      const cachedOrder = queryClient.getQueryData<OrderDetailRow>(orderKeys.byId(orderId))
-      if (cachedOrder) {
-        const nextStatus = calculateOrderStatus(cachedOrder.status, postChange)
-        if (nextStatus !== cachedOrder.status) {
-          const updatedOrder = await orderService.setOrderStatus(orderId, nextStatus)
-          queryClient.setQueryData(orderKeys.byId(orderId), updatedOrder)
-          patchOrderStatusInCache(queryClient, orderId, updatedOrder.status)
-        }
-      }
-
-      void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
+      queryClient.setQueryData<SubOrderRow[]>(subOrderKeys.byOrderId(orderId), [...cachedSiblings, created])
+      await reconcileOrderStatus(queryClient, orderId)
     },
   })
 }
@@ -83,7 +100,6 @@ export function useUpdateSubOrder() {
       }
     },
     onSuccess: updated => {
-      // Reconcile the optimistic row with the authoritative server row.
       queryClient.setQueryData<SubOrderRow[]>(
         subOrderKeys.byOrderId(updated.order_id),
         old => old?.map(row => (row.id === updated.id ? updated : row)) ?? old,
@@ -92,6 +108,137 @@ export function useUpdateSubOrder() {
     onSettled: (_data, _err, { orderId }) => {
       void queryClient.invalidateQueries({ queryKey: orderKeys.byId(orderId) })
       void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
+    },
+  })
+}
+
+/** Manual status transition (prepress / production / done). Optionally writes a history entry. */
+export function useSetSubOrderStatus() {
+  const queryClient = useQueryClient()
+  return useMutation<
+    SubOrderRow,
+    Error,
+    { id: string; orderId: string; status: OrderStatus; history?: HistoryParams }
+  >({
+    mutationFn: async ({ id, orderId, status, history }) => {
+      const row = await subOrderService.setSubOrderStatus(id, status)
+      if (history) await historyService.writeHistory({ order_id: orderId, sub_order_id: id, ...history })
+      return row
+    },
+    onSuccess: async (row, { orderId }) => {
+      patchSubOrderInCache(queryClient, orderId, row)
+      await reconcileOrderStatus(queryClient, orderId)
+    },
+  })
+}
+
+/**
+ * Release to production: book stock deductions (stamp/textile), set
+ * PRODUCTION_READY, write the PRODUCTION_READY_SET history entry. The stock
+ * deduction runs before the status write, matching the prior behaviour.
+ */
+export function useReleaseToProduction() {
+  const queryClient = useQueryClient()
+  return useMutation<SubOrderRow, Error, { subOrder: SubOrderRow; orderId: string; orderNumber: string | null }>({
+    mutationFn: async ({ subOrder, orderId, orderNumber }) => {
+      await deductProductionStock(subOrder, orderNumber)
+      const row = await subOrderService.setSubOrderStatus(subOrder.id, 'PRODUCTION_READY')
+      try {
+        await historyService.writeHistory({
+          order_id: orderId,
+          sub_order_id: subOrder.id,
+          event_type: 'PRODUCTION_READY_SET',
+        })
+      } catch {
+        console.error('History production-released failed')
+      }
+      return row
+    },
+    onSuccess: async (row, { orderId }) => {
+      patchSubOrderInCache(queryClient, orderId, row)
+      await reconcileOrderStatus(queryClient, orderId)
+    },
+  })
+}
+
+/** Toggle the emergency flag + reason. Does not change status. */
+export function useSetSubOrderEmergency() {
+  const queryClient = useQueryClient()
+  return useMutation<
+    SubOrderRow,
+    Error,
+    {
+      id: string
+      orderId: string
+      patch: Pick<SubOrderUpdate, 'is_emergency' | 'emergency_reason'>
+      history?: HistoryParams
+    }
+  >({
+    mutationFn: async ({ id, orderId, patch, history }) => {
+      const row = await subOrderService.setSubOrderEmergency(id, patch)
+      if (history) await historyService.writeHistory({ order_id: orderId, sub_order_id: id, ...history })
+      return row
+    },
+    onSuccess: (row, { orderId }) => {
+      patchSubOrderInCache(queryClient, orderId, row)
+      void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
+    },
+  })
+}
+
+/** Customer-approval requirement / grant. Does not change status. */
+export function useSetCustomerApproval() {
+  const queryClient = useQueryClient()
+  return useMutation<
+    SubOrderRow,
+    Error,
+    {
+      id: string
+      orderId: string
+      patch: Pick<
+        SubOrderUpdate,
+        'customer_approval_required' | 'customer_approval_granted' | 'customer_approval_file_id'
+      >
+      history?: HistoryParams
+    }
+  >({
+    mutationFn: async ({ id, orderId, patch, history }) => {
+      const row = await subOrderService.setCustomerApproval(id, patch)
+      if (history) await historyService.writeHistory({ order_id: orderId, sub_order_id: id, ...history })
+      return row
+    },
+    onSuccess: (row, { orderId }) => {
+      patchSubOrderInCache(queryClient, orderId, row)
+    },
+  })
+}
+
+/** Cancel a sub-order (excluded from order aggregation). */
+export function useCancelSubOrder() {
+  const queryClient = useQueryClient()
+  return useMutation<void, Error, { id: string; orderId: string }>({
+    mutationFn: ({ id }) => subOrderService.cancelSubOrder(id),
+    onSuccess: async (_void, { id, orderId }) => {
+      queryClient.setQueryData<SubOrderRow[]>(
+        subOrderKeys.byOrderId(orderId),
+        old => old?.map(r => (r.id === id ? { ...r, is_cancelled: true } : r)) ?? old,
+      )
+      await reconcileOrderStatus(queryClient, orderId)
+    },
+  })
+}
+
+/** Permanently delete a sub-order (only while INCOMPLETE). */
+export function useDeleteSubOrder() {
+  const queryClient = useQueryClient()
+  return useMutation<void, Error, { id: string; orderId: string }>({
+    mutationFn: ({ id }) => subOrderService.deleteSubOrder(id),
+    onSuccess: async (_void, { id, orderId }) => {
+      queryClient.setQueryData<SubOrderRow[]>(
+        subOrderKeys.byOrderId(orderId),
+        old => old?.filter(r => r.id !== id) ?? old,
+      )
+      await reconcileOrderStatus(queryClient, orderId)
     },
   })
 }
