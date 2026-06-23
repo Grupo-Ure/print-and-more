@@ -1,7 +1,6 @@
 import { supabase } from '../supabase'
 import type { Database } from '../types/supabase'
 import { ORDER_COLUMNS } from '../const/orderSelect'
-import { calculateOrderStatus } from '../lib/orderStatus'
 import { type Auftrag, type DuplicateOrderArgs, type OrderStatus, type OrderSummaryRow } from '../types/database'
 
 type OrderInsert = Database['public']['Tables']['orders']['Insert']
@@ -56,8 +55,9 @@ const ORDER_LIST_COLUMNS = 'id, order_number, status, created_at, customers(name
  * {@link flattenCustomerJoin}.
  *
  * Note on status: order status is *derived* from the sub-orders, never set by the
- * user directly except for terminal transitions. Two collaborators do this work —
- * see {@link recalculateOrderStatus} for the calculate-vs-recalculate split.
+ * user directly except for terminal transitions. The derivation lives in the pure
+ * `calculateOrderStatus` (src/lib/orderStatus.ts); the query layer persists it via
+ * `reconcileOrderStatus` (src/queries/subOrderQueries.ts).
  */
 class OrderService {
   /** Filtered order list for the sidebar (archived flag, customer, status, deadline/intake ranges). Newest first. */
@@ -127,8 +127,9 @@ class OrderService {
   /**
    * Write an explicit status to the order — a *direct* set, no derivation.
    * Use this only for deliberate manual transitions where the caller already knows
-   * the target status. To re-derive status from the sub-orders, use
-   * {@link recalculateOrderStatus} instead.
+   * the target status. To re-derive status from the sub-orders, compute it with the
+   * pure `calculateOrderStatus` and persist via `reconcileOrderStatus`
+   * (src/queries/subOrderQueries.ts).
    */
   async setOrderStatus(id: string, status: OrderStatus): Promise<Auftrag> {
     const { data, error } = await supabase
@@ -180,64 +181,6 @@ class OrderService {
     if (error) throw error
   }
 
-  /**
-   * Re-derive and persist the order's aggregate status from its sub-orders via a
-   * DB-round-trip: reads the order + its sub-orders fresh from the database,
-   * computes the next status with the pure {@link calculateOrderStatus}, and writes
-   * it back. It re-reads from the DB rather than trusting the client cache.
-   *
-   * @deprecated TRANSITIONAL — to be removed. This is the legacy "distrust the cache,
-   * re-read from the DB" strategy for keeping order status fresh. The refactor is
-   * converging on the optimistic alternative: compute from the already-authoritative
-   * React Query cache and persist directly — `calculateOrderStatus` + `setOrderStatus`
-   * + `patchOrderStatusInCache`. See `useCreateSubOrder` (src/queries/subOrderQueries.ts)
-   * for the canonical example of that pattern.
-   *
-   * The pure {@link calculateOrderStatus} is NOT deprecated — both strategies depend on
-   * it. Only this DB-round-trip wrapper is going away.
-   *
-   * DO NOT add new callers. Removal blockers — the only thing keeping it alive:
-   *   - `ContextPanel` is the sole live consumer (not yet migrated): one direct call
-   *     plus the `recalculateOrderStatusAfterSubOrderAction` helper used after each
-   *     manual workflow action (~11 call sites total).
-   *   - The `useRecalculateOrderStatus` wrapper in src/queries/orderQueries.ts is
-   *     ALREADY orphaned (zero callers) and can be deleted immediately.
-   *
-   * Removal checklist:
-   *   1. Migrate each `ContextPanel` action to the optimistic trio above. Note the
-   *      multi-row actions (e.g. `archiveOrderWithCancelledSubOrders`, which cancels
-   *      all sub-orders at once) need their cache writes in place first, so the
-   *      cached sub-order list reflects the change before `calculateOrderStatus` runs.
-   *   2. Delete `useRecalculateOrderStatus` (already unused).
-   *   3. Delete this method.
-   *
-   * Historical: this replaced the former Postgres RPC `fn_calculate_order_status`
-   * (reimplemented in TS); it is the cache-independent safety net only until the
-   * migration above completes.
-   */
-  async recalculateOrderStatus(orderId: string): Promise<Auftrag> {
-    const { data: inputs, error: readError } = await supabase
-      .from('orders')
-      .select('status, sub_orders:department_orders(status, is_cancelled)')
-      .eq('id', orderId)
-      .single()
-    if (readError) throw readError
-    if (inputs == null) throw new Error('recalculateOrderStatus: order not found')
-
-    const currentStatus = inputs.status as OrderStatus
-    const subOrders = (inputs.sub_orders ?? []) as { status: OrderStatus; is_cancelled: boolean }[]
-    const nextStatus = calculateOrderStatus(currentStatus, subOrders)
-
-    const { data, error } = await supabase
-      .from('orders')
-      .update({ status: nextStatus })
-      .eq('id', orderId)
-      .select(ORDER_COLUMNS)
-      .single()
-    if (error) throw error
-    if (data == null) throw new Error('recalculateOrderStatus: no row returned after update')
-    return flattenCustomerJoin(data as unknown as Auftrag)
-  }
 
   /**
    * Deep-copy an order via the `duplicate_order` Postgres RPC — sub-orders, products
