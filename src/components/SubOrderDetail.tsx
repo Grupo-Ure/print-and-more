@@ -1,9 +1,11 @@
-import { useUpdateSubOrder } from '../queries/subOrderQueries'
+import { useEffectiveSubOrder, useSubOrderById, useUpdateSubOrder } from '../queries/subOrderQueries'
+import { useOrderById } from '../queries/orderQueries'
+import { useStatusManager } from '../queries/useStatusManager'
+import { useOrderWorkspace } from '../context/order.context'
 import { departmentAbbreviation } from '../const/departmentAbbreviation'
 import { customerMeetsPrepressContact } from '../lib/customer'
 import { validateSubOrderCommonFields } from '../lib/subOrderShared'
 import {
-  type Customer,
   type DeliveryChoice,
   type Priority,
   type SubOrderRow,
@@ -27,28 +29,29 @@ import { StatusBadge } from './StatusBadge'
 import './WorkArea.css'
 
 export function SubOrderDetail({
-  subOrder,
-  orderDeadline,
-  orderDelivery,
-  orderPriority,
-  orderCustomer,
   orderFiles,
   onUpdated,
 }: {
-  subOrder: SubOrderRow
-  orderDeadline: string | null
-  orderDelivery: DeliveryChoice | null
-  orderPriority: Priority
-  orderCustomer: Customer | null
   orderFiles: FileRow[]
   onUpdated: (updatedSubOrder: SubOrderRow) => void
 }) {
+  const { activeOrderId, activeSubOrderId } = useOrderWorkspace()
+  const { data: order } = useOrderById(activeOrderId)
+  const subOrder = useSubOrderById(activeOrderId, activeSubOrderId) // raw row (override/inherit state)
+  const effectiveSuborder = useEffectiveSubOrder(activeOrderId, activeSubOrderId) // inherited fields resolved
   const updateSubOrder = useUpdateSubOrder()
   const { showError } = useToast()
 
+  // Status manager: auto-derives and persists the INCOMPLETE ↔ PREPRESS_READY
+  // transition for the active sub-order. Single owner (one SubOrderDetail is mounted
+  // at a time). Called unconditionally (before the early return) per the rules of hooks.
+  useStatusManager(activeOrderId, activeSubOrderId)
+
+  if (!order || !subOrder || !effectiveSuborder) return null
+
   // Persist a field edit straight to the DB (optimistic via useUpdateSubOrder —
   // instant UI, rollback on error). No status calculation here: status is driven
-  // by ContextPanel (status calc is decoupled — see STATUS_WORKFLOW_SPEC.md).
+  // by the status manager (decoupled — see STATUS_WORKFLOW_SPEC.md).
   const handleUpdateSuborder = (patch: SubOrderUpdate) => {
     updateSubOrder.mutate(
       { id: subOrder.id, orderId: subOrder.order_id, patch },
@@ -56,31 +59,29 @@ export function SubOrderDetail({
     )
   }
 
-  const orderDeliveryMode = (orderDelivery ?? 'PICKUP') as DeliveryChoice
-  const orderPriorityMode: Priority = orderPriority
+  // Raw order fields drive the toggle defaults and the equality-collapse compares.
+  const orderDeliveryMode = (order.delivery ?? 'PICKUP') as DeliveryChoice
+  const orderPriorityMode: Priority = order.priority
 
-  const customerMeetsPrepressRequirements = customerMeetsPrepressContact(orderCustomer)
+  const customerMeetsPrepressRequirements = customerMeetsPrepressContact(order.customers)
   const shouldValidate = subOrder.status !== 'QUOTE'
 
   // A field is "separate" purely when the sub-order carries its own value (the
   // column is non-null); a null column means the toggle is off and the order's
-  // value is inherited (resolved here at read time). The equality-collapse — a
-  // user setting the value equal to the order's clears it back to inherit — lives
-  // in each field's onChange, never here, so it can't fire from a toggle or an
-  // order change.
+  // value is inherited. The equality-collapse — a user setting the value equal to the
+  // order's clears it back to inherit — lives in each field's onChange, never here, so
+  // it can't fire from a toggle or an order change.
   const hasSeparateDelivery = subOrder.delivery != null
   const hasSeparatePriority = subOrder.priority != null
   const hasSeparateDeadline = subOrder.deadline != null
-  const effectiveDelivery = (subOrder.delivery ?? orderDeliveryMode) as DeliveryChoice
-  const effectivePriority = subOrder.priority ?? orderPriorityMode
 
-  const effectiveDeadline = subOrder.deadline ?? orderDeadline
+  // Effective (inherited-resolved) values come from useEffectiveSubOrder.
+  const effectiveDelivery = effectiveSuborder.delivery as DeliveryChoice
+  const effectivePriority = effectiveSuborder.priority ?? orderPriorityMode
+  const effectiveDeadline = effectiveSuborder.deadline
   const deadlineIso = toDateOnly(effectiveDeadline) ?? ''
 
-  const validationErrors = validateSubOrderCommonFields(
-    { ...subOrder, delivery: effectiveDelivery, priority: effectivePriority, deadline: effectiveDeadline },
-    subOrder.status,
-  )
+  const validationErrors = validateSubOrderCommonFields(effectiveSuborder, subOrder.status)
 
   return (
     <div className="td">
@@ -121,7 +122,7 @@ export function SubOrderDetail({
               disabled={!hasSeparateDeadline}
               value={toDateOnly(subOrder.deadline) ?? deadlineIso}
               onChange={value => {
-                if (toDateOnly(value) === toDateOnly(orderDeadline)) {
+                if (toDateOnly(value) === toDateOnly(order.deadline)) {
                   handleUpdateSuborder({ deadline: null })
                 } else if ((value ?? '') !== (toDateOnly(subOrder.deadline) ?? '')) {
                   handleUpdateSuborder({ deadline: value })

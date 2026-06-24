@@ -30,7 +30,7 @@ import type { FileRow } from '../services/fileService'
 import { HistoryPanel } from './HistoryPanel'
 import { StatusBadge } from './StatusBadge'
 import { useToast } from './Toast'
-import { isSubOrderComplete } from '../lib/subOrderShared'
+import { isSubOrderComplete, resolveEffectiveSubOrder } from '../lib/subOrderShared'
 import { useOrderWorkspace } from '../context/order.context'
 import './ContextPanel.css'
 
@@ -323,7 +323,8 @@ export function ContextPanel({
       return
     }
     const products = await subOrderProductService.getProductsBySubOrderId(subOrder.id)
-    const isComplete = isSubOrderComplete(subOrder, subOrder.status, products.length > 0)
+    const effective = resolveEffectiveSubOrder(subOrder, order)
+    const isComplete = isSubOrderComplete(effective, effective.status, products.length > 0)
     if (!isComplete) {
       showError('Sub-order is not yet complete')
       return

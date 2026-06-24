@@ -219,11 +219,6 @@ export function OrderDetails({
       <div className="work-area__formular " role="tabpanel">
         {activeSubOrder ? (
           <SubOrderDetail
-            subOrder={activeSubOrder}
-            orderDeadline={order.deadline}
-            orderDelivery={order.delivery}
-            orderPriority={order.priority}
-            orderCustomer={order.customers}
             orderFiles={files}
             onUpdated={handleSubOrderUpdated}
           />

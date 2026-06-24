@@ -1,12 +1,14 @@
+import { useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { orderService } from '../services/orderService'
 import { subOrderService } from '../services/subOrderService'
 import { historyService, type HistoryEvent } from '../services/historyService'
 import { deductProductionStock } from '../services/productionReleaseService'
 import { calculateOrderStatus } from '../lib/orderStatus'
+import { resolveEffectiveSubOrder } from '../lib/subOrderShared'
 import type { OrderDetailRow, SubOrderRow, OrderStatus } from '../types/database'
 import type { Database } from '../types/supabase'
-import { orderKeys, patchOrderStatusInCache } from './orderQueries'
+import { orderKeys, patchOrderStatusInCache, useOrderById } from './orderQueries'
 
 type SubOrderInsert = Database['public']['Tables']['department_orders']['Insert']
 type SubOrderUpdate = Database['public']['Tables']['department_orders']['Update']
@@ -53,6 +55,40 @@ function patchSubOrderInCache(queryClient: QueryClient, orderId: string, row: Su
   queryClient.setQueryData<SubOrderRow[]>(
     subOrderKeys.byOrderId(orderId),
     old => old?.map(r => (r.id === row.id ? row : r)) ?? old,
+  )
+}
+
+/**
+ * The raw active sub-order row, selected from the cached `useSubOrdersByOrderId` list
+ * by id. Returns `null` until the list has loaded or if no match. This is the *raw*
+ * row (inherited common fields still null) — use it when you need the override/inherit
+ * state (e.g. SubOrderDetail's inheritance toggles). For the resolved fields use
+ * {@link useEffectiveSubOrder}.
+ */
+export function useSubOrderById(orderId: string | null, subOrderId: string | null): SubOrderRow | null {
+  const { data: subOrders } = useSubOrdersByOrderId(orderId)
+  return subOrders?.find(s => s.id === subOrderId) ?? null
+}
+
+/**
+ * The active sub-order with its inherited common fields resolved against the order
+ * (see {@link resolveEffectiveSubOrder}). Composes {@link useSubOrderById} +
+ * `useOrderById` from the cache; returns `null` until both have loaded. Use this
+ * wherever completeness/validation needs the *effective* fields rather than the raw
+ * (inheriting) columns.
+ */
+export function useEffectiveSubOrder(
+  orderId: string | null,
+  subOrderId: string | null,
+): SubOrderRow | null {
+  const subOrder = useSubOrderById(orderId, subOrderId)
+  const { data: order } = useOrderById(orderId)
+  // Memoize so the resolved row keeps a stable reference between renders (it only
+  // changes when the sub-order or order data changes) — important for consumers that
+  // use it as an effect dependency (the status manager).
+  return useMemo(
+    () => (subOrder && order ? resolveEffectiveSubOrder(subOrder, order) : null),
+    [subOrder, order],
   )
 }
 

@@ -25,8 +25,32 @@
  * identifier surface is English here.
  */
 
-import { type OrderStatus, type SubOrderRow } from '../types/database'
+import { type DeliveryChoice, type OrderStatus, type Priority, type SubOrderRow } from '../types/database'
 import { subOrderDetailToFieldMap } from './utils'
+
+/**
+ * Resolve a sub-order's inherited common fields against its order. A null
+ * `delivery` / `priority` / `deadline` column means "inherit from the order"; this
+ * returns a copy of the sub-order with those three resolved to their effective
+ * values (delivery falling back to `PICKUP` when the order has none). Use this
+ * before `validateSubOrderCommonFields` / `isSubOrderComplete` so completeness
+ * judges the *effective* fields, not the raw (often-null, inheriting) columns.
+ *
+ * Single source of truth for the resolution — consumed by `SubOrderDetail` (display
+ * + validation), the status manager (auto-advance completeness), and ContextPanel's
+ * manual prepress check.
+ */
+export function resolveEffectiveSubOrder(
+  subOrder: SubOrderRow,
+  order: { delivery: DeliveryChoice | null; priority: Priority; deadline: string | null },
+): SubOrderRow {
+  return {
+    ...subOrder,
+    delivery: subOrder.delivery ?? order.delivery ?? 'PICKUP',
+    priority: subOrder.priority ?? order.priority,
+    deadline: subOrder.deadline ?? order.deadline,
+  }
+}
 
 const UUID_LOOSE = /^[0-9a-fA-F-]{30,40}$/
 
@@ -41,7 +65,7 @@ const UUID_LOOSE = /^[0-9a-fA-F-]{30,40}$/
  *
  * Inside Stamp, only the structured typen are auto-advanced.
  */
-function autoPrepressAllowed(merged: SubOrderRow): boolean {
+export function autoPrepressAllowed(merged: SubOrderRow): boolean {
   if (merged.department === 'STAMP') {
     if (merged.type === 'OTHER_STAMP') return false
     return (
