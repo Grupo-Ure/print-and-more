@@ -3,9 +3,7 @@ import { Plus } from 'lucide-react'
 import { subOrderDepartmentLabel } from '../const/departmentAbbreviation'
 import { SUB_ORDER_DEPARTMENTS, type Department } from '../types/database'
 import { authService } from '../services/authService'
-import { toDateOnly } from '../lib/formatDate'
 import { useOrderWorkspace } from '../context/order.context'
-import { useOrderById } from '../queries/orderQueries'
 import { useSubOrdersByOrderId, useCreateSubOrder } from '../queries/subOrderQueries'
 import { useToast } from './Toast'
 import { Button } from './ui/button'
@@ -77,11 +75,6 @@ export function SubOrderTabs() {
   )
 }
 
-function todayIso(): string {
-  const today = new Date()
-  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-}
-
 type AddSubOrderDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -90,13 +83,10 @@ type AddSubOrderDialogProps = {
 function AddSubOrderDialog({ open, onOpenChange }: AddSubOrderDialogProps) {
   const { activeOrderId, setActiveSubOrder } = useOrderWorkspace()
   const { showError } = useToast()
-  const orderQuery = useOrderById(activeOrderId)
   const createSubOrder = useCreateSubOrder()
 
   const handleDepartmentSelected = (department: Department) => {
     if (!activeOrderId || createSubOrder.isPending) return
-    const order = orderQuery.data
-    const deadline = toDateOnly(order?.deadline) ?? todayIso()
 
     void (async () => {
       const user = await authService.getUser()
@@ -111,8 +101,8 @@ function AddSubOrderDialog({ open, onOpenChange }: AddSubOrderDialogProps) {
           status: 'INCOMPLETE',
           priority: null,
           detail: {},
-          deadline,
-          delivery: order?.delivery ?? 'PICKUP',
+          deadline: null,
+          delivery: null,
           assignee_id: user.id,
           is_emergency: false,
           emergency_reason: null,

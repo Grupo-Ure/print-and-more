@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { useUpdateSubOrder } from '../queries/subOrderQueries'
 import { departmentAbbreviation } from '../const/departmentAbbreviation'
 import { customerMeetsPrepressContact } from '../lib/customer'
@@ -23,7 +22,7 @@ import { OtherProducts } from './products/departments/OtherProducts'
 import { LaserProducts } from './products/departments/LaserProducts'
 import { TextileProducts } from './products/departments/TextileProducts'
 import type { FileRow } from '../services/fileService'
-import { toDateOnly } from '../lib/formatDate'
+import { toDateOnly, todayDateOnly } from '../lib/formatDate'
 import { StatusBadge } from './StatusBadge'
 import './WorkArea.css'
 
@@ -63,29 +62,25 @@ export function SubOrderDetail({
   const customerMeetsPrepressRequirements = customerMeetsPrepressContact(orderCustomer)
   const shouldValidate = subOrder.status !== 'QUOTE'
 
-  // A field is "separate" when the sub-order overrides the order's value; a null
-  // field inherits the order value (resolved here at read time).
-  const hasSeparateDelivery = subOrder.delivery != null && subOrder.delivery !== orderDeliveryMode
-  const hasSeparatePriority = subOrder.priority != null && subOrder.priority !== orderPriorityMode
-  const effectiveDelivery = (hasSeparateDelivery ? subOrder.delivery! : orderDeliveryMode) as DeliveryChoice
-  const effectivePriority = hasSeparatePriority ? subOrder.priority! : orderPriorityMode
+  // A field is "separate" purely when the sub-order carries its own value (the
+  // column is non-null); a null column means the toggle is off and the order's
+  // value is inherited (resolved here at read time). The equality-collapse — a
+  // user setting the value equal to the order's clears it back to inherit — lives
+  // in each field's onChange, never here, so it can't fire from a toggle or an
+  // order change.
+  const hasSeparateDelivery = subOrder.delivery != null
+  const hasSeparatePriority = subOrder.priority != null
+  const hasSeparateDeadline = subOrder.deadline != null
+  const effectiveDelivery = (subOrder.delivery ?? orderDeliveryMode) as DeliveryChoice
+  const effectivePriority = subOrder.priority ?? orderPriorityMode
 
   const effectiveDeadline = subOrder.deadline ?? orderDeadline
   const deadlineIso = toDateOnly(effectiveDeadline) ?? ''
 
   const validationErrors = validateSubOrderCommonFields(
-    { ...subOrder, delivery: effectiveDelivery, priority: effectivePriority },
+    { ...subOrder, delivery: effectiveDelivery, priority: effectivePriority, deadline: effectiveDeadline },
     subOrder.status,
   )
-
-  // The "separate deadline" toggle is user-controllable, so it's local UI state,
-  // seeded from whether the sub-order's deadline differs from the order's.
-  const [separateDeadline, setSeparateDeadline] = useState(false)
-  useEffect(() => {
-    const subOrderDate = toDateOnly(subOrder.deadline)
-    const orderDate = toDateOnly(orderDeadline)
-    setSeparateDeadline(subOrderDate != null && orderDate != null && subOrderDate !== orderDate)
-  }, [subOrder.id, subOrder.deadline, orderDeadline])
 
   return (
     <div className="td">
@@ -111,24 +106,29 @@ export function SubOrderDetail({
           <div className="flex flex-col min-w-0 gap-2">
             <label className="flex items-center gap-2 text-[13px] select-none mt-1">
               <Switch
-                checked={separateDeadline}
+                checked={hasSeparateDeadline}
                 onCheckedChange={checked => {
-                  const isChecked = checked === true
-                  setSeparateDeadline(isChecked)
-                  if (!isChecked) handleUpdateSuborder({ deadline: null })
+                  if (checked !== true) {
+                    handleUpdateSuborder({ deadline: null })
+                  } else {
+                    handleUpdateSuborder({ deadline: effectiveDeadline ?? todayDateOnly() })
+                  }
                 }}
               />
               <span>Separate delivery date</span>
             </label>
             <DeadlinePicker
-              disabled={!separateDeadline}
+              disabled={!hasSeparateDeadline}
               value={toDateOnly(subOrder.deadline) ?? deadlineIso}
               onChange={value => {
-                const savedIso = toDateOnly(subOrder.deadline) ?? ''
-                if ((value ?? '') !== savedIso) handleUpdateSuborder({ deadline: value })
+                if (toDateOnly(value) === toDateOnly(orderDeadline)) {
+                  handleUpdateSuborder({ deadline: null })
+                } else if ((value ?? '') !== (toDateOnly(subOrder.deadline) ?? '')) {
+                  handleUpdateSuborder({ deadline: value })
+                }
               }}
             />
-            {shouldValidate && validationErrors.termin && <p className="text-destructive text-xs mt-1">{validationErrors.termin}</p>}
+            {hasSeparateDeadline && validationErrors.termin && <p className="text-destructive text-xs mt-1">{validationErrors.termin}</p>}
           </div>
           <div className="flex flex-col min-w-0 gap-2">
             <label className="flex items-center gap-2 text-[13px] select-none mt-1">
@@ -138,7 +138,7 @@ export function SubOrderDetail({
                   if (checked !== true) {
                     handleUpdateSuborder({ delivery: null })
                   } else {
-                    handleUpdateSuborder({ delivery: orderDeliveryMode === 'PICKUP' ? 'SHIPPING' : 'PICKUP' })
+                    handleUpdateSuborder({ delivery: orderDeliveryMode })
                   }
                 }}
               />
@@ -148,10 +148,14 @@ export function SubOrderDetail({
               disabled={!hasSeparateDelivery}
               value={effectiveDelivery}
               onChange={value => {
-                if (value !== subOrder.delivery) handleUpdateSuborder({ delivery: value })
+                if (value === orderDeliveryMode) {
+                  handleUpdateSuborder({ delivery: null })
+                } else if (value !== subOrder.delivery) {
+                  handleUpdateSuborder({ delivery: value })
+                }
               }}
             />
-            {shouldValidate && validationErrors.lieferung && <p className="text-destructive text-xs mt-1">{validationErrors.lieferung}</p>}
+            {hasSeparateDelivery && validationErrors.lieferung && <p className="text-destructive text-xs mt-1">{validationErrors.lieferung}</p>}
           </div>
           <div className="flex flex-col min-w-0 gap-2">
             <label className="flex items-center gap-2 text-[13px] select-none mt-1">
@@ -161,7 +165,7 @@ export function SubOrderDetail({
                   if (checked !== true) {
                     handleUpdateSuborder({ priority: null })
                   } else {
-                    handleUpdateSuborder({ priority: orderPriorityMode === 'HIGH' ? 'NORMAL' : 'HIGH' })
+                    handleUpdateSuborder({ priority: orderPriorityMode })
                   }
                 }}
               />
@@ -171,10 +175,14 @@ export function SubOrderDetail({
               disabled={!hasSeparatePriority}
               value={effectivePriority}
               onChange={value => {
-                if (value !== subOrder.priority) handleUpdateSuborder({ priority: value })
+                if (value === orderPriorityMode) {
+                  handleUpdateSuborder({ priority: null })
+                } else if (value !== subOrder.priority) {
+                  handleUpdateSuborder({ priority: value })
+                }
               }}
             />
-            {shouldValidate && validationErrors.prioritaet && <p className="text-destructive text-xs mt-1">{validationErrors.prioritaet}</p>}
+            {hasSeparatePriority && validationErrors.prioritaet && <p className="text-destructive text-xs mt-1">{validationErrors.prioritaet}</p>}
           </div>
         <div className="flex flex-col min-w-0">
           <span className="text-[11px] font-medium text-muted-foreground mb-0.5">Typesetting time (min)</span>

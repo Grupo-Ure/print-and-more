@@ -1,3 +1,8 @@
+/** Today's date as `YYYY-MM-DD`. */
+export function todayDateOnly(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
 /** `YYYY-MM-DD` date-only portion of an ISO/date string; null for empty input. */
 export function toDateOnly(value: string | null | undefined): string | null {
   if (value == null) return null
