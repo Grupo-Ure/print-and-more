@@ -10,6 +10,7 @@ import type { Database } from '../types/supabase'
 import type { TextileMotifRow } from '../types/textile'
 import { textileService } from '../services/textileService'
 import { subOrderProductService } from '../services/subOrderProductService'
+import { bounceBackIfCommitted } from './subOrderQueries'
 import { useProductsBySubOrderId } from './productQueries'
 
 type MotifInsert = Database['public']['Tables']['textile_motifs']['Insert']
@@ -49,6 +50,8 @@ export function useSaveTextileMotif(subOrderId: string) {
       id ? textileService.updateMotif(id, payload as MotifUpdate) : textileService.createMotif(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: textileKeys.motifs(subOrderId) })
+      // Textile = any content change is meaningful → bounce a committed sub-order back.
+      void bounceBackIfCommitted(queryClient, subOrderId)
     },
   })
 }
@@ -61,6 +64,8 @@ export function useDeleteTextileMotif(subOrderId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: textileKeys.motifs(subOrderId) })
       void queryClient.invalidateQueries({ queryKey: textileKeys.links(subOrderId) })
+      // Textile = any content change is meaningful → bounce a committed sub-order back.
+      void bounceBackIfCommitted(queryClient, subOrderId)
     },
   })
 }

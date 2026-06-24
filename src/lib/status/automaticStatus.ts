@@ -9,7 +9,7 @@ import { customerMeetsPrepressContact } from '../customer'
  * QUOTE / committed / emergency / cancelled rows), so the return value is always
  * one of those two.
  *
- * Rules (mirroring the band behaviour of the legacy `nextSubOrderStatus`):
+ * Rules:
  * - Not complete → `INCOMPLETE`.
  * - Structured (auto-prepress-eligible) type → advance to `PREPRESS_READY` when the
  *   customer-contact requirement is met, else `INCOMPLETE` (auto-advance + retract).

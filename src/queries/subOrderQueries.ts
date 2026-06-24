@@ -59,6 +59,45 @@ function patchSubOrderInCache(queryClient: QueryClient, orderId: string, row: Su
 }
 
 /**
+ * Persist a sub-order status directly (no hook), patching the sub-order cache and
+ * reconciling the order. Used by the status helpers that run outside a component —
+ * notably {@link bounceBackIfCommitted}.
+ */
+export async function persistSubOrderStatus(
+  queryClient: QueryClient,
+  id: string,
+  orderId: string,
+  status: OrderStatus,
+): Promise<void> {
+  const row = await subOrderService.setSubOrderStatus(id, status)
+  patchSubOrderInCache(queryClient, orderId, row)
+  await reconcileOrderStatus(queryClient, orderId)
+}
+
+/** Locate a sub-order by id across the cached per-order lists (gives status + order_id). */
+function findCachedSubOrder(queryClient: QueryClient, subOrderId: string): SubOrderRow | null {
+  const entries = queryClient.getQueriesData<SubOrderRow[]>({ queryKey: subOrderKeys.all })
+  for (const [, list] of entries) {
+    const found = list?.find(s => s.id === subOrderId)
+    if (found) return found
+  }
+  return null
+}
+
+/**
+ * Bounce-back: if the sub-order is committed (PRODUCTION_READY / DONE), drop it to
+ * INCOMPLETE. Called from the content mutations' `onSuccess` *only when the change was
+ * meaningful* (see `isMeaningfulChange`). No-op for non-committed sub-orders, so the
+ * caller doesn't need to know the current status.
+ */
+export async function bounceBackIfCommitted(queryClient: QueryClient, subOrderId: string): Promise<void> {
+  const subOrder = findCachedSubOrder(queryClient, subOrderId)
+  if (!subOrder) return
+  if (subOrder.status !== 'PRODUCTION_READY' && subOrder.status !== 'DONE') return
+  await persistSubOrderStatus(queryClient, subOrder.id, subOrder.order_id, 'INCOMPLETE')
+}
+
+/**
  * The raw active sub-order row, selected from the cached `useSubOrdersByOrderId` list
  * by id. Returns `null` until the list has loaded or if no match. This is the *raw*
  * row (inherited common fields still null) — use it when you need the override/inherit

@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { subOrderProductService, type ProductFileAssignment } from '../services/subOrderProductService'
 import type { LoadedProduct, ProductWriteInput } from '../types/product'
 import type { TextileMotifLinkInput } from '../types/textile'
+import { isMeaningfulChange } from '../lib/status/meaningfulChange'
+import { bounceBackIfCommitted } from './subOrderQueries'
 import { textileKeys } from './textileQueries'
 
 export const productKeys = {
@@ -96,10 +98,30 @@ export function useSaveProduct() {
       const files = await subOrderProductService.getFilesByProductIds(products.map(p => p.id))
       return { products, files }
     },
-    onSuccess: ({ products, files }, { subOrderId, links }) => {
+    onSuccess: ({ products, files }, { input, subOrderId, links }) => {
+      // Read the pre-save child before overwriting the cache, to detect a meaningful edit.
+      const prevChild = input.id
+        ? (queryClient
+            .getQueryData<LoadedProduct[]>(productKeys.bySubOrderId(subOrderId))
+            ?.find(p => p.id === input.id)?.child ?? null)
+        : null
+
       queryClient.setQueryData(productKeys.bySubOrderId(subOrderId), products)
       queryClient.setQueryData(productKeys.filesBySubOrderId(subOrderId), files)
       if (links) void queryClient.invalidateQueries({ queryKey: textileKeys.links(subOrderId) })
+
+      // Bounce-back: a meaningful content change drops a committed sub-order to INCOMPLETE.
+      const kind = input.id ? 'update' : 'create'
+      if (
+        isMeaningfulChange(
+          input.department,
+          kind,
+          prevChild as Record<string, unknown> | null,
+          input.child as unknown as Record<string, unknown>,
+        )
+      ) {
+        void bounceBackIfCommitted(queryClient, subOrderId)
+      }
     },
   })
 }
@@ -118,6 +140,8 @@ export function useDeleteProduct() {
         productKeys.filesBySubOrderId(subOrderId),
         old => old?.filter(a => a.department_product_id !== id) ?? old,
       )
+      // Deleting a product is always a meaningful content change → bounce-back.
+      void bounceBackIfCommitted(queryClient, subOrderId)
     },
   })
 }
