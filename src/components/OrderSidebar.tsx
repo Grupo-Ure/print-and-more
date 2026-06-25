@@ -22,7 +22,7 @@ import { DuplicateDialog } from './DuplicateDialog'
 import { DeleteOrderDialog } from './DeleteOrderDialog'
 import { NewOrderDialog } from './NewOrderDialog'
 import { useToast } from './Toast'
-import { useOrderWorkspace } from '../context/order.context'
+import { useOrderParams } from '../hooks/useOrderParams'
 import { OrderSidebarSearch } from './orderSidebar/OrderSidebarSearch'
 import { OrderSidebarFilters } from './orderSidebar/OrderSidebarFilters'
 import { OrderSidebarBody } from './orderSidebar/OrderSidebarBody'
@@ -35,7 +35,7 @@ type Props = {
 }
 
 export function OrderSidebar({ orderInPlace }: Props) {
-  const { activeOrderId, setActiveOrder } = useOrderWorkspace()
+  const { activeOrderId, setActiveOrder } = useOrderParams()
   const { filter, isActive: filterActive, selectedStatuses, hasStatusFilter, actions } = useOrderSidebarFilter()
   const [searchOpen, setSearchOpen] = useState(false)
   const [filterPopOpen, setFilterPopOpen] = useState(false)

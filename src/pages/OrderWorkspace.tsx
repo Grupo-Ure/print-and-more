@@ -6,7 +6,8 @@ import { OrderSidebar } from '../components/OrderSidebar'
 import { OrderDetails } from '../components/OrderDetails'
 import { ContextPanel } from '../components/ContextPanel'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
-import { OrderWorkspaceProvider, useOrderWorkspace } from '../context/order.context'
+import { OrderWorkspaceProvider } from '../context/order.context'
+import { useOrderParams } from '../hooks/useOrderParams'
 import type { Auftrag, Customer, OrderStatus, SubOrderRow } from '../types/database'
 import type { FileRow } from '../services/fileService'
 
@@ -45,7 +46,7 @@ export function OrderWorkspace() {
 }
 
 function WorkspaceShell() {
-  const { activeOrderId, clearActive } = useOrderWorkspace()
+  const { activeOrderId, clearActive } = useOrderParams()
   const [activeOrder, setActiveOrder] = useState<Auftrag | null>(null)
   const [activeSubOrder, setActiveSubOrder] = useState<SubOrderRow | null>(null)
   const [orderCustomer, setOrderCustomer] = useState<Customer | null>(null)

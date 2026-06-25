@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 import { useCreateOrder } from '../queries/orderQueries'
 import { useInfiniteCustomers } from '../queries/customerQueries'
 import { useOrderWorkspace } from '../context/order.context'
+import { useOrderParams } from '../hooks/useOrderParams'
 import type { Customer } from '../types/database'
 
 export function NewOrderDialog() {
@@ -22,7 +23,8 @@ export function NewOrderDialog() {
   const [searchInput, setSearchInput] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
 
-  const { setActiveOrder, openCustomerDialog } = useOrderWorkspace()
+  const { openCustomerDialog } = useOrderWorkspace()
+  const { setActiveOrder } = useOrderParams()
   const createOrder = useCreateOrder()
 
   useEffect(() => {

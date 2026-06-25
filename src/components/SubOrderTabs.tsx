@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react'
 import { subOrderDepartmentLabel } from '../const/departmentAbbreviation'
 import { SUB_ORDER_DEPARTMENTS, type Department } from '../types/database'
 import { authService } from '../services/authService'
-import { useOrderWorkspace } from '../context/order.context'
+import { useOrderParams } from '../hooks/useOrderParams'
 import { useSubOrdersByOrderId, useCreateSubOrder } from '../queries/subOrderQueries'
 import { useToast } from './Toast'
 import { Button } from './ui/button'
@@ -17,7 +17,7 @@ import {
 } from './ui/dialog'
 
 export function SubOrderTabs() {
-  const { activeOrderId, activeSubOrderId, setActiveSubOrder } = useOrderWorkspace()
+  const { activeOrderId, activeSubOrderId, setActiveSubOrder } = useOrderParams()
   const subOrdersQuery = useSubOrdersByOrderId(activeOrderId)
   const [dialogOpen, setDialogOpen] = useState(false)
 
@@ -81,7 +81,7 @@ type AddSubOrderDialogProps = {
 }
 
 function AddSubOrderDialog({ open, onOpenChange }: AddSubOrderDialogProps) {
-  const { activeOrderId, setActiveSubOrder } = useOrderWorkspace()
+  const { activeOrderId, setActiveSubOrder } = useOrderParams()
   const { showError } = useToast()
   const createSubOrder = useCreateSubOrder()
 

@@ -16,6 +16,7 @@ import type { FileRow } from '../services/fileService'
 import { SubOrderDetail } from './SubOrderDetail'
 import { SubOrderTabs } from './SubOrderTabs'
 import { useOrderWorkspace } from '../context/order.context'
+import { useOrderParams } from '../hooks/useOrderParams'
 import { orderKeys, useOrderById, useUpdateOrder } from '../queries/orderQueries'
 import { subOrderKeys, useSubOrdersByOrderId } from '../queries/subOrderQueries'
 import './WorkArea.css'
@@ -41,7 +42,8 @@ export function OrderDetails({
   onOrderFromWorkArea,
   onOrderFilesChanged,
 }: Props) {
-  const { activeOrderId, activeSubOrderId, setActiveSubOrder, openCustomerDialog } = useOrderWorkspace()
+  const { openCustomerDialog } = useOrderWorkspace()
+  const { activeOrderId, activeSubOrderId, setActiveSubOrder } = useOrderParams()
   const queryClient = useQueryClient()
   const [files, setFiles] = useState<FileRow[]>([])
   const { showError } = useToast()

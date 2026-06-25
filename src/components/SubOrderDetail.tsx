@@ -1,7 +1,7 @@
 import { useEffectiveSubOrder, useSubOrderById, useUpdateSubOrder } from '../queries/subOrderQueries'
 import { useOrderById } from '../queries/orderQueries'
 import { useStatusManager } from '../queries/useStatusManager'
-import { useOrderWorkspace } from '../context/order.context'
+import { useOrderParams } from '../hooks/useOrderParams'
 import { departmentAbbreviation } from '../const/departmentAbbreviation'
 import { customerMeetsPrepressContact } from '../lib/customer'
 import { validateSubOrderCommonFields } from '../lib/subOrderShared'
@@ -35,7 +35,7 @@ export function SubOrderDetail({
   orderFiles: FileRow[]
   onUpdated: (updatedSubOrder: SubOrderRow) => void
 }) {
-  const { activeOrderId, activeSubOrderId } = useOrderWorkspace()
+  const { activeOrderId, activeSubOrderId } = useOrderParams()
   const { data: order } = useOrderById(activeOrderId)
   const subOrder = useSubOrderById(activeOrderId, activeSubOrderId) // raw row (override/inherit state)
   const effectiveSuborder = useEffectiveSubOrder(activeOrderId, activeSubOrderId) // inherited fields resolved
