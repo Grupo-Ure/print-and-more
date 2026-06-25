@@ -17,11 +17,11 @@ import { SubOrderDetail } from './SubOrderDetail'
 import { SubOrderTabs } from './SubOrderTabs'
 import { useOrderWorkspace } from '../context/order.context'
 import { useOrderParams } from '../hooks/useOrderParams'
-import { orderKeys, useOrderById, useUpdateOrder } from '../queries/orderQueries'
+import { orderKeys, useArchiveOrder, useArchiveOrderWithCancelledSubOrders, useOrderById, useUpdateOrder } from '../queries/orderQueries'
 import { subOrderKeys, useSubOrdersByOrderId } from '../queries/subOrderQueries'
 import './WorkArea.css'
 import { Button } from './ui/button'
-import { Settings } from 'lucide-react'
+import { Archive, Ban, Settings } from 'lucide-react'
 import { Separator } from './ui/separator'
 import { DeadlinePicker } from './fields/DeadlinePicker'
 import { DeliverySelect } from './fields/DeliverySelect'
@@ -43,7 +43,7 @@ export function OrderDetails({
   onOrderFilesChanged,
 }: Props) {
   const { openCustomerDialog } = useOrderWorkspace()
-  const { activeOrderId, activeSubOrderId, setActiveSubOrder } = useOrderParams()
+  const { activeOrderId, activeSubOrderId, setActiveSubOrder, clearActive } = useOrderParams()
   const queryClient = useQueryClient()
   const [files, setFiles] = useState<FileRow[]>([])
   const { showError } = useToast()
@@ -112,6 +112,29 @@ export function OrderDetails({
       setActiveSubOrder(visibleSubOrders[0].id)
     }
   }, [visibleSubOrders, activeSubOrderId, setActiveSubOrder])
+
+  const archiveOrder = useArchiveOrder()
+  const cancelOrder = useArchiveOrderWithCancelledSubOrders()
+
+  const handleArchive = async () => {
+    if (!window.confirm('Archive this order? It will be hidden from the main list.')) return
+    try {
+      await archiveOrder.mutateAsync({ id: order!.id })
+      clearActive()
+    } catch {
+      showError('Order could not be archived')
+    }
+  }
+
+  const handleCancelOrder = async () => {
+    if (!window.confirm('Cancel this order? All sub-orders will be cancelled and the order hidden.')) return
+    try {
+      await cancelOrder.mutateAsync({ id: order!.id })
+      clearActive()
+    } catch {
+      showError('Order could not be cancelled')
+    }
+  }
 
   const saveOrderHeader = useCallback(
     async (patch: OrderHeaderPatch) => {
@@ -209,6 +232,10 @@ export function OrderDetails({
             },
           })
         }
+        onArchive={() => void handleArchive()}
+        onCancelOrder={() => void handleCancelOrder()}
+        archivePending={archiveOrder.isPending}
+        cancelPending={cancelOrder.isPending}
       />
       <Separator />
 
@@ -235,45 +262,73 @@ export function OrderDetails({
 type OrderHeaderProps = {
   order: OrderDetailRow
   onEditCustomer: () => void
+  onArchive: () => void
+  onCancelOrder: () => void
+  archivePending: boolean
+  cancelPending: boolean
 }
 
-function OrderHeader({ order, onEditCustomer }: OrderHeaderProps) {
+function OrderHeader({ order, onEditCustomer, onArchive, onCancelOrder, archivePending, cancelPending }: OrderHeaderProps) {
   const customerDisplayName = order.customers?.name?.trim() || '—'
   const customerEmail = order.customers?.email?.trim() || ''
   const customerPhone = order.customers?.phone?.trim() || ''
 
   return (
-    <header className="flex">
-      <div className="flex flex-1">
-        <div className="flex items-cente gap-4 items-center">
-          <div className="flex gap-4 items-center">
-            <h1>Order:</h1>
-            <h2 className="text-3xl!" title="Order number">
-              {order.order_number}
-            </h2>
-          </div>
+    <header className="flex flex-col">
+      <div className="flex gap-4 items-center justify-between">
+        <div className="flex gap-4 items-center">
+          <h1>Order:</h1>
+          <h2 className="text-2xl!" title="Order number">
+            {order.order_number}
+          </h2>
         </div>
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <h1 title="Customer" className="m-0!">
-              {customerDisplayName}
-            </h1>
+        <div className="flex items-center gap-1">
+          {order.status !== 'INVOICED' && (
             <Button
-              onClick={onEditCustomer}
-              title="Edit customer"
-              aria-label="Edit customer"
+              type="button"
               variant="ghost"
               size="icon-sm"
+              title="Archive order"
+              aria-label="Archive order"
+              disabled={archivePending || cancelPending}
+              onClick={onArchive}
             >
-              <Settings />
+              <Archive />
             </Button>
-          </div>
-          {customerEmail && <p title="Email">{customerEmail}</p>}
-          {customerPhone && <p title="Phone">{customerPhone}</p>}
+          )}
+          {order.status !== 'QUOTE' && order.status !== 'INCOMPLETE' && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              title="Cancel order"
+              aria-label="Cancel order"
+              disabled={archivePending || cancelPending}
+              onClick={onCancelOrder}
+              className="text-destructive hover:text-destructive"
+            >
+              <Ban />
+            </Button>
+          )}
         </div>
       </div>
-      <div className="flex b-dev">
-         actions here!
+      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+        <div className="flex items-center gap-1">
+          <h1 title="Customer" className="m-0!">
+            {customerDisplayName}
+          </h1>
+          <Button
+            onClick={onEditCustomer}
+            title="Edit customer"
+            aria-label="Edit customer"
+            variant="ghost"
+            size="icon-sm"
+          >
+            <Settings />
+          </Button>
+        </div>
+        {customerEmail && <p title="Email">{customerEmail}</p>}
+        {customerPhone && <p title="Phone">{customerPhone}</p>}
       </div>
     </header>
   );

@@ -1,4 +1,5 @@
-import { useEffectiveSubOrder, useSubOrderById, useUpdateSubOrder } from '../queries/subOrderQueries'
+import { useCancelSubOrder, useDeleteSubOrder, useEffectiveSubOrder, useSubOrderById, useUpdateSubOrder } from '../queries/subOrderQueries'
+import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import { useOrderById } from '../queries/orderQueries'
 import { useStatusManager } from '../queries/useStatusManager'
 import { useOrderParams } from '../hooks/useOrderParams'
@@ -26,6 +27,9 @@ import { TextileProducts } from './products/departments/TextileProducts'
 import type { FileRow } from '../services/fileService'
 import { toDateOnly, todayDateOnly } from '../lib/formatDate'
 import { StatusBadge } from './StatusBadge'
+import { SubOrderReleaseButton } from './SubOrderReleaseButton'
+import { Button } from './ui/button'
+import { Ban, FileDown, Trash2 } from 'lucide-react'
 import './WorkArea.css'
 
 export function SubOrderDetail({
@@ -40,6 +44,8 @@ export function SubOrderDetail({
   const subOrder = useSubOrderById(activeOrderId, activeSubOrderId) // raw row (override/inherit state)
   const effectiveSuborder = useEffectiveSubOrder(activeOrderId, activeSubOrderId) // inherited fields resolved
   const updateSubOrder = useUpdateSubOrder()
+  const cancelSubOrder = useCancelSubOrder()
+  const deleteSubOrder = useDeleteSubOrder()
   const { showError } = useToast()
 
   // Status manager: auto-derives and persists the INCOMPLETE ↔ PREPRESS_READY
@@ -48,6 +54,29 @@ export function SubOrderDetail({
   useStatusManager(activeOrderId, activeSubOrderId)
 
   if (!order || !subOrder || !effectiveSuborder) return null
+
+  const handleDownloadPdf = async () => {
+    const ok = await generateAndDownloadPdf(subOrder.id, order.id)
+    if (!ok) showError('PDF could not be generated')
+  }
+
+  const handleCancel = async () => {
+    if (!window.confirm('Cancel this department order?')) return
+    try {
+      await cancelSubOrder.mutateAsync({ id: subOrder.id, orderId: subOrder.order_id })
+    } catch {
+      showError('Department order could not be cancelled')
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!window.confirm('Permanently delete this department order?')) return
+    try {
+      await deleteSubOrder.mutateAsync({ id: subOrder.id, orderId: subOrder.order_id })
+    } catch {
+      showError('Department order could not be deleted')
+    }
+  }
 
   // Persist a field edit straight to the DB (optimistic via useUpdateSubOrder —
   // instant UI, rollback on error). No status calculation here: status is driven
@@ -88,7 +117,43 @@ export function SubOrderDetail({
       <div className="td-kopf" aria-label="Sub-order">
         <span className="td-bkz">[{departmentAbbreviation(subOrder.department)}]</span>
         <StatusBadge status={subOrder.status} />
-        {updateSubOrder.isPending && <span aria-label="Saving">…</span>}
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => void handleDownloadPdf()}
+          >
+            <FileDown />
+            Download PDF
+          </Button>
+
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={subOrder.status !== 'INCOMPLETE' || deleteSubOrder.isPending}
+            onClick={() => void handleDelete()}
+            size="sm"
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 />
+            Delete
+          </Button>
+
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={subOrder.is_cancelled || subOrder.status === 'DONE' || cancelSubOrder.isPending}
+            onClick={() => void handleCancel()}
+            size="sm"
+            className="text-destructive hover:text-destructive"
+          >
+            <Ban />
+            Cancel
+          </Button>
+        </div>
+
+        <SubOrderReleaseButton subOrder={subOrder} orderNumber={order.order_number ?? null} />
       </div>
       {shouldValidate &&
         subOrder.department !== 'OTHER' &&

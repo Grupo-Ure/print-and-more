@@ -43,14 +43,8 @@ export function useProductEditor(
   const deleteProduct = useDeleteProduct()
 
   const [mode, setMode] = useState<EditorMode>({ kind: 'idle' })
-  const [unlocked, setUnlocked] = useState(false)
 
-  const requiresUnlock =
-    (subOrderStatus === 'PREPRESS_READY' || subOrderStatus === 'PRODUCTION_READY') && !unlocked
-
-  const requestUnlock = useCallback(() => {
-    if (window.confirm('Sub-order is already released.\nReally edit products?')) setUnlocked(true)
-  }, [])
+  const requiresUnlock = subOrderStatus === 'PRODUCTION_READY'
 
   const openAdd = useCallback((type: string) => setMode({ kind: 'add', type }), [])
   const openEdit = useCallback((product: LoadedProduct) => setMode({ kind: 'edit', product }), [])
@@ -93,8 +87,6 @@ export function useProductEditor(
     handleSaved,
     handleDelete,
     fileIdsFor,
-    unlocked,
     requiresUnlock,
-    requestUnlock,
   }
 }

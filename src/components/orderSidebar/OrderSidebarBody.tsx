@@ -60,9 +60,6 @@ export function OrderSidebarBody({
           </button>
         </div>
       )}
-      {isFetching && !isLoading && (
-        <div className="py-1 pl-4 pr-3 text-[11px] text-neutral-400">Refreshing…</div>
-      )}
       {!isLoading &&
         orders.map(order => (
           <OrderSidebarItem
