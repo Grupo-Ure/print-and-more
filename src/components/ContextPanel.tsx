@@ -91,14 +91,10 @@ function productionStockModalTitle(
 
 type StampPadStock = { stampStock: number | null; padStock: number | null }
 
-/** Anzeige im Status: Zahl oder „—“ bei unbekannt (z. B. Ladefehler). */
 function stockDisplayValue(stock: number | null): string {
   return stock === null ? '—' : String(stock)
 }
 
-/**
- * Lädt Stempel- und/oder Kissen-`bestand` je nach verknüpftem Modell, Farbe und Auftragstyp.
- */
 async function loadStampStock(detail: Record<string, unknown>): Promise<StampPadStock> {
   const hasStampModel = detail.modell_id && String(detail.modell_id).trim()
   const hasPadModel = detail.kissen_modell_id && String(detail.kissen_modell_id).trim()
@@ -233,7 +229,7 @@ export function ContextPanel({
   const canDeleteOrder = order.status === 'QUOTE' || order.status === 'INCOMPLETE'
   const canCancelOrder = order.status !== 'QUOTE' && order.status !== 'INCOMPLETE'
 
-  const handleInBearbeitung = async () => {
+  const handleStartProcessing = async () => {
     if (busy || order.status !== 'QUOTE') return
     setBusy(true)
     try {
@@ -250,7 +246,7 @@ export function ContextPanel({
     }
   }
 
-  const handleArchiv = async () => {
+  const handleArchive = async () => {
     if (busy) return
     if (!window.confirm('Archive order?\nIt will be hidden from the main list.')) return
     setBusy(true)
@@ -264,7 +260,7 @@ export function ContextPanel({
     }
   }
 
-  const handleAbrechnen = async () => {
+  const handleMarkInvoiced = async () => {
     if (busy) return
     if (!window.confirm('Mark order as invoiced?\nIt will be hidden from the list.')) return
     setBusy(true)
@@ -278,7 +274,7 @@ export function ContextPanel({
     }
   }
 
-  const handleAuftragStornieren = async () => {
+  const handleCancelOrder = async () => {
     if (busy) return
     if (
       !window.confirm(
@@ -297,7 +293,7 @@ export function ContextPanel({
     }
   }
 
-  const handleAuftragLoeschen = async () => {
+  const handleDeleteOrder = async () => {
     if (busy) return
     if (
       !window.confirm(
@@ -316,7 +312,7 @@ export function ContextPanel({
     }
   }
 
-  const handlePrepressFrei = async () => {
+  const handleReleaseToPrepress = async () => {
     if (busy || !subOrder || subOrder.status !== 'INCOMPLETE') return
     if (order.status === 'QUOTE') {
       showError('Order must be started before releasing to PrePress')
@@ -365,7 +361,7 @@ export function ContextPanel({
     }
   }
 
-  const handleProduktionFrei = () => {
+  const handleReleaseToProduction = () => {
     if (busy || !subOrder || subOrder.status !== 'PREPRESS_READY') return
     if (subOrder.customer_approval_required && !subOrder.customer_approval_granted) return
     if (subOrder.department === 'STAMP') {
@@ -377,7 +373,7 @@ export function ContextPanel({
     void executeProductionRelease()
   }
 
-  const handleFertigMelden = async () => {
+  const handleMarkDone = async () => {
     if (busy || !subOrder || subOrder.status !== 'PRODUCTION_READY') return
     if (!window.confirm('Mark sub-order as done?')) return
     setBusy(true)
@@ -396,14 +392,14 @@ export function ContextPanel({
     }
   }
 
-  const handleNotfallOeffnen = () => {
+  const handleOpenEmergency = () => {
     if (busy || !subOrder) return
     if (subOrder.status === 'QUOTE' || subOrder.status === 'DONE') return
     setEmergencyReason('')
     setEmergencyDialogOpen(true)
   }
 
-  const handleNotfallBestaetigt = async () => {
+  const handleConfirmEmergency = async () => {
     if (busy || !subOrder) return
     const reason = emergencyReason.trim()
     if (!reason) {
@@ -427,7 +423,7 @@ export function ContextPanel({
     }
   }
 
-  const handleNotfallZurueck = async () => {
+  const handleRevertEmergency = async () => {
     if (busy || !subOrder || !subOrder.is_emergency) return
     setBusy(true)
     try {
@@ -457,13 +453,13 @@ export function ContextPanel({
             customer_approval_granted: false,
             customer_approval_file_id: null,
           }
-      // DB-Enum hat kein KUNDENFREIGABE_DEAKTIVIERT; bei Abschaltung der Anforderung VERFALLEN als nächstliegender Wert.
+      // No CUSTOMER_APPROVAL_DEACTIVATED enum value exists; CUSTOMER_APPROVAL_EXPIRED is the closest match when disabling.
       const historyEvent: HistoryEvent = enabled ? 'CUSTOMER_APPROVAL_ACTIVATED' : 'CUSTOMER_APPROVAL_EXPIRED'
       const data = await setApprovalMutation.mutateAsync({
         id: subOrder.id,
         orderId: order.id,
         patch: approvalPatch,
-        history: { event_type: historyEvent, meta: { aktiv: enabled } },
+        history: { event_type: historyEvent, meta: { active: enabled } },
       })
       onSubOrderUpdated(data)
     } catch {
@@ -502,7 +498,7 @@ export function ContextPanel({
     }
   }
 
-  const handleStorno = async () => {
+  const handleCancelSubOrder = async () => {
     if (!subOrder || cancelInProgress) return
     if (!window.confirm('Cancel sub-order? It will be hidden but not deleted.')) return
     setCancelInProgress(true)
@@ -516,7 +512,7 @@ export function ContextPanel({
     }
   }
 
-  const handleLoeschen = async () => {
+  const handleDeleteSubOrder = async () => {
     if (!subOrder || deleteInProgress || subOrder.status !== 'INCOMPLETE') return
     if (!window.confirm('Permanently delete sub-order?')) return
     setDeleteInProgress(true)
@@ -615,7 +611,7 @@ export function ContextPanel({
               type="button"
               className="cp-btn"
               disabled={busy}
-              onClick={() => void handleInBearbeitung()}
+              onClick={() => void handleStartProcessing()}
             >
               Start processing
             </button>
@@ -631,12 +627,12 @@ export function ContextPanel({
             </button>
           )}
           {order.status === 'DONE' && (
-            <button type="button" className="cp-btn" disabled={busy} onClick={() => void handleAbrechnen()}>
+            <button type="button" className="cp-btn" disabled={busy} onClick={() => void handleMarkInvoiced()}>
               Mark as invoiced
             </button>
           )}
           {order.status !== 'INVOICED' && (
-            <button type="button" className="cp-btn" disabled={busy} onClick={() => void handleArchiv()}>
+            <button type="button" className="cp-btn" disabled={busy} onClick={() => void handleArchive()}>
               Archive
             </button>
           )}
@@ -645,7 +641,7 @@ export function ContextPanel({
               type="button"
               className="cp-btn cp-btn-rot"
               disabled={busy}
-              onClick={() => void handleAuftragStornieren()}
+              onClick={() => void handleCancelOrder()}
             >
               Cancel order
             </button>
@@ -655,7 +651,7 @@ export function ContextPanel({
               type="button"
               className="cp-btn cp-btn-rot"
               disabled={busy}
-              onClick={() => void handleAuftragLoeschen()}
+              onClick={() => void handleDeleteOrder()}
             >
               Delete order
             </button>
@@ -671,7 +667,7 @@ export function ContextPanel({
                   type="button"
                   className="cp-btn"
                   disabled={busy}
-                  onClick={() => void handlePrepressFrei()}
+                  onClick={() => void handleReleaseToPrepress()}
                 >
                   Release to PrePress
                 </button>
@@ -682,7 +678,7 @@ export function ContextPanel({
                     type="button"
                     className="cp-btn"
                     disabled={busy || prodDisabled}
-                    onClick={() => void handleProduktionFrei()}
+                    onClick={() => void handleReleaseToProduction()}
                   >
                     Release to Production
                   </button>
@@ -695,7 +691,7 @@ export function ContextPanel({
                     type="button"
                     className="cp-btn"
                     disabled={busy || completionBlockedByStock}
-                    onClick={() => void handleFertigMelden()}
+                    onClick={() => void handleMarkDone()}
                   >
                     Mark as done
                   </button>
@@ -714,7 +710,7 @@ export function ContextPanel({
                   onClick={() =>
                     void (async () => {
                       const ok = await generateAndDownloadPdf(subOrder.id, order.id)
-                      if (!ok) showError('PDF konnte nicht erstellt werden')
+                      if (!ok) showError('PDF could not be generated')
                     })()
                   }
                 >
@@ -729,7 +725,7 @@ export function ContextPanel({
                   type="button"
                   className="cp-btn cp-btn-rot"
                   disabled={busy}
-                  onClick={handleNotfallOeffnen}
+                  onClick={handleOpenEmergency}
                 >
                   Emergency
                 </button>
@@ -739,7 +735,7 @@ export function ContextPanel({
                   type="button"
                   className="cp-btn"
                   disabled={busy}
-                  onClick={() => void handleNotfallZurueck()}
+                  onClick={() => void handleRevertEmergency()}
                 >
                   Cancel emergency
                 </button>
@@ -767,7 +763,7 @@ export function ContextPanel({
                 type="button"
                 className="cp-btn cp-btn-grau"
                 disabled={cancelInProgress}
-                onClick={() => void handleStorno()}
+                onClick={() => void handleCancelSubOrder()}
               >
                 Cancel sub-order
               </button>
@@ -775,7 +771,7 @@ export function ContextPanel({
                 type="button"
                 className="cp-btn cp-btn-rot"
                 disabled={subOrder.status !== 'INCOMPLETE' || deleteInProgress}
-                onClick={() => void handleLoeschen()}
+                onClick={() => void handleDeleteSubOrder()}
               >
                 Delete sub-order
               </button>
@@ -858,7 +854,7 @@ export function ContextPanel({
                 type="button"
                 className="cp-btn"
                 disabled={!emergencyReason.trim() || busy}
-                onClick={() => void handleNotfallBestaetigt()}
+                onClick={() => void handleConfirmEmergency()}
               >
                 Confirm
               </button>
