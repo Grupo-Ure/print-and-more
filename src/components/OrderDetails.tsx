@@ -243,32 +243,40 @@ function OrderHeader({ order, onEditCustomer }: OrderHeaderProps) {
   const customerPhone = order.customers?.phone?.trim() || ''
 
   return (
-    <header
-      className="flex flex-col"
-    >
-      <div className='flex items-cente gap-4'>
-        <div className='flex items-center gap-1'>
-          <h1 title="Customer" className='m-0!'>
-            {customerDisplayName}
-          </h1>
-          <Button
-            onClick={onEditCustomer}
-            title="Edit customer"
-            aria-label="Edit customer"
-            variant='ghost'
-            size='icon-sm'
-          >
-            <Settings />
-          </Button>
+    <header className="flex">
+      <div className="flex flex-1">
+        <div className="flex items-cente gap-4 items-center">
+          <div className="flex gap-4 items-center">
+            <h1>Order:</h1>
+            <h2 className="text-3xl!" title="Order number">
+              {order.order_number}
+            </h2>
+          </div>
         </div>
-          <h2 title="Order number">{order.order_number}</h2>
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <h1 title="Customer" className="m-0!">
+              {customerDisplayName}
+            </h1>
+            <Button
+              onClick={onEditCustomer}
+              title="Edit customer"
+              aria-label="Edit customer"
+              variant="ghost"
+              size="icon-sm"
+            >
+              <Settings />
+            </Button>
+          </div>
+          {customerEmail && <p title="Email">{customerEmail}</p>}
+          {customerPhone && <p title="Phone">{customerPhone}</p>}
+        </div>
       </div>
-      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-        {customerEmail && <p title="Email">{customerEmail}</p>}
-        {customerPhone && <p title="Phone">{customerPhone}</p>}
+      <div className="flex b-dev">
+         actions here!
       </div>
     </header>
-  )
+  );
 }
 
 type OrderSettingsProps = {
