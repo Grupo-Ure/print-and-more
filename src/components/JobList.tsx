@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { subOrderDepartmentLabel } from '../const/departmentAbbreviation'
-import { SUB_ORDER_DEPARTMENTS, type Department } from '../types/database'
+import { SUB_ORDER_DEPARTMENTS, type Department, type OrderStatus } from '../types/database'
 import { authService } from '../services/authService'
 import { useOrderParams } from '../hooks/useOrderParams'
 import { useSubOrdersByOrderId, useCreateSubOrder } from '../queries/subOrderQueries'
@@ -16,40 +16,57 @@ import {
 } from './ui/dialog'
 import { cn } from '@/lib/utils'
 
-export function JobList() {
-  const { activeOrderId, activeSubOrderId, setActiveSubOrder } =
-    useOrderParams();
-  const jobsQuery = useSubOrdersByOrderId(activeOrderId);
-  const [dialogOpen, setDialogOpen] = useState(false);
+const JOB_STATUSES: { status: OrderStatus; color: string }[] = [
+  { status: 'INCOMPLETE',       color: 'bg-orange-500' },
+  { status: 'PREPRESS_READY',   color: 'bg-pink-500' },
+  { status: 'PRODUCTION_READY', color: 'bg-blue-500' },
+  { status: 'DONE',             color: 'bg-emerald-500' },
+]
 
-  const visibleJobs = (jobsQuery.data ?? []).filter((job) => !job.is_cancelled);
+function JobStatusTrack({ status }: { status: OrderStatus }) {
+  return (
+    <div className="flex items-center" aria-hidden>
+      {JOB_STATUSES.map(({ status: s, color }) => (
+        <div
+          key={s}
+          className={cn('w-2.5 h-2.5', s === status ? color : 'bg-gray-200')}
+        />
+      ))}
+    </div>
+  )
+}
+
+export function JobList() {
+  const { activeOrderId, activeSubOrderId, setActiveSubOrder } = useOrderParams()
+  const jobsQuery = useSubOrdersByOrderId(activeOrderId)
+  const [dialogOpen, setDialogOpen] = useState(false)
+
+  const visibleJobs = (jobsQuery.data ?? []).filter(job => !job.is_cancelled)
 
   return (
     <>
       <nav className="flex flex-col justify-between w-60">
         <h1>Jobs</h1>
         <AddJobButton onClick={() => setDialogOpen(true)} />
-        <ul
-          className="flex flex-col flex-wrap flex-1 min-w-0"
-          aria-label="Jobs"
-        >
-          {visibleJobs.map((job) => (
+        <ul className="flex flex-col flex-wrap flex-1 min-w-0" aria-label="Jobs">
+          {visibleJobs.map(job => (
             <li
               key={job.id}
               className={cn(
-                'w-full cursor-pointer p-2 hover:bg-gray-100',
+                'flex items-center justify-between w-full cursor-pointer p-2 hover:bg-gray-100',
                 job.id === activeSubOrderId && 'bg-primary/10 hover:bg-primary/10',
               )}
               onClick={() => setActiveSubOrder(job.id)}
             >
-              {subOrderDepartmentLabel(job.department)}
+              <span>{subOrderDepartmentLabel(job.department)}</span>
+              <JobStatusTrack status={job.status} />
             </li>
           ))}
         </ul>
       </nav>
       <AddJobDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </>
-  );
+  )
 }
 
 type AddJobDialogProps = {
