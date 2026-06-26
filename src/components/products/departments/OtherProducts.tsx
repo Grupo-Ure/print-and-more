@@ -24,11 +24,7 @@ export function OtherProducts({ subOrder, subOrderStatus, orderFiles = [] }: Pro
         <p className="text-xs text-muted-foreground">For ‘Other’, PREPRESS_READY is set manually only.</p>
       </div>
 
-      {productEditor.requiresUnlock ? (
-        <Button type="button" variant="outline" onClick={productEditor.requestUnlock}>
-          Unlock editing
-        </Button>
-      ) : (
+      {!productEditor.requiresUnlock && (
         <OtherForm
           key={editing?.id ?? 'new'}
           subOrder={subOrder}

@@ -52,11 +52,7 @@ export function LfpProducts({ subOrder, subOrderStatus, orderFiles = [] }: Props
     <div className="flex flex-col gap-4">
       <h3 className="text-sm font-semibold">Large-format print — Details</h3>
 
-      {productEditor.requiresUnlock ? (
-        <Button type="button" variant="outline" onClick={productEditor.requestUnlock}>
-          Unlock editing
-        </Button>
-      ) : (
+      {!productEditor.requiresUnlock && (
         <>
           {productEditor.mode.kind !== 'edit' && (
             <div className="flex flex-col gap-1">

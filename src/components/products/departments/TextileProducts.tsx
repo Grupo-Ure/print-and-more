@@ -217,9 +217,7 @@ export function TextileProducts({ subOrder, subOrderStatus, orderFiles = [] }: P
 
       <DesignsDrawer subOrder={subOrder} motifs={motifs} orderFiles={orderFiles} />
 
-      {productEditor.requiresUnlock ? (
-        <Button type="button" variant="outline" onClick={productEditor.requestUnlock}>Unlock editing</Button>
-      ) : (
+      {!productEditor.requiresUnlock && (
         <>
           {productEditor.mode.kind === 'idle' && (
             <div>

@@ -1,4 +1,4 @@
-import { useCancelSubOrder, useDeleteSubOrder, useEffectiveSubOrder, useSubOrderById, useUpdateSubOrder } from '../queries/subOrderQueries'
+import { useCancelSubOrder, useDeleteSubOrder, useEffectiveSubOrder, useSetCustomerApproval, useSubOrderById, useUpdateSubOrder } from '../queries/subOrderQueries'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import { useOrderById } from '../queries/orderQueries'
 import { useStatusManager } from '../queries/useStatusManager'
@@ -28,6 +28,7 @@ import type { FileRow } from '../services/fileService'
 import { toDateOnly, todayDateOnly } from '../lib/formatDate'
 import { StatusBadge } from './StatusBadge'
 import { SubOrderReleaseButton } from './SubOrderReleaseButton'
+import { SubOrderProductionBanner } from './SubOrderProductionBanner'
 import { Button } from './ui/button'
 import { Ban, FileDown, Trash2 } from 'lucide-react'
 import './WorkArea.css'
@@ -44,6 +45,7 @@ export function SubOrderDetail({
   const subOrder = useSubOrderById(activeOrderId, activeSubOrderId) // raw row (override/inherit state)
   const effectiveSuborder = useEffectiveSubOrder(activeOrderId, activeSubOrderId) // inherited fields resolved
   const updateSubOrder = useUpdateSubOrder()
+  const setCustomerApproval = useSetCustomerApproval()
   const cancelSubOrder = useCancelSubOrder()
   const deleteSubOrder = useDeleteSubOrder()
   const { showError } = useToast()
@@ -114,6 +116,7 @@ export function SubOrderDetail({
 
   return (
     <div className="td">
+      <SubOrderProductionBanner subOrder={subOrder} />
       <div className="td-kopf" aria-label="Sub-order">
         <span className="td-bkz">[{departmentAbbreviation(subOrder.department)}]</span>
         <StatusBadge status={subOrder.status} />
@@ -249,6 +252,23 @@ export function SubOrderDetail({
               }}
             />
             {hasSeparatePriority && validationErrors.prioritaet && <p className="text-destructive text-xs mt-1">{validationErrors.prioritaet}</p>}
+          </div>
+          <div className="flex flex-col min-w-0 gap-2">
+            <label className="flex items-center gap-2 text-[13px] select-none mt-1">
+              <Switch
+                checked={subOrder.customer_approval_required}
+                onCheckedChange={checked => {
+                  setCustomerApproval.mutate({
+                    id: subOrder.id,
+                    orderId: subOrder.order_id,
+                    patch: checked
+                      ? { customer_approval_required: true }
+                      : { customer_approval_required: false, customer_approval_granted: false, customer_approval_file_id: null },
+                  })
+                }}
+              />
+              <span>Customer approval required</span>
+            </label>
           </div>
         <div className="flex flex-col min-w-0">
           <span className="text-[11px] font-medium text-muted-foreground mb-0.5">Typesetting time (min)</span>
