@@ -128,7 +128,7 @@ function WorkspaceShell() {
         <div className="flex items-center gap-2 border-b border-neutral-200 px-3 py-1.5">
           <SidebarTrigger />
         </div>
-        <div className="grid grid-cols-[1fr_300px] flex-1 min-h-0">
+        <div className="flex flex-col">
           <OrderDetails
             contextRefreshTick={contextRefreshTick}
             onActiveSubOrderChanged={handleActiveSubOrderChanged}

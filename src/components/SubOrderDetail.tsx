@@ -131,7 +131,7 @@ export function SubOrderDetail({
   const isLocked = subOrder.status === 'PRODUCTION_READY'
 
   return (
-    <div className="td">
+    <div className="flex flex-col gap-4">
       <SubOrderProductionBanner subOrder={subOrder} />
       <div className="td-kopf" aria-label="Sub-order">
         <span className="td-bkz">[{departmentAbbreviation(subOrder.department)}]</span>
