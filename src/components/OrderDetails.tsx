@@ -14,7 +14,7 @@ import {
 import { useToast } from './Toast'
 import type { FileRow } from '../services/fileService'
 import { SubOrderDetail } from './SubOrderDetail'
-import { SubOrderTabs } from './SubOrderTabs'
+import { JobList } from './JobList'
 import { useOrderWorkspace } from '../context/order.context'
 import { useOrderParams } from '../hooks/useOrderParams'
 import { orderKeys, useArchiveOrder, useArchiveOrderWithCancelledSubOrders, useOrderById, useUpdateOrder } from '../queries/orderQueries'
@@ -220,7 +220,7 @@ export function OrderDetails({
   }
 
   return (
-    <main className="flex flex-col gap-2 p-4">
+    <main className="flex flex-col gap-2 p-4 flex-1">
       <OrderHeader
         order={order}
         onEditCustomer={() =>
@@ -240,21 +240,26 @@ export function OrderDetails({
       <Separator />
 
       <OrderSettings order={order} onSave={saveOrderHeader} />
+
       <Separator />
 
-      <SubOrderTabs />
-      <Separator />
+      <div className="flex gap-2 flex-1">
+        <JobList />
 
-      <div className="work-area__formular " role="tabpanel">
-        {activeSubOrder ? (
-          <SubOrderDetail
-            orderFiles={files}
-            onUpdated={handleSubOrderUpdated}
-          />
-        ) : (
-          <p className="wa-hint">No sub-orders yet. Use + to add a department.</p>
-        )}
+        <Separator  orientation='vertical'/>
+
+        <div className="flex-1" role="tabpanel">
+          {activeSubOrder ? (
+            <SubOrderDetail
+              orderFiles={files}
+              onUpdated={handleSubOrderUpdated}
+            />
+          ) : (
+            <p className="wa-hint">No sub-orders yet. Use + to add a department.</p>
+          )}
+        </div>
       </div>
+
     </main>
   )
 }
