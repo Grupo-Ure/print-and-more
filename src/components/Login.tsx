@@ -10,7 +10,9 @@ export function Login() {
     try {
       await authService.signIn(email.trim(), password)
     } catch (err) {
-      setLoginError(err instanceof Error ? err.message : 'Login failed')
+      const raw = err instanceof Error ? err.message : ''
+      const isUseless = !raw || raw === '{}' || raw === '[]'
+      setLoginError(isUseless ? 'Login failed. Please check your credentials and try again.' : raw)
     }
   }
 
