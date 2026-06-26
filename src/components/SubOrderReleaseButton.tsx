@@ -1,5 +1,8 @@
 import { cn } from '@/lib/utils'
+import { useProductsBySubOrderId } from '../queries/productQueries'
+import { useOrderById } from '../queries/orderQueries'
 import { useReleaseToProduction, useSetSubOrderStatus } from '../queries/subOrderQueries'
+import { isSubOrderComplete, resolveEffectiveSubOrder } from '../lib/subOrderShared'
 import type { SubOrderRow } from '../types/database'
 import { useToast } from './Toast'
 import { Button } from './ui/button'
@@ -13,6 +16,15 @@ export function SubOrderReleaseButton({ subOrder, orderNumber }: Props) {
   const setSubOrderStatus = useSetSubOrderStatus()
   const releaseToProduction = useReleaseToProduction()
   const { showError } = useToast()
+  const orderQuery = useOrderById(subOrder.order_id)
+  const productsQuery = useProductsBySubOrderId(subOrder.id)
+
+  const order = orderQuery.data
+  const hasProducts = (productsQuery.data?.length ?? 0) > 0
+  const effectiveSubOrder = order ? resolveEffectiveSubOrder(subOrder, order) : null
+  const complete = effectiveSubOrder
+    ? isSubOrderComplete(effectiveSubOrder, subOrder.status, hasProducts)
+    : false
 
   const handleReleaseToPrepress = async () => {
     try {
@@ -50,6 +62,7 @@ export function SubOrderReleaseButton({ subOrder, orderNumber }: Props) {
 
   const disabled =
     pending ||
+    (subOrder.status === 'INCOMPLETE' && !complete) ||
     (subOrder.status === 'PREPRESS_READY' &&
       subOrder.customer_approval_required === true &&
       subOrder.customer_approval_granted !== true)

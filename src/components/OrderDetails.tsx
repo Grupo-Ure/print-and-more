@@ -296,7 +296,7 @@ function OrderHeader({ order, onEditCustomer, onArchive, onCancelOrder, archiveP
               <Archive />
             </Button>
           )}
-          {order.status !== 'QUOTE' && order.status !== 'INCOMPLETE' && (
+          {order.status !== 'INVOICED' && (
             <Button
               type="button"
               variant="ghost"
