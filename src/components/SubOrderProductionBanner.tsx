@@ -1,3 +1,4 @@
+import { Lock } from 'lucide-react'
 import { useSetSubOrderStatus } from '../queries/subOrderQueries'
 import type { SubOrderRow } from '../types/database'
 import { useToast } from './Toast'
@@ -27,7 +28,8 @@ export function SubOrderProductionBanner({ subOrder }: Props) {
   }
 
   return (
-    <div className="flex items-center justify-center gap-4 bg-blue-500 px-4 py-2 text-white">
+    <div className="flex items-center justify-center gap-4 border-b-6 border-blue-500 px-4 py-2 text-blue-500">
+      <Lock/>
       <p className="text-sm font-medium">
         This job is in production and cannot be modified.
       </p>
