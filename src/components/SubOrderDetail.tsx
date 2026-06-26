@@ -113,6 +113,7 @@ export function SubOrderDetail({
   const deadlineIso = toDateOnly(effectiveDeadline) ?? ''
 
   const validationErrors = validateSubOrderCommonFields(effectiveSuborder, subOrder.status)
+  const isLocked = subOrder.status === 'PRODUCTION_READY'
 
   return (
     <div className="td">
@@ -140,7 +141,7 @@ export function SubOrderDetail({
             className="text-destructive hover:text-destructive"
           >
             <Trash2 />
-            Delete
+            Delete job
           </Button>
 
           <Button
@@ -152,7 +153,7 @@ export function SubOrderDetail({
             className="text-destructive hover:text-destructive"
           >
             <Ban />
-            Cancel
+            Cancel job
           </Button>
         </div>
 
@@ -175,6 +176,7 @@ export function SubOrderDetail({
           <div className="flex flex-col min-w-0 gap-2">
             <label className="flex items-center gap-2 text-[13px] select-none mt-1">
               <Switch
+                disabled={isLocked}
                 checked={hasSeparateDeadline}
                 onCheckedChange={checked => {
                   if (checked !== true) {
@@ -187,7 +189,7 @@ export function SubOrderDetail({
               <span>Separate delivery date</span>
             </label>
             <DeadlinePicker
-              disabled={!hasSeparateDeadline}
+              disabled={!hasSeparateDeadline || isLocked}
               value={toDateOnly(subOrder.deadline) ?? deadlineIso}
               onChange={value => {
                 if (toDateOnly(value) === toDateOnly(order.deadline)) {
@@ -256,6 +258,7 @@ export function SubOrderDetail({
           <div className="flex flex-col min-w-0 gap-2">
             <label className="flex items-center gap-2 text-[13px] select-none mt-1">
               <Switch
+                disabled={isLocked}
                 checked={subOrder.customer_approval_required}
                 onCheckedChange={checked => {
                   setCustomerApproval.mutate({
