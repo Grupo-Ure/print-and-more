@@ -17,7 +17,7 @@ import { SubOrderDetail } from './SubOrderDetail'
 import { JobList } from './JobList'
 import { useOrderWorkspace } from '../context/order.context'
 import { useOrderParams } from '../hooks/useOrderParams'
-import { orderKeys, useArchiveOrder, useArchiveOrderWithCancelledSubOrders, useOrderById, useUpdateOrder } from '../queries/orderQueries'
+import { orderKeys, useArchiveOrder, useArchiveOrderWithCancelledSubOrders, useOrderById, useSetOrderStatus, useUpdateOrder } from '../queries/orderQueries'
 import { subOrderKeys, useSubOrdersByOrderId } from '../queries/subOrderQueries'
 import './WorkArea.css'
 import { Button } from './ui/button'
@@ -115,6 +115,20 @@ export function OrderDetails({
 
   const archiveOrder = useArchiveOrder()
   const cancelOrder = useArchiveOrderWithCancelledSubOrders()
+  const setOrderStatus = useSetOrderStatus()
+
+  const handleStartProcessing = async () => {
+    if (!order || order.status !== 'QUOTE') return
+    try {
+      await setOrderStatus.mutateAsync({
+        id: order.id,
+        status: 'INCOMPLETE',
+        history: { event_type: 'PROCESSING_STARTED' },
+      })
+    } catch {
+      showError('Status could not be changed')
+    }
+  }
 
   const handleArchive = async () => {
     if (!window.confirm('Archive this order? It will be hidden from the main list.')) return
@@ -234,8 +248,10 @@ export function OrderDetails({
         }
         onArchive={() => void handleArchive()}
         onCancelOrder={() => void handleCancelOrder()}
+        onStartProcessing={() => void handleStartProcessing()}
         archivePending={archiveOrder.isPending}
         cancelPending={cancelOrder.isPending}
+        startProcessingPending={setOrderStatus.isPending}
       />
       <Separator />
 
@@ -269,11 +285,13 @@ type OrderHeaderProps = {
   onEditCustomer: () => void
   onArchive: () => void
   onCancelOrder: () => void
+  onStartProcessing: () => void
   archivePending: boolean
   cancelPending: boolean
+  startProcessingPending: boolean
 }
 
-function OrderHeader({ order, onEditCustomer, onArchive, onCancelOrder, archivePending, cancelPending }: OrderHeaderProps) {
+function OrderHeader({ order, onEditCustomer, onArchive, onCancelOrder, onStartProcessing, archivePending, cancelPending, startProcessingPending }: OrderHeaderProps) {
   const customerDisplayName = order.customers?.name?.trim() || '—'
   const customerEmail = order.customers?.email?.trim() || ''
   const customerPhone = order.customers?.phone?.trim() || ''
@@ -288,6 +306,17 @@ function OrderHeader({ order, onEditCustomer, onArchive, onCancelOrder, archiveP
           </h2>
         </div>
         <div className="flex items-center gap-1">
+          {order.status === 'QUOTE' && (
+            <Button
+              type="button"
+              variant="default"
+              size="lg"
+              disabled={startProcessingPending}
+              onClick={onStartProcessing}
+            >
+              Start processing
+            </Button>
+          )}
           {order.status !== 'INVOICED' && (
             <Button
               type="button"

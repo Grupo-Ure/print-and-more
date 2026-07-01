@@ -46,15 +46,6 @@ export function StampProducts({ subOrder, subOrderStatus, orderFiles = [] }: Pro
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Stamps — Details</h3>
-        {!productEditor.isReadOnly && (
-          <Button type="button" variant="outline" size="sm" onClick={productEditor.openAdd}>
-            + Add product
-          </Button>
-        )}
-      </div>
-
       {!productEditor.isReadOnly && (
         <ProductDialog
           editor={productEditor}
@@ -65,8 +56,15 @@ export function StampProducts({ subOrder, subOrderStatus, orderFiles = [] }: Pro
         />
       )}
 
-      <div className="border-t pt-3">
-        <h3 className="text-sm font-semibold">Products</h3>
+      <div>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold">Products</h3>
+          {!productEditor.isReadOnly && (
+            <Button type="button" variant="outline" size="sm" onClick={productEditor.openAdd}>
+              + Add product
+            </Button>
+          )}
+        </div>
         {productEditor.productsLoading ? (
           <p className="text-xs text-muted-foreground">Loading products…</p>
         ) : (

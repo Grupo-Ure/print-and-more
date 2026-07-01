@@ -32,6 +32,7 @@ import { SubOrderProductionBanner } from './SubOrderProductionBanner'
 import { Button } from './ui/button'
 import { Ban, FileDown, Trash2 } from 'lucide-react'
 import './WorkArea.css'
+import { Separator } from './ui/separator'
 
 export function SubOrderDetail({
   orderFiles,
@@ -296,6 +297,8 @@ export function SubOrderDetail({
         </div>
         </div>
       </section>
+
+      <Separator/>
 
       <section>
         {subOrder.department === 'LFP' && (
