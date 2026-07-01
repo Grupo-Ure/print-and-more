@@ -220,7 +220,7 @@ export function OrderDetails({
   }
 
   return (
-    <main className="flex flex-col gap-2 p-4 flex-1">
+    <main className="flex flex-col gap-2 p-3 flex-1">
       <OrderHeader
         order={order}
         onEditCustomer={() =>
