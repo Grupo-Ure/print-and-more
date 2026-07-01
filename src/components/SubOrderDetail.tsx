@@ -114,7 +114,9 @@ export function SubOrderDetail({
   const deadlineIso = toDateOnly(effectiveDeadline) ?? ''
 
   const validationErrors = validateSubOrderCommonFields(effectiveSuborder, subOrder.status)
-  const isLocked = subOrder.status === 'PRODUCTION_READY'
+  // In production a subset of fields is locked; once DONE everything is read-only.
+  const isDone = subOrder.status === 'DONE'
+  const isLocked = subOrder.status === 'PRODUCTION_READY' || isDone
 
   return (
     <div className="flex flex-col gap-4">
@@ -207,6 +209,7 @@ export function SubOrderDetail({
           <div className="flex flex-col min-w-0 gap-2">
             <label className="flex items-center gap-2 text-[13px] select-none mt-1">
               <Switch
+                disabled={isDone}
                 checked={hasSeparateDelivery}
                 onCheckedChange={checked => {
                   if (checked !== true) {
@@ -219,7 +222,7 @@ export function SubOrderDetail({
               <span>Separate delivery type</span>
             </label>
             <DeliverySelect
-              disabled={!hasSeparateDelivery}
+              disabled={!hasSeparateDelivery || isDone}
               value={effectiveDelivery}
               onChange={value => {
                 if (value === orderDeliveryMode) {
@@ -234,6 +237,7 @@ export function SubOrderDetail({
           <div className="flex flex-col min-w-0 gap-2">
             <label className="flex items-center gap-2 text-[13px] select-none mt-1">
               <Switch
+                disabled={isDone}
                 checked={hasSeparatePriority}
                 onCheckedChange={checked => {
                   if (checked !== true) {
@@ -246,7 +250,7 @@ export function SubOrderDetail({
               <span>Separate priority</span>
             </label>
             <PrioritySelect
-              disabled={!hasSeparatePriority}
+              disabled={!hasSeparatePriority || isDone}
               value={effectivePriority}
               onChange={value => {
                 if (value === orderPriorityMode) {
@@ -282,6 +286,7 @@ export function SubOrderDetail({
             <Input
               key={subOrder.id}
               type="number"
+              disabled={isDone}
               className="max-w-48 h-9 text-sm"
               aria-invalid={shouldValidate && !!validationErrors.satzzeit_minuten}
               defaultValue={subOrder.typesetting_minutes ?? ''}

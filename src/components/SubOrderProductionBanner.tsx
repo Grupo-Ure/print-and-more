@@ -1,4 +1,4 @@
-import { Lock } from 'lucide-react'
+import { CheckCircle2, Lock } from 'lucide-react'
 import { useSetSubOrderStatus } from '../queries/subOrderQueries'
 import type { SubOrderRow } from '../types/database'
 import { useToast } from './Toast'
@@ -11,6 +11,18 @@ type Props = {
 export function SubOrderProductionBanner({ subOrder }: Props) {
   const setSubOrderStatus = useSetSubOrderStatus()
   const { showError } = useToast()
+
+  // Done is terminal: a green, button-less banner — no going back once a job is done.
+  if (subOrder.status === 'DONE') {
+    return (
+      <div className="flex items-center justify-center gap-4 border-b-6 border-green-500 px-4 py-2 text-green-500">
+        <CheckCircle2 />
+        <p className="text-sm font-medium">
+          This job is done and can no longer be modified.
+        </p>
+      </div>
+    )
+  }
 
   if (subOrder.status !== 'PRODUCTION_READY') return null
 
