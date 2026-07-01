@@ -1,4 +1,4 @@
-import { useCancelSubOrder, useDeleteSubOrder, useEffectiveSubOrder, useSetCustomerApproval, useSetSubOrderStatus, useSubOrderById, useUpdateSubOrder } from '../queries/subOrderQueries'
+import { useCancelSubOrder, useDeleteSubOrder, useEffectiveSubOrder, useSetCustomerApproval, useSubOrderById, useUpdateSubOrder } from '../queries/subOrderQueries'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import { useOrderById } from '../queries/orderQueries'
 import { useStatusManager } from '../queries/useStatusManager'
@@ -48,7 +48,6 @@ export function SubOrderDetail({
   const setCustomerApproval = useSetCustomerApproval()
   const cancelSubOrder = useCancelSubOrder()
   const deleteSubOrder = useDeleteSubOrder()
-  const markDone = useSetSubOrderStatus()
   const { showError } = useToast()
 
   // Status manager: auto-derives and persists the INCOMPLETE ↔ PREPRESS_READY
@@ -78,20 +77,6 @@ export function SubOrderDetail({
       await deleteSubOrder.mutateAsync({ id: subOrder.id, orderId: subOrder.order_id })
     } catch {
       showError('Department order could not be deleted')
-    }
-  }
-
-  const handleMarkDone = async () => {
-    if (!window.confirm('Mark job as done?')) return
-    try {
-      await markDone.mutateAsync({
-        id: subOrder.id,
-        orderId: subOrder.order_id,
-        status: 'DONE',
-        history: { event_type: 'MARKED_DONE' },
-      })
-    } catch {
-      showError('Status could not be updated')
     }
   }
 
@@ -145,16 +130,6 @@ export function SubOrderDetail({
           >
             <FileDown />
             Download PDF
-          </Button>
-
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={subOrder.status !== 'PRODUCTION_READY' || markDone.isPending}
-            onClick={() => void handleMarkDone()}
-            size="sm"
-          >
-            Mark job as done
           </Button>
 
           <Button
