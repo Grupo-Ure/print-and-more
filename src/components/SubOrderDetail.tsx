@@ -132,29 +132,31 @@ export function SubOrderDetail({
             Download PDF
           </Button>
 
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={subOrder.status !== 'INCOMPLETE' || deleteSubOrder.isPending}
-            onClick={() => void handleDelete()}
-            size="sm"
-            className="text-destructive hover:text-destructive"
-          >
-            <Trash2 />
-            Delete job
-          </Button>
-
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={subOrder.is_cancelled || subOrder.status === 'DONE' || cancelSubOrder.isPending}
-            onClick={() => void handleCancel()}
-            size="sm"
-            className="text-destructive hover:text-destructive"
-          >
-            <Ban />
-            Cancel job
-          </Button>
+          {subOrder.status === 'INCOMPLETE' ? (
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={deleteSubOrder.isPending}
+              onClick={() => void handleDelete()}
+              size="sm"
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 />
+              Delete job
+            </Button>
+          ):(
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={subOrder.is_cancelled || subOrder.status === 'PRODUCTION_READY' || subOrder.status === 'DONE' || cancelSubOrder.isPending}
+              onClick={() => void handleCancel()}
+              size="sm"
+              className="text-destructive hover:text-destructive"
+            >
+              <Ban />
+              Cancel job
+            </Button>
+          )}
         </div>
 
         <SubOrderReleaseButton subOrder={subOrder} orderNumber={order.order_number ?? null} />
