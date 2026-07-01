@@ -18,7 +18,7 @@ import { useToast } from '../Toast'
 /** Which form (if any) the detail is showing. */
 export type EditorMode =
   | { kind: 'idle' }
-  | { kind: 'add'; type: string }
+  | { kind: 'add' }
   | { kind: 'edit'; product: LoadedProduct }
 
 export function useProductEditor(
@@ -44,9 +44,10 @@ export function useProductEditor(
 
   const [mode, setMode] = useState<EditorMode>({ kind: 'idle' })
 
-  const requiresUnlock = subOrderStatus === 'PRODUCTION_READY'
+  // Products are read-only once the sub-order is released to production or done.
+  const isReadOnly = subOrderStatus === 'PRODUCTION_READY' || subOrderStatus === 'DONE'
 
-  const openAdd = useCallback((type: string) => setMode({ kind: 'add', type }), [])
+  const openAdd = useCallback(() => setMode({ kind: 'add' }), [])
   const openEdit = useCallback((product: LoadedProduct) => setMode({ kind: 'edit', product }), [])
   const close = useCallback(() => setMode({ kind: 'idle' }), [])
 
@@ -87,6 +88,6 @@ export function useProductEditor(
     handleSaved,
     handleDelete,
     fileIdsFor,
-    requiresUnlock,
+    isReadOnly,
   }
 }

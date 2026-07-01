@@ -22,7 +22,7 @@ import { Badge } from '../../ui/badge'
 import { Input } from '../../ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select'
 import { useProductEditor } from '../useProductEditor'
-import { TextileGarmentForm } from '../forms/textile'
+import { TextileProductDialog } from '../TextileProductDialog'
 import { motifLabel } from '../forms/textileTypes'
 
 type Props = {
@@ -204,43 +204,25 @@ export function TextileProducts({ subOrder, subOrderStatus, orderFiles = [] }: P
     return map
   }, [linksQuery.data])
 
-  const active =
-    productEditor.mode.kind === 'edit'
-      ? { product: productEditor.mode.product }
-      : productEditor.mode.kind === 'add'
-        ? { product: null as LoadedProduct | null }
-        : null
-
   return (
     <div className="flex flex-col gap-4">
-      <h3 className="text-sm font-semibold">Textile — Details</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold">Textile — Details</h3>
+        {!productEditor.isReadOnly && (
+          <Button type="button" variant="outline" size="sm" onClick={productEditor.openAdd}>+ Add garment</Button>
+        )}
+      </div>
 
       <DesignsDrawer subOrder={subOrder} motifs={motifs} orderFiles={orderFiles} />
 
-      {!productEditor.requiresUnlock && (
-        <>
-          {productEditor.mode.kind === 'idle' && (
-            <div>
-              <Button type="button" variant="outline" onClick={() => productEditor.openAdd('TEXTILE_GARMENT')}>+ Add garment</Button>
-            </div>
-          )}
-
-          {active && (
-            <TextileGarmentForm
-              key={active.product?.id ?? 'new'}
-              subOrder={subOrder}
-              subOrderStatus={subOrderStatus}
-              product={active.product}
-              orderFiles={orderFiles}
-              initialFileIds={[]}
-              sortOrder={active.product ? active.product.sort_order : productEditor.products.length}
-              onSaved={productEditor.handleSaved}
-              onCancel={productEditor.close}
-              motifs={motifs}
-              initialLinks={active.product ? (linksByProduct[active.product.id] ?? []) : []}
-            />
-          )}
-        </>
+      {!productEditor.isReadOnly && (
+        <TextileProductDialog
+          editor={productEditor}
+          subOrder={subOrder}
+          orderFiles={orderFiles}
+          motifs={motifs}
+          linksByProduct={linksByProduct}
+        />
       )}
 
       <div className="border-t pt-3">
