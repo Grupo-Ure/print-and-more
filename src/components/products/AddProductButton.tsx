@@ -10,7 +10,7 @@ export function AddProductButton({
   label?: string
 }) {
   return (
-    <Button type="button" variant="outline" size="sm" onClick={onClick}>
+    <Button type="button" onClick={onClick}>
       {label}
     </Button>
   )

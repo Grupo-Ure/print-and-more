@@ -68,7 +68,7 @@ export function ProductDialog({
               <button
                 key={t.value}
                 type="button"
-                className="rounded-md px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                className="rounded-md px-3 py-2 text-left text-sm hover:bg-primary hover:text-primary-foreground"
                 onClick={() => setSelectedType(t.value)}
               >
                 {t.label}
