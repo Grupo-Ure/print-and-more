@@ -5,6 +5,7 @@
  */
 
 import { useMemo, useState } from 'react'
+import { Pencil, Trash2 } from 'lucide-react'
 import type { OrderStatus, SubOrderRow } from '../../../types/database'
 import type { FileRow } from '../../../services/fileService'
 import type { TextileMotifRow, TextileMotifLinkInput } from '../../../types/textile'
@@ -73,10 +74,12 @@ function DesignsDrawer({
   subOrder,
   motifs,
   orderFiles,
+  isReadOnly,
 }: {
   subOrder: SubOrderRow
   motifs: TextileMotifRow[]
   orderFiles: FileRow[]
+  isReadOnly: boolean
 }) {
   const save = useSaveTextileMotif(subOrder.id)
   const del = useDeleteTextileMotif(subOrder.id)
@@ -107,7 +110,7 @@ function DesignsDrawer({
     <div className="flex flex-col gap-2 rounded-md border p-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Designs</h3>
-        {!draft && <Button type="button" size="sm" variant="outline" onClick={() => setDraft({ ...EMPTY_DESIGN })}>+ New design</Button>}
+        {!draft && !isReadOnly && <Button type="button" size="sm" variant="outline" onClick={() => setDraft({ ...EMPTY_DESIGN })}>+ New design</Button>}
       </div>
 
       {motifs.length === 0 && !draft && <p className="text-xs text-muted-foreground">No designs yet. Add one to apply it to garments.</p>}
@@ -115,8 +118,14 @@ function DesignsDrawer({
       <div className="flex flex-wrap gap-2">
         {motifs.map(m => (
           <Badge key={m.id} variant="secondary" className="gap-1">
-            <button type="button" className="cursor-pointer" title="Edit" onClick={() => setDraft(designFromRow(m))}>{motifLabel(m)}</button>
-            <button type="button" className="cursor-pointer hover:text-destructive" title="Delete" onClick={() => del.mutate({ id: m.id }, { onError: () => showError('Design could not be deleted (still applied?)') })}>×</button>
+            {isReadOnly ? (
+              <span>{motifLabel(m)}</span>
+            ) : (
+              <>
+                <button type="button" className="cursor-pointer" title="Edit" onClick={() => setDraft(designFromRow(m))}>{motifLabel(m)}</button>
+                <button type="button" className="cursor-pointer hover:text-destructive" title="Delete" onClick={() => del.mutate({ id: m.id }, { onError: () => showError('Design could not be deleted (still applied?)') })}>×</button>
+              </>
+            )}
           </Badge>
         ))}
       </div>
@@ -213,7 +222,7 @@ export function TextileProducts({ subOrder, subOrderStatus, orderFiles = [] }: P
         )}
       </div>
 
-      <DesignsDrawer subOrder={subOrder} motifs={motifs} orderFiles={orderFiles} />
+      <DesignsDrawer subOrder={subOrder} motifs={motifs} orderFiles={orderFiles} isReadOnly={productEditor.isReadOnly} />
 
       {!productEditor.isReadOnly && (
         <TextileProductDialog
@@ -248,8 +257,12 @@ export function TextileProducts({ subOrder, subOrderStatus, orderFiles = [] }: P
                   <td className="py-1">{prod.quantity ?? '—'}</td>
                   <td className="py-1">{(linksByProduct[prod.id] ?? []).length}</td>
                   <td className="py-1 text-right">
-                    <button type="button" className="cursor-pointer text-muted-foreground hover:text-foreground" title="Edit" onClick={() => productEditor.openEdit(prod)}>Edit</button>
-                    <button type="button" className="ml-3 cursor-pointer text-muted-foreground hover:text-destructive" title="Delete" onClick={() => productEditor.handleDelete(prod.id)}>Delete</button>
+                    <Button type="button" variant="ghost" size="icon-sm" title="Edit" aria-label="Edit" disabled={productEditor.isReadOnly} onClick={() => productEditor.openEdit(prod)}>
+                      <Pencil />
+                    </Button>
+                    <Button type="button" variant="ghost" size="icon-sm" className="ml-2" title="Delete" aria-label="Delete" disabled={productEditor.isReadOnly} onClick={() => productEditor.handleDelete(prod.id)}>
+                      <Trash2 />
+                    </Button>
                   </td>
                 </tr>
               ))}

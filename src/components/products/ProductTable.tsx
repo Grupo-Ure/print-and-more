@@ -25,6 +25,8 @@ export type ProductTableMeta = {
   onDelete: (id: string) => void
   orderFiles: FileRow[]
   filesByProduct: Record<string, ProductFileAssignment[]>
+  /** When the sub-order is released to production or done, edit/delete are disabled. */
+  isReadOnly: boolean
 }
 
 export function ProductTable({

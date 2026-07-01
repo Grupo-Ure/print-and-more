@@ -72,7 +72,7 @@ export function StampProducts({ subOrder, subOrderStatus, orderFiles = [] }: Pro
         ) : (
           <StampProductsTable
             data={productEditor.products}
-            meta={{ onEdit: productEditor.openEdit, onDelete: productEditor.handleDelete, orderFiles, filesByProduct: productEditor.filesByProduct }}
+            meta={{ onEdit: productEditor.openEdit, onDelete: productEditor.handleDelete, orderFiles, filesByProduct: productEditor.filesByProduct, isReadOnly: productEditor.isReadOnly }}
           />
         )}
       </div>
