@@ -16,19 +16,20 @@ import {
 } from './ui/dialog'
 import { cn } from '@/lib/utils'
 
-const JOB_STATUSES: { status: OrderStatus; color: string }[] = [
-  { status: 'INCOMPLETE',       color: 'bg-orange-500' },
-  { status: 'PREPRESS_READY',   color: 'bg-pink-500' },
-  { status: 'PRODUCTION_READY', color: 'bg-blue-500' },
-  { status: 'DONE',             color: 'bg-emerald-500' },
+const JOB_STATUSES: { status: OrderStatus; color: string; label: string }[] = [
+  { status: 'INCOMPLETE',       color: 'bg-orange-500', label: 'In Setup' },
+  { status: 'PREPRESS_READY',   color: 'bg-pink-500',   label: 'In Prepress' },
+  { status: 'PRODUCTION_READY', color: 'bg-blue-500',   label: 'In Production' },
+  { status: 'DONE',             color: 'bg-emerald-500', label: 'Done' },
 ]
 
 function JobStatusTrack({ status }: { status: OrderStatus }) {
   return (
-    <div className="flex items-center" aria-hidden>
-      {JOB_STATUSES.map(({ status: s, color }) => (
+    <div className="flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-gray-100">
+      {JOB_STATUSES.map(({ status: s, color, label }) => (
         <div
           key={s}
+          title={label}
           className={cn('w-2.5 h-2.5', s === status ? color : 'bg-gray-200')}
         />
       ))}
@@ -53,8 +54,8 @@ export function JobList() {
             <li
               key={job.id}
               className={cn(
-                'flex items-center justify-between w-full cursor-pointer p-2 hover:bg-gray-100',
-                job.id === activeSubOrderId && 'bg-primary/10 hover:bg-primary/10',
+                'flex items-center justify-between w-full cursor-pointer p-2',
+                job.id === activeSubOrderId && 'bg-primary/10',
               )}
               onClick={() => setActiveSubOrder(job.id)}
             >
