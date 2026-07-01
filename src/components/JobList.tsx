@@ -15,22 +15,16 @@ import {
   DialogTitle,
 } from './ui/dialog'
 import { cn } from '@/lib/utils'
-
-const JOB_STATUSES: { status: OrderStatus; color: string; label: string }[] = [
-  { status: 'INCOMPLETE',       color: 'bg-orange-500', label: 'In Setup' },
-  { status: 'PREPRESS_READY',   color: 'bg-pink-500',   label: 'In Prepress' },
-  { status: 'PRODUCTION_READY', color: 'bg-blue-500',   label: 'In Production' },
-  { status: 'DONE',             color: 'bg-emerald-500', label: 'Done' },
-]
+import { STATUS_META, WORKFLOW_STATUSES } from '../const/orderStatus'
 
 function JobStatusTrack({ status }: { status: OrderStatus }) {
   return (
     <div className="flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-gray-100">
-      {JOB_STATUSES.map(({ status: s, color, label }) => (
+      {WORKFLOW_STATUSES.map(s => (
         <div
           key={s}
-          title={label}
-          className={cn('w-2.5 h-2.5', s === status ? color : 'bg-gray-200')}
+          title={STATUS_META[s].label}
+          className={cn('w-2.5 h-2.5', s === status ? STATUS_META[s].color : 'bg-gray-200')}
         />
       ))}
     </div>
