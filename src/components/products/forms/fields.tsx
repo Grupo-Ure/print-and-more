@@ -47,10 +47,20 @@ export function FieldRow({
 
 const asString = (v: unknown): string => (v == null ? '' : String(v))
 
+/**
+ * An error is only surfaced once the user has blurred out of the field, so a
+ * freshly-opened (empty) form doesn't render every required-field error up
+ * front. The raw error map still gates the Save button, so nothing invalid can
+ * be submitted regardless.
+ */
+const blurredError = (field: AnyFieldApi, error?: string): string | undefined =>
+  field.state.meta.isBlurred ? error : undefined
+
 /** Single-line text (or numeric-as-text, to allow comma decimals). */
 export function TextField({ field, label, error, hint, autoFocus }: { field: AnyFieldApi; label: string; error?: string; hint?: string; autoFocus?: boolean }) {
+  const shown = blurredError(field, error)
   return (
-    <FieldRow label={label} htmlFor={field.name} error={error} hint={hint}>
+    <FieldRow label={label} htmlFor={field.name} error={shown} hint={hint}>
       <Input
         id={field.name}
         name={field.name}
@@ -58,15 +68,16 @@ export function TextField({ field, label, error, hint, autoFocus }: { field: Any
         onChange={e => field.handleChange(e.target.value)}
         onBlur={field.handleBlur}
         autoFocus={autoFocus}
-        aria-invalid={error ? true : undefined}
+        aria-invalid={shown ? true : undefined}
       />
     </FieldRow>
   )
 }
 
 export function TextareaField({ field, label, error, rows = 6, hint }: { field: AnyFieldApi; label: string; error?: string; rows?: number; hint?: string }) {
+  const shown = blurredError(field, error)
   return (
-    <FieldRow label={label} htmlFor={field.name} error={error} hint={hint}>
+    <FieldRow label={label} htmlFor={field.name} error={shown} hint={hint}>
       <Textarea
         id={field.name}
         name={field.name}
@@ -74,7 +85,7 @@ export function TextareaField({ field, label, error, rows = 6, hint }: { field: 
         value={asString(field.state.value)}
         onChange={e => field.handleChange(e.target.value || null)}
         onBlur={field.handleBlur}
-        aria-invalid={error ? true : undefined}
+        aria-invalid={shown ? true : undefined}
       />
     </FieldRow>
   )
@@ -82,8 +93,9 @@ export function TextareaField({ field, label, error, rows = 6, hint }: { field: 
 
 /** Optional integer input (e.g. quantity). Stores the raw string; the schema coerces. */
 export function QuantityField({ field, label = 'Quantity', error, hint }: { field: AnyFieldApi; label?: string; error?: string; hint?: string }) {
+  const shown = blurredError(field, error)
   return (
-    <FieldRow label={label} htmlFor={field.name} error={error} hint={hint}>
+    <FieldRow label={label} htmlFor={field.name} error={shown} hint={hint}>
       <Input
         id={field.name}
         name={field.name}
@@ -93,15 +105,16 @@ export function QuantityField({ field, label = 'Quantity', error, hint }: { fiel
         onChange={e => field.handleChange(e.target.value === '' ? null : e.target.value)}
         onBlur={field.handleBlur}
         placeholder="—"
-        aria-invalid={error ? true : undefined}
+        aria-invalid={shown ? true : undefined}
       />
     </FieldRow>
   )
 }
 
 export function DateField({ field, label, error }: { field: AnyFieldApi; label: string; error?: string }) {
+  const shown = blurredError(field, error)
   return (
-    <FieldRow label={label} htmlFor={field.name} error={error}>
+    <FieldRow label={label} htmlFor={field.name} error={shown}>
       <Input
         id={field.name}
         name={field.name}
@@ -109,7 +122,7 @@ export function DateField({ field, label, error }: { field: AnyFieldApi; label: 
         value={asString(field.state.value)}
         onChange={e => field.handleChange(e.target.value || null)}
         onBlur={field.handleBlur}
-        aria-invalid={error ? true : undefined}
+        aria-invalid={shown ? true : undefined}
       />
     </FieldRow>
   )
@@ -120,10 +133,11 @@ export type Option = { value: string; label: string }
 /** Shadcn Select bound to a string field. */
 export function SelectField({ field, label, options, error, placeholder = '—' }: { field: AnyFieldApi; label: string; options: Option[]; error?: string; placeholder?: string }) {
   const current = asString(field.state.value)
+  const shown = blurredError(field, error)
   return (
-    <FieldRow label={label} htmlFor={field.name} error={error}>
+    <FieldRow label={label} htmlFor={field.name} error={shown}>
       <Select value={current || undefined} onValueChange={v => field.handleChange(v)}>
-        <SelectTrigger className="w-full" aria-invalid={error ? true : undefined} onBlur={field.handleBlur}>
+        <SelectTrigger className="w-full" aria-invalid={shown ? true : undefined} onBlur={field.handleBlur}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>
@@ -142,10 +156,11 @@ export function SelectField({ field, label, options, error, placeholder = '—' 
 export function BooleanField({ field, label, error }: { field: AnyFieldApi; label: string; error?: string }) {
   const v = field.state.value
   const current = v === true ? 'true' : v === false ? 'false' : undefined
+  const shown = blurredError(field, error)
   return (
-    <FieldRow label={label} htmlFor={field.name} error={error}>
+    <FieldRow label={label} htmlFor={field.name} error={shown}>
       <Select value={current} onValueChange={s => field.handleChange(s === 'true')}>
-        <SelectTrigger className="w-full" aria-invalid={error ? true : undefined} onBlur={field.handleBlur}>
+        <SelectTrigger className="w-full" aria-invalid={shown ? true : undefined} onBlur={field.handleBlur}>
           <SelectValue placeholder="—" />
         </SelectTrigger>
         <SelectContent>
@@ -170,8 +185,11 @@ export function DimensionFields({
   formatError?: string
   unit?: string
 }) {
+  // The dimension error is a synthetic OR-required message spanning both inputs;
+  // reveal it once either has been blurred.
+  const shown = widthField.state.meta.isBlurred || heightField.state.meta.isBlurred ? formatError : undefined
   return (
-    <FieldRow label={`Dimensions (${unit})`} error={formatError}>
+    <FieldRow label={`Dimensions (${unit})`} error={shown}>
       <div className="flex items-center gap-2">
         <Input
           aria-label="Width"
