@@ -4,6 +4,7 @@
  */
 
 import type { ColumnDef, CellContext } from '@tanstack/react-table'
+import { Pencil, Trash2 } from 'lucide-react'
 import { Button } from '../ui/button'
 import type { LoadedProduct } from '../../types/product'
 import type { ProductTableMeta } from './ProductTable'
@@ -85,11 +86,27 @@ export function actionsColumn(): ColumnDef<LoadedProduct> {
       return (
         <div className="flex flex-col gap-1">
           <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => meta.onEdit(product)}>
-              Edit
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              title="Edit"
+              aria-label="Edit"
+              disabled={meta.isReadOnly}
+              onClick={() => meta.onEdit(product)}
+            >
+              <Pencil />
             </Button>
-            <Button type="button" variant="destructive" size="sm" onClick={() => meta.onDelete(product.id)}>
-              Delete
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              title="Delete"
+              aria-label="Delete"
+              disabled={meta.isReadOnly}
+              onClick={() => meta.onDelete(product.id)}
+            >
+              <Trash2 />
             </Button>
           </div>
           <span className="text-xs text-muted-foreground">{names}</span>
