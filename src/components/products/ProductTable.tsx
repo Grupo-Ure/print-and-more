@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import type { LoadedProduct } from '../../types/product'
 import type { FileRow } from '../../services/fileService'
 import type { ProductFileAssignment } from '../../services/subOrderProductService'
+import { AddProductButton } from './AddProductButton'
 import { actionsColumn, firstOfColumn, formatColumn, quantityColumn, textColumn, typeColumn } from './columns'
 import { LASER_TYPE_LABELS } from '../../types/laser'
 import { LFP_TYPE_LABELS } from '../../types/lfp'
@@ -23,6 +24,10 @@ import { STAMP_ALL_LABELS } from './forms/stampTypes'
 export type ProductTableMeta = {
   onEdit: (product: LoadedProduct) => void
   onDelete: (id: string) => void
+  /** Opens the add-product dialog — used from the empty state. */
+  onAdd: () => void
+  /** Label for the empty-state add button (defaults to "+ Add product"). */
+  addLabel?: string
   orderFiles: FileRow[]
   filesByProduct: Record<string, ProductFileAssignment[]>
   /** When the sub-order is released to production or done, edit/delete are disabled. */
@@ -47,7 +52,12 @@ export function ProductTable({
   })
 
   if (data.length === 0) {
-    return <p className="text-xs text-muted-foreground">No products yet.</p>
+    return (
+      <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 text-center">
+        <p className="text-xs text-muted-foreground">No products yet.</p>
+        {!meta.isReadOnly && <AddProductButton onClick={meta.onAdd} label={meta.addLabel} />}
+      </div>
+    )
   }
 
   return (

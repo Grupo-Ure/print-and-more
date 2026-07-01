@@ -23,6 +23,7 @@ import { Badge } from '../../ui/badge'
 import { Input } from '../../ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select'
 import { useProductEditor } from '../useProductEditor'
+import { AddProductButton } from '../AddProductButton'
 import { TextileProductDialog } from '../TextileProductDialog'
 import { motifLabel } from '../forms/textileTypes'
 
@@ -230,14 +231,15 @@ export function TextileProducts({ subOrder, subOrderStatus, orderFiles = [] }: P
       <div>
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold">Garments</h3>
-          {!productEditor.isReadOnly && (
-            <Button type="button" variant="outline" size="sm" onClick={productEditor.openAdd}>+ Add garment</Button>
-          )}
+          {!productEditor.isReadOnly && <AddProductButton onClick={productEditor.openAdd} label="+ Add garment" />}
         </div>
         {productEditor.productsLoading ? (
           <p className="text-xs text-muted-foreground">Loading garments…</p>
         ) : productEditor.products.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No garments yet.</p>
+          <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 text-center">
+            <p className="text-xs text-muted-foreground">No garments yet.</p>
+            {!productEditor.isReadOnly && <AddProductButton onClick={productEditor.openAdd} label="+ Add garment" />}
+          </div>
         ) : (
           <table className="w-full text-sm">
             <thead>

@@ -4,7 +4,7 @@ import type { ComponentType } from 'react'
 import type { OrderStatus, SubOrderRow } from '../../../types/database'
 import type { FileRow } from '../../../services/fileService'
 import { LFP_TYPES, LFP_TYPE_LABELS } from '../../../types/lfp'
-import { Button } from '../../ui/button'
+import { AddProductButton } from '../AddProductButton'
 import { useProductEditor } from '../useProductEditor'
 import { ProductDialog, type ProductTypeOption } from '../ProductDialog'
 import { LfpProductsTable } from '../ProductTable'
@@ -57,18 +57,14 @@ export function LfpProducts({ subOrder, subOrderStatus, orderFiles = [] }: Props
       <div>
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold">Products</h3>
-          {!productEditor.isReadOnly && (
-            <Button type="button" variant="outline" size="sm" onClick={productEditor.openAdd}>
-              + Add product
-            </Button>
-          )}
+          {!productEditor.isReadOnly && <AddProductButton onClick={productEditor.openAdd} />}
         </div>
         {productEditor.productsLoading ? (
           <p className="text-xs text-muted-foreground">Loading products…</p>
         ) : (
           <LfpProductsTable
             data={productEditor.products}
-            meta={{ onEdit: productEditor.openEdit, onDelete: productEditor.handleDelete, orderFiles, filesByProduct: productEditor.filesByProduct, isReadOnly: productEditor.isReadOnly }}
+            meta={{ onEdit: productEditor.openEdit, onDelete: productEditor.handleDelete, onAdd: productEditor.openAdd, orderFiles, filesByProduct: productEditor.filesByProduct, isReadOnly: productEditor.isReadOnly }}
           />
         )}
       </div>
