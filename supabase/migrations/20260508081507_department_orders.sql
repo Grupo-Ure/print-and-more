@@ -128,7 +128,7 @@ ALTER TABLE ONLY "public"."department_orders"
     ADD CONSTRAINT "department_orders_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE CASCADE;
 
 ALTER TABLE ONLY "public"."department_orders"
-    ADD CONSTRAINT "department_orders_assignee_id_fkey" FOREIGN KEY ("assignee_id") REFERENCES "auth"."users"("id");
+    ADD CONSTRAINT "department_orders_assignee_id_fkey" FOREIGN KEY ("assignee_id") REFERENCES "public"."users"("id") ON DELETE SET NULL;
 
 CREATE INDEX "idx_department_orders_order_id" ON "public"."department_orders" USING "btree" ("order_id");
 

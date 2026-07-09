@@ -62,7 +62,7 @@ ALTER TABLE ONLY "public"."errors"
     ADD CONSTRAINT "errors_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE CASCADE;
 
 ALTER TABLE ONLY "public"."errors"
-    ADD CONSTRAINT "errors_person_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
+    ADD CONSTRAINT "errors_person_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE SET NULL;
 
 ALTER TABLE ONLY "public"."errors"
     ADD CONSTRAINT "errors_department_order_id_fkey" FOREIGN KEY ("department_order_id") REFERENCES "public"."department_orders"("id");
@@ -71,7 +71,7 @@ ALTER TABLE ONLY "public"."history"
     ADD CONSTRAINT "history_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE CASCADE;
 
 ALTER TABLE ONLY "public"."history"
-    ADD CONSTRAINT "history_person_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
+    ADD CONSTRAINT "history_person_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE SET NULL;
 
 ALTER TABLE ONLY "public"."history"
     ADD CONSTRAINT "history_department_order_id_fkey" FOREIGN KEY ("department_order_id") REFERENCES "public"."department_orders"("id");

@@ -131,7 +131,7 @@ ALTER TABLE ONLY "public"."erp_exports"
     ADD CONSTRAINT "erp_exports_pkey" PRIMARY KEY ("id");
 
 ALTER TABLE ONLY "public"."orders"
-    ADD CONSTRAINT "orders_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id");
+    ADD CONSTRAINT "orders_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE SET NULL;
 
 ALTER TABLE ONLY "public"."orders"
     ADD CONSTRAINT "orders_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id");
@@ -143,13 +143,13 @@ ALTER TABLE ONLY "public"."files"
     ADD CONSTRAINT "files_replaces_file_id_fkey" FOREIGN KEY ("replaces_file_id") REFERENCES "public"."files"("id");
 
 ALTER TABLE ONLY "public"."files"
-    ADD CONSTRAINT "files_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id");
+    ADD CONSTRAINT "files_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE SET NULL;
 
 ALTER TABLE ONLY "public"."erp_exports"
     ADD CONSTRAINT "erp_exports_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id");
 
 ALTER TABLE ONLY "public"."erp_exports"
-    ADD CONSTRAINT "erp_exports_exported_by_fkey" FOREIGN KEY ("exported_by") REFERENCES "auth"."users"("id");
+    ADD CONSTRAINT "erp_exports_exported_by_fkey" FOREIGN KEY ("exported_by") REFERENCES "public"."users"("id") ON DELETE SET NULL;
 
 CREATE INDEX "idx_orders_archived" ON "public"."orders" USING "btree" ("is_archived");
 

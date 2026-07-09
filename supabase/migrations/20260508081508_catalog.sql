@@ -115,10 +115,10 @@ ALTER TABLE ONLY "public"."stamp_stock_movements"
     ADD CONSTRAINT "stamp_stock_movements_model_id_fkey" FOREIGN KEY ("model_id") REFERENCES "public"."stamp_models"("id");
 
 ALTER TABLE ONLY "public"."stamp_stock_movements"
-    ADD CONSTRAINT "stamp_stock_movements_person_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
+    ADD CONSTRAINT "stamp_stock_movements_person_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE SET NULL;
 
 ALTER TABLE ONLY "public"."textile_stock_movements"
-    ADD CONSTRAINT "textile_stock_movements_person_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
+    ADD CONSTRAINT "textile_stock_movements_person_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE SET NULL;
 
 ALTER TABLE ONLY "public"."textile_stock_movements"
     ADD CONSTRAINT "textile_stock_movements_variant_id_fkey" FOREIGN KEY ("variant_id") REFERENCES "public"."textile_variants"("id");

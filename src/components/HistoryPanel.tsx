@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { historyService, type HistoryRow } from '../services/historyService'
-import { employeeService } from '../services/employeeService'
+import { userService } from '../services/userService'
 import { subOrderDepartmentLabel } from '../const/departmentAbbreviation'
 import { useToast } from './Toast'
 import './ContextPanel.css'
@@ -54,12 +54,12 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: P
 
   useEffect(() => {
     let alive = true
-    employeeService.getAllProfiles().then(
-      profiles => {
+    userService.getUsers().then(
+      users => {
         if (!alive) return
         const staffMap = new Map<string, string>()
-        for (const profile of profiles) {
-          staffMap.set(profile.id, profile.name ?? profile.id)
+        for (const user of users) {
+          staffMap.set(user.id, user.name ?? user.id)
         }
         setStaffById(staffMap)
       },

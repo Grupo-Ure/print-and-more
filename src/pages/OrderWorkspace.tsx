@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react'
+import { Link } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { authService } from '../services/authService'
+import { useIsAdmin } from '../queries/userQueries'
 import { Login } from '../components/Login'
 import { OrderSidebar } from '../components/OrderSidebar'
 import { OrderDetails } from '../components/OrderDetails'
-import { ContextPanel } from '../components/ContextPanel'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { OrderWorkspaceProvider } from '../context/order.context'
 import { useOrderParams } from '../hooks/useOrderParams'
@@ -42,6 +43,16 @@ export function OrderWorkspace() {
     <OrderWorkspaceProvider>
       <WorkspaceShell />
     </OrderWorkspaceProvider>
+  )
+}
+
+function AdminNav() {
+  const { isAdmin } = useIsAdmin()
+  if (!isAdmin) return null
+  return (
+    <Link to="/user-management" className="ml-auto text-xs text-neutral-500 underline hover:text-neutral-800">
+      User management
+    </Link>
   )
 }
 
@@ -127,6 +138,7 @@ function WorkspaceShell() {
       <SidebarInset className="flex flex-col h-screen overflow-hidden">
         <div className="flex items-center gap-2 border-b border-neutral-200 px-3 py-1.5">
           <SidebarTrigger />
+          <AdminNav />
         </div>
         <div className="flex flex-col flex-1">
           <OrderDetails
@@ -136,20 +148,6 @@ function WorkspaceShell() {
             onOrderFromWorkArea={handleOrderFromWorkArea}
             onOrderFilesChanged={handleOrderFilesChanged}
           />
-          <aside className="border-l border-neutral-200 bg-neutral-50 p-4 overflow-y-auto">
-            <ContextPanel
-              order={activeOrder}
-              activeSubOrder={activeSubOrder}
-              orderCustomer={orderCustomer}
-              orderFiles={orderFiles}
-              onOrderUpdated={handleOrderUpdated}
-              onOrderDeleted={handleOrderDeleted}
-              onSubOrderUpdated={handleSubOrderUpdated}
-              onSubOrderRemoved={handleSubOrderRemoved}
-              contextRefreshTick={contextRefreshTick}
-              onFileChanged={handleFileChanged}
-            />
-          </aside>
         </div>
       </SidebarInset>
     </SidebarProvider>

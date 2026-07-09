@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { authService } from '../services/authService'
-import { employeeService } from '../services/employeeService'
+import { userService } from '../services/userService'
 import { subOrderService } from '../services/subOrderService'
 import { stampService } from '../services/stampService'
 import { Login } from '../components/Login'
@@ -223,11 +223,11 @@ export function StampStockPage() {
   useEffect(() => {
     if (!session) return
     let alive = true
-    employeeService.getEmployees().then(
-      employees => {
+    userService.getUsers().then(
+      users => {
         if (!alive) return
         const emailMap = new Map<string, string>()
-        for (const row of employees) emailMap.set(row.id, row.email ?? '')
+        for (const row of users) emailMap.set(row.id, row.email ?? '')
         setStaffEmailById(emailMap)
       },
       () => {

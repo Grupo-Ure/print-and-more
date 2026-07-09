@@ -59,3 +59,7 @@ export type SubOrderUpdate = TablesUpdate<'department_orders'>
 export type NewSubOrderEntry = Pick<TablesInsert<'department_orders'>, 'order_id' | 'department' | 'status' | 'priority'>
 
 export type DuplicateOrderArgs = Database['public']['Functions']['duplicate_order']['Args']
+
+export type UserRole = Enums<'user_role'>
+
+export type AppUserRow = Tables<'users'>

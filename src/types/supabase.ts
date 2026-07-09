@@ -605,7 +605,7 @@ export type Database = {
             foreignKeyName: "department_orders_assignee_id_fkey"
             columns: ["assignee_id"]
             isOneToOne: false
-            referencedRelation: "employees"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
@@ -695,7 +695,7 @@ export type Database = {
             foreignKeyName: "erp_exports_exported_by_fkey"
             columns: ["exported_by"]
             isOneToOne: false
-            referencedRelation: "employees"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
@@ -751,7 +751,7 @@ export type Database = {
             foreignKeyName: "errors_person_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "employees"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -798,7 +798,7 @@ export type Database = {
             foreignKeyName: "files_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
-            referencedRelation: "employees"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
@@ -1002,7 +1002,7 @@ export type Database = {
             foreignKeyName: "history_person_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "employees"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -1140,7 +1140,7 @@ export type Database = {
             foreignKeyName: "orders_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
-            referencedRelation: "employees"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
@@ -1373,29 +1373,6 @@ export type Database = {
             columns: ["file_id"]
             isOneToOne: false
             referencedRelation: "files"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      profiles: {
-        Row: {
-          id: string
-          name: string
-        }
-        Insert: {
-          id: string
-          name: string
-        }
-        Update: {
-          id?: string
-          name?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_id_fkey"
-            columns: ["id"]
-            isOneToOne: true
-            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]
@@ -1713,7 +1690,7 @@ export type Database = {
             foreignKeyName: "stamp_stock_movements_person_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "employees"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -2033,7 +2010,7 @@ export type Database = {
             foreignKeyName: "textile_stock_movements_person_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "employees"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
@@ -2205,6 +2182,30 @@ export type Database = {
           },
         ]
       }
+      users: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string
+          role: Database["public"]["Enums"]["user_role"]
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id: string
+          name: string
+          role?: Database["public"]["Enums"]["user_role"]
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          role?: Database["public"]["Enums"]["user_role"]
+        }
+        Relationships: []
+      }
       vehicle_lettering_products: {
         Row: {
           area_front: boolean | null
@@ -2281,23 +2282,13 @@ export type Database = {
       }
     }
     Views: {
-      employees: {
-        Row: {
-          email: string | null
-          id: string | null
-        }
-        Insert: {
-          email?: string | null
-          id?: string | null
-        }
-        Update: {
-          email?: string | null
-          id?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
+      current_user_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
       duplicate_order: {
         Args: {
           created_by_user_id: string
@@ -2350,6 +2341,7 @@ export type Database = {
       textile_font_class: "SANS_SERIF" | "SERIF" | "ELEGANT" | "PLAYFUL"
       textile_motif_type: "TEXT" | "FILE"
       textile_origin: "CUSTOMER_STOCK" | "OWN_STOCK"
+      user_role: "EMPLOYEE" | "ADMIN" | "SUPER_ADMIN"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2523,6 +2515,7 @@ export const Constants = {
       textile_font_class: ["SANS_SERIF", "SERIF", "ELEGANT", "PLAYFUL"],
       textile_motif_type: ["TEXT", "FILE"],
       textile_origin: ["CUSTOMER_STOCK", "OWN_STOCK"],
+      user_role: ["EMPLOYEE", "ADMIN", "SUPER_ADMIN"],
     },
   },
 } as const

@@ -130,6 +130,14 @@ CREATE TYPE "public"."textile_font_class" AS ENUM (
 
 ALTER TYPE "public"."textile_font_class" OWNER TO "postgres";
 
+CREATE TYPE "public"."user_role" AS ENUM (
+    'EMPLOYEE',
+    'ADMIN',
+    'SUPER_ADMIN'
+);
+
+ALTER TYPE "public"."user_role" OWNER TO "postgres";
+
 ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
 
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "postgres";
