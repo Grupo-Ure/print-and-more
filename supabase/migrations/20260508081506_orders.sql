@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS "public"."orders" (
     "is_erp_exported" boolean DEFAULT false NOT NULL,
     "billing_note" "text",
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "created_by" "uuid"
+    "created_by" "uuid" DEFAULT "auth"."uid"()
 );
 
 ALTER TABLE "public"."orders" OWNER TO "postgres";
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS "public"."files" (
     "version" integer DEFAULT 1 NOT NULL,
     "replaces_file_id" "uuid",
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "created_by" "uuid"
+    "created_by" "uuid" DEFAULT "auth"."uid"()
 );
 
 ALTER TABLE "public"."files" OWNER TO "postgres";
