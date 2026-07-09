@@ -2184,6 +2184,7 @@ export type Database = {
       }
       users: {
         Row: {
+          avatar_url: string | null
           created_at: string
           email: string
           id: string
@@ -2191,6 +2192,7 @@ export type Database = {
           role: Database["public"]["Enums"]["user_role"]
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           email: string
           id: string
@@ -2198,6 +2200,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"]
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           email?: string
           id?: string
@@ -2330,6 +2333,7 @@ export type Database = {
         | "ROLLED_BACK"
         | "CANCELLED"
         | "ERP_EXPORTED"
+        | "ASSIGNEE_CHANGED"
       order_status:
         | "QUOTE"
         | "INCOMPLETE"
@@ -2502,6 +2506,7 @@ export const Constants = {
         "ROLLED_BACK",
         "CANCELLED",
         "ERP_EXPORTED",
+        "ASSIGNEE_CHANGED",
       ],
       order_status: [
         "QUOTE",

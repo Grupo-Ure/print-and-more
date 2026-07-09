@@ -77,7 +77,8 @@ CREATE TYPE "public"."history_event" AS ENUM (
     'CUSTOMER_APPROVAL_BYPASSED',
     'ROLLED_BACK',
     'CANCELLED',
-    'ERP_EXPORTED'
+    'ERP_EXPORTED',
+    'ASSIGNEE_CHANGED'
 );
 
 ALTER TYPE "public"."history_event" OWNER TO "postgres";

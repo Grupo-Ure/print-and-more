@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { jobDepartmentLabel } from '../const/departmentAbbreviation'
 import { DEPARTMENTS, type Department } from '../types/database'
-import { authService } from '../services/authService'
 import { useOrderParams } from '../hooks/useOrderParams'
 import { useJobsByOrderId, useCreateJob } from '../queries/jobQueries'
 import { useToast } from './Toast'
@@ -88,38 +87,31 @@ function AddJobDialog({ open, onOpenChange }: AddJobDialogProps) {
   const handleDepartmentSelected = (department: Department) => {
     if (!activeOrderId || createJob.isPending) return
 
-    void (async () => {
-      const user = await authService.getUser()
-      if (!user?.id) {
-        showError('Not logged in')
-        return
-      }
-      createJob.mutate(
-        {
-          order_id: activeOrderId,
-          department,
-          status: 'INCOMPLETE',
-          priority: null,
-          detail: {},
-          deadline: null,
-          delivery: null,
-          assignee_id: user.id,
-          is_emergency: false,
-          emergency_reason: null,
-          is_cancelled: false,
-          customer_approval_required: false,
-          customer_approval_granted: false,
-          customer_approval_file_id: null,
+    createJob.mutate(
+      {
+        order_id: activeOrderId,
+        department,
+        status: 'INCOMPLETE',
+        priority: null,
+        detail: {},
+        deadline: null,
+        delivery: null,
+        assignee_id: null,
+        is_emergency: false,
+        emergency_reason: null,
+        is_cancelled: false,
+        customer_approval_required: false,
+        customer_approval_granted: false,
+        customer_approval_file_id: null,
+      },
+      {
+        onSuccess: created => {
+          setActiveJob(created.id)
+          onOpenChange(false)
         },
-        {
-          onSuccess: created => {
-            setActiveJob(created.id)
-            onOpenChange(false)
-          },
-          onError: () => showError('Error creating job'),
-        },
-      )
-    })()
+        onError: () => showError('Error creating job'),
+      },
+    )
   }
 
   return (

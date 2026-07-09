@@ -2,7 +2,7 @@ import { supabase } from '../supabase'
 import { authService } from './authService'
 import type { AppUserRow, UserRole } from '../types/database'
 
-export type UserRow = Pick<AppUserRow, 'id' | 'name' | 'email' | 'role' | 'created_at'>
+export type UserRow = Pick<AppUserRow, 'id' | 'name' | 'email' | 'role' | 'avatar_url' | 'created_at'>
 
 export type CreateUserInput = {
   email: string
@@ -11,7 +11,7 @@ export type CreateUserInput = {
   role: Extract<UserRole, 'EMPLOYEE' | 'ADMIN'>
 }
 
-const USER_COLUMNS = 'id, name, email, role, created_at'
+const USER_COLUMNS = 'id, name, email, role, avatar_url, created_at'
 
 /**
  * Invokes the manage-users Edge Function. On non-2xx, supabase-js puts the

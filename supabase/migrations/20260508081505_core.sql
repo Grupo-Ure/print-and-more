@@ -26,6 +26,10 @@ CREATE TABLE IF NOT EXISTS "public"."users" (
     "name" "text" NOT NULL,
     "email" "text" NOT NULL,
     "role" "public"."user_role" DEFAULT 'EMPLOYEE'::"public"."user_role" NOT NULL,
+    -- Profile image URL. Auto-filled from raw_user_meta_data on signup (OAuth
+    -- providers set avatar_url there); NULL for password accounts — the UI
+    -- falls back to initials.
+    "avatar_url" "text",
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
 );
 
@@ -46,7 +50,7 @@ CREATE OR REPLACE FUNCTION "public"."handle_new_user"() RETURNS "trigger"
     SET "search_path" = ''
     AS $$
 BEGIN
-  INSERT INTO public.users (id, email, name, role)
+  INSERT INTO public.users (id, email, name, role, avatar_url)
   VALUES (
     NEW.id,
     NEW.email,
@@ -54,7 +58,8 @@ BEGIN
     CASE WHEN NEW.raw_app_meta_data->>'role' = 'ADMIN'
          THEN 'ADMIN'::public.user_role
          ELSE 'EMPLOYEE'::public.user_role
-    END
+    END,
+    NULLIF(NEW.raw_user_meta_data->>'avatar_url', '')
   );
   RETURN NEW;
 END;

@@ -114,9 +114,33 @@ BEGIN
 END;
 $$;
 
+-- Only admins (ADMIN / SUPER_ADMIN) may change a job's assignee. INSERT is
+-- deliberately unguarded: job creation auto-assigns the creator. Must run with
+-- INVOKER rights so the owner bypass only fires for direct DB-owner SQL (same
+-- reasoning as enforce_user_role_rules in the core migration).
+CREATE OR REPLACE FUNCTION "public"."fn_enforce_job_assignee_rules"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    SET "search_path" = ''
+    AS $$
+BEGIN
+  IF current_user IN ('postgres', 'supabase_admin') THEN
+    RETURN NEW;
+  END IF;
+
+  IF NEW.assignee_id IS DISTINCT FROM OLD.assignee_id
+     AND public.current_user_role() NOT IN ('ADMIN', 'SUPER_ADMIN') THEN
+    RAISE EXCEPTION 'Only admins can change a job''s assignee';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
 ALTER FUNCTION "public"."fn_check_approval_file_order"() OWNER TO "postgres";
 
 ALTER FUNCTION "public"."fn_check_job_type"() OWNER TO "postgres";
+
+ALTER FUNCTION "public"."fn_enforce_job_assignee_rules"() OWNER TO "postgres";
 
 ALTER TABLE ONLY "public"."jobs"
     ADD CONSTRAINT "jobs_pkey" PRIMARY KEY ("id");
@@ -140,6 +164,8 @@ CREATE OR REPLACE TRIGGER "trg_approval_file_order_check" BEFORE INSERT OR UPDAT
 
 CREATE OR REPLACE TRIGGER "trg_job_type_check" BEFORE INSERT OR UPDATE OF "department", "type" ON "public"."jobs" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_job_type"();
 
+CREATE OR REPLACE TRIGGER "trg_job_assignee_rules" BEFORE UPDATE OF "assignee_id" ON "public"."jobs" FOR EACH ROW EXECUTE FUNCTION "public"."fn_enforce_job_assignee_rules"();
+
 CREATE POLICY "Employees: full access" ON "public"."jobs" TO "authenticated" USING (true) WITH CHECK (true);
 
 ALTER TABLE "public"."jobs" ENABLE ROW LEVEL SECURITY;
@@ -155,6 +181,12 @@ GRANT ALL ON FUNCTION "public"."fn_check_job_type"() TO "anon";
 GRANT ALL ON FUNCTION "public"."fn_check_job_type"() TO "authenticated";
 
 GRANT ALL ON FUNCTION "public"."fn_check_job_type"() TO "service_role";
+
+GRANT ALL ON FUNCTION "public"."fn_enforce_job_assignee_rules"() TO "anon";
+
+GRANT ALL ON FUNCTION "public"."fn_enforce_job_assignee_rules"() TO "authenticated";
+
+GRANT ALL ON FUNCTION "public"."fn_enforce_job_assignee_rules"() TO "service_role";
 
 GRANT ALL ON TABLE "public"."jobs" TO "anon";
 

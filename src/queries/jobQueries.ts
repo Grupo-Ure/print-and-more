@@ -9,6 +9,7 @@ import { resolveEffectiveJob } from '../lib/jobShared'
 import type { OrderDetailRow, JobRow, OrderStatus } from '../types/database'
 import type { Database } from '../types/supabase'
 import { orderKeys, patchOrderStatusInCache, useOrderById } from './orderQueries'
+import { historyKeys } from './historyQueries'
 
 type JobInsert = Database['public']['Tables']['jobs']['Insert']
 type JobUpdate = Database['public']['Tables']['jobs']['Update']
@@ -257,6 +258,46 @@ export function useSetJobEmergency() {
     onSuccess: (row, { orderId }) => {
       patchJobInCache(queryClient, orderId, row)
       void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
+    },
+  })
+}
+
+/**
+ * Assign / unassign a job's responsible user (admin-only — the UI gates on
+ * useIsAdmin and a DB trigger enforces it). Always writes an ASSIGNEE_CHANGED
+ * history entry; names are snapshotted into meta so the entry stays readable
+ * if a user is later deleted.
+ */
+export function useSetJobAssignee() {
+  const queryClient = useQueryClient()
+  return useMutation<
+    JobRow,
+    Error,
+    {
+      id: string
+      orderId: string
+      assignee: { id: string; name: string } | null
+      previousAssignee: { id: string; name: string } | null
+    }
+  >({
+    mutationFn: async ({ id, orderId, assignee, previousAssignee }) => {
+      const row = await jobService.updateJob(id, { assignee_id: assignee?.id ?? null })
+      await historyService.writeHistory({
+        order_id: orderId,
+        job_id: id,
+        event_type: 'ASSIGNEE_CHANGED',
+        meta: {
+          previous_assignee_id: previousAssignee?.id ?? null,
+          previous_assignee_name: previousAssignee?.name ?? null,
+          new_assignee_id: assignee?.id ?? null,
+          new_assignee_name: assignee?.name ?? null,
+        },
+      })
+      return row
+    },
+    onSuccess: (row, { orderId }) => {
+      patchJobInCache(queryClient, orderId, row)
+      void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
     },
   })
 }

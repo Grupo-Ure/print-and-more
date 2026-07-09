@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import { historyService, type HistoryRow } from '../services/historyService'
-import { userService } from '../services/userService'
+import { useQueryClient } from '@tanstack/react-query'
+import type { HistoryRow } from '../services/historyService'
+import { historyKeys, useHistoryForOrder } from '../queries/historyQueries'
+import { useUsers } from '../queries/userQueries'
 import { jobDepartmentLabel } from '../const/departmentAbbreviation'
 import { useToast } from './Toast'
 import './ContextPanel.css'
@@ -27,6 +29,7 @@ const EVENT_LABELS: Record<string, string> = {
   ROLLED_BACK: 'Rolled back',
   ERP_EXPORTED: 'ERP exported',
   CANCELLED: 'Order cancelled',
+  ASSIGNEE_CHANGED: 'Assignee changed',
 }
 
 function eventLabel(art: string): string {
@@ -45,52 +48,49 @@ function formatHistoryTime(iso: string): string {
   })
 }
 
+/**
+ * "previous → new" line for ASSIGNEE_CHANGED. Names are snapshotted into meta
+ * at write time; fall back to the current users map, then to a dash.
+ */
+function assigneeChangeLine(entry: HistoryRow, staffById: Map<string, string>): string | null {
+  const meta = entry.meta
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return null
+  const resolve = (idKey: string, nameKey: string): string => {
+    const name = (meta as Record<string, unknown>)[nameKey]
+    if (typeof name === 'string' && name) return name
+    const id = (meta as Record<string, unknown>)[idKey]
+    if (typeof id === 'string' && id) return staffById.get(id) ?? '—'
+    return 'Unassigned'
+  }
+  return `${resolve('previous_assignee_id', 'previous_assignee_name')} → ${resolve('new_assignee_id', 'new_assignee_name')}`
+}
+
 export function HistoryPanel({ activeOrderId, contextRefreshTick, jobs }: Props) {
   const { showError } = useToast()
+  const queryClient = useQueryClient()
   const [expanded, setExpanded] = useState(false)
-  const [entries, setEntries] = useState<HistoryRow[]>([])
-  const [staffById, setStaffById] = useState<Map<string, string>>(new Map())
-  const [loading, setLoading] = useState(false)
+
+  const { data: users, isError: usersError } = useUsers()
+  const staffById = new Map((users ?? []).map(user => [user.id, user.name ?? user.id]))
+
+  const historyQuery = useHistoryForOrder(activeOrderId)
+  const entries = historyQuery.data ?? []
+  const loading = historyQuery.isLoading
+
+  // ContextPanel signals its own mutations through the tick — re-fetch then.
+  useEffect(() => {
+    if (contextRefreshTick > 0) {
+      void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(activeOrderId) })
+    }
+  }, [contextRefreshTick, activeOrderId, queryClient])
 
   useEffect(() => {
-    let alive = true
-    userService.getUsers().then(
-      users => {
-        if (!alive) return
-        const staffMap = new Map<string, string>()
-        for (const user of users) {
-          staffMap.set(user.id, user.name ?? user.id)
-        }
-        setStaffById(staffMap)
-      },
-      () => {
-        if (alive) showError('Staff data could not be loaded')
-      },
-    )
-    return () => {
-      alive = false
-    }
-  }, [showError])
+    if (usersError) showError('Staff data could not be loaded')
+  }, [usersError, showError])
 
   useEffect(() => {
-    let alive = true
-    void (async () => {
-      setLoading(true)
-      try {
-        const data = await historyService.getHistoryForOrder(activeOrderId)
-        if (!alive) return
-        setEntries(data)
-      } catch {
-        if (!alive) return
-        showError('History could not be loaded')
-        setEntries([])
-      }
-      if (alive) setLoading(false)
-    })()
-    return () => {
-      alive = false
-    }
-  }, [activeOrderId, contextRefreshTick, showError])
+    if (historyQuery.isError) showError('History could not be loaded')
+  }, [historyQuery.isError, showError])
 
   const jobDepartment = (jobId: string | null): string | null => {
     if (!jobId) return null
@@ -120,6 +120,8 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, jobs }: Props)
             entries.map(entry => {
               const staffName = entry.user_id ? staffById.get(entry.user_id) : ''
               const department = jobDepartment(entry.job_id)
+              const assigneeChange =
+                entry.event_type === 'ASSIGNEE_CHANGED' ? assigneeChangeLine(entry, staffById) : null
               return (
                 <div key={entry.id} className="cp-hist-eintrag">
                   <div className="cp-hist-zeile" title={eventLabel(entry.event_type)}>
@@ -127,6 +129,7 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, jobs }: Props)
                     <span className="cp-hist-evt">{eventLabel(entry.event_type)}</span>
                     <span className="cp-hist-who">{staffName || '—'}</span>
                   </div>
+                  {assigneeChange && <p className="cp-hist-sub">{assigneeChange}</p>}
                   {entry.reason && <p className="cp-hist-sub">{entry.reason}</p>}
                   {department && <p className="cp-hist-tl">Job: {jobDepartmentLabel(department)}</p>}
                 </div>

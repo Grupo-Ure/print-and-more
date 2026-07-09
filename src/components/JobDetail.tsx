@@ -1,4 +1,5 @@
-import { useCancelJob, useDeleteJob, useEffectiveJob, useSetCustomerApproval, useJobById, useUpdateJob } from '../queries/jobQueries'
+import { useCancelJob, useDeleteJob, useEffectiveJob, useSetCustomerApproval, useSetJobAssignee, useJobById, useUpdateJob } from '../queries/jobQueries'
+import { useIsAdmin, useUsers } from '../queries/userQueries'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import { useOrderById } from '../queries/orderQueries'
 import { useStatusManager } from '../queries/useStatusManager'
@@ -12,6 +13,7 @@ import {
   type JobRow,
   type JobUpdate,
 } from '../types/database'
+import { AssigneeCombobox } from './fields/AssigneeCombobox'
 import { DeadlinePicker } from './fields/DeadlinePicker'
 import { DeliverySelect } from './fields/DeliverySelect'
 import { PrioritySelect } from './fields/PrioritySelect'
@@ -47,8 +49,11 @@ export function JobDetail({
   const effectiveJob = useEffectiveJob(activeOrderId, activeJobId) // inherited fields resolved
   const updateJob = useUpdateJob()
   const setCustomerApproval = useSetCustomerApproval()
+  const setJobAssignee = useSetJobAssignee()
   const cancelJob = useCancelJob()
   const deleteJob = useDeleteJob()
+  const { isAdmin } = useIsAdmin()
+  const { data: users = [] } = useUsers()
   const { showError } = useToast()
 
   // Status manager: auto-derives and persists the INCOMPLETE ↔ PREPRESS_READY
@@ -88,6 +93,22 @@ export function JobDetail({
     updateJob.mutate(
       { id: job.id, orderId: job.order_id, patch },
       { onSuccess: row => onUpdated(row), onError: () => showError('Save failed') },
+    )
+  }
+
+  // Admin-only (also enforced by a DB trigger). Writes the ASSIGNEE_CHANGED
+  // history entry alongside the job update.
+  const handleAssigneeChange = (assignee: { id: string; name: string } | null) => {
+    if ((assignee?.id ?? null) === (job.assignee_id ?? null)) return
+    const previousUser = job.assignee_id ? users.find(u => u.id === job.assignee_id) : null
+    setJobAssignee.mutate(
+      {
+        id: job.id,
+        orderId: job.order_id,
+        assignee,
+        previousAssignee: previousUser ? { id: previousUser.id, name: previousUser.name } : null,
+      },
+      { onSuccess: row => onUpdated(row), onError: () => showError('Assignee could not be changed') },
     )
   }
 
@@ -175,7 +196,7 @@ export function JobDetail({
         )}
       <section>
         <h2 className="" style={{ marginTop: 8 }}>
-          Department Settings
+          Job Settings
         </h2>
         <div className="flex items-start gap-8">
           <div className="flex flex-col min-w-0 gap-2">
@@ -280,6 +301,14 @@ export function JobDetail({
               <span>Customer approval required</span>
             </label>
           </div>
+        <div className="flex flex-col min-w-0">
+          <span className="text-[11px] font-medium text-muted-foreground mb-0.5">Assignee</span>
+          <AssigneeCombobox
+            value={job.assignee_id}
+            onChange={handleAssigneeChange}
+            disabled={!isAdmin || isDone || setJobAssignee.isPending}
+          />
+        </div>
         <div className="flex flex-col min-w-0">
           <span className="text-[11px] font-medium text-muted-foreground mb-0.5">Typesetting time (min)</span>
           <div>
