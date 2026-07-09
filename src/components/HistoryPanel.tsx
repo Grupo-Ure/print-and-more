@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { historyService, type HistoryRow } from '../services/historyService'
 import { userService } from '../services/userService'
-import { subOrderDepartmentLabel } from '../const/departmentAbbreviation'
+import { jobDepartmentLabel } from '../const/departmentAbbreviation'
 import { useToast } from './Toast'
 import './ContextPanel.css'
 
 type Props = {
   activeOrderId: string
   contextRefreshTick: number
-  subOrders: { id: string; department: string }[]
+  jobs: { id: string; department: string }[]
 }
 
 
@@ -45,7 +45,7 @@ function formatHistoryTime(iso: string): string {
   })
 }
 
-export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: Props) {
+export function HistoryPanel({ activeOrderId, contextRefreshTick, jobs }: Props) {
   const { showError } = useToast()
   const [expanded, setExpanded] = useState(false)
   const [entries, setEntries] = useState<HistoryRow[]>([])
@@ -92,9 +92,9 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: P
     }
   }, [activeOrderId, contextRefreshTick, showError])
 
-  const subOrderDepartment = (subOrderId: string | null): string | null => {
-    if (!subOrderId) return null
-    return subOrders.find(subOrder => subOrder.id === subOrderId)?.department ?? null
+  const jobDepartment = (jobId: string | null): string | null => {
+    if (!jobId) return null
+    return jobs.find(job => job.id === jobId)?.department ?? null
   }
 
   return (
@@ -119,7 +119,7 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: P
           {!loading &&
             entries.map(entry => {
               const staffName = entry.user_id ? staffById.get(entry.user_id) : ''
-              const department = subOrderDepartment(entry.sub_order_id)
+              const department = jobDepartment(entry.job_id)
               return (
                 <div key={entry.id} className="cp-hist-eintrag">
                   <div className="cp-hist-zeile" title={eventLabel(entry.event_type)}>
@@ -128,7 +128,7 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, subOrders }: P
                     <span className="cp-hist-who">{staffName || '—'}</span>
                   </div>
                   {entry.reason && <p className="cp-hist-sub">{entry.reason}</p>}
-                  {department && <p className="cp-hist-tl">Sub-order: {subOrderDepartmentLabel(department)}</p>}
+                  {department && <p className="cp-hist-tl">Job: {jobDepartmentLabel(department)}</p>}
                 </div>
               )
             })}

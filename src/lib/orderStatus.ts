@@ -1,8 +1,8 @@
-import type { OrderStatus, SubOrderRow } from '../types/database'
+import type { OrderStatus, JobRow } from '../types/database'
 
 // Statuses not in the production workflow (QUOTE, INVOICED) rank as 0 so they
-// would "win" as the lowest if they ever appeared in a non-cancelled sub-order.
-// In practice sub-orders only carry INCOMPLETE / PREPRESS_READY /
+// would "win" as the lowest if they ever appeared in a non-cancelled job.
+// In practice jobs only carry INCOMPLETE / PREPRESS_READY /
 // PRODUCTION_READY / DONE.
 const STATUS_RANK: Record<OrderStatus, number> = {
   QUOTE: 0,
@@ -14,19 +14,19 @@ const STATUS_RANK: Record<OrderStatus, number> = {
 }
 
 /**
- * Aggregate order status derived from its sub-orders.
+ * Aggregate order status derived from its jobs.
  *
  * - If the order is currently QUOTE, leave it as QUOTE (never auto-promoted).
- * - Otherwise return the lowest status across non-cancelled sub-orders.
- * - If there are no non-cancelled sub-orders, return INCOMPLETE.
+ * - Otherwise return the lowest status across non-cancelled jobs.
+ * - If there are no non-cancelled jobs, return INCOMPLETE.
  */
 export function calculateOrderStatus(
   currentStatus: OrderStatus,
-  subOrders: Pick<SubOrderRow, 'status' | 'is_cancelled'>[],
+  jobs: Pick<JobRow, 'status' | 'is_cancelled'>[],
 ): OrderStatus {
   if (currentStatus === 'QUOTE') return 'QUOTE'
 
-  const activeStatuses = subOrders
+  const activeStatuses = jobs
     .filter(s => !s.is_cancelled)
     .map(s => s.status)
 

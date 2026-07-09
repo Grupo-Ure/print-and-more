@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { SUB_ORDER_DEPARTMENTS, type OrderStatus } from '../../types/database'
+import { DEPARTMENTS, type OrderStatus } from '../../types/database'
 
 export const STATUS_ORDER: OrderStatus[] = [
   'QUOTE',
@@ -28,7 +28,7 @@ export type FilterState = {
   deadlineTo: string
   intakeFrom: string
   intakeTo: string
-  department: 'All' | (typeof SUB_ORDER_DEPARTMENTS)[number]
+  department: 'All' | (typeof DEPARTMENTS)[number]
 }
 
 function defaultFilterState(): FilterState {

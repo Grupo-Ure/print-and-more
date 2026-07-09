@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { authService } from '../services/authService'
-import { subOrderService } from '../services/subOrderService'
+import { jobService } from '../services/jobService'
 import { textileMasterDataService, type BrandRow, type VariantWithDetails } from '../services/textileMasterDataService'
 import { Login } from '../components/Login'
 import { useToast } from '../components/Toast'
@@ -509,15 +509,15 @@ export function TextileStockPage() {
       const activeVariants = await textileMasterDataService.getVariantsWithDetails()
       const variantIdSet = new Set(activeVariants.map(v => v.id))
 
-      const activeSubOrders = await subOrderService.getActiveSubOrdersByBereich('TEXTILE')
-      const subOrderIds = activeSubOrders.filter(s => !s.is_cancelled && s.status !== 'DONE').map(s => s.id)
+      const activeJobs = await jobService.getActiveJobsByBereich('TEXTILE')
+      const jobIds = activeJobs.filter(s => !s.is_cancelled && s.status !== 'DONE').map(s => s.id)
       const demandByVariantId = new Map<string, number>()
 
       const chunk = 200
-      for (let i = 0; i < subOrderIds.length; i += chunk) {
-        const subOrderSlice = subOrderIds.slice(i, i + chunk)
-        if (subOrderSlice.length === 0) continue
-        const positionData = await textileMasterDataService.getEigenwarePositionsBySubOrders(subOrderSlice)
+      for (let i = 0; i < jobIds.length; i += chunk) {
+        const jobSlice = jobIds.slice(i, i + chunk)
+        if (jobSlice.length === 0) continue
+        const positionData = await textileMasterDataService.getEigenwarePositionsByJobs(jobSlice)
         for (const row of positionData) {
           const variantId = row.variant_id
           if (!variantId || !variantIdSet.has(variantId)) continue

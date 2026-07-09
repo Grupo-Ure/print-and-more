@@ -2,19 +2,19 @@ import { authService } from './authService'
 import { stampService } from './stampService'
 import { textileService } from './textileService'
 import { textileMasterDataService } from './textileMasterDataService'
-import { subOrderDetailToFieldMap } from '../lib/utils'
-import type { SubOrderRow } from '../types/database'
+import { jobDetailToFieldMap } from '../lib/utils'
+import type { JobRow } from '../types/database'
 
 /**
- * Automatic stock deduction booked when a sub-order is released to production
+ * Automatic stock deduction booked when a job is released to production
  * (the only point stock is consumed — not on "mark done"). Stamp: decrement the
  * stamp model and, if applicable, the matching replacement pad. Textile: decrement
  * each own-stock garment variant. Each deduction is logged as an `AUTO_DEDUCTION`
  * stock movement. Stock never goes below zero.
  */
-export async function deductProductionStock(subOrder: SubOrderRow, orderNumber: string | null): Promise<void> {
-  if (subOrder.department === 'STAMP') {
-    const stampDetail = subOrderDetailToFieldMap(subOrder.detail)
+export async function deductProductionStock(job: JobRow, orderNumber: string | null): Promise<void> {
+  if (job.department === 'STAMP') {
+    const stampDetail = jobDetailToFieldMap(job.detail)
     const rawQuantity = stampDetail.stueckzahl
     const parsedQuantity =
       typeof rawQuantity === 'number'
@@ -43,7 +43,7 @@ export async function deductProductionStock(subOrder: SubOrderRow, orderNumber: 
       })
     }
 
-    if (subOrder.type === 'TRODAT_PAD' && stampDetail.kissen_modell_id) {
+    if (job.type === 'TRODAT_PAD' && stampDetail.kissen_modell_id) {
       await bookStampStockDeduction(String(stampDetail.kissen_modell_id), quantity, stampNote)
     } else if (stampDetail.modell_id) {
       const stampId = String(stampDetail.modell_id)
@@ -68,12 +68,12 @@ export async function deductProductionStock(subOrder: SubOrderRow, orderNumber: 
     }
   }
 
-  if (subOrder.department === 'TEXTILE') {
+  if (job.department === 'TEXTILE') {
     const textileNote = 'Automatic on production release ' + (orderNumber ?? '')
     const user = await authService.getUser()
     const userId = user?.id ?? null
 
-    const garmentUsage = await textileService.getTextileGarmentStockUsageBySubOrder(subOrder.id)
+    const garmentUsage = await textileService.getTextileGarmentStockUsageByJob(job.id)
 
     for (const usage of garmentUsage) {
       const variantId = usage.variant_id

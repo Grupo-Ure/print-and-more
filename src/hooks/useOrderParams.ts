@@ -2,13 +2,13 @@ import { useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 export const ORDER_PARAM = 'order'
-export const SUB_ORDER_PARAM = 'sub'
+export const JOB_PARAM = 'job'
 
 export function useOrderParams() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const activeOrderId = searchParams.get(ORDER_PARAM) ?? null
-  const activeSubOrderId = searchParams.get(SUB_ORDER_PARAM) ?? null
+  const activeJobId = searchParams.get(JOB_PARAM) ?? null
 
   const setActiveOrder = useCallback(
     (orderId: string | null) => {
@@ -18,10 +18,10 @@ export function useOrderParams() {
           const current = next.get(ORDER_PARAM)
           if (orderId == null) {
             next.delete(ORDER_PARAM)
-            next.delete(SUB_ORDER_PARAM)
+            next.delete(JOB_PARAM)
           } else {
             next.set(ORDER_PARAM, orderId)
-            if (current !== orderId) next.delete(SUB_ORDER_PARAM)
+            if (current !== orderId) next.delete(JOB_PARAM)
           }
           return next
         },
@@ -31,13 +31,13 @@ export function useOrderParams() {
     [setSearchParams],
   )
 
-  const setActiveSubOrder = useCallback(
-    (subOrderId: string | null) => {
+  const setActiveJob = useCallback(
+    (jobId: string | null) => {
       setSearchParams(
         prev => {
           const next = new URLSearchParams(prev)
-          if (subOrderId == null) next.delete(SUB_ORDER_PARAM)
-          else next.set(SUB_ORDER_PARAM, subOrderId)
+          if (jobId == null) next.delete(JOB_PARAM)
+          else next.set(JOB_PARAM, jobId)
           return next
         },
         { replace: true },
@@ -51,12 +51,12 @@ export function useOrderParams() {
       prev => {
         const next = new URLSearchParams(prev)
         next.delete(ORDER_PARAM)
-        next.delete(SUB_ORDER_PARAM)
+        next.delete(JOB_PARAM)
         return next
       },
       { replace: true },
     )
   }, [setSearchParams])
 
-  return { activeOrderId, activeSubOrderId, setActiveOrder, setActiveSubOrder, clearActive }
+  return { activeOrderId, activeJobId, setActiveOrder, setActiveJob, clearActive }
 }

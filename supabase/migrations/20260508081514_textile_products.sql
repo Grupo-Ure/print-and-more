@@ -1,6 +1,6 @@
 -- 20260508081514_textile_products.sql — Textile as a product department.
 -- Garment lines are products (department_products + textile_garment_products
--- typed child). Designs are a per-sub-order reusable drawer (textile_motifs),
+-- typed child). Designs are a per-job reusable drawer (textile_motifs),
 -- referenced by garment products through an attributed link (textile_motif_links).
 -- Split from baseline 20260508081503_remote_schema.sql (delete that file once verified).
 
@@ -27,13 +27,13 @@ CREATE TABLE IF NOT EXISTS "public"."textile_garment_products" (
 ALTER TABLE "public"."textile_garment_products" OWNER TO "postgres";
 
 -- ---------------------------------------------------------------------------
--- Designs drawer — per sub-order, reusable across that order's garment lines.
+-- Designs drawer — per job, reusable across that order's garment lines.
 -- The design itself (artwork/text); placement/size/method live on the link.
 -- TEXT and FILE are fully exclusive (four CHECK constraints).
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS "public"."textile_motifs" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "department_order_id" "uuid" NOT NULL,
+    "job_id" "uuid" NOT NULL,
     "type" "public"."textile_motif_type" NOT NULL,
     "content" "text",
     "color" "text",
@@ -83,14 +83,14 @@ DECLARE
 BEGIN
   IF NEW.file_id IS NOT NULL THEN
     SELECT order_id INTO parent_order_id
-    FROM department_orders WHERE id = NEW.department_order_id;
+    FROM jobs WHERE id = NEW.job_id;
 
     IF NOT EXISTS (
       SELECT 1 FROM files
       WHERE id = NEW.file_id AND order_id = parent_order_id
     ) THEN
       RAISE EXCEPTION
-        'File (%) in textile motif does not belong to the order of the sub-order (%)',
+        'File (%) in textile motif does not belong to the order of the job (%)',
         NEW.file_id, parent_order_id;
     END IF;
   END IF;
@@ -104,15 +104,15 @@ ALTER TABLE ONLY "public"."textile_motifs"
     ADD CONSTRAINT "textile_motifs_file_id_fkey" FOREIGN KEY ("file_id") REFERENCES "public"."files"("id");
 
 ALTER TABLE ONLY "public"."textile_motifs"
-    ADD CONSTRAINT "textile_motifs_department_order_id_fkey" FOREIGN KEY ("department_order_id") REFERENCES "public"."department_orders"("id") ON DELETE CASCADE;
+    ADD CONSTRAINT "textile_motifs_job_id_fkey" FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id") ON DELETE CASCADE;
 
-CREATE INDEX "idx_textile_motifs_department_order" ON "public"."textile_motifs" USING "btree" ("department_order_id");
+CREATE INDEX "idx_textile_motifs_job" ON "public"."textile_motifs" USING "btree" ("job_id");
 
 CREATE INDEX "idx_textile_motif_links_department_product" ON "public"."textile_motif_links" USING "btree" ("department_product_id");
 
 CREATE INDEX "idx_textile_motif_links_motif" ON "public"."textile_motif_links" USING "btree" ("motif_id");
 
-CREATE OR REPLACE TRIGGER "trg_textile_motif_file_check" BEFORE INSERT OR UPDATE OF "file_id", "department_order_id" ON "public"."textile_motifs" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_textile_motif_file"();
+CREATE OR REPLACE TRIGGER "trg_textile_motif_file_check" BEFORE INSERT OR UPDATE OF "file_id", "job_id" ON "public"."textile_motifs" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_textile_motif_file"();
 
 CREATE POLICY "Employees: full access" ON "public"."textile_garment_products" TO "authenticated" USING (true) WITH CHECK (true);
 
@@ -152,6 +152,6 @@ GRANT ALL ON TABLE "public"."textile_motif_links" TO "service_role";
 
 COMMENT ON TABLE "public"."textile_garment_products" IS 'Typed child of department_products for TEXTILE_GARMENT: a garment line, OWN_STOCK (variant_id → textile_variants, stock-tracked) or CUSTOMER_STOCK (free-text).';
 
-COMMENT ON TABLE "public"."textile_motifs" IS 'Per-sub-order reusable design drawer. type=TEXT and type=FILE are fully exclusive (four CHECK constraints). Placement/size/method live on textile_motif_links.';
+COMMENT ON TABLE "public"."textile_motifs" IS 'Per-job reusable design drawer. type=TEXT and type=FILE are fully exclusive (four CHECK constraints). Placement/size/method live on textile_motif_links.';
 
 COMMENT ON TABLE "public"."textile_motif_links" IS 'Attributed M:N: a design (textile_motifs) applied to a garment product at a placement/size/method. Unique (department_product_id, placement) prevents two designs on one spot.';

@@ -9,16 +9,16 @@ import {
   type OrderDetailRow,
   type OrderHeaderPatch,
   type Priority,
-  type SubOrderRow,
+  type JobRow,
 } from '../types/database'
 import { useToast } from './Toast'
 import type { FileRow } from '../services/fileService'
-import { SubOrderDetail } from './SubOrderDetail'
+import { JobDetail } from './JobDetail'
 import { JobList } from './JobList'
 import { useOrderWorkspace } from '../context/order.context'
 import { useOrderParams } from '../hooks/useOrderParams'
-import { orderKeys, useArchiveOrder, useArchiveOrderWithCancelledSubOrders, useOrderById, useSetOrderStatus, useUpdateOrder } from '../queries/orderQueries'
-import { subOrderKeys, useSubOrdersByOrderId } from '../queries/subOrderQueries'
+import { orderKeys, useArchiveOrder, useArchiveOrderWithCancelledJobs, useOrderById, useSetOrderStatus, useUpdateOrder } from '../queries/orderQueries'
+import { jobKeys, useJobsByOrderId } from '../queries/jobQueries'
 import './WorkArea.css'
 import { Button } from './ui/button'
 import { Archive, Ban, Settings } from 'lucide-react'
@@ -29,7 +29,7 @@ import { PrioritySelect } from './fields/PrioritySelect'
 
 type Props = {
   contextRefreshTick: number
-  onActiveSubOrderChanged: (t: SubOrderRow | null) => void
+  onActiveJobChanged: (t: JobRow | null) => void
   onOrderCustomerLoaded: (k: Customer | null) => void
   onOrderFromWorkArea: (a: Auftrag | null) => void
   onOrderFilesChanged: (d: FileRow[]) => void
@@ -37,25 +37,25 @@ type Props = {
 
 export function OrderDetails({
   contextRefreshTick,
-  onActiveSubOrderChanged,
+  onActiveJobChanged,
   onOrderCustomerLoaded,
   onOrderFromWorkArea,
   onOrderFilesChanged,
 }: Props) {
   const { openCustomerDialog } = useOrderWorkspace()
-  const { activeOrderId, activeSubOrderId, setActiveSubOrder, clearActive } = useOrderParams()
+  const { activeOrderId, activeJobId, setActiveJob, clearActive } = useOrderParams()
   const queryClient = useQueryClient()
   const [files, setFiles] = useState<FileRow[]>([])
   const { showError } = useToast()
 
   const orderQuery = useOrderById(activeOrderId)
-  const subOrdersQuery = useSubOrdersByOrderId(activeOrderId)
+  const jobsQuery = useJobsByOrderId(activeOrderId)
   const updateOrder = useUpdateOrder()
 
   const order = orderQuery.data ?? null
-  const subOrders = useMemo(() => subOrdersQuery.data ?? [], [subOrdersQuery.data])
-  const loading = orderQuery.isLoading || subOrdersQuery.isLoading
-  const isError = orderQuery.isError || subOrdersQuery.isError
+  const jobs = useMemo(() => jobsQuery.data ?? [], [jobsQuery.data])
+  const loading = orderQuery.isLoading || jobsQuery.isLoading
+  const isError = orderQuery.isError || jobsQuery.isError
 
   const reloadFiles = useCallback(async () => {
     if (!activeOrderId) return
@@ -80,7 +80,7 @@ export function OrderDetails({
     if (isError) showError('Order could not be loaded')
   }, [isError, showError])
 
-  // ContextPanel still mutates sub-orders via services and signals through contextRefreshTick.
+  // ContextPanel still mutates jobs via services and signals through contextRefreshTick.
   // Re-sync the query caches it doesn't write to, skipping the initial mount.
   const didMountRef = useRef(false)
   useEffect(() => {
@@ -90,31 +90,31 @@ export function OrderDetails({
     }
     if (!activeOrderId) return
     void queryClient.invalidateQueries({ queryKey: orderKeys.byId(activeOrderId) })
-    void queryClient.invalidateQueries({ queryKey: subOrderKeys.byOrderId(activeOrderId) })
+    void queryClient.invalidateQueries({ queryKey: jobKeys.byOrderId(activeOrderId) })
   }, [contextRefreshTick, activeOrderId, queryClient])
 
-  const visibleSubOrders = useMemo(
-    () => subOrders.filter(subOrder => !subOrder.is_cancelled),
-    [subOrders]
+  const visibleJobs = useMemo(
+    () => jobs.filter(job => !job.is_cancelled),
+    [jobs]
   )
-  const activeSubOrder = useMemo((): SubOrderRow | null => {
-    if (activeSubOrderId == null) return null
-    return visibleSubOrders.find(subOrder => subOrder.id === activeSubOrderId) ?? null
-  }, [visibleSubOrders, activeSubOrderId])
+  const activeJob = useMemo((): JobRow | null => {
+    if (activeJobId == null) return null
+    return visibleJobs.find(job => job.id === activeJobId) ?? null
+  }, [visibleJobs, activeJobId])
 
-  // Pick a default sub-order tab when ?sub= is unset or no longer matches a visible row.
+  // Pick a default job tab when ?sub= is unset or no longer matches a visible row.
   useEffect(() => {
-    if (visibleSubOrders.length === 0) {
-      if (activeSubOrderId !== null) setActiveSubOrder(null)
+    if (visibleJobs.length === 0) {
+      if (activeJobId !== null) setActiveJob(null)
       return
     }
-    if (activeSubOrderId == null || !visibleSubOrders.some(s => s.id === activeSubOrderId)) {
-      setActiveSubOrder(visibleSubOrders[0].id)
+    if (activeJobId == null || !visibleJobs.some(s => s.id === activeJobId)) {
+      setActiveJob(visibleJobs[0].id)
     }
-  }, [visibleSubOrders, activeSubOrderId, setActiveSubOrder])
+  }, [visibleJobs, activeJobId, setActiveJob])
 
   const archiveOrder = useArchiveOrder()
-  const cancelOrder = useArchiveOrderWithCancelledSubOrders()
+  const cancelOrder = useArchiveOrderWithCancelledJobs()
   const setOrderStatus = useSetOrderStatus()
 
   const handleStartProcessing = async () => {
@@ -141,7 +141,7 @@ export function OrderDetails({
   }
 
   const handleCancelOrder = async () => {
-    if (!window.confirm('Cancel this order? All sub-orders will be cancelled and the order hidden.')) return
+    if (!window.confirm('Cancel this order? All jobs will be cancelled and the order hidden.')) return
     try {
       await cancelOrder.mutateAsync({ id: order!.id })
       clearActive()
@@ -162,41 +162,41 @@ export function OrderDetails({
     [activeOrderId, updateOrder, showError]
   )
 
-  const handleSubOrderUpdated = useCallback(
-    (updatedSubOrder: SubOrderRow) => {
+  const handleJobUpdated = useCallback(
+    (updatedJob: JobRow) => {
       if (activeOrderId) {
-        queryClient.setQueryData<SubOrderRow[]>(
-          subOrderKeys.byOrderId(activeOrderId),
-          old => old?.map(subOrder => (subOrder.id === updatedSubOrder.id ? updatedSubOrder : subOrder)) ?? old,
+        queryClient.setQueryData<JobRow[]>(
+          jobKeys.byOrderId(activeOrderId),
+          old => old?.map(job => (job.id === updatedJob.id ? updatedJob : job)) ?? old,
         )
       }
-      onActiveSubOrderChanged(updatedSubOrder)
+      onActiveJobChanged(updatedJob)
     },
-    [activeOrderId, queryClient, onActiveSubOrderChanged]
+    [activeOrderId, queryClient, onActiveJobChanged]
   )
 
   useEffect(() => {
     if (activeOrderId == null) {
       onOrderFromWorkArea(null)
       onOrderCustomerLoaded(null)
-      onActiveSubOrderChanged(null)
+      onActiveJobChanged(null)
       onOrderFilesChanged([])
       return
     }
     if (loading || !order || order.id !== activeOrderId) return
     onOrderFromWorkArea(order)
     onOrderCustomerLoaded(order.customers)
-    onActiveSubOrderChanged(activeSubOrder)
+    onActiveJobChanged(activeJob)
     onOrderFilesChanged(files)
   }, [
     activeOrderId,
     loading,
     order,
     files,
-    activeSubOrder,
+    activeJob,
     onOrderFromWorkArea,
     onOrderCustomerLoaded,
-    onActiveSubOrderChanged,
+    onActiveJobChanged,
     onOrderFilesChanged,
   ])
 
@@ -204,7 +204,7 @@ export function OrderDetails({
     return (
       <div className="flex flex-col w-full h-full items-center justify-center">
         <h1 className='tracking-widest'>Welcome</h1>
-        <h2>Select an order on the left to view details and sub-orders.</h2>
+        <h2>Select an order on the left to view details and jobs.</h2>
       </div>
     )
   }
@@ -265,13 +265,13 @@ export function OrderDetails({
         <Separator  orientation='vertical'/>
 
         <div className="flex-1" role="tabpanel">
-          {activeSubOrder ? (
-            <SubOrderDetail
+          {activeJob ? (
+            <JobDetail
               orderFiles={files}
-              onUpdated={handleSubOrderUpdated}
+              onUpdated={handleJobUpdated}
             />
           ) : (
-            <p className="wa-hint">No sub-orders yet. Use + to add a department.</p>
+            <p className="wa-hint">No jobs yet. Use + to add a department.</p>
           )}
         </div>
       </div>

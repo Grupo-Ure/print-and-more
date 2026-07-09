@@ -8,7 +8,7 @@
  * Most CopyShop typen support both digital ("Copy-Center") and offset
  * production paths, with different material/format constraints per path.
  *
- * The shape of a CopyShop sub-order's `detail` JSONB column varies by
+ * The shape of a CopyShop job's `detail` JSONB column varies by
  * `typ`. See `validateCopyShopDetail` in `src/lib/copyshop/` for the
  * per-typ field requirements.
  */
@@ -24,7 +24,7 @@ export const COPY_SHOP_TYPES = [
   'PRINTOUT',
 ] as const
 
-/** Discriminator for the kind of CopyShop work, stored in `teilauftraege.typ`. */
+/** Discriminator for the kind of CopyShop work, stored in `jobs.type`. */
 export type CopyShopType = (typeof COPY_SHOP_TYPES)[number]
 
 /** Display labels for {@link CopyShopType}, rendered in dropdowns and tabs. */
@@ -39,7 +39,7 @@ export const COPY_SHOP_TYPE_LABELS: Record<CopyShopType, string> = {
 }
 
 /**
- * Shape of the JSONB `detail` column for a CopyShop sub-order.
+ * Shape of the JSONB `detail` column for a CopyShop job.
  *
  * Keys vary per `typ` — only set keys relevant to the current typ. Kept
  * with the `Json` suffix to disambiguate from the `CopyShopDetail`

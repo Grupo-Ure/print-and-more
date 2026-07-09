@@ -5,13 +5,11 @@ export type OrderStatus = Enums<'order_status'>
 
 export const ORDER_STATUS_LIST: readonly OrderStatus[] = Constants.public.Enums.order_status
 
-export type SubOrderDepartment = Enums<'department'>
+export type Department = Enums<'department'>
 
-export const SUB_ORDER_DEPARTMENTS: readonly SubOrderDepartment[] = Constants.public.Enums.department
+export const DEPARTMENTS: readonly Department[] = Constants.public.Enums.department
 
-export type Department = SubOrderDepartment
-
-/** Entspricht `prioritaet_typ` in der DB (Auftrag und Teilauftrag). */
+/** Matches `priority_type` in the DB (order and job). */
 export type Priority = Enums<'priority_type'>
 
 export type CustomerContactRow = Tables<'customers'>
@@ -52,11 +50,11 @@ export type OrderPdfRow = Pick<Tables<'orders'>, 'order_number' | 'deadline' | '
 
 export type DeliveryChoice = Enums<'delivery_type'>
 
-export type SubOrderRow = Tables<'department_orders'>
+export type JobRow = Tables<'jobs'>
 
-export type SubOrderUpdate = TablesUpdate<'department_orders'>
+export type JobUpdate = TablesUpdate<'jobs'>
 
-export type NewSubOrderEntry = Pick<TablesInsert<'department_orders'>, 'order_id' | 'department' | 'status' | 'priority'>
+export type NewJobEntry = Pick<TablesInsert<'jobs'>, 'order_id' | 'department' | 'status' | 'priority'>
 
 export type DuplicateOrderArgs = Database['public']['Functions']['duplicate_order']['Args']
 

@@ -1,6 +1,6 @@
 /**
  * The bounce-back policy: whether a product/content change is "meaningful" enough to
- * drop a committed (PRODUCTION_READY / DONE) sub-order back to INCOMPLETE.
+ * drop a committed (PRODUCTION_READY / DONE) job back to INCOMPLETE.
  *
  * Per department (spec §5):
  * - Stamp / Other → only the product's `description` changing counts.

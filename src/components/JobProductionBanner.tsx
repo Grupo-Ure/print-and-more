@@ -1,19 +1,19 @@
 import { CheckCircle2, Lock } from 'lucide-react'
-import { useSetSubOrderStatus } from '../queries/subOrderQueries'
-import type { SubOrderRow } from '../types/database'
+import { useSetJobStatus } from '../queries/jobQueries'
+import type { JobRow } from '../types/database'
 import { useToast } from './Toast'
 import { Button } from './ui/button'
 
 type Props = {
-  subOrder: SubOrderRow
+  job: JobRow
 }
 
-export function SubOrderProductionBanner({ subOrder }: Props) {
-  const setSubOrderStatus = useSetSubOrderStatus()
+export function JobProductionBanner({ job }: Props) {
+  const setJobStatus = useSetJobStatus()
   const { showError } = useToast()
 
   // Done is terminal: a green, button-less banner — no going back once a job is done.
-  if (subOrder.status === 'DONE') {
+  if (job.status === 'DONE') {
     return (
       <div className="flex items-center justify-center gap-4 border-b-6 border-green-500 px-4 py-2 text-green-500">
         <CheckCircle2 />
@@ -24,13 +24,13 @@ export function SubOrderProductionBanner({ subOrder }: Props) {
     )
   }
 
-  if (subOrder.status !== 'PRODUCTION_READY') return null
+  if (job.status !== 'PRODUCTION_READY') return null
 
   const handleGoBackToPrePress = async () => {
     try {
-      await setSubOrderStatus.mutateAsync({
-        id: subOrder.id,
-        orderId: subOrder.order_id,
+      await setJobStatus.mutateAsync({
+        id: job.id,
+        orderId: job.order_id,
         status: 'PREPRESS_READY',
         history: { event_type: 'PREPRESS_READY_MANUAL' },
       })
@@ -49,10 +49,10 @@ export function SubOrderProductionBanner({ subOrder }: Props) {
         type="button"
         variant="default"
         className="shrink-0 rounded-full bg-pink-500 hover:bg-pink-600"
-        disabled={setSubOrderStatus.isPending}
+        disabled={setJobStatus.isPending}
         onClick={() => void handleGoBackToPrePress()}
       >
-        {setSubOrderStatus.isPending ? '…' : 'Go back to Pre-Press'}
+        {setJobStatus.isPending ? '…' : 'Go back to Pre-Press'}
       </Button>
     </div>
   )

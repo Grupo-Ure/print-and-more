@@ -1,7 +1,7 @@
 /**
  * Type definitions for the Laser engraving (Lasergravur) department.
  *
- * Laser sub-orders cover engraved signs (Schild), trophy plates
+ * Laser jobs cover engraved signs (Schild), trophy plates
  * (Pokalschild), nametags (Namensschild), engraved gift articles
  * (Geschenkartikel), and miscellaneous laser jobs (Sonstige Laser).
  *
@@ -9,7 +9,7 @@
  * combinations. Gift articles and miscellaneous typen use free-text
  * material plus an origin flag (customer-supplied vs in-house material).
  *
- * The shape of a laser sub-order's `detail` JSONB column varies by typ.
+ * The shape of a laser job's `detail` JSONB column varies by typ.
  * See `validateLaserDetail` in `src/lib/laser/` for the per-typ field
  * requirements.
  */
@@ -23,7 +23,7 @@ export const LASER_TYPES = [
   'OTHER_LASER',
 ] as const
 
-/** Discriminator for the kind of laser work, stored in `teilauftraege.typ`. */
+/** Discriminator for the kind of laser work, stored in `jobs.type`. */
 export type LaserType = (typeof LASER_TYPES)[number]
 
 /** Display labels for {@link LaserType}, rendered in dropdowns and tabs. */
@@ -56,7 +56,7 @@ export const LASER_SIGN_MATERIAL_LABELS: Record<LaserSignMaterial, string> = {
 }
 
 /**
- * Origin of the workpiece for laser sub-orders that aren't on a stock
+ * Origin of the workpiece for laser jobs that aren't on a stock
  * sign material: customer-supplied or pulled from in-house stock.
  */
 export const LASER_ORIGINS = ['KUNDENMATERIAL', 'EIGENMATERIAL'] as const
@@ -69,7 +69,7 @@ export const LASER_ORIGIN_LABELS: Record<LaserOrigin, string> = {
 }
 
 /**
- * Shape of the JSONB `detail` column for a laser sub-order.
+ * Shape of the JSONB `detail` column for a laser job.
  *
  * Keys vary per `typ` — only set keys relevant to the current typ. See
  * `validateLaserDetail` for the per-typ field set.

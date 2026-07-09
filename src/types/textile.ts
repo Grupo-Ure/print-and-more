@@ -6,7 +6,7 @@
  * ({@link TextileGarmentRow}) — a quantity of one garment, either OWN_STOCK
  * (a stock-tracked `textile_variants` reference) or CUSTOMER_STOCK (free-text).
  *
- * Decorations live in a per-sub-order reusable **designs drawer**
+ * Decorations live in a per-job reusable **designs drawer**
  * ({@link TextileMotifRow} — the artwork or text) and are applied to garment
  * products through an attributed link ({@link TextileMotifLinkRow}) that carries
  * the placement/size/method of each use. (The pre-product relational model —
@@ -53,12 +53,12 @@ export type TextileGarmentRow = Tables<'textile_garment_products'>
 export type TextileGarmentInsert = TablesInsert<'textile_garment_products'>
 
 /**
- * Row from `textile_motifs`: a design in the sub-order's reusable drawer. The
+ * Row from `textile_motifs`: a design in the job's reusable drawer. The
  * design is just the artwork/text — placement/size/method live on the link.
  */
 export type TextileMotifRow = {
   id: string
-  department_order_id: string
+  job_id: string
   type: TextileMotifType
   content: string | null
   color: string | null

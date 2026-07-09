@@ -225,8 +225,8 @@ COMMENT ON FUNCTION "public"."fn_generate_order_number"() IS 'Atomic monthly cou
 
 COMMENT ON TABLE "public"."orders" IS 'Central aggregate. status is set by application convention via calculateOrderStatus() in src/lib/orderStatus.ts — the DB does not enforce this. Direct SQL updates to status are intentionally allowed for emergency migrations.';
 
-COMMENT ON COLUMN "public"."orders"."deadline" IS 'Overall deadline as a commercial frame. department_orders.deadline is operationally leading and may differ — no automatic sync (V1 domain model, intentional decision).';
+COMMENT ON COLUMN "public"."orders"."deadline" IS 'Overall deadline as a commercial frame. jobs.deadline is operationally leading and may differ — no automatic sync (V1 domain model, intentional decision).';
 
 COMMENT ON TABLE "public"."order_number_counter" IS 'Monthly counter for order numbers. One row per year+month. Written exclusively via fn_generate_order_number(). Direct UPDATEs are forbidden — they would corrupt the numbering sequence.';
 
-COMMENT ON TABLE "public"."files" IS 'Always attached to an order, never to a sub-order. No file upload — network path only. replaces_file_id: empty in V1, trigger already enforces same order.';
+COMMENT ON TABLE "public"."files" IS 'Always attached to an order, never to a job. No file upload — network path only. replaces_file_id: empty in V1, trigger already enforces same order.';

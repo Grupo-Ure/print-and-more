@@ -12,7 +12,7 @@ ALTER TABLE "public"."product_files" OWNER TO "postgres";
 
 CREATE TABLE IF NOT EXISTS "public"."department_products" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "department_order_id" "uuid" NOT NULL,
+    "job_id" "uuid" NOT NULL,
     "department" "text" NOT NULL,
     "type" "text" NOT NULL,
     "quantity" integer,
@@ -39,9 +39,9 @@ ALTER TABLE ONLY "public"."product_files"
     ADD CONSTRAINT "product_files_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE;
 
 ALTER TABLE ONLY "public"."department_products"
-    ADD CONSTRAINT "department_products_department_order_id_fkey" FOREIGN KEY ("department_order_id") REFERENCES "public"."department_orders"("id") ON DELETE CASCADE;
+    ADD CONSTRAINT "department_products_job_id_fkey" FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id") ON DELETE CASCADE;
 
-CREATE INDEX "idx_department_products_order" ON "public"."department_products" USING "btree" ("department_order_id");
+CREATE INDEX "idx_department_products_job" ON "public"."department_products" USING "btree" ("job_id");
 
 CREATE INDEX "product_files_file_id_idx" ON "public"."product_files" USING "btree" ("file_id");
 

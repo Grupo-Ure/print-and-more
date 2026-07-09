@@ -28,19 +28,19 @@ export type SizeOption = {
 
 /**
  * Textile per-order service. Textile is a product department (garment lines are
- * department_products of type TEXTILE_GARMENT, handled by subOrderProductService);
- * this service owns the sub-order's reusable **designs drawer** (textile_motifs)
+ * department_products of type TEXTILE_GARMENT, handled by departmentProductService);
+ * this service owns the job's reusable **designs drawer** (textile_motifs)
  * and the catalog lookups feeding the garment form. Garment design *links*
- * (textile_motif_links) live on subOrderProductService alongside product_files.
+ * (textile_motif_links) live on departmentProductService alongside product_files.
  */
 class TextileService {
-  // --- Designs drawer (sub-order scoped reusable motifs) --------------------
+  // --- Designs drawer (job scoped reusable motifs) --------------------
 
-  async getMotifsBySubOrder(subOrderId: string): Promise<TextileMotifRow[]> {
+  async getMotifsByJob(jobId: string): Promise<TextileMotifRow[]> {
     const { data, error } = await supabase
       .from('textile_motifs')
       .select('*')
-      .eq('department_order_id', subOrderId)
+      .eq('job_id', jobId)
       .order('created_at')
     if (error) throw error
     return (data ?? []) as unknown as TextileMotifRow[]
@@ -75,19 +75,19 @@ class TextileService {
   // --- Stock usage (release auto-deduction) ---------------------------------
 
   /**
-   * OWN_STOCK garment lines with a catalog variant in a sub-order, with their
+   * OWN_STOCK garment lines with a catalog variant in a job, with their
    * parent quantity — the source for the production-release stock deduction.
-   * Replaces the old position-based `getEigenwarePositionsBySubOrder`.
+   * Replaces the old position-based `getEigenwarePositionsByJob`.
    */
-  async getTextileGarmentStockUsageBySubOrder(
-    subOrderId: string,
+  async getTextileGarmentStockUsageByJob(
+    jobId: string,
   ): Promise<{ variant_id: string; quantity: number }[]> {
     const { data, error } = await supabase
       .from('textile_garment_products')
-      .select('variant_id, department_products!inner(quantity, department_order_id)')
+      .select('variant_id, department_products!inner(quantity, job_id)')
       .eq('origin', 'OWN_STOCK')
       .not('variant_id', 'is', null)
-      .eq('department_products.department_order_id', subOrderId)
+      .eq('department_products.job_id', jobId)
     if (error) throw error
     return (data ?? [])
       .map(row => {

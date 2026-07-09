@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { orderService } from '../services/orderService'
-import { subOrderService } from '../services/subOrderService'
+import { jobService } from '../services/jobService'
 import {
   invalidateOrderListsIfCustomerReferenced,
   orderKeys,
@@ -12,7 +12,7 @@ import {
 import {
   type Auftrag,
   type OrderStatus,
-  type SubOrderRow,
+  type JobRow,
 } from '../types/database'
 import type { OrderListEntry } from '../services/orderService'
 import { SlidersHorizontal } from 'lucide-react'
@@ -78,7 +78,7 @@ export function OrderSidebar({ orderInPlace }: Props) {
     const rawOrders = hasStatusFilter ? ordersQuery.data ?? [] : []
     if (filter.department === 'All') return rawOrders
     return rawOrders.filter(
-      order => order.sub_orders?.some(subOrder => subOrder.department === filter.department) ?? false,
+      order => order.jobs?.some(job => job.department === filter.department) ?? false,
     )
   }, [hasStatusFilter, ordersQuery.data, filter.department])
 
@@ -88,7 +88,7 @@ export function OrderSidebar({ orderInPlace }: Props) {
   const [duplicateBusy, setDuplicateBusy] = useState(false)
   const [duplicateError, setDuplicateError] = useState<string | null>(null)
   const [duplicateOrder, setDuplicateOrder] = useState<Auftrag | null>(null)
-  const [duplicateSubOrders, setDuplicateSubOrders] = useState<SubOrderRow[]>([])
+  const [duplicateJobs, setDuplicateJobs] = useState<JobRow[]>([])
 
   const openDuplicateDialog = useCallback(
     async (auftragId: string) => {
@@ -98,9 +98,9 @@ export function OrderSidebar({ orderInPlace }: Props) {
       try {
         const orderData = await orderService.getOrderById(auftragId)
         if (!orderData) throw new Error('Order not found')
-        const subOrderData = await subOrderService.getSubOrdersByOrderId(auftragId)
+        const jobData = await jobService.getJobsByOrderId(auftragId)
         setDuplicateOrder(orderData as Auftrag)
-        setDuplicateSubOrders(subOrderData)
+        setDuplicateJobs(jobData)
         setDuplicateDialogOpen(true)
       } catch (e) {
         showError('Orders could not be loaded')
@@ -192,7 +192,7 @@ export function OrderSidebar({ orderInPlace }: Props) {
       {duplicateDialogOpen && duplicateOrder && (
         <DuplicateDialog
           order={duplicateOrder}
-          teilauftraege={duplicateSubOrders}
+          jobs={duplicateJobs}
           onCancel={() => setDuplicateDialogOpen(false)}
           onSuccess={newOrder => {
             setDuplicateDialogOpen(false)

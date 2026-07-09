@@ -10,7 +10,7 @@
  */
 
 import { useState, type ComponentType } from 'react'
-import type { SubOrderRow } from '../../types/database'
+import type { JobRow } from '../../types/database'
 import type { FileRow } from '../../services/fileService'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import type { ProductFormProps } from './forms/shared'
@@ -22,19 +22,19 @@ type ProductEditor = ReturnType<typeof useProductEditor>
 
 export function ProductDialog({
   editor,
-  subOrder,
+  job,
   orderFiles,
   types,
   formByType,
 }: {
   editor: ProductEditor
-  subOrder: SubOrderRow
+  job: JobRow
   orderFiles: FileRow[]
   types: ProductTypeOption[]
   formByType: Record<string, ComponentType<ProductFormProps>>
 }) {
   const { mode, close, handleSaved, fileIdsFor, products } = editor
-  const subOrderStatus = subOrder.status
+  const jobStatus = job.status
   const [selectedType, setSelectedType] = useState<string | null>(null)
 
   const open = mode.kind !== 'idle'
@@ -88,8 +88,8 @@ export function ProductDialog({
             )}
             <ActiveForm
               key={editing?.id ?? type ?? 'new'}
-              subOrder={subOrder}
-              subOrderStatus={subOrderStatus}
+              job={job}
+              jobStatus={jobStatus}
               product={editing}
               orderFiles={orderFiles}
               initialFileIds={editing ? fileIdsFor(editing.id) : []}

@@ -10,9 +10,9 @@ import {
 } from '@/components/ui/dialog'
 import { authService } from '../services/authService'
 import { orderService } from '../services/orderService'
-import { type Auftrag, type SubOrderRow } from '../types/database'
-import { subOrderDetailToFieldMap } from '../lib/utils'
-import { SUB_ORDER_DEPARTMENT_LABELS, subOrderDepartmentLabel } from '../const/departmentAbbreviation'
+import { type Auftrag, type JobRow } from '../types/database'
+import { jobDetailToFieldMap } from '../lib/utils'
+import { JOB_DEPARTMENT_LABELS, jobDepartmentLabel } from '../const/departmentAbbreviation'
 import { LFP_TYPE_LABELS } from '../types/lfp'
 import { COPY_SHOP_TYPE_LABELS } from '../types/copyshop'
 import { STAMP_TYPE_LABELS } from '../types/stamp'
@@ -22,12 +22,12 @@ import { useToast } from './Toast'
 
 type Props = {
   order: Auftrag
-  teilauftraege: SubOrderRow[]
+  jobs: JobRow[]
   onSuccess: (neuerAuftrag: Auftrag) => void
   onCancel: () => void
 }
 
-function readableSubOrderType(bereich: string, typ: string | null): string {
+function readableJobType(bereich: string, typ: string | null): string {
   if (!typ) return '—'
   if (bereich === 'LFP' && typ in LFP_TYPE_LABELS) return LFP_TYPE_LABELS[typ as keyof typeof LFP_TYPE_LABELS]
   if (bereich === 'COPYSHOP' && typ in COPY_SHOP_TYPE_LABELS)
@@ -39,8 +39,8 @@ function readableSubOrderType(bereich: string, typ: string | null): string {
   return typ
 }
 
-function formatDetailDimensions(detail: import('../types/database').SubOrderRow['detail']): string {
-  const fields = subOrderDetailToFieldMap(detail)
+function formatDetailDimensions(detail: import('../types/database').JobRow['detail']): string {
+  const fields = jobDetailToFieldMap(detail)
   const widthRaw = fields.format_breite
   const heightRaw = fields.format_hoehe
   const width = typeof widthRaw === 'number' ? widthRaw : typeof widthRaw === 'string' && widthRaw.trim() !== '' ? Number(widthRaw) : null
@@ -55,22 +55,22 @@ function formatDetailDimensions(detail: import('../types/database').SubOrderRow[
   return ''
 }
 
-function subOrderLabel(subOrder: SubOrderRow): string {
+function jobLabel(job: JobRow): string {
   const department =
-    subOrder.department in SUB_ORDER_DEPARTMENT_LABELS
-      ? SUB_ORDER_DEPARTMENT_LABELS[subOrder.department as keyof typeof SUB_ORDER_DEPARTMENT_LABELS]
-      : subOrderDepartmentLabel(subOrder.department)
-  const type = readableSubOrderType(subOrder.department, subOrder.type)
-  const dims = formatDetailDimensions(subOrder.detail)
+    job.department in JOB_DEPARTMENT_LABELS
+      ? JOB_DEPARTMENT_LABELS[job.department as keyof typeof JOB_DEPARTMENT_LABELS]
+      : jobDepartmentLabel(job.department)
+  const type = readableJobType(job.department, job.type)
+  const dims = formatDetailDimensions(job.detail)
   return dims ? `${department} · ${type} · ${dims}` : `${department} · ${type}`
 }
 
-export function DuplicateDialog({ order, teilauftraege, onSuccess, onCancel }: Props) {
-  const activeSubOrders = useMemo(() => teilauftraege.filter(subOrder => !subOrder.is_cancelled), [teilauftraege])
+export function DuplicateDialog({ order, jobs, onSuccess, onCancel }: Props) {
+  const activeJobs = useMemo(() => jobs.filter(job => !job.is_cancelled), [jobs])
 
   const [selection, setSelection] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {}
-    for (const subOrder of activeSubOrders) initial[subOrder.id] = true
+    for (const job of activeJobs) initial[job.id] = true
     return initial
   })
   const [newDeadline, setNewDeadline] = useState<string>('')
@@ -78,15 +78,15 @@ export function DuplicateDialog({ order, teilauftraege, onSuccess, onCancel }: P
   const [error, setError] = useState<string | null>(null)
   const { showError, showSuccess } = useToast()
 
-  const selectedSubOrders = useMemo(
-    () => activeSubOrders.filter(subOrder => selection[subOrder.id]),
-    [activeSubOrders, selection]
+  const selectedJobs = useMemo(
+    () => activeJobs.filter(job => selection[job.id]),
+    [activeJobs, selection]
   )
-  const allSelected = activeSubOrders.length > 0 && selectedSubOrders.length === activeSubOrders.length
-  const noneSelected = selectedSubOrders.length === 0
+  const allSelected = activeJobs.length > 0 && selectedJobs.length === activeJobs.length
+  const noneSelected = selectedJobs.length === 0
   const masterChecked: boolean | 'indeterminate' = allSelected ? true : noneSelected ? false : 'indeterminate'
 
-  const blocksDuplicate = activeSubOrders.length > 0 && noneSelected
+  const blocksDuplicate = activeJobs.length > 0 && noneSelected
   const customerLabel = order.customers?.name?.trim() || order.id
 
   const toggle = (id: string) => {
@@ -96,7 +96,7 @@ export function DuplicateDialog({ order, teilauftraege, onSuccess, onCancel }: P
   const toggleAll = (next: boolean | 'indeterminate') => {
     const target = next === true || next === 'indeterminate'
     const updated: Record<string, boolean> = {}
-    for (const subOrder of activeSubOrders) updated[subOrder.id] = target
+    for (const job of activeJobs) updated[job.id] = target
     setSelection(updated)
   }
 
@@ -110,7 +110,7 @@ export function DuplicateDialog({ order, teilauftraege, onSuccess, onCancel }: P
         new_priority: order.priority ?? null,
         new_delivery: order.delivery ?? null,
         new_deadline: newDeadline ? newDeadline : null,
-        selected_department_order_ids: selectedSubOrders.map(subOrder => subOrder.id),
+        selected_job_ids: selectedJobs.map(job => job.id),
         created_by_user_id: (await authService.getUser())?.id ?? null,
       })
 
@@ -148,10 +148,10 @@ export function DuplicateDialog({ order, teilauftraege, onSuccess, onCancel }: P
           Customer: <strong className="text-foreground font-medium">{customerLabel}</strong>
         </p>
 
-        {activeSubOrders.length > 0 && (
+        {activeJobs.length > 0 && (
           <section className="flex flex-col gap-2">
             <h2 className="uppercase tracking-[0.06em] text-xs text-muted-foreground">
-              Sub-orders
+              Jobs
             </h2>
             <label className="flex items-center gap-2.5 rounded-md border bg-muted/40 px-3 py-2 cursor-pointer">
               <Checkbox
@@ -159,21 +159,21 @@ export function DuplicateDialog({ order, teilauftraege, onSuccess, onCancel }: P
                 onCheckedChange={toggleAll}
               />
               <span className="text-sm font-medium">
-                Select all ({selectedSubOrders.length}/{activeSubOrders.length})
+                Select all ({selectedJobs.length}/{activeJobs.length})
               </span>
             </label>
             <div className="flex flex-col gap-1 rounded-md border p-1">
-              {activeSubOrders.map(subOrder => (
+              {activeJobs.map(job => (
                 <label
-                  key={subOrder.id}
+                  key={job.id}
                   className="flex items-start gap-2.5 rounded-sm px-2.5 py-2 hover:bg-muted cursor-pointer"
                 >
                   <Checkbox
                     className="mt-0.5"
-                    checked={!!selection[subOrder.id]}
-                    onCheckedChange={() => toggle(subOrder.id)}
+                    checked={!!selection[job.id]}
+                    onCheckedChange={() => toggle(job.id)}
                   />
-                  <span className="text-sm">{subOrderLabel(subOrder)}</span>
+                  <span className="text-sm">{jobLabel(job)}</span>
                 </label>
               ))}
             </div>

@@ -1,6 +1,6 @@
 /** OTHER department detail — single product type, add-product dialog, table. */
 
-import type { OrderStatus, SubOrderRow } from '../../../types/database'
+import type { OrderStatus, JobRow } from '../../../types/database'
 import type { FileRow } from '../../../services/fileService'
 import { AddProductButton } from '../AddProductButton'
 import { useProductEditor } from '../useProductEditor'
@@ -8,13 +8,13 @@ import { OtherProductDialog } from '../OtherProductDialog'
 import { OtherProductsTable } from '../ProductTable'
 
 type Props = {
-  subOrder: SubOrderRow
-  subOrderStatus: OrderStatus
+  job: JobRow
+  jobStatus: OrderStatus
   orderFiles?: FileRow[]
 }
 
-export function OtherProducts({ subOrder, subOrderStatus, orderFiles = [] }: Props) {
-  const productEditor = useProductEditor(subOrder, subOrderStatus)
+export function OtherProducts({ job, jobStatus, orderFiles = [] }: Props) {
+  const productEditor = useProductEditor(job, jobStatus)
 
   return (
     <div className="flex flex-col gap-4">
@@ -23,7 +23,7 @@ export function OtherProducts({ subOrder, subOrderStatus, orderFiles = [] }: Pro
       {!productEditor.isReadOnly && (
         <OtherProductDialog
           editor={productEditor}
-          subOrder={subOrder}
+          job={job}
           orderFiles={orderFiles}
         />
       )}

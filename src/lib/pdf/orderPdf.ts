@@ -2,9 +2,9 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { formatDateDe } from '../formatDate'
 import { orderService } from '../../services/orderService'
-import { subOrderService } from '../../services/subOrderService'
-import { subOrderProductService } from '../../services/subOrderProductService'
-import type { DeliveryChoice, OrderPdfRow, Priority, SubOrderRow } from '../../types/database'
+import { jobService } from '../../services/jobService'
+import { departmentProductService } from '../../services/departmentProductService'
+import type { DeliveryChoice, OrderPdfRow, Priority, JobRow } from '../../types/database'
 
 type PdfDoc = jsPDF & { lastAutoTable?: { finalY: number } }
 
@@ -159,17 +159,17 @@ function cellValueForKey(row: Record<string, unknown>, key: string): string {
   return valueAsString(fieldValue)
 }
 
-export async function generateAndDownloadPdf(subOrderId: string, orderId: string): Promise<boolean> {
+export async function generateAndDownloadPdf(jobId: string, orderId: string): Promise<boolean> {
   try {
-    const [order, subOrderResult, rawProducts] = await Promise.all([
+    const [order, jobResult, rawProducts] = await Promise.all([
       orderService.getOrderById(orderId),
-      subOrderService.getSubOrderById(subOrderId),
-      subOrderProductService.getProductsBySubOrderId(subOrderId),
+      jobService.getJobById(jobId),
+      departmentProductService.getProductsByJobId(jobId),
     ])
 
-    if (!order || !subOrderResult) return false
+    if (!order || !jobResult) return false
 
-    const subOrder = subOrderResult as SubOrderRow
+    const job = jobResult as JobRow
 
     const products = rawProducts as unknown as Record<string, unknown>[]
 
@@ -180,7 +180,7 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
       customerDisplayName,
       order.deadline,
       order.created_at,
-      subOrder.department,
+      job.department,
       order.order_number,
     )
 
@@ -232,7 +232,7 @@ export async function generateAndDownloadPdf(subOrderId: string, orderId: string
     rightColumnY = addText(doc, `Deadline    ${formatDateDe(order.deadline)}`, rightColumnX, rightColumnY, 5)
     rightColumnY = addText(doc, `Delivery    ${formatDelivery(order.delivery)}`, rightColumnX, rightColumnY, 5)
     rightColumnY = addText(doc, `Priority    ${formatPriority(order.priority)}`, rightColumnX, rightColumnY, 5)
-    rightColumnY = addText(doc, `Department    ${subOrder.department}`, rightColumnX, rightColumnY, 5)
+    rightColumnY = addText(doc, `Department    ${job.department}`, rightColumnX, rightColumnY, 5)
     rightColumnY = addText(doc, `Created    ${formatDateDe(order.created_at)}`, rightColumnX, rightColumnY, 5)
 
     cursorY = Math.max(leftColumnY, rightColumnY) + 8

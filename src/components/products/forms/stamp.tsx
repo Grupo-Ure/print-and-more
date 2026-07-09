@@ -69,7 +69,7 @@ function ModelStampForm(p: ProductFormProps & { type: 'TRODAT_PRINTY' | 'WOODEN_
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct(p.type, values, p.subOrderStatus) as Errs
+          const errors = validateProduct(p.type, values, p.jobStatus) as Errs
           return (
             <>
               <form.Field name="model_id">{f => <ModelSelect field={f} type={p.type} error={errors.model_id} />}</form.Field>
@@ -104,7 +104,7 @@ function ClassicStampForm(p: ProductFormProps & { type: 'STAND_STAMP' | 'DATE_ST
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct(p.type, values, p.subOrderStatus) as Errs
+          const errors = validateProduct(p.type, values, p.jobStatus) as Errs
           return (
             <>
               <form.Field name="width">{wf => <form.Field name="height">{hf => <DimensionFields widthField={wf} heightField={hf} formatError={errors.format ?? errors.width ?? errors.height} />}</form.Field>}</form.Field>
@@ -140,7 +140,7 @@ export function StampPlateForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('STAMP_PLATE', values, p.subOrderStatus) as Errs
+          const errors = validateProduct('STAMP_PLATE', values, p.jobStatus) as Errs
           void values
           return (
             <>
@@ -170,7 +170,7 @@ export function RefillInkForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('REFILL_INK', values, p.subOrderStatus) as Errs
+          const errors = validateProduct('REFILL_INK', values, p.jobStatus) as Errs
           void values
           return (
             <>
@@ -197,7 +197,7 @@ export function InkPadForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('INK_PAD', values, p.subOrderStatus) as Errs
+          const errors = validateProduct('INK_PAD', values, p.jobStatus) as Errs
           void values
           return (
             <>
@@ -228,7 +228,7 @@ export function TrodatPadForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('TRODAT_PAD', values, p.subOrderStatus) as Errs
+          const errors = validateProduct('TRODAT_PAD', values, p.jobStatus) as Errs
           return (
             <>
               <form.Field name="pad_article_number">{f => <TextField field={f} label="Article number" error={errors.pad_article_number} />}</form.Field>

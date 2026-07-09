@@ -1,7 +1,7 @@
 /** LFP department detail — add-product button, two-step dialog, table. */
 
 import type { ComponentType } from 'react'
-import type { OrderStatus, SubOrderRow } from '../../../types/database'
+import type { OrderStatus, JobRow } from '../../../types/database'
 import type { FileRow } from '../../../services/fileService'
 import { LFP_TYPES, LFP_TYPE_LABELS } from '../../../types/lfp'
 import { AddProductButton } from '../AddProductButton'
@@ -21,8 +21,8 @@ import {
 import type { ProductFormProps } from '../forms/shared'
 
 type Props = {
-  subOrder: SubOrderRow
-  subOrderStatus: OrderStatus
+  job: JobRow
+  jobStatus: OrderStatus
   orderFiles?: FileRow[]
 }
 
@@ -39,15 +39,15 @@ const FORM_BY_TYPE: Record<string, ComponentType<ProductFormProps>> = {
 
 const TYPE_OPTIONS: ProductTypeOption[] = LFP_TYPES.map(t => ({ value: t, label: LFP_TYPE_LABELS[t] }))
 
-export function LfpProducts({ subOrder, subOrderStatus, orderFiles = [] }: Props) {
-  const productEditor = useProductEditor(subOrder, subOrderStatus)
+export function LfpProducts({ job, jobStatus, orderFiles = [] }: Props) {
+  const productEditor = useProductEditor(job, jobStatus)
 
   return (
     <div className="flex flex-col gap-4">
       {!productEditor.isReadOnly && (
         <ProductDialog
           editor={productEditor}
-          subOrder={subOrder}
+          job={job}
           orderFiles={orderFiles}
           types={TYPE_OPTIONS}
           formByType={FORM_BY_TYPE}

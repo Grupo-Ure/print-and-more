@@ -4,7 +4,7 @@
  * to the form for both add and edit. Submission stays in the form itself.
  */
 
-import type { SubOrderRow } from '../../types/database'
+import type { JobRow } from '../../types/database'
 import type { FileRow } from '../../services/fileService'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { OtherForm } from './forms/other'
@@ -14,15 +14,15 @@ type ProductEditor = ReturnType<typeof useProductEditor>
 
 export function OtherProductDialog({
   editor,
-  subOrder,
+  job,
   orderFiles,
 }: {
   editor: ProductEditor
-  subOrder: SubOrderRow
+  job: JobRow
   orderFiles: FileRow[]
 }) {
   const { mode, close, handleSaved, fileIdsFor, products } = editor
-  const subOrderStatus = subOrder.status
+  const jobStatus = job.status
   const editing = mode.kind === 'edit' ? mode.product : null
   const open = mode.kind !== 'idle'
 
@@ -34,8 +34,8 @@ export function OtherProductDialog({
         </DialogHeader>
         <OtherForm
           key={editing?.id ?? 'new'}
-          subOrder={subOrder}
-          subOrderStatus={subOrderStatus}
+          job={job}
+          jobStatus={jobStatus}
           product={editing}
           orderFiles={orderFiles}
           initialFileIds={editing ? fileIdsFor(editing.id) : []}

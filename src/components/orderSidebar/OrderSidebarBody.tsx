@@ -147,7 +147,7 @@ function OrderSidebarItem({
         </div>
         <div className="flex flex-wrap items-center justify-between">
           <StatusBadge status={order.status} />
-          <OrderDepartmentPills subOrders={order.sub_orders} />
+          <OrderDepartmentPills jobs={order.jobs} />
         </div>
       </div>
     </div>
@@ -155,11 +155,11 @@ function OrderSidebarItem({
 }
 
 function OrderDepartmentPills({
-  subOrders,
+  jobs,
 }: {
-  subOrders: OrderListEntry['sub_orders']
+  jobs: OrderListEntry['jobs']
 }) {
-  const departments = uniqueDepartments(subOrders)
+  const departments = uniqueDepartments(jobs)
   const visible = departments.slice(0, MAX_DEPARTMENT_TAGS)
   const extraCount = departments.length - MAX_DEPARTMENT_TAGS
 

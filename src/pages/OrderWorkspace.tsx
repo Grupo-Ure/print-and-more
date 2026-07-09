@@ -9,7 +9,7 @@ import { OrderDetails } from '../components/OrderDetails'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { OrderWorkspaceProvider } from '../context/order.context'
 import { useOrderParams } from '../hooks/useOrderParams'
-import type { Auftrag, Customer, OrderStatus, SubOrderRow } from '../types/database'
+import type { Auftrag, Customer, OrderStatus, JobRow } from '../types/database'
 import type { FileRow } from '../services/fileService'
 
 const ORDER_LIST_IN_PLACE_INITIAL: { tick: number; id: string; status: OrderStatus } = {
@@ -59,7 +59,7 @@ function AdminNav() {
 function WorkspaceShell() {
   const { activeOrderId, clearActive } = useOrderParams()
   const [activeOrder, setActiveOrder] = useState<Auftrag | null>(null)
-  const [activeSubOrder, setActiveSubOrder] = useState<SubOrderRow | null>(null)
+  const [activeJob, setActiveJob] = useState<JobRow | null>(null)
   const [orderCustomer, setOrderCustomer] = useState<Customer | null>(null)
   const [orderFiles, setOrderFiles] = useState<FileRow[]>([])
   const [contextRefreshTick, setContextRefreshTick] = useState(0)
@@ -68,7 +68,7 @@ function WorkspaceShell() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset child caches when the URL-driven active order changes
     setActiveOrder(null)
-    setActiveSubOrder(null)
+    setActiveJob(null)
     setOrderCustomer(null)
     setOrderFiles([])
   }, [activeOrderId])
@@ -81,8 +81,8 @@ function WorkspaceShell() {
     setOrderCustomer(customer)
   }, [])
 
-  const handleActiveSubOrderChanged = useCallback((subOrder: SubOrderRow | null) => {
-    setActiveSubOrder(subOrder)
+  const handleActiveJobChanged = useCallback((job: JobRow | null) => {
+    setActiveJob(job)
   }, [])
 
   const handleOrderFilesChanged = useCallback((files: FileRow[]) => {
@@ -112,18 +112,18 @@ function WorkspaceShell() {
 
   const handleOrderDeleted = useCallback(() => {
     clearActive()
-    setActiveSubOrder(null)
+    setActiveJob(null)
     setOrderInPlace(ORDER_LIST_IN_PLACE_INITIAL)
     setContextRefreshTick(x => x + 1)
   }, [clearActive])
 
-  const handleSubOrderUpdated = useCallback((subOrder: SubOrderRow) => {
-    setActiveSubOrder(subOrder)
+  const handleJobUpdated = useCallback((job: JobRow) => {
+    setActiveJob(job)
     setContextRefreshTick(x => x + 1)
   }, [])
 
-  const handleSubOrderRemoved = useCallback((removedId: string) => {
-    setActiveSubOrder(cur => (cur?.id === removedId ? null : cur))
+  const handleJobRemoved = useCallback((removedId: string) => {
+    setActiveJob(cur => (cur?.id === removedId ? null : cur))
     setContextRefreshTick(x => x + 1)
   }, [])
 
@@ -143,7 +143,7 @@ function WorkspaceShell() {
         <div className="flex flex-col flex-1">
           <OrderDetails
             contextRefreshTick={contextRefreshTick}
-            onActiveSubOrderChanged={handleActiveSubOrderChanged}
+            onActiveJobChanged={handleActiveJobChanged}
             onOrderCustomerLoaded={handleOrderCustomerLoaded}
             onOrderFromWorkArea={handleOrderFromWorkArea}
             onOrderFilesChanged={handleOrderFilesChanged}

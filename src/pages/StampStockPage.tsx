@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { authService } from '../services/authService'
 import { userService } from '../services/userService'
-import { subOrderService } from '../services/subOrderService'
+import { jobService } from '../services/jobService'
 import { stampService } from '../services/stampService'
 import { Login } from '../components/Login'
 import { useToast } from '../components/Toast'
-import { subOrderDetailToFieldMap } from '../lib/utils'
+import { jobDetailToFieldMap } from '../lib/utils'
 import type { Json } from '../types/supabase'
 
 type StampType =
@@ -113,7 +113,7 @@ type OrderListRow = StampModelOrderRow & {
   bestellmenge: number
 }
 
-function parseSubOrderQuantity(raw: unknown): number {
+function parseJobQuantity(raw: unknown): number {
   if (typeof raw === 'number' && Number.isFinite(raw)) {
     const floored = Math.floor(raw)
     return floored >= 1 ? floored : 1
@@ -473,16 +473,16 @@ export function StampStockPage() {
     setOrderListError(null)
     try {
       const modelsData = await stampService.getStampModels()
-      const allSubOrders = await subOrderService.getActiveSubOrdersByBereich('STAMP')
-      const subOrderData = allSubOrders.filter(s => s.status !== 'DONE' && !s.is_cancelled)
+      const allJobs = await jobService.getActiveJobsByBereich('STAMP')
+      const jobData = allJobs.filter(s => s.status !== 'DONE' && !s.is_cancelled)
 
       const activeModels = (modelsData as unknown as StampModelOrderRow[]).slice()
       const modelIdSet = new Set(activeModels.map(model => model.id))
       const demandByModelId = new Map<string, number>()
 
-      for (const subOrderItem of (subOrderData ?? []) as { detail: Json }[]) {
-        const fields = subOrderDetailToFieldMap(subOrderItem.detail)
-        const quantity = parseSubOrderQuantity(fields.stueckzahl)
+      for (const jobItem of (jobData ?? []) as { detail: Json }[]) {
+        const fields = jobDetailToFieldMap(jobItem.detail)
+        const quantity = parseJobQuantity(fields.stueckzahl)
         const modelId = fields.modell_id != null && String(fields.modell_id).trim() !== '' ? String(fields.modell_id) : null
         const cushionModelId = fields.kissen_modell_id != null && String(fields.kissen_modell_id).trim() !== '' ? String(fields.kissen_modell_id) : null
         if (modelId && modelIdSet.has(modelId)) {

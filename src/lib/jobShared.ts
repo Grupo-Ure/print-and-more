@@ -1,7 +1,7 @@
 /**
- * Cross-Bereich helpers shared by every sub-order detail mask.
+ * Cross-Bereich helpers shared by every job detail mask.
  *
- * Every sub-order — regardless of its production department — runs the
+ * Every job — regardless of its production department — runs the
  * same set of common-field checks (delivery, deadline, priority,
  * assignee, typesetting time) plus shared inheritance/eligibility helpers.
  * This module is the single home for those, so per-department detail
@@ -9,9 +9,9 @@
  * delegate here.
  *
  * Key exports:
- * - {@link resolveEffectiveSubOrder}: resolve inherited common fields against the order.
- * - {@link validateSubOrderCommonFields}: per-field error map for the common header.
- * - {@link isSubOrderComplete}: common-field check + per-department content flag.
+ * - {@link resolveEffectiveJob}: resolve inherited common fields against the order.
+ * - {@link validateJobCommonFields}: per-field error map for the common header.
+ * - {@link isJobComplete}: common-field check + per-department content flag.
  * - {@link autoPrepressAllowed}: per-department auto-prepress eligibility (used by the
  *   status manager's `deriveAutomaticStatus`).
  *
@@ -20,36 +20,36 @@
  * identifier surface is English here.
  */
 
-import { type DeliveryChoice, type OrderStatus, type Priority, type SubOrderRow } from '../types/database'
+import { type DeliveryChoice, type OrderStatus, type Priority, type JobRow } from '../types/database'
 
 /**
- * Resolve a sub-order's inherited common fields against its order. A null
+ * Resolve a job's inherited common fields against its order. A null
  * `delivery` / `priority` / `deadline` column means "inherit from the order"; this
- * returns a copy of the sub-order with those three resolved to their effective
+ * returns a copy of the job with those three resolved to their effective
  * values (delivery falling back to `PICKUP` when the order has none). Use this
- * before `validateSubOrderCommonFields` / `isSubOrderComplete` so completeness
+ * before `validateJobCommonFields` / `isJobComplete` so completeness
  * judges the *effective* fields, not the raw (often-null, inheriting) columns.
  *
- * Single source of truth for the resolution — consumed by `SubOrderDetail` (display
+ * Single source of truth for the resolution — consumed by `JobDetail` (display
  * + validation), the status manager (auto-advance completeness), and ContextPanel's
  * manual prepress check.
  */
-export function resolveEffectiveSubOrder(
-  subOrder: SubOrderRow,
+export function resolveEffectiveJob(
+  job: JobRow,
   order: { delivery: DeliveryChoice | null; priority: Priority; deadline: string | null },
-): SubOrderRow {
+): JobRow {
   return {
-    ...subOrder,
-    delivery: subOrder.delivery ?? order.delivery ?? 'PICKUP',
-    priority: subOrder.priority ?? order.priority,
-    deadline: subOrder.deadline ?? order.deadline,
+    ...job,
+    delivery: job.delivery ?? order.delivery ?? 'PICKUP',
+    priority: job.priority ?? order.priority,
+    deadline: job.deadline ?? order.deadline,
   }
 }
 
 const UUID_LOOSE = /^[0-9a-fA-F-]{30,40}$/
 
 /**
- * Whether the status manager is allowed to auto-advance this sub-order into
+ * Whether the status manager is allowed to auto-advance this job into
  * PREPRESS_READY without an explicit user action.
  *
  * Default is allowed; explicitly excluded:
@@ -59,7 +59,7 @@ const UUID_LOOSE = /^[0-9a-fA-F-]{30,40}$/
  *
  * Inside Stamp, only the structured typen are auto-advanced.
  */
-export function autoPrepressAllowed(merged: SubOrderRow): boolean {
+export function autoPrepressAllowed(merged: JobRow): boolean {
   if (merged.department === 'STAMP') {
     if (merged.type === 'OTHER_STAMP') return false
     return (
@@ -80,52 +80,52 @@ export function autoPrepressAllowed(merged: SubOrderRow): boolean {
 }
 
 /**
- * Validate the common header fields every sub-order carries (delivery,
+ * Validate the common header fields every job carries (delivery,
  * deadline, priority, assignee UUID, typesetting minutes).
  *
  * Returns a map of field-key → German error message; empty map means
  * valid. In `ANGEBOT` (quote stage) nothing is required.
  */
-export function validateSubOrderCommonFields(
-  subOrder: Pick<SubOrderRow, 'deadline' | 'delivery' | 'priority' | 'assignee_id' | 'typesetting_minutes'>,
+export function validateJobCommonFields(
+  job: Pick<JobRow, 'deadline' | 'delivery' | 'priority' | 'assignee_id' | 'typesetting_minutes'>,
   status: OrderStatus
 ): Record<string, string> {
   const errors: Record<string, string> = {}
   if (status === 'QUOTE') return errors
-  if (subOrder.delivery !== 'PICKUP' && subOrder.delivery !== 'SHIPPING') errors.lieferung = 'Required'
-  if (!subOrder.deadline) errors.termin = 'Required'
-  if (subOrder.priority !== 'NORMAL' && subOrder.priority !== 'HIGH') {
+  if (job.delivery !== 'PICKUP' && job.delivery !== 'SHIPPING') errors.lieferung = 'Required'
+  if (!job.deadline) errors.termin = 'Required'
+  if (job.priority !== 'NORMAL' && job.priority !== 'HIGH') {
     errors.prioritaet = 'Required'
   }
-  const rawAssigneeId = subOrder.assignee_id
+  const rawAssigneeId = job.assignee_id
   const assigneeId = typeof rawAssigneeId === 'string' ? rawAssigneeId.trim() : ''
   if (assigneeId && !UUID_LOOSE.test(assigneeId)) errors.verantwortlicher_id = 'Valid UUID'
-  if (subOrder.typesetting_minutes != null) {
-    const minutes = Number(subOrder.typesetting_minutes)
+  if (job.typesetting_minutes != null) {
+    const minutes = Number(job.typesetting_minutes)
     if (!Number.isInteger(minutes) || minutes <= 0) errors.satzzeit_minuten = 'Integer > 0'
   }
   return errors
 }
 
 /**
- * Whether the sub-order is complete enough to advance from
+ * Whether the job is complete enough to advance from
  * UNVOLLSTAENDIG. In `ANGEBOT` always true. Otherwise: common header
  * fields must be valid, and the per-Bereich content check must pass —
  * for the JSONB Bereiche that means at least one product exists
- * (`hasProducts`, derived by the caller from `sub_order_products`); for
+ * (`hasProducts`, derived by the caller from `job_products`); for
  * Textile it's the related-table check.
  */
-export function isSubOrderComplete(subOrder: SubOrderRow, status: OrderStatus, hasProducts: boolean): boolean {
+export function isJobComplete(job: JobRow, status: OrderStatus, hasProducts: boolean): boolean {
   if (status === 'QUOTE') return true
-  const errors = validateSubOrderCommonFields(subOrder, status)
+  const errors = validateJobCommonFields(job, status)
   if (Object.keys(errors).length > 0) return false
   if (
-    subOrder.department === 'LFP' ||
-    subOrder.department === 'COPYSHOP' ||
-    subOrder.department === 'STAMP' ||
-    subOrder.department === 'LASER_ENGRAVING' ||
-    subOrder.department === 'OTHER' ||
-    subOrder.department === 'TEXTILE'
+    job.department === 'LFP' ||
+    job.department === 'COPYSHOP' ||
+    job.department === 'STAMP' ||
+    job.department === 'LASER_ENGRAVING' ||
+    job.department === 'OTHER' ||
+    job.department === 'TEXTILE'
   ) {
     return hasProducts
   }

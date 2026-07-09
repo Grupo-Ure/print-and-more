@@ -25,7 +25,7 @@ import { motifLabel } from './textileTypes'
 
 type Errs = Record<string, string>
 
-/** Garment form needs the sub-order's designs (for the link picker) and the
+/** Garment form needs the job's designs (for the link picker) and the
  *  edited product's existing links (for prefill). */
 export type TextileGarmentFormProps = ProductFormProps & {
   motifs: TextileMotifRow[]
@@ -252,15 +252,15 @@ export function TextileGarmentForm(p: TextileGarmentFormProps) {
     } as FormValues,
     onSubmit: ({ value }) => {
       const merged = { ...value, links }
-      if (Object.keys(validateProduct('TEXTILE_GARMENT', merged, p.subOrderStatus)).length > 0) return
+      if (Object.keys(validateProduct('TEXTILE_GARMENT', merged, p.jobStatus)).length > 0) return
       saveProduct.mutate(
         {
           input: buildWriteInput({
-            product: p.product, subOrder: p.subOrder, type: 'TEXTILE_GARMENT',
+            product: p.product, job: p.job, type: 'TEXTILE_GARMENT',
             sortOrder: p.sortOrder, quantity: qtyOut(value.quantity), child: textileGarmentToChild(value),
           }),
           fileIds: [],
-          subOrderId: p.subOrder.id,
+          jobId: p.job.id,
           links,
         },
         { onSuccess: ({ products }) => p.onSaved(products), onError: () => showError(p.product ? 'Garment could not be saved' : 'Garment could not be added') },
@@ -272,7 +272,7 @@ export function TextileGarmentForm(p: TextileGarmentFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('TEXTILE_GARMENT', { ...values, links }, p.subOrderStatus) as Errs
+          const errors = validateProduct('TEXTILE_GARMENT', { ...values, links }, p.jobStatus) as Errs
           const origin = String(values.origin ?? '')
           return (
             <>

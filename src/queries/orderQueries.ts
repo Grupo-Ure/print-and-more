@@ -191,16 +191,16 @@ export function useArchiveOrder() {
   })
 }
 
-/** Cancel order: cancel all sub-orders + archive. Writes a CANCELLED history entry. */
-export function useArchiveOrderWithCancelledSubOrders() {
+/** Cancel order: cancel all jobs + archive. Writes a CANCELLED history entry. */
+export function useArchiveOrderWithCancelledJobs() {
   const queryClient = useQueryClient()
   return useMutation<void, Error, { id: string }>({
     mutationFn: async ({ id }) => {
-      await orderService.archiveOrderWithCancelledSubOrders(id)
+      await orderService.archiveOrderWithCancelledJobs(id)
       await historyService.writeHistory({ order_id: id, event_type: 'CANCELLED' })
     },
     onSuccess: (_void, { id }) => {
-      void queryClient.invalidateQueries({ queryKey: ['subOrders', 'by-order-id', id] })
+      void queryClient.invalidateQueries({ queryKey: ['jobs', 'by-order-id', id] })
       void queryClient.invalidateQueries({ queryKey: orderKeys.byId(id) })
       void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
     },

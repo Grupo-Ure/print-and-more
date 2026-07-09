@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
-import { subOrderDepartmentLabel } from '../const/departmentAbbreviation'
-import { SUB_ORDER_DEPARTMENTS, type Department, type OrderStatus } from '../types/database'
+import { jobDepartmentLabel } from '../const/departmentAbbreviation'
+import { DEPARTMENTS, type Department, type OrderStatus } from '../types/database'
 import { authService } from '../services/authService'
 import { useOrderParams } from '../hooks/useOrderParams'
-import { useSubOrdersByOrderId, useCreateSubOrder } from '../queries/subOrderQueries'
+import { useJobsByOrderId, useCreateJob } from '../queries/jobQueries'
 import { useToast } from './Toast'
 import { Button } from './ui/button'
 import {
@@ -32,8 +32,8 @@ function JobStatusTrack({ status }: { status: OrderStatus }) {
 }
 
 export function JobList() {
-  const { activeOrderId, activeSubOrderId, setActiveSubOrder } = useOrderParams()
-  const jobsQuery = useSubOrdersByOrderId(activeOrderId)
+  const { activeOrderId, activeJobId, setActiveJob } = useOrderParams()
+  const jobsQuery = useJobsByOrderId(activeOrderId)
   const [dialogOpen, setDialogOpen] = useState(false)
 
   const visibleJobs = (jobsQuery.data ?? []).filter(job => !job.is_cancelled)
@@ -49,11 +49,11 @@ export function JobList() {
               key={job.id}
               className={cn(
                 'flex items-center justify-between w-full cursor-pointer p-2',
-                job.id === activeSubOrderId && 'bg-primary/10',
+                job.id === activeJobId && 'bg-primary/10',
               )}
-              onClick={() => setActiveSubOrder(job.id)}
+              onClick={() => setActiveJob(job.id)}
             >
-              <span>{subOrderDepartmentLabel(job.department)}</span>
+              <span>{jobDepartmentLabel(job.department)}</span>
               <JobStatusTrack status={job.status} />
             </li>
           ))}
@@ -70,12 +70,12 @@ type AddJobDialogProps = {
 }
 
 function AddJobDialog({ open, onOpenChange }: AddJobDialogProps) {
-  const { activeOrderId, setActiveSubOrder } = useOrderParams()
+  const { activeOrderId, setActiveJob } = useOrderParams()
   const { showError } = useToast()
-  const createSubOrder = useCreateSubOrder()
+  const createJob = useCreateJob()
 
   const handleDepartmentSelected = (department: Department) => {
-    if (!activeOrderId || createSubOrder.isPending) return
+    if (!activeOrderId || createJob.isPending) return
 
     void (async () => {
       const user = await authService.getUser()
@@ -83,7 +83,7 @@ function AddJobDialog({ open, onOpenChange }: AddJobDialogProps) {
         showError('Not logged in')
         return
       }
-      createSubOrder.mutate(
+      createJob.mutate(
         {
           order_id: activeOrderId,
           department,
@@ -102,7 +102,7 @@ function AddJobDialog({ open, onOpenChange }: AddJobDialogProps) {
         },
         {
           onSuccess: created => {
-            setActiveSubOrder(created.id)
+            setActiveJob(created.id)
             onOpenChange(false)
           },
           onError: () => showError('Error creating job'),
@@ -112,22 +112,22 @@ function AddJobDialog({ open, onOpenChange }: AddJobDialogProps) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={next => !createSubOrder.isPending && onOpenChange(next)}>
+    <Dialog open={open} onOpenChange={next => !createJob.isPending && onOpenChange(next)}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New Job</DialogTitle>
           <DialogDescription>Select a department:</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-2">
-          {SUB_ORDER_DEPARTMENTS.map(department => (
+          {DEPARTMENTS.map(department => (
             <Button
               key={department}
               type="button"
               variant="outline"
-              disabled={createSubOrder.isPending}
+              disabled={createJob.isPending}
               onClick={() => handleDepartmentSelected(department)}
             >
-              {subOrderDepartmentLabel(department)}
+              {jobDepartmentLabel(department)}
             </Button>
           ))}
         </div>

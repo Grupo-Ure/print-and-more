@@ -54,7 +54,7 @@ export function DeleteOrderDialog({ order, onCancel, onConfirmed }: Props) {
         <p className="text-sm text-muted-foreground">
           You are about to permanently delete the quote for{' '}
           <strong className="text-foreground font-medium">{customerLabel}</strong>.
-          All sub-orders and linked files will be removed. This cannot be undone.
+          All jobs and linked files will be removed. This cannot be undone.
         </p>
 
         {error && <p className="text-sm text-destructive">{error}</p>}

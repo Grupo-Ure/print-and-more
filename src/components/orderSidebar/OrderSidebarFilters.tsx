@@ -1,5 +1,5 @@
-import { SUB_ORDER_DEPARTMENTS, type OrderStatus } from '../../types/database'
-import { SUB_ORDER_DEPARTMENT_LABELS } from '../../const/departmentAbbreviation'
+import { DEPARTMENTS, type OrderStatus } from '../../types/database'
+import { JOB_DEPARTMENT_LABELS } from '../../const/departmentAbbreviation'
 import { DateInput } from '../DateInput'
 import { STATUS_ORDER, type FilterActions, type FilterState } from './useOrderSidebarFilter'
 
@@ -64,9 +64,9 @@ export function OrderSidebarFilters({ filter, actions }: Props) {
             className="w-full box-border px-1.5 py-1 text-[13px] border border-neutral-200 rounded-md bg-white"
           >
             <option value="All">All</option>
-            {SUB_ORDER_DEPARTMENTS.map(dep => (
+            {DEPARTMENTS.map(dep => (
               <option key={dep} value={dep}>
-                {SUB_ORDER_DEPARTMENT_LABELS[dep]}
+                {JOB_DEPARTMENT_LABELS[dep]}
               </option>
             ))}
           </select>

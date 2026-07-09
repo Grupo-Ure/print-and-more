@@ -14,7 +14,7 @@ function buildChild(values: FormValues): ProductChildInsert {
   return { description: strOut(values.description) } as ProductChildInsert
 }
 
-export function OtherForm({ subOrder, subOrderStatus, product, orderFiles, initialFileIds, sortOrder, onSaved, onCancel }: ProductFormProps) {
+export function OtherForm({ job, jobStatus, product, orderFiles, initialFileIds, sortOrder, onSaved, onCancel }: ProductFormProps) {
   const saveProduct = useSaveProduct()
   const { showError } = useToast()
   const [fileIds, setFileIds] = useState<string[]>(initialFileIds)
@@ -22,11 +22,11 @@ export function OtherForm({ subOrder, subOrderStatus, product, orderFiles, initi
   const form = useForm({
     defaultValues: { description: '', quantity: '', ...valuesFromProduct(product) } as FormValues,
     onSubmit: ({ value }) => {
-      if (Object.keys(validateProduct('OTHER', value, subOrderStatus)).length > 0) return
+      if (Object.keys(validateProduct('OTHER', value, jobStatus)).length > 0) return
       const input: ProductWriteInput = {
         ...(product ? { id: product.id } : {}),
-        department_order_id: subOrder.id,
-        department: subOrder.department,
+        job_id: job.id,
+        department: job.department,
         type: 'OTHER',
         quantity: qtyOut(value.quantity),
         notes: null,
@@ -34,7 +34,7 @@ export function OtherForm({ subOrder, subOrderStatus, product, orderFiles, initi
         child: buildChild(value),
       }
       saveProduct.mutate(
-        { input, fileIds, subOrderId: subOrder.id },
+        { input, fileIds, jobId: job.id },
         { onSuccess: ({ products }) => onSaved(products), onError: () => showError(product ? 'Product could not be saved' : 'Product could not be added') },
       )
     },
@@ -51,7 +51,7 @@ export function OtherForm({ subOrder, subOrderStatus, product, orderFiles, initi
     >
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('OTHER', values, subOrderStatus)
+          const errors = validateProduct('OTHER', values, jobStatus)
           return (
             <>
               <form.Field name="description">

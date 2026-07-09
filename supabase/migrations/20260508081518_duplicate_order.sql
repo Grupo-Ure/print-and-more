@@ -7,10 +7,10 @@
  * the entire clone back.
  *
  * Copies the source order's customer into a new order with status QUOTE, then
- * clones each selected sub-order (status reset to INCOMPLETE). Every department
+ * clones each selected job (status reset to INCOMPLETE). Every department
  * — TEXTILE included — copies its department_products rows, their typed child,
  * and their product_files links through one generic loop. For TEXTILE it also
- * pre-copies the per-sub-order designs drawer (textile_motifs, remapping ids)
+ * pre-copies the per-job designs drawer (textile_motifs, remapping ids)
  * and the garment products' textile_motif_links (remapping motif ids). Finally
  * writes one ORDER_CREATED history row tagged with `duplicated_from`.
  * SECURITY DEFINER.
@@ -19,21 +19,21 @@
  * @param new_priority           priority for the new order
  * @param new_delivery           delivery type for the new order
  * @param new_deadline           deadline for the new order
- * @param selected_department_order_ids which of the source sub-orders to copy
+ * @param selected_job_ids which of the source jobs to copy
  * @param created_by_user_id     user recorded on the history row
  * @returns the new order's id
  */
-CREATE OR REPLACE FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_department_order_ids" "uuid"[], "created_by_user_id" "uuid") RETURNS "uuid"
+CREATE OR REPLACE FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_job_ids" "uuid"[], "created_by_user_id" "uuid") RETURNS "uuid"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 DECLARE
   source_customer_id    UUID;
   new_order_id          UUID;
-  new_department_order_id      UUID;
+  new_job_id      UUID;
   new_product_id        UUID;
   source_product        RECORD;
   source_motif          RECORD;
-  source_department_order      RECORD;
+  source_job      RECORD;
   motif_id_map          JSONB := '{}'::JSONB;
   new_motif_id          UUID;
 BEGIN
@@ -48,23 +48,23 @@ BEGIN
   VALUES (source_customer_id, 'QUOTE', new_priority, new_delivery, new_deadline)
   RETURNING id INTO new_order_id;
 
-  -- Sub-orders
-  FOR source_department_order IN
-    SELECT * FROM department_orders WHERE id = ANY(selected_department_order_ids)
+  -- Jobs
+  FOR source_job IN
+    SELECT * FROM jobs WHERE id = ANY(selected_job_ids)
   LOOP
-    INSERT INTO department_orders (order_id, department, type, status, priority, delivery, detail)
-    VALUES (new_order_id, source_department_order.department, source_department_order.type, 'INCOMPLETE', source_department_order.priority, source_department_order.delivery, source_department_order.detail)
-    RETURNING id INTO new_department_order_id;
+    INSERT INTO jobs (order_id, department, type, status, priority, delivery, detail)
+    VALUES (new_order_id, source_job.department, source_job.type, 'INCOMPLETE', source_job.priority, source_job.delivery, source_job.detail)
+    RETURNING id INTO new_job_id;
 
-    -- TEXTILE: copy the per-sub-order designs drawer first, remapping motif ids
+    -- TEXTILE: copy the per-job designs drawer first, remapping motif ids
     -- so the garment products' links below can point at the new designs.
     motif_id_map := '{}'::JSONB;
-    IF source_department_order.department = 'TEXTILE' THEN
+    IF source_job.department = 'TEXTILE' THEN
       FOR source_motif IN
-        SELECT * FROM textile_motifs WHERE department_order_id = source_department_order.id
+        SELECT * FROM textile_motifs WHERE job_id = source_job.id
       LOOP
-        INSERT INTO textile_motifs (department_order_id, type, content, color, font_class, font_name, file_id)
-        VALUES (new_department_order_id, source_motif.type, source_motif.content, source_motif.color, source_motif.font_class, source_motif.font_name, source_motif.file_id)
+        INSERT INTO textile_motifs (job_id, type, content, color, font_class, font_name, file_id)
+        VALUES (new_job_id, source_motif.type, source_motif.content, source_motif.color, source_motif.font_class, source_motif.font_name, source_motif.file_id)
         RETURNING id INTO new_motif_id;
         motif_id_map := motif_id_map || jsonb_build_object(source_motif.id::TEXT, new_motif_id::TEXT);
       END LOOP;
@@ -72,10 +72,10 @@ BEGIN
 
     -- Products (every department, including TEXTILE garment lines)
     FOR source_product IN
-      SELECT * FROM department_products WHERE department_order_id = source_department_order.id ORDER BY sort_order
+      SELECT * FROM department_products WHERE job_id = source_job.id ORDER BY sort_order
     LOOP
-        INSERT INTO department_products (department_order_id, department, type, quantity, notes, sort_order)
-        VALUES (new_department_order_id, source_product.department, source_product.type, source_product.quantity, source_product.notes, source_product.sort_order)
+        INSERT INTO department_products (job_id, department, type, quantity, notes, sort_order)
+        VALUES (new_job_id, source_product.department, source_product.type, source_product.quantity, source_product.notes, source_product.sort_order)
         RETURNING id INTO new_product_id;
 
         -- Copy the typed child row (one arm per product type)
@@ -205,10 +205,10 @@ BEGIN
 END;
 $$;
 
-ALTER FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_department_order_ids" "uuid"[], "created_by_user_id" "uuid") OWNER TO "postgres";
+ALTER FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_job_ids" "uuid"[], "created_by_user_id" "uuid") OWNER TO "postgres";
 
-GRANT ALL ON FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_department_order_ids" "uuid"[], "created_by_user_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_job_ids" "uuid"[], "created_by_user_id" "uuid") TO "anon";
 
-GRANT ALL ON FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_department_order_ids" "uuid"[], "created_by_user_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_job_ids" "uuid"[], "created_by_user_id" "uuid") TO "authenticated";
 
-GRANT ALL ON FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_department_order_ids" "uuid"[], "created_by_user_id" "uuid") TO "service_role";
+GRANT ALL ON FUNCTION "public"."duplicate_order"("source_order_id" "uuid", "new_priority" "public"."priority_type", "new_delivery" "public"."delivery_type", "new_deadline" "date", "selected_job_ids" "uuid"[], "created_by_user_id" "uuid") TO "service_role";

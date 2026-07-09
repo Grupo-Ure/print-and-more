@@ -7,12 +7,12 @@
 import { useCallback, useMemo, useState } from 'react'
 import {
   useDeleteProduct,
-  useProductFilesBySubOrderId,
-  useProductsBySubOrderId,
+  useProductFilesByJobId,
+  useProductsByJobId,
 } from '../../queries/productQueries'
-import type { OrderStatus, SubOrderRow } from '../../types/database'
+import type { OrderStatus, JobRow } from '../../types/database'
 import type { LoadedProduct } from '../../types/product'
-import type { ProductFileAssignment } from '../../services/subOrderProductService'
+import type { ProductFileAssignment } from '../../services/departmentProductService'
 import { useToast } from '../Toast'
 
 /** Which form (if any) the detail is showing. */
@@ -22,16 +22,16 @@ export type EditorMode =
   | { kind: 'edit'; product: LoadedProduct }
 
 export function useProductEditor(
-  subOrder: SubOrderRow,
-  subOrderStatus: OrderStatus,
+  job: JobRow,
+  jobStatus: OrderStatus,
 ) {
   const { showError } = useToast()
 
-  const productsQuery = useProductsBySubOrderId(subOrder.id)
+  const productsQuery = useProductsByJobId(job.id)
   const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data])
   const productsLoading = productsQuery.isLoading
 
-  const filesQuery = useProductFilesBySubOrderId(subOrder.id)
+  const filesQuery = useProductFilesByJobId(job.id)
   const filesByProduct = useMemo(() => {
     const map: Record<string, ProductFileAssignment[]> = {}
     for (const row of filesQuery.data ?? []) {
@@ -44,8 +44,8 @@ export function useProductEditor(
 
   const [mode, setMode] = useState<EditorMode>({ kind: 'idle' })
 
-  // Products are read-only once the sub-order is released to production or done.
-  const isReadOnly = subOrderStatus === 'PRODUCTION_READY' || subOrderStatus === 'DONE'
+  // Products are read-only once the job is released to production or done.
+  const isReadOnly = jobStatus === 'PRODUCTION_READY' || jobStatus === 'DONE'
 
   const openAdd = useCallback(() => setMode({ kind: 'add' }), [])
   const openEdit = useCallback((product: LoadedProduct) => setMode({ kind: 'edit', product }), [])
@@ -59,7 +59,7 @@ export function useProductEditor(
   const handleDelete = useCallback(
     (id: string) => {
       deleteProduct.mutate(
-        { id, subOrderId: subOrder.id },
+        { id, jobId: job.id },
         {
           onSuccess: () => {
             setMode(m => (m.kind === 'edit' && m.product.id === id ? { kind: 'idle' } : m))
@@ -68,7 +68,7 @@ export function useProductEditor(
         },
       )
     },
-    [deleteProduct, subOrder.id, showError],
+    [deleteProduct, job.id, showError],
   )
 
   /** File ids currently assigned to a product (for edit-prefill). */

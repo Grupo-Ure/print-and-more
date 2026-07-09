@@ -65,7 +65,7 @@ export type LoadedProduct = ProductParent & { child: ProductChildRow }
 /** Input to create or update a product (id present = update). */
 export type ProductWriteInput = {
   id?: string
-  department_order_id: string
+  job_id: string
   department: string
   type: string
   quantity: number | null

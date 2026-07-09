@@ -18,7 +18,7 @@ export type OrderListEntry = {
   is_emergency: boolean
   customer_id: string
   customers: { name: string } | null
-  sub_orders: { department: string; status: string }[] | null
+  jobs: { department: string; status: string }[] | null
 }
 
 /**
@@ -34,7 +34,7 @@ function flattenCustomerJoin<T extends { customers: unknown }>(row: T): T {
 }
 
 const ORDER_LIST_SELECT =
-  'id, order_number, status, created_at, deadline, priority, is_emergency, customer_id, customers(name), sub_orders:department_orders(department, status)'
+  'id, order_number, status, created_at, deadline, priority, is_emergency, customer_id, customers(name), jobs(department, status)'
 
 export type OrderListParams = {
   is_archived?: boolean
@@ -54,10 +54,10 @@ const ORDER_LIST_COLUMNS = 'id, order_number, status, created_at, customers(name
  * `customers(...)` join return it flattened to a single row via
  * {@link flattenCustomerJoin}.
  *
- * Note on status: order status is *derived* from the sub-orders, never set by the
+ * Note on status: order status is *derived* from the jobs, never set by the
  * user directly except for terminal transitions. The derivation lives in the pure
  * `calculateOrderStatus` (src/lib/orderStatus.ts); the query layer persists it via
- * `reconcileOrderStatus` (src/queries/subOrderQueries.ts).
+ * `reconcileOrderStatus` (src/queries/jobQueries.ts).
  */
 class OrderService {
   /** Filtered order list for the sidebar (archived flag, customer, status, deadline/intake ranges). Newest first. */
@@ -127,9 +127,9 @@ class OrderService {
   /**
    * Write an explicit status to the order — a *direct* set, no derivation.
    * Use this only for deliberate manual transitions where the caller already knows
-   * the target status. To re-derive status from the sub-orders, compute it with the
+   * the target status. To re-derive status from the jobs, compute it with the
    * pure `calculateOrderStatus` and persist via `reconcileOrderStatus`
-   * (src/queries/subOrderQueries.ts).
+   * (src/queries/jobQueries.ts).
    */
   async setOrderStatus(id: string, status: OrderStatus): Promise<Auftrag> {
     const { data, error } = await supabase
@@ -151,10 +151,10 @@ class OrderService {
     if (error) throw error
   }
 
-  /** Cancel all not-yet-cancelled sub-orders, then archive the order. Two writes, not transactional. */
-  async archiveOrderWithCancelledSubOrders(orderId: string): Promise<void> {
+  /** Cancel all not-yet-cancelled jobs, then archive the order. Two writes, not transactional. */
+  async archiveOrderWithCancelledJobs(orderId: string): Promise<void> {
     const { error: subError } = await supabase
-      .from('department_orders')
+      .from('jobs')
       .update({ is_cancelled: true })
       .eq('order_id', orderId)
       .neq('is_cancelled', true)
@@ -183,7 +183,7 @@ class OrderService {
 
 
   /**
-   * Deep-copy an order via the `duplicate_order` Postgres RPC — sub-orders, products
+   * Deep-copy an order via the `duplicate_order` Postgres RPC — jobs, products
    * (incl. typed child by `type`), `product_files`, and textile rows — in one
    * transaction. This stays server-side *because* it must be atomic; it's the one
    * status/data RPC deliberately kept (unlike the retired `fn_calculate_order_status`).
@@ -194,7 +194,7 @@ class OrderService {
     new_priority: PriorityEnum | null
     new_delivery: DeliveryEnum | null
     new_deadline: string | null
-    selected_department_order_ids: string[]
+    selected_job_ids: string[]
     created_by_user_id: string | null
   }): Promise<string> {
     const { data, error } = await supabase.rpc('duplicate_order', params as unknown as DuplicateOrderArgs)

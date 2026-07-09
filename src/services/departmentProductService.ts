@@ -40,13 +40,13 @@ async function deleteChild(table: ChildTable, id: string): Promise<void> {
   if (error) throw error
 }
 
-class SubOrderProductService {
-  /** Parent rows + their typed child rows for a sub-order, ordered by sort_order. */
-  async getProductsBySubOrderId(subOrderId: string): Promise<LoadedProduct[]> {
+class DepartmentProductService {
+  /** Parent rows + their typed child rows for a job, ordered by sort_order. */
+  async getProductsByJobId(jobId: string): Promise<LoadedProduct[]> {
     const { data, error } = await supabase
       .from('department_products')
       .select('*')
-      .eq('department_order_id', subOrderId)
+      .eq('job_id', jobId)
       .order('sort_order')
     if (error) throw error
     const parents = data ?? []
@@ -74,7 +74,7 @@ class SubOrderProductService {
     const { data: parent, error } = await supabase
       .from('department_products')
       .insert({
-        department_order_id: input.department_order_id,
+        job_id: input.job_id,
         department: input.department,
         type: input.type,
         quantity: input.quantity,
@@ -187,4 +187,4 @@ class SubOrderProductService {
   }
 }
 
-export const subOrderProductService = new SubOrderProductService()
+export const departmentProductService = new DepartmentProductService()

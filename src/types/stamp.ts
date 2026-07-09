@@ -10,7 +10,7 @@
  * and replacement plates (Stempelplatte) — which the validator handles
  * via additional `typ` values declared inside `validateStampDetail`.
  *
- * The shape of a Stamp sub-order's `detail` JSONB column varies by typ.
+ * The shape of a Stamp job's `detail` JSONB column varies by typ.
  * See `validateStampDetail` in `src/lib/stamp/` for the per-typ field
  * requirements; for `TRODAT_PRINTY` and `WOODEN_STAMP` the `detail` also
  * carries a `modell_id` selected from the Stamp catalog
@@ -27,7 +27,7 @@ export const STAMP_TYPES = [
   'OTHER_STAMP',
 ] as const
 
-/** Discriminator for the kind of stamp work, stored in `teilauftraege.typ`. */
+/** Discriminator for the kind of stamp work, stored in `jobs.type`. */
 export type StampType = (typeof STAMP_TYPES)[number]
 
 /** Display labels for {@link StampType}, rendered in dropdowns and tabs. */
@@ -54,7 +54,7 @@ export const STAMP_COLOR_LABELS: Record<StampColor, string> = {
 }
 
 /**
- * Shape of the JSONB `detail` column for a Stamp sub-order.
+ * Shape of the JSONB `detail` column for a Stamp job.
  *
  * Keys vary per `typ` — only set keys relevant to the current typ. Kept
  * with the `Json` suffix to disambiguate from the `StampDetail` React

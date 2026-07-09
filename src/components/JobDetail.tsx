@@ -1,16 +1,16 @@
-import { useCancelSubOrder, useDeleteSubOrder, useEffectiveSubOrder, useSetCustomerApproval, useSubOrderById, useUpdateSubOrder } from '../queries/subOrderQueries'
+import { useCancelJob, useDeleteJob, useEffectiveJob, useSetCustomerApproval, useJobById, useUpdateJob } from '../queries/jobQueries'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import { useOrderById } from '../queries/orderQueries'
 import { useStatusManager } from '../queries/useStatusManager'
 import { useOrderParams } from '../hooks/useOrderParams'
 import { departmentAbbreviation } from '../const/departmentAbbreviation'
 import { customerMeetsPrepressContact } from '../lib/customer'
-import { validateSubOrderCommonFields } from '../lib/subOrderShared'
+import { validateJobCommonFields } from '../lib/jobShared'
 import {
   type DeliveryChoice,
   type Priority,
-  type SubOrderRow,
-  type SubOrderUpdate,
+  type JobRow,
+  type JobUpdate,
 } from '../types/database'
 import { DeadlinePicker } from './fields/DeadlinePicker'
 import { DeliverySelect } from './fields/DeliverySelect'
@@ -27,66 +27,66 @@ import { TextileProducts } from './products/departments/TextileProducts'
 import type { FileRow } from '../services/fileService'
 import { toDateOnly, todayDateOnly } from '../lib/formatDate'
 import { StatusBadge } from './StatusBadge'
-import { SubOrderReleaseButton } from './SubOrderReleaseButton'
-import { SubOrderProductionBanner } from './SubOrderProductionBanner'
+import { JobReleaseButton } from './JobReleaseButton'
+import { JobProductionBanner } from './JobProductionBanner'
 import { Button } from './ui/button'
 import { Ban, FileDown, Trash2 } from 'lucide-react'
 import './WorkArea.css'
 import { Separator } from './ui/separator'
 
-export function SubOrderDetail({
+export function JobDetail({
   orderFiles,
   onUpdated,
 }: {
   orderFiles: FileRow[]
-  onUpdated: (updatedSubOrder: SubOrderRow) => void
+  onUpdated: (updatedJob: JobRow) => void
 }) {
-  const { activeOrderId, activeSubOrderId } = useOrderParams()
+  const { activeOrderId, activeJobId } = useOrderParams()
   const { data: order } = useOrderById(activeOrderId)
-  const subOrder = useSubOrderById(activeOrderId, activeSubOrderId) // raw row (override/inherit state)
-  const effectiveSuborder = useEffectiveSubOrder(activeOrderId, activeSubOrderId) // inherited fields resolved
-  const updateSubOrder = useUpdateSubOrder()
+  const job = useJobById(activeOrderId, activeJobId) // raw row (override/inherit state)
+  const effectiveJob = useEffectiveJob(activeOrderId, activeJobId) // inherited fields resolved
+  const updateJob = useUpdateJob()
   const setCustomerApproval = useSetCustomerApproval()
-  const cancelSubOrder = useCancelSubOrder()
-  const deleteSubOrder = useDeleteSubOrder()
+  const cancelJob = useCancelJob()
+  const deleteJob = useDeleteJob()
   const { showError } = useToast()
 
   // Status manager: auto-derives and persists the INCOMPLETE ↔ PREPRESS_READY
-  // transition for the active sub-order. Single owner (one SubOrderDetail is mounted
+  // transition for the active job. Single owner (one JobDetail is mounted
   // at a time). Called unconditionally (before the early return) per the rules of hooks.
-  useStatusManager(activeOrderId, activeSubOrderId)
+  useStatusManager(activeOrderId, activeJobId)
 
-  if (!order || !subOrder || !effectiveSuborder) return null
+  if (!order || !job || !effectiveJob) return null
 
   const handleDownloadPdf = async () => {
-    const ok = await generateAndDownloadPdf(subOrder.id, order.id)
+    const ok = await generateAndDownloadPdf(job.id, order.id)
     if (!ok) showError('PDF could not be generated')
   }
 
   const handleCancel = async () => {
-    if (!window.confirm('Cancel this department order?')) return
+    if (!window.confirm('Cancel this job?')) return
     try {
-      await cancelSubOrder.mutateAsync({ id: subOrder.id, orderId: subOrder.order_id })
+      await cancelJob.mutateAsync({ id: job.id, orderId: job.order_id })
     } catch {
-      showError('Department order could not be cancelled')
+      showError('Job could not be cancelled')
     }
   }
 
   const handleDelete = async () => {
-    if (!window.confirm('Permanently delete this department order?')) return
+    if (!window.confirm('Permanently delete this job?')) return
     try {
-      await deleteSubOrder.mutateAsync({ id: subOrder.id, orderId: subOrder.order_id })
+      await deleteJob.mutateAsync({ id: job.id, orderId: job.order_id })
     } catch {
-      showError('Department order could not be deleted')
+      showError('Job could not be deleted')
     }
   }
 
-  // Persist a field edit straight to the DB (optimistic via useUpdateSubOrder —
+  // Persist a field edit straight to the DB (optimistic via useUpdateJob —
   // instant UI, rollback on error). No status calculation here: status is driven
   // by the status manager (decoupled — see STATUS_WORKFLOW_SPEC.md).
-  const handleUpdateSuborder = (patch: SubOrderUpdate) => {
-    updateSubOrder.mutate(
-      { id: subOrder.id, orderId: subOrder.order_id, patch },
+  const handleUpdateJob = (patch: JobUpdate) => {
+    updateJob.mutate(
+      { id: job.id, orderId: job.order_id, patch },
       { onSuccess: row => onUpdated(row), onError: () => showError('Save failed') },
     )
   }
@@ -96,34 +96,34 @@ export function SubOrderDetail({
   const orderPriorityMode: Priority = order.priority
 
   const customerMeetsPrepressRequirements = customerMeetsPrepressContact(order.customers)
-  const shouldValidate = subOrder.status !== 'QUOTE'
+  const shouldValidate = job.status !== 'QUOTE'
 
-  // A field is "separate" purely when the sub-order carries its own value (the
+  // A field is "separate" purely when the job carries its own value (the
   // column is non-null); a null column means the toggle is off and the order's
   // value is inherited. The equality-collapse — a user setting the value equal to the
   // order's clears it back to inherit — lives in each field's onChange, never here, so
   // it can't fire from a toggle or an order change.
-  const hasSeparateDelivery = subOrder.delivery != null
-  const hasSeparatePriority = subOrder.priority != null
-  const hasSeparateDeadline = subOrder.deadline != null
+  const hasSeparateDelivery = job.delivery != null
+  const hasSeparatePriority = job.priority != null
+  const hasSeparateDeadline = job.deadline != null
 
-  // Effective (inherited-resolved) values come from useEffectiveSubOrder.
-  const effectiveDelivery = effectiveSuborder.delivery as DeliveryChoice
-  const effectivePriority = effectiveSuborder.priority ?? orderPriorityMode
-  const effectiveDeadline = effectiveSuborder.deadline
+  // Effective (inherited-resolved) values come from useEffectiveJob.
+  const effectiveDelivery = effectiveJob.delivery as DeliveryChoice
+  const effectivePriority = effectiveJob.priority ?? orderPriorityMode
+  const effectiveDeadline = effectiveJob.deadline
   const deadlineIso = toDateOnly(effectiveDeadline) ?? ''
 
-  const validationErrors = validateSubOrderCommonFields(effectiveSuborder, subOrder.status)
+  const validationErrors = validateJobCommonFields(effectiveJob, job.status)
   // In production a subset of fields is locked; once DONE everything is read-only.
-  const isDone = subOrder.status === 'DONE'
-  const isLocked = subOrder.status === 'PRODUCTION_READY' || isDone
+  const isDone = job.status === 'DONE'
+  const isLocked = job.status === 'PRODUCTION_READY' || isDone
 
   return (
     <div className="flex flex-col gap-4">
-      <SubOrderProductionBanner subOrder={subOrder} />
-      <div className="td-kopf" aria-label="Sub-order">
-        <span className="td-bkz">[{departmentAbbreviation(subOrder.department)}]</span>
-        <StatusBadge status={subOrder.status} />
+      <JobProductionBanner job={job} />
+      <div className="td-kopf" aria-label="Job">
+        <span className="td-bkz">[{departmentAbbreviation(job.department)}]</span>
+        <StatusBadge status={job.status} />
         <div className="flex items-center gap-1">
           <Button
             type="button"
@@ -135,11 +135,11 @@ export function SubOrderDetail({
             Download PDF
           </Button>
 
-          {subOrder.status === 'INCOMPLETE' ? (
+          {job.status === 'INCOMPLETE' ? (
             <Button
               type="button"
               variant="ghost"
-              disabled={deleteSubOrder.isPending}
+              disabled={deleteJob.isPending}
               onClick={() => void handleDelete()}
               size="sm"
               className="text-destructive hover:text-destructive"
@@ -151,7 +151,7 @@ export function SubOrderDetail({
             <Button
               type="button"
               variant="ghost"
-              disabled={subOrder.is_cancelled || subOrder.status === 'PRODUCTION_READY' || subOrder.status === 'DONE' || cancelSubOrder.isPending}
+              disabled={job.is_cancelled || job.status === 'PRODUCTION_READY' || job.status === 'DONE' || cancelJob.isPending}
               onClick={() => void handleCancel()}
               size="sm"
               className="text-destructive hover:text-destructive"
@@ -162,15 +162,15 @@ export function SubOrderDetail({
           )}
         </div>
 
-        <SubOrderReleaseButton subOrder={subOrder} orderNumber={order.order_number ?? null} />
+        <JobReleaseButton job={job} orderNumber={order.order_number ?? null} />
       </div>
       {shouldValidate &&
-        subOrder.department !== 'OTHER' &&
+        job.department !== 'OTHER' &&
         !customerMeetsPrepressRequirements &&
-        (subOrder.department === 'LFP' ||
-          subOrder.department === 'COPYSHOP' ||
-          (subOrder.department === 'STAMP' && subOrder.type !== 'OTHER_STAMP') ||
-          (subOrder.department === 'LASER_ENGRAVING' && subOrder.type !== 'OTHER_LASER')) && (
+        (job.department === 'LFP' ||
+          job.department === 'COPYSHOP' ||
+          (job.department === 'STAMP' && job.type !== 'OTHER_STAMP') ||
+          (job.department === 'LASER_ENGRAVING' && job.type !== 'OTHER_LASER')) && (
           <p className="ber-hinweis">For auto-PREPRESS: Customer needs name and email or phone.</p>
         )}
       <section>
@@ -185,9 +185,9 @@ export function SubOrderDetail({
                 checked={hasSeparateDeadline}
                 onCheckedChange={checked => {
                   if (checked !== true) {
-                    handleUpdateSuborder({ deadline: null })
+                    handleUpdateJob({ deadline: null })
                   } else {
-                    handleUpdateSuborder({ deadline: effectiveDeadline ?? todayDateOnly() })
+                    handleUpdateJob({ deadline: effectiveDeadline ?? todayDateOnly() })
                   }
                 }}
               />
@@ -195,12 +195,12 @@ export function SubOrderDetail({
             </label>
             <DeadlinePicker
               disabled={!hasSeparateDeadline || isLocked}
-              value={toDateOnly(subOrder.deadline) ?? deadlineIso}
+              value={toDateOnly(job.deadline) ?? deadlineIso}
               onChange={value => {
                 if (toDateOnly(value) === toDateOnly(order.deadline)) {
-                  handleUpdateSuborder({ deadline: null })
-                } else if ((value ?? '') !== (toDateOnly(subOrder.deadline) ?? '')) {
-                  handleUpdateSuborder({ deadline: value })
+                  handleUpdateJob({ deadline: null })
+                } else if ((value ?? '') !== (toDateOnly(job.deadline) ?? '')) {
+                  handleUpdateJob({ deadline: value })
                 }
               }}
             />
@@ -213,9 +213,9 @@ export function SubOrderDetail({
                 checked={hasSeparateDelivery}
                 onCheckedChange={checked => {
                   if (checked !== true) {
-                    handleUpdateSuborder({ delivery: null })
+                    handleUpdateJob({ delivery: null })
                   } else {
-                    handleUpdateSuborder({ delivery: orderDeliveryMode })
+                    handleUpdateJob({ delivery: orderDeliveryMode })
                   }
                 }}
               />
@@ -226,9 +226,9 @@ export function SubOrderDetail({
               value={effectiveDelivery}
               onChange={value => {
                 if (value === orderDeliveryMode) {
-                  handleUpdateSuborder({ delivery: null })
-                } else if (value !== subOrder.delivery) {
-                  handleUpdateSuborder({ delivery: value })
+                  handleUpdateJob({ delivery: null })
+                } else if (value !== job.delivery) {
+                  handleUpdateJob({ delivery: value })
                 }
               }}
             />
@@ -241,9 +241,9 @@ export function SubOrderDetail({
                 checked={hasSeparatePriority}
                 onCheckedChange={checked => {
                   if (checked !== true) {
-                    handleUpdateSuborder({ priority: null })
+                    handleUpdateJob({ priority: null })
                   } else {
-                    handleUpdateSuborder({ priority: orderPriorityMode })
+                    handleUpdateJob({ priority: orderPriorityMode })
                   }
                 }}
               />
@@ -254,9 +254,9 @@ export function SubOrderDetail({
               value={effectivePriority}
               onChange={value => {
                 if (value === orderPriorityMode) {
-                  handleUpdateSuborder({ priority: null })
-                } else if (value !== subOrder.priority) {
-                  handleUpdateSuborder({ priority: value })
+                  handleUpdateJob({ priority: null })
+                } else if (value !== job.priority) {
+                  handleUpdateJob({ priority: value })
                 }
               }}
             />
@@ -266,11 +266,11 @@ export function SubOrderDetail({
             <label className="flex items-center gap-2 text-[13px] select-none mt-1">
               <Switch
                 disabled={isLocked}
-                checked={subOrder.customer_approval_required}
+                checked={job.customer_approval_required}
                 onCheckedChange={checked => {
                   setCustomerApproval.mutate({
-                    id: subOrder.id,
-                    orderId: subOrder.order_id,
+                    id: job.id,
+                    orderId: job.order_id,
                     patch: checked
                       ? { customer_approval_required: true }
                       : { customer_approval_required: false, customer_approval_granted: false, customer_approval_file_id: null },
@@ -284,16 +284,16 @@ export function SubOrderDetail({
           <span className="text-[11px] font-medium text-muted-foreground mb-0.5">Typesetting time (min)</span>
           <div>
             <Input
-              key={subOrder.id}
+              key={job.id}
               type="number"
               disabled={isDone}
               className="max-w-48 h-9 text-sm"
               aria-invalid={shouldValidate && !!validationErrors.satzzeit_minuten}
-              defaultValue={subOrder.typesetting_minutes ?? ''}
+              defaultValue={job.typesetting_minutes ?? ''}
               onBlur={e => {
                 const rawValue = e.target.value
                 const parsedValue = rawValue === '' ? null : parseInt(rawValue, 10)
-                if (parsedValue !== subOrder.typesetting_minutes) handleUpdateSuborder({ typesetting_minutes: parsedValue })
+                if (parsedValue !== job.typesetting_minutes) handleUpdateJob({ typesetting_minutes: parsedValue })
               }}
               min={1}
             />
@@ -306,28 +306,28 @@ export function SubOrderDetail({
       <Separator/>
 
       <section>
-        {subOrder.department === 'LFP' && (
-          <LfpProducts key={subOrder.id} subOrder={subOrder} subOrderStatus={subOrder.status} orderFiles={orderFiles} />
+        {job.department === 'LFP' && (
+          <LfpProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
         )}
 
-        {subOrder.department === 'COPYSHOP' && (
-          <CopyShopProducts key={subOrder.id} subOrder={subOrder} subOrderStatus={subOrder.status} orderFiles={orderFiles} />
+        {job.department === 'COPYSHOP' && (
+          <CopyShopProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
         )}
 
-        {subOrder.department === 'STAMP' && (
-          <StampProducts key={subOrder.id} subOrder={subOrder} subOrderStatus={subOrder.status} orderFiles={orderFiles} />
+        {job.department === 'STAMP' && (
+          <StampProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
         )}
 
-        {subOrder.department === 'OTHER' && (
-          <OtherProducts key={subOrder.id} subOrder={subOrder} subOrderStatus={subOrder.status} orderFiles={orderFiles} />
+        {job.department === 'OTHER' && (
+          <OtherProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
         )}
 
-        {subOrder.department === 'LASER_ENGRAVING' && (
-          <LaserProducts key={subOrder.id} subOrder={subOrder} subOrderStatus={subOrder.status} orderFiles={orderFiles} />
+        {job.department === 'LASER_ENGRAVING' && (
+          <LaserProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
         )}
 
-        {subOrder.department === 'TEXTILE' && (
-          <TextileProducts key={subOrder.id} subOrder={subOrder} subOrderStatus={subOrder.status} orderFiles={orderFiles} />
+        {job.department === 'TEXTILE' && (
+          <TextileProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
         )}
       </section>
     </div>

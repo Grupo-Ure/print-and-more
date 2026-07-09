@@ -7,7 +7,7 @@
  */
 
 import { useState } from 'react'
-import type { OrderStatus, SubOrderRow } from '../../../types/database'
+import type { OrderStatus, JobRow } from '../../../types/database'
 import type { LoadedProduct, ProductChildInsert, ProductWriteInput } from '../../../types/product'
 import type { FileRow } from '../../../services/fileService'
 import { validateProduct } from '../../../lib/products/registry'
@@ -17,8 +17,8 @@ import { useToast } from '../../Toast'
 
 /** Props every per-type form component receives from the department detail. */
 export type ProductFormProps = {
-  subOrder: SubOrderRow
-  subOrderStatus: OrderStatus
+  job: JobRow
+  jobStatus: OrderStatus
   /** The product being edited, or `null` when adding a new one. */
   product: LoadedProduct | null
   /** Order-level files available for assignment. */
@@ -38,7 +38,7 @@ export type FormValues = Record<string, unknown>
 /** Assemble the parent `ProductWriteInput` from a form's split result. */
 export function buildWriteInput(args: {
   product: LoadedProduct | null
-  subOrder: SubOrderRow
+  job: JobRow
   type: string
   sortOrder: number
   quantity: number | null
@@ -47,8 +47,8 @@ export function buildWriteInput(args: {
 }): ProductWriteInput {
   return {
     ...(args.product ? { id: args.product.id } : {}),
-    department_order_id: args.subOrder.id,
-    department: args.subOrder.department,
+    job_id: args.job.id,
+    department: args.job.department,
     type: args.type,
     quantity: args.quantity,
     notes: args.notes ?? null,
@@ -67,12 +67,12 @@ export function useProductSubmit(p: ProductFormProps, type: string, toChild: (v:
   const { showError } = useToast()
   const [fileIds, setFileIds] = useState<string[]>(p.initialFileIds)
   const submit = (value: FormValues) => {
-    if (Object.keys(validateProduct(type, value, p.subOrderStatus)).length > 0) return
+    if (Object.keys(validateProduct(type, value, p.jobStatus)).length > 0) return
     saveProduct.mutate(
       {
-        input: buildWriteInput({ product: p.product, subOrder: p.subOrder, type, sortOrder: p.sortOrder, quantity: qtyOut(value.quantity), child: toChild(value) }),
+        input: buildWriteInput({ product: p.product, job: p.job, type, sortOrder: p.sortOrder, quantity: qtyOut(value.quantity), child: toChild(value) }),
         fileIds,
-        subOrderId: p.subOrder.id,
+        jobId: p.job.id,
       },
       { onSuccess: ({ products }) => p.onSaved(products), onError: () => showError(p.product ? 'Product could not be saved' : 'Product could not be added') },
     )

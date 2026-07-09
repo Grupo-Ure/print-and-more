@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
-import { subOrderDepartmentLabel } from '../const/departmentAbbreviation'
-import { SUB_ORDER_DEPARTMENTS, type Department } from '../types/database'
+import { jobDepartmentLabel } from '../const/departmentAbbreviation'
+import { DEPARTMENTS, type Department } from '../types/database'
 import { authService } from '../services/authService'
 import { useOrderParams } from '../hooks/useOrderParams'
-import { useSubOrdersByOrderId, useCreateSubOrder } from '../queries/subOrderQueries'
+import { useJobsByOrderId, useCreateJob } from '../queries/jobQueries'
 import { useToast } from './Toast'
 import { Button } from './ui/button'
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs'
@@ -16,77 +16,77 @@ import {
   DialogTitle,
 } from './ui/dialog'
 
-export function SubOrderTabs() {
-  const { activeOrderId, activeSubOrderId, setActiveSubOrder } = useOrderParams()
-  const subOrdersQuery = useSubOrdersByOrderId(activeOrderId)
+export function JobTabs() {
+  const { activeOrderId, activeJobId, setActiveJob } = useOrderParams()
+  const jobsQuery = useJobsByOrderId(activeOrderId)
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  const visibleSubOrders = (subOrdersQuery.data ?? []).filter(subOrder => !subOrder.is_cancelled)
+  const visibleJobs = (jobsQuery.data ?? []).filter(job => !job.is_cancelled)
 
   return (
     <>
-      {visibleSubOrders.length === 0 ? (
+      {visibleJobs.length === 0 ? (
         <div className="flex items-center justify-center">
           <Button
             type="button"
             size="lg"
             variant="ghost"
             onClick={() => setDialogOpen(true)}
-            aria-label="Add sub-order"
+            aria-label="Add job"
           >
-            <p>Add a sub-order</p>
+            <p>Add a job</p>
             <Plus />
           </Button>
         </div>
       ) : (
         <nav className="flex items-center justify-between mgb-4">
           <Tabs
-            value={activeSubOrderId ?? undefined}
-            onValueChange={setActiveSubOrder}
+            value={activeJobId ?? undefined}
+            onValueChange={setActiveJob}
             className="flex-row items-start gap-2 flex-1 min-w-0"
           >
             <TabsList
-              aria-label="Sub-orders"
+              aria-label="Jobs"
               variant="line"
               className="grid w-full grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-x-1 gap-y-3 group-data-horizontal/tabs:h-auto"
             >
-              {visibleSubOrders.map(subOrder => (
-                <TabsTrigger key={subOrder.id} value={subOrder.id}>
-                  {subOrderDepartmentLabel(subOrder.department)}
+              {visibleJobs.map(job => (
+                <TabsTrigger key={job.id} value={job.id}>
+                  {jobDepartmentLabel(job.department)}
                 </TabsTrigger>
               ))}
             </TabsList>
           </Tabs>
           <Button
-            title="Add sub-order"
+            title="Add job"
             type="button"
             size="icon-lg"
             variant="ghost"
             onClick={() => setDialogOpen(true)}
-            aria-label="Add sub-order"
+            aria-label="Add job"
           >
             <Plus />
           </Button>
         </nav>
       )}
 
-      <AddSubOrderDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <AddJobDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </>
   )
 }
 
-type AddSubOrderDialogProps = {
+type AddJobDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-function AddSubOrderDialog({ open, onOpenChange }: AddSubOrderDialogProps) {
-  const { activeOrderId, setActiveSubOrder } = useOrderParams()
+function AddJobDialog({ open, onOpenChange }: AddJobDialogProps) {
+  const { activeOrderId, setActiveJob } = useOrderParams()
   const { showError } = useToast()
-  const createSubOrder = useCreateSubOrder()
+  const createJob = useCreateJob()
 
   const handleDepartmentSelected = (department: Department) => {
-    if (!activeOrderId || createSubOrder.isPending) return
+    if (!activeOrderId || createJob.isPending) return
 
     void (async () => {
       const user = await authService.getUser()
@@ -94,7 +94,7 @@ function AddSubOrderDialog({ open, onOpenChange }: AddSubOrderDialogProps) {
         showError('Not logged in')
         return
       }
-      createSubOrder.mutate(
+      createJob.mutate(
         {
           order_id: activeOrderId,
           department,
@@ -113,32 +113,32 @@ function AddSubOrderDialog({ open, onOpenChange }: AddSubOrderDialogProps) {
         },
         {
           onSuccess: created => {
-            setActiveSubOrder(created.id)
+            setActiveJob(created.id)
             onOpenChange(false)
           },
-          onError: () => showError('Error creating sub-order'),
+          onError: () => showError('Error creating job'),
         },
       )
     })()
   }
 
   return (
-    <Dialog open={open} onOpenChange={next => !createSubOrder.isPending && onOpenChange(next)}>
+    <Dialog open={open} onOpenChange={next => !createJob.isPending && onOpenChange(next)}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New Sub-Order</DialogTitle>
+          <DialogTitle>New Job</DialogTitle>
           <DialogDescription>Select a department:</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-2">
-          {SUB_ORDER_DEPARTMENTS.map(department => (
+          {DEPARTMENTS.map(department => (
             <Button
               key={department}
               type="button"
               variant="outline"
-              disabled={createSubOrder.isPending}
+              disabled={createJob.isPending}
               onClick={() => handleDepartmentSelected(department)}
             >
-              {subOrderDepartmentLabel(department)}
+              {jobDepartmentLabel(department)}
             </Button>
           ))}
         </div>

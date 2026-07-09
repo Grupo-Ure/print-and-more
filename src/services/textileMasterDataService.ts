@@ -140,16 +140,16 @@ class TextileMasterDataService {
     return (data ?? []) as { color: string; size: string }[]
   }
 
-  async getEigenwarePositionsBySubOrders(
-    subOrderIds: string[],
+  async getEigenwarePositionsByJobs(
+    jobIds: string[],
   ): Promise<{ variant_id: string | null; quantity: number }[]> {
-    if (subOrderIds.length === 0) return []
+    if (jobIds.length === 0) return []
     const { data, error } = await supabase
       .from('textile_garment_products')
-      .select('variant_id, department_products!inner(quantity, department_order_id)')
+      .select('variant_id, department_products!inner(quantity, job_id)')
       .eq('origin', 'OWN_STOCK')
       .not('variant_id', 'is', null)
-      .in('department_products.department_order_id', subOrderIds)
+      .in('department_products.job_id', jobIds)
     if (error) throw error
     return (data ?? []).map(toVariantUsage)
   }
@@ -227,27 +227,27 @@ class TextileMasterDataService {
     if (error) throw error
   }
 
-  async getSubOrdersUsingVariant(varianteId: string): Promise<string[]> {
+  async getJobsUsingVariant(varianteId: string): Promise<string[]> {
     const { data, error } = await supabase
       .from('textile_garment_products')
-      .select('department_products!inner(department_order_id)')
+      .select('department_products!inner(job_id)')
       .eq('variant_id', varianteId)
     if (error) throw error
     const ids = (data ?? []).map(row => {
-      const dp = (row as { department_products: { department_order_id: string } | { department_order_id: string }[] | null }).department_products
+      const dp = (row as { department_products: { job_id: string } | { job_id: string }[] | null }).department_products
       const parent = Array.isArray(dp) ? dp[0] : dp
-      return parent?.department_order_id ?? ''
+      return parent?.job_id ?? ''
     })
     return [...new Set(ids.filter(Boolean))]
   }
 
-  async getVariantUsageBySubOrder(
-    subOrderId: string,
+  async getVariantUsageByJob(
+    jobId: string,
   ): Promise<{ variant_id: string | null; quantity: number }[]> {
     const { data, error } = await supabase
       .from('textile_garment_products')
-      .select('variant_id, department_products!inner(quantity, department_order_id)')
-      .eq('department_products.department_order_id', subOrderId)
+      .select('variant_id, department_products!inner(quantity, job_id)')
+      .eq('department_products.job_id', jobId)
     if (error) throw error
     return (data ?? []).map(toVariantUsage)
   }

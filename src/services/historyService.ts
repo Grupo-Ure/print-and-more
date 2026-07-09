@@ -12,14 +12,14 @@ export type HistoryRow = {
   reason: string | null
   meta: Json | null
   created_at: string
-  sub_order_id: string | null
+  job_id: string | null
   user_id: string | null
 }
 
 class HistoryService {
   async writeHistory(params: {
     order_id: string
-    sub_order_id?: string
+    job_id?: string
     event_type: HistoryEvent
     reason?: string
     meta?: Record<string, unknown>
@@ -28,7 +28,7 @@ class HistoryService {
 
     const row: HistoryInsert = {
       order_id: params.order_id,
-      department_order_id: params.sub_order_id ?? null,
+      job_id: params.job_id ?? null,
       event_type: params.event_type,
       reason: params.reason ?? null,
       meta: params.meta !== undefined ? (params.meta as Json) : null,
@@ -42,7 +42,7 @@ class HistoryService {
   async getHistoryForOrder(orderId: string): Promise<HistoryRow[]> {
     const { data, error } = await supabase
       .from('history')
-      .select('id, event_type, reason, meta, created_at, sub_order_id:department_order_id, user_id')
+      .select('id, event_type, reason, meta, created_at, job_id, user_id')
       .eq('order_id', orderId)
       .order('created_at', { ascending: false })
       .limit(50)

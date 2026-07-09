@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { subOrderService } from '../services/subOrderService'
+import { jobService } from '../services/jobService'
 import { stampService } from '../services/stampService'
 import {
   useSetOrderStatus,
@@ -7,13 +7,13 @@ import {
 } from '../queries/orderQueries'
 import {
   useSetCustomerApproval,
-} from '../queries/subOrderQueries'
+} from '../queries/jobQueries'
 import {
   type Auftrag,
   type Customer,
-  type SubOrderRow,
+  type JobRow,
 } from '../types/database'
-import { subOrderDetailToFieldMap } from '../lib/utils'
+import { jobDetailToFieldMap } from '../lib/utils'
 import { FileList } from './FileList'
 import type { FileRow } from '../services/fileService'
 import { HistoryPanel } from './HistoryPanel'
@@ -23,13 +23,13 @@ import './ContextPanel.css'
 
 type Props = {
   order: Auftrag | null
-  activeSubOrder: SubOrderRow | null
+  activeJob: JobRow | null
   orderCustomer: Customer | null
   orderFiles: FileRow[]
   onOrderUpdated: (updatedOrder: Auftrag) => void
   onOrderDeleted: (auftragId: string) => void
-  onSubOrderUpdated: (updatedSubOrder: SubOrderRow) => void
-  onSubOrderRemoved: (id: string) => void
+  onJobUpdated: (updatedJob: JobRow) => void
+  onJobRemoved: (id: string) => void
   contextRefreshTick: number
   onFileChanged?: (newFileRow?: FileRow) => void | Promise<void>
 }
@@ -81,19 +81,19 @@ async function loadStampStock(detail: Record<string, unknown>): Promise<StampPad
 
 export function ContextPanel({
   order,
-  activeSubOrder,
+  activeJob,
   orderCustomer,
   orderFiles,
   onOrderUpdated,
   onOrderDeleted,
-  onSubOrderUpdated,
-  onSubOrderRemoved,
+  onJobUpdated,
+  onJobRemoved,
   contextRefreshTick,
   onFileChanged = async () => {},
 }: Props) {
   const { openCustomerDialog } = useOrderWorkspace()
   const [busy, setBusy] = useState(false)
-  const [subOrderAreaList, setSubOrderAreaList] = useState<{ id: string; department: string }[]>([])
+  const [jobAreaList, setJobAreaList] = useState<{ id: string; department: string }[]>([])
   const [dialogCustomerApprovalFile, setDialogCustomerApprovalFile] = useState(false)
   const [customerApprovalFileId, setCustomerApprovalFileId] = useState('')
   const [stampStock, setStampStock] = useState<number | null>(null)
@@ -105,12 +105,12 @@ export function ContextPanel({
   const setApprovalMutation = useSetCustomerApproval()
 
   useEffect(() => {
-    if (!activeSubOrder || activeSubOrder.department !== 'STAMP') {
+    if (!activeJob || activeJob.department !== 'STAMP') {
       setStampStock(null)
       setPadStock(null)
       return
     }
-    const stampDetail = subOrderDetailToFieldMap(activeSubOrder.detail)
+    const stampDetail = jobDetailToFieldMap(activeJob.detail)
     let alive = true
     void loadStampStock(stampDetail)
       .then(stockResult => {
@@ -123,24 +123,24 @@ export function ContextPanel({
     return () => {
       alive = false
     }
-  }, [activeSubOrder, contextRefreshTick])
+  }, [activeJob, contextRefreshTick])
 
   useEffect(() => {
     if (!order) {
-      setSubOrderAreaList([])
+      setJobAreaList([])
       return
     }
     let alive = true
     void (async () => {
       try {
-        const summaries = await subOrderService.getSubOrderSummariesForOrder(order.id).catch(() => null)
+        const summaries = await jobService.getJobSummariesForOrder(order.id).catch(() => null)
         if (!alive) return
         if (!summaries) {
           showError('Data could not be loaded')
-          setSubOrderAreaList([])
+          setJobAreaList([])
           return
         }
-        setSubOrderAreaList(summaries)
+        setJobAreaList(summaries)
       } catch (err: unknown) {
         if (alive) console.error(err)
       }
@@ -158,8 +158,8 @@ export function ContextPanel({
     )
   }
 
-  const subOrder = activeSubOrder
-  const subOrderActive = subOrder && !subOrder.is_cancelled
+  const job = activeJob
+  const jobActive = job && !job.is_cancelled
   const handleStartProcessing = async () => {
     if (busy || order.status !== 'QUOTE') return
     setBusy(true)
@@ -192,18 +192,18 @@ export function ContextPanel({
   }
 
   const handleCustomerApprovalFileOpen = () => {
-    if (busy || !subOrder) return
+    if (busy || !job) return
     setCustomerApprovalFileId(orderFiles[0]?.id ?? '')
     setDialogCustomerApprovalFile(true)
   }
 
   const handleCustomerApprovalFileConfirmed = async () => {
-    if (busy || !subOrder || !customerApprovalFileId) return
+    if (busy || !job || !customerApprovalFileId) return
     setBusy(true)
     setDialogCustomerApprovalFile(false)
     try {
       const data = await setApprovalMutation.mutateAsync({
-        id: subOrder.id,
+        id: job.id,
         orderId: order.id,
         patch: {
           customer_approval_granted: true,
@@ -211,7 +211,7 @@ export function ContextPanel({
         },
         history: { event_type: 'CUSTOMER_APPROVAL_GRANTED', meta: { datei_id: customerApprovalFileId } },
       })
-      onSubOrderUpdated(data)
+      onJobUpdated(data)
       showSuccess('Approval granted')
     } catch {
       showError('Status could not be changed')
@@ -220,18 +220,18 @@ export function ContextPanel({
     }
   }
 
-  const currentStampDetail = subOrder ? subOrderDetailToFieldMap(subOrder.detail) : {}
+  const currentStampDetail = job ? jobDetailToFieldMap(job.detail) : {}
   const customerApprovalGrantVisible =
-    !!subOrder &&
-    subOrder.customer_approval_required &&
-    !subOrder.customer_approval_granted &&
+    !!job &&
+    job.customer_approval_required &&
+    !job.customer_approval_granted &&
     orderFiles.length > 0
 
   const hints: string[] = []
-  if (subOrder && subOrder.customer_approval_required && !subOrder.customer_approval_granted) {
+  if (job && job.customer_approval_required && !job.customer_approval_granted) {
     hints.push('Customer approval missing — production blocked')
   }
-  if (subOrder && subOrder.status === 'PREPRESS_READY' && !subOrder.customer_approval_required) {
+  if (job && job.status === 'PREPRESS_READY' && !job.customer_approval_required) {
     hints.push('Ready for production release')
   }
   if (order.status === 'DONE') {
@@ -243,7 +243,7 @@ export function ContextPanel({
       <div className="cp-sektion">
         <h2>Status</h2>
         <div className="cp-status-komp">
-          {subOrder?.department === 'STAMP' && hasStampModelLinked(currentStampDetail) && (
+          {job?.department === 'STAMP' && hasStampModelLinked(currentStampDetail) && (
             <p className="cp-hinweis cp-hinweis--komp" style={{ marginTop: 6 }}>
               Stock: Stamp {stampStock ?? '—'} · Pad {padStock ?? '—'}
             </p>
@@ -301,7 +301,7 @@ export function ContextPanel({
           )}
         </div>
 
-        {subOrderActive && (
+        {jobActive && (
           <>
             {customerApprovalGrantVisible && (
               <>
@@ -339,10 +339,10 @@ export function ContextPanel({
       <HistoryPanel
         activeOrderId={order.id}
         contextRefreshTick={contextRefreshTick}
-        subOrders={subOrderAreaList}
+        jobs={jobAreaList}
       />
 
-      {dialogCustomerApprovalFile && subOrder && (
+      {dialogCustomerApprovalFile && job && (
         <div
           className="cp-modal-bg"
           role="dialog"

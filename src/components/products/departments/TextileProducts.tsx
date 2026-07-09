@@ -1,18 +1,18 @@
 /**
- * Textile department detail — a per-sub-order **designs drawer** (reusable
+ * Textile department detail — a per-job **designs drawer** (reusable
  * motifs) above the garment product list. Garments ride the generic product
  * editor; the drawer + design links are the textile-specific satellites.
  */
 
 import { useMemo, useState } from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
-import type { OrderStatus, SubOrderRow } from '../../../types/database'
+import type { OrderStatus, JobRow } from '../../../types/database'
 import type { FileRow } from '../../../services/fileService'
 import type { TextileMotifRow, TextileMotifLinkInput } from '../../../types/textile'
 import type { LoadedProduct } from '../../../types/product'
 import {
   useTextileMotifs,
-  useTextileMotifLinksBySubOrderId,
+  useTextileMotifLinksByJobId,
   useSaveTextileMotif,
   useDeleteTextileMotif,
 } from '../../../queries/textileQueries'
@@ -28,8 +28,8 @@ import { TextileProductDialog } from '../TextileProductDialog'
 import { motifLabel } from '../forms/textileTypes'
 
 type Props = {
-  subOrder: SubOrderRow
-  subOrderStatus: OrderStatus
+  job: JobRow
+  jobStatus: OrderStatus
   orderFiles?: FileRow[]
 }
 
@@ -72,18 +72,18 @@ function designValid(d: DesignDraft): boolean {
 }
 
 function DesignsDrawer({
-  subOrder,
+  job,
   motifs,
   orderFiles,
   isReadOnly,
 }: {
-  subOrder: SubOrderRow
+  job: JobRow
   motifs: TextileMotifRow[]
   orderFiles: FileRow[]
   isReadOnly: boolean
 }) {
-  const save = useSaveTextileMotif(subOrder.id)
-  const del = useDeleteTextileMotif(subOrder.id)
+  const save = useSaveTextileMotif(job.id)
+  const del = useDeleteTextileMotif(job.id)
   const { showError } = useToast()
   const [draft, setDraft] = useState<DesignDraft | null>(null)
 
@@ -94,7 +94,7 @@ function DesignsDrawer({
       {
         id: draft.id,
         payload: {
-          department_order_id: subOrder.id,
+          job_id: job.id,
           type: draft.type,
           content: isText ? draft.content.trim() : null,
           color: isText ? draft.color.trim() : null,
@@ -201,11 +201,11 @@ function garmentSummary(product: LoadedProduct): string {
 
 // --- Host -------------------------------------------------------------------
 
-export function TextileProducts({ subOrder, subOrderStatus, orderFiles = [] }: Props) {
-  const productEditor = useProductEditor(subOrder, subOrderStatus)
-  const motifsQuery = useTextileMotifs(subOrder.id)
+export function TextileProducts({ job, jobStatus, orderFiles = [] }: Props) {
+  const productEditor = useProductEditor(job, jobStatus)
+  const motifsQuery = useTextileMotifs(job.id)
   const motifs = useMemo(() => motifsQuery.data ?? [], [motifsQuery.data])
-  const linksQuery = useTextileMotifLinksBySubOrderId(subOrder.id)
+  const linksQuery = useTextileMotifLinksByJobId(job.id)
   const linksByProduct = useMemo(() => {
     const map: Record<string, TextileMotifLinkInput[]> = {}
     for (const l of linksQuery.data ?? []) {
@@ -216,12 +216,12 @@ export function TextileProducts({ subOrder, subOrderStatus, orderFiles = [] }: P
 
   return (
     <div className="flex flex-col gap-4">
-      <DesignsDrawer subOrder={subOrder} motifs={motifs} orderFiles={orderFiles} isReadOnly={productEditor.isReadOnly} />
+      <DesignsDrawer job={job} motifs={motifs} orderFiles={orderFiles} isReadOnly={productEditor.isReadOnly} />
 
       {!productEditor.isReadOnly && (
         <TextileProductDialog
           editor={productEditor}
-          subOrder={subOrder}
+          job={job}
           orderFiles={orderFiles}
           motifs={motifs}
           linksByProduct={linksByProduct}

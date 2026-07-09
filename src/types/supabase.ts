@@ -533,103 +533,12 @@ export type Database = {
           },
         ]
       }
-      department_orders: {
-        Row: {
-          assignee_id: string | null
-          created_at: string
-          customer_approval_file_id: string | null
-          customer_approval_granted: boolean
-          customer_approval_required: boolean
-          data_status: string | null
-          deadline: string | null
-          delivery: Database["public"]["Enums"]["delivery_type"] | null
-          department: Database["public"]["Enums"]["department"]
-          detail: Json
-          emergency_reason: string | null
-          id: string
-          is_cancelled: boolean
-          is_emergency: boolean
-          order_id: string
-          priority: Database["public"]["Enums"]["priority_type"] | null
-          sort_order: number
-          status: Database["public"]["Enums"]["order_status"]
-          type: string | null
-          typesetting_minutes: number | null
-        }
-        Insert: {
-          assignee_id?: string | null
-          created_at?: string
-          customer_approval_file_id?: string | null
-          customer_approval_granted?: boolean
-          customer_approval_required?: boolean
-          data_status?: string | null
-          deadline?: string | null
-          delivery?: Database["public"]["Enums"]["delivery_type"] | null
-          department: Database["public"]["Enums"]["department"]
-          detail?: Json
-          emergency_reason?: string | null
-          id?: string
-          is_cancelled?: boolean
-          is_emergency?: boolean
-          order_id: string
-          priority?: Database["public"]["Enums"]["priority_type"] | null
-          sort_order?: number
-          status?: Database["public"]["Enums"]["order_status"]
-          type?: string | null
-          typesetting_minutes?: number | null
-        }
-        Update: {
-          assignee_id?: string | null
-          created_at?: string
-          customer_approval_file_id?: string | null
-          customer_approval_granted?: boolean
-          customer_approval_required?: boolean
-          data_status?: string | null
-          deadline?: string | null
-          delivery?: Database["public"]["Enums"]["delivery_type"] | null
-          department?: Database["public"]["Enums"]["department"]
-          detail?: Json
-          emergency_reason?: string | null
-          id?: string
-          is_cancelled?: boolean
-          is_emergency?: boolean
-          order_id?: string
-          priority?: Database["public"]["Enums"]["priority_type"] | null
-          sort_order?: number
-          status?: Database["public"]["Enums"]["order_status"]
-          type?: string | null
-          typesetting_minutes?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "department_orders_assignee_id_fkey"
-            columns: ["assignee_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "department_orders_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_approval_file"
-            columns: ["customer_approval_file_id"]
-            isOneToOne: false
-            referencedRelation: "files"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       department_products: {
         Row: {
           created_at: string
           department: string
-          department_order_id: string
           id: string
+          job_id: string
           notes: string | null
           quantity: number | null
           sort_order: number
@@ -638,8 +547,8 @@ export type Database = {
         Insert: {
           created_at?: string
           department: string
-          department_order_id: string
           id?: string
+          job_id: string
           notes?: string | null
           quantity?: number | null
           sort_order?: number
@@ -648,8 +557,8 @@ export type Database = {
         Update: {
           created_at?: string
           department?: string
-          department_order_id?: string
           id?: string
+          job_id?: string
           notes?: string | null
           quantity?: number | null
           sort_order?: number
@@ -657,10 +566,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "department_products_department_order_id_fkey"
-            columns: ["department_order_id"]
+            foreignKeyName: "department_products_job_id_fkey"
+            columns: ["job_id"]
             isOneToOne: false
-            referencedRelation: "department_orders"
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -710,34 +619,34 @@ export type Database = {
       errors: {
         Row: {
           created_at: string
-          department_order_id: string | null
           id: string
+          job_id: string | null
           order_id: string
           text: string
           user_id: string | null
         }
         Insert: {
           created_at?: string
-          department_order_id?: string | null
           id?: string
+          job_id?: string | null
           order_id: string
           text: string
           user_id?: string | null
         }
         Update: {
           created_at?: string
-          department_order_id?: string | null
           id?: string
+          job_id?: string | null
           order_id?: string
           text?: string
           user_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "errors_department_order_id_fkey"
-            columns: ["department_order_id"]
+            foreignKeyName: "errors_job_id_fkey"
+            columns: ["job_id"]
             isOneToOne: false
-            referencedRelation: "department_orders"
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
           {
@@ -955,9 +864,9 @@ export type Database = {
       history: {
         Row: {
           created_at: string
-          department_order_id: string | null
           event_type: Database["public"]["Enums"]["history_event"]
           id: string
+          job_id: string | null
           meta: Json | null
           order_id: string
           reason: string | null
@@ -965,9 +874,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          department_order_id?: string | null
           event_type: Database["public"]["Enums"]["history_event"]
           id?: string
+          job_id?: string | null
           meta?: Json | null
           order_id: string
           reason?: string | null
@@ -975,9 +884,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          department_order_id?: string | null
           event_type?: Database["public"]["Enums"]["history_event"]
           id?: string
+          job_id?: string | null
           meta?: Json | null
           order_id?: string
           reason?: string | null
@@ -985,10 +894,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "history_department_order_id_fkey"
-            columns: ["department_order_id"]
+            foreignKeyName: "history_job_id_fkey"
+            columns: ["job_id"]
             isOneToOne: false
-            referencedRelation: "department_orders"
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
           {
@@ -1029,6 +938,97 @@ export type Database = {
             columns: ["department_product_id"]
             isOneToOne: true
             referencedRelation: "department_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          assignee_id: string | null
+          created_at: string
+          customer_approval_file_id: string | null
+          customer_approval_granted: boolean
+          customer_approval_required: boolean
+          data_status: string | null
+          deadline: string | null
+          delivery: Database["public"]["Enums"]["delivery_type"] | null
+          department: Database["public"]["Enums"]["department"]
+          detail: Json
+          emergency_reason: string | null
+          id: string
+          is_cancelled: boolean
+          is_emergency: boolean
+          order_id: string
+          priority: Database["public"]["Enums"]["priority_type"] | null
+          sort_order: number
+          status: Database["public"]["Enums"]["order_status"]
+          type: string | null
+          typesetting_minutes: number | null
+        }
+        Insert: {
+          assignee_id?: string | null
+          created_at?: string
+          customer_approval_file_id?: string | null
+          customer_approval_granted?: boolean
+          customer_approval_required?: boolean
+          data_status?: string | null
+          deadline?: string | null
+          delivery?: Database["public"]["Enums"]["delivery_type"] | null
+          department: Database["public"]["Enums"]["department"]
+          detail?: Json
+          emergency_reason?: string | null
+          id?: string
+          is_cancelled?: boolean
+          is_emergency?: boolean
+          order_id: string
+          priority?: Database["public"]["Enums"]["priority_type"] | null
+          sort_order?: number
+          status?: Database["public"]["Enums"]["order_status"]
+          type?: string | null
+          typesetting_minutes?: number | null
+        }
+        Update: {
+          assignee_id?: string | null
+          created_at?: string
+          customer_approval_file_id?: string | null
+          customer_approval_granted?: boolean
+          customer_approval_required?: boolean
+          data_status?: string | null
+          deadline?: string | null
+          delivery?: Database["public"]["Enums"]["delivery_type"] | null
+          department?: Database["public"]["Enums"]["department"]
+          detail?: Json
+          emergency_reason?: string | null
+          id?: string
+          is_cancelled?: boolean
+          is_emergency?: boolean
+          order_id?: string
+          priority?: Database["public"]["Enums"]["priority_type"] | null
+          sort_order?: number
+          status?: Database["public"]["Enums"]["order_status"]
+          type?: string | null
+          typesetting_minutes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_approval_file"
+            columns: ["customer_approval_file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
@@ -1890,48 +1890,48 @@ export type Database = {
           color: string | null
           content: string | null
           created_at: string
-          department_order_id: string
           file_id: string | null
           font_class: Database["public"]["Enums"]["textile_font_class"] | null
           font_name: string | null
           id: string
+          job_id: string
           type: Database["public"]["Enums"]["textile_motif_type"]
         }
         Insert: {
           color?: string | null
           content?: string | null
           created_at?: string
-          department_order_id: string
           file_id?: string | null
           font_class?: Database["public"]["Enums"]["textile_font_class"] | null
           font_name?: string | null
           id?: string
+          job_id: string
           type: Database["public"]["Enums"]["textile_motif_type"]
         }
         Update: {
           color?: string | null
           content?: string | null
           created_at?: string
-          department_order_id?: string
           file_id?: string | null
           font_class?: Database["public"]["Enums"]["textile_font_class"] | null
           font_name?: string | null
           id?: string
+          job_id?: string
           type?: Database["public"]["Enums"]["textile_motif_type"]
         }
         Relationships: [
-          {
-            foreignKeyName: "textile_motifs_department_order_id_fkey"
-            columns: ["department_order_id"]
-            isOneToOne: false
-            referencedRelation: "department_orders"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "textile_motifs_file_id_fkey"
             columns: ["file_id"]
             isOneToOne: false
             referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "textile_motifs_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -2295,7 +2295,7 @@ export type Database = {
           new_deadline: string
           new_delivery: Database["public"]["Enums"]["delivery_type"]
           new_priority: Database["public"]["Enums"]["priority_type"]
-          selected_department_order_ids: string[]
+          selected_job_ids: string[]
           source_order_id: string
         }
         Returns: string

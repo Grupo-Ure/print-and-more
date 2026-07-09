@@ -7,12 +7,12 @@
  * vehicle wraps (Fahrzeugbeschriftung), and miscellaneous large-format
  * jobs (Sonstige LFP).
  *
- * The shape of an LFP sub-order's `detail` JSONB column varies by `typ`.
+ * The shape of an LFP job's `detail` JSONB column varies by `typ`.
  * See {@link validateLfpDetail} in `src/lib/lfp/` for the per-typ field
  * requirements.
  */
 
-/** Discriminator for the kind of LFP work, stored in `teilauftraege.typ`. */
+/** Discriminator for the kind of LFP work, stored in `jobs.type`. */
 export type LfpType =
   | 'STICKER'
   | 'SIGN_UV'
@@ -48,9 +48,9 @@ export const LFP_TYPE_LABELS: Record<LfpType, string> = {
 }
 
 /**
- * Shape of the JSONB `detail` column for an LFP sub-order.
+ * Shape of the JSONB `detail` column for an LFP job.
  *
- * The set of keys present depends on the sub-order's `typ` — only set
+ * The set of keys present depends on the job's `typ` — only set
  * keys relevant to the current typ. See `validateLfpDetail` for the
  * per-typ field set and validation rules.
  */

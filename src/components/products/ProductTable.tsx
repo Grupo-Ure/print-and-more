@@ -13,7 +13,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
 import type { LoadedProduct } from '../../types/product'
 import type { FileRow } from '../../services/fileService'
-import type { ProductFileAssignment } from '../../services/subOrderProductService'
+import type { ProductFileAssignment } from '../../services/departmentProductService'
 import { AddProductButton } from './AddProductButton'
 import { actionsColumn, firstOfColumn, formatColumn, quantityColumn, textColumn, typeColumn } from './columns'
 import { LASER_TYPE_LABELS } from '../../types/laser'
@@ -30,7 +30,7 @@ export type ProductTableMeta = {
   addLabel?: string
   orderFiles: FileRow[]
   filesByProduct: Record<string, ProductFileAssignment[]>
-  /** When the sub-order is released to production or done, edit/delete are disabled. */
+  /** When the job is released to production or done, edit/delete are disabled. */
   isReadOnly: boolean
 }
 

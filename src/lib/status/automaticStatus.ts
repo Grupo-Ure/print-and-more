@@ -1,10 +1,10 @@
-import type { Customer, OrderStatus, SubOrderRow } from '../../types/database'
-import { autoPrepressAllowed, isSubOrderComplete } from '../subOrderShared'
+import type { Customer, OrderStatus, JobRow } from '../../types/database'
+import { autoPrepressAllowed, isJobComplete } from '../jobShared'
 import { customerMeetsPrepressContact } from '../customer'
 
 /**
  * The automatic `INCOMPLETE ↔ PREPRESS_READY` decision — a pure function of the
- * sub-order's *current* state. The status manager calls this only for a sub-order
+ * job's *current* state. The status manager calls this only for a job
  * whose status is already `INCOMPLETE` or `PREPRESS_READY` (the caller gates out
  * QUOTE / committed / emergency / cancelled rows), so the return value is always
  * one of those two.
@@ -19,10 +19,10 @@ import { customerMeetsPrepressContact } from '../customer'
  *   `INCOMPLETE` (you cannot prepress before the order is accepted).
  *
  * `hasContent` is the per-department content flag the caller supplies (currently
- * `products.length > 0`, matching `isSubOrderComplete` and the manual prepress button).
+ * `products.length > 0`, matching `isJobComplete` and the manual prepress button).
  */
 export function deriveAutomaticStatus(
-  subOrder: SubOrderRow,
+  job: JobRow,
   hasContent: boolean,
   customer: Customer | null | undefined,
   orderStatus: OrderStatus,
@@ -30,12 +30,12 @@ export function deriveAutomaticStatus(
   const cap = (status: OrderStatus): OrderStatus =>
     orderStatus === 'QUOTE' && status === 'PREPRESS_READY' ? 'INCOMPLETE' : status
 
-  if (!isSubOrderComplete(subOrder, subOrder.status, hasContent)) return 'INCOMPLETE'
+  if (!isJobComplete(job, job.status, hasContent)) return 'INCOMPLETE'
 
-  if (autoPrepressAllowed(subOrder)) {
+  if (autoPrepressAllowed(job)) {
     return customerMeetsPrepressContact(customer) ? cap('PREPRESS_READY') : 'INCOMPLETE'
   }
 
   // Free-form / manual-only: no auto-advance; keep a manual PREPRESS_READY while complete.
-  return subOrder.status === 'PREPRESS_READY' ? cap('PREPRESS_READY') : 'INCOMPLETE'
+  return job.status === 'PREPRESS_READY' ? cap('PREPRESS_READY') : 'INCOMPLETE'
 }

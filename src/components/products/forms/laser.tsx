@@ -32,7 +32,7 @@ function SignLikeForm(p: ProductFormProps & { type: string; toChild: (v: FormVal
     <form onSubmit={e => { e.preventDefault(); e.stopPropagation(); void form.handleSubmit() }} className="flex flex-col gap-3">
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct(p.type, values, p.subOrderStatus)
+          const errors = validateProduct(p.type, values, p.jobStatus)
           return (
             <>
               <form.Field name="material">{f => <SelectField field={f} label="Material" options={MATERIAL_OPTIONS} error={errors.material} />}</form.Field>
@@ -74,7 +74,7 @@ export function GiftItemForm(p: ProductFormProps) {
     <form onSubmit={e => { e.preventDefault(); e.stopPropagation(); void form.handleSubmit() }} className="flex flex-col gap-3">
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('GIFT_ITEM', values, p.subOrderStatus)
+          const errors = validateProduct('GIFT_ITEM', values, p.jobStatus)
           return (
             <>
               <form.Field name="material_free_text">{f => <TextField field={f} label="Material" error={errors.material_free_text} />}</form.Field>
@@ -105,7 +105,7 @@ export function OtherLaserForm(p: ProductFormProps) {
     <form onSubmit={e => { e.preventDefault(); e.stopPropagation(); void form.handleSubmit() }} className="flex flex-col gap-3">
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('OTHER_LASER', values, p.subOrderStatus)
+          const errors = validateProduct('OTHER_LASER', values, p.jobStatus)
           return (
             <>
               <form.Field name="material_free_text">{f => <TextField field={f} label="Material (optional)" error={errors.material_free_text} />}</form.Field>

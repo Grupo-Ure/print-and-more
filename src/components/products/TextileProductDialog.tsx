@@ -6,7 +6,7 @@
  * garment's existing design links).
  */
 
-import type { SubOrderRow } from '../../types/database'
+import type { JobRow } from '../../types/database'
 import type { FileRow } from '../../services/fileService'
 import type { TextileMotifRow, TextileMotifLinkInput } from '../../types/textile'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
@@ -17,19 +17,19 @@ type ProductEditor = ReturnType<typeof useProductEditor>
 
 export function TextileProductDialog({
   editor,
-  subOrder,
+  job,
   orderFiles,
   motifs,
   linksByProduct,
 }: {
   editor: ProductEditor
-  subOrder: SubOrderRow
+  job: JobRow
   orderFiles: FileRow[]
   motifs: TextileMotifRow[]
   linksByProduct: Record<string, TextileMotifLinkInput[]>
 }) {
   const { mode, close, handleSaved, products } = editor
-  const subOrderStatus = subOrder.status
+  const jobStatus = job.status
   const editing = mode.kind === 'edit' ? mode.product : null
   const open = mode.kind !== 'idle'
 
@@ -41,8 +41,8 @@ export function TextileProductDialog({
         </DialogHeader>
         <TextileGarmentForm
           key={editing?.id ?? 'new'}
-          subOrder={subOrder}
-          subOrderStatus={subOrderStatus}
+          job={job}
+          jobStatus={jobStatus}
           product={editing}
           orderFiles={orderFiles}
           initialFileIds={[]}

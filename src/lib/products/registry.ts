@@ -93,7 +93,7 @@ export const SCHEMA_BY_TYPE: Record<string, z.ZodTypeAny> = {
 
 /**
  * Validate a product's flat fields (child columns + parent `quantity`) for its
- * `type` and the sub-order `status`.
+ * `type` and the job `status`.
  *
  * - `QUOTE` → nothing required (empty map).
  * - missing / unknown type → `{ type: 'Select type' }`.
