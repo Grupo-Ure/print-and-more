@@ -237,6 +237,43 @@ export function useReleaseToProduction() {
   })
 }
 
+/**
+ * Emergency force release: bypass the completeness/prepress gate and put the
+ * job straight into PRODUCTION_READY. Books the same stock deductions as the
+ * regular release, marks the job as emergency with the given reason, and
+ * writes an EMERGENCY_TRIGGERED history entry. The emergency flag doubles as
+ * the "hands off" marker for the automatic status manager.
+ */
+export function useForceReleaseToProduction() {
+  const queryClient = useQueryClient()
+  return useMutation<
+    JobRow,
+    Error,
+    { job: JobRow; orderId: string; orderNumber: string | null; reason: string }
+  >({
+    mutationFn: async ({ job, orderId, orderNumber, reason }) => {
+      await deductProductionStock(job, orderNumber)
+      await jobService.setJobEmergency(job.id, { is_emergency: true, emergency_reason: reason })
+      const row = await jobService.setJobStatus(job.id, 'PRODUCTION_READY')
+      try {
+        await historyService.writeHistory({
+          order_id: orderId,
+          job_id: job.id,
+          event_type: 'EMERGENCY_TRIGGERED',
+          reason,
+        })
+      } catch {
+        console.error('History emergency-release failed')
+      }
+      return row
+    },
+    onSuccess: async (row, { orderId }) => {
+      patchJobInCache(queryClient, orderId, row)
+      await reconcileOrderStatus(queryClient, orderId)
+    },
+  })
+}
+
 /** Toggle the emergency flag + reason. Does not change status. */
 export function useSetJobEmergency() {
   const queryClient = useQueryClient()
