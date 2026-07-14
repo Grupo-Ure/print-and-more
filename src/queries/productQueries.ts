@@ -10,6 +10,8 @@ export const productKeys = {
   all: ['products'] as const,
   byJobId: (id: string) => ['products', 'by-job-id', id] as const,
   filesByJobId: (id: string) => ['products', 'files', 'by-job-id', id] as const,
+  countsRoot: ['products', 'counts'] as const,
+  countsByOrderId: (id: string) => ['products', 'counts', 'by-order-id', id] as const,
 }
 
 /** Parent + typed child rows for a job, ordered by sort_order. */
@@ -18,6 +20,15 @@ export function useProductsByJobId(jobId: string | null) {
     queryKey: jobId ? productKeys.byJobId(jobId) : productKeys.byJobId('__none__'),
     queryFn: () => departmentProductService.getProductsByJobId(jobId as string),
     enabled: !!jobId,
+  })
+}
+
+/** Product count per job for an order — feeds the derived "in production, missing info" alert. */
+export function useProductCountsByOrderId(orderId: string | null) {
+  return useQuery({
+    queryKey: orderId ? productKeys.countsByOrderId(orderId) : productKeys.countsByOrderId('__none__'),
+    queryFn: () => departmentProductService.getProductCountsByOrderId(orderId as string),
+    enabled: !!orderId,
   })
 }
 
@@ -108,6 +119,7 @@ export function useSaveProduct() {
 
       queryClient.setQueryData(productKeys.byJobId(jobId), products)
       queryClient.setQueryData(productKeys.filesByJobId(jobId), files)
+      void queryClient.invalidateQueries({ queryKey: productKeys.countsRoot })
       if (links) void queryClient.invalidateQueries({ queryKey: textileKeys.links(jobId) })
 
       // Bounce-back: a meaningful content change drops a committed job to INCOMPLETE.
@@ -140,6 +152,7 @@ export function useDeleteProduct() {
         productKeys.filesByJobId(jobId),
         old => old?.filter(a => a.department_product_id !== id) ?? old,
       )
+      void queryClient.invalidateQueries({ queryKey: productKeys.countsRoot })
       // Deleting a product is always a meaningful content change → bounce-back.
       void bounceBackIfCommitted(queryClient, jobId)
     },

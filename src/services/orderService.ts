@@ -8,16 +8,35 @@ type OrderUpdate = Database['public']['Tables']['orders']['Update']
 type PriorityEnum = Database['public']['Enums']['priority_type']
 type DeliveryEnum = Database['public']['Enums']['delivery_type']
 
+/**
+ * Job fields carried in the order list: enough for the department pills and
+ * for the derived "in production, missing info" alert (completeness fields +
+ * a nested product count).
+ */
+export type OrderListJob = {
+  id: string
+  department: Database['public']['Enums']['department']
+  status: OrderStatus
+  deadline: string | null
+  delivery: DeliveryEnum | null
+  priority: PriorityEnum | null
+  assignee_id: string | null
+  typesetting_minutes: number | null
+  is_cancelled: boolean
+  department_products: { count: number }[]
+}
+
 export type OrderListEntry = {
   id: string
   order_number: string
   status: OrderStatus
   created_at: string
   deadline: string | null
+  delivery: DeliveryEnum | null
   priority: 'NORMAL' | 'HIGH'
   customer_id: string
   customers: { name: string } | null
-  jobs: { department: string; status: string }[] | null
+  jobs: OrderListJob[] | null
 }
 
 /**
@@ -33,7 +52,7 @@ function flattenCustomerJoin<T extends { customers: unknown }>(row: T): T {
 }
 
 const ORDER_LIST_SELECT =
-  'id, order_number, status, created_at, deadline, priority, customer_id, customers(name), jobs(department, status)'
+  'id, order_number, status, created_at, deadline, delivery, priority, customer_id, customers(name), jobs(id, department, status, deadline, delivery, priority, assignee_id, typesetting_minutes, is_cancelled, department_products(count))'
 
 export type OrderListParams = {
   is_archived?: boolean

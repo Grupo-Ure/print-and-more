@@ -54,7 +54,7 @@ export function ProductTable({
   if (data.length === 0) {
     return (
       <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 text-center">
-        <p className="text-xs text-muted-foreground">No products yet.</p>
+        <p className="text-xs text-muted-foreground">Add the first product</p>
         {!meta.isReadOnly && <AddProductButton onClick={meta.onAdd} label={meta.addLabel} />}
       </div>
     )

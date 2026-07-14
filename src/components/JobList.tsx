@@ -1,9 +1,12 @@
 import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { AlertTriangle, Plus } from 'lucide-react'
 import { jobDepartmentLabel } from '../const/departmentAbbreviation'
+import { isInProductionMissingInfo } from '../lib/jobShared'
 import { DEPARTMENTS, type Department, type OrderStatus } from '../types/database'
 import { useOrderParams } from '../hooks/useOrderParams'
 import { useJobsByOrderId, useCreateJob } from '../queries/jobQueries'
+import { useOrderById } from '../queries/orderQueries'
+import { useProductCountsByOrderId } from '../queries/productQueries'
 import { useToast } from './Toast'
 import { Button } from './ui/button'
 import {
@@ -33,9 +36,13 @@ function JobStatusTrack({ status }: { status: OrderStatus }) {
 export function JobList() {
   const { activeOrderId, activeJobId, setActiveJob } = useOrderParams()
   const jobsQuery = useJobsByOrderId(activeOrderId)
+  const orderQuery = useOrderById(activeOrderId)
+  const productCountsQuery = useProductCountsByOrderId(activeOrderId)
   const [dialogOpen, setDialogOpen] = useState(false)
 
   const visibleJobs = (jobsQuery.data ?? []).filter(job => !job.is_cancelled)
+  const order = orderQuery.data
+  const productCounts = productCountsQuery.data
 
   return (
     <>
@@ -52,7 +59,20 @@ export function JobList() {
               )}
               onClick={() => setActiveJob(job.id)}
             >
-              <span>{jobDepartmentLabel(job.department)}</span>
+              <span className="flex items-center gap-1.5">
+                {jobDepartmentLabel(job.department)}
+                {order &&
+                  productCounts &&
+                  isInProductionMissingInfo(job, order, (productCounts[job.id] ?? 0) > 0) && (
+                    <span title="In production with missing information">
+                      <AlertTriangle
+                        size={14}
+                        className="text-red-700 shrink-0"
+                        aria-label="In production with missing information"
+                      />
+                    </span>
+                  )}
+              </span>
               <JobStatusTrack status={job.status} />
             </li>
           ))}

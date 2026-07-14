@@ -187,11 +187,18 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-auto min-w-64 p-0 overflow-hidden">
           <DropdownMenuItem
-            disabled={pending || approvalBlocked}
+            disabled={pending || approvalBlocked || !hasProducts}
             onSelect={() => setForceDialogOpen(true)}
             className={cn('rounded-none px-3 py-2.5', STATUS_META[target].softHoverColor)}
           >
-            Force release to Production…
+            <div className="flex flex-col">
+              <span>Force release to Production…</span>
+              {!hasProducts && (
+                <span className="text-xs text-muted-foreground">
+                  Requires at least one product
+                </span>
+              )}
+            </div>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -229,11 +236,16 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
             </Button>
             <Button
               type="button"
-              variant="destructive"
+              variant="default"
+              className={cn(
+                'text-primary-foreground',
+                STATUS_META.PRODUCTION_READY.color,
+                STATUS_META.PRODUCTION_READY.hoverColor,
+              )}
               onClick={() => void handleForceRelease()}
               disabled={forceRelease.isPending || forceReason.trim() === ''}
             >
-              {forceRelease.isPending ? '…' : 'Force release'}
+              {forceRelease.isPending ? '…' : 'Force Release to Production'}
             </Button>
           </DialogFooter>
         </DialogContent>

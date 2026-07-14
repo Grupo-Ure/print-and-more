@@ -34,10 +34,12 @@ import { type DeliveryChoice, type OrderStatus, type Priority, type JobRow } fro
  * + validation), the status manager (auto-advance completeness), and ContextPanel's
  * manual prepress check.
  */
-export function resolveEffectiveJob(
-  job: JobRow,
+export function resolveEffectiveJob<
+  T extends Pick<JobRow, 'delivery' | 'priority' | 'deadline'>,
+>(
+  job: T,
   order: { delivery: DeliveryChoice | null; priority: Priority; deadline: string | null },
-): JobRow {
+): T {
   return {
     ...job,
     delivery: job.delivery ?? order.delivery ?? 'PICKUP',
@@ -115,7 +117,24 @@ export function validateJobCommonFields(
  * (`hasProducts`, derived by the caller from `job_products`); for
  * Textile it's the related-table check.
  */
-export function isJobComplete(job: JobRow, status: OrderStatus, hasProducts: boolean): boolean {
+/** The job fields the completeness check reads — full `JobRow`s always qualify. */
+export type JobCompletenessFields = Pick<
+  JobRow,
+  | 'department'
+  | 'status'
+  | 'is_cancelled'
+  | 'deadline'
+  | 'delivery'
+  | 'priority'
+  | 'assignee_id'
+  | 'typesetting_minutes'
+>
+
+export function isJobComplete(
+  job: JobCompletenessFields,
+  status: OrderStatus,
+  hasProducts: boolean,
+): boolean {
   if (status === 'QUOTE') return true
   const errors = validateJobCommonFields(job, status)
   if (Object.keys(errors).length > 0) return false
@@ -130,5 +149,21 @@ export function isJobComplete(job: JobRow, status: OrderStatus, hasProducts: boo
     return hasProducts
   }
   return true
+}
+
+/**
+ * Derived alert: the job sits in production but fails the completeness check —
+ * the trace a force release leaves behind (or a required field cleared after a
+ * regular release). Purely derived, no stored flag: it appears while the info
+ * is missing and disappears once someone back-fills it. Shown as a warning icon
+ * on the order (sidebar) and the job (job list).
+ */
+export function isInProductionMissingInfo(
+  job: JobCompletenessFields,
+  order: { delivery: DeliveryChoice | null; priority: Priority; deadline: string | null },
+  hasProducts: boolean,
+): boolean {
+  if (job.status !== 'PRODUCTION_READY' || job.is_cancelled) return false
+  return !isJobComplete(resolveEffectiveJob(job, order), job.status, hasProducts)
 }
 

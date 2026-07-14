@@ -69,6 +69,21 @@ class DepartmentProductService {
     }))
   }
 
+  /**
+   * Product count per job for an order (job id → count). Feeds the derived
+   * "in production, missing info" alert without loading full product rows.
+   */
+  async getProductCountsByOrderId(orderId: string): Promise<Record<string, number>> {
+    const { data, error } = await supabase
+      .from('jobs')
+      .select('id, department_products(count)')
+      .eq('order_id', orderId)
+    if (error) throw error
+    return Object.fromEntries(
+      (data ?? []).map(row => [row.id, row.department_products?.[0]?.count ?? 0]),
+    )
+  }
+
   /** Insert parent then child (TS two-step). Returns the new product id. */
   async createProduct(input: ProductWriteInput): Promise<string> {
     const { data: parent, error } = await supabase
