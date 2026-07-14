@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowUp, Copy, MoreHorizontal, Trash2 } from 'lucide-react'
+import { ArrowUp, Copy, MoreHorizontal, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDateDe } from '../../lib/formatDate'
 import { uniqueDepartments } from '../../lib/orderDepartments'
@@ -115,15 +115,6 @@ function OrderSidebarItem({
             <h2 className="truncate font-semibold!">
               {order.customers?.name ?? '—'}
             </h2>
-            {order.is_emergency && (
-              <span title='Emergency order'>
-                <AlertTriangle
-                  size={16}
-                  className="text-red-700 shrink-0"
-                  aria-label="Emergency"
-                  />
-                </span>
-            )}
             {order.priority === 'HIGH' && (
               <span title='High Priority'>
                 <ArrowUp

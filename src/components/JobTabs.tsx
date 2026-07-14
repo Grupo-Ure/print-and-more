@@ -97,8 +97,6 @@ function AddJobDialog({ open, onOpenChange }: AddJobDialogProps) {
         deadline: null,
         delivery: null,
         assignee_id: null,
-        is_emergency: false,
-        emergency_reason: null,
         is_cancelled: false,
         customer_approval_required: false,
         customer_approval_granted: false,

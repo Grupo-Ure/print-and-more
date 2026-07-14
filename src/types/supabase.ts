@@ -954,10 +954,8 @@ export type Database = {
           delivery: Database["public"]["Enums"]["delivery_type"] | null
           department: Database["public"]["Enums"]["department"]
           detail: Json
-          emergency_reason: string | null
           id: string
           is_cancelled: boolean
-          is_emergency: boolean
           order_id: string
           priority: Database["public"]["Enums"]["priority_type"] | null
           sort_order: number
@@ -976,10 +974,8 @@ export type Database = {
           delivery?: Database["public"]["Enums"]["delivery_type"] | null
           department: Database["public"]["Enums"]["department"]
           detail?: Json
-          emergency_reason?: string | null
           id?: string
           is_cancelled?: boolean
-          is_emergency?: boolean
           order_id: string
           priority?: Database["public"]["Enums"]["priority_type"] | null
           sort_order?: number
@@ -998,10 +994,8 @@ export type Database = {
           delivery?: Database["public"]["Enums"]["delivery_type"] | null
           department?: Database["public"]["Enums"]["department"]
           detail?: Json
-          emergency_reason?: string | null
           id?: string
           is_cancelled?: boolean
-          is_emergency?: boolean
           order_id?: string
           priority?: Database["public"]["Enums"]["priority_type"] | null
           sort_order?: number
@@ -1099,7 +1093,6 @@ export type Database = {
           delivery: Database["public"]["Enums"]["delivery_type"] | null
           id: string
           is_archived: boolean
-          is_emergency: boolean
           is_erp_exported: boolean
           order_number: string
           priority: Database["public"]["Enums"]["priority_type"]
@@ -1114,7 +1107,6 @@ export type Database = {
           delivery?: Database["public"]["Enums"]["delivery_type"] | null
           id?: string
           is_archived?: boolean
-          is_emergency?: boolean
           is_erp_exported?: boolean
           order_number: string
           priority?: Database["public"]["Enums"]["priority_type"]
@@ -1129,7 +1121,6 @@ export type Database = {
           delivery?: Database["public"]["Enums"]["delivery_type"] | null
           id?: string
           is_archived?: boolean
-          is_emergency?: boolean
           is_erp_exported?: boolean
           order_number?: string
           priority?: Database["public"]["Enums"]["priority_type"]

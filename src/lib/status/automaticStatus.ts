@@ -6,7 +6,7 @@ import { customerMeetsPrepressContact } from '../customer'
  * The automatic `INCOMPLETE ↔ PREPRESS_READY` decision — a pure function of the
  * job's *current* state. The status manager calls this only for a job
  * whose status is already `INCOMPLETE` or `PREPRESS_READY` (the caller gates out
- * QUOTE / committed / emergency / cancelled rows), so the return value is always
+ * QUOTE / committed / cancelled rows), so the return value is always
  * one of those two.
  *
  * Rules:

@@ -72,20 +72,6 @@ class JobService {
     return data as unknown as JobRow
   }
 
-  async setJobEmergency(
-    id: string,
-    patch: Pick<JobUpdate, 'is_emergency' | 'emergency_reason'>,
-  ): Promise<JobRow> {
-    const { data, error } = await supabase
-      .from('jobs')
-      .update(patch)
-      .eq('id', id)
-      .select(JOB_COLUMNS)
-      .single()
-    if (error) throw error
-    return data as unknown as JobRow
-  }
-
   async setCustomerApproval(
     id: string,
     patch: Pick<

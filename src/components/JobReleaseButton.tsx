@@ -208,7 +208,8 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
             <DialogTitle>Force release to production?</DialogTitle>
             <DialogDescription>
               The job moves to production even though its requirements are not
-              fulfilled, and is marked as an emergency. A reason is required.
+              fulfilled. The override is recorded in the order history with
+              your name and reason.
             </DialogDescription>
           </DialogHeader>
           <Textarea

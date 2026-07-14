@@ -240,9 +240,9 @@ export function useReleaseToProduction() {
 /**
  * Emergency force release: bypass the completeness/prepress gate and put the
  * job straight into PRODUCTION_READY. Books the same stock deductions as the
- * regular release, marks the job as emergency with the given reason, and
- * writes an EMERGENCY_TRIGGERED history entry. The emergency flag doubles as
- * the "hands off" marker for the automatic status manager.
+ * regular release and writes an EMERGENCY_TRIGGERED history entry with the
+ * reason — history is the sole record of the override. PRODUCTION_READY is
+ * outside the automatic status band, so the status manager leaves the job alone.
  */
 export function useForceReleaseToProduction() {
   const queryClient = useQueryClient()
@@ -253,7 +253,6 @@ export function useForceReleaseToProduction() {
   >({
     mutationFn: async ({ job, orderId, orderNumber, reason }) => {
       await deductProductionStock(job, orderNumber)
-      await jobService.setJobEmergency(job.id, { is_emergency: true, emergency_reason: reason })
       const row = await jobService.setJobStatus(job.id, 'PRODUCTION_READY')
       try {
         await historyService.writeHistory({
@@ -270,31 +269,6 @@ export function useForceReleaseToProduction() {
     onSuccess: async (row, { orderId }) => {
       patchJobInCache(queryClient, orderId, row)
       await reconcileOrderStatus(queryClient, orderId)
-    },
-  })
-}
-
-/** Toggle the emergency flag + reason. Does not change status. */
-export function useSetJobEmergency() {
-  const queryClient = useQueryClient()
-  return useMutation<
-    JobRow,
-    Error,
-    {
-      id: string
-      orderId: string
-      patch: Pick<JobUpdate, 'is_emergency' | 'emergency_reason'>
-      history?: HistoryParams
-    }
-  >({
-    mutationFn: async ({ id, orderId, patch, history }) => {
-      const row = await jobService.setJobEmergency(id, patch)
-      if (history) await historyService.writeHistory({ order_id: orderId, job_id: id, ...history })
-      return row
-    },
-    onSuccess: (row, { orderId }) => {
-      patchJobInCache(queryClient, orderId, row)
-      void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
     },
   })
 }

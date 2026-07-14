@@ -15,7 +15,6 @@ export type OrderListEntry = {
   created_at: string
   deadline: string | null
   priority: 'NORMAL' | 'HIGH'
-  is_emergency: boolean
   customer_id: string
   customers: { name: string } | null
   jobs: { department: string; status: string }[] | null
@@ -34,7 +33,7 @@ function flattenCustomerJoin<T extends { customers: unknown }>(row: T): T {
 }
 
 const ORDER_LIST_SELECT =
-  'id, order_number, status, created_at, deadline, priority, is_emergency, customer_id, customers(name), jobs(department, status)'
+  'id, order_number, status, created_at, deadline, priority, customer_id, customers(name), jobs(department, status)'
 
 export type OrderListParams = {
   is_archived?: boolean

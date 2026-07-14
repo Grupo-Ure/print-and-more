@@ -16,8 +16,6 @@ CREATE TABLE IF NOT EXISTS "public"."jobs" (
     "typesetting_minutes" integer,
     "data_status" "text",
     "detail" "jsonb" DEFAULT '{}'::"jsonb" NOT NULL,
-    "is_emergency" boolean DEFAULT false NOT NULL,
-    "emergency_reason" "text",
     "customer_approval_required" boolean DEFAULT false NOT NULL,
     "customer_approval_granted" boolean DEFAULT false NOT NULL,
     "customer_approval_file_id" "uuid",
@@ -25,7 +23,6 @@ CREATE TABLE IF NOT EXISTS "public"."jobs" (
     "sort_order" integer DEFAULT 0 NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     CONSTRAINT "approval_consistency" CHECK (((NOT (("customer_approval_granted" = true) AND ("customer_approval_required" = false))) AND (NOT (("customer_approval_granted" = true) AND ("customer_approval_file_id" IS NULL))) AND (NOT (("customer_approval_file_id" IS NOT NULL) AND ("customer_approval_required" = false))))),
-    CONSTRAINT "emergency_reason_required" CHECK (((NOT "is_emergency") OR (("emergency_reason" IS NOT NULL) AND (TRIM(BOTH FROM "emergency_reason") <> ''::"text")))),
     CONSTRAINT "typesetting_time_positive" CHECK ((("typesetting_minutes" IS NULL) OR ("typesetting_minutes" > 0))),
     CONSTRAINT "job_status_no_quote" CHECK (("status" <> 'QUOTE'::"public"."order_status"))
 );

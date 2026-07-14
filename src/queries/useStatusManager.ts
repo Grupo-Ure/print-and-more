@@ -8,7 +8,7 @@ import { useEffectiveJob, useSetJobStatus } from './jobQueries'
  * The status manager: watches the active job's cached data and persists the
  * automatic `INCOMPLETE ↔ PREPRESS_READY` transition. Mounted once, for the active
  * job (a single writer). It does NOT touch QUOTE / PRODUCTION_READY / DONE /
- * INVOICED / emergency rows, and does not do bounce-back.
+ * INVOICED rows, and does not do bounce-back.
  *
  * Mechanism: read current state from the cache (queries), compute the target status
  * with the pure `deriveAutomaticStatus`, and — only if it differs from the stored
@@ -31,8 +31,8 @@ export function useStatusManager(orderId: string | null, activeJobId: string | n
 
   useEffect(() => {
     if (!orderId || !order || !effectiveJob) return
-    // Gate: only the auto band, never emergency or cancelled rows.
-    if (effectiveJob.is_cancelled || effectiveJob.is_emergency) return
+    // Gate: only the auto band, never cancelled rows.
+    if (effectiveJob.is_cancelled) return
     if (effectiveJob.status !== 'INCOMPLETE' && effectiveJob.status !== 'PREPRESS_READY') return
     // Wait for the products query to load before acting (undefined = still loading).
     if (products === undefined) return
