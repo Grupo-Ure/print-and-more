@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { AlertTriangle, Plus } from 'lucide-react'
 import { jobDepartmentLabel } from '../const/departmentAbbreviation'
 import { isInProductionMissingInfo } from '../lib/jobShared'
-import { DEPARTMENTS, type Department, type OrderStatus } from '../types/database'
+import { DEPARTMENTS, type Department, type JobStatus } from '../types/database'
 import { useOrderParams } from '../hooks/useOrderParams'
 import { useJobsByOrderId, useCreateJob } from '../queries/jobQueries'
 import { useOrderById } from '../queries/orderQueries'
@@ -17,16 +17,16 @@ import {
   DialogTitle,
 } from './ui/dialog'
 import { cn } from '@/lib/utils'
-import { STATUS_META, WORKFLOW_STATUSES } from '../const/orderStatus'
+import { JOB_STATUS_META, WORKFLOW_STATUSES } from '../const/orderStatus'
 
-function JobStatusTrack({ status }: { status: OrderStatus }) {
+function JobStatusTrack({ status }: { status: JobStatus }) {
   return (
     <div className="flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-gray-100">
       {WORKFLOW_STATUSES.map(s => (
         <div
           key={s}
-          title={STATUS_META[s].label}
-          className={cn('w-2.5 h-2.5', s === status ? STATUS_META[s].color : 'bg-gray-200')}
+          title={JOB_STATUS_META[s].label}
+          className={cn('w-2.5 h-2.5', s === status ? JOB_STATUS_META[s].color : 'bg-gray-200')}
         />
       ))}
     </div>
@@ -43,12 +43,14 @@ export function JobList() {
   const visibleJobs = (jobsQuery.data ?? []).filter(job => !job.is_cancelled)
   const order = orderQuery.data
   const productCounts = productCountsQuery.data
+  // A finished/billed order is closed for new work — reopen it to add jobs.
+  const jobsLocked = order?.status === 'FINISHED' || order?.status === 'BILLED'
 
   return (
     <>
       <nav className="flex flex-col justify-between w-60">
-        <h1>Jobs</h1>
-        <AddJobButton onClick={() => setDialogOpen(true)} />
+        <h1>Jobs in this order</h1>
+        {!jobsLocked && <AddJobButton onClick={() => setDialogOpen(true)} />}
         <ul className="flex flex-col flex-wrap flex-1 min-w-0" aria-label="Jobs">
           {visibleJobs.map(job => (
             <li
@@ -100,7 +102,7 @@ function AddJobDialog({ open, onOpenChange }: AddJobDialogProps) {
       {
         order_id: activeOrderId,
         department,
-        status: 'INCOMPLETE',
+        status: 'IN_SETUP',
         priority: null,
         detail: {},
         deadline: null,

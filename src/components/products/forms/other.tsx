@@ -14,7 +14,7 @@ function buildChild(values: FormValues): ProductChildInsert {
   return { description: strOut(values.description) } as ProductChildInsert
 }
 
-export function OtherForm({ job, jobStatus, product, orderFiles, initialFileIds, sortOrder, onSaved, onCancel }: ProductFormProps) {
+export function OtherForm({ job, orderIsQuote, product, orderFiles, initialFileIds, sortOrder, onSaved, onCancel }: ProductFormProps) {
   const saveProduct = useSaveProduct()
   const { showError } = useToast()
   const [fileIds, setFileIds] = useState<string[]>(initialFileIds)
@@ -22,7 +22,7 @@ export function OtherForm({ job, jobStatus, product, orderFiles, initialFileIds,
   const form = useForm({
     defaultValues: { description: '', quantity: '', ...valuesFromProduct(product) } as FormValues,
     onSubmit: ({ value }) => {
-      if (Object.keys(validateProduct('OTHER', value, jobStatus)).length > 0) return
+      if (Object.keys(validateProduct('OTHER', value, orderIsQuote)).length > 0) return
       const input: ProductWriteInput = {
         ...(product ? { id: product.id } : {}),
         job_id: job.id,
@@ -51,7 +51,7 @@ export function OtherForm({ job, jobStatus, product, orderFiles, initialFileIds,
     >
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('OTHER', values, jobStatus)
+          const errors = validateProduct('OTHER', values, orderIsQuote)
           return (
             <>
               <form.Field name="description">

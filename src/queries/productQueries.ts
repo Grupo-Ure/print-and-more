@@ -122,7 +122,7 @@ export function useSaveProduct() {
       void queryClient.invalidateQueries({ queryKey: productKeys.countsRoot })
       if (links) void queryClient.invalidateQueries({ queryKey: textileKeys.links(jobId) })
 
-      // Bounce-back: a meaningful content change drops a committed job to INCOMPLETE.
+      // Bounce-back: a meaningful content change drops a committed job to IN_SETUP.
       const kind = input.id ? 'update' : 'create'
       if (
         isMeaningfulChange(

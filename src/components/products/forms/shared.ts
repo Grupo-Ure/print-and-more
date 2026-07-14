@@ -7,7 +7,7 @@
  */
 
 import { useState } from 'react'
-import type { OrderStatus, JobRow } from '../../../types/database'
+import type { JobRow } from '../../../types/database'
 import type { LoadedProduct, ProductChildInsert, ProductWriteInput } from '../../../types/product'
 import type { FileRow } from '../../../services/fileService'
 import { validateProduct } from '../../../lib/products/registry'
@@ -18,7 +18,8 @@ import { useToast } from '../../Toast'
 /** Props every per-type form component receives from the department detail. */
 export type ProductFormProps = {
   job: JobRow
-  jobStatus: OrderStatus
+  /** True while the parent order is a QUOTE — nothing is required yet. */
+  orderIsQuote: boolean
   /** The product being edited, or `null` when adding a new one. */
   product: LoadedProduct | null
   /** Order-level files available for assignment. */
@@ -67,7 +68,7 @@ export function useProductSubmit(p: ProductFormProps, type: string, toChild: (v:
   const { showError } = useToast()
   const [fileIds, setFileIds] = useState<string[]>(p.initialFileIds)
   const submit = (value: FormValues) => {
-    if (Object.keys(validateProduct(type, value, p.jobStatus)).length > 0) return
+    if (Object.keys(validateProduct(type, value, p.orderIsQuote)).length > 0) return
     saveProduct.mutate(
       {
         input: buildWriteInput({ product: p.product, job: p.job, type, sortOrder: p.sortOrder, quantity: qtyOut(value.quantity), child: toChild(value) }),

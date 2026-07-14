@@ -21,6 +21,8 @@ import { orderKeys, useArchiveOrder, useArchiveOrderWithCancelledJobs, useOrderB
 import { jobKeys, useJobsByOrderId } from '../queries/jobQueries'
 import './WorkArea.css'
 import { Button } from './ui/button'
+import { cn } from '@/lib/utils'
+import { ORDER_STATUS_META } from '../const/orderStatus'
 import { Archive, Ban, Settings } from 'lucide-react'
 import { Separator } from './ui/separator'
 import { DeadlinePicker } from './fields/DeadlinePicker'
@@ -122,8 +124,34 @@ export function OrderDetails({
     try {
       await setOrderStatus.mutateAsync({
         id: order.id,
-        status: 'INCOMPLETE',
+        status: 'IN_PROGRESS',
         history: { event_type: 'PROCESSING_STARTED' },
+      })
+    } catch {
+      showError('Status could not be changed')
+    }
+  }
+
+  const handleMarkFinished = async () => {
+    if (!order || order.status !== 'IN_PROGRESS') return
+    try {
+      await setOrderStatus.mutateAsync({
+        id: order.id,
+        status: 'FINISHED',
+        history: { event_type: 'ORDER_FINISHED' },
+      })
+    } catch {
+      showError('Status could not be changed')
+    }
+  }
+
+  const handleReopenOrder = async () => {
+    if (!order || order.status !== 'FINISHED') return
+    try {
+      await setOrderStatus.mutateAsync({
+        id: order.id,
+        status: 'IN_PROGRESS',
+        history: { event_type: 'ORDER_REOPENED' },
       })
     } catch {
       showError('Status could not be changed')
@@ -237,6 +265,11 @@ export function OrderDetails({
     <main className="flex flex-col gap-2 p-3 flex-1">
       <OrderHeader
         order={order}
+        canMarkFinished={
+          order.status === 'IN_PROGRESS' &&
+          visibleJobs.length > 0 &&
+          visibleJobs.every(job => job.status === 'DONE')
+        }
         onEditCustomer={() =>
           openCustomerDialog(order?.customers ?? null, {
             onSaved: () => {
@@ -249,9 +282,11 @@ export function OrderDetails({
         onArchive={() => void handleArchive()}
         onCancelOrder={() => void handleCancelOrder()}
         onStartProcessing={() => void handleStartProcessing()}
+        onMarkFinished={() => void handleMarkFinished()}
+        onReopenOrder={() => void handleReopenOrder()}
         archivePending={archiveOrder.isPending}
         cancelPending={cancelOrder.isPending}
-        startProcessingPending={setOrderStatus.isPending}
+        statusPending={setOrderStatus.isPending}
       />
       <Separator />
 
@@ -282,16 +317,20 @@ export function OrderDetails({
 
 type OrderHeaderProps = {
   order: OrderDetailRow
+  /** True only while IN_PROGRESS with ≥1 non-cancelled job and every one of them DONE. */
+  canMarkFinished: boolean
   onEditCustomer: () => void
   onArchive: () => void
   onCancelOrder: () => void
   onStartProcessing: () => void
+  onMarkFinished: () => void
+  onReopenOrder: () => void
   archivePending: boolean
   cancelPending: boolean
-  startProcessingPending: boolean
+  statusPending: boolean
 }
 
-function OrderHeader({ order, onEditCustomer, onArchive, onCancelOrder, onStartProcessing, archivePending, cancelPending, startProcessingPending }: OrderHeaderProps) {
+function OrderHeader({ order, canMarkFinished, onEditCustomer, onArchive, onCancelOrder, onStartProcessing, onMarkFinished, onReopenOrder, archivePending, cancelPending, statusPending }: OrderHeaderProps) {
   const customerDisplayName = order.customers?.name?.trim() || '—'
   const customerEmail = order.customers?.email?.trim() || ''
   const customerPhone = order.customers?.phone?.trim() || ''
@@ -310,14 +349,44 @@ function OrderHeader({ order, onEditCustomer, onArchive, onCancelOrder, onStartP
             <Button
               type="button"
               variant="default"
-              size="lg"
-              disabled={startProcessingPending}
+              className={cn(
+                'h-10 px-6 text-lg rounded-full animate-attention-ring',
+                ORDER_STATUS_META.IN_PROGRESS.color,
+                ORDER_STATUS_META.IN_PROGRESS.hoverColor,
+              )}
+              disabled={statusPending}
               onClick={onStartProcessing}
             >
               Start processing
             </Button>
           )}
-          {order.status !== 'INVOICED' && (
+          {canMarkFinished && (
+            <Button
+              type="button"
+              variant="default"
+              className={cn(
+                'h-10 px-6 text-lg rounded-full',
+                ORDER_STATUS_META.FINISHED.color,
+                ORDER_STATUS_META.FINISHED.hoverColor,
+              )}
+              disabled={statusPending}
+              onClick={onMarkFinished}
+            >
+              Mark finished
+            </Button>
+          )}
+          {order.status === 'FINISHED' && (
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              disabled={statusPending}
+              onClick={onReopenOrder}
+            >
+              Reopen order
+            </Button>
+          )}
+          {order.status !== 'BILLED' && (
             <Button
               type="button"
               variant="ghost"
@@ -330,7 +399,7 @@ function OrderHeader({ order, onEditCustomer, onArchive, onCancelOrder, onStartP
               <Archive />
             </Button>
           )}
-          {order.status !== 'INVOICED' && (
+          {order.status !== 'BILLED' && (
             <Button
               type="button"
               variant="ghost"

@@ -1,7 +1,7 @@
 /** CopyShop department detail — add-product button, two-step dialog, table. */
 
 import type { ComponentType } from 'react'
-import type { OrderStatus, JobRow } from '../../../types/database'
+import type { JobStatus, JobRow } from '../../../types/database'
 import type { FileRow } from '../../../services/fileService'
 import { COPY_SHOP_TYPES, COPY_SHOP_TYPE_LABELS } from '../../../types/copyshop'
 import { AddProductButton } from '../AddProductButton'
@@ -21,7 +21,7 @@ import type { ProductFormProps } from '../forms/shared'
 
 type Props = {
   job: JobRow
-  jobStatus: OrderStatus
+  jobStatus: JobStatus
   orderFiles?: FileRow[]
 }
 

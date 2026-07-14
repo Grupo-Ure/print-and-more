@@ -86,7 +86,7 @@ export function PosterForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('POSTER', values, p.jobStatus) as Errs
+          const errors = validateProduct('POSTER', values, p.orderIsQuote) as Errs
           return (
             <>
               <form.Field name="format" listeners={{ onChange: dinFill(form, POSTER_DIN) }}>{f => <SelectField field={f} label="Format" options={enumOpts([['A4', 'A4'], ['A3', 'A3'], ['A2', 'A2'], ['A1', 'A1'], ['A0', 'A0'], ['FREI', 'Free']])} error={errors.format} />}</form.Field>
@@ -124,7 +124,7 @@ function CardFoldForm(p: ProductFormProps & { type: 'CARD_FLYER' | 'FOLDED_FLYER
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct(p.type, values, p.jobStatus) as Errs
+          const errors = validateProduct(p.type, values, p.orderIsQuote) as Errs
           const pp = values.production_path
           const cc = (matKey: string, otherKey: string, label: string) => (
             <>
@@ -202,7 +202,7 @@ export function BrochureForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('BROCHURE', values, p.jobStatus) as Errs
+          const errors = validateProduct('BROCHURE', values, p.orderIsQuote) as Errs
           const pp = values.production_path
           const cc = (matKey: string, otherKey: string, label: string) => (
             <>
@@ -258,7 +258,7 @@ export function BusinessCardForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('BUSINESS_CARD', values, p.jobStatus) as Errs
+          const errors = validateProduct('BUSINESS_CARD', values, p.orderIsQuote) as Errs
           return (
             <>
               <form.Field name="material">{f => <SelectField field={f} label="Material" options={opts(VISITENKARTE_MATERIALIEN)} error={errors.material} />}</form.Field>
@@ -301,7 +301,7 @@ export function BindingForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('BINDING', values, p.jobStatus) as Errs
+          const errors = validateProduct('BINDING', values, p.orderIsQuote) as Errs
           const bt = String(values.binding_type ?? '')
           const isWire = bt === 'WIRE_O' || bt === 'KUNSTSTOFFSPIRALE'
           const isCover = bt === 'SOFTCOVER' || bt === 'HARDCOVER'
@@ -354,7 +354,7 @@ export function PrintoutForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('PRINTOUT', values, p.jobStatus) as Errs
+          const errors = validateProduct('PRINTOUT', values, p.orderIsQuote) as Errs
           return (
             <>
               <form.Field name="format">{f => <SelectField field={f} label="Format" options={enumOpts([['A5', 'A5'], ['A4', 'A4'], ['A3', 'A3']])} error={errors.format} />}</form.Field>

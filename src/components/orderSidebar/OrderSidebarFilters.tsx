@@ -6,11 +6,9 @@ import { STATUS_ORDER, type FilterActions, type FilterState } from './useOrderSi
 /** Short label for the status filter checkboxes. */
 const STATUS_CHECKBOX_SHORT: Record<OrderStatus, string> = {
   QUOTE: 'Quote',
-  INCOMPLETE: 'Incomplete',
-  PREPRESS_READY: 'PrePress',
-  PRODUCTION_READY: 'In Prod.',
-  DONE: 'Done',
-  INVOICED: 'Invoiced',
+  IN_PROGRESS: 'In Progress',
+  FINISHED: 'Finished',
+  BILLED: 'Billed',
 }
 
 type Props = {

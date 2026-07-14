@@ -10,7 +10,7 @@ import {
 } from '../queries/jobQueries'
 import { useIsAdmin } from '../queries/userQueries'
 import { isJobComplete, resolveEffectiveJob } from '../lib/jobShared'
-import { STATUS_META, WORKFLOW_STATUSES } from '../const/orderStatus'
+import { JOB_STATUS_META, WORKFLOW_STATUSES } from '../const/orderStatus'
 import type { JobRow } from '../types/database'
 import { useToast } from './Toast'
 import { Button } from './ui/button'
@@ -48,18 +48,17 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
   const [forceReason, setForceReason] = useState('')
 
   const order = orderQuery.data
+  const orderIsQuote = order?.status === 'QUOTE'
   const hasProducts = (productsQuery.data?.length ?? 0) > 0
   const effectiveJob = order ? resolveEffectiveJob(job, order) : null
-  const complete = effectiveJob
-    ? isJobComplete(effectiveJob, job.status, hasProducts)
-    : false
+  const complete = effectiveJob ? isJobComplete(effectiveJob, false, hasProducts) : false
 
   const handleReleaseToPrepress = async () => {
     try {
       await setJobStatus.mutateAsync({
         id: job.id,
         orderId: job.order_id,
-        status: 'PREPRESS_READY',
+        status: 'PREPRESS',
         history: { event_type: 'PREPRESS_READY_MANUAL' },
       })
     } catch {
@@ -109,17 +108,17 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
   }
 
   // The button advances the job to the next status in the workflow track; its
-  // color is that target status' central color (STATUS_META). No next status
-  // (DONE / QUOTE / INVOICED) → nothing to advance, so the button disappears.
+  // color is that target status' central color (JOB_STATUS_META). No next
+  // status (DONE) → nothing to advance, so the button disappears.
   const target = WORKFLOW_STATUSES[WORKFLOW_STATUSES.indexOf(job.status) + 1]
 
   const label =
-    job.status === 'INCOMPLETE' ? 'Release to Pre-Press' :
-    job.status === 'PREPRESS_READY' ? 'Release to Production' :
-    job.status === 'PRODUCTION_READY' ? 'Mark job as done' :
+    job.status === 'IN_SETUP' ? 'Release to Pre-Press' :
+    job.status === 'PREPRESS' ? 'Release to Production' :
+    job.status === 'IN_PRODUCTION' ? 'Mark job as done' :
     null
 
-  if (!label || !target) return null
+  if (!label || !target || orderIsQuote) return null
 
   const pending = setJobStatus.isPending || releaseToProduction.isPending || forceRelease.isPending
 
@@ -130,25 +129,25 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
 
   const disabled =
     pending ||
-    (job.status === 'INCOMPLETE' && !complete) ||
-    (job.status === 'PREPRESS_READY' && approvalBlocked)
+    (job.status === 'IN_SETUP' && !complete) ||
+    (job.status === 'PREPRESS' && approvalBlocked)
 
   const handleClick = () => {
-    if (job.status === 'INCOMPLETE') return void handleReleaseToPrepress()
-    if (job.status === 'PREPRESS_READY') return void handleReleaseToProduction()
-    if (job.status === 'PRODUCTION_READY') return void handleMarkDone()
+    if (job.status === 'IN_SETUP') return void handleReleaseToPrepress()
+    if (job.status === 'PREPRESS') return void handleReleaseToProduction()
+    if (job.status === 'IN_PRODUCTION') return void handleMarkDone()
   }
 
   // The force-release override exists only to bypass the completeness gate,
   // so the dropdown shows only while that gate is actually failing. Once the
-  // job validates (or is past INCOMPLETE), the normal release covers it.
+  // job validates (or is past IN_SETUP), the normal release covers it.
   // Admin / super admin only.
-  const withDropdown = isAdmin && job.status === 'INCOMPLETE' && !complete
+  const withDropdown = isAdmin && job.status === 'IN_SETUP' && !complete
 
   const mainClassName = cn(
     'h-10 px-6 text-lg',
-    STATUS_META[target].color,
-    STATUS_META[target].hoverColor,
+    JOB_STATUS_META[target].color,
+    JOB_STATUS_META[target].hoverColor,
     withDropdown ? 'rounded-l-full rounded-r-none' : 'ml-auto rounded-full',
   )
 
@@ -176,8 +175,8 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
             variant="default"
             className={cn(
               'h-10 rounded-r-full rounded-l-none border-l border-white/30 px-2',
-              STATUS_META[target].color,
-              STATUS_META[target].hoverColor,
+              JOB_STATUS_META[target].color,
+              JOB_STATUS_META[target].hoverColor,
             )}
             disabled={pending}
             aria-label="More release options"
@@ -189,7 +188,7 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
           <DropdownMenuItem
             disabled={pending || approvalBlocked || !hasProducts}
             onSelect={() => setForceDialogOpen(true)}
-            className={cn('rounded-none px-3 py-2.5', STATUS_META[target].softHoverColor)}
+            className={cn('rounded-none px-3 py-2.5', JOB_STATUS_META[target].softHoverColor)}
           >
             <div className="flex flex-col">
               <span>Force release to Production…</span>
@@ -239,8 +238,8 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
               variant="default"
               className={cn(
                 'text-primary-foreground',
-                STATUS_META.PRODUCTION_READY.color,
-                STATUS_META.PRODUCTION_READY.hoverColor,
+                JOB_STATUS_META.IN_PRODUCTION.color,
+                JOB_STATUS_META.IN_PRODUCTION.hoverColor,
               )}
               onClick={() => void handleForceRelease()}
               disabled={forceRelease.isPending || forceReason.trim() === ''}

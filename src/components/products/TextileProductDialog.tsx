@@ -9,6 +9,7 @@
 import type { JobRow } from '../../types/database'
 import type { FileRow } from '../../services/fileService'
 import type { TextileMotifRow, TextileMotifLinkInput } from '../../types/textile'
+import { useOrderById } from '../../queries/orderQueries'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { TextileGarmentForm } from './forms/textile'
 import type { useProductEditor } from './useProductEditor'
@@ -29,7 +30,8 @@ export function TextileProductDialog({
   linksByProduct: Record<string, TextileMotifLinkInput[]>
 }) {
   const { mode, close, handleSaved, products } = editor
-  const jobStatus = job.status
+  // The quote-relaxation of the garment validation is an order-level rule.
+  const orderIsQuote = useOrderById(job.order_id).data?.status === 'QUOTE'
   const editing = mode.kind === 'edit' ? mode.product : null
   const open = mode.kind !== 'idle'
 
@@ -42,7 +44,7 @@ export function TextileProductDialog({
         <TextileGarmentForm
           key={editing?.id ?? 'new'}
           job={job}
-          jobStatus={jobStatus}
+          orderIsQuote={orderIsQuote}
           product={editing}
           orderFiles={orderFiles}
           initialFileIds={[]}

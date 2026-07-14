@@ -10,6 +10,15 @@
    @apply border-orange-400 border-2;
 }
 
+/* Breathing outer ring for the primary next-step action. */
+@keyframes attention-ring {
+  0%, 100% { box-shadow: 0 0 0 5px transparent; }
+  50% { box-shadow: 0 0 0 5px var(--attention-ring-color, color-mix(in srgb, var(--color-orange-500) 55%, transparent)); }
+}
+.animate-attention-ring {
+  animation: attention-ring 2s ease-in-out infinite;
+}
+
 :root {
   --col-left: 280px;
   --col-right: 300px;

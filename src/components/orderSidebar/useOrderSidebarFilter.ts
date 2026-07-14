@@ -3,20 +3,16 @@ import { DEPARTMENTS, type OrderStatus } from '../../types/database'
 
 export const STATUS_ORDER: OrderStatus[] = [
   'QUOTE',
-  'INCOMPLETE',
-  'PREPRESS_READY',
-  'PRODUCTION_READY',
-  'DONE',
-  'INVOICED',
+  'IN_PROGRESS',
+  'FINISHED',
+  'BILLED',
 ]
 
 const DEFAULT_STATUS_TOGGLES: Record<OrderStatus, boolean> = {
   QUOTE: true,
-  INCOMPLETE: true,
-  PREPRESS_READY: true,
-  PRODUCTION_READY: true,
-  DONE: false,
-  INVOICED: false,
+  IN_PROGRESS: true,
+  FINISHED: false,
+  BILLED: false,
 }
 
 export type FilterState = {

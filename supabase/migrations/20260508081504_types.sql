@@ -43,16 +43,25 @@ GRANT USAGE ON SCHEMA "public" TO "authenticated";
 
 GRANT USAGE ON SCHEMA "public" TO "service_role";
 
+-- Order lifecycle: manual transitions only (no aggregation from jobs).
 CREATE TYPE "public"."order_status" AS ENUM (
     'QUOTE',
-    'INCOMPLETE',
-    'PREPRESS_READY',
-    'PRODUCTION_READY',
-    'DONE',
-    'INVOICED'
+    'IN_PROGRESS',
+    'FINISHED',
+    'BILLED'
 );
 
 ALTER TYPE "public"."order_status" OWNER TO "postgres";
+
+-- Job production workflow, independent of the order lifecycle.
+CREATE TYPE "public"."job_status" AS ENUM (
+    'IN_SETUP',
+    'PREPRESS',
+    'IN_PRODUCTION',
+    'DONE'
+);
+
+ALTER TYPE "public"."job_status" OWNER TO "postgres";
 
 CREATE TYPE "public"."file_role" AS ENUM (
     'PRODUCTION_FILE',
@@ -78,7 +87,10 @@ CREATE TYPE "public"."history_event" AS ENUM (
     'ROLLED_BACK',
     'CANCELLED',
     'ERP_EXPORTED',
-    'ASSIGNEE_CHANGED'
+    'ASSIGNEE_CHANGED',
+    'ORDER_FINISHED',
+    'ORDER_REOPENED',
+    'ORDER_BILLED'
 );
 
 ALTER TYPE "public"."history_event" OWNER TO "postgres";

@@ -166,7 +166,7 @@ export function ContextPanel({
     try {
       const updated = await setOrderStatusMutation.mutateAsync({
         id: order.id,
-        status: 'INCOMPLETE',
+        status: 'IN_PROGRESS',
         history: { event_type: 'PROCESSING_STARTED' },
       })
       onOrderUpdated({ ...order, status: updated.status })
@@ -183,7 +183,7 @@ export function ContextPanel({
     setBusy(true)
     try {
       await markBilledMutation.mutateAsync({ id: order.id })
-      onOrderUpdated({ ...order, status: 'INVOICED', is_archived: true })
+      onOrderUpdated({ ...order, status: 'BILLED', is_archived: true })
     } catch {
       showError('Status could not be changed')
     } finally {
@@ -231,10 +231,10 @@ export function ContextPanel({
   if (job && job.customer_approval_required && !job.customer_approval_granted) {
     hints.push('Customer approval missing — production blocked')
   }
-  if (job && job.status === 'PREPRESS_READY' && !job.customer_approval_required) {
+  if (job && job.status === 'PREPRESS' && !job.customer_approval_required) {
     hints.push('Ready for production release')
   }
-  if (order.status === 'DONE') {
+  if (order.status === 'FINISHED') {
     hints.push('Order completed')
   }
 
@@ -294,7 +294,7 @@ export function ContextPanel({
               Edit customer
             </button>
           )}
-          {order.status === 'DONE' && (
+          {order.status === 'FINISHED' && (
             <button type="button" className="cp-btn" disabled={busy} onClick={() => void handleMarkInvoiced()}>
               Mark as invoiced
             </button>

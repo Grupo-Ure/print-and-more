@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS "public"."jobs" (
     "order_id" "uuid" NOT NULL,
     "department" "public"."department" NOT NULL,
     "type" "text",
-    "status" "public"."order_status" DEFAULT 'INCOMPLETE'::"public"."order_status" NOT NULL,
+    "status" "public"."job_status" DEFAULT 'IN_SETUP'::"public"."job_status" NOT NULL,
     "deadline" "date",
     "delivery" "public"."delivery_type",
     -- Nullable, no default: NULL means "inherit the parent order's priority"
@@ -23,8 +23,7 @@ CREATE TABLE IF NOT EXISTS "public"."jobs" (
     "sort_order" integer DEFAULT 0 NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     CONSTRAINT "approval_consistency" CHECK (((NOT (("customer_approval_granted" = true) AND ("customer_approval_required" = false))) AND (NOT (("customer_approval_granted" = true) AND ("customer_approval_file_id" IS NULL))) AND (NOT (("customer_approval_file_id" IS NOT NULL) AND ("customer_approval_required" = false))))),
-    CONSTRAINT "typesetting_time_positive" CHECK ((("typesetting_minutes" IS NULL) OR ("typesetting_minutes" > 0))),
-    CONSTRAINT "job_status_no_quote" CHECK (("status" <> 'QUOTE'::"public"."order_status"))
+    CONSTRAINT "typesetting_time_positive" CHECK ((("typesetting_minutes" IS NULL) OR ("typesetting_minutes" > 0)))
 );
 
 ALTER TABLE "public"."jobs" OWNER TO "postgres";

@@ -7,7 +7,7 @@
  * the entire clone back.
  *
  * Copies the source order's customer into a new order with status QUOTE, then
- * clones each selected job (status reset to INCOMPLETE). Every department
+ * clones each selected job (status reset to IN_SETUP). Every department
  * — TEXTILE included — copies its department_products rows, their typed child,
  * and their product_files links through one generic loop. For TEXTILE it also
  * pre-copies the per-job designs drawer (textile_motifs, remapping ids)
@@ -53,7 +53,7 @@ BEGIN
     SELECT * FROM jobs WHERE id = ANY(selected_job_ids)
   LOOP
     INSERT INTO jobs (order_id, department, type, status, priority, delivery, detail)
-    VALUES (new_order_id, source_job.department, source_job.type, 'INCOMPLETE', source_job.priority, source_job.delivery, source_job.detail)
+    VALUES (new_order_id, source_job.department, source_job.type, 'IN_SETUP', source_job.priority, source_job.delivery, source_job.detail)
     RETURNING id INTO new_job_id;
 
     -- TEXTILE: copy the per-job designs drawer first, remapping motif ids

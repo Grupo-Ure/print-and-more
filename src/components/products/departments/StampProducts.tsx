@@ -1,7 +1,7 @@
 /** Stamp department detail — add-product button, two-step dialog, table. */
 
 import type { ComponentType } from 'react'
-import type { OrderStatus, JobRow } from '../../../types/database'
+import type { JobStatus, JobRow } from '../../../types/database'
 import type { FileRow } from '../../../services/fileService'
 import { AddProductButton } from '../AddProductButton'
 import { useProductEditor } from '../useProductEditor'
@@ -23,7 +23,7 @@ import type { ProductFormProps } from '../forms/shared'
 
 type Props = {
   job: JobRow
-  jobStatus: OrderStatus
+  jobStatus: JobStatus
   orderFiles?: FileRow[]
 }
 

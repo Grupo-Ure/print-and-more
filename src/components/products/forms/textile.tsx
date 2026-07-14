@@ -252,7 +252,7 @@ export function TextileGarmentForm(p: TextileGarmentFormProps) {
     } as FormValues,
     onSubmit: ({ value }) => {
       const merged = { ...value, links }
-      if (Object.keys(validateProduct('TEXTILE_GARMENT', merged, p.jobStatus)).length > 0) return
+      if (Object.keys(validateProduct('TEXTILE_GARMENT', merged, p.orderIsQuote)).length > 0) return
       saveProduct.mutate(
         {
           input: buildWriteInput({
@@ -272,7 +272,7 @@ export function TextileGarmentForm(p: TextileGarmentFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('TEXTILE_GARMENT', { ...values, links }, p.jobStatus) as Errs
+          const errors = validateProduct('TEXTILE_GARMENT', { ...values, links }, p.orderIsQuote) as Errs
           const origin = String(values.origin ?? '')
           return (
             <>

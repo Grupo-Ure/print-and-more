@@ -12,6 +12,7 @@
 import { useState, type ComponentType } from 'react'
 import type { JobRow } from '../../types/database'
 import type { FileRow } from '../../services/fileService'
+import { useOrderById } from '../../queries/orderQueries'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import type { ProductFormProps } from './forms/shared'
 import type { useProductEditor } from './useProductEditor'
@@ -34,7 +35,8 @@ export function ProductDialog({
   formByType: Record<string, ComponentType<ProductFormProps>>
 }) {
   const { mode, close, handleSaved, fileIdsFor, products } = editor
-  const jobStatus = job.status
+  // The quote-relaxation of the product validation is an order-level rule.
+  const orderIsQuote = useOrderById(job.order_id).data?.status === 'QUOTE'
   const [selectedType, setSelectedType] = useState<string | null>(null)
 
   const open = mode.kind !== 'idle'
@@ -89,7 +91,7 @@ export function ProductDialog({
             <ActiveForm
               key={editing?.id ?? type ?? 'new'}
               job={job}
-              jobStatus={jobStatus}
+              orderIsQuote={orderIsQuote}
               product={editing}
               orderFiles={orderFiles}
               initialFileIds={editing ? fileIdsFor(editing.id) : []}

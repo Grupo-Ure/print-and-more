@@ -6,7 +6,7 @@
 
 import { useMemo, useState } from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
-import type { OrderStatus, JobRow } from '../../../types/database'
+import type { JobStatus, JobRow } from '../../../types/database'
 import type { FileRow } from '../../../services/fileService'
 import type { TextileMotifRow, TextileMotifLinkInput } from '../../../types/textile'
 import type { LoadedProduct } from '../../../types/product'
@@ -29,7 +29,7 @@ import { motifLabel } from '../forms/textileTypes'
 
 type Props = {
   job: JobRow
-  jobStatus: OrderStatus
+  jobStatus: JobStatus
   orderFiles?: FileRow[]
 }
 

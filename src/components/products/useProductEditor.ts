@@ -10,7 +10,7 @@ import {
   useProductFilesByJobId,
   useProductsByJobId,
 } from '../../queries/productQueries'
-import type { OrderStatus, JobRow } from '../../types/database'
+import type { JobStatus, JobRow } from '../../types/database'
 import type { LoadedProduct } from '../../types/product'
 import type { ProductFileAssignment } from '../../services/departmentProductService'
 import { useToast } from '../Toast'
@@ -23,7 +23,7 @@ export type EditorMode =
 
 export function useProductEditor(
   job: JobRow,
-  jobStatus: OrderStatus,
+  jobStatus: JobStatus,
 ) {
   const { showError } = useToast()
 
@@ -45,7 +45,7 @@ export function useProductEditor(
   const [mode, setMode] = useState<EditorMode>({ kind: 'idle' })
 
   // Products are read-only once the job is released to production or done.
-  const isReadOnly = jobStatus === 'PRODUCTION_READY' || jobStatus === 'DONE'
+  const isReadOnly = jobStatus === 'IN_PRODUCTION' || jobStatus === 'DONE'
 
   const openAdd = useCallback(() => setMode({ kind: 'add' }), [])
   const openEdit = useCallback((product: LoadedProduct) => setMode({ kind: 'edit', product }), [])

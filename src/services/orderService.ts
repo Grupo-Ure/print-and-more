@@ -72,10 +72,9 @@ const ORDER_LIST_COLUMNS = 'id, order_number, status, created_at, customers(name
  * `customers(...)` join return it flattened to a single row via
  * {@link flattenCustomerJoin}.
  *
- * Note on status: order status is *derived* from the jobs, never set by the
- * user directly except for terminal transitions. The derivation lives in the pure
- * `calculateOrderStatus` (src/lib/orderStatus.ts); the query layer persists it via
- * `reconcileOrderStatus` (src/queries/jobQueries.ts).
+ * Note on status: order status is a manual lifecycle (QUOTE → IN_PROGRESS →
+ * FINISHED → BILLED), independent of job statuses — every transition is an
+ * explicit user action, written via {@link setOrderStatus} / {@link markOrderBilled}.
  */
 class OrderService {
   /** Filtered order list for the sidebar (archived flag, customer, status, deadline/intake ranges). Newest first. */
@@ -142,13 +141,7 @@ class OrderService {
     return flattenCustomerJoin(data as unknown as Auftrag)
   }
 
-  /**
-   * Write an explicit status to the order — a *direct* set, no derivation.
-   * Use this only for deliberate manual transitions where the caller already knows
-   * the target status. To re-derive status from the jobs, compute it with the
-   * pure `calculateOrderStatus` and persist via `reconcileOrderStatus`
-   * (src/queries/jobQueries.ts).
-   */
+  /** Write an explicit status to the order — every order transition is a deliberate manual set. */
   async setOrderStatus(id: string, status: OrderStatus): Promise<Auftrag> {
     const { data, error } = await supabase
       .from('orders')
@@ -184,11 +177,11 @@ class OrderService {
     if (error) throw error
   }
 
-  /** Terminal transition: mark `INVOICED` and archive in one update. */
+  /** Terminal transition: mark `BILLED` and archive in one update. */
   async markOrderBilled(id: string): Promise<void> {
     const { error } = await supabase
       .from('orders')
-      .update({ status: 'INVOICED', is_archived: true })
+      .update({ status: 'BILLED', is_archived: true })
       .eq('id', id)
     if (error) throw error
   }

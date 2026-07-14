@@ -29,6 +29,7 @@ import { TextileProducts } from './products/departments/TextileProducts'
 import type { FileRow } from '../services/fileService'
 import { toDateOnly, todayDateOnly } from '../lib/formatDate'
 import { StatusBadge } from './StatusBadge'
+import { JOB_STATUS_META } from '../const/orderStatus'
 import { JobReleaseButton } from './JobReleaseButton'
 import { JobProductionBanner } from './JobProductionBanner'
 import { Button } from './ui/button'
@@ -56,7 +57,7 @@ export function JobDetail({
   const { data: users = [] } = useUsers()
   const { showError } = useToast()
 
-  // Status manager: auto-derives and persists the INCOMPLETE ↔ PREPRESS_READY
+  // Status manager: auto-derives and persists the IN_SETUP ↔ PREPRESS
   // transition for the active job. Single owner (one JobDetail is mounted
   // at a time). Called unconditionally (before the early return) per the rules of hooks.
   useStatusManager(activeOrderId, activeJobId)
@@ -117,7 +118,9 @@ export function JobDetail({
   const orderPriorityMode: Priority = order.priority
 
   const customerMeetsPrepressRequirements = customerMeetsPrepressContact(order.customers)
-  const shouldValidate = job.status !== 'QUOTE'
+  // Nothing is required while the parent order is still a quote (order-level rule).
+  const orderIsQuote = order.status === 'QUOTE'
+  const shouldValidate = !orderIsQuote
 
   // A field is "separate" purely when the job carries its own value (the
   // column is non-null); a null column means the toggle is off and the order's
@@ -134,17 +137,17 @@ export function JobDetail({
   const effectiveDeadline = effectiveJob.deadline
   const deadlineIso = toDateOnly(effectiveDeadline) ?? ''
 
-  const validationErrors = validateJobCommonFields(effectiveJob, job.status)
+  const validationErrors = validateJobCommonFields(effectiveJob, orderIsQuote)
   // In production a subset of fields is locked; once DONE everything is read-only.
   const isDone = job.status === 'DONE'
-  const isLocked = job.status === 'PRODUCTION_READY' || isDone
+  const isLocked = job.status === 'IN_PRODUCTION' || isDone
 
   return (
     <div className="flex flex-col gap-4">
       <JobProductionBanner job={job} />
       <div className="td-kopf" aria-label="Job">
         <span className="td-bkz">[{departmentAbbreviation(job.department)}]</span>
-        <StatusBadge status={job.status} />
+        <StatusBadge meta={JOB_STATUS_META[job.status]} />
         <div className="flex items-center gap-1">
           <Button
             type="button"
@@ -156,7 +159,7 @@ export function JobDetail({
             Download PDF
           </Button>
 
-          {job.status === 'INCOMPLETE' ? (
+          {job.status === 'IN_SETUP' ? (
             <Button
               type="button"
               variant="ghost"
@@ -172,7 +175,7 @@ export function JobDetail({
             <Button
               type="button"
               variant="ghost"
-              disabled={job.is_cancelled || job.status === 'PRODUCTION_READY' || job.status === 'DONE' || cancelJob.isPending}
+              disabled={job.is_cancelled || job.status === 'IN_PRODUCTION' || job.status === 'DONE' || cancelJob.isPending}
               onClick={() => void handleCancel()}
               size="sm"
               className="text-destructive hover:text-destructive"

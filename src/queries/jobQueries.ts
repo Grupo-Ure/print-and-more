@@ -1,14 +1,12 @@
 import { useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
-import { orderService } from '../services/orderService'
 import { jobService } from '../services/jobService'
 import { historyService, type HistoryEvent } from '../services/historyService'
 import { deductProductionStock } from '../services/productionReleaseService'
-import { calculateOrderStatus } from '../lib/orderStatus'
 import { resolveEffectiveJob } from '../lib/jobShared'
-import type { OrderDetailRow, JobRow, OrderStatus } from '../types/database'
+import type { JobRow, JobStatus } from '../types/database'
 import type { Database } from '../types/supabase'
-import { orderKeys, patchOrderStatusInCache, useOrderById } from './orderQueries'
+import { orderKeys, useOrderById } from './orderQueries'
 import { historyKeys } from './historyQueries'
 
 type JobInsert = Database['public']['Tables']['jobs']['Insert']
@@ -30,25 +28,12 @@ export function useJobsByOrderId(orderId: string | null) {
 }
 
 /**
- * Re-derive the order's aggregate status from the *cached* job list and
- * persist it if it changed (the optimistic pattern that replaces the deprecated
- * `orderService.recalculateOrderStatus` DB round-trip). Always invalidates the
- * order lists so the sidebar reflects the change. Callers must patch the
- * job cache *before* invoking this so the aggregation sees the new state.
+ * Refresh the order lists after a job change. Order status is a manual,
+ * independent lifecycle (no aggregation from jobs), but the sidebar still shows
+ * job-derived data (e.g. the in-production-missing-info warning), so the lists
+ * are invalidated whenever a job changes.
  */
-export async function reconcileOrderStatus(queryClient: QueryClient, orderId: string): Promise<void> {
-  const order = queryClient.getQueryData<OrderDetailRow>(orderKeys.byId(orderId))
-  const jobs = queryClient.getQueryData<JobRow[]>(jobKeys.byOrderId(orderId))
-  if (order && jobs) {
-    const next = calculateOrderStatus(order.status, jobs)
-    if (next !== order.status) {
-      const updated = await orderService.setOrderStatus(orderId, next)
-      queryClient.setQueryData(orderKeys.byId(orderId), updated)
-      patchOrderStatusInCache(queryClient, orderId, updated.status)
-    }
-  } else {
-    void queryClient.invalidateQueries({ queryKey: orderKeys.byId(orderId) })
-  }
+function invalidateOrderLists(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
 }
 
@@ -60,19 +45,19 @@ function patchJobInCache(queryClient: QueryClient, orderId: string, row: JobRow)
 }
 
 /**
- * Persist a job status directly (no hook), patching the job cache and
- * reconciling the order. Used by the status helpers that run outside a component —
- * notably {@link bounceBackIfCommitted}.
+ * Persist a job status directly (no hook), patching the job cache. Used by the
+ * status helpers that run outside a component — notably
+ * {@link bounceBackIfCommitted}.
  */
 export async function persistJobStatus(
   queryClient: QueryClient,
   id: string,
   orderId: string,
-  status: OrderStatus,
+  status: JobStatus,
 ): Promise<void> {
   const row = await jobService.setJobStatus(id, status)
   patchJobInCache(queryClient, orderId, row)
-  await reconcileOrderStatus(queryClient, orderId)
+  invalidateOrderLists(queryClient)
 }
 
 /** Locate a job by id across the cached per-order lists (gives status + order_id). */
@@ -86,16 +71,16 @@ function findCachedJob(queryClient: QueryClient, jobId: string): JobRow | null {
 }
 
 /**
- * Bounce-back: if the job is committed (PRODUCTION_READY / DONE), drop it to
- * INCOMPLETE. Called from the content mutations' `onSuccess` *only when the change was
+ * Bounce-back: if the job is committed (IN_PRODUCTION / DONE), drop it to
+ * IN_SETUP. Called from the content mutations' `onSuccess` *only when the change was
  * meaningful* (see `isMeaningfulChange`). No-op for non-committed jobs, so the
  * caller doesn't need to know the current status.
  */
 export async function bounceBackIfCommitted(queryClient: QueryClient, jobId: string): Promise<void> {
   const job = findCachedJob(queryClient, jobId)
   if (!job) return
-  if (job.status !== 'PRODUCTION_READY' && job.status !== 'DONE') return
-  await persistJobStatus(queryClient, job.id, job.order_id, 'INCOMPLETE')
+  if (job.status !== 'IN_PRODUCTION' && job.status !== 'DONE') return
+  await persistJobStatus(queryClient, job.id, job.order_id, 'IN_SETUP')
 }
 
 /**
@@ -136,11 +121,11 @@ export function useCreateJob() {
   const queryClient = useQueryClient()
   return useMutation<JobRow, Error, JobInsert>({
     mutationFn: payload => jobService.createJob(payload),
-    onSuccess: async created => {
+    onSuccess: created => {
       const orderId = created.order_id
       const cachedSiblings = queryClient.getQueryData<JobRow[]>(jobKeys.byOrderId(orderId)) ?? []
       queryClient.setQueryData<JobRow[]>(jobKeys.byOrderId(orderId), [...cachedSiblings, created])
-      await reconcileOrderStatus(queryClient, orderId)
+      invalidateOrderLists(queryClient)
     },
   })
 }
@@ -194,23 +179,23 @@ export function useSetJobStatus() {
   return useMutation<
     JobRow,
     Error,
-    { id: string; orderId: string; status: OrderStatus; history?: HistoryParams }
+    { id: string; orderId: string; status: JobStatus; history?: HistoryParams }
   >({
     mutationFn: async ({ id, orderId, status, history }) => {
       const row = await jobService.setJobStatus(id, status)
       if (history) await historyService.writeHistory({ order_id: orderId, job_id: id, ...history })
       return row
     },
-    onSuccess: async (row, { orderId }) => {
+    onSuccess: (row, { orderId }) => {
       patchJobInCache(queryClient, orderId, row)
-      await reconcileOrderStatus(queryClient, orderId)
+      invalidateOrderLists(queryClient)
     },
   })
 }
 
 /**
  * Release to production: book stock deductions (stamp/textile), set
- * PRODUCTION_READY, write the PRODUCTION_READY_SET history entry. The stock
+ * IN_PRODUCTION, write the PRODUCTION_READY_SET history entry. The stock
  * deduction runs before the status write, matching the prior behaviour.
  */
 export function useReleaseToProduction() {
@@ -218,7 +203,7 @@ export function useReleaseToProduction() {
   return useMutation<JobRow, Error, { job: JobRow; orderId: string; orderNumber: string | null }>({
     mutationFn: async ({ job, orderId, orderNumber }) => {
       await deductProductionStock(job, orderNumber)
-      const row = await jobService.setJobStatus(job.id, 'PRODUCTION_READY')
+      const row = await jobService.setJobStatus(job.id, 'IN_PRODUCTION')
       try {
         await historyService.writeHistory({
           order_id: orderId,
@@ -230,18 +215,18 @@ export function useReleaseToProduction() {
       }
       return row
     },
-    onSuccess: async (row, { orderId }) => {
+    onSuccess: (row, { orderId }) => {
       patchJobInCache(queryClient, orderId, row)
-      await reconcileOrderStatus(queryClient, orderId)
+      invalidateOrderLists(queryClient)
     },
   })
 }
 
 /**
  * Emergency force release: bypass the completeness/prepress gate and put the
- * job straight into PRODUCTION_READY. Books the same stock deductions as the
+ * job straight into IN_PRODUCTION. Books the same stock deductions as the
  * regular release and writes an EMERGENCY_TRIGGERED history entry with the
- * reason — history is the sole record of the override. PRODUCTION_READY is
+ * reason — history is the sole record of the override. IN_PRODUCTION is
  * outside the automatic status band, so the status manager leaves the job alone.
  */
 export function useForceReleaseToProduction() {
@@ -253,7 +238,7 @@ export function useForceReleaseToProduction() {
   >({
     mutationFn: async ({ job, orderId, orderNumber, reason }) => {
       await deductProductionStock(job, orderNumber)
-      const row = await jobService.setJobStatus(job.id, 'PRODUCTION_READY')
+      const row = await jobService.setJobStatus(job.id, 'IN_PRODUCTION')
       try {
         await historyService.writeHistory({
           order_id: orderId,
@@ -266,9 +251,9 @@ export function useForceReleaseToProduction() {
       }
       return row
     },
-    onSuccess: async (row, { orderId }) => {
+    onSuccess: (row, { orderId }) => {
       patchJobInCache(queryClient, orderId, row)
-      await reconcileOrderStatus(queryClient, orderId)
+      invalidateOrderLists(queryClient)
     },
   })
 }
@@ -340,32 +325,32 @@ export function useSetCustomerApproval() {
   })
 }
 
-/** Cancel a job (excluded from order aggregation). */
+/** Cancel a job (hidden from the workspace; keeps its data). */
 export function useCancelJob() {
   const queryClient = useQueryClient()
   return useMutation<void, Error, { id: string; orderId: string }>({
     mutationFn: ({ id }) => jobService.cancelJob(id),
-    onSuccess: async (_void, { id, orderId }) => {
+    onSuccess: (_void, { id, orderId }) => {
       queryClient.setQueryData<JobRow[]>(
         jobKeys.byOrderId(orderId),
         old => old?.map(r => (r.id === id ? { ...r, is_cancelled: true } : r)) ?? old,
       )
-      await reconcileOrderStatus(queryClient, orderId)
+      invalidateOrderLists(queryClient)
     },
   })
 }
 
-/** Permanently delete a job (only while INCOMPLETE). */
+/** Permanently delete a job (only while IN_SETUP). */
 export function useDeleteJob() {
   const queryClient = useQueryClient()
   return useMutation<void, Error, { id: string; orderId: string }>({
     mutationFn: ({ id }) => jobService.deleteJob(id),
-    onSuccess: async (_void, { id, orderId }) => {
+    onSuccess: (_void, { id, orderId }) => {
       queryClient.setQueryData<JobRow[]>(
         jobKeys.byOrderId(orderId),
         old => old?.filter(r => r.id !== id) ?? old,
       )
-      await reconcileOrderStatus(queryClient, orderId)
+      invalidateOrderLists(queryClient)
     },
   })
 }

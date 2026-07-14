@@ -6,6 +6,7 @@
 
 import type { JobRow } from '../../types/database'
 import type { FileRow } from '../../services/fileService'
+import { useOrderById } from '../../queries/orderQueries'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { OtherForm } from './forms/other'
 import type { useProductEditor } from './useProductEditor'
@@ -22,7 +23,8 @@ export function OtherProductDialog({
   orderFiles: FileRow[]
 }) {
   const { mode, close, handleSaved, fileIdsFor, products } = editor
-  const jobStatus = job.status
+  // The quote-relaxation of the product validation is an order-level rule.
+  const orderIsQuote = useOrderById(job.order_id).data?.status === 'QUOTE'
   const editing = mode.kind === 'edit' ? mode.product : null
   const open = mode.kind !== 'idle'
 
@@ -35,7 +37,7 @@ export function OtherProductDialog({
         <OtherForm
           key={editing?.id ?? 'new'}
           job={job}
-          jobStatus={jobStatus}
+          orderIsQuote={orderIsQuote}
           product={editing}
           orderFiles={orderFiles}
           initialFileIds={editing ? fileIdsFor(editing.id) : []}

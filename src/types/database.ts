@@ -5,6 +5,10 @@ export type OrderStatus = Enums<'order_status'>
 
 export const ORDER_STATUS_LIST: readonly OrderStatus[] = Constants.public.Enums.order_status
 
+export type JobStatus = Enums<'job_status'>
+
+export const JOB_STATUS_LIST: readonly JobStatus[] = Constants.public.Enums.job_status
+
 export type Department = Enums<'department'>
 
 export const DEPARTMENTS: readonly Department[] = Constants.public.Enums.department

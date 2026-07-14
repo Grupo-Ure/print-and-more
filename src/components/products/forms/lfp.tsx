@@ -66,7 +66,7 @@ export function StickerForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('STICKER', values, p.jobStatus)
+          const errors = validateProduct('STICKER', values, p.orderIsQuote)
           return (
             <>
               <form.Field name="material">{f => <SelectField field={f} label="Material" options={STICKER_MATERIAL_OPTS} error={errors.material} />}</form.Field>
@@ -102,7 +102,7 @@ export function SignUvForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('SIGN_UV', values, p.jobStatus)
+          const errors = validateProduct('SIGN_UV', values, p.orderIsQuote)
           return (
             <>
               <form.Field name="material">{f => <SelectField field={f} label="Material" options={BOARD_MATERIAL_OPTS} error={errors.material} />}</form.Field>
@@ -144,7 +144,7 @@ export function SignFoilForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('SIGN_FOIL', values, p.jobStatus)
+          const errors = validateProduct('SIGN_FOIL', values, p.orderIsQuote)
           return (
             <>
               <form.Field name="material">{f => <SelectField field={f} label="Material" options={BOARD_MATERIAL_OPTS} error={errors.material} />}</form.Field>
@@ -184,7 +184,7 @@ export function FoilPlotterForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('FOIL_PLOTTER', values, p.jobStatus)
+          const errors = validateProduct('FOIL_PLOTTER', values, p.orderIsQuote)
           return (
             <>
               <form.Field name="material">{f => <SelectField field={f} label="Material" options={FOIL_PLOTTER_MATERIAL_OPTS} error={errors.material} />}</form.Field>
@@ -215,7 +215,7 @@ export function BannerForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('BANNER', values, p.jobStatus)
+          const errors = validateProduct('BANNER', values, p.orderIsQuote)
           return (
             <>
               <form.Field
@@ -267,7 +267,7 @@ export function RollupForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('ROLLUP', values, p.jobStatus)
+          const errors = validateProduct('ROLLUP', values, p.orderIsQuote)
           return (
             <>
               <form.Field name="material">{f => <SelectField field={f} label="Material" options={ROLLUP_MATERIAL_OPTS} error={errors.material} />}</form.Field>
@@ -298,7 +298,7 @@ export function VehicleLetteringForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('VEHICLE_LETTERING', values, p.jobStatus)
+          const errors = validateProduct('VEHICLE_LETTERING', values, p.orderIsQuote)
           return (
             <>
               <form.Field name="vehicle_make">{f => <TextField field={f} label="Vehicle make" error={errors.vehicle_make} />}</form.Field>
@@ -338,7 +338,7 @@ export function OtherLfpForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('OTHER_LFP', values, p.jobStatus)
+          const errors = validateProduct('OTHER_LFP', values, p.orderIsQuote)
           return (
             <>
               <form.Field name="description">{f => <TextareaField field={f} label="Description" error={errors.description} />}</form.Field>

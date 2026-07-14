@@ -1,6 +1,6 @@
 /** OTHER department detail — single product type, add-product dialog, table. */
 
-import type { OrderStatus, JobRow } from '../../../types/database'
+import type { JobStatus, JobRow } from '../../../types/database'
 import type { FileRow } from '../../../services/fileService'
 import { AddProductButton } from '../AddProductButton'
 import { useProductEditor } from '../useProductEditor'
@@ -9,7 +9,7 @@ import { OtherProductsTable } from '../ProductTable'
 
 type Props = {
   job: JobRow
-  jobStatus: OrderStatus
+  jobStatus: JobStatus
   orderFiles?: FileRow[]
 }
 
@@ -18,7 +18,7 @@ export function OtherProducts({ job, jobStatus, orderFiles = [] }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-xs text-muted-foreground">For ‘Other’, PREPRESS_READY is set manually only.</p>
+      <p className="text-xs text-muted-foreground">For ‘Other’, Prepress is set manually only.</p>
 
       {!productEditor.isReadOnly && (
         <OtherProductDialog

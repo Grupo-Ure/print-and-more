@@ -222,7 +222,7 @@ GRANT ALL ON TABLE "public"."erp_exports" TO "service_role";
 
 COMMENT ON FUNCTION "public"."fn_generate_order_number"() IS 'Atomic monthly counter using INSERT ... ON CONFLICT DO UPDATE. No race condition on concurrent inserts. Resets counter to 1 each month.';
 
-COMMENT ON TABLE "public"."orders" IS 'Central aggregate. status is set by application convention via calculateOrderStatus() in src/lib/orderStatus.ts — the DB does not enforce this. Direct SQL updates to status are intentionally allowed for emergency migrations.';
+COMMENT ON TABLE "public"."orders" IS 'Central aggregate. status is a manual order lifecycle (QUOTE → IN_PROGRESS → FINISHED → BILLED) set by explicit user actions in the app — it is independent of job statuses and the DB does not enforce transitions.';
 
 COMMENT ON COLUMN "public"."orders"."deadline" IS 'Overall deadline as a commercial frame. jobs.deadline is operationally leading and may differ — no automatic sync (V1 domain model, intentional decision).';
 

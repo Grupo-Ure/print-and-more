@@ -34,11 +34,11 @@ export const orderKeys = {
   byId: (id: string) => ['orders', 'by-id', id] as const,
 }
 
-// INVOICED orders live in the archived bucket; mixed selections need both, so is_archived becomes undefined.
+// BILLED orders live in the archived bucket; mixed selections need both, so is_archived becomes undefined.
 function deriveIsArchived(filter: OrdersListFilter): boolean | undefined {
   if (filter.statusAll) return false
-  const billedSelected = filter.selectedStatuses.includes('INVOICED')
-  const otherSelected = filter.selectedStatuses.some(status => status !== 'INVOICED')
+  const billedSelected = filter.selectedStatuses.includes('BILLED')
+  const otherSelected = filter.selectedStatuses.some(status => status !== 'BILLED')
   if (billedSelected && otherSelected) return undefined
   if (billedSelected) return true
   return false
@@ -162,7 +162,7 @@ export function useUpdateOrder() {
 
 type OrderHistoryParams = { event_type: HistoryEvent; reason?: string; meta?: Record<string, unknown> }
 
-/** Direct order-status set (e.g. start-processing QUOTE → INCOMPLETE). Optionally writes history. */
+/** Direct order-status set (e.g. start-processing QUOTE → IN_PROGRESS). Optionally writes history. */
 export function useSetOrderStatus() {
   const queryClient = useQueryClient()
   return useMutation<Auftrag, Error, { id: string; status: OrderStatus; history?: OrderHistoryParams }>({
@@ -207,7 +207,7 @@ export function useArchiveOrderWithCancelledJobs() {
   })
 }
 
-/** Mark invoiced (INVOICED + archived). Writes a MARKED_DONE history entry. */
+/** Mark invoiced (BILLED + archived). Writes an ORDER_BILLED history entry. */
 export function useMarkOrderBilled() {
   const queryClient = useQueryClient()
   return useMutation<void, Error, { id: string }>({
@@ -215,12 +215,11 @@ export function useMarkOrderBilled() {
       await orderService.markOrderBilled(id)
       await historyService.writeHistory({
         order_id: id,
-        event_type: 'MARKED_DONE',
-        meta: { abgerechnet_auftrag: true },
+        event_type: 'ORDER_BILLED',
       })
     },
     onSuccess: (_void, { id }) => {
-      patchOrderStatusInCache(queryClient, id, 'INVOICED')
+      patchOrderStatusInCache(queryClient, id, 'BILLED')
       void queryClient.invalidateQueries({ queryKey: orderKeys.byId(id) })
       void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
     },

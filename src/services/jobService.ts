@@ -1,7 +1,7 @@
 import { supabase } from '../supabase'
 import type { Database } from '../types/supabase'
 import { JOB_COLUMNS } from '../const/jobSelect'
-import type { JobRow, OrderStatus, Department } from '../types/database'
+import type { JobRow, JobStatus, Department } from '../types/database'
 
 type JobInsert = Database['public']['Tables']['jobs']['Insert']
 type JobUpdate = Database['public']['Tables']['jobs']['Update']
@@ -13,7 +13,7 @@ export type JobSummary = {
 
 export type ActiveJobSlim = {
   id: string
-  status: OrderStatus
+  status: JobStatus
   department: Department
   detail: Database['public']['Tables']['jobs']['Row']['detail']
   is_cancelled: boolean
@@ -61,7 +61,7 @@ class JobService {
     return data as unknown as JobRow
   }
 
-  async setJobStatus(id: string, status: OrderStatus): Promise<JobRow> {
+  async setJobStatus(id: string, status: JobStatus): Promise<JobRow> {
     const { data, error } = await supabase
       .from('jobs')
       .update({ status })

@@ -91,7 +91,7 @@ function AddJobDialog({ open, onOpenChange }: AddJobDialogProps) {
       {
         order_id: activeOrderId,
         department,
-        status: 'INCOMPLETE',
+        status: 'IN_SETUP',
         priority: null,
         detail: {},
         deadline: null,

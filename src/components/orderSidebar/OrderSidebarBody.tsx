@@ -7,6 +7,7 @@ import type { OrderListEntry } from '../../services/orderService'
 import type { OrderStatus } from '../../types/database'
 import { DepartmentPill } from '../DepartmentPill'
 import { StatusBadge } from '../StatusBadge'
+import { ORDER_STATUS_META } from '../../const/orderStatus'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -153,7 +154,7 @@ function OrderSidebarItem({
           />
         </div>
         <div className="flex flex-wrap items-center justify-between">
-          <StatusBadge status={order.status} />
+          <StatusBadge meta={ORDER_STATUS_META[order.status]} />
           <OrderDepartmentPills jobs={order.jobs} />
         </div>
       </div>

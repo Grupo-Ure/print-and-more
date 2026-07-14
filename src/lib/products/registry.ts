@@ -7,7 +7,6 @@
  */
 
 import type { z } from 'zod'
-import type { OrderStatus } from '../../types/database'
 import { zodIssuesToFieldMap } from './zodErrors'
 
 import {
@@ -93,18 +92,19 @@ export const SCHEMA_BY_TYPE: Record<string, z.ZodTypeAny> = {
 
 /**
  * Validate a product's flat fields (child columns + parent `quantity`) for its
- * `type` and the job `status`.
+ * `type`.
  *
- * - `QUOTE` → nothing required (empty map).
+ * - while the parent order is a QUOTE → nothing required (empty map);
+ *   `orderIsQuote` is the *order's* status, never the job's.
  * - missing / unknown type → `{ type: 'Select type' }`.
  * - otherwise the type's schema runs; issues are mapped to `field-key → message`.
  */
 export function validateProduct(
   type: string | null,
   fields: unknown,
-  status: OrderStatus,
+  orderIsQuote: boolean,
 ): Record<string, string> {
-  if (status === 'QUOTE') return {}
+  if (orderIsQuote) return {}
   if (!type || !(type in SCHEMA_BY_TYPE)) return { type: 'Select type' }
   const result = SCHEMA_BY_TYPE[type].safeParse(fields)
   return result.success ? {} : zodIssuesToFieldMap(result.error)

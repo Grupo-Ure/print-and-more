@@ -20,7 +20,7 @@
  * identifier surface is English here.
  */
 
-import { type DeliveryChoice, type OrderStatus, type Priority, type JobRow } from '../types/database'
+import { type DeliveryChoice, type Priority, type JobRow } from '../types/database'
 
 /**
  * Resolve a job's inherited common fields against its order. A null
@@ -52,7 +52,7 @@ const UUID_LOOSE = /^[0-9a-fA-F-]{30,40}$/
 
 /**
  * Whether the status manager is allowed to auto-advance this job into
- * PREPRESS_READY without an explicit user action.
+ * PREPRESS without an explicit user action.
  *
  * Default is allowed; explicitly excluded:
  * - Stamp `OTHER_STAMP` (free-form descriptions need manual review).
@@ -85,15 +85,17 @@ export function autoPrepressAllowed(merged: JobRow): boolean {
  * Validate the common header fields every job carries (delivery,
  * deadline, priority, assignee UUID, typesetting minutes).
  *
- * Returns a map of field-key → German error message; empty map means
- * valid. In `ANGEBOT` (quote stage) nothing is required.
+ * Returns a map of field-key → error message; empty map means valid.
+ * While the parent order is still a QUOTE nothing is required — the
+ * quote-relaxation is an *order*-level rule, so callers pass
+ * `orderIsQuote` from the order, never from the job.
  */
 export function validateJobCommonFields(
   job: Pick<JobRow, 'deadline' | 'delivery' | 'priority' | 'assignee_id' | 'typesetting_minutes'>,
-  status: OrderStatus
+  orderIsQuote: boolean
 ): Record<string, string> {
   const errors: Record<string, string> = {}
-  if (status === 'QUOTE') return errors
+  if (orderIsQuote) return errors
   if (job.delivery !== 'PICKUP' && job.delivery !== 'SHIPPING') errors.lieferung = 'Required'
   if (!job.deadline) errors.termin = 'Required'
   if (job.priority !== 'NORMAL' && job.priority !== 'HIGH') {
@@ -110,12 +112,11 @@ export function validateJobCommonFields(
 }
 
 /**
- * Whether the job is complete enough to advance from
- * UNVOLLSTAENDIG. In `ANGEBOT` always true. Otherwise: common header
- * fields must be valid, and the per-Bereich content check must pass —
- * for the JSONB Bereiche that means at least one product exists
- * (`hasProducts`, derived by the caller from `job_products`); for
- * Textile it's the related-table check.
+ * Whether the job is complete enough to advance from IN_SETUP. While the
+ * parent order is a QUOTE, always true (nothing required yet). Otherwise:
+ * common header fields must be valid, and the per-department content check
+ * must pass — at least one product exists (`hasProducts`, derived by the
+ * caller from the product query).
  */
 /** The job fields the completeness check reads — full `JobRow`s always qualify. */
 export type JobCompletenessFields = Pick<
@@ -132,11 +133,11 @@ export type JobCompletenessFields = Pick<
 
 export function isJobComplete(
   job: JobCompletenessFields,
-  status: OrderStatus,
+  orderIsQuote: boolean,
   hasProducts: boolean,
 ): boolean {
-  if (status === 'QUOTE') return true
-  const errors = validateJobCommonFields(job, status)
+  if (orderIsQuote) return true
+  const errors = validateJobCommonFields(job, orderIsQuote)
   if (Object.keys(errors).length > 0) return false
   if (
     job.department === 'LFP' ||
@@ -163,7 +164,8 @@ export function isInProductionMissingInfo(
   order: { delivery: DeliveryChoice | null; priority: Priority; deadline: string | null },
   hasProducts: boolean,
 ): boolean {
-  if (job.status !== 'PRODUCTION_READY' || job.is_cancelled) return false
-  return !isJobComplete(resolveEffectiveJob(job, order), job.status, hasProducts)
+  if (job.status !== 'IN_PRODUCTION' || job.is_cancelled) return false
+  // A job in production implies the order is past QUOTE — validate strictly.
+  return !isJobComplete(resolveEffectiveJob(job, order), false, hasProducts)
 }
 

@@ -959,7 +959,7 @@ export type Database = {
           order_id: string
           priority: Database["public"]["Enums"]["priority_type"] | null
           sort_order: number
-          status: Database["public"]["Enums"]["order_status"]
+          status: Database["public"]["Enums"]["job_status"]
           type: string | null
           typesetting_minutes: number | null
         }
@@ -979,7 +979,7 @@ export type Database = {
           order_id: string
           priority?: Database["public"]["Enums"]["priority_type"] | null
           sort_order?: number
-          status?: Database["public"]["Enums"]["order_status"]
+          status?: Database["public"]["Enums"]["job_status"]
           type?: string | null
           typesetting_minutes?: number | null
         }
@@ -999,7 +999,7 @@ export type Database = {
           order_id?: string
           priority?: Database["public"]["Enums"]["priority_type"] | null
           sort_order?: number
-          status?: Database["public"]["Enums"]["order_status"]
+          status?: Database["public"]["Enums"]["job_status"]
           type?: string | null
           typesetting_minutes?: number | null
         }
@@ -2325,13 +2325,11 @@ export type Database = {
         | "CANCELLED"
         | "ERP_EXPORTED"
         | "ASSIGNEE_CHANGED"
-      order_status:
-        | "QUOTE"
-        | "INCOMPLETE"
-        | "PREPRESS_READY"
-        | "PRODUCTION_READY"
-        | "DONE"
-        | "INVOICED"
+        | "ORDER_FINISHED"
+        | "ORDER_REOPENED"
+        | "ORDER_BILLED"
+      job_status: "IN_SETUP" | "PREPRESS" | "IN_PRODUCTION" | "DONE"
+      order_status: "QUOTE" | "IN_PROGRESS" | "FINISHED" | "BILLED"
       priority_type: "NORMAL" | "HIGH"
       textile_font_class: "SANS_SERIF" | "SERIF" | "ELEGANT" | "PLAYFUL"
       textile_motif_type: "TEXT" | "FILE"
@@ -2498,15 +2496,12 @@ export const Constants = {
         "CANCELLED",
         "ERP_EXPORTED",
         "ASSIGNEE_CHANGED",
+        "ORDER_FINISHED",
+        "ORDER_REOPENED",
+        "ORDER_BILLED",
       ],
-      order_status: [
-        "QUOTE",
-        "INCOMPLETE",
-        "PREPRESS_READY",
-        "PRODUCTION_READY",
-        "DONE",
-        "INVOICED",
-      ],
+      job_status: ["IN_SETUP", "PREPRESS", "IN_PRODUCTION", "DONE"],
+      order_status: ["QUOTE", "IN_PROGRESS", "FINISHED", "BILLED"],
       priority_type: ["NORMAL", "HIGH"],
       textile_font_class: ["SANS_SERIF", "SERIF", "ELEGANT", "PLAYFUL"],
       textile_motif_type: ["TEXT", "FILE"],

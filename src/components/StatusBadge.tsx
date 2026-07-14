@@ -1,13 +1,16 @@
-import type { OrderStatus } from '../types/database'
-import { STATUS_META } from '../const/orderStatus'
+import type { StatusMeta } from '../const/orderStatus'
 import { cn } from '../lib/utils'
 import { Badge } from './ui/badge'
 
-export function StatusBadge({ status }: { status: OrderStatus }) {
-  const { label, color } = STATUS_META[status]
+/**
+ * Order and job statuses are separate systems with their own label/color maps —
+ * callers pass the resolved meta (`ORDER_STATUS_META[order.status]` or
+ * `JOB_STATUS_META[job.status]`).
+ */
+export function StatusBadge({ meta }: { meta: StatusMeta }) {
   return (
-    <Badge className={cn('text-sm px-6', color)}>
-      {label}
+    <Badge className={cn('text-sm px-6', meta.color)}>
+      {meta.label}
     </Badge>
   )
 }

@@ -24,14 +24,14 @@ export function JobProductionBanner({ job }: Props) {
     )
   }
 
-  if (job.status !== 'PRODUCTION_READY') return null
+  if (job.status !== 'IN_PRODUCTION') return null
 
   const handleGoBackToPrePress = async () => {
     try {
       await setJobStatus.mutateAsync({
         id: job.id,
         orderId: job.order_id,
-        status: 'PREPRESS_READY',
+        status: 'PREPRESS',
         history: { event_type: 'PREPRESS_READY_MANUAL' },
       })
     } catch {
