@@ -34,6 +34,25 @@ class TimeLogService {
   }
 
   /**
+   * Total logged minutes per job for an order (job id → minutes; jobs without
+   * logs map to 0). Feeds the job-list and order-header time displays without
+   * loading full log rows per job.
+   */
+  async getMinutesByOrderId(orderId: string): Promise<Record<string, number>> {
+    const { data, error } = await supabase
+      .from('jobs')
+      .select('id, job_time_logs(minutes)')
+      .eq('order_id', orderId)
+    if (error) throw error
+    return Object.fromEntries(
+      (data ?? []).map(row => [
+        row.id,
+        (row.job_time_logs ?? []).reduce((sum, log) => sum + log.minutes, 0),
+      ]),
+    )
+  }
+
+  /**
    * Insert a log attributed to `user` (the signed-in user unless an admin
    * logged on someone's behalf) and record the full event in history:
    * actor = history.user_id, attributed user + minutes in meta.

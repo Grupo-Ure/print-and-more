@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { fileService } from '../services/fileService'
 import { toDateOnly } from '../lib/formatDate'
+import { formatMinutes } from '../lib/formatMinutes'
 import {
   type Auftrag,
   type Customer,
@@ -20,11 +21,12 @@ import { useOrderWorkspace } from '../context/order.context'
 import { useOrderParams } from '../hooks/useOrderParams'
 import { orderKeys, useArchiveOrder, useArchiveOrderWithCancelledJobs, useMarkOrderBilled, useOrderById, useSetOrderStatus, useUpdateOrder } from '../queries/orderQueries'
 import { jobKeys, useJobsByOrderId } from '../queries/jobQueries'
+import { useTimeLogMinutesByOrderId } from '../queries/timeLogQueries'
 import './WorkArea.css'
 import { Button } from './ui/button'
 import { cn } from '@/lib/utils'
 import { ORDER_STATUS_META } from '../const/orderStatus'
-import { Archive, Ban, Settings } from 'lucide-react'
+import { Archive, Ban, Clock, Settings } from 'lucide-react'
 import { Separator } from './ui/separator'
 import { DeadlinePicker } from './fields/DeadlinePicker'
 import { DeliverySelect } from './fields/DeliverySelect'
@@ -382,6 +384,8 @@ function OrderHeader({ order, allJobsDone, onEditCustomer, onArchive, onCancelOr
   const customerDisplayName = order.customers?.name?.trim() || '—'
   const customerEmail = order.customers?.email?.trim() || ''
   const customerPhone = order.customers?.phone?.trim() || ''
+  const minutesQuery = useTimeLogMinutesByOrderId(order.id)
+  const totalMinutes = Object.values(minutesQuery.data ?? {}).reduce((sum, m) => sum + m, 0)
 
   return (
     <header className="flex flex-col">
@@ -391,6 +395,15 @@ function OrderHeader({ order, allJobsDone, onEditCustomer, onArchive, onCancelOr
           <h2 className="text-xl desktop:text-2xl" title="Order number">
             {order.order_number}
           </h2>
+          {totalMinutes > 0 && (
+            <span
+              className="flex items-center gap-1 text-sm text-muted-foreground tabular-nums"
+              title="Total time logged across all jobs"
+            >
+              <Clock size={14} />
+              {formatMinutes(totalMinutes)}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1">
           {order.status === 'FINISHED' && (

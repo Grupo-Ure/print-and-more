@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { AlertTriangle, Plus } from 'lucide-react'
 import { jobDepartmentLabel } from '../const/departmentAbbreviation'
+import { formatMinutes } from '../lib/formatMinutes'
 import { isInProductionMissingInfo, shortJobNumber } from '../lib/jobShared'
 import { DEPARTMENTS, type Department, type JobStatus } from '../types/database'
 import { useOrderParams } from '../hooks/useOrderParams'
 import { useJobsByOrderId, useCreateJob } from '../queries/jobQueries'
 import { useOrderById } from '../queries/orderQueries'
 import { useProductCountsByOrderId } from '../queries/productQueries'
+import { useTimeLogMinutesByOrderId } from '../queries/timeLogQueries'
 import { useToast } from './Toast'
 import { Button } from './ui/button'
 import {
@@ -38,11 +40,13 @@ export function JobList() {
   const jobsQuery = useJobsByOrderId(activeOrderId)
   const orderQuery = useOrderById(activeOrderId)
   const productCountsQuery = useProductCountsByOrderId(activeOrderId)
+  const minutesQuery = useTimeLogMinutesByOrderId(activeOrderId)
   const [dialogOpen, setDialogOpen] = useState(false)
 
   const visibleJobs = (jobsQuery.data ?? []).filter(job => !job.is_cancelled)
   const order = orderQuery.data
   const productCounts = productCountsQuery.data
+  const minutesByJob = minutesQuery.data
   // A finished/billed order is closed for new work — reopen it to add jobs.
   const jobsLocked = order?.status === 'FINISHED' || order?.status === 'BILLED'
 
@@ -76,6 +80,14 @@ export function JobList() {
                     </span>
                   )}
               </span>
+              {(minutesByJob?.[job.id] ?? 0) > 0 && (
+                <span
+                  className="text-xs text-muted-foreground tabular-nums shrink-0 px-1"
+                  title="Time logged on this job"
+                >
+                  {formatMinutes(minutesByJob![job.id])}
+                </span>
+              )}
               <JobStatusTrack status={job.status} />
             </li>
           ))}

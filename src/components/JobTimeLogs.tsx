@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { formatDateDe } from '../lib/formatDate'
+import { formatMinutes } from '../lib/formatMinutes'
 import type { TimeLogRow } from '../services/timeLogService'
 import { useCreateTimeLog, useDeleteTimeLog, useTimeLogsByJobId } from '../queries/timeLogQueries'
 import { useCurrentUser, useIsAdmin } from '../queries/userQueries'
@@ -10,13 +11,6 @@ import { Input } from './ui/input'
 import { UserAvatar } from './UserAvatar'
 import { useConfirm } from './ConfirmDialog'
 import { useToast } from './Toast'
-
-function formatMinutes(total: number): string {
-  if (total < 60) return `${total} min`
-  const hours = Math.floor(total / 60)
-  const minutes = total % 60
-  return minutes === 0 ? `${hours} h` : `${hours} h ${String(minutes).padStart(2, '0')} min`
-}
 
 /**
  * Worked-time log for one job: total, the individual entries (minutes, date,
@@ -89,17 +83,14 @@ export function JobTimeLogs({
 
       {/* Fixed-height viewport: the list scrolls inside; the section never
           grows or shrinks with the number of entries. */}
-      <div className="h-28 shrink-0 overflow-y-auto px-2 border-gray-200 border rounded-md">
+      <div className="h-28 shrink-0 overflow-y-auto px-2 border-gray-200 border rounded-md flex items-center justify-center">
         {logsQuery.isLoading ? (
-          <p className="p-1 text-xs text-muted-foreground">Loading…</p>
+          <p className="p-1 text-sm! text-muted-foreground">Loading…</p>
         ) : logs.length === 0 ? (
-          <p className="p-1 text-xs text-muted-foreground">No time logged yet.</p>
+          <p className="p-1 text-sm! text-muted-foreground">No time logged yet.</p>
         ) : (
-          <ul className="flex flex-col divide-y divide-border" aria-label="Time logs">
+          <ul className="flex flex-col divide-y divide-border h-full w-full" aria-label="Time logs">
           {logs.map(log => (
-            // fr-based columns resolve against the row width, so the entries
-            // spread across it and line up between rows:
-            // minutes | date | employee | delete action.
             <li key={log.id} className="group grid grid-cols-[1fr_1fr_2fr_auto] items-center gap-2 py-1 border-gray-200!">
               <span className="shrink-0 font-medium tabular-nums">{formatMinutes(log.minutes)}</span>
               <span className="shrink-0 text-muted-foreground tabular-nums">
