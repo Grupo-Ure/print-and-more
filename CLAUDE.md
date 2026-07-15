@@ -37,11 +37,6 @@ identifiers, names, or strings.
      already show English. Deferred to a shop-confirmed value-rename pass.
   2. **UI display strings** still hardcoded in components — the i18next pass
      ([I18N_MAP.md](.plans/I18N_MAP.md)) is not yet done.
-  3. **TypeScript identifiers** for the sub-order concept still read `subOrder` /
-     `sub_order` (e.g. `subOrderService`, `SubOrderDetail`) even though the DB
-     table is now `department_orders`. The DB-facing rename is done via PostgREST
-     aliases / boundary mapping; the TS-identifier rename is a separate deferred
-     pass.
 - The product name **"Auftragssystem"** is a proper noun (repo/product name) and
   is left as-is.
 
@@ -61,7 +56,7 @@ asked about tasks/tickets, look there first.
 - **Styling:** Tailwind CSS + CSS variables (colour system in `index.css`)
 - **Backend:** Supabase — PostgreSQL with Auth and Row-Level Security; RLS
   policies live in Supabase. The base schema is split into domain migration
-  files under `supabase/migrations/` (types, core, orders, department_orders,
+  files under `supabase/migrations/` (types, core, orders, jobs,
   catalog, products_core, the per-department product tables, textile, audit,
   duplicate_order).
 - **Client:** [src/supabase.ts](src/supabase.ts) (`createClient`); generated
@@ -77,8 +72,8 @@ Three-column layout, full height:
 | Column | Component | Role |
 |--------|-----------|------|
 | Left   | [`OrderSidebar`](src/components/OrderSidebar.tsx) | "+ New order" ([`NewOrderDialog`](src/components/NewOrderDialog.tsx)); order list with selection; archived orders excluded |
-| Centre | [`WorkArea`](src/components/WorkArea.tsx) | Order header, files, sub-order tabs ([`SubOrderTabs`](src/components/SubOrderTabs.tsx)), active sub-order detail mask ([`SubOrderDetail`](src/components/SubOrderDetail.tsx)) |
-| Right  | [`ContextPanel`](src/components/ContextPanel.tsx) | Status, workflow actions, hints (order + sub-order workflow) |
+| Centre | [`WorkArea`](src/components/WorkArea.tsx) | Order header, files, job tabs ([`JobTabs`](src/components/JobTabs.tsx)), active job detail mask ([`JobDetail`](src/components/JobDetail.tsx)) |
+| Right  | [`ContextPanel`](src/components/ContextPanel.tsx) | Status, workflow actions, hints (order + job workflow) |
 
 **Global dialogs:** [`NewOrderDialog`](src/components/NewOrderDialog.tsx),
 [`CustomerDialog`](src/components/CustomerDialog.tsx),
@@ -98,7 +93,7 @@ hosts the three-column shell.
 
 ## Production Departments (`department` enum)
 
-Every order has 1…n sub-orders, each assigned to one production department.
+Every order has 1…n jobs, each assigned to one production department.
 Enum `department`: `LFP`, `COPYSHOP`, `TEXTILE`, `STAMP`, `LASER_ENGRAVING`,
 `OTHER`. Each has a detail mask under `src/components/departments/` and a
 validator under `src/lib/<dept>/`.
@@ -118,13 +113,13 @@ validator under `src/lib/<dept>/`.
   `is_archived`). Created/edited via `CustomerDialog`; searched by `ilike` on
   `name` (only `is_archived = false`).
 - **Order** — table `orders` (`customer_id`, `status`, `deadline`, `delivery`
-  (`PICKUP`|`SHIPPING`), `priority` (`HIGH`|`NORMAL`), `is_emergency`,
+  (`PICKUP`|`SHIPPING`), `priority` (`HIGH`|`NORMAL`),
   `is_erp_exported`, `is_archived`, `created_at`). Status kept in sync via
   `orderService.recalculateOrderStatus` (TS `calculateOrderStatus`). Has 1…n
-  sub-orders.
-- **Sub-order** — table `department_orders` (the per-department production unit;
-  TS code still calls it `subOrder`). Carries `department`, `type`, `status`,
-  schedule fields, `assignee_id`, `typesetting_minutes`, emergency fields,
+  jobs.
+- **Job** — table `jobs` (the per-department production unit; formerly
+  "sub-order" / `department_orders`). Carries `department`, `type`, `status`,
+  schedule fields, `assignee_id`, `typesetting_minutes`,
   `is_cancelled`, customer-approval fields. It still has its own legacy `detail`
   JSONB + `type` + type-check trigger (used by Textile's `eigenware_modus` and
   the type guard) — a later cleanup, out of scope of the product redesign.
@@ -136,14 +131,14 @@ validator under `src/lib/<dept>/`.
   `textile_products` → `textile_variants` (master data, with `color_hex`,
   `stock`, `min_stock`); plus `textile_motifs`, `textile_positions`,
   `textile_assignments` (per-order); `textile_stock_movements`. Eigenware mode
-  (`STAMMDATEN` | `FREITEXT`) lives in the sub-order detail.
+  (`STAMMDATEN` | `FREITEXT`) lives in the job detail.
 
 ### Products — typed per-type tables (post-refactor)
 
 Products no longer use a JSONB `detail` blob. The model is supertype/subtype
 (class-table inheritance):
 
-- **Parent `department_products`** — `id`, `department_order_id`, `department`,
+- **Parent `department_products`** — `id`, `job_id`, `department`,
   `type` (discriminator), `quantity`, `notes`, `sort_order`, `created_at`.
 - **One typed child table per product type** (30 total: 7 CopyShop, 9 Stamp,
   8 LFP, 5 Laser, 1 Other), PK = FK to `department_products`
@@ -157,8 +152,8 @@ Products no longer use a JSONB `detail` blob. The model is supertype/subtype
 **Code contract:** [src/types/product.ts](src/types/product.ts) defines
 `LoadedProduct` (parent + typed `child`), `ProductWriteInput`, the `ChildTable`
 union, and `childTableForType()`.
-[`subOrderProductService`](src/services/subOrderProductService.ts) is the only
-product service: `getProductsBySubOrderId` (parent + child), `createProduct` /
+[`departmentProductService`](src/services/departmentProductService.ts) is the only
+product service: `getProductsByJobId` (parent + child), `createProduct` /
 `updateProduct` (TS two-step — insert/update parent then child, no RPC),
 `deleteProduct` (cascade), and the `product_files` helpers. Per-department
 validators (`src/lib/<dept>/validate*Detail.ts`) are pure functions over the
@@ -166,22 +161,27 @@ typed fields. The detail components hold a flat English form object and split it
 into parent (`type`/`quantity`/`notes`) + typed child via a `buildChild`-style
 mapper on save.
 
-### Status (Order & Sub-order)
+### Status (Order & Job)
 
 Flow: `QUOTE` → `INCOMPLETE` → `PREPRESS_READY` → `PRODUCTION_READY` → `DONE`
 (orders may also reach `INVOICED`).
 
-- **Aggregate order status is derived from the sub-orders** by
+- **Aggregate order status is derived from the jobs** by
   `calculateOrderStatus` ([src/lib/orderStatus.ts](src/lib/orderStatus.ts)) — the
-  lowest status across non-cancelled sub-orders. `orderService.recalculateOrderStatus`
-  reads the order + sub-orders, computes this, and writes `orders.status`. (This
+  lowest status across non-cancelled jobs. `orderService.recalculateOrderStatus`
+  reads the order + jobs, computes this, and writes `orders.status`. (This
   was formerly a Postgres RPC; it now lives entirely in the client/service layer.)
-- **Per-sub-order transitions** are governed by `nextSubOrderStatus()` /
-  completeness logic in [src/lib/subOrderShared.ts](src/lib/subOrderShared.ts)
+- **Per-job transitions** are governed by the completeness logic in
+  [src/lib/jobShared.ts](src/lib/jobShared.ts) (`isJobComplete`,
+  `autoPrepressAllowed`), the automatic-status logic under `src/lib/status/`
+  (driven by [src/queries/useStatusManager.ts](src/queries/useStatusManager.ts)),
   and the per-department validators (`OTHER_STAMP`, `OTHER_LFP`, `OTHER_LASER`,
   and the `OTHER` department are auto-prepress-ineligible — manual only).
 - **`ContextPanel`** is the single point of manual workflow control: set status,
-  toggle emergency, ERP insert, archive, write `history` entries.
+  ERP insert, archive, write `history` entries. Admins can additionally
+  force-release an incomplete job to production via `JobReleaseButton`
+  (bypasses the completeness gate; recorded as an `EMERGENCY_TRIGGERED`
+  history entry with a required reason).
 
 ## Workflow specifics
 
@@ -198,7 +198,7 @@ Flow: `QUOTE` → `INCOMPLETE` → `PREPRESS_READY` → `PRODUCTION_READY` → `
   their own busy flags).
 - **ERP export** — `erp_exports` (`order_id`, `mode` (`SINGLE`|`BULK`),
   `export_data`).
-- **Duplicate order** — RPC `duplicate_order` deep-copies an order (sub-orders,
+- **Duplicate order** — RPC `duplicate_order` deep-copies an order (jobs,
   products incl. the typed child by `type`, `product_files`, textile rows) in one
   transaction; called from [`DuplicateDialog`](src/components/DuplicateDialog.tsx).
 
@@ -209,12 +209,12 @@ Flow: `QUOTE` → `INCOMPLETE` → `PREPRESS_READY` → `PRODUCTION_READY` → `
 | [`src/types/product.ts`](src/types/product.ts) | Typed product model: `LoadedProduct`, `ProductWriteInput`, `ChildTable`, `childTableForType()` |
 | [`src/types/database.ts`](src/types/database.ts) | App-facing row/enum aliases over the generated `supabase.ts` |
 | [`src/types/supabase.ts`](src/types/supabase.ts) | Generated DB types (regenerate after migrations) |
-| [`src/services/subOrderProductService.ts`](src/services/subOrderProductService.ts) | Product CRUD (parent + typed child), file links |
+| [`src/services/departmentProductService.ts`](src/services/departmentProductService.ts) | Product CRUD (parent + typed child), file links |
 | [`src/services/orderService.ts`](src/services/orderService.ts) | Orders, list, `recalculateOrderStatus`, `duplicate_order` |
-| [`src/services/subOrderService.ts`](src/services/subOrderService.ts) | Sub-orders (`department_orders`) |
+| [`src/services/jobService.ts`](src/services/jobService.ts) | Jobs (table `jobs`) |
 | [`src/services/textileService.ts`](src/services/textileService.ts) / [`textileMasterDataService.ts`](src/services/textileMasterDataService.ts) | Textile per-order + master data |
 | [`src/services/historyService.ts`](src/services/historyService.ts) | History events |
-| [`src/lib/subOrderShared.ts`](src/lib/subOrderShared.ts) | Cross-cutting completeness + `nextSubOrderStatus` |
+| [`src/lib/jobShared.ts`](src/lib/jobShared.ts) | Cross-cutting completeness (`isJobComplete`, `autoPrepressAllowed`) |
 | [`src/lib/pdf/orderPdf.ts`](src/lib/pdf/orderPdf.ts) | PDF production sheet (German output is intentional) |
 | [`.plans/DB_RENAME_MAP.md`](.plans/DB_RENAME_MAP.md) | German→English schema map (authoritative) |
 
@@ -227,6 +227,5 @@ Flow: `QUOTE` → `INCOMPLETE` → `PREPRESS_READY` → `PRODUCTION_READY` → `
   the tokens, don't hardcode colours.
 - **Open refactor streams** (see `.plans/`): value-rename of stored enum strings
   to English; the i18next UI-string pass; per-type Zod validation schemas (to
-  replace the per-department validators); the TS-identifier `subOrder` →
-  `departmentOrder` rename. Don't fold these into unrelated work.
+  replace the per-department validators). Don't fold these into unrelated work.
 - For current status / known debt see [current_state.md](current_state.md).
