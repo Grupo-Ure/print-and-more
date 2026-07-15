@@ -51,7 +51,7 @@ export function JobList() {
       <nav className="flex flex-col gap-1 w-48 desktop:w-60 shrink-0">
         <h1>Jobs in this order</h1>
         {!jobsLocked && <AddJobButton onClick={() => setDialogOpen(true)} />}
-        <ul className="flex flex-col flex-1 min-w-0" aria-label="Jobs">
+        <ul className="flex flex-col flex-1 min-w-0 min-h-0 overflow-y-auto" aria-label="Jobs">
           {visibleJobs.map(job => (
             <li
               key={job.id}

@@ -309,7 +309,7 @@ export function OrderDetails({
   }
 
   return (
-    <main className="flex flex-col gap-2 p-3 flex-1">
+    <main className="flex flex-col gap-2 p-3 flex-1 min-h-0">
       <OrderHeader
         order={order}
         allJobsDone={
@@ -341,12 +341,12 @@ export function OrderDetails({
 
       <Separator />
 
-      <div className="flex gap-2 flex-1">
+      <div className="flex gap-2 flex-1 min-h-0">
         <JobList />
 
         <Separator  orientation='vertical'/>
 
-        <div className="flex-1 min-w-0" role="tabpanel">
+        <div className="flex-1 min-w-0 min-h-0h overflow-y-auto" role="tabpanel">
           {activeJob ? (
             <JobDetail
               orderFiles={files}
