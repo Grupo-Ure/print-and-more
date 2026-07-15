@@ -166,10 +166,23 @@ body {
 }
 
 /*
- * No global element typography: headings and paragraphs inherit the
- * surrounding scale (the app shell sets text-sm); emphasis is applied with
- * Tailwind utilities at the usage site.
+ * Global element typography (Tailwind @apply). Desktop keeps the original
+ * scale; the compact tier (below --breakpoint-desktop) steps down one size.
+ * Utility classes on a tag always win over these element rules — use them
+ * for per-site deviations.
  */
+h1 {
+  @apply text-gray-500 text-base desktop:text-xl font-heading font-bold tracking-tighter;
+}
+h2 {
+  @apply text-gray-600 text-sm desktop:text-lg font-medium tracking-wide;
+}
+h3 {
+  @apply text-sm desktop:text-base;
+}
+p {
+  @apply text-sm desktop:text-lg font-heading;
+}
 
 code,
 .counter {

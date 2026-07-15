@@ -221,7 +221,7 @@ export function UserManagementPage() {
       </section>
 
       <section className="rounded-md border border-neutral-200 p-4">
-        <h2 className="mb-3 text-base font-semibold">Create account</h2>
+        <h2 className="mb-3 font-semibold">Create account</h2>
         <form className="grid grid-cols-2 gap-3" onSubmit={handleCreate}>
           <div className="flex flex-col gap-1">
             <Label htmlFor="new-user-name">Name</Label>

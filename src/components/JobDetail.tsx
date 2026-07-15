@@ -159,7 +159,7 @@ export function JobDetail({
       <JobProductionBanner job={job} />
       <div aria-label="Job" className="flex flex-col gap-2">
         <div className="flex items-center gap-6">
-          <h1 className="flex items-baseline gap-2 text-base desktop:text-lg font-bold text-gray-500">
+          <h1 className="flex items-baseline gap-2">
             {jobDepartmentLabel(job.department)}
             <span>-</span>
             {job.job_number}
@@ -227,7 +227,7 @@ export function JobDetail({
         )}
       <div className="flex gap-6">
         <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-medium text-gray-600">
+          <h2>
             Job Settings
           </h2>
           <div className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
@@ -340,8 +340,8 @@ export function JobDetail({
         <Separator orientation="vertical" className="h-auto" />
 
         <section className="flex min-w-0 flex-col gap-2">
-          <h2 className="text-sm font-medium text-gray-600">
-            Employee Settings
+          <h2>
+            Time Logs
           </h2>
           <JobTimeLogs key={job.id} orderId={order.id} jobId={job.id} disabled={isDone} />
         </section>

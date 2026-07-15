@@ -278,8 +278,8 @@ export function OrderDetails({
   if (!activeOrderId) {
     return (
       <div className="flex flex-col w-full h-full items-center justify-center">
-        <h1 className="text-lg desktop:text-xl font-bold text-gray-500 tracking-widest">Welcome</h1>
-        <h2 className="text-sm text-gray-600">Select an order on the left to view details and jobs.</h2>
+        <h1 className="tracking-widest">Welcome</h1>
+        <h2>Select an order on the left to view details and jobs.</h2>
       </div>
     )
   }
@@ -287,7 +287,7 @@ export function OrderDetails({
   if (loading) {
     return (
       <div className="flex flex-col w-full h-full items-center justify-center">
-        <h2 className="text-sm text-gray-600">Loading order…</h2>
+        <h2>Loading order…</h2>
       </div>
     )
   }
@@ -295,7 +295,7 @@ export function OrderDetails({
   if (isError && !order) {
     return (
       <div className="flex flex-col w-full h-full items-center justify-center">
-        <h2 className="text-sm text-gray-600">Order could not be loaded.</h2>
+        <h2>Order could not be loaded.</h2>
       </div>
     )
   }
@@ -303,7 +303,7 @@ export function OrderDetails({
   if (!order) {
     return (
       <div className="flex flex-col w-full h-full items-center justify-center">
-        <h2 className="text-sm text-gray-600">Order not found.</h2>
+        <h2>Order not found.</h2>
       </div>
     )
   }
@@ -387,8 +387,8 @@ function OrderHeader({ order, allJobsDone, onEditCustomer, onArchive, onCancelOr
     <header className="flex flex-col">
       <div className="flex flex-wrap gap-x-4 gap-y-1 items-center justify-between">
         <div className="flex gap-4 items-center">
-          <h1 className="text-base desktop:text-lg font-bold text-gray-500 tracking-tight">Order:</h1>
-          <h2 className="text-xl desktop:text-2xl font-medium text-gray-600" title="Order number">
+          <h1>Order:</h1>
+          <h2 className="text-xl desktop:text-2xl" title="Order number">
             {order.order_number}
           </h2>
         </div>
@@ -443,7 +443,7 @@ function OrderHeader({ order, allJobsDone, onEditCustomer, onArchive, onCancelOr
       </div>
       <div className="flex items-center gap-4 text-sm text-muted-foreground">
         <div className="flex items-center gap-1">
-          <h1 title="Customer" className="text-base desktop:text-lg font-bold text-gray-500">
+          <h1 title="Customer">
             {customerDisplayName}
           </h1>
           <Button

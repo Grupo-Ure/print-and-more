@@ -1978,7 +1978,7 @@ export function TextileStockPage() {
       )}
 
       {tab === 'ORDER_LIST' && (
-        <div className='b-dev'>
+        <div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
             <button
               type="button"

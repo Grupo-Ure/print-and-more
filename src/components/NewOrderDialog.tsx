@@ -68,7 +68,7 @@ export function NewOrderDialog() {
         <DialogTrigger asChild>
           <Button
             type="button"
-            className="h-10 text-base px-6 desktop:h-11 desktop:text-lg desktop:px-8 m-auto"
+            className="h-10 text-base px-6 desktop:h-16 desktop:text-2xl desktop:px-12 m-auto"
           >
             <Plus strokeWidth={4} />
             New Order
@@ -86,7 +86,7 @@ export function NewOrderDialog() {
           )}
 
           <section className="flex flex-col gap-2 overflow-y-hidden px-2 flex-1">
-            <h2 className="uppercase tracking-[0.06em] text-xs font-medium text-muted-foreground">
+            <h2 className="uppercase tracking-[0.06em] text-muted-foreground">
               Customer
             </h2>
 
@@ -111,8 +111,8 @@ export function NewOrderDialog() {
             ) : (
               <div className="flex items-start justify-between gap-3 rounded-md bg-muted p-3">
                 <div className="min-w-0">
-                  <h2 className="truncate text-sm font-medium">{selectedCustomer.name}</h2>
-                  <h3 className="truncate text-xs text-muted-foreground">
+                  <h2 className="truncate">{selectedCustomer.name}</h2>
+                  <h3 className="truncate">
                     {selectedCustomer.email || selectedCustomer.phone || '—'}
                   </h3>
                 </div>

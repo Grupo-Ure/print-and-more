@@ -40,7 +40,7 @@ export function UserAvatar({ name, avatarUrl, className }: UserAvatarProps) {
     <span
       aria-hidden
       className={cn(
-        'flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-medium text-primary select-none',
+        'flex items-center justify-center rounded-full bg-primary font-medium text-primary-foreground select-none size-6 text-[16px]',
         className,
       )}
     >

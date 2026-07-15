@@ -80,19 +80,22 @@ export function JobTimeLogs({
   }
 
   return (
-    <div className="flex flex-col gap-2 min-w-0">
+    <div className="flex w-72 desktop:w-96 flex-col gap-2">
       <div className="text-[13px]">
         Total: <span className="font-semibold text-foreground">{formatMinutes(total)}</span>
       </div>
 
-      {logsQuery.isLoading ? (
-        <p className="text-xs text-muted-foreground">Loading…</p>
-      ) : logs.length === 0 ? (
-        <p className="text-xs text-muted-foreground">No time logged yet.</p>
-      ) : (
-        <ul className="flex flex-col divide-y divide-border" aria-label="Time logs">
+      {/* Fixed-height viewport: the list scrolls inside; the section never
+          grows or shrinks with the number of entries. */}
+      <div className="h-28 shrink-0 overflow-y-auto px-2">
+        {logsQuery.isLoading ? (
+          <p className="p-1 text-xs text-muted-foreground">Loading…</p>
+        ) : logs.length === 0 ? (
+          <p className="p-1 text-xs text-muted-foreground">No time logged yet.</p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-border" aria-label="Time logs">
           {logs.map(log => (
-            <li key={log.id} className="group flex items-center gap-2 py-1 text-[13px]">
+            <li key={log.id} className="group flex items-center gap-2 py-1">
               <span className="w-16 shrink-0 font-medium tabular-nums">{formatMinutes(log.minutes)}</span>
               <span className="w-20 shrink-0 text-muted-foreground tabular-nums">
                 {formatDateDe(log.created_at)}
@@ -105,7 +108,7 @@ export function JobTimeLogs({
                     : undefined
                 }
               >
-                {log.user && <UserAvatar name={log.user.name} avatarUrl={log.user.avatar_url} className="size-5 text-[9px]" />}
+                {log.user && <UserAvatar name={log.user.name} avatarUrl={log.user.avatar_url} />}
                 <span className="truncate">{log.user?.name ?? '—'}</span>
                 {log.created_by && log.created_by.id !== log.user?.id && (
                   <span className="text-[11px] text-muted-foreground shrink-0">(by {log.created_by.name})</span>
@@ -127,8 +130,9 @@ export function JobTimeLogs({
               )}
             </li>
           ))}
-        </ul>
-      )}
+          </ul>
+        )}
+      </div>
 
       {!disabled && (
         <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -153,7 +157,7 @@ export function JobTimeLogs({
           )}
           <Button
             type="button"
-            variant="outline"
+            variant="default"
             size="sm"
             disabled={!minutesValid || !currentUser || createLog.isPending}
             onClick={handleCreate}

@@ -49,7 +49,7 @@ export function JobList() {
   return (
     <>
       <nav className="flex flex-col gap-1 w-48 desktop:w-60 shrink-0">
-        <h1 className="text-sm font-semibold text-gray-500">Jobs in this order</h1>
+        <h1>Jobs in this order</h1>
         {!jobsLocked && <AddJobButton onClick={() => setDialogOpen(true)} />}
         <ul className="flex flex-col flex-1 min-w-0" aria-label="Jobs">
           {visibleJobs.map(job => (

@@ -60,11 +60,11 @@ export function EmployeeCombobox({ value, onChange, disabled = false }: Employee
           role="combobox"
           aria-expanded={open}
           disabled={disabled}
-          className="w-40 justify-between font-normal"
+          className="w-40 justify-between"
         >
           <span className={`flex min-w-0 items-center gap-1.5 ${selected ? '' : 'text-muted-foreground'}`}>
             {selected && (
-              <UserAvatar name={selected.name} avatarUrl={selected.avatar_url} className="size-5 text-[9px]" />
+              <UserAvatar name={selected.name} avatarUrl={selected.avatar_url} />
             )}
             <span className="truncate">{selected ? selected.name : 'Unassigned'}</span>
           </span>
