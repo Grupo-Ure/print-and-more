@@ -1,8 +1,10 @@
--- 20260508081507_jobs.sql — jobs (+ type/approval guards)
+-- 20260508081507_jobs.sql — jobs (+ job numbering, type/approval guards)
 -- Split from baseline 20260508081503_remote_schema.sql (delete that file once verified).
 
 CREATE TABLE IF NOT EXISTS "public"."jobs" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    -- Assigned by trg_job_number BEFORE INSERT; never set by the client.
+    "job_number" "text" NOT NULL,
     "order_id" "uuid" NOT NULL,
     "department" "public"."department" NOT NULL,
     "type" "text",
@@ -27,6 +29,66 @@ CREATE TABLE IF NOT EXISTS "public"."jobs" (
 );
 
 ALTER TABLE "public"."jobs" OWNER TO "postgres";
+
+CREATE TABLE IF NOT EXISTS "public"."job_number_counter" (
+    "order_id" "uuid" NOT NULL,
+    "department" "public"."department" NOT NULL,
+    "last_value" integer NOT NULL
+);
+
+ALTER TABLE "public"."job_number_counter" OWNER TO "postgres";
+
+/**
+ * Department abbreviation used in job numbers. Must stay in sync with
+ * DEPARTMENT_ABBREVIATIONS in src/const/departmentAbbreviation.ts.
+ */
+CREATE OR REPLACE FUNCTION "public"."fn_department_abbreviation"("dept" "public"."department") RETURNS "text"
+    LANGUAGE "sql" IMMUTABLE
+    AS $$
+  SELECT CASE dept
+    WHEN 'LFP'             THEN 'LFP'
+    WHEN 'COPYSHOP'        THEN 'CP'
+    WHEN 'TEXTILE'         THEN 'TX'
+    WHEN 'STAMP'           THEN 'ST'
+    WHEN 'LASER_ENGRAVING' THEN 'LA'
+    WHEN 'OTHER'           THEN 'OT'
+  END;
+$$;
+
+/**
+ * Trigger: assigns `jobs.job_number` as `<order_number>-<DEPT>-<NN>`
+ * (e.g. 2026-07-0042-LFP-01), where NN is a per-order-per-department
+ * sequence. Uses an atomic INSERT ... ON CONFLICT DO UPDATE on
+ * `job_number_counter`, so concurrent inserts never collide; the counter
+ * never decrements, so numbers of deleted jobs are not reused.
+ *
+ * @trigger BEFORE INSERT ON jobs (per row)
+ */
+CREATE OR REPLACE FUNCTION "public"."fn_generate_job_number"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+DECLARE
+  seq_value            integer;
+  parent_order_number  text;
+BEGIN
+  INSERT INTO job_number_counter (order_id, department, last_value)
+  VALUES (NEW.order_id, NEW.department, 1)
+  ON CONFLICT (order_id, department) DO UPDATE
+    SET last_value = job_number_counter.last_value + 1
+  RETURNING last_value INTO seq_value;
+
+  SELECT order_number INTO parent_order_number
+  FROM orders
+  WHERE id = NEW.order_id;
+
+  NEW.job_number :=
+    parent_order_number || '-' ||
+    fn_department_abbreviation(NEW.department) || '-' ||
+    lpad(seq_value::text, 2, '0');
+
+  RETURN NEW;
+END;
+$$;
 
 /**
  * Trigger guard: a job's customer-approval file must come from its own order.
@@ -132,6 +194,10 @@ BEGIN
 END;
 $$;
 
+ALTER FUNCTION "public"."fn_department_abbreviation"("public"."department") OWNER TO "postgres";
+
+ALTER FUNCTION "public"."fn_generate_job_number"() OWNER TO "postgres";
+
 ALTER FUNCTION "public"."fn_check_approval_file_order"() OWNER TO "postgres";
 
 ALTER FUNCTION "public"."fn_check_job_type"() OWNER TO "postgres";
@@ -140,6 +206,15 @@ ALTER FUNCTION "public"."fn_enforce_job_assignee_rules"() OWNER TO "postgres";
 
 ALTER TABLE ONLY "public"."jobs"
     ADD CONSTRAINT "jobs_pkey" PRIMARY KEY ("id");
+
+ALTER TABLE ONLY "public"."jobs"
+    ADD CONSTRAINT "jobs_job_number_key" UNIQUE ("job_number");
+
+ALTER TABLE ONLY "public"."job_number_counter"
+    ADD CONSTRAINT "job_number_counter_pkey" PRIMARY KEY ("order_id", "department");
+
+ALTER TABLE ONLY "public"."job_number_counter"
+    ADD CONSTRAINT "job_number_counter_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE CASCADE;
 
 ALTER TABLE ONLY "public"."jobs"
     ADD CONSTRAINT "fk_approval_file" FOREIGN KEY ("customer_approval_file_id") REFERENCES "public"."files"("id");
@@ -156,6 +231,8 @@ CREATE INDEX "idx_jobs_department" ON "public"."jobs" USING "btree" ("department
 
 CREATE INDEX "idx_jobs_status" ON "public"."jobs" USING "btree" ("status");
 
+CREATE OR REPLACE TRIGGER "trg_job_number" BEFORE INSERT ON "public"."jobs" FOR EACH ROW EXECUTE FUNCTION "public"."fn_generate_job_number"();
+
 CREATE OR REPLACE TRIGGER "trg_approval_file_order_check" BEFORE INSERT OR UPDATE OF "customer_approval_file_id", "order_id" ON "public"."jobs" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_approval_file_order"();
 
 CREATE OR REPLACE TRIGGER "trg_job_type_check" BEFORE INSERT OR UPDATE OF "department", "type" ON "public"."jobs" FOR EACH ROW EXECUTE FUNCTION "public"."fn_check_job_type"();
@@ -164,7 +241,23 @@ CREATE OR REPLACE TRIGGER "trg_job_assignee_rules" BEFORE UPDATE OF "assignee_id
 
 CREATE POLICY "Employees: full access" ON "public"."jobs" TO "authenticated" USING (true) WITH CHECK (true);
 
+CREATE POLICY "Employees: full access" ON "public"."job_number_counter" TO "authenticated" USING (true) WITH CHECK (true);
+
 ALTER TABLE "public"."jobs" ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE "public"."job_number_counter" ENABLE ROW LEVEL SECURITY;
+
+GRANT ALL ON FUNCTION "public"."fn_department_abbreviation"("public"."department") TO "anon";
+
+GRANT ALL ON FUNCTION "public"."fn_department_abbreviation"("public"."department") TO "authenticated";
+
+GRANT ALL ON FUNCTION "public"."fn_department_abbreviation"("public"."department") TO "service_role";
+
+GRANT ALL ON FUNCTION "public"."fn_generate_job_number"() TO "anon";
+
+GRANT ALL ON FUNCTION "public"."fn_generate_job_number"() TO "authenticated";
+
+GRANT ALL ON FUNCTION "public"."fn_generate_job_number"() TO "service_role";
 
 GRANT ALL ON FUNCTION "public"."fn_check_approval_file_order"() TO "anon";
 
@@ -190,6 +283,18 @@ GRANT ALL ON TABLE "public"."jobs" TO "authenticated";
 
 GRANT ALL ON TABLE "public"."jobs" TO "service_role";
 
+GRANT ALL ON TABLE "public"."job_number_counter" TO "anon";
+
+GRANT ALL ON TABLE "public"."job_number_counter" TO "authenticated";
+
+GRANT ALL ON TABLE "public"."job_number_counter" TO "service_role";
+
 COMMENT ON TABLE "public"."jobs" IS 'Core operational unit. Status must never be QUOTE (CHECK constraint). detail (JSONB): required-field logic lives in application code (Zod), not the DB. All type values are ASCII without diacritics (e.g. BROCHURE).';
 
 COMMENT ON COLUMN "public"."jobs"."detail" IS 'Department-specific fields as JSONB. Validation in application code, not the DB. Intentional: allows new departments without a DB migration.';
+
+COMMENT ON COLUMN "public"."jobs"."job_number" IS 'Human-facing job number: <order_number>-<DEPT>-<NN> (per-order-per-department sequence). Assigned by fn_generate_job_number() on insert; never set by the client.';
+
+COMMENT ON FUNCTION "public"."fn_generate_job_number"() IS 'Atomic per-order-per-department counter using INSERT ... ON CONFLICT DO UPDATE. No race condition on concurrent inserts. Numbers of deleted jobs are never reused.';
+
+COMMENT ON TABLE "public"."job_number_counter" IS 'Per-order-per-department counter for job numbers. One row per (order, department). Written exclusively via fn_generate_job_number(). Direct UPDATEs are forbidden — they would corrupt the numbering sequence.';

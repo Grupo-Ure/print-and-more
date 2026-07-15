@@ -4,7 +4,7 @@ export const DEPARTMENT_ABBREVIATIONS: Record<string, string> = {
   TEXTILE: 'TX',
   STAMP: 'ST',
   LASER_ENGRAVING: 'LA',
-  OTHER: 'SO',
+  OTHER: 'OT',
 }
 
 export const JOB_DEPARTMENT_LABELS: Record<string, string> = {

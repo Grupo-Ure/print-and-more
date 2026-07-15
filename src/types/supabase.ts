@@ -942,6 +942,32 @@ export type Database = {
           },
         ]
       }
+      job_number_counter: {
+        Row: {
+          department: Database["public"]["Enums"]["department"]
+          last_value: number
+          order_id: string
+        }
+        Insert: {
+          department: Database["public"]["Enums"]["department"]
+          last_value: number
+          order_id: string
+        }
+        Update: {
+          department?: Database["public"]["Enums"]["department"]
+          last_value?: number
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_number_counter_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jobs: {
         Row: {
           assignee_id: string | null
@@ -956,6 +982,7 @@ export type Database = {
           detail: Json
           id: string
           is_cancelled: boolean
+          job_number: string
           order_id: string
           priority: Database["public"]["Enums"]["priority_type"] | null
           sort_order: number
@@ -976,6 +1003,7 @@ export type Database = {
           detail?: Json
           id?: string
           is_cancelled?: boolean
+          job_number: string
           order_id: string
           priority?: Database["public"]["Enums"]["priority_type"] | null
           sort_order?: number
@@ -996,6 +1024,7 @@ export type Database = {
           detail?: Json
           id?: string
           is_cancelled?: boolean
+          job_number?: string
           order_id?: string
           priority?: Database["public"]["Enums"]["priority_type"] | null
           sort_order?: number
@@ -2292,6 +2321,10 @@ export type Database = {
           selected_job_ids: string[]
           source_order_id: string
         }
+        Returns: string
+      }
+      fn_department_abbreviation: {
+        Args: { dept: Database["public"]["Enums"]["department"] }
         Returns: string
       }
     }

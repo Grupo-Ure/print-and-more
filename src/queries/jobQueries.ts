@@ -9,7 +9,7 @@ import type { Database } from '../types/supabase'
 import { orderKeys, useOrderById } from './orderQueries'
 import { historyKeys } from './historyQueries'
 
-type JobInsert = Database['public']['Tables']['jobs']['Insert']
+import type { JobInsert } from '../services/jobService'
 type JobUpdate = Database['public']['Tables']['jobs']['Update']
 
 type HistoryParams = { event_type: HistoryEvent; reason?: string; meta?: Record<string, unknown> }

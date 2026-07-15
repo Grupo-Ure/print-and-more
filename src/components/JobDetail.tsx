@@ -4,7 +4,7 @@ import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import { useOrderById } from '../queries/orderQueries'
 import { useStatusManager } from '../queries/useStatusManager'
 import { useOrderParams } from '../hooks/useOrderParams'
-import { departmentAbbreviation } from '../const/departmentAbbreviation'
+import { jobDepartmentLabel } from '../const/departmentAbbreviation'
 import { customerMeetsPrepressContact } from '../lib/customer'
 import { validateJobCommonFields } from '../lib/jobShared'
 import {
@@ -157,48 +157,54 @@ export function JobDetail({
   return (
     <div className="flex flex-col gap-4">
       <JobProductionBanner job={job} />
-      <div className="td-kopf" aria-label="Job">
-        <span className="td-bkz">[{departmentAbbreviation(job.department)}]</span>
-        <StatusBadge meta={JOB_STATUS_META[job.status]} />
-        <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => void handleDownloadPdf()}
-          >
-            <FileDown />
-            Download PDF
-          </Button>
+      <div aria-label="Job">
+        <h1 className="flex items-baseline gap-2">
+          {jobDepartmentLabel(job.department)}
+          <span>-</span>
+          {job.job_number}
+        </h1>
+        <div className="td-kopf">
+          <StatusBadge meta={JOB_STATUS_META[job.status]} />
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => void handleDownloadPdf()}
+            >
+              <FileDown />
+              Download PDF
+            </Button>
 
-          {job.status === 'IN_SETUP' ? (
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={deleteJob.isPending}
-              onClick={() => void handleDelete()}
-              size="sm"
-              className="text-destructive hover:text-destructive"
-            >
-              <Trash2 />
-              Delete job
-            </Button>
-          ):(
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={job.is_cancelled || job.status === 'IN_PRODUCTION' || job.status === 'DONE' || cancelJob.isPending}
-              onClick={() => void handleCancel()}
-              size="sm"
-              className="text-destructive hover:text-destructive"
-            >
-              <Ban />
-              Cancel job
-            </Button>
-          )}
+            {job.status === 'IN_SETUP' ? (
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={deleteJob.isPending}
+                onClick={() => void handleDelete()}
+                size="sm"
+                className="text-destructive hover:text-destructive"
+              >
+                <Trash2 />
+                Delete job
+              </Button>
+            ):(
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={job.is_cancelled || job.status === 'IN_PRODUCTION' || job.status === 'DONE' || cancelJob.isPending}
+                onClick={() => void handleCancel()}
+                size="sm"
+                className="text-destructive hover:text-destructive"
+              >
+                <Ban />
+                Cancel job
+              </Button>
+            )}
+          </div>
+
+          <JobReleaseButton job={job} orderNumber={order.order_number ?? null} />
         </div>
-
-        <JobReleaseButton job={job} orderNumber={order.order_number ?? null} />
       </div>
       {shouldValidate &&
         job.department !== 'OTHER' &&

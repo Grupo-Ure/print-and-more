@@ -169,3 +169,13 @@ export function isInProductionMissingInfo(
   return !isJobComplete(resolveEffectiveJob(job, order), false, hasProducts)
 }
 
+
+/**
+ * Short form of a job number for contexts already scoped to one order:
+ * strips the `<order_number>` prefix and keeps the identifying
+ * `<DEPT>-<NN>` suffix (e.g. `2026-07-0042-LFP-01` → `LFP-01`). The order
+ * number itself contains dashes, so "last two segments" is the robust cut.
+ */
+export function shortJobNumber(jobNumber: string): string {
+  return jobNumber.split('-').slice(-2).join('-')
+}

@@ -3,7 +3,7 @@ import type { Database } from '../types/supabase'
 import { JOB_COLUMNS } from '../const/jobSelect'
 import type { JobRow, JobStatus, Department } from '../types/database'
 
-type JobInsert = Database['public']['Tables']['jobs']['Insert']
+export type JobInsert = Omit<Database['public']['Tables']['jobs']['Insert'], 'job_number'>
 type JobUpdate = Database['public']['Tables']['jobs']['Update']
 
 export type JobSummary = {
@@ -43,7 +43,7 @@ class JobService {
   async createJob(payload: JobInsert): Promise<JobRow> {
     const { data, error } = await supabase
       .from('jobs')
-      .insert(payload)
+      .insert(payload as Database['public']['Tables']['jobs']['Insert'])
       .select(JOB_COLUMNS)
       .single()
     if (error) throw error

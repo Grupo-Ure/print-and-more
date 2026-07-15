@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { AlertTriangle, Plus } from 'lucide-react'
 import { jobDepartmentLabel } from '../const/departmentAbbreviation'
-import { isInProductionMissingInfo } from '../lib/jobShared'
+import { isInProductionMissingInfo, shortJobNumber } from '../lib/jobShared'
 import { DEPARTMENTS, type Department, type JobStatus } from '../types/database'
 import { useOrderParams } from '../hooks/useOrderParams'
 import { useJobsByOrderId, useCreateJob } from '../queries/jobQueries'
@@ -60,9 +60,10 @@ export function JobList() {
                 job.id === activeJobId && 'bg-primary/10',
               )}
               onClick={() => setActiveJob(job.id)}
+              title={job.job_number}
             >
               <span className="flex items-center gap-1.5">
-                {jobDepartmentLabel(job.department)}
+                {shortJobNumber(job.job_number)}
                 {order &&
                   productCounts &&
                   isInProductionMissingInfo(job, order, (productCounts[job.id] ?? 0) > 0) && (
