@@ -2,10 +2,8 @@ import { AlertTriangle, ArrowUp, Copy, MoreHorizontal, Trash2 } from 'lucide-rea
 import { cn } from '@/lib/utils'
 import { formatDateDe } from '../../lib/formatDate'
 import { isInProductionMissingInfo } from '../../lib/jobShared'
-import { uniqueDepartments } from '../../lib/orderDepartments'
 import type { OrderListEntry } from '../../services/orderService'
 import type { OrderStatus } from '../../types/database'
-import { DepartmentPill } from '../DepartmentPill'
 import { StatusBadge } from '../StatusBadge'
 import { ORDER_STATUS_META } from '../../const/orderStatus'
 import {
@@ -27,8 +25,6 @@ type Props = {
   duplicateBusy: boolean
   onDelete: (orderId: string) => void
 }
-
-const MAX_DEPARTMENT_TAGS = 4
 
 export function OrderSidebarBody({
   orders,
@@ -120,8 +116,8 @@ function OrderSidebarItem({
       <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
         <div className="flex items-center justify-between gap-1.5">
           <div className="flex items-center min-w-0 flex-1 gap-1">
-            <h2 className="truncate font-semibold">
-              {order.customers?.name ?? '—'}
+            <h2 className="truncate font-semibold" title={order.order_number}>
+              {order.order_number}
             </h2>
             {missingInfoInProduction && (
               <span title="In production with missing information">
@@ -153,34 +149,16 @@ function OrderSidebarItem({
             onDelete={() => onDelete(order.id)}
           />
         </div>
-        <div className="flex flex-wrap items-center justify-between">
+        <div className="flex items-center justify-between gap-1.5">
+          <span
+            className="truncate min-w-0 text-[13px] text-neutral-500"
+            title={order.customers?.name ?? undefined}
+          >
+            {order.customers?.name ?? '—'}
+          </span>
           <StatusBadge meta={ORDER_STATUS_META[order.status]} />
-          <OrderDepartmentPills jobs={order.jobs} />
         </div>
       </div>
-    </div>
-  )
-}
-
-function OrderDepartmentPills({
-  jobs,
-}: {
-  jobs: OrderListEntry['jobs']
-}) {
-  const departments = uniqueDepartments(jobs)
-  const visible = departments.slice(0, MAX_DEPARTMENT_TAGS)
-  const extraCount = departments.length - MAX_DEPARTMENT_TAGS
-
-  return (
-    <div className="flex items-center gap-2">
-      {visible.map(department => (
-        <DepartmentPill key={department} department={department} />
-      ))}
-      {extraCount > 0 && (
-        <span className="inline-block text-[9px] px-1.25 py-px bg-neutral-100 border border-neutral-200 text-neutral-500 font-semibold">
-          +{extraCount}
-        </span>
-      )}
     </div>
   )
 }
