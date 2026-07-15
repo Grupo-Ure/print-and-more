@@ -26,7 +26,7 @@ import './WorkArea.css'
 import { Button } from './ui/button'
 import { cn } from '@/lib/utils'
 import { ORDER_STATUS_META } from '../const/orderStatus'
-import { Archive, Ban, Clock, Settings } from 'lucide-react'
+import { Archive, Ban, Clock, Copy, Settings } from 'lucide-react'
 import { Separator } from './ui/separator'
 import { DeadlinePicker } from './fields/DeadlinePicker'
 import { DeliverySelect } from './fields/DeliverySelect'
@@ -384,6 +384,18 @@ function OrderHeader({ order, allJobsDone, onEditCustomer, onArchive, onCancelOr
   const customerDisplayName = order.customers?.name?.trim() || '—'
   const customerEmail = order.customers?.email?.trim() || ''
   const customerPhone = order.customers?.phone?.trim() || ''
+  const { showSuccess, showError } = useToast()
+  const copyToClipboard = useCallback(
+    async (value: string, label: string) => {
+      try {
+        await navigator.clipboard.writeText(value)
+        showSuccess(`${label} copied to clipboard`)
+      } catch {
+        showError(`${label} could not be copied`)
+      }
+    },
+    [showSuccess, showError],
+  )
   const minutesQuery = useTimeLogMinutesByOrderId(order.id)
   const totalMinutes = Object.values(minutesQuery.data ?? {}).reduce((sum, m) => sum + m, 0)
 
@@ -469,8 +481,38 @@ function OrderHeader({ order, allJobsDone, onEditCustomer, onArchive, onCancelOr
             <Settings />
           </Button>
         </div>
-        {customerEmail && <p title="Email">{customerEmail}</p>}
-        {customerPhone && <p title="Phone">{customerPhone}</p>}
+        {customerEmail && (
+          <div className="flex items-center gap-1">
+            <p title="Email">
+              <span className="font-medium">Email:</span> {customerEmail}
+            </p>
+            <Button
+              onClick={() => copyToClipboard(customerEmail, 'Email')}
+              title="Copy email"
+              aria-label="Copy email"
+              variant="ghost"
+              size="icon-sm"
+            >
+              <Copy />
+            </Button>
+          </div>
+        )}
+        {customerPhone && (
+          <div className="flex items-center gap-1">
+            <p title="Phone">
+              <span className="font-medium">Phone:</span> {customerPhone}
+            </p>
+            <Button
+              onClick={() => copyToClipboard(customerPhone, 'Phone number')}
+              title="Copy phone number"
+              aria-label="Copy phone number"
+              variant="ghost"
+              size="icon-sm"
+            >
+              <Copy />
+            </Button>
+          </div>
+        )}
       </div>
     </header>
   );
