@@ -18,7 +18,7 @@ import { JobDetail } from './JobDetail'
 import { JobList } from './JobList'
 import { useOrderWorkspace } from '../context/order.context'
 import { useOrderParams } from '../hooks/useOrderParams'
-import { orderKeys, useArchiveOrder, useArchiveOrderWithCancelledJobs, useOrderById, useSetOrderStatus, useUpdateOrder } from '../queries/orderQueries'
+import { orderKeys, useArchiveOrder, useArchiveOrderWithCancelledJobs, useMarkOrderBilled, useOrderById, useSetOrderStatus, useUpdateOrder } from '../queries/orderQueries'
 import { jobKeys, useJobsByOrderId } from '../queries/jobQueries'
 import './WorkArea.css'
 import { Button } from './ui/button'
@@ -120,9 +120,16 @@ export function OrderDetails({
   const archiveOrder = useArchiveOrder()
   const cancelOrder = useArchiveOrderWithCancelledJobs()
   const setOrderStatus = useSetOrderStatus()
+  const markBilled = useMarkOrderBilled()
 
   const handleStartProcessing = async () => {
     if (!order || order.status !== 'QUOTE') return
+    const confirmed = await confirm({
+      title: 'Start processing this order?',
+      description: 'The order moves to In Progress.',
+      confirmLabel: 'Start processing',
+    })
+    if (!confirmed) return
     try {
       await setOrderStatus.mutateAsync({
         id: order.id,
@@ -136,6 +143,11 @@ export function OrderDetails({
 
   const handleMarkFinished = async () => {
     if (!order || order.status !== 'IN_PROGRESS') return
+    const confirmed = await confirm({
+      title: 'Mark this order as finished?',
+      confirmLabel: 'Mark finished',
+    })
+    if (!confirmed) return
     try {
       await setOrderStatus.mutateAsync({
         id: order.id,
@@ -149,6 +161,12 @@ export function OrderDetails({
 
   const handleReopenOrder = async () => {
     if (!order || order.status !== 'FINISHED') return
+    const confirmed = await confirm({
+      title: 'Reopen this order?',
+      description: 'The order goes back to In Progress.',
+      confirmLabel: 'Reopen',
+    })
+    if (!confirmed) return
     try {
       await setOrderStatus.mutateAsync({
         id: order.id,
@@ -157,6 +175,22 @@ export function OrderDetails({
       })
     } catch {
       showError('Status could not be changed')
+    }
+  }
+
+  const handleMarkInvoiced = async () => {
+    if (!order || order.status !== 'FINISHED') return
+    const confirmed = await confirm({
+      title: 'Mark this order as invoiced?',
+      description: 'It will be archived and hidden from the order list.',
+      confirmLabel: 'Mark invoiced',
+    })
+    if (!confirmed) return
+    try {
+      await markBilled.mutateAsync({ id: order.id })
+      clearActive()
+    } catch {
+      showError('Order could not be marked as invoiced')
     }
   }
 
@@ -244,8 +278,8 @@ export function OrderDetails({
   if (!activeOrderId) {
     return (
       <div className="flex flex-col w-full h-full items-center justify-center">
-        <h1 className='tracking-widest'>Welcome</h1>
-        <h2>Select an order on the left to view details and jobs.</h2>
+        <h1 className="text-lg desktop:text-xl font-bold text-gray-500 tracking-widest">Welcome</h1>
+        <h2 className="text-sm text-gray-600">Select an order on the left to view details and jobs.</h2>
       </div>
     )
   }
@@ -253,7 +287,7 @@ export function OrderDetails({
   if (loading) {
     return (
       <div className="flex flex-col w-full h-full items-center justify-center">
-        <h2>Loading order…</h2>
+        <h2 className="text-sm text-gray-600">Loading order…</h2>
       </div>
     )
   }
@@ -261,7 +295,7 @@ export function OrderDetails({
   if (isError && !order) {
     return (
       <div className="flex flex-col w-full h-full items-center justify-center">
-        <h2>Order could not be loaded.</h2>
+        <h2 className="text-sm text-gray-600">Order could not be loaded.</h2>
       </div>
     )
   }
@@ -269,7 +303,7 @@ export function OrderDetails({
   if (!order) {
     return (
       <div className="flex flex-col w-full h-full items-center justify-center">
-        <h2>Order not found.</h2>
+        <h2 className="text-sm text-gray-600">Order not found.</h2>
       </div>
     )
   }
@@ -278,8 +312,7 @@ export function OrderDetails({
     <main className="flex flex-col gap-2 p-3 flex-1">
       <OrderHeader
         order={order}
-        canMarkFinished={
-          order.status === 'IN_PROGRESS' &&
+        allJobsDone={
           visibleJobs.length > 0 &&
           visibleJobs.every(job => job.status === 'DONE')
         }
@@ -296,10 +329,11 @@ export function OrderDetails({
         onCancelOrder={() => void handleCancelOrder()}
         onStartProcessing={() => void handleStartProcessing()}
         onMarkFinished={() => void handleMarkFinished()}
+        onMarkInvoiced={() => void handleMarkInvoiced()}
         onReopenOrder={() => void handleReopenOrder()}
         archivePending={archiveOrder.isPending}
         cancelPending={cancelOrder.isPending}
-        statusPending={setOrderStatus.isPending}
+        statusPending={setOrderStatus.isPending || markBilled.isPending}
       />
       <Separator />
 
@@ -312,14 +346,14 @@ export function OrderDetails({
 
         <Separator  orientation='vertical'/>
 
-        <div className="flex-1" role="tabpanel">
+        <div className="flex-1 min-w-0" role="tabpanel">
           {activeJob ? (
             <JobDetail
               orderFiles={files}
               onUpdated={handleJobUpdated}
             />
           ) : (
-            <p className="wa-hint">No jobs yet. Use + to add a department.</p>
+            <p className="text-sm text-muted-foreground">No jobs yet. Use + to add a department.</p>
           )}
         </div>
       </div>
@@ -330,68 +364,39 @@ export function OrderDetails({
 
 type OrderHeaderProps = {
   order: OrderDetailRow
-  /** True only while IN_PROGRESS with ≥1 non-cancelled job and every one of them DONE. */
-  canMarkFinished: boolean
+  /** True when the order has ≥1 non-cancelled job and every one of them is DONE. */
+  allJobsDone: boolean
   onEditCustomer: () => void
   onArchive: () => void
   onCancelOrder: () => void
   onStartProcessing: () => void
   onMarkFinished: () => void
+  onMarkInvoiced: () => void
   onReopenOrder: () => void
   archivePending: boolean
   cancelPending: boolean
   statusPending: boolean
 }
 
-function OrderHeader({ order, canMarkFinished, onEditCustomer, onArchive, onCancelOrder, onStartProcessing, onMarkFinished, onReopenOrder, archivePending, cancelPending, statusPending }: OrderHeaderProps) {
+function OrderHeader({ order, allJobsDone, onEditCustomer, onArchive, onCancelOrder, onStartProcessing, onMarkFinished, onMarkInvoiced, onReopenOrder, archivePending, cancelPending, statusPending }: OrderHeaderProps) {
   const customerDisplayName = order.customers?.name?.trim() || '—'
   const customerEmail = order.customers?.email?.trim() || ''
   const customerPhone = order.customers?.phone?.trim() || ''
 
   return (
     <header className="flex flex-col">
-      <div className="flex gap-4 items-center justify-between">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 items-center justify-between">
         <div className="flex gap-4 items-center">
-          <h1>Order:</h1>
-          <h2 className="text-2xl!" title="Order number">
+          <h1 className="text-base desktop:text-lg font-bold text-gray-500 tracking-tight">Order:</h1>
+          <h2 className="text-xl desktop:text-2xl font-medium text-gray-600" title="Order number">
             {order.order_number}
           </h2>
         </div>
         <div className="flex items-center gap-1">
-          {order.status === 'QUOTE' && (
-            <Button
-              type="button"
-              variant="default"
-              className={cn(
-                'h-10 px-6 text-lg rounded-full animate-attention-ring',
-                ORDER_STATUS_META.IN_PROGRESS.color,
-                ORDER_STATUS_META.IN_PROGRESS.hoverColor,
-              )}
-              disabled={statusPending}
-              onClick={onStartProcessing}
-            >
-              Start processing
-            </Button>
-          )}
-          {canMarkFinished && (
-            <Button
-              type="button"
-              variant="default"
-              className={cn(
-                'h-10 px-6 text-lg rounded-full',
-                ORDER_STATUS_META.FINISHED.color,
-                ORDER_STATUS_META.FINISHED.hoverColor,
-              )}
-              disabled={statusPending}
-              onClick={onMarkFinished}
-            >
-              Mark finished
-            </Button>
-          )}
           {order.status === 'FINISHED' && (
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="lg"
               disabled={statusPending}
               onClick={onReopenOrder}
@@ -399,6 +404,14 @@ function OrderHeader({ order, canMarkFinished, onEditCustomer, onArchive, onCanc
               Reopen order
             </Button>
           )}
+          <OrderLifecycleButton
+            status={order.status}
+            allJobsDone={allJobsDone}
+            pending={statusPending}
+            onStartProcessing={onStartProcessing}
+            onMarkFinished={onMarkFinished}
+            onMarkInvoiced={onMarkInvoiced}
+          />
           {order.status !== 'BILLED' && (
             <Button
               type="button"
@@ -430,7 +443,7 @@ function OrderHeader({ order, canMarkFinished, onEditCustomer, onArchive, onCanc
       </div>
       <div className="flex items-center gap-4 text-sm text-muted-foreground">
         <div className="flex items-center gap-1">
-          <h1 title="Customer" className="m-0!">
+          <h1 title="Customer" className="text-base desktop:text-lg font-bold text-gray-500">
             {customerDisplayName}
           </h1>
           <Button
@@ -448,6 +461,67 @@ function OrderHeader({ order, canMarkFinished, onEditCustomer, onArchive, onCanc
       </div>
     </header>
   );
+}
+
+type OrderLifecycleButtonProps = {
+  status: OrderDetailRow['status']
+  allJobsDone: boolean
+  pending: boolean
+  onStartProcessing: () => void
+  onMarkFinished: () => void
+  onMarkInvoiced: () => void
+}
+
+/**
+ * The single forward action of the order lifecycle: QUOTE → "Start processing",
+ * IN_PROGRESS → "Mark finished", FINISHED → "Mark as invoiced". The latter two
+ * require every non-cancelled job to be DONE; otherwise no button renders.
+ */
+type LifecycleAction = {
+  label: string
+  target: OrderDetailRow['status']
+  onClick: () => void
+  attention: boolean
+}
+
+function OrderLifecycleButton({ status, allJobsDone, pending, onStartProcessing, onMarkFinished, onMarkInvoiced }: OrderLifecycleButtonProps) {
+  let action: LifecycleAction | null = null
+  switch (status) {
+    case 'QUOTE':
+      action = { label: 'Start processing', target: 'IN_PROGRESS', onClick: onStartProcessing, attention: true }
+      break
+    case 'IN_PROGRESS':
+      if (allJobsDone) {
+        action = { label: 'Mark finished', target: 'FINISHED', onClick: onMarkFinished, attention: false }
+      }
+      break
+    case 'FINISHED':
+      if (allJobsDone) {
+        action = { label: 'Mark as invoiced', target: 'BILLED', onClick: onMarkInvoiced, attention: false }
+      }
+      break
+    case 'BILLED':
+      break
+  }
+
+  if (!action) return null
+
+  return (
+    <Button
+      type="button"
+      variant="default"
+      className={cn(
+        'h-9 px-5 text-base desktop:h-10 desktop:px-6 desktop:text-lg rounded-full',
+        action.attention && 'animate-attention-ring',
+        ORDER_STATUS_META[action.target].color,
+        ORDER_STATUS_META[action.target].hoverColor,
+      )}
+      disabled={pending}
+      onClick={action.onClick}
+    >
+      {action.label}
+    </Button>
+  )
 }
 
 type OrderSettingsProps = {
@@ -481,7 +555,7 @@ function OrderSettings({ order, onSave }: OrderSettingsProps) {
 
 
   return (
-    <section className="flex items-center gap-4" aria-label="Order meta">
+    <section className="flex flex-wrap items-center gap-x-4 gap-y-1" aria-label="Order meta">
       <DeadlinePicker
         value={headerDeadline}
         onChange={value => {

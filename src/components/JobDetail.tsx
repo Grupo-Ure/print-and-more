@@ -157,13 +157,23 @@ export function JobDetail({
   return (
     <div className="flex flex-col gap-4">
       <JobProductionBanner job={job} />
-      <div aria-label="Job">
-        <h1 className="flex items-baseline gap-2">
-          {jobDepartmentLabel(job.department)}
-          <span>-</span>
-          {job.job_number}
-        </h1>
-        <div className="td-kopf">
+      <div aria-label="Job" className="flex flex-col gap-2">
+        <div className="flex items-center gap-6">
+          <h1 className="flex items-baseline gap-2 text-base desktop:text-lg font-bold text-gray-500">
+            {jobDepartmentLabel(job.department)}
+            <span>-</span>
+            {job.job_number}
+          </h1>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-medium text-muted-foreground">Assigned to</span>
+            <AssigneeCombobox
+              value={job.assignee_id}
+              onChange={handleAssigneeChange}
+              disabled={!isAdmin || isDone || setJobAssignee.isPending}
+            />
+          </div>
+        </div>
+        <div className="flex items-center">
           <StatusBadge meta={JOB_STATUS_META[job.status]} />
           <div className="flex items-center gap-1">
             <Button
@@ -213,28 +223,29 @@ export function JobDetail({
           job.department === 'COPYSHOP' ||
           (job.department === 'STAMP' && job.type !== 'OTHER_STAMP') ||
           (job.department === 'LASER_ENGRAVING' && job.type !== 'OTHER_LASER')) && (
-          <p className="ber-hinweis">For auto-PREPRESS: Customer needs name and email or phone.</p>
+          <p className="text-xs italic text-muted-foreground">For auto-PREPRESS: Customer needs name and email or phone.</p>
         )}
-      <section>
-        <h2 className="" style={{ marginTop: 8 }}>
-          Job Settings
-        </h2>
-        <div className="flex items-start gap-8">
-          <div className="flex flex-col min-w-0 gap-2">
-            <label className="flex items-center gap-2 text-[13px] select-none mt-1">
-              <Switch
-                disabled={isLocked}
-                checked={hasSeparateDeadline}
-                onCheckedChange={checked => {
-                  if (checked !== true) {
-                    handleUpdateJob({ deadline: null })
-                  } else {
-                    handleUpdateJob({ deadline: effectiveDeadline ?? todayDateOnly() })
-                  }
-                }}
-              />
-              <span>Separate delivery date</span>
-            </label>
+      <div className="flex gap-6">
+        <section className="flex flex-col gap-2">
+          <h2 className="text-sm font-medium text-gray-600">
+            Job Settings
+          </h2>
+          <div className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
+          <label className="flex items-center gap-2 text-[13px] select-none">
+            <Switch
+              disabled={isLocked}
+              checked={hasSeparateDeadline}
+              onCheckedChange={checked => {
+                if (checked !== true) {
+                  handleUpdateJob({ deadline: null })
+                } else {
+                  handleUpdateJob({ deadline: effectiveDeadline ?? todayDateOnly() })
+                }
+              }}
+            />
+            <span>Separate delivery date</span>
+          </label>
+          <div className="min-w-0">
             <DeadlinePicker
               disabled={!hasSeparateDeadline || isLocked}
               value={toDateOnly(job.deadline) ?? deadlineIso}
@@ -248,21 +259,22 @@ export function JobDetail({
             />
             {hasSeparateDeadline && validationErrors.termin && <p className="text-destructive text-xs mt-1">{validationErrors.termin}</p>}
           </div>
-          <div className="flex flex-col min-w-0 gap-2">
-            <label className="flex items-center gap-2 text-[13px] select-none mt-1">
-              <Switch
-                disabled={isDone}
-                checked={hasSeparateDelivery}
-                onCheckedChange={checked => {
-                  if (checked !== true) {
-                    handleUpdateJob({ delivery: null })
-                  } else {
-                    handleUpdateJob({ delivery: orderDeliveryMode })
-                  }
-                }}
-              />
-              <span>Separate delivery type</span>
-            </label>
+
+          <label className="flex items-center gap-2 text-[13px] select-none">
+            <Switch
+              disabled={isDone}
+              checked={hasSeparateDelivery}
+              onCheckedChange={checked => {
+                if (checked !== true) {
+                  handleUpdateJob({ delivery: null })
+                } else {
+                  handleUpdateJob({ delivery: orderDeliveryMode })
+                }
+              }}
+            />
+            <span>Separate delivery type</span>
+          </label>
+          <div className="min-w-0">
             <DeliverySelect
               disabled={!hasSeparateDelivery || isDone}
               value={effectiveDelivery}
@@ -276,21 +288,22 @@ export function JobDetail({
             />
             {hasSeparateDelivery && validationErrors.lieferung && <p className="text-destructive text-xs mt-1">{validationErrors.lieferung}</p>}
           </div>
-          <div className="flex flex-col min-w-0 gap-2">
-            <label className="flex items-center gap-2 text-[13px] select-none mt-1">
-              <Switch
-                disabled={isDone}
-                checked={hasSeparatePriority}
-                onCheckedChange={checked => {
-                  if (checked !== true) {
-                    handleUpdateJob({ priority: null })
-                  } else {
-                    handleUpdateJob({ priority: orderPriorityMode })
-                  }
-                }}
-              />
-              <span>Separate priority</span>
-            </label>
+
+          <label className="flex items-center gap-2 text-[13px] select-none">
+            <Switch
+              disabled={isDone}
+              checked={hasSeparatePriority}
+              onCheckedChange={checked => {
+                if (checked !== true) {
+                  handleUpdateJob({ priority: null })
+                } else {
+                  handleUpdateJob({ priority: orderPriorityMode })
+                }
+              }}
+            />
+            <span>Separate priority</span>
+          </label>
+          <div className="min-w-0">
             <PrioritySelect
               disabled={!hasSeparatePriority || isDone}
               value={effectivePriority}
@@ -304,54 +317,54 @@ export function JobDetail({
             />
             {hasSeparatePriority && validationErrors.prioritaet && <p className="text-destructive text-xs mt-1">{validationErrors.prioritaet}</p>}
           </div>
-          <div className="flex flex-col min-w-0 gap-2">
-            <label className="flex items-center gap-2 text-[13px] select-none mt-1">
-              <Switch
-                disabled={isLocked}
-                checked={job.customer_approval_required}
-                onCheckedChange={checked => {
-                  setCustomerApproval.mutate({
-                    id: job.id,
-                    orderId: job.order_id,
-                    patch: checked
-                      ? { customer_approval_required: true }
-                      : { customer_approval_required: false, customer_approval_granted: false, customer_approval_file_id: null },
-                  })
-                }}
-              />
-              <span>Customer approval required</span>
-            </label>
-          </div>
-        <div className="flex flex-col min-w-0">
-          <span className="text-[11px] font-medium text-muted-foreground mb-0.5">Assignee</span>
-          <AssigneeCombobox
-            value={job.assignee_id}
-            onChange={handleAssigneeChange}
-            disabled={!isAdmin || isDone || setJobAssignee.isPending}
-          />
-        </div>
-        <div className="flex flex-col min-w-0">
-          <span className="text-[11px] font-medium text-muted-foreground mb-0.5">Typesetting time (min)</span>
-          <div>
-            <Input
-              key={job.id}
-              type="number"
-              disabled={isDone}
-              className="max-w-48 h-9 text-sm"
-              aria-invalid={shouldValidate && !!validationErrors.satzzeit_minuten}
-              defaultValue={job.typesetting_minutes ?? ''}
-              onBlur={e => {
-                const rawValue = e.target.value
-                const parsedValue = rawValue === '' ? null : parseInt(rawValue, 10)
-                if (parsedValue !== job.typesetting_minutes) handleUpdateJob({ typesetting_minutes: parsedValue })
+
+          <label className="col-span-2 flex items-center gap-2 text-[13px] select-none">
+            <Switch
+              disabled={isLocked}
+              checked={job.customer_approval_required}
+              onCheckedChange={checked => {
+                setCustomerApproval.mutate({
+                  id: job.id,
+                  orderId: job.order_id,
+                  patch: checked
+                    ? { customer_approval_required: true }
+                    : { customer_approval_required: false, customer_approval_granted: false, customer_approval_file_id: null },
+                })
               }}
-              min={1}
             />
-            {shouldValidate && validationErrors.satzzeit_minuten && <p className="text-destructive text-xs mt-1">{validationErrors.satzzeit_minuten}</p>}
+            <span>Customer approval required</span>
+          </label>
           </div>
-        </div>
-        </div>
-      </section>
+        </section>
+
+        <Separator orientation="vertical" className="h-auto" />
+
+        <section className="flex flex-col gap-2">
+          <h2 className="text-sm font-medium text-gray-600">
+            Employee Settings
+          </h2>
+          <div className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
+            <span className="text-[13px]">Typesetting time (min)</span>
+            <div className="min-w-0">
+              <Input
+                key={job.id}
+                type="number"
+                disabled={isDone}
+                className="w-24 h-9 text-sm"
+                aria-invalid={shouldValidate && !!validationErrors.satzzeit_minuten}
+                defaultValue={job.typesetting_minutes ?? ''}
+                onBlur={e => {
+                  const rawValue = e.target.value
+                  const parsedValue = rawValue === '' ? null : parseInt(rawValue, 10)
+                  if (parsedValue !== job.typesetting_minutes) handleUpdateJob({ typesetting_minutes: parsedValue })
+                }}
+                min={1}
+              />
+              {shouldValidate && validationErrors.satzzeit_minuten && <p className="text-destructive text-xs mt-1">{validationErrors.satzzeit_minuten}</p>}
+            </div>
+          </div>
+        </section>
+      </div>
 
       <Separator/>
 

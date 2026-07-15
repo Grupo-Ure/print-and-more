@@ -7,6 +7,7 @@ import { Login } from '../components/Login'
 import { OrderSidebar } from '../components/OrderSidebar'
 import { OrderDetails } from '../components/OrderDetails'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { OrderWorkspaceProvider } from '../context/order.context'
 import { useOrderParams } from '../hooks/useOrderParams'
 import type { Auftrag, Customer, OrderStatus, JobRow } from '../types/database'
@@ -58,6 +59,9 @@ function AdminNav() {
 
 function WorkspaceShell() {
   const { activeOrderId, clearActive } = useOrderParams()
+  // Fixed sidebar width per breakpoint — never content-driven, just narrower
+  // on small laptops. Same breakpoint as the `desktop:` Tailwind variant.
+  const isCompact = useIsMobile()
   const [activeOrder, setActiveOrder] = useState<Auftrag | null>(null)
   const [activeJob, setActiveJob] = useState<JobRow | null>(null)
   const [orderCustomer, setOrderCustomer] = useState<Customer | null>(null)
@@ -130,7 +134,7 @@ function WorkspaceShell() {
   return (
     <SidebarProvider
       defaultOpen
-      style={{ '--sidebar-width': '280px' } as CSSProperties}
+      style={{ '--sidebar-width': isCompact ? '15rem' : '17.5rem' } as CSSProperties}
       className="font-sans text-sm"
     >
       <OrderSidebar orderInPlace={orderInPlace} />
@@ -140,7 +144,7 @@ function WorkspaceShell() {
           <SidebarTrigger />
           <AdminNav />
         </div>
-        <div className="flex flex-col flex-1">
+        <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
           <OrderDetails
             contextRefreshTick={contextRefreshTick}
             onActiveJobChanged={handleActiveJobChanged}

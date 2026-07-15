@@ -60,7 +60,7 @@ export function AssigneeCombobox({ value, onChange, disabled = false }: Assignee
           role="combobox"
           aria-expanded={open}
           disabled={disabled}
-          className="w-48 justify-between font-normal"
+          className="w-40 justify-between font-normal"
         >
           <span className={`flex min-w-0 items-center gap-1.5 ${selected ? '' : 'text-muted-foreground'}`}>
             {selected && (
@@ -71,7 +71,7 @@ export function AssigneeCombobox({ value, onChange, disabled = false }: Assignee
           <ChevronsUpDown className="opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-56 b-dev p-4 min-w-70">
+      <PopoverContent align="start" className="w-56 p-4 min-w-70">
         <Input
           autoFocus
           placeholder="Search user…"

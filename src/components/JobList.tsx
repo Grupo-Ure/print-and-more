@@ -48,10 +48,10 @@ export function JobList() {
 
   return (
     <>
-      <nav className="flex flex-col justify-between w-60">
-        <h1>Jobs in this order</h1>
+      <nav className="flex flex-col gap-1 w-48 desktop:w-60 shrink-0">
+        <h1 className="text-sm font-semibold text-gray-500">Jobs in this order</h1>
         {!jobsLocked && <AddJobButton onClick={() => setDialogOpen(true)} />}
-        <ul className="flex flex-col flex-wrap flex-1 min-w-0" aria-label="Jobs">
+        <ul className="flex flex-col flex-1 min-w-0" aria-label="Jobs">
           {visibleJobs.map(job => (
             <li
               key={job.id}
@@ -62,8 +62,8 @@ export function JobList() {
               onClick={() => setActiveJob(job.id)}
               title={job.job_number}
             >
-              <span className="flex items-center gap-1.5">
-                {shortJobNumber(job.job_number)}
+              <span className="flex items-center gap-1.5 min-w-0">
+                <span className="truncate">{shortJobNumber(job.job_number)}</span>
                 {order &&
                   productCounts &&
                   isInProductionMissingInfo(job, order, (productCounts[job.id] ?? 0) > 0) && (

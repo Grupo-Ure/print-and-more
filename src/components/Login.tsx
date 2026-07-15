@@ -19,7 +19,7 @@ export function Login() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
       <div style={{ width: 320, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <h2 style={{ margin: 0 }}>Auftragssystem</h2>
+        <h2 className="text-lg font-semibold">Auftragssystem</h2>
         <input
           placeholder="Email"
           value={email}
