@@ -77,8 +77,11 @@ Three-column layout, full height:
 
 **Global dialogs:** [`NewOrderDialog`](src/components/NewOrderDialog.tsx),
 [`CustomerDialog`](src/components/CustomerDialog.tsx),
-[`DuplicateDialog`](src/components/DuplicateDialog.tsx),
-[`DeleteOrderDialog`](src/components/DeleteOrderDialog.tsx).
+[`DuplicateDialog`](src/components/DuplicateDialog.tsx).
+Simple confirmations (archive/cancel/delete/mark-done prompts) go through the
+promise-based `useConfirm()` hook from
+[`ConfirmDialog`](src/components/ConfirmDialog.tsx) (`ConfirmProvider` is
+mounted in `App.tsx`) — don't use `window.confirm` or one-off confirm dialogs.
 [`HistoryPanel`](src/components/HistoryPanel.tsx) shows order history;
 [`FileList`](src/components/FileList.tsx) the order-wide file links.
 
@@ -118,8 +121,10 @@ validator under `src/lib/<dept>/`.
   `orderService.recalculateOrderStatus` (TS `calculateOrderStatus`). Has 1…n
   jobs.
 - **Job** — table `jobs` (the per-department production unit; formerly
-  "sub-order" / `department_orders`). Carries `department`, `type`, `status`,
-  schedule fields, `assignee_id`, `typesetting_minutes`,
+  "sub-order" / `department_orders`). Carries `job_number`
+  (`<order_number>-<DEPT>-<NN>`, assigned by DB trigger
+  `fn_generate_job_number`, never by the client), `department`, `type`,
+  `status`, schedule fields, `assignee_id`, `typesetting_minutes`,
   `is_cancelled`, customer-approval fields. It still has its own legacy `detail`
   JSONB + `type` + type-check trigger (used by Textile's `eigenware_modus` and
   the type guard) — a later cleanup, out of scope of the product redesign.
