@@ -80,14 +80,16 @@ export function JobTimeLogs({
   }
 
   return (
-    <div className="flex w-72 desktop:w-96 flex-col gap-2">
+    // Full width inside the compact tab panel; fixed column width in the
+    // desktop side-by-side layout (stable, never content-driven).
+    <div className="flex w-full desktop:w-96 flex-col gap-2">
       <div className="text-[13px]">
         Total: <span className="font-semibold text-foreground">{formatMinutes(total)}</span>
       </div>
 
       {/* Fixed-height viewport: the list scrolls inside; the section never
           grows or shrinks with the number of entries. */}
-      <div className="h-28 shrink-0 overflow-y-auto px-2">
+      <div className="h-28 shrink-0 overflow-y-auto px-2 border-gray-200 border rounded-md">
         {logsQuery.isLoading ? (
           <p className="p-1 text-xs text-muted-foreground">Loading…</p>
         ) : logs.length === 0 ? (
@@ -95,9 +97,12 @@ export function JobTimeLogs({
         ) : (
           <ul className="flex flex-col divide-y divide-border" aria-label="Time logs">
           {logs.map(log => (
-            <li key={log.id} className="group flex items-center gap-2 py-1">
-              <span className="w-16 shrink-0 font-medium tabular-nums">{formatMinutes(log.minutes)}</span>
-              <span className="w-20 shrink-0 text-muted-foreground tabular-nums">
+            // fr-based columns resolve against the row width, so the entries
+            // spread across it and line up between rows:
+            // minutes | date | employee | delete action.
+            <li key={log.id} className="group grid grid-cols-[1fr_1fr_2fr_auto] items-center gap-2 py-1 border-gray-200!">
+              <span className="shrink-0 font-medium tabular-nums">{formatMinutes(log.minutes)}</span>
+              <span className="shrink-0 text-muted-foreground tabular-nums">
                 {formatDateDe(log.created_at)}
               </span>
               <span
@@ -121,7 +126,7 @@ export function JobTimeLogs({
                   size="icon-sm"
                   title="Delete log"
                   aria-label="Delete log"
-                  className="ml-auto opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-destructive hover:text-destructive"
+                  className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-destructive hover:text-destructive"
                   disabled={deleteLog.isPending}
                   onClick={() => void handleDelete(log)}
                 >
@@ -135,7 +140,7 @@ export function JobTimeLogs({
       </div>
 
       {!disabled && (
-        <div className="flex flex-wrap items-center gap-2 pt-1">
+        <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
           <Input
             type="number"
             min={1}

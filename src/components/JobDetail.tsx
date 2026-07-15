@@ -1,4 +1,4 @@
-import { useCancelJob, useDeleteJob, useEffectiveJob, useSetCustomerApproval, useSetJobAssignee, useJobById, useUpdateJob } from '../queries/jobQueries'
+import { useCancelJob, useDeleteJob, useEffectiveJob, useSetJobAssignee, useJobById } from '../queries/jobQueries'
 import { useIsAdmin, useUsers } from '../queries/userQueries'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import { useOrderById } from '../queries/orderQueries'
@@ -6,18 +6,10 @@ import { useStatusManager } from '../queries/useStatusManager'
 import { useOrderParams } from '../hooks/useOrderParams'
 import { jobDepartmentLabel } from '../const/departmentAbbreviation'
 import { customerMeetsPrepressContact } from '../lib/customer'
-import { validateJobCommonFields } from '../lib/jobShared'
-import {
-  type DeliveryChoice,
-  type Priority,
-  type JobRow,
-  type JobUpdate,
-} from '../types/database'
+import { type JobRow } from '../types/database'
 import { EmployeeCombobox } from './fields/EmployeeCombobox'
-import { DeadlinePicker } from './fields/DeadlinePicker'
-import { DeliverySelect } from './fields/DeliverySelect'
-import { PrioritySelect } from './fields/PrioritySelect'
-import { Switch } from './ui/switch'
+import { JobSections } from './jobDetail/JobSections'
+import { JobSettingsSection } from './jobDetail/JobSettingsSection'
 import { JobTimeLogs } from './JobTimeLogs'
 import { useToast } from './Toast'
 import { useConfirm } from './ConfirmDialog'
@@ -28,7 +20,6 @@ import { OtherProducts } from './products/departments/OtherProducts'
 import { LaserProducts } from './products/departments/LaserProducts'
 import { TextileProducts } from './products/departments/TextileProducts'
 import type { FileRow } from '../services/fileService'
-import { toDateOnly, todayDateOnly } from '../lib/formatDate'
 import { StatusBadge } from './StatusBadge'
 import { JOB_STATUS_META } from '../const/orderStatus'
 import { JobReleaseButton } from './JobReleaseButton'
@@ -49,8 +40,6 @@ export function JobDetail({
   const { data: order } = useOrderById(activeOrderId)
   const job = useJobById(activeOrderId, activeJobId) // raw row (override/inherit state)
   const effectiveJob = useEffectiveJob(activeOrderId, activeJobId) // inherited fields resolved
-  const updateJob = useUpdateJob()
-  const setCustomerApproval = useSetCustomerApproval()
   const setJobAssignee = useSetJobAssignee()
   const cancelJob = useCancelJob()
   const deleteJob = useDeleteJob()
@@ -99,16 +88,6 @@ export function JobDetail({
     }
   }
 
-  // Persist a field edit straight to the DB (optimistic via useUpdateJob —
-  // instant UI, rollback on error). No status calculation here: status is driven
-  // by the status manager (decoupled — see STATUS_WORKFLOW_SPEC.md).
-  const handleUpdateJob = (patch: JobUpdate) => {
-    updateJob.mutate(
-      { id: job.id, orderId: job.order_id, patch },
-      { onSuccess: row => onUpdated(row), onError: () => showError('Save failed') },
-    )
-  }
-
   // Admin-only (also enforced by a DB trigger). Writes the ASSIGNEE_CHANGED
   // history entry alongside the job update.
   const handleAssigneeChange = (assignee: { id: string; name: string } | null) => {
@@ -125,34 +104,13 @@ export function JobDetail({
     )
   }
 
-  // Raw order fields drive the toggle defaults and the equality-collapse compares.
-  const orderDeliveryMode = (order.delivery ?? 'PICKUP') as DeliveryChoice
-  const orderPriorityMode: Priority = order.priority
-
   const customerMeetsPrepressRequirements = customerMeetsPrepressContact(order.customers)
   // Nothing is required while the parent order is still a quote (order-level rule).
   const orderIsQuote = order.status === 'QUOTE'
   const shouldValidate = !orderIsQuote
 
-  // A field is "separate" purely when the job carries its own value (the
-  // column is non-null); a null column means the toggle is off and the order's
-  // value is inherited. The equality-collapse — a user setting the value equal to the
-  // order's clears it back to inherit — lives in each field's onChange, never here, so
-  // it can't fire from a toggle or an order change.
-  const hasSeparateDelivery = job.delivery != null
-  const hasSeparatePriority = job.priority != null
-  const hasSeparateDeadline = job.deadline != null
-
-  // Effective (inherited-resolved) values come from useEffectiveJob.
-  const effectiveDelivery = effectiveJob.delivery as DeliveryChoice
-  const effectivePriority = effectiveJob.priority ?? orderPriorityMode
-  const effectiveDeadline = effectiveJob.deadline
-  const deadlineIso = toDateOnly(effectiveDeadline) ?? ''
-
-  const validationErrors = validateJobCommonFields(effectiveJob, orderIsQuote)
-  // In production a subset of fields is locked; once DONE everything is read-only.
+  // Once DONE the job is read-only.
   const isDone = job.status === 'DONE'
-  const isLocked = job.status === 'IN_PRODUCTION' || isDone
 
   return (
     <div className="flex flex-col gap-4">
@@ -225,127 +183,28 @@ export function JobDetail({
           (job.department === 'LASER_ENGRAVING' && job.type !== 'OTHER_LASER')) && (
           <p className="text-xs italic text-muted-foreground">For auto-PREPRESS: Customer needs name and email or phone.</p>
         )}
-      <div className="flex gap-6">
-        <section className="flex flex-col gap-2">
-          <h2>
-            Job Settings
-          </h2>
-          <div className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
-            <label className="flex items-center gap-2 text-[13px] select-none">
-              <Switch
-                disabled={isLocked}
-                checked={hasSeparateDeadline}
-                onCheckedChange={checked => {
-                  if (checked !== true) {
-                    handleUpdateJob({ deadline: null })
-                  } else {
-                    handleUpdateJob({ deadline: effectiveDeadline ?? todayDateOnly() })
-                  }
-                }}
+      <JobSections
+        sections={[
+          {
+            key: 'settings',
+            title: 'Job Settings',
+            content: (
+              <JobSettingsSection
+                key={job.id}
+                order={order}
+                job={job}
+                effectiveJob={effectiveJob}
+                onUpdated={onUpdated}
               />
-              <span>Separate delivery date</span>
-            </label>
-            <div className="min-w-0">
-              <DeadlinePicker
-                disabled={!hasSeparateDeadline || isLocked}
-                value={toDateOnly(job.deadline) ?? deadlineIso}
-                onChange={value => {
-                  if (toDateOnly(value) === toDateOnly(order.deadline)) {
-                    handleUpdateJob({ deadline: null })
-                  } else if ((value ?? '') !== (toDateOnly(job.deadline) ?? '')) {
-                    handleUpdateJob({ deadline: value })
-                  }
-                }}
-              />
-              {hasSeparateDeadline && validationErrors.termin && <p className="text-destructive text-xs mt-1">{validationErrors.termin}</p>}
-            </div>
-
-            <label className="flex items-center gap-2 text-[13px] select-none">
-              <Switch
-                disabled={isDone}
-                checked={hasSeparateDelivery}
-                onCheckedChange={checked => {
-                  if (checked !== true) {
-                    handleUpdateJob({ delivery: null })
-                  } else {
-                    handleUpdateJob({ delivery: orderDeliveryMode })
-                  }
-                }}
-              />
-              <span>Separate delivery type</span>
-            </label>
-            <div className="min-w-0">
-              <DeliverySelect
-                disabled={!hasSeparateDelivery || isDone}
-                value={effectiveDelivery}
-                onChange={value => {
-                  if (value === orderDeliveryMode) {
-                    handleUpdateJob({ delivery: null })
-                  } else if (value !== job.delivery) {
-                    handleUpdateJob({ delivery: value })
-                  }
-                }}
-              />
-              {hasSeparateDelivery && validationErrors.lieferung && <p className="text-destructive text-xs mt-1">{validationErrors.lieferung}</p>}
-            </div>
-
-            <label className="flex items-center gap-2 text-[13px] select-none">
-              <Switch
-                disabled={isDone}
-                checked={hasSeparatePriority}
-                onCheckedChange={checked => {
-                  if (checked !== true) {
-                    handleUpdateJob({ priority: null })
-                  } else {
-                    handleUpdateJob({ priority: orderPriorityMode })
-                  }
-                }}
-              />
-              <span>Separate priority</span>
-            </label>
-            <div className="min-w-0">
-              <PrioritySelect
-                disabled={!hasSeparatePriority || isDone}
-                value={effectivePriority}
-                onChange={value => {
-                  if (value === orderPriorityMode) {
-                    handleUpdateJob({ priority: null })
-                  } else if (value !== job.priority) {
-                    handleUpdateJob({ priority: value })
-                  }
-                }}
-              />
-              {hasSeparatePriority && validationErrors.prioritaet && <p className="text-destructive text-xs mt-1">{validationErrors.prioritaet}</p>}
-            </div>
-
-            <label className="col-span-2 flex items-center gap-2 text-[13px] select-none">
-              <Switch
-                disabled={isLocked}
-                checked={job.customer_approval_required}
-                onCheckedChange={checked => {
-                  setCustomerApproval.mutate({
-                    id: job.id,
-                    orderId: job.order_id,
-                    patch: checked
-                      ? { customer_approval_required: true }
-                      : { customer_approval_required: false, customer_approval_granted: false, customer_approval_file_id: null },
-                  })
-                }}
-              />
-              <span>Customer approval required</span>
-            </label>
-          </div>
-        </section>
-
-        <Separator orientation="vertical" className="h-auto" />
-
-        <section className="flex min-w-0 flex-col gap-2">
-          <h2>
-            Time Logs
-          </h2>
-          <JobTimeLogs key={job.id} orderId={order.id} jobId={job.id} disabled={isDone} />
-        </section>
-      </div>
+            ),
+          },
+          {
+            key: 'time-logs',
+            title: 'Time Logs',
+            content: <JobTimeLogs key={job.id} orderId={order.id} jobId={job.id} disabled={isDone} />,
+          },
+        ]}
+      />
 
       <Separator/>
 
