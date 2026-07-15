@@ -4,17 +4,20 @@ import { StampStockPage } from './pages/StampStockPage'
 import { TextileStockPage } from './pages/TextileStockPage'
 import { UserManagementPage } from './pages/UserManagementPage'
 import { ToastContainer, ToastProvider } from './components/Toast'
+import { ConfirmProvider } from './components/ConfirmDialog'
 
 function App() {
   return (
     <ToastProvider>
-      <ToastContainer />
-      <Routes>
-        <Route path="/" element={<OrderWorkspace />} />
-        <Route path="/stamp-stock" element={<StampStockPage />} />
-        <Route path="/textile-stock" element={<TextileStockPage />} />
-        <Route path="/user-management" element={<UserManagementPage />} />
-      </Routes>
+      <ConfirmProvider>
+        <ToastContainer />
+        <Routes>
+          <Route path="/" element={<OrderWorkspace />} />
+          <Route path="/stamp-stock" element={<StampStockPage />} />
+          <Route path="/textile-stock" element={<TextileStockPage />} />
+          <Route path="/user-management" element={<UserManagementPage />} />
+        </Routes>
+      </ConfirmProvider>
     </ToastProvider>
   )
 }

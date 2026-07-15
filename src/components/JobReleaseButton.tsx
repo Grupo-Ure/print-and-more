@@ -13,6 +13,7 @@ import { isJobComplete, resolveEffectiveJob } from '../lib/jobShared'
 import { JOB_STATUS_META, WORKFLOW_STATUSES } from '../const/orderStatus'
 import type { JobRow } from '../types/database'
 import { useToast } from './Toast'
+import { useConfirm } from './ConfirmDialog'
 import { Button } from './ui/button'
 import {
   Dialog,
@@ -40,6 +41,7 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
   const releaseToProduction = useReleaseToProduction()
   const forceRelease = useForceReleaseToProduction()
   const { showError } = useToast()
+  const confirm = useConfirm()
   const { isAdmin } = useIsAdmin()
   const orderQuery = useOrderById(job.order_id)
   const productsQuery = useProductsByJobId(job.id)
@@ -79,7 +81,11 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
   }
 
   const handleMarkDone = async () => {
-    if (!window.confirm('Mark job as done?')) return
+    const confirmed = await confirm({
+      title: 'Mark job as done?',
+      confirmLabel: 'Mark done',
+    })
+    if (!confirmed) return
     try {
       await setJobStatus.mutateAsync({
         id: job.id,

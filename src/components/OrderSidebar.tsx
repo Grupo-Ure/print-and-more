@@ -14,14 +14,13 @@ import {
   type OrderStatus,
   type JobRow,
 } from '../types/database'
-import type { OrderListEntry } from '../services/orderService'
 import { SlidersHorizontal } from 'lucide-react'
 import { Sidebar, SidebarHeader, SidebarContent, SidebarFooter } from '@/components/ui/sidebar'
 import { cn } from '@/lib/utils'
 import { DuplicateDialog } from './DuplicateDialog'
-import { DeleteOrderDialog } from './DeleteOrderDialog'
 import { NewOrderDialog } from './NewOrderDialog'
 import { useToast } from './Toast'
+import { useConfirm } from './ConfirmDialog'
 import { useOrderParams } from '../hooks/useOrderParams'
 import { OrderSidebarSearch } from './orderSidebar/OrderSidebarSearch'
 import { OrderSidebarFilters } from './orderSidebar/OrderSidebarFilters'
@@ -40,7 +39,8 @@ export function OrderSidebar({ orderInPlace }: Props) {
   const [searchOpen, setSearchOpen] = useState(false)
   const [filterPopOpen, setFilterPopOpen] = useState(false)
 
-  const { showError } = useToast()
+  const { showError, showSuccess } = useToast()
+  const confirm = useConfirm()
   const queryClient = useQueryClient()
 
   const ordersFilter = useMemo<OrdersListFilter>(
@@ -112,18 +112,35 @@ export function OrderSidebar({ orderInPlace }: Props) {
     [duplicateBusy, showError]
   )
 
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<OrderListEntry | null>(null)
-
-  const openDeleteDialog = useCallback(
-    (orderId: string) => {
+  const handleDeleteOrder = useCallback(
+    async (orderId: string) => {
       const target = orders.find(order => order.id === orderId)
       if (!target) return
       if (target.status !== 'QUOTE') return
-      setDeleteTarget(target)
-      setDeleteDialogOpen(true)
+      const customerLabel = target.customers?.name?.trim() || target.order_number || target.id
+      const confirmed = await confirm({
+        title: 'Delete order?',
+        description: (
+          <>
+            You are about to permanently delete the quote for{' '}
+            <strong className="text-foreground font-medium">{customerLabel}</strong>. All jobs and
+            linked files will be removed. This cannot be undone.
+          </>
+        ),
+        confirmLabel: 'Delete order',
+        destructive: true,
+      })
+      if (!confirmed) return
+      try {
+        await orderService.deleteOrder(target.id)
+        showSuccess('Order deleted')
+        void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
+        if (activeOrderId === target.id) setActiveOrder(null)
+      } catch {
+        showError('Order could not be deleted')
+      }
     },
-    [orders]
+    [orders, confirm, showSuccess, showError, queryClient, activeOrderId, setActiveOrder]
   )
 
   return (
@@ -178,7 +195,7 @@ export function OrderSidebar({ orderInPlace }: Props) {
             void openDuplicateDialog(orderId)
           }}
           duplicateBusy={duplicateBusy}
-          onDelete={orderId => openDeleteDialog(orderId)}
+          onDelete={orderId => void handleDeleteOrder(orderId)}
         />
       </SidebarContent>
 
@@ -202,22 +219,6 @@ export function OrderSidebar({ orderInPlace }: Props) {
         />
       )}
 
-      {deleteDialogOpen && deleteTarget && (
-        <DeleteOrderDialog
-          order={deleteTarget}
-          onCancel={() => {
-            setDeleteDialogOpen(false)
-            setDeleteTarget(null)
-          }}
-          onConfirmed={() => {
-            const deletedId = deleteTarget.id
-            setDeleteDialogOpen(false)
-            setDeleteTarget(null)
-            void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
-            if (activeOrderId === deletedId) setActiveOrder(null)
-          }}
-        />
-      )}
     </Sidebar>
   )
 }

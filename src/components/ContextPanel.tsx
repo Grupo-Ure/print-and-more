@@ -18,6 +18,7 @@ import { FileList } from './FileList'
 import type { FileRow } from '../services/fileService'
 import { HistoryPanel } from './HistoryPanel'
 import { useToast } from './Toast'
+import { useConfirm } from './ConfirmDialog'
 import { useOrderWorkspace } from '../context/order.context'
 import './ContextPanel.css'
 
@@ -99,6 +100,7 @@ export function ContextPanel({
   const [stampStock, setStampStock] = useState<number | null>(null)
   const [padStock, setPadStock] = useState<number | null>(null)
   const { showError, showSuccess } = useToast()
+  const confirm = useConfirm()
 
   const setOrderStatusMutation = useSetOrderStatus()
   const markBilledMutation = useMarkOrderBilled()
@@ -179,7 +181,12 @@ export function ContextPanel({
 
   const handleMarkInvoiced = async () => {
     if (busy) return
-    if (!window.confirm('Mark order as invoiced?\nIt will be hidden from the list.')) return
+    const confirmed = await confirm({
+      title: 'Mark order as invoiced?',
+      description: 'It will be hidden from the list.',
+      confirmLabel: 'Mark invoiced',
+    })
+    if (!confirmed) return
     setBusy(true)
     try {
       await markBilledMutation.mutateAsync({ id: order.id })

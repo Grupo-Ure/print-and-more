@@ -4,6 +4,7 @@ import type { Session } from '@supabase/supabase-js'
 import { authService } from '../services/authService'
 import { Login } from '../components/Login'
 import { useToast } from '../components/Toast'
+import { useConfirm } from '../components/ConfirmDialog'
 import {
   useCreateUser,
   useCurrentUser,
@@ -16,14 +17,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import {
   Select,
   SelectContent,
@@ -52,6 +45,7 @@ const CREATE_FORM_INITIAL = { email: '', password: '', name: '', role: 'EMPLOYEE
 
 export function UserManagementPage() {
   const { showError, showSuccess } = useToast()
+  const confirm = useConfirm()
   const [session, setSession] = useState<Session | null>(null)
   const [sessionLoading, setSessionLoading] = useState(true)
 
@@ -83,7 +77,6 @@ export function UserManagementPage() {
   const deleteUser = useDeleteUser()
 
   const [createForm, setCreateForm] = useState(CREATE_FORM_INITIAL)
-  const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null)
 
   if (sessionLoading) return null
   if (!session) return <Login />
@@ -134,17 +127,17 @@ export function UserManagementPage() {
     })
   }
 
-  const handleDelete = () => {
-    if (!deleteTarget) return
-    deleteUser.mutate(deleteTarget.id, {
-      onSuccess: () => {
-        showSuccess(`Account of ${deleteTarget.name} deleted`)
-        setDeleteTarget(null)
-      },
-      onError: err => {
-        showError(err.message)
-        setDeleteTarget(null)
-      },
+  const handleDelete = async (user: UserRow) => {
+    const confirmed = await confirm({
+      title: 'Delete account',
+      description: `Delete the account of ${user.name} (${user.email})? Their entries in history and stock movements are kept without a user reference.`,
+      confirmLabel: 'Delete',
+      destructive: true,
+    })
+    if (!confirmed) return
+    deleteUser.mutate(user.id, {
+      onSuccess: () => showSuccess(`Account of ${user.name} deleted`),
+      onError: err => showError(err.message),
     })
   }
 
@@ -215,7 +208,7 @@ export function UserManagementPage() {
                       variant="destructive"
                       size="sm"
                       disabled={deleteUser.isPending}
-                      onClick={() => setDeleteTarget(user)}
+                      onClick={() => void handleDelete(user)}
                     >
                       Delete
                     </Button>
@@ -293,25 +286,6 @@ export function UserManagementPage() {
         </form>
       </section>
 
-      <Dialog open={deleteTarget !== null} onOpenChange={open => !open && setDeleteTarget(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete account</DialogTitle>
-            <DialogDescription>
-              Delete the account of {deleteTarget?.name} ({deleteTarget?.email})? Their entries in
-              history and stock movements are kept without a user reference.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" disabled={deleteUser.isPending} onClick={handleDelete}>
-              {deleteUser.isPending ? 'Deleting…' : 'Delete'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

@@ -12,6 +12,7 @@ import {
   type JobRow,
 } from '../types/database'
 import { useToast } from './Toast'
+import { useConfirm } from './ConfirmDialog'
 import type { FileRow } from '../services/fileService'
 import { JobDetail } from './JobDetail'
 import { JobList } from './JobList'
@@ -49,6 +50,7 @@ export function OrderDetails({
   const queryClient = useQueryClient()
   const [files, setFiles] = useState<FileRow[]>([])
   const { showError } = useToast()
+  const confirm = useConfirm()
 
   const orderQuery = useOrderById(activeOrderId)
   const jobsQuery = useJobsByOrderId(activeOrderId)
@@ -159,7 +161,12 @@ export function OrderDetails({
   }
 
   const handleArchive = async () => {
-    if (!window.confirm('Archive this order? It will be hidden from the main list.')) return
+    const confirmed = await confirm({
+      title: 'Archive this order?',
+      description: 'It will be hidden from the main list.',
+      confirmLabel: 'Archive',
+    })
+    if (!confirmed) return
     try {
       await archiveOrder.mutateAsync({ id: order!.id })
       clearActive()
@@ -169,7 +176,13 @@ export function OrderDetails({
   }
 
   const handleCancelOrder = async () => {
-    if (!window.confirm('Cancel this order? All jobs will be cancelled and the order hidden.')) return
+    const confirmed = await confirm({
+      title: 'Cancel this order?',
+      description: 'All jobs will be cancelled and the order hidden.',
+      confirmLabel: 'Cancel order',
+      destructive: true,
+    })
+    if (!confirmed) return
     try {
       await cancelOrder.mutateAsync({ id: order!.id })
       clearActive()

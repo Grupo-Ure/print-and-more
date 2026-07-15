@@ -20,6 +20,7 @@ import { PrioritySelect } from './fields/PrioritySelect'
 import { Input } from './ui/input'
 import { Switch } from './ui/switch'
 import { useToast } from './Toast'
+import { useConfirm } from './ConfirmDialog'
 import { CopyShopProducts } from './products/departments/CopyShopProducts'
 import { LfpProducts } from './products/departments/LfpProducts'
 import { StampProducts } from './products/departments/StampProducts'
@@ -56,6 +57,7 @@ export function JobDetail({
   const { isAdmin } = useIsAdmin()
   const { data: users = [] } = useUsers()
   const { showError } = useToast()
+  const confirm = useConfirm()
 
   // Status manager: auto-derives and persists the IN_SETUP ↔ PREPRESS
   // transition for the active job. Single owner (one JobDetail is mounted
@@ -70,7 +72,12 @@ export function JobDetail({
   }
 
   const handleCancel = async () => {
-    if (!window.confirm('Cancel this job?')) return
+    const confirmed = await confirm({
+      title: 'Cancel this job?',
+      confirmLabel: 'Cancel job',
+      destructive: true,
+    })
+    if (!confirmed) return
     try {
       await cancelJob.mutateAsync({ id: job.id, orderId: job.order_id })
     } catch {
@@ -79,7 +86,12 @@ export function JobDetail({
   }
 
   const handleDelete = async () => {
-    if (!window.confirm('Permanently delete this job?')) return
+    const confirmed = await confirm({
+      title: 'Permanently delete this job?',
+      confirmLabel: 'Delete job',
+      destructive: true,
+    })
+    if (!confirmed) return
     try {
       await deleteJob.mutateAsync({ id: job.id, orderId: job.order_id })
     } catch {
