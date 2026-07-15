@@ -56,6 +56,11 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
   const complete = effectiveJob ? isJobComplete(effectiveJob, false, hasProducts) : false
 
   const handleReleaseToPrepress = async () => {
+    const confirmed = await confirm({
+      title: 'Release this job to pre-press?',
+      confirmLabel: 'Release',
+    })
+    if (!confirmed) return
     try {
       await setJobStatus.mutateAsync({
         id: job.id,
@@ -69,6 +74,15 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
   }
 
   const handleReleaseToProduction = async () => {
+    const confirmed = await confirm({
+      title: 'Release this job to production?',
+      description:
+        job.department === 'STAMP' || job.department === 'TEXTILE'
+          ? 'Stock deductions are booked automatically on release.'
+          : undefined,
+      confirmLabel: 'Release',
+    })
+    if (!confirmed) return
     try {
       await releaseToProduction.mutateAsync({
         job,
