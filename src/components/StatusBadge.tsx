@@ -9,7 +9,7 @@ import { Badge } from './ui/badge'
  */
 export function StatusBadge({ meta }: { meta: StatusMeta }) {
   return (
-    <Badge className={cn('text-sm px-6', meta.color)}>
+    <Badge className={cn('text-sm w-21', meta.color)}>
       {meta.label}
     </Badge>
   )
