@@ -21,7 +21,6 @@ export type OrderListJob = {
   delivery: DeliveryEnum | null
   priority: PriorityEnum | null
   assignee_id: string | null
-  typesetting_minutes: number | null
   is_cancelled: boolean
   department_products: { count: number }[]
 }
@@ -52,7 +51,7 @@ function flattenCustomerJoin<T extends { customers: unknown }>(row: T): T {
 }
 
 const ORDER_LIST_SELECT =
-  'id, order_number, status, created_at, deadline, delivery, priority, customer_id, customers(name), jobs(id, department, status, deadline, delivery, priority, assignee_id, typesetting_minutes, is_cancelled, department_products(count))'
+  'id, order_number, status, created_at, deadline, delivery, priority, customer_id, customers(name), jobs(id, department, status, deadline, delivery, priority, assignee_id, is_cancelled, department_products(count))'
 
 export type OrderListParams = {
   is_archived?: boolean

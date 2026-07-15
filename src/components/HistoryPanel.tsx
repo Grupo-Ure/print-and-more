@@ -33,6 +33,8 @@ const EVENT_LABELS: Record<string, string> = {
   ERP_EXPORTED: 'ERP exported',
   CANCELLED: 'Order cancelled',
   ASSIGNEE_CHANGED: 'Assignee changed',
+  TIME_LOGGED: 'Time logged',
+  TIME_LOG_DELETED: 'Time log deleted',
 }
 
 function eventLabel(art: string): string {
@@ -66,6 +68,22 @@ function assigneeChangeLine(entry: HistoryRow, staffById: Map<string, string>): 
     return 'Unassigned'
   }
   return `${resolve('previous_assignee_id', 'previous_assignee_name')} → ${resolve('new_assignee_id', 'new_assignee_name')}`
+}
+
+/**
+ * "45 min for <name>" line for TIME_LOGGED / TIME_LOG_DELETED. The attributed
+ * user's name is snapshotted into meta at write time (history.user_id is the
+ * actor, who may have logged on someone's behalf).
+ */
+function timeLogLine(entry: HistoryRow, staffById: Map<string, string>): string | null {
+  const meta = entry.meta
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return null
+  const record = meta as Record<string, unknown>
+  const minutes = typeof record.minutes === 'number' ? record.minutes : null
+  if (minutes == null) return null
+  let name = typeof record.user_name === 'string' && record.user_name ? record.user_name : null
+  if (!name && typeof record.user_id === 'string') name = staffById.get(record.user_id) ?? null
+  return `${minutes} min for ${name ?? '—'}`
 }
 
 export function HistoryPanel({ activeOrderId, contextRefreshTick, jobs }: Props) {
@@ -125,6 +143,10 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, jobs }: Props)
               const department = jobDepartment(entry.job_id)
               const assigneeChange =
                 entry.event_type === 'ASSIGNEE_CHANGED' ? assigneeChangeLine(entry, staffById) : null
+              const timeLog =
+                entry.event_type === 'TIME_LOGGED' || entry.event_type === 'TIME_LOG_DELETED'
+                  ? timeLogLine(entry, staffById)
+                  : null
               return (
                 <div key={entry.id} className="cp-hist-eintrag">
                   <div className="cp-hist-zeile" title={eventLabel(entry.event_type)}>
@@ -133,6 +155,7 @@ export function HistoryPanel({ activeOrderId, contextRefreshTick, jobs }: Props)
                     <span className="cp-hist-who">{staffName || '—'}</span>
                   </div>
                   {assigneeChange && <p className="cp-hist-sub">{assigneeChange}</p>}
+                  {timeLog && <p className="cp-hist-sub">{timeLog}</p>}
                   {entry.reason && <p className="cp-hist-sub">{entry.reason}</p>}
                   {department && <p className="cp-hist-tl">Job: {jobDepartmentLabel(department)}</p>}
                 </div>

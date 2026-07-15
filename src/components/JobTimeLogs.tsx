@@ -1,0 +1,168 @@
+import { useState } from 'react'
+import { Plus, Trash2 } from 'lucide-react'
+import { formatDateDe } from '../lib/formatDate'
+import type { TimeLogRow } from '../services/timeLogService'
+import { useCreateTimeLog, useDeleteTimeLog, useTimeLogsByJobId } from '../queries/timeLogQueries'
+import { useCurrentUser, useIsAdmin } from '../queries/userQueries'
+import { EmployeeCombobox } from './fields/EmployeeCombobox'
+import { Button } from './ui/button'
+import { Input } from './ui/input'
+import { UserAvatar } from './UserAvatar'
+import { useConfirm } from './ConfirmDialog'
+import { useToast } from './Toast'
+
+function formatMinutes(total: number): string {
+  if (total < 60) return `${total} min`
+  const hours = Math.floor(total / 60)
+  const minutes = total % 60
+  return minutes === 0 ? `${hours} h` : `${hours} h ${String(minutes).padStart(2, '0')} min`
+}
+
+/**
+ * Worked-time log for one job: total, the individual entries (minutes, date,
+ * attributed employee), and a form to log a new entry. Time is attributed to
+ * the signed-in user; admins may pick someone else (RLS enforces both).
+ * Admins can also delete a mistaken entry — every create/delete is written
+ * to history by the service.
+ */
+export function JobTimeLogs({
+  orderId,
+  jobId,
+  disabled,
+}: {
+  orderId: string
+  jobId: string
+  /** True once the job is DONE — the log becomes read-only. */
+  disabled: boolean
+}) {
+  const logsQuery = useTimeLogsByJobId(jobId)
+  const { data: currentUser } = useCurrentUser()
+  const { isAdmin } = useIsAdmin()
+  const createLog = useCreateTimeLog()
+  const deleteLog = useDeleteTimeLog()
+  const confirm = useConfirm()
+  const { showError } = useToast()
+
+  const [minutesInput, setMinutesInput] = useState('')
+  // Admin-only "log on behalf of" target; null = the signed-in user.
+  const [onBehalfOf, setOnBehalfOf] = useState<{ id: string; name: string } | null>(null)
+
+  const logs = logsQuery.data ?? []
+  const total = logs.reduce((sum, log) => sum + log.minutes, 0)
+
+  const parsedMinutes = parseInt(minutesInput, 10)
+  const minutesValid = Number.isInteger(parsedMinutes) && parsedMinutes > 0
+
+  const handleCreate = () => {
+    if (!minutesValid || !currentUser || createLog.isPending) return
+    const target = onBehalfOf ?? { id: currentUser.id, name: currentUser.name }
+    createLog.mutate(
+      { orderId, jobId, minutes: parsedMinutes, user: target },
+      {
+        onSuccess: () => setMinutesInput(''),
+        onError: () => showError('Time could not be logged'),
+      },
+    )
+  }
+
+  const handleDelete = async (log: TimeLogRow) => {
+    const confirmed = await confirm({
+      title: 'Delete this time log?',
+      description: `${formatMinutes(log.minutes)} logged for ${log.user?.name ?? 'unknown'} on ${formatDateDe(log.created_at)}.`,
+      confirmLabel: 'Delete log',
+      destructive: true,
+    })
+    if (!confirmed) return
+    deleteLog.mutate(
+      { orderId, log },
+      { onError: () => showError('Time log could not be deleted') },
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-2 min-w-0">
+      <div className="text-[13px]">
+        Total: <span className="font-semibold text-foreground">{formatMinutes(total)}</span>
+      </div>
+
+      {logsQuery.isLoading ? (
+        <p className="text-xs text-muted-foreground">Loading…</p>
+      ) : logs.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No time logged yet.</p>
+      ) : (
+        <ul className="flex flex-col divide-y divide-border" aria-label="Time logs">
+          {logs.map(log => (
+            <li key={log.id} className="group flex items-center gap-2 py-1 text-[13px]">
+              <span className="w-16 shrink-0 font-medium tabular-nums">{formatMinutes(log.minutes)}</span>
+              <span className="w-20 shrink-0 text-muted-foreground tabular-nums">
+                {formatDateDe(log.created_at)}
+              </span>
+              <span
+                className="flex min-w-0 items-center gap-1.5"
+                title={
+                  log.created_by && log.created_by.id !== log.user?.id
+                    ? `Logged by ${log.created_by.name}`
+                    : undefined
+                }
+              >
+                {log.user && <UserAvatar name={log.user.name} avatarUrl={log.user.avatar_url} className="size-5 text-[9px]" />}
+                <span className="truncate">{log.user?.name ?? '—'}</span>
+                {log.created_by && log.created_by.id !== log.user?.id && (
+                  <span className="text-[11px] text-muted-foreground shrink-0">(by {log.created_by.name})</span>
+                )}
+              </span>
+              {isAdmin && !disabled && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  title="Delete log"
+                  aria-label="Delete log"
+                  className="ml-auto opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-destructive hover:text-destructive"
+                  disabled={deleteLog.isPending}
+                  onClick={() => void handleDelete(log)}
+                >
+                  <Trash2 />
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {!disabled && (
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <Input
+            type="number"
+            min={1}
+            placeholder="min"
+            className="w-20 h-8 text-sm"
+            value={minutesInput}
+            onChange={e => setMinutesInput(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') handleCreate()
+            }}
+            aria-label="Minutes to log"
+          />
+          {isAdmin && (
+            <EmployeeCombobox
+              value={onBehalfOf?.id ?? currentUser?.id ?? null}
+              onChange={user => setOnBehalfOf(user)}
+              disabled={createLog.isPending}
+            />
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!minutesValid || !currentUser || createLog.isPending}
+            onClick={handleCreate}
+          >
+            <Plus />
+            Log time
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}

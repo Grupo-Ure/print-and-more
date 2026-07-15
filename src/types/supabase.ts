@@ -968,6 +968,55 @@ export type Database = {
           },
         ]
       }
+      job_time_logs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          job_id: string
+          minutes: number
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          job_id: string
+          minutes: number
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          job_id?: string
+          minutes?: number
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_time_logs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_time_logs_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_time_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jobs: {
         Row: {
           assignee_id: string | null
@@ -988,7 +1037,6 @@ export type Database = {
           sort_order: number
           status: Database["public"]["Enums"]["job_status"]
           type: string | null
-          typesetting_minutes: number | null
         }
         Insert: {
           assignee_id?: string | null
@@ -1009,7 +1057,6 @@ export type Database = {
           sort_order?: number
           status?: Database["public"]["Enums"]["job_status"]
           type?: string | null
-          typesetting_minutes?: number | null
         }
         Update: {
           assignee_id?: string | null
@@ -1030,7 +1077,6 @@ export type Database = {
           sort_order?: number
           status?: Database["public"]["Enums"]["job_status"]
           type?: string | null
-          typesetting_minutes?: number | null
         }
         Relationships: [
           {
@@ -2361,6 +2407,8 @@ export type Database = {
         | "ORDER_FINISHED"
         | "ORDER_REOPENED"
         | "ORDER_BILLED"
+        | "TIME_LOGGED"
+        | "TIME_LOG_DELETED"
       job_status: "IN_SETUP" | "PREPRESS" | "IN_PRODUCTION" | "DONE"
       order_status: "QUOTE" | "IN_PROGRESS" | "FINISHED" | "BILLED"
       priority_type: "NORMAL" | "HIGH"
@@ -2532,6 +2580,8 @@ export const Constants = {
         "ORDER_FINISHED",
         "ORDER_REOPENED",
         "ORDER_BILLED",
+        "TIME_LOGGED",
+        "TIME_LOG_DELETED",
       ],
       job_status: ["IN_SETUP", "PREPRESS", "IN_PRODUCTION", "DONE"],
       order_status: ["QUOTE", "IN_PROGRESS", "FINISHED", "BILLED"],

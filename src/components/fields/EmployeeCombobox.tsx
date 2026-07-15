@@ -6,7 +6,7 @@ import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 
-type AssigneeComboboxProps = {
+type EmployeeComboboxProps = {
   value: string | null
   onChange: (user: { id: string; name: string } | null) => void
   disabled?: boolean
@@ -21,7 +21,7 @@ function normalizeForSearch(text: string): string {
     .replace(/[\u0300-\u036f]/g, '')
 }
 
-export function AssigneeCombobox({ value, onChange, disabled = false }: AssigneeComboboxProps) {
+export function EmployeeCombobox({ value, onChange, disabled = false }: EmployeeComboboxProps) {
   const { data: users = [] } = useUsers()
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')

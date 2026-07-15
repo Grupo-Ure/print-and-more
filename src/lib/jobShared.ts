@@ -83,7 +83,7 @@ export function autoPrepressAllowed(merged: JobRow): boolean {
 
 /**
  * Validate the common header fields every job carries (delivery,
- * deadline, priority, assignee UUID, typesetting minutes).
+ * deadline, priority, assignee UUID).
  *
  * Returns a map of field-key → error message; empty map means valid.
  * While the parent order is still a QUOTE nothing is required — the
@@ -91,7 +91,7 @@ export function autoPrepressAllowed(merged: JobRow): boolean {
  * `orderIsQuote` from the order, never from the job.
  */
 export function validateJobCommonFields(
-  job: Pick<JobRow, 'deadline' | 'delivery' | 'priority' | 'assignee_id' | 'typesetting_minutes'>,
+  job: Pick<JobRow, 'deadline' | 'delivery' | 'priority' | 'assignee_id'>,
   orderIsQuote: boolean
 ): Record<string, string> {
   const errors: Record<string, string> = {}
@@ -104,10 +104,6 @@ export function validateJobCommonFields(
   const rawAssigneeId = job.assignee_id
   const assigneeId = typeof rawAssigneeId === 'string' ? rawAssigneeId.trim() : ''
   if (assigneeId && !UUID_LOOSE.test(assigneeId)) errors.verantwortlicher_id = 'Valid UUID'
-  if (job.typesetting_minutes != null) {
-    const minutes = Number(job.typesetting_minutes)
-    if (!Number.isInteger(minutes) || minutes <= 0) errors.satzzeit_minuten = 'Integer > 0'
-  }
   return errors
 }
 
@@ -128,7 +124,6 @@ export type JobCompletenessFields = Pick<
   | 'delivery'
   | 'priority'
   | 'assignee_id'
-  | 'typesetting_minutes'
 >
 
 export function isJobComplete(

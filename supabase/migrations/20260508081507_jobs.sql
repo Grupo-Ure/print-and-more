@@ -15,7 +15,6 @@ CREATE TABLE IF NOT EXISTS "public"."jobs" (
     -- (mirrors delivery above). Resolution happens in application code.
     "priority" "public"."priority_type",
     "assignee_id" "uuid",
-    "typesetting_minutes" integer,
     "data_status" "text",
     "detail" "jsonb" DEFAULT '{}'::"jsonb" NOT NULL,
     "customer_approval_required" boolean DEFAULT false NOT NULL,
@@ -24,8 +23,7 @@ CREATE TABLE IF NOT EXISTS "public"."jobs" (
     "is_cancelled" boolean DEFAULT false NOT NULL,
     "sort_order" integer DEFAULT 0 NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    CONSTRAINT "approval_consistency" CHECK (((NOT (("customer_approval_granted" = true) AND ("customer_approval_required" = false))) AND (NOT (("customer_approval_granted" = true) AND ("customer_approval_file_id" IS NULL))) AND (NOT (("customer_approval_file_id" IS NOT NULL) AND ("customer_approval_required" = false))))),
-    CONSTRAINT "typesetting_time_positive" CHECK ((("typesetting_minutes" IS NULL) OR ("typesetting_minutes" > 0)))
+    CONSTRAINT "approval_consistency" CHECK (((NOT (("customer_approval_granted" = true) AND ("customer_approval_required" = false))) AND (NOT (("customer_approval_granted" = true) AND ("customer_approval_file_id" IS NULL))) AND (NOT (("customer_approval_file_id" IS NOT NULL) AND ("customer_approval_required" = false)))))
 );
 
 ALTER TABLE "public"."jobs" OWNER TO "postgres";
@@ -298,3 +296,70 @@ COMMENT ON COLUMN "public"."jobs"."job_number" IS 'Human-facing job number: <ord
 COMMENT ON FUNCTION "public"."fn_generate_job_number"() IS 'Atomic per-order-per-department counter using INSERT ... ON CONFLICT DO UPDATE. No race condition on concurrent inserts. Numbers of deleted jobs are never reused.';
 
 COMMENT ON TABLE "public"."job_number_counter" IS 'Per-order-per-department counter for job numbers. One row per (order, department). Written exclusively via fn_generate_job_number(). Direct UPDATEs are forbidden — they would corrupt the numbering sequence.';
+
+-- ── job_time_logs ─────────────────────────────────────────────────────────────
+-- Per-job worked-time entries (replaces the former jobs.typesetting_minutes
+-- free-edit column). The job's total time is always SUM(minutes) over its
+-- logs — there is no denormalized aggregate. `user_id` is whom the time is
+-- attributed to; `created_by` is who wrote the row. They differ only when an
+-- admin logs on someone's behalf (enforced by RLS below). Rows are immutable:
+-- no UPDATE policy exists; corrections are admin-only DELETE + re-log, each
+-- side recorded in history (TIME_LOGGED / TIME_LOG_DELETED).
+
+CREATE TABLE IF NOT EXISTS "public"."job_time_logs" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "job_id" "uuid" NOT NULL,
+    -- Whom the time is attributed to. SET NULL on user deletion (matches
+    -- jobs.assignee_id); the UI shows a placeholder for orphaned logs.
+    "user_id" "uuid",
+    -- Who created the row (the signed-in actor).
+    "created_by" "uuid",
+    "minutes" integer NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "job_time_logs_minutes_positive" CHECK (("minutes" > 0))
+);
+
+ALTER TABLE "public"."job_time_logs" OWNER TO "postgres";
+
+ALTER TABLE ONLY "public"."job_time_logs"
+    ADD CONSTRAINT "job_time_logs_pkey" PRIMARY KEY ("id");
+
+ALTER TABLE ONLY "public"."job_time_logs"
+    ADD CONSTRAINT "job_time_logs_job_id_fkey" FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id") ON DELETE CASCADE;
+
+ALTER TABLE ONLY "public"."job_time_logs"
+    ADD CONSTRAINT "job_time_logs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE SET NULL;
+
+ALTER TABLE ONLY "public"."job_time_logs"
+    ADD CONSTRAINT "job_time_logs_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE SET NULL;
+
+CREATE INDEX "idx_job_time_logs_job_id" ON "public"."job_time_logs" USING "btree" ("job_id");
+
+-- Everyone may read logs; inserts must be written as yourself, and may only
+-- be attributed to someone else by an admin; deletes are admin-only.
+CREATE POLICY "Employees: read" ON "public"."job_time_logs"
+    FOR SELECT TO "authenticated" USING (true);
+
+CREATE POLICY "Log own time; admins on behalf" ON "public"."job_time_logs"
+    FOR INSERT TO "authenticated"
+    WITH CHECK (
+        ("created_by" = ( SELECT "auth"."uid"() ))
+        AND (
+            ("user_id" = ( SELECT "auth"."uid"() ))
+            OR ("public"."current_user_role"() IN ('ADMIN', 'SUPER_ADMIN'))
+        )
+    );
+
+CREATE POLICY "Admins: delete" ON "public"."job_time_logs"
+    FOR DELETE TO "authenticated"
+    USING ("public"."current_user_role"() IN ('ADMIN', 'SUPER_ADMIN'));
+
+ALTER TABLE "public"."job_time_logs" ENABLE ROW LEVEL SECURITY;
+
+GRANT ALL ON TABLE "public"."job_time_logs" TO "anon";
+
+GRANT ALL ON TABLE "public"."job_time_logs" TO "authenticated";
+
+GRANT ALL ON TABLE "public"."job_time_logs" TO "service_role";
+
+COMMENT ON TABLE "public"."job_time_logs" IS 'Worked-time entries per job. user_id = attributed employee, created_by = actor; total time is SUM(minutes) — no aggregate column. Append-only for employees; admins may delete (with TIME_LOG_DELETED history).';

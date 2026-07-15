@@ -90,7 +90,9 @@ CREATE TYPE "public"."history_event" AS ENUM (
     'ASSIGNEE_CHANGED',
     'ORDER_FINISHED',
     'ORDER_REOPENED',
-    'ORDER_BILLED'
+    'ORDER_BILLED',
+    'TIME_LOGGED',
+    'TIME_LOG_DELETED'
 );
 
 ALTER TYPE "public"."history_event" OWNER TO "postgres";
