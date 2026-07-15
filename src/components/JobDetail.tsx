@@ -174,6 +174,9 @@ export function JobDetail({
           <JobReleaseButton job={job} orderNumber={order.order_number ?? null} />
         </div>
       </div>
+      
+      <Separator />
+      
       {shouldValidate &&
         job.department !== 'OTHER' &&
         !customerMeetsPrepressRequirements &&
