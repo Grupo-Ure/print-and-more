@@ -31,13 +31,29 @@ type Props = {
   actions: FilterActions
   /** True when any filter differs from the defaults — enables the reset action. */
   isActive: boolean
+  /** Popover on compact devices, inline card below the search bar on desktop. */
+  variant: 'popover' | 'inline'
 }
 
-export function OrderSidebarFilters({ filter, actions, isActive }: Props) {
+export function OrderSidebarFilters({ filter, actions, isActive, variant }: Props) {
+  const body = <FilterPanelBody filter={filter} actions={actions} isActive={isActive} />
+
+  if (variant === 'popover') {
+    return (
+      <PopoverContent align="end" className="w-72 p-3 gap-0 border-gray-200">
+        {body}
+      </PopoverContent>
+    )
+  }
+
+  return <div className="mt-2 rounded-lg border border-gray-200 bg-white p-3 shadow-xs">{body}</div>
+}
+
+function FilterPanelBody({ filter, actions, isActive }: Omit<Props, 'variant'>) {
   const { statusAll, statusToggles, deadlineFrom, deadlineTo, intakeFrom, intakeTo, department } = filter
 
   return (
-    <PopoverContent align="end" className="w-72 p-3 gap-0">
+    <>
       <div className="space-y-3.5">
         <div>
           <FilterSectionLabel>Status</FilterSectionLabel>
@@ -138,6 +154,6 @@ export function OrderSidebarFilters({ filter, actions, isActive }: Props) {
         <RotateCcw />
         Reset filters
       </Button>
-    </PopoverContent>
+    </>
   )
 }

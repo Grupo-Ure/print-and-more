@@ -18,6 +18,7 @@ import {
 } from '../types/database'
 import { Search, SlidersHorizontal } from 'lucide-react'
 import { Sidebar, SidebarHeader, SidebarContent, SidebarFooter } from '@/components/ui/sidebar'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
@@ -49,6 +50,7 @@ export function OrderSidebar({ orderInPlace }: Props) {
   const { filter, isActive: filterActive, selectedStatuses, hasStatusFilter, actions } = useOrderSidebarFilter()
   const [searchOpen, setSearchOpen] = useState(false)
   const [filterPopOpen, setFilterPopOpen] = useState(false)
+  const isCompact = useIsMobile()
 
   const { showError, showSuccess } = useToast()
   const confirm = useConfirm()
@@ -174,21 +176,41 @@ export function OrderSidebar({ orderInPlace }: Props) {
               <Search className="size-3.5" />
               {searchActive && !searchOpen && <ActiveDot />}
             </Button>
-            <Popover open={filterPopOpen} onOpenChange={setFilterPopOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  title="Filter"
-                  aria-label="Filter"
-                  className="relative"
-                >
-                  <SlidersHorizontal className="size-3.5" />
-                  {filterActive && <ActiveDot />}
-                </Button>
-              </PopoverTrigger>
-              <OrderSidebarFilters filter={filter} actions={actions} isActive={filterActive} />
-            </Popover>
+            {isCompact ? (
+              <Popover open={filterPopOpen} onOpenChange={setFilterPopOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    title="Filter"
+                    aria-label="Filter"
+                    className="relative"
+                  >
+                    <SlidersHorizontal className="size-3.5" />
+                    {filterActive && <ActiveDot />}
+                  </Button>
+                </PopoverTrigger>
+                <OrderSidebarFilters
+                  filter={filter}
+                  actions={actions}
+                  isActive={filterActive}
+                  variant="popover"
+                />
+              </Popover>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                title="Filter"
+                aria-label="Filter"
+                aria-pressed={filterPopOpen}
+                onClick={() => setFilterPopOpen(o => !o)}
+                className={cn('relative', filterPopOpen && 'bg-muted text-foreground')}
+              >
+                <SlidersHorizontal className="size-3.5" />
+                {filterActive && <ActiveDot />}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -199,6 +221,15 @@ export function OrderSidebar({ orderInPlace }: Props) {
           open={searchOpen}
           className={cn('hidden desktop:flex', searchOpen && 'flex')}
         />
+
+        {!isCompact && filterPopOpen && (
+          <OrderSidebarFilters
+            filter={filter}
+            actions={actions}
+            isActive={filterActive}
+            variant="inline"
+          />
+        )}
       </SidebarHeader>
 
       <SidebarContent className="p-0">
