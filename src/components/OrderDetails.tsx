@@ -26,7 +26,8 @@ import './WorkArea.css'
 import { Button } from './ui/button'
 import { cn } from '@/lib/utils'
 import { ORDER_STATUS_META } from '../const/orderStatus'
-import { Archive, Ban, Clock, Copy, Settings } from 'lucide-react'
+import { Archive, Ban, Clock, Copy, History, Settings } from 'lucide-react'
+import { OrderHistoryDialog } from './OrderHistoryDialog'
 import { Separator } from './ui/separator'
 import { DeadlinePicker } from './fields/DeadlinePicker'
 import { DeliverySelect } from './fields/DeliverySelect'
@@ -398,6 +399,7 @@ function OrderHeader({ order, allJobsDone, onEditCustomer, onArchive, onCancelOr
   )
   const minutesQuery = useTimeLogMinutesByOrderId(order.id)
   const totalMinutes = Object.values(minutesQuery.data ?? {}).reduce((sum, m) => sum + m, 0)
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   return (
     <header className="flex flex-col">
@@ -437,6 +439,16 @@ function OrderHeader({ order, allJobsDone, onEditCustomer, onArchive, onCancelOr
             onMarkFinished={onMarkFinished}
             onMarkInvoiced={onMarkInvoiced}
           />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            title="Order history"
+            aria-label="Order history"
+            onClick={() => setHistoryOpen(true)}
+          >
+            <History />
+          </Button>
           {order.status !== 'BILLED' && (
             <Button
               type="button"
@@ -514,6 +526,7 @@ function OrderHeader({ order, allJobsDone, onEditCustomer, onArchive, onCancelOr
           </div>
         )}
       </div>
+      <OrderHistoryDialog orderId={order.id} open={historyOpen} onOpenChange={setHistoryOpen} />
     </header>
   );
 }
