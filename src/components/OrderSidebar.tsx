@@ -1,21 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { orderService } from '../services/orderService'
-import { jobService } from '../services/jobService'
 import {
+  fetchOrderById,
   invalidateOrderListsIfCustomerReferenced,
   orderKeys,
   patchOrderStatusInCache,
+  useDeleteOrder,
   useOrdersList,
   type OrdersListFilter,
 } from '../queries/orderQueries'
+import { fetchJobsByOrderId } from '../queries/jobQueries'
+import { orderService } from '../services/orderService'
 import {
   type Auftrag,
   type OrderStatus,
   type JobRow,
 } from '../types/database'
-import { SlidersHorizontal } from 'lucide-react'
+import { Search, SlidersHorizontal } from 'lucide-react'
 import { Sidebar, SidebarHeader, SidebarContent, SidebarFooter } from '@/components/ui/sidebar'
+import { Button } from '@/components/ui/button'
+import { Popover, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { DuplicateDialog } from './DuplicateDialog'
 import { NewOrderDialog } from './NewOrderDialog'
@@ -33,6 +37,13 @@ type Props = {
   orderInPlace: OrderInPlace
 }
 
+/** Dot on a header icon button signalling a hidden-but-active state. */
+function ActiveDot() {
+  return (
+    <span className="absolute top-1 right-1 size-1.5 rounded-full bg-orange-600 ring-1 ring-white" />
+  )
+}
+
 export function OrderSidebar({ orderInPlace }: Props) {
   const { activeOrderId, setActiveOrder } = useOrderParams()
   const { filter, isActive: filterActive, selectedStatuses, hasStatusFilter, actions } = useOrderSidebarFilter()
@@ -42,6 +53,7 @@ export function OrderSidebar({ orderInPlace }: Props) {
   const { showError, showSuccess } = useToast()
   const confirm = useConfirm()
   const queryClient = useQueryClient()
+  const deleteOrder = useDeleteOrder()
 
   const ordersFilter = useMemo<OrdersListFilter>(
     () => ({
@@ -52,8 +64,9 @@ export function OrderSidebar({ orderInPlace }: Props) {
       deadlineTo: filter.deadlineTo,
       intakeFrom: filter.intakeFrom,
       intakeTo: filter.intakeTo,
+      department: filter.department,
     }),
-    [filter.searchDebounced, filter.statusAll, selectedStatuses, filter.deadlineFrom, filter.deadlineTo, filter.intakeFrom, filter.intakeTo],
+    [filter.searchDebounced, filter.statusAll, selectedStatuses, filter.deadlineFrom, filter.deadlineTo, filter.intakeFrom, filter.intakeTo, filter.department],
   )
 
   const ordersQuery = useOrdersList(ordersFilter)
@@ -74,13 +87,10 @@ export function OrderSidebar({ orderInPlace }: Props) {
   }, [queryClient])
 
   // When no status is selected, the orders query is disabled and may hold stale data — render empty.
-  const orders = useMemo(() => {
-    const rawOrders = hasStatusFilter ? ordersQuery.data ?? [] : []
-    if (filter.department === 'All') return rawOrders
-    return rawOrders.filter(
-      order => order.jobs?.some(job => job.department === filter.department) ?? false,
-    )
-  }, [hasStatusFilter, ordersQuery.data, filter.department])
+  const orders = useMemo(
+    () => (hasStatusFilter ? ordersQuery.data ?? [] : []),
+    [hasStatusFilter, ordersQuery.data],
+  )
 
   const isEmpty = !ordersQuery.isLoading && orders.length === 0
 
@@ -96,9 +106,9 @@ export function OrderSidebar({ orderInPlace }: Props) {
       setDuplicateBusy(true)
       setDuplicateError(null)
       try {
-        const orderData = await orderService.getOrderById(auftragId)
+        const orderData = await fetchOrderById(queryClient, auftragId)
         if (!orderData) throw new Error('Order not found')
-        const jobData = await jobService.getJobsByOrderId(auftragId)
+        const jobData = await fetchJobsByOrderId(queryClient, auftragId)
         setDuplicateOrder(orderData as Auftrag)
         setDuplicateJobs(jobData)
         setDuplicateDialogOpen(true)
@@ -109,7 +119,7 @@ export function OrderSidebar({ orderInPlace }: Props) {
         setDuplicateBusy(false)
       }
     },
-    [duplicateBusy, showError]
+    [duplicateBusy, queryClient, showError]
   )
 
   const handleDeleteOrder = useCallback(
@@ -132,16 +142,17 @@ export function OrderSidebar({ orderInPlace }: Props) {
       })
       if (!confirmed) return
       try {
-        await orderService.deleteOrder(target.id)
+        await deleteOrder.mutateAsync({ id: target.id })
         showSuccess('Order deleted')
-        void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
         if (activeOrderId === target.id) setActiveOrder(null)
       } catch {
         showError('Order could not be deleted')
       }
     },
-    [orders, confirm, showSuccess, showError, queryClient, activeOrderId, setActiveOrder]
+    [orders, confirm, deleteOrder, showSuccess, showError, activeOrderId, setActiveOrder]
   )
+
+  const searchActive = filter.searchInput.trim() !== ''
 
   return (
     <Sidebar collapsible="offcanvas" side="left" className="border-r! border-gray-200">
@@ -150,26 +161,34 @@ export function OrderSidebar({ orderInPlace }: Props) {
           <h1 className="font-bold uppercase text-neutral-500">
             Orders
           </h1>
-          <div className="flex items-center gap-0.5">
-            <button
-              type="button"
-              title="Filter"
-              aria-label="Filter"
-              aria-pressed={filterPopOpen}
-              onClick={() => {
-                setFilterPopOpen(o => !o)
-                if (searchOpen) setSearchOpen(false)
-              }}
-              className={cn(
-                'relative inline-flex items-center justify-center min-w-8 h-7 px-1.5 rounded-md border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100',
-                filterPopOpen && 'bg-neutral-200 border-neutral-300',
-              )}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              title="Search"
+              aria-label="Search"
+              aria-pressed={searchOpen}
+              onClick={() => setSearchOpen(o => !o)}
+              className={cn('relative desktop:hidden', searchOpen && 'bg-muted text-foreground')}
             >
-              <SlidersHorizontal className="size-3.5" />
-              {filterActive && (
-                <span className="absolute top-1 right-1 size-1.5 rounded-full bg-orange-600 ring-1 ring-white" />
-              )}
-            </button>
+              <Search className="size-3.5" />
+              {searchActive && !searchOpen && <ActiveDot />}
+            </Button>
+            <Popover open={filterPopOpen} onOpenChange={setFilterPopOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  title="Filter"
+                  aria-label="Filter"
+                  className="relative"
+                >
+                  <SlidersHorizontal className="size-3.5" />
+                  {filterActive && <ActiveDot />}
+                </Button>
+              </PopoverTrigger>
+              <OrderSidebarFilters filter={filter} actions={actions} isActive={filterActive} />
+            </Popover>
           </div>
         </div>
 
@@ -177,9 +196,9 @@ export function OrderSidebar({ orderInPlace }: Props) {
           value={filter.searchInput}
           onChange={actions.setSearchInput}
           onClear={actions.clearSearch}
+          open={searchOpen}
+          className={cn('hidden desktop:flex', searchOpen && 'flex')}
         />
-
-        {filterPopOpen && <OrderSidebarFilters filter={filter} actions={actions} />}
       </SidebarHeader>
 
       <SidebarContent className="p-0">

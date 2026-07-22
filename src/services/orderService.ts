@@ -1,7 +1,7 @@
 import { supabase } from '../supabase'
 import type { Database } from '../types/supabase'
 import { ORDER_COLUMNS } from '../const/orderSelect'
-import { type Auftrag, type DuplicateOrderArgs, type OrderStatus, type OrderSummaryRow } from '../types/database'
+import { type Auftrag, type DuplicateOrderArgs, type JobStatus, type OrderStatus, type OrderSummaryRow } from '../types/database'
 
 type OrderInsert = Database['public']['Tables']['orders']['Insert']
 type OrderUpdate = Database['public']['Tables']['orders']['Update']
@@ -16,7 +16,7 @@ type DeliveryEnum = Database['public']['Enums']['delivery_type']
 export type OrderListJob = {
   id: string
   department: Database['public']['Enums']['department']
-  status: OrderStatus
+  status: JobStatus
   deadline: string | null
   delivery: DeliveryEnum | null
   priority: PriorityEnum | null

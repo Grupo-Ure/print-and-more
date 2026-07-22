@@ -1,115 +1,143 @@
-import { DEPARTMENTS, type OrderStatus } from '../../types/database'
+import { RotateCcw } from 'lucide-react'
+import { DEPARTMENTS, ORDER_STATUS_LIST } from '../../types/database'
 import { JOB_DEPARTMENT_LABELS } from '../../const/departmentAbbreviation'
+import { ORDER_STATUS_META } from '../../const/orderStatus'
+import { cn } from '@/lib/utils'
+import { Button } from '../ui/button'
+import { Checkbox } from '../ui/checkbox'
+import { PopoverContent } from '../ui/popover'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select'
+import { Separator } from '../ui/separator'
 import { DateInput } from '../DateInput'
-import { STATUS_ORDER, type FilterActions, type FilterState } from './useOrderSidebarFilter'
+import type { FilterActions, FilterState } from './useOrderSidebarFilter'
 
-/** Short label for the status filter checkboxes. */
-const STATUS_CHECKBOX_SHORT: Record<OrderStatus, string> = {
-  QUOTE: 'Quote',
-  IN_PROGRESS: 'In Progress',
-  FINISHED: 'Finished',
-  BILLED: 'Billed',
+const DATE_INPUT_CLASSES =
+  'h-8 w-full min-w-0 rounded-md border border-input bg-transparent px-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
+
+function FilterSectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="block text-xs font-medium text-muted-foreground mb-1.5">{children}</span>
+  )
 }
 
 type Props = {
   filter: FilterState
   actions: FilterActions
+  /** True when any filter differs from the defaults — enables the reset action. */
+  isActive: boolean
 }
 
-export function OrderSidebarFilters({ filter, actions }: Props) {
+export function OrderSidebarFilters({ filter, actions, isActive }: Props) {
   const { statusAll, statusToggles, deadlineFrom, deadlineTo, intakeFrom, intakeTo, department } = filter
 
   return (
-    <div className="mt-2 p-2 bg-white border border-neutral-200 rounded-md text-xs">
-      <div className="pb-2">
-        <div className="mb-2">
-          <span className="block text-xs text-neutral-600 mb-0.5">Status</span>
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-            <label className="inline-flex items-center gap-1 text-[11px] cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={statusAll}
-                onChange={e => actions.setStatusAll(e.target.checked)}
-              />
-              All
-            </label>
-            {!statusAll &&
-              STATUS_ORDER.map(status => (
-                <label
-                  key={status}
-                  className="inline-flex items-center gap-1 text-[11px] cursor-pointer select-none"
-                  title={status}
-                >
-                  <input
-                    type="checkbox"
-                    checked={statusToggles[status]}
-                    onChange={e => actions.toggleStatus(status, e.target.checked)}
-                  />
-                  {STATUS_CHECKBOX_SHORT[status]}
-                </label>
-              ))}
+    <PopoverContent align="end" className="w-72 p-3 gap-0">
+      <div className="space-y-3.5">
+        <div>
+          <FilterSectionLabel>Status</FilterSectionLabel>
+          <label className="flex items-center gap-2 text-sm cursor-pointer select-none pb-1.5">
+            <Checkbox
+              checked={statusAll}
+              onCheckedChange={checked => actions.setStatusAll(checked === true)}
+            />
+            All statuses
+          </label>
+          <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
+            {ORDER_STATUS_LIST.map(status => (
+              <label
+                key={status}
+                className={cn(
+                  'flex items-center gap-2 text-sm cursor-pointer select-none',
+                  statusAll && 'opacity-50 cursor-default',
+                )}
+              >
+                <Checkbox
+                  checked={statusToggles[status]}
+                  disabled={statusAll}
+                  onCheckedChange={checked => actions.toggleStatus(status, checked === true)}
+                />
+                <span className={cn('size-2 shrink-0 rounded-full', ORDER_STATUS_META[status].color)} />
+                {ORDER_STATUS_META[status].label}
+              </label>
+            ))}
           </div>
         </div>
 
-        <div className="mb-2">
-          <label className="block text-xs text-neutral-600 mb-0.5" htmlFor="orderlist-department">
-            Department
-          </label>
-          <select
-            id="orderlist-department"
+        <div>
+          <FilterSectionLabel>Department</FilterSectionLabel>
+          <Select
             value={department}
-            onChange={e => actions.setDepartment(e.target.value as FilterState['department'])}
-            className="w-full box-border px-1.5 py-1 text-[13px] border border-neutral-200 rounded-md bg-white"
+            onValueChange={value => actions.setDepartment(value as FilterState['department'])}
           >
-            <option value="All">All</option>
-            {DEPARTMENTS.map(dep => (
-              <option key={dep} value={dep}>
-                {JOB_DEPARTMENT_LABELS[dep]}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="h-8 w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">All departments</SelectItem>
+              {DEPARTMENTS.map(dep => (
+                <SelectItem key={dep} value={dep}>
+                  {JOB_DEPARTMENT_LABELS[dep]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        <div className="mb-2">
-          <span className="block text-xs text-neutral-600 mb-0.5">Deadline (from / to)</span>
+        <div>
+          <FilterSectionLabel>Deadline (from / to)</FilterSectionLabel>
           <div className="grid grid-cols-2 gap-2">
             <DateInput
-              className="px-2 py-1 text-xs border border-neutral-200 rounded-md bg-white"
+              className={DATE_INPUT_CLASSES}
+              aria-label="Deadline from"
               value={deadlineFrom}
               onChange={e => actions.setDeadlineFrom(e.target.value)}
             />
             <DateInput
-              className="px-2 py-1 text-xs border border-neutral-200 rounded-md bg-white"
+              className={DATE_INPUT_CLASSES}
+              aria-label="Deadline to"
               value={deadlineTo}
               onChange={e => actions.setDeadlineTo(e.target.value)}
             />
           </div>
         </div>
 
-        <div className="mb-2">
-          <span className="block text-xs text-neutral-600 mb-0.5">Intake (from / to)</span>
+        <div>
+          <FilterSectionLabel>Intake (from / to)</FilterSectionLabel>
           <div className="grid grid-cols-2 gap-2">
             <DateInput
-              className="px-2 py-1 text-xs border border-neutral-200 rounded-md bg-white"
+              className={DATE_INPUT_CLASSES}
+              aria-label="Intake from"
               value={intakeFrom}
               onChange={e => actions.setIntakeFrom(e.target.value)}
             />
             <DateInput
-              className="px-2 py-1 text-xs border border-neutral-200 rounded-md bg-white"
+              className={DATE_INPUT_CLASSES}
+              aria-label="Intake to"
               value={intakeTo}
               onChange={e => actions.setIntakeTo(e.target.value)}
             />
           </div>
         </div>
-
-        <button
-          type="button"
-          onClick={actions.reset}
-          className="inline p-0 m-0 border-0 bg-transparent text-blue-600 hover:text-blue-700 text-xs underline underline-offset-2 cursor-pointer"
-        >
-          Reset filters
-        </button>
       </div>
-    </div>
+
+      <Separator className="my-3" />
+
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={!isActive}
+        onClick={actions.reset}
+        className="w-full text-muted-foreground"
+      >
+        <RotateCcw />
+        Reset filters
+      </Button>
+    </PopoverContent>
   )
 }

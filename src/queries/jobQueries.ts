@@ -27,6 +27,14 @@ export function useJobsByOrderId(orderId: string | null) {
   })
 }
 
+/** Imperative on-demand fetch through the cache (e.g. opening the duplicate dialog). */
+export function fetchJobsByOrderId(queryClient: QueryClient, orderId: string) {
+  return queryClient.fetchQuery({
+    queryKey: jobKeys.byOrderId(orderId),
+    queryFn: () => jobService.getJobsByOrderId(orderId),
+  })
+}
+
 /**
  * Refresh the order lists after a job change. Order status is a manual,
  * independent lifecycle (no aggregation from jobs), but the sidebar still shows

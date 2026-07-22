@@ -1,12 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { DEPARTMENTS, type OrderStatus } from '../../types/database'
-
-export const STATUS_ORDER: OrderStatus[] = [
-  'QUOTE',
-  'IN_PROGRESS',
-  'FINISHED',
-  'BILLED',
-]
+import { DEPARTMENTS, ORDER_STATUS_LIST, type OrderStatus } from '../../types/database'
 
 const DEFAULT_STATUS_TOGGLES: Record<OrderStatus, boolean> = {
   QUOTE: true,
@@ -41,15 +34,13 @@ function defaultFilterState(): FilterState {
   }
 }
 
-const VALID_ORDER_STATUSES = new Set<string>(STATUS_ORDER)
-
 function dirtyAgainstDefaults(state: FilterState): boolean {
   const defaults = defaultFilterState()
   if (state.searchInput.trim() !== '' || state.searchDebounced.trim() !== '') return true
   if (state.deadlineFrom || state.deadlineTo || state.intakeFrom || state.intakeTo) return true
   if (state.department !== 'All') return true
   if (state.statusAll !== defaults.statusAll) return true
-  for (const status of STATUS_ORDER) {
+  for (const status of ORDER_STATUS_LIST) {
     if (state.statusToggles[status] !== defaults.statusToggles[status]) return true
   }
   return false
@@ -99,11 +90,7 @@ export function useOrderSidebarFilter() {
   }), [])
 
   const selectedStatuses = useMemo<OrderStatus[]>(
-    () =>
-      (Object.entries(filter.statusToggles) as [OrderStatus, boolean][])
-        .filter(([, enabled]) => enabled)
-        .map(([status]) => status)
-        .filter((status): status is OrderStatus => VALID_ORDER_STATUSES.has(status)),
+    () => ORDER_STATUS_LIST.filter(status => filter.statusToggles[status]),
     [filter.statusToggles],
   )
 

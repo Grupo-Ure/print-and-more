@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import { customerService } from '../services/customerService'
 import { historyService, type HistoryEvent } from '../services/historyService'
 import { orderService, type OrderListEntry } from '../services/orderService'
-import type { Auftrag, OrderStatus } from '../types/database'
+import type { Auftrag, Department, OrderStatus } from '../types/database'
 import type { Database } from '../types/supabase'
 
 type OrderInsert = Database['public']['Tables']['orders']['Insert']
@@ -16,6 +16,7 @@ export type OrdersListFilter = {
   deadlineTo: string
   intakeFrom: string
   intakeTo: string
+  department: Department | 'All'
 }
 
 export const orderKeys = {
@@ -86,12 +87,29 @@ export function useOrdersList(filter: OrdersListFilter) {
     },
     enabled: hasStatusFilter && searchSettled,
     refetchOnWindowFocus: false,
+    // Department is filtered over the cached rows (jobs are already loaded),
+    // so switching departments never triggers a refetch — hence not in the key.
+    select:
+      filter.department === 'All'
+        ? undefined
+        : orders =>
+            orders.filter(
+              order => order.jobs?.some(job => job.department === filter.department) ?? false,
+            ),
   })
 
   return {
     ...ordersQuery,
     isError: ordersQuery.isError || customerSearch.isError,
   }
+}
+
+/** Imperative on-demand fetch through the cache (e.g. opening the duplicate dialog). */
+export function fetchOrderById(queryClient: QueryClient, orderId: string) {
+  return queryClient.fetchQuery({
+    queryKey: orderKeys.byId(orderId),
+    queryFn: () => orderService.getOrderById(orderId),
+  })
 }
 
 /** Patch one order's status across every cached list (used by the in-place status update). */
