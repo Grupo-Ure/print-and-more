@@ -64,7 +64,7 @@ export function JobList() {
                 job.id === activeJobId && 'bg-primary/10',
               )}
               onClick={() => setActiveJob(job.id)}
-              title={job.job_number}
+              title={`Order: ${job.job_number}`}
             >
               <span className="flex items-center gap-1.5 min-w-0">
                 <span className="truncate">{shortJobNumber(job.job_number)}</span>
