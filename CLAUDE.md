@@ -11,6 +11,11 @@ is finished, what is open, known gaps) see [current_state.md](current_state.md).
 The authoritative source for library versions is `package.json`; the
 authoritative source for UI dimensions is the relevant CSS file.
 
+**[DOCS.md](DOCS.md) is the entry point into the [docs/](docs/) folder.** It is
+the main file to consult whenever you need to know the architectural patterns
+we follow or should follow — coding standards, per-role skill docs, and
+reference material. Read it (and the docs it links) before making changes.
+
 > This file is also the project's `CLAUDE.md` (symlinked) — the conventions
 > below apply to AI assistants working in this repo as well as to human
 > contributors.
@@ -47,6 +52,9 @@ asked about tasks/tickets, look there first.
 - **README.md** (this file) — stable architecture, domain model, workflows. No
   version pins, no pixel widths, no current-state info.
 - **[current_state.md](current_state.md)** — what's done/pending, known debt.
+- **[DOCS.md](DOCS.md)** — documentation index; entry point to
+  [docs/](docs/) (coding standards, skill docs, reference). Consult it for the
+  architectural patterns to follow.
 - **`package.json`** = library versions; CSS files = UI dimensions. Don't
   duplicate those into prose.
 
@@ -63,7 +71,9 @@ asked about tasks/tickets, look there first.
   types in [src/types/supabase.ts](src/types/supabase.ts).
 - **Service layer:** DB access goes through `src/services/*`; components avoid
   calling `supabase` directly (textile / PDF are the few exceptions).
-- **Target platform:** desktop browser
+- **Target platform:** desktop only — currently a desktop browser, eventually
+  packaged as an **Electron** app. No mobile/touch support, but **small
+  laptops (~1075px wide) must be usable**; see "Responsive layout" below.
 
 ## UI Layout
 
@@ -74,6 +84,33 @@ Three-column layout, full height:
 | Left   | [`OrderSidebar`](src/components/OrderSidebar.tsx) | "+ New order" ([`NewOrderDialog`](src/components/NewOrderDialog.tsx)); order list with selection; archived orders excluded |
 | Centre | [`WorkArea`](src/components/WorkArea.tsx) | Order header, files, job tabs ([`JobTabs`](src/components/JobTabs.tsx)), active job detail mask ([`JobDetail`](src/components/JobDetail.tsx)) |
 | Right  | [`ContextPanel`](src/components/ContextPanel.tsx) | Status, workflow actions, hints (order + job workflow) |
+
+### Responsive layout — one breakpoint, two strategies
+
+The app has exactly **one breakpoint** and two layouts: *compact* (small
+laptops) and *desktop*. It is defined once as `--breakpoint-desktop` (80rem /
+1280px) in the `@theme` block of `src/index.css` and consumed two ways:
+
+- **CSS / Tailwind:** base styles are the compact variant; apply the
+  `desktop:` variant for the roomier layout (mobile-first). Don't introduce
+  other breakpoints — `sm:`/`md:`/`lg:` should only appear inside vendored
+  `src/components/ui/*` code.
+- **TypeScript:** `useIsMobile()` (`src/hooks/use-mobile.ts`) returns `true`
+  below the same width — it reads `--breakpoint-desktop` at runtime, so the
+  hook and the variant can never drift apart.
+
+Column widths are **fixed per breakpoint** (never content-driven): the order
+sidebar is a fixed-width column that is simply narrower in compact mode, set
+via `--sidebar-width` in `OrderWorkspace`. The shadcn sidebar is pinned to
+desktop mode (no mobile Sheet overlay) since this is a desktop-only app.
+
+Styling lives in Tailwind utilities on the components, with one deliberate
+exception: **global element typography** (`h1`/`h2`/`h3`/`p` via `@apply` in
+`src/index.css`) sets the app-wide type scale — original sizes at `desktop:`,
+one step smaller below. Utility classes on a tag override it per site.
+Legacy plain-CSS rules (remnants from before Tailwind was introduced) are
+being eliminated — don't add new ones, and when you touch code that depends
+on one, replace it with utilities.
 
 **Global dialogs:** [`NewOrderDialog`](src/components/NewOrderDialog.tsx),
 [`CustomerDialog`](src/components/CustomerDialog.tsx),
@@ -124,10 +161,20 @@ validator under `src/lib/<dept>/`.
   "sub-order" / `department_orders`). Carries `job_number`
   (`<order_number>-<DEPT>-<NN>`, assigned by DB trigger
   `fn_generate_job_number`, never by the client), `department`, `type`,
-  `status`, schedule fields, `assignee_id`, `typesetting_minutes`,
-  `is_cancelled`, customer-approval fields. It still has its own legacy `detail`
+  `status`, schedule fields, `assignee_id`, `is_cancelled`,
+  customer-approval fields. It still has its own legacy `detail`
   JSONB + `type` + type-check trigger (used by Textile's `eigenware_modus` and
   the type guard) — a later cleanup, out of scope of the product redesign.
+- **Time logs** — table `job_time_logs`: worked-time entries per job
+  (`minutes` > 0, `created_at`). `user_id` = the employee the time is
+  attributed to; `created_by` = who wrote the row. Employees log as
+  themselves; only admins may log on someone else's behalf or delete a log
+  (RLS-enforced). The job's total time is `SUM(minutes)` over its logs —
+  there is no aggregate column. Every create/delete writes a history event
+  (`TIME_LOGGED` / `TIME_LOG_DELETED`, actor in `user_id`, attributed
+  user + minutes in `meta`). UI:
+  [`JobTimeLogs`](src/components/JobTimeLogs.tsx) in the job detail;
+  service [`timeLogService`](src/services/timeLogService.ts).
 - **Files** — table `files` (`order_id`, `display_name`, `role`, …). Attached at
   the **order** level, loaded in `WorkArea`, selectable for customer approval in
   `ContextPanel`. UNC-path **linking**, not upload.
