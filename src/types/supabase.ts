@@ -616,55 +616,6 @@ export type Database = {
           },
         ]
       }
-      errors: {
-        Row: {
-          created_at: string
-          id: string
-          job_id: string | null
-          order_id: string
-          text: string
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          job_id?: string | null
-          order_id: string
-          text: string
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          job_id?: string | null
-          order_id?: string
-          text?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "errors_job_id_fkey"
-            columns: ["job_id"]
-            isOneToOne: false
-            referencedRelation: "jobs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "errors_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "errors_person_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       files: {
         Row: {
           created_at: string
