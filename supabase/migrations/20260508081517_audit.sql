@@ -51,7 +51,7 @@ ALTER TABLE ONLY "public"."history"
     ADD CONSTRAINT "history_person_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE SET NULL;
 
 ALTER TABLE ONLY "public"."history"
-    ADD CONSTRAINT "history_job_id_fkey" FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id");
+    ADD CONSTRAINT "history_job_id_fkey" FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id") ON DELETE SET NULL;
 
 CREATE INDEX "idx_history_order_id" ON "public"."history" USING "btree" ("order_id");
 

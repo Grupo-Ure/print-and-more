@@ -59,7 +59,7 @@ export function useProductEditor(
   const handleDelete = useCallback(
     (id: string) => {
       deleteProduct.mutate(
-        { id, jobId: job.id },
+        { id, jobId: job.id, orderId: job.order_id },
         {
           onSuccess: () => {
             setMode(m => (m.kind === 'edit' && m.product.id === id ? { kind: 'idle' } : m))
@@ -68,7 +68,7 @@ export function useProductEditor(
         },
       )
     },
-    [deleteProduct, job.id, showError],
+    [deleteProduct, job.id, job.order_id, showError],
   )
 
   /** File ids currently assigned to a product (for edit-prefill). */

@@ -39,6 +39,19 @@ class HistoryService {
     if (error) throw error
   }
 
+  /**
+   * Best-effort variant: history is a log, not a transaction participant — a
+   * failed insert must never fail the action it records. All mutation call
+   * sites use this; `writeHistory` stays for callers that want the error.
+   */
+  async tryWriteHistory(params: Parameters<HistoryService['writeHistory']>[0]): Promise<void> {
+    try {
+      await this.writeHistory(params)
+    } catch (err) {
+      console.error(`History ${params.event_type} failed`, err)
+    }
+  }
+
   async getHistoryForOrder(orderId: string): Promise<HistoryRow[]> {
     const { data, error } = await supabase
       .from('history')

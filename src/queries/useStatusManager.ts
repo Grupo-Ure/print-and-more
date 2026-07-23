@@ -40,7 +40,13 @@ export function useStatusManager(orderId: string | null, activeJobId: string | n
     const customer = order.customers // joined onto the order; no separate fetch
     const next = deriveAutomaticStatus(effectiveJob, products.length > 0, customer, order.status)
     if (next !== effectiveJob.status) {
-      setJobStatus({ id: effectiveJob.id, orderId, status: next })
+      setJobStatus({
+        id: effectiveJob.id,
+        orderId,
+        status: next,
+        // Log the automatic promotion; the retraction (PREPRESS → IN_SETUP) stays silent.
+        history: next === 'PREPRESS' ? { event_type: 'PREPRESS_READY_AUTO' } : undefined,
+      })
     }
   }, [orderId, effectiveJob, products, order, setJobStatus])
 }

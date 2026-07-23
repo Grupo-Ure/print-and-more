@@ -64,8 +64,20 @@ export function JobSettingsSection({
   // instant UI, rollback on error). No status calculation here: status is driven
   // by the status manager (decoupled — see STATUS_WORKFLOW_SPEC.md).
   const handleUpdateJob = (patch: JobUpdate) => {
+    // Every patch here is a single override field; null = back to inheriting the order's value.
+    const field = Object.keys(patch)[0] as keyof JobUpdate | undefined
     updateJob.mutate(
-      { id: job.id, orderId: job.order_id, patch },
+      {
+        id: job.id,
+        orderId: job.order_id,
+        patch,
+        history: field
+          ? {
+              event_type: 'SETTINGS_CHANGED',
+              meta: { field, previous: job[field as keyof JobRow] ?? null, next: patch[field] ?? null },
+            }
+          : undefined,
+      },
       { onSuccess: row => onUpdated(row), onError: () => showError('Save failed') },
     )
   }
@@ -170,6 +182,9 @@ export function JobSettingsSection({
               patch: checked
                 ? { customer_approval_required: true }
                 : { customer_approval_required: false, customer_approval_granted: false, customer_approval_file_id: null },
+              history: {
+                event_type: checked ? 'CUSTOMER_APPROVAL_ACTIVATED' : 'CUSTOMER_APPROVAL_DEACTIVATED',
+              },
             })
           }}
         />

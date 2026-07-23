@@ -75,7 +75,7 @@ class TimeLogService {
       .select(TIME_LOG_COLUMNS)
       .single()
     if (error) throw error
-    await historyService.writeHistory({
+    await historyService.tryWriteHistory({
       order_id: params.orderId,
       job_id: params.jobId,
       event_type: 'TIME_LOGGED',
@@ -93,7 +93,7 @@ class TimeLogService {
     const { log } = params
     const { error } = await supabase.from('job_time_logs').delete().eq('id', log.id)
     if (error) throw error
-    await historyService.writeHistory({
+    await historyService.tryWriteHistory({
       order_id: params.orderId,
       job_id: log.job_id,
       event_type: 'TIME_LOG_DELETED',

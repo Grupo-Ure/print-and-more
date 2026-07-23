@@ -146,11 +146,7 @@ export function useCreateOrder() {
   return useMutation<Auftrag, Error, OrderInsert>({
     mutationFn: async payload => {
       const order = await orderService.createOrder(payload)
-      try {
-        await historyService.writeHistory({ order_id: order.id, event_type: 'ORDER_CREATED' })
-      } catch (err) {
-        console.error('History ORDER_CREATED failed', err)
-      }
+      await historyService.tryWriteHistory({ order_id: order.id, event_type: 'ORDER_CREATED' })
       return order
     },
     onSuccess: () => {
@@ -169,8 +165,12 @@ export function useOrderById(orderId: string | null) {
 
 export function useUpdateOrder() {
   const queryClient = useQueryClient()
-  return useMutation<Auftrag, Error, { id: string; patch: OrderUpdate }>({
-    mutationFn: ({ id, patch }) => orderService.updateOrder(id, patch),
+  return useMutation<Auftrag, Error, { id: string; patch: OrderUpdate; history?: OrderHistoryParams }>({
+    mutationFn: async ({ id, patch, history }) => {
+      const updated = await orderService.updateOrder(id, patch)
+      if (history) await historyService.tryWriteHistory({ order_id: id, ...history })
+      return updated
+    },
     onSuccess: updated => {
       queryClient.setQueryData(orderKeys.byId(updated.id), updated)
       void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
@@ -186,7 +186,7 @@ export function useSetOrderStatus() {
   return useMutation<Auftrag, Error, { id: string; status: OrderStatus; history?: OrderHistoryParams }>({
     mutationFn: async ({ id, status, history }) => {
       const updated = await orderService.setOrderStatus(id, status)
-      if (history) await historyService.writeHistory({ order_id: id, ...history })
+      if (history) await historyService.tryWriteHistory({ order_id: id, ...history })
       return updated
     },
     onSuccess: updated => {
@@ -197,11 +197,14 @@ export function useSetOrderStatus() {
   })
 }
 
-/** Soft-archive (hidden from list, status unchanged). */
+/** Soft-archive (hidden from list, status unchanged). Writes an ORDER_ARCHIVED history entry. */
 export function useArchiveOrder() {
   const queryClient = useQueryClient()
   return useMutation<void, Error, { id: string }>({
-    mutationFn: ({ id }) => orderService.archiveOrder(id),
+    mutationFn: async ({ id }) => {
+      await orderService.archiveOrder(id)
+      await historyService.tryWriteHistory({ order_id: id, event_type: 'ORDER_ARCHIVED' })
+    },
     onSuccess: (_void, { id }) => {
       void queryClient.invalidateQueries({ queryKey: orderKeys.byId(id) })
       void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
@@ -215,7 +218,7 @@ export function useArchiveOrderWithCancelledJobs() {
   return useMutation<void, Error, { id: string }>({
     mutationFn: async ({ id }) => {
       await orderService.archiveOrderWithCancelledJobs(id)
-      await historyService.writeHistory({ order_id: id, event_type: 'CANCELLED' })
+      await historyService.tryWriteHistory({ order_id: id, event_type: 'CANCELLED' })
     },
     onSuccess: (_void, { id }) => {
       void queryClient.invalidateQueries({ queryKey: ['jobs', 'by-order-id', id] })
@@ -231,10 +234,7 @@ export function useMarkOrderBilled() {
   return useMutation<void, Error, { id: string }>({
     mutationFn: async ({ id }) => {
       await orderService.markOrderBilled(id)
-      await historyService.writeHistory({
-        order_id: id,
-        event_type: 'ORDER_BILLED',
-      })
+      await historyService.tryWriteHistory({ order_id: id, event_type: 'ORDER_BILLED' })
     },
     onSuccess: (_void, { id }) => {
       patchOrderStatusInCache(queryClient, id, 'BILLED')

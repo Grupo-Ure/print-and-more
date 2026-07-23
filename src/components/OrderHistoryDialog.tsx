@@ -4,7 +4,42 @@ import { useHistoryForOrder } from '../queries/historyQueries'
 import { useJobsByOrderId } from '../queries/jobQueries'
 import { useUsers } from '../queries/userQueries'
 import { JOB_STATUS_META, ORDER_STATUS_META, type StatusMeta } from '../const/orderStatus'
+import { COPY_SHOP_TYPE_LABELS } from '../types/copyshop'
+import { LASER_TYPE_LABELS } from '../types/laser'
+import { LFP_TYPE_LABELS } from '../types/lfp'
+import { STAMP_TYPE_LABELS } from '../types/stamp'
 import { cn } from '../lib/utils'
+
+/** Human labels for every product type, for the PRODUCT_* sentences. */
+const PRODUCT_TYPE_LABELS: Record<string, string> = {
+  ...COPY_SHOP_TYPE_LABELS,
+  ...LASER_TYPE_LABELS,
+  ...LFP_TYPE_LABELS,
+  ...STAMP_TYPE_LABELS,
+  TEXTILE_GARMENT: 'Garment',
+  OTHER: 'Product',
+}
+
+/** SETTINGS_CHANGED meta.field → the word used in the sentence. */
+const SETTING_FIELD_LABELS: Record<string, string> = {
+  deadline: 'deadline',
+  delivery: 'delivery type',
+  priority: 'priority',
+}
+
+/** SETTINGS_CHANGED meta value → display text (dates formatted, enums labelled). */
+function settingValueText(field: string, value: unknown): string | null {
+  if (value == null || value === '') return null
+  const raw = String(value)
+  if (field === 'deadline') {
+    const date = new Date(raw)
+    return Number.isNaN(date.getTime())
+      ? raw
+      : date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })
+  }
+  const labels: Record<string, string> = { PICKUP: 'Pickup', SHIPPING: 'Shipping', HIGH: 'High', NORMAL: 'Normal' }
+  return labels[raw] ?? raw
+}
 
 function formatHistoryTime(iso: string): string {
   const date = new Date(iso)
@@ -96,6 +131,8 @@ function historySegments(
       return [actor, ' force-released ', job, ' to ', { kind: 'status', meta: JOB_STATUS_META.IN_PRODUCTION }]
     case 'CUSTOMER_APPROVAL_ACTIVATED':
       return [actor, ' requested customer approval for ', job]
+    case 'CUSTOMER_APPROVAL_DEACTIVATED':
+      return [actor, ' removed the customer-approval requirement for ', job]
     case 'CUSTOMER_APPROVAL_GRANTED':
       return [actor, ' granted customer approval for ', job]
     case 'CUSTOMER_APPROVAL_EXPIRED':
@@ -103,11 +140,59 @@ function historySegments(
     case 'CUSTOMER_APPROVAL_BYPASSED':
       return [actor, ' bypassed customer approval for ', job]
     case 'ROLLED_BACK':
-      return [jobLabel ? job : 'The order', ' was rolled back']
+      return [
+        'A content change moved ',
+        jobLabel ? job : 'a job',
+        ' back to ',
+        { kind: 'status', meta: JOB_STATUS_META.IN_SETUP },
+      ]
     case 'ERP_EXPORTED':
       return [actor, ' exported the order to ERP']
     case 'CANCELLED':
       return [actor, ' cancelled the order']
+    case 'ORDER_ARCHIVED':
+      return [actor, ' archived the order']
+    case 'JOB_CREATED':
+      return [actor, ' created ', job]
+    case 'JOB_CANCELLED':
+      return [actor, ' cancelled ', job]
+    case 'JOB_DELETED': {
+      // The job row is gone (job_id is null); its number was snapshotted into meta.
+      const number =
+        typeof meta?.job_number === 'string' ? meta.job_number.split('-').slice(-2).join('-') : null
+      return [actor, ' deleted ', number ? { kind: 'job', text: number } : 'a job']
+    }
+    case 'SETTINGS_CHANGED': {
+      const field = typeof meta?.field === 'string' ? meta.field : null
+      const fieldLabel = (field && SETTING_FIELD_LABELS[field]) ?? 'settings'
+      const next = field ? settingValueText(field, meta?.next) : null
+      if (jobLabel) {
+        // Job override: next null = the override was cleared back to the order's value.
+        if (!next) return [actor, ` reset the ${fieldLabel} of `, job, " to the order's"]
+        return [actor, ` set the ${fieldLabel} of `, job, ` to ${next}`]
+      }
+      if (!next) return [actor, ` cleared the order's ${fieldLabel}`]
+      const previous = field ? settingValueText(field, meta?.previous) : null
+      return [actor, ` changed the order's ${fieldLabel}${previous ? ` from ${previous}` : ''} to ${next}`]
+    }
+    case 'PRODUCT_CREATED':
+    case 'PRODUCT_UPDATED':
+    case 'PRODUCT_DELETED': {
+      const type = typeof meta?.type === 'string' ? meta.type : null
+      const product = (type && PRODUCT_TYPE_LABELS[type]) ?? 'a product'
+      const quantity = typeof meta?.quantity === 'number' ? `${meta.quantity}× ` : ''
+      const named = `${quantity}${product}`
+      if (entry.event_type === 'PRODUCT_CREATED') return [actor, ` added ${named} to `, job]
+      if (entry.event_type === 'PRODUCT_UPDATED') return [actor, ` updated ${named} on `, job]
+      return [actor, ` removed ${named} from `, job]
+    }
+    case 'FILE_ADDED':
+    case 'FILE_REMOVED': {
+      const name = typeof meta?.display_name === 'string' ? meta.display_name : 'a file'
+      return entry.event_type === 'FILE_ADDED'
+        ? [actor, ` added file ${name}`]
+        : [actor, ` removed file ${name}`]
+    }
     case 'ASSIGNEE_CHANGED': {
       const previous = metaName(meta, 'previous_assignee_name', 'previous_assignee_id', staffById)
       const next = metaName(meta, 'new_assignee_name', 'new_assignee_id', staffById)

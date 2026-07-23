@@ -2348,6 +2348,7 @@ export type Database = {
         | "MARKED_DONE"
         | "EMERGENCY_TRIGGERED"
         | "CUSTOMER_APPROVAL_ACTIVATED"
+        | "CUSTOMER_APPROVAL_DEACTIVATED"
         | "CUSTOMER_APPROVAL_GRANTED"
         | "CUSTOMER_APPROVAL_EXPIRED"
         | "CUSTOMER_APPROVAL_BYPASSED"
@@ -2358,8 +2359,18 @@ export type Database = {
         | "ORDER_FINISHED"
         | "ORDER_REOPENED"
         | "ORDER_BILLED"
+        | "ORDER_ARCHIVED"
         | "TIME_LOGGED"
         | "TIME_LOG_DELETED"
+        | "JOB_CREATED"
+        | "JOB_CANCELLED"
+        | "JOB_DELETED"
+        | "SETTINGS_CHANGED"
+        | "PRODUCT_CREATED"
+        | "PRODUCT_UPDATED"
+        | "PRODUCT_DELETED"
+        | "FILE_ADDED"
+        | "FILE_REMOVED"
       job_status: "IN_SETUP" | "PREPRESS" | "IN_PRODUCTION" | "DONE"
       order_status: "QUOTE" | "IN_PROGRESS" | "FINISHED" | "BILLED"
       priority_type: "NORMAL" | "HIGH"
@@ -2521,6 +2532,7 @@ export const Constants = {
         "MARKED_DONE",
         "EMERGENCY_TRIGGERED",
         "CUSTOMER_APPROVAL_ACTIVATED",
+        "CUSTOMER_APPROVAL_DEACTIVATED",
         "CUSTOMER_APPROVAL_GRANTED",
         "CUSTOMER_APPROVAL_EXPIRED",
         "CUSTOMER_APPROVAL_BYPASSED",
@@ -2531,8 +2543,18 @@ export const Constants = {
         "ORDER_FINISHED",
         "ORDER_REOPENED",
         "ORDER_BILLED",
+        "ORDER_ARCHIVED",
         "TIME_LOGGED",
         "TIME_LOG_DELETED",
+        "JOB_CREATED",
+        "JOB_CANCELLED",
+        "JOB_DELETED",
+        "SETTINGS_CHANGED",
+        "PRODUCT_CREATED",
+        "PRODUCT_UPDATED",
+        "PRODUCT_DELETED",
+        "FILE_ADDED",
+        "FILE_REMOVED",
       ],
       job_status: ["IN_SETUP", "PREPRESS", "IN_PRODUCTION", "DONE"],
       order_status: ["QUOTE", "IN_PROGRESS", "FINISHED", "BILLED"],

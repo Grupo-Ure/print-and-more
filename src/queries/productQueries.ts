@@ -3,6 +3,7 @@ import { departmentProductService, type ProductFileAssignment } from '../service
 import type { LoadedProduct, ProductWriteInput } from '../types/product'
 import type { TextileMotifLinkInput } from '../types/textile'
 import { isMeaningfulChange } from '../lib/status/meaningfulChange'
+import { historyService } from '../services/historyService'
 import { bounceBackIfCommitted } from './jobQueries'
 import { textileKeys } from './textileQueries'
 
@@ -70,7 +71,7 @@ export function useSaveProduct() {
   return useMutation<
     { products: LoadedProduct[]; files: ProductFileAssignment[] },
     Error,
-    { input: ProductWriteInput; fileIds: string[]; jobId: string; links?: TextileMotifLinkInput[] }
+    { input: ProductWriteInput; fileIds: string[]; jobId: string; orderId: string; links?: TextileMotifLinkInput[] }
   >({
     mutationFn: async ({ input, fileIds, jobId, links }) => {
       // 1. Product write (create or update).
@@ -109,7 +110,7 @@ export function useSaveProduct() {
       const files = await departmentProductService.getFilesByProductIds(products.map(p => p.id))
       return { products, files }
     },
-    onSuccess: ({ products, files }, { input, jobId, links }) => {
+    onSuccess: ({ products, files }, { input, jobId, orderId, links }) => {
       // Read the pre-save child before overwriting the cache, to detect a meaningful edit.
       const prevChild = input.id
         ? (queryClient
@@ -134,6 +135,13 @@ export function useSaveProduct() {
       ) {
         void bounceBackIfCommitted(queryClient, jobId)
       }
+
+      void historyService.tryWriteHistory({
+        order_id: orderId,
+        job_id: jobId,
+        event_type: kind === 'create' ? 'PRODUCT_CREATED' : 'PRODUCT_UPDATED',
+        meta: { type: input.type, quantity: input.quantity },
+      })
     },
   })
 }
@@ -141,9 +149,13 @@ export function useSaveProduct() {
 /** Delete a product; patch the product + file caches by filtering (no reload). */
 export function useDeleteProduct() {
   const queryClient = useQueryClient()
-  return useMutation<void, Error, { id: string; jobId: string }>({
+  return useMutation<void, Error, { id: string; jobId: string; orderId: string }>({
     mutationFn: ({ id }) => departmentProductService.deleteProduct(id),
-    onSuccess: (_void, { id, jobId }) => {
+    onSuccess: (_void, { id, jobId, orderId }) => {
+      // Snapshot the type for the history entry before the cache filter drops the row.
+      const deleted = queryClient
+        .getQueryData<LoadedProduct[]>(productKeys.byJobId(jobId))
+        ?.find(p => p.id === id)
       queryClient.setQueryData<LoadedProduct[]>(
         productKeys.byJobId(jobId),
         old => old?.filter(p => p.id !== id) ?? old,
@@ -155,6 +167,13 @@ export function useDeleteProduct() {
       void queryClient.invalidateQueries({ queryKey: productKeys.countsRoot })
       // Deleting a product is always a meaningful content change → bounce-back.
       void bounceBackIfCommitted(queryClient, jobId)
+
+      void historyService.tryWriteHistory({
+        order_id: orderId,
+        job_id: jobId,
+        event_type: 'PRODUCT_DELETED',
+        meta: { type: deleted?.type ?? null, quantity: deleted?.quantity ?? null },
+      })
     },
   })
 }

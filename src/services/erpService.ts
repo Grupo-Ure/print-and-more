@@ -1,4 +1,5 @@
 import { supabase } from '../supabase'
+import { historyService } from './historyService'
 import type { Database, Json } from '../types/supabase'
 
 type ErpExportInsert = Database['public']['Tables']['erp_exports']['Insert']
@@ -20,7 +21,13 @@ class ErpService {
       .select('id, order_id, mode, export_data, exported_at, exported_by')
       .single()
     if (error) throw error
-    return data as ErpExportRow
+    const row = data as ErpExportRow
+    await historyService.tryWriteHistory({
+      order_id: row.order_id,
+      event_type: 'ERP_EXPORTED',
+      meta: { mode: row.mode },
+    })
+    return row
   }
 
   async getErpExportsByOrderId(orderId: string): Promise<ErpExportRow[]> {

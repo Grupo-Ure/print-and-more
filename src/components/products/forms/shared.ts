@@ -74,6 +74,7 @@ export function useProductSubmit(p: ProductFormProps, type: string, toChild: (v:
         input: buildWriteInput({ product: p.product, job: p.job, type, sortOrder: p.sortOrder, quantity: qtyOut(value.quantity), child: toChild(value) }),
         fileIds,
         jobId: p.job.id,
+        orderId: p.job.order_id,
       },
       { onSuccess: ({ products }) => p.onSaved(products), onError: () => showError(p.product ? 'Product could not be saved' : 'Product could not be added') },
     )

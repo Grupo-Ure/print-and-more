@@ -231,13 +231,25 @@ export function OrderDetails({
   const saveOrderHeader = useCallback(
     async (patch: OrderHeaderPatch) => {
       if (!activeOrderId) return
+      // One field per save (the header saves on change); previous value from the loaded order.
+      const field = Object.keys(patch)[0] as keyof OrderHeaderPatch | undefined
       try {
-        await updateOrder.mutateAsync({ id: activeOrderId, patch })
+        await updateOrder.mutateAsync({
+          id: activeOrderId,
+          patch,
+          history:
+            order && field
+              ? {
+                  event_type: 'SETTINGS_CHANGED',
+                  meta: { field, previous: order[field] ?? null, next: patch[field] ?? null },
+                }
+              : undefined,
+        })
       } catch {
         showError('Order could not be saved')
       }
     },
-    [activeOrderId, updateOrder, showError]
+    [activeOrderId, order, updateOrder, showError]
   )
 
   const handleJobUpdated = useCallback(

@@ -1,5 +1,6 @@
 import { useCallback, useState, type FormEvent } from 'react'
 import { fileService } from '../services/fileService'
+import { historyService } from '../services/historyService'
 import type { FileRow, FileRole } from '../services/fileService'
 import { useToast } from './Toast'
 import { Badge } from './ui/badge'
@@ -84,6 +85,11 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
     }
     setSaving(false)
     if (data) {
+      void historyService.tryWriteHistory({
+        order_id: activeOrderId,
+        event_type: 'FILE_ADDED',
+        meta: { display_name: data.display_name, role: data.role },
+      })
       setDisplayName('')
       setPath('')
       setRole('PRODUCTION_FILE')
@@ -102,6 +108,12 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
       setError(err instanceof Error ? err.message : 'Error deleting')
       return
     }
+    const removed = files.find(file => file.id === id)
+    void historyService.tryWriteHistory({
+      order_id: activeOrderId,
+      event_type: 'FILE_REMOVED',
+      meta: { display_name: removed?.display_name ?? null, role: removed?.role ?? null },
+    })
     setRemovingId(null)
     void onFileChanged()
   }

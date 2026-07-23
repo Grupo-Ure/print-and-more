@@ -89,6 +89,12 @@ export async function bounceBackIfCommitted(queryClient: QueryClient, jobId: str
   if (!job) return
   if (job.status !== 'IN_PRODUCTION' && job.status !== 'DONE') return
   await persistJobStatus(queryClient, job.id, job.order_id, 'IN_SETUP')
+  await historyService.tryWriteHistory({
+    order_id: job.order_id,
+    job_id: job.id,
+    event_type: 'ROLLED_BACK',
+    meta: { previous_status: job.status },
+  })
 }
 
 /**
@@ -128,7 +134,16 @@ export function useEffectiveJob(
 export function useCreateJob() {
   const queryClient = useQueryClient()
   return useMutation<JobRow, Error, JobInsert>({
-    mutationFn: payload => jobService.createJob(payload),
+    mutationFn: async payload => {
+      const created = await jobService.createJob(payload)
+      await historyService.tryWriteHistory({
+        order_id: created.order_id,
+        job_id: created.id,
+        event_type: 'JOB_CREATED',
+        meta: { job_number: created.job_number, department: created.department },
+      })
+      return created
+    },
     onSuccess: created => {
       const orderId = created.order_id
       const cachedSiblings = queryClient.getQueryData<JobRow[]>(jobKeys.byOrderId(orderId)) ?? []
@@ -150,10 +165,14 @@ export function useUpdateJob() {
   return useMutation<
     JobRow,
     Error,
-    { id: string; orderId: string; patch: JobUpdate },
+    { id: string; orderId: string; patch: JobUpdate; history?: HistoryParams },
     { previous?: JobRow[] }
   >({
-    mutationFn: ({ id, patch }) => jobService.updateJob(id, patch),
+    mutationFn: async ({ id, orderId, patch, history }) => {
+      const row = await jobService.updateJob(id, patch)
+      if (history) await historyService.tryWriteHistory({ order_id: orderId, job_id: id, ...history })
+      return row
+    },
     onMutate: async ({ id, orderId, patch }) => {
       await queryClient.cancelQueries({ queryKey: jobKeys.byOrderId(orderId) })
       const previous = queryClient.getQueryData<JobRow[]>(jobKeys.byOrderId(orderId))
@@ -191,7 +210,7 @@ export function useSetJobStatus() {
   >({
     mutationFn: async ({ id, orderId, status, history }) => {
       const row = await jobService.setJobStatus(id, status)
-      if (history) await historyService.writeHistory({ order_id: orderId, job_id: id, ...history })
+      if (history) await historyService.tryWriteHistory({ order_id: orderId, job_id: id, ...history })
       return row
     },
     onSuccess: (row, { orderId }) => {
@@ -212,15 +231,11 @@ export function useReleaseToProduction() {
     mutationFn: async ({ job, orderId, orderNumber }) => {
       await deductProductionStock(job, orderNumber)
       const row = await jobService.setJobStatus(job.id, 'IN_PRODUCTION')
-      try {
-        await historyService.writeHistory({
-          order_id: orderId,
-          job_id: job.id,
-          event_type: 'PRODUCTION_READY_SET',
-        })
-      } catch {
-        console.error('History production-released failed')
-      }
+      await historyService.tryWriteHistory({
+        order_id: orderId,
+        job_id: job.id,
+        event_type: 'PRODUCTION_READY_SET',
+      })
       return row
     },
     onSuccess: (row, { orderId }) => {
@@ -247,16 +262,12 @@ export function useForceReleaseToProduction() {
     mutationFn: async ({ job, orderId, orderNumber, reason }) => {
       await deductProductionStock(job, orderNumber)
       const row = await jobService.setJobStatus(job.id, 'IN_PRODUCTION')
-      try {
-        await historyService.writeHistory({
-          order_id: orderId,
-          job_id: job.id,
-          event_type: 'EMERGENCY_TRIGGERED',
-          reason,
-        })
-      } catch {
-        console.error('History emergency-release failed')
-      }
+      await historyService.tryWriteHistory({
+        order_id: orderId,
+        job_id: job.id,
+        event_type: 'EMERGENCY_TRIGGERED',
+        reason,
+      })
       return row
     },
     onSuccess: (row, { orderId }) => {
@@ -286,7 +297,7 @@ export function useSetJobAssignee() {
   >({
     mutationFn: async ({ id, orderId, assignee, previousAssignee }) => {
       const row = await jobService.updateJob(id, { assignee_id: assignee?.id ?? null })
-      await historyService.writeHistory({
+      await historyService.tryWriteHistory({
         order_id: orderId,
         job_id: id,
         event_type: 'ASSIGNEE_CHANGED',
@@ -324,7 +335,7 @@ export function useSetCustomerApproval() {
   >({
     mutationFn: async ({ id, orderId, patch, history }) => {
       const row = await jobService.setCustomerApproval(id, patch)
-      if (history) await historyService.writeHistory({ order_id: orderId, job_id: id, ...history })
+      if (history) await historyService.tryWriteHistory({ order_id: orderId, job_id: id, ...history })
       return row
     },
     onSuccess: (row, { orderId }) => {
@@ -337,7 +348,10 @@ export function useSetCustomerApproval() {
 export function useCancelJob() {
   const queryClient = useQueryClient()
   return useMutation<void, Error, { id: string; orderId: string }>({
-    mutationFn: ({ id }) => jobService.cancelJob(id),
+    mutationFn: async ({ id, orderId }) => {
+      await jobService.cancelJob(id)
+      await historyService.tryWriteHistory({ order_id: orderId, job_id: id, event_type: 'JOB_CANCELLED' })
+    },
     onSuccess: (_void, { id, orderId }) => {
       queryClient.setQueryData<JobRow[]>(
         jobKeys.byOrderId(orderId),
@@ -352,7 +366,19 @@ export function useCancelJob() {
 export function useDeleteJob() {
   const queryClient = useQueryClient()
   return useMutation<void, Error, { id: string; orderId: string }>({
-    mutationFn: ({ id }) => jobService.deleteJob(id),
+    mutationFn: async ({ id, orderId }) => {
+      // Snapshot before the delete: the history entry can't reference the dead
+      // row (job_id stays null), so the job is identified via meta.
+      const job = queryClient
+        .getQueryData<JobRow[]>(jobKeys.byOrderId(orderId))
+        ?.find(r => r.id === id)
+      await jobService.deleteJob(id)
+      await historyService.tryWriteHistory({
+        order_id: orderId,
+        event_type: 'JOB_DELETED',
+        meta: { job_number: job?.job_number ?? null, department: job?.department ?? null },
+      })
+    },
     onSuccess: (_void, { id, orderId }) => {
       queryClient.setQueryData<JobRow[]>(
         jobKeys.byOrderId(orderId),

@@ -216,7 +216,7 @@ export function ContextPanel({
           customer_approval_granted: true,
           customer_approval_file_id: customerApprovalFileId,
         },
-        history: { event_type: 'CUSTOMER_APPROVAL_GRANTED', meta: { datei_id: customerApprovalFileId } },
+        history: { event_type: 'CUSTOMER_APPROVAL_GRANTED', meta: { file_id: customerApprovalFileId } },
       })
       onJobUpdated(data)
       showSuccess('Approval granted')

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import type { HistoryRow } from '../services/historyService'
+import type { HistoryEvent, HistoryRow } from '../services/historyService'
 import { historyKeys, useHistoryForOrder } from '../queries/historyQueries'
 import { useUsers } from '../queries/userQueries'
 import { jobDepartmentLabel } from '../const/departmentAbbreviation'
@@ -14,7 +14,8 @@ type Props = {
 }
 
 
-const EVENT_LABELS: Record<string, string> = {
+// Keyed by the DB enum: adding a history_event value without a label is a type error.
+const EVENT_LABELS: Record<HistoryEvent, string> = {
   ORDER_CREATED: 'Order created',
   PROCESSING_STARTED: 'Processing started',
   PREPRESS_READY_AUTO: 'PrePress — automatic',
@@ -26,19 +27,30 @@ const EVENT_LABELS: Record<string, string> = {
   ORDER_BILLED: 'Order invoiced',
   EMERGENCY_TRIGGERED: 'Emergency triggered',
   CUSTOMER_APPROVAL_ACTIVATED: 'Customer approval activated',
+  CUSTOMER_APPROVAL_DEACTIVATED: 'Customer approval removed',
   CUSTOMER_APPROVAL_GRANTED: 'Customer approval granted',
   CUSTOMER_APPROVAL_EXPIRED: 'Customer approval expired',
   CUSTOMER_APPROVAL_BYPASSED: 'Customer approval bypassed',
-  ROLLED_BACK: 'Rolled back',
+  ROLLED_BACK: 'Rolled back to setup',
   ERP_EXPORTED: 'ERP exported',
   CANCELLED: 'Order cancelled',
+  ORDER_ARCHIVED: 'Order archived',
   ASSIGNEE_CHANGED: 'Assignee changed',
   TIME_LOGGED: 'Time logged',
   TIME_LOG_DELETED: 'Time log deleted',
+  JOB_CREATED: 'Job created',
+  JOB_CANCELLED: 'Job cancelled',
+  JOB_DELETED: 'Job deleted',
+  SETTINGS_CHANGED: 'Settings changed',
+  PRODUCT_CREATED: 'Product added',
+  PRODUCT_UPDATED: 'Product updated',
+  PRODUCT_DELETED: 'Product removed',
+  FILE_ADDED: 'File added',
+  FILE_REMOVED: 'File removed',
 }
 
-function eventLabel(art: string): string {
-  return EVENT_LABELS[art] ?? art.replace(/_/g, ' ')
+function eventLabel(event: HistoryEvent): string {
+  return EVENT_LABELS[event]
 }
 
 function formatHistoryTime(iso: string): string {

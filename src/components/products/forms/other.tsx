@@ -34,7 +34,7 @@ export function OtherForm({ job, orderIsQuote, product, orderFiles, initialFileI
         child: buildChild(value),
       }
       saveProduct.mutate(
-        { input, fileIds, jobId: job.id },
+        { input, fileIds, jobId: job.id, orderId: job.order_id },
         { onSuccess: ({ products }) => onSaved(products), onError: () => showError(product ? 'Product could not be saved' : 'Product could not be added') },
       )
     },

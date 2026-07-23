@@ -261,6 +261,7 @@ export function TextileGarmentForm(p: TextileGarmentFormProps) {
           }),
           fileIds: [],
           jobId: p.job.id,
+          orderId: p.job.order_id,
           links,
         },
         { onSuccess: ({ products }) => p.onSaved(products), onError: () => showError(p.product ? 'Garment could not be saved' : 'Garment could not be added') },
