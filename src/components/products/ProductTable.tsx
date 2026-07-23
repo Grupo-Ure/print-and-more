@@ -53,38 +53,43 @@ export function ProductTable({
 
   if (data.length === 0) {
     return (
-      <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 text-center">
-        <p className="text-xs text-muted-foreground">Add the first product</p>
+      <div className="flex min-h-48 flex-col items-center justify-center gap-3 rounded-lg border border-dashed text-center">
+        <p className="text-sm text-muted-foreground">Add the first product</p>
         {!meta.isReadOnly && <AddProductButton onClick={meta.onAdd} label={meta.addLabel} />}
       </div>
     )
   }
 
   return (
-    <Table>
-      <TableHeader>
-        {table.getHeaderGroups().map(group => (
-          <TableRow key={group.id}>
-            {group.headers.map(header => (
-              <TableHead key={header.id}>
-                {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-              </TableHead>
-            ))}
-          </TableRow>
-        ))}
-      </TableHeader>
-      <TableBody>
-        {table.getRowModel().rows.map(row => (
-          <TableRow key={row.id}>
-            {row.getVisibleCells().map(cell => (
-              <TableCell key={cell.id} className="align-top">
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </TableCell>
-            ))}
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <div className="overflow-hidden rounded-lg border">
+      <Table className="desktop:text-base">
+        <TableHeader className="bg-muted/50">
+          {table.getHeaderGroups().map(group => (
+            <TableRow key={group.id} className="hover:bg-transparent">
+              {group.headers.map(header => (
+                <TableHead
+                  key={header.id}
+                  className="h-9 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+                >
+                  {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                </TableHead>
+              ))}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows.map(row => (
+            <TableRow key={row.id}>
+              {row.getVisibleCells().map(cell => (
+                <TableCell key={cell.id} className="px-3 py-2.5 align-center">
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   )
 }
 

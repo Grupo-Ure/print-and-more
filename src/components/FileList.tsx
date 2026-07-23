@@ -3,6 +3,7 @@ import { fileService } from '../services/fileService'
 import type { FileRow, FileRole } from '../services/fileService'
 import { useToast } from './Toast'
 import { Badge } from './ui/badge'
+import { SectionTitle } from './ui/section-title'
 
 
 const ROLES: { value: FileRole; label: string }[] = [
@@ -68,7 +69,7 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
       return
     }
     setSaving(true)
-    let data: FileRow | null = null
+    let data: FileRow | null
     try {
       data = await fileService.createFile({
         order_id: activeOrderId,
@@ -108,7 +109,7 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
   return (
     <div className="wa-dl">
       <div className="wa-dl-top">
-        <h3 className="wa-dl-titel">Files</h3>
+        <SectionTitle>Files</SectionTitle>
         <button
           type="button"
           className="wa-dl-add"
@@ -162,13 +163,11 @@ export function FileList({ activeOrderId, files, filesLoading, onFileChanged }: 
       )}
 
       {loading ? (
-        <p className="ber-hinweis" style={{ fontStyle: 'normal', fontSize: 12, margin: '4px 0' }}>
-          Loading files…
-        </p>
+        <p className="my-1 text-sm text-muted-foreground">Loading files…</p>
       ) : files.length === 0 ? (
-        <p className="ber-hinweis" style={{ fontSize: 12, margin: '4px 0' }}>
-          No files yet.
-        </p>
+        <div className="flex min-h-16 items-center justify-center rounded-lg border border-dashed">
+          <p className="text-sm text-muted-foreground">No files</p>
+        </div>
       ) : (
         <ul className="wa-dl-list">
           {files.map(file => (

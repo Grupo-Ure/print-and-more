@@ -21,7 +21,9 @@ export function typeColumn(labels: Record<string, string>): ColumnDef<LoadedProd
   return {
     id: 'type',
     header: 'Type',
-    cell: ({ row }) => labels[row.original.type] ?? row.original.type ?? '—',
+    cell: ({ row }) => (
+      <span className="font-medium text-foreground">{labels[row.original.type] ?? row.original.type ?? '—'}</span>
+    ),
   }
 }
 
@@ -29,7 +31,7 @@ export function quantityColumn(): ColumnDef<LoadedProduct> {
   return {
     id: 'quantity',
     header: 'Quantity',
-    cell: ({ row }) => String(row.original.quantity ?? '—'),
+    cell: ({ row }) => <span className="tabular-nums">{String(row.original.quantity ?? '—')}</span>,
   }
 }
 

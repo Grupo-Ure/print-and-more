@@ -5,6 +5,7 @@ import type { JobStatus, JobRow } from '../../../types/database'
 import type { FileRow } from '../../../services/fileService'
 import { LASER_TYPES, LASER_TYPE_LABELS } from '../../../types/laser'
 import { AddProductButton } from '../AddProductButton'
+import { SectionTitle } from '../../ui/section-title'
 import { useProductEditor } from '../useProductEditor'
 import { ProductDialog, type ProductTypeOption } from '../ProductDialog'
 import { LaserProductsTable } from '../ProductTable'
@@ -44,7 +45,7 @@ export function LaserProducts({ job, jobStatus, orderFiles = [] }: Props) {
 
       <div>
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Products</h3>
+          <SectionTitle>Products</SectionTitle>
           {!productEditor.isReadOnly && <AddProductButton onClick={productEditor.openAdd} />}
         </div>
         {productEditor.productsLoading ? (

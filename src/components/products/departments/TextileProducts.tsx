@@ -19,11 +19,12 @@ import {
 import { useToast } from '../../Toast'
 import { Button } from '../../ui/button'
 import { Label } from '../../ui/label'
-import { Badge } from '../../ui/badge'
 import { Input } from '../../ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/table'
 import { useProductEditor } from '../useProductEditor'
 import { AddProductButton } from '../AddProductButton'
+import { SectionTitle } from '../../ui/section-title'
 import { TextileProductDialog } from '../TextileProductDialog'
 import { motifLabel } from '../forms/textileTypes'
 
@@ -71,6 +72,80 @@ function designValid(d: DesignDraft): boolean {
   return d.file_id !== ''
 }
 
+const FONT_CLASS_LABELS: Record<string, string> = Object.fromEntries(FONT_CLASS_OPTS.map(o => [o.value, o.label]))
+
+/** Header cell style shared with the product tables. */
+const SATELLITE_HEAD_CLASS = 'h-9 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase'
+const SATELLITE_CELL_CLASS = 'px-3 py-2.5 align-middle'
+
+function DesignsTable({
+  motifs,
+  orderFiles,
+  isReadOnly,
+  onEdit,
+  onDelete,
+}: {
+  motifs: TextileMotifRow[]
+  orderFiles: FileRow[]
+  isReadOnly: boolean
+  onEdit: (m: TextileMotifRow) => void
+  onDelete: (m: TextileMotifRow) => void
+}) {
+  const designName = (m: TextileMotifRow): string => {
+    if (m.type === 'TEXT') return motifLabel(m)
+    return orderFiles.find(f => f.id === m.file_id)?.display_name ?? 'Graphic design'
+  }
+
+  return (
+    <div className="overflow-hidden rounded-lg border">
+      <Table className="desktop:text-base">
+        <TableHeader className="bg-muted/50">
+          <TableRow className="hover:bg-transparent">
+            <TableHead className={SATELLITE_HEAD_CLASS}>Design</TableHead>
+            <TableHead className={SATELLITE_HEAD_CLASS}>Kind</TableHead>
+            <TableHead className={SATELLITE_HEAD_CLASS}>Colour</TableHead>
+            <TableHead className={SATELLITE_HEAD_CLASS}>Font</TableHead>
+            <TableHead className={SATELLITE_HEAD_CLASS}>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {motifs.map(m => (
+            <TableRow key={m.id}>
+              <TableCell className={SATELLITE_CELL_CLASS}>
+                <span className="font-medium text-foreground">{designName(m)}</span>
+              </TableCell>
+              <TableCell className={SATELLITE_CELL_CLASS}>{m.type === 'TEXT' ? 'Text' : 'Graphic (file)'}</TableCell>
+              <TableCell className={SATELLITE_CELL_CLASS}>
+                {m.color ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span aria-hidden className="size-3 shrink-0 rounded-full border" style={{ backgroundColor: m.color }} />
+                    {m.color}
+                  </span>
+                ) : (
+                  '—'
+                )}
+              </TableCell>
+              <TableCell className={SATELLITE_CELL_CLASS}>
+                {m.font_class ? [FONT_CLASS_LABELS[m.font_class] ?? m.font_class, m.font_name].filter(Boolean).join(' · ') : '—'}
+              </TableCell>
+              <TableCell className={SATELLITE_CELL_CLASS}>
+                <div className="flex gap-2">
+                  <Button type="button" variant="ghost" size="icon-sm" title="Edit" aria-label="Edit" disabled={isReadOnly} onClick={() => onEdit(m)}>
+                    <Pencil />
+                  </Button>
+                  <Button type="button" variant="ghost" size="icon-sm" title="Delete" aria-label="Delete" disabled={isReadOnly} onClick={() => onDelete(m)}>
+                    <Trash2 />
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  )
+}
+
 function DesignsDrawer({
   job,
   motifs,
@@ -110,26 +185,21 @@ function DesignsDrawer({
   return (
     <div className="flex flex-col gap-2 rounded-md border p-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Designs</h3>
+        <SectionTitle>Designs</SectionTitle>
         {!draft && !isReadOnly && <Button type="button" size="sm" variant="outline" onClick={() => setDraft({ ...EMPTY_DESIGN })}>+ New design</Button>}
       </div>
 
-      {motifs.length === 0 && !draft && <p className="text-xs text-muted-foreground">No designs yet. Add one to apply it to garments.</p>}
+      {motifs.length === 0 && !draft && <p className="text-sm text-muted-foreground">No designs yet. Add one to apply it to garments.</p>}
 
-      <div className="flex flex-wrap gap-2">
-        {motifs.map(m => (
-          <Badge key={m.id} variant="secondary" className="gap-1">
-            {isReadOnly ? (
-              <span>{motifLabel(m)}</span>
-            ) : (
-              <>
-                <button type="button" className="cursor-pointer" title="Edit" onClick={() => setDraft(designFromRow(m))}>{motifLabel(m)}</button>
-                <button type="button" className="cursor-pointer hover:text-destructive" title="Delete" onClick={() => del.mutate({ id: m.id }, { onError: () => showError('Design could not be deleted (still applied?)') })}>×</button>
-              </>
-            )}
-          </Badge>
-        ))}
-      </div>
+      {motifs.length > 0 && (
+        <DesignsTable
+          motifs={motifs}
+          orderFiles={orderFiles}
+          isReadOnly={isReadOnly}
+          onEdit={m => setDraft(designFromRow(m))}
+          onDelete={m => del.mutate({ id: m.id }, { onError: () => showError('Design could not be deleted (still applied?)') })}
+        />
+      )}
 
       {draft && (
         <div className="flex flex-col gap-2 rounded-md border p-2">
@@ -230,44 +300,54 @@ export function TextileProducts({ job, jobStatus, orderFiles = [] }: Props) {
 
       <div>
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Garments</h3>
+          <SectionTitle>Garments</SectionTitle>
           {!productEditor.isReadOnly && <AddProductButton onClick={productEditor.openAdd} label="+ Add garment" />}
         </div>
         {productEditor.productsLoading ? (
-          <p className="text-xs text-muted-foreground">Loading garments…</p>
+          <p className="text-sm text-muted-foreground">Loading garments…</p>
         ) : productEditor.products.length === 0 ? (
-          <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 text-center">
-            <p className="text-xs text-muted-foreground">No garments yet.</p>
+          <div className="flex min-h-48 flex-col items-center justify-center gap-3 rounded-lg border border-dashed text-center">
+            <p className="text-sm text-muted-foreground">No garments yet.</p>
             {!productEditor.isReadOnly && <AddProductButton onClick={productEditor.openAdd} label="+ Add garment" />}
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-muted-foreground">
-                <th className="py-1 font-medium">Garment</th>
-                <th className="py-1 font-medium">Qty</th>
-                <th className="py-1 font-medium">Designs</th>
-                <th className="py-1" />
-              </tr>
-            </thead>
-            <tbody>
-              {productEditor.products.map(prod => (
-                <tr key={prod.id} className="border-t">
-                  <td className="py-1">{garmentSummary(prod)}</td>
-                  <td className="py-1">{prod.quantity ?? '—'}</td>
-                  <td className="py-1">{(linksByProduct[prod.id] ?? []).length}</td>
-                  <td className="py-1 text-right">
-                    <Button type="button" variant="ghost" size="icon-sm" title="Edit" aria-label="Edit" disabled={productEditor.isReadOnly} onClick={() => productEditor.openEdit(prod)}>
-                      <Pencil />
-                    </Button>
-                    <Button type="button" variant="ghost" size="icon-sm" className="ml-2" title="Delete" aria-label="Delete" disabled={productEditor.isReadOnly} onClick={() => productEditor.handleDelete(prod.id)}>
-                      <Trash2 />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-hidden rounded-lg border">
+            <Table className="desktop:text-base">
+              <TableHeader className="bg-muted/50">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className={SATELLITE_HEAD_CLASS}>Garment</TableHead>
+                  <TableHead className={SATELLITE_HEAD_CLASS}>Quantity</TableHead>
+                  <TableHead className={SATELLITE_HEAD_CLASS}>Designs</TableHead>
+                  <TableHead className={SATELLITE_HEAD_CLASS}>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {productEditor.products.map(prod => (
+                  <TableRow key={prod.id}>
+                    <TableCell className={SATELLITE_CELL_CLASS}>
+                      <span className="font-medium text-foreground">{garmentSummary(prod)}</span>
+                    </TableCell>
+                    <TableCell className={SATELLITE_CELL_CLASS}>
+                      <span className="tabular-nums">{prod.quantity ?? '—'}</span>
+                    </TableCell>
+                    <TableCell className={SATELLITE_CELL_CLASS}>
+                      <span className="tabular-nums">{(linksByProduct[prod.id] ?? []).length}</span>
+                    </TableCell>
+                    <TableCell className={SATELLITE_CELL_CLASS}>
+                      <div className="flex gap-2">
+                        <Button type="button" variant="ghost" size="icon-sm" title="Edit" aria-label="Edit" disabled={productEditor.isReadOnly} onClick={() => productEditor.openEdit(prod)}>
+                          <Pencil />
+                        </Button>
+                        <Button type="button" variant="ghost" size="icon-sm" title="Delete" aria-label="Delete" disabled={productEditor.isReadOnly} onClick={() => productEditor.handleDelete(prod.id)}>
+                          <Trash2 />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </div>
     </div>

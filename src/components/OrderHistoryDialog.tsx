@@ -58,7 +58,7 @@ function segmentText(segment: Segment): string {
 
 /**
  * One human sentence per event: "Brian moved LFP-01 to <Prepress>",
- * "Brian logged 45 min for Anna on TEX-02". The date is appended by the
+ * "Brian logged 45 min for Anna on TEX-02". The date is prefixed by the
  * renderer so it can be styled separately.
  */
 function historySegments(
@@ -197,24 +197,26 @@ type HistoryItemProps = {
 }
 
 /**
- * One history entry as a single styled sentence line: persons in the brand
- * colour, job numbers in sky, statuses as chips in their own status colour,
- * the date in teal. Every item is exactly one line high; overflow truncates
+ * One history entry as a single styled sentence line: the date first in muted
+ * gray, then the sentence — persons in the brand colour, job numbers in sky,
+ * statuses as text in their own status colour. Every item is one line high; overflow truncates
  * with the full plain-text sentence in the title tooltip.
  */
 function HistoryItem({ entry, jobLabel, staffById }: HistoryItemProps) {
   const segments = historySegments(entry, jobLabel, staffById)
   const time = formatHistoryTime(entry.created_at)
-  const plain = `${segments.map(segmentText).join('')} on ${time}${entry.reason ? ` — ${entry.reason}` : ''}`
+  const plain = `${time} — ${segments.map(segmentText).join('')}${entry.reason ? ` — ${entry.reason}` : ''}`
 
   return (
     <li className="py-1.5 text-sm">
       <p className="truncate" title={plain}>
+        <span className="text-muted-foreground">{time}</span>
+        <span className="text-muted-foreground"> — </span>
         {segments.map((segment, i) => {
           if (typeof segment === 'string') return <span key={i}>{segment}</span>
           if (segment.kind === 'person')
             return (
-              <span key={i} className="font-medium text-primary">
+              <span key={i} className="font-medium text-pink-800">
                 {segment.text}
               </span>
             )
@@ -226,24 +228,16 @@ function HistoryItem({ entry, jobLabel, staffById }: HistoryItemProps) {
             )
           if (segment.kind === 'duration')
             return (
-              <span key={i} className="font-medium text-teal-600 dark:text-teal-400">
+              <span key={i} className="font-medium text-primary">
                 {segment.text}
               </span>
             )
           return (
-            <span
-              key={i}
-              className={cn(
-                'inline-block rounded-sm px-1.5 text-xs font-medium leading-5 text-white align-text-bottom',
-                segment.meta.color,
-              )}
-            >
+            <span key={i} className={cn('font-medium', segment.meta.textColor)}>
               {segment.meta.label}
             </span>
           )
         })}
-        <span className="text-muted-foreground"> on </span>
-        <span className="font-medium text-teal-600 dark:text-teal-400">{time}</span>
         {entry.reason && <span className="text-muted-foreground"> — {entry.reason}</span>}
       </p>
     </li>

@@ -5,6 +5,7 @@ import type { JobStatus, JobRow } from '../../../types/database'
 import type { FileRow } from '../../../services/fileService'
 import { COPY_SHOP_TYPES, COPY_SHOP_TYPE_LABELS } from '../../../types/copyshop'
 import { AddProductButton } from '../AddProductButton'
+import { SectionTitle } from '../../ui/section-title'
 import { useProductEditor } from '../useProductEditor'
 import { ProductDialog, type ProductTypeOption } from '../ProductDialog'
 import { CopyShopProductsTable } from '../ProductTable'
@@ -54,7 +55,7 @@ export function CopyShopProducts({ job, jobStatus, orderFiles = [] }: Props) {
 
       <div>
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Products</h3>
+          <SectionTitle>Products</SectionTitle>
           {!productEditor.isReadOnly && <AddProductButton onClick={productEditor.openAdd} />}
         </div>
         {productEditor.productsLoading ? (
