@@ -22,11 +22,12 @@ import { useOrderParams } from '../hooks/useOrderParams'
 import { orderKeys, useArchiveOrder, useArchiveOrderWithCancelledJobs, useMarkOrderBilled, useOrderById, useSetOrderStatus, useUpdateOrder } from '../queries/orderQueries'
 import { jobKeys, useJobsByOrderId } from '../queries/jobQueries'
 import { useTimeLogMinutesByOrderId } from '../queries/timeLogQueries'
+import { useIsAdmin } from '../queries/userQueries'
 import './WorkArea.css'
 import { Button } from './ui/button'
 import { cn } from '@/lib/utils'
 import { ORDER_STATUS_META } from '../const/orderStatus'
-import { Archive, Ban, Clock, Copy, History, Settings } from 'lucide-react'
+import { Archive, Ban, CheckCircle2, Clock, Copy, History, Settings, ShieldCheck, TriangleAlert } from 'lucide-react'
 import { OrderHistoryDialog } from './OrderHistoryDialog'
 import { Separator } from './ui/separator'
 import { DeadlinePicker } from './fields/DeadlinePicker'
@@ -327,6 +328,7 @@ export function OrderDetails({
     <main className="flex flex-col gap-2 p-3 flex-1 min-h-0">
       <OrderHeader
         order={order}
+        hasJobs={visibleJobs.length > 0}
         allJobsDone={
           visibleJobs.length > 0 &&
           visibleJobs.every(job => job.status === 'DONE')
@@ -379,6 +381,8 @@ export function OrderDetails({
 
 type OrderHeaderProps = {
   order: OrderDetailRow
+  /** True when the order has ≥1 non-cancelled job. */
+  hasJobs: boolean
   /** True when the order has ≥1 non-cancelled job and every one of them is DONE. */
   allJobsDone: boolean
   onEditCustomer: () => void
@@ -393,7 +397,7 @@ type OrderHeaderProps = {
   statusPending: boolean
 }
 
-function OrderHeader({ order, allJobsDone, onEditCustomer, onArchive, onCancelOrder, onStartProcessing, onMarkFinished, onMarkInvoiced, onReopenOrder, archivePending, cancelPending, statusPending }: OrderHeaderProps) {
+function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, onCancelOrder, onStartProcessing, onMarkFinished, onMarkInvoiced, onReopenOrder, archivePending, cancelPending, statusPending }: OrderHeaderProps) {
   const customerDisplayName = order.customers?.name?.trim() || '—'
   const customerEmail = order.customers?.email?.trim() || ''
   const customerPhone = order.customers?.phone?.trim() || ''
@@ -412,6 +416,7 @@ function OrderHeader({ order, allJobsDone, onEditCustomer, onArchive, onCancelOr
   const minutesQuery = useTimeLogMinutesByOrderId(order.id)
   const totalMinutes = Object.values(minutesQuery.data ?? {}).reduce((sum, m) => sum + m, 0)
   const [historyOpen, setHistoryOpen] = useState(false)
+  const { isAdmin } = useIsAdmin()
 
   return (
     <header className="flex flex-col">
@@ -432,14 +437,29 @@ function OrderHeader({ order, allJobsDone, onEditCustomer, onArchive, onCancelOr
           )}
         </div>
         <div className="flex items-center gap-1">
-          {order.status === 'FINISHED' && (
+          {order.status === 'QUOTE' && hasJobs && (
+            <span className="mr-2 flex items-center gap-2 text-lg font-medium text-amber-500">
+              <TriangleAlert size={16} className="shrink-0" />
+              Jobs cannot move to pre-press until you start processing the order.
+            </span>
+          )}
+          {(order.status === 'FINISHED' || order.status === 'BILLED') && (
+            <span className="mr-2 flex items-center gap-2 text-lg font-medium text-green-500">
+              <CheckCircle2 size={16} className="shrink-0" />
+              This order is done and can no longer be modified.
+            </span>
+          )}
+          {isAdmin && order.status === 'FINISHED' && (
             <Button
               type="button"
               variant="ghost"
               size="lg"
+              className="text-blue-500 hover:text-blue-500"
+              title="Admin-only action"
               disabled={statusPending}
               onClick={onReopenOrder}
             >
+              <ShieldCheck className="shrink-0" />
               Reopen order
             </Button>
           )}
