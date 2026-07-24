@@ -5,6 +5,7 @@ import type { LucideIcon } from 'lucide-react'
 import { ClipboardList, Shirt, Stamp, Users } from 'lucide-react'
 import { authService } from '../services/authService'
 import { useIsAdmin, useIsSuperAdmin } from '../queries/userQueries'
+import { NavbarUserMenu } from './NavbarUserMenu'
 import { cn } from '@/lib/utils'
 
 type NavItem = {
@@ -81,9 +82,15 @@ export function AppNavbar() {
   if (!session) return null
 
   return (
-    <nav className="flex shrink-0 items-center justify-center gap-1 border-b border-neutral-200 bg-neutral-50 px-3 py-1.5 font-sans">
-      <NavbarLink item={ORDERS_ITEM} />
-      <RoleGatedLinks />
+    <nav className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b border-neutral-200 bg-neutral-50 px-3 py-1.5 font-sans">
+      <div className="flex justify-start">
+        <NavbarUserMenu />
+      </div>
+      <div className="flex items-center justify-center gap-1">
+        <NavbarLink item={ORDERS_ITEM} />
+        <RoleGatedLinks />
+      </div>
+      <div aria-hidden />
     </nav>
   )
 }

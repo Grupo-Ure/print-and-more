@@ -3,6 +3,7 @@ import { OrderWorkspace } from './pages/OrderWorkspace'
 import { StampStockPage } from './pages/StampStockPage'
 import { TextileStockPage } from './pages/TextileStockPage'
 import { UserManagementPage } from './pages/UserManagementPage'
+import { ProfilePage } from './pages/ProfilePage'
 import { ToastContainer, ToastProvider } from './components/Toast'
 import { ConfirmProvider } from './components/ConfirmDialog'
 import { AppNavbar } from './components/AppNavbar'
@@ -20,6 +21,7 @@ function App() {
               <Route path="/stamp-stock" element={<StampStockPage />} />
               <Route path="/textile-stock" element={<TextileStockPage />} />
               <Route path="/user-management" element={<UserManagementPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
             </Routes>
           </div>
         </div>

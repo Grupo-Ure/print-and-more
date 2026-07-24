@@ -13,6 +13,7 @@ import {
   useUsers,
 } from '../queries/userQueries'
 import type { UserRow } from '../services/userService'
+import { ROLE_LABELS } from '../lib/roleLabels'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,12 +33,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-
-const ROLE_LABELS: Record<UserRow['role'], string> = {
-  EMPLOYEE: 'Employee',
-  ADMIN: 'Admin',
-  SUPER_ADMIN: 'Super admin',
-}
 
 type ManagedRole = 'EMPLOYEE' | 'ADMIN'
 
