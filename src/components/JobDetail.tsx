@@ -114,7 +114,7 @@ export function JobDetail({
 
   return (
     <div className="flex flex-col gap-4">
-      <JobProductionBanner job={job} orderIsQuote={orderIsQuote} />
+      <JobProductionBanner job={job} />
       <div aria-label="Job" className="flex flex-col gap-2">
         <div className="flex items-center gap-6">
           <h1 className="flex items-baseline gap-2">
