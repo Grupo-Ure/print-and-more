@@ -149,6 +149,9 @@ export function TextileStockPage() {
     const { subscription } = authService.onAuthStateChange((_event, newSession) => {
       if (!alive) return
       setSession(newSession)
+      // getSession() can stall on supabase's auth lock; the listener always
+      // fires INITIAL_SESSION on subscribe, so it also resolves loading.
+      setLoading(false)
     })
     return () => {
       alive = false

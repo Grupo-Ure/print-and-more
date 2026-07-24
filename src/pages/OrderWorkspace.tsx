@@ -29,8 +29,12 @@ export function OrderWorkspace() {
         setLoading(false)
       })
       .catch(() => setLoading(false))
+    // Also resolves loading: getSession() can stall on supabase's auth lock
+    // (orphaned by StrictMode double-mounts), while the listener always fires
+    // INITIAL_SESSION on subscribe.
     const { subscription } = authService.onAuthStateChange((_event, session) => {
       setSession(session)
+      setLoading(false)
     })
     return () => subscription.unsubscribe()
   }, [])
