@@ -26,7 +26,7 @@ function SectionHeader({
   return (
     <div
       data-slot="section-header"
-      className={cn("flex items-center justify-between", className)}
+      className={cn("flex items-center justify-between mb-4", className)}
       {...props}
     >
       <SectionTitle>{title}</SectionTitle>
