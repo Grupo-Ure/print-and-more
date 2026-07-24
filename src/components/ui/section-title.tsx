@@ -16,4 +16,23 @@ function SectionTitle({ className, ...props }: React.ComponentProps<"h3">) {
   )
 }
 
-export { SectionTitle }
+/** Section header row: title on the left, optional actions (children) on the right. */
+function SectionHeader({
+  title,
+  className,
+  children,
+  ...props
+}: React.ComponentProps<"div"> & { title: React.ReactNode }) {
+  return (
+    <div
+      data-slot="section-header"
+      className={cn("flex items-center justify-between", className)}
+      {...props}
+    >
+      <SectionTitle>{title}</SectionTitle>
+      {children}
+    </div>
+  )
+}
+
+export { SectionTitle, SectionHeader }

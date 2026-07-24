@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/table'
 import { useProductEditor } from '../useProductEditor'
 import { AddProductButton } from '../AddProductButton'
-import { SectionTitle } from '../../ui/section-title'
+import { SectionHeader } from '../../ui/section-title'
 import { TextileProductDialog } from '../TextileProductDialog'
 import { motifLabel } from '../forms/textileTypes'
 
@@ -184,10 +184,9 @@ function DesignsDrawer({
 
   return (
     <div className="flex flex-col gap-2 rounded-md border p-3">
-      <div className="flex items-center justify-between">
-        <SectionTitle>Designs</SectionTitle>
+      <SectionHeader title="Designs">
         {!draft && !isReadOnly && <Button type="button" size="sm" variant="outline" onClick={() => setDraft({ ...EMPTY_DESIGN })}>+ New design</Button>}
-      </div>
+      </SectionHeader>
 
       {motifs.length === 0 && !draft && <p className="text-sm text-muted-foreground">No designs yet. Add one to apply it to garments.</p>}
 
@@ -299,10 +298,9 @@ export function TextileProducts({ job, jobStatus, orderFiles = [] }: Props) {
       )}
 
       <div>
-        <div className="flex items-center justify-between">
-          <SectionTitle>Garments</SectionTitle>
+        <SectionHeader title="Garments">
           {!productEditor.isReadOnly && <AddProductButton onClick={productEditor.openAdd} label="+ Add garment" />}
-        </div>
+        </SectionHeader>
         {productEditor.productsLoading ? (
           <p className="text-sm text-muted-foreground">Loading garments…</p>
         ) : productEditor.products.length === 0 ? (

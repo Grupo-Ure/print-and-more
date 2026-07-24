@@ -3,7 +3,7 @@
 import type { JobStatus, JobRow } from '../../../types/database'
 import type { FileRow } from '../../../services/fileService'
 import { AddProductButton } from '../AddProductButton'
-import { SectionTitle } from '../../ui/section-title'
+import { SectionHeader } from '../../ui/section-title'
 import { useProductEditor } from '../useProductEditor'
 import { OtherProductDialog } from '../OtherProductDialog'
 import { OtherProductsTable } from '../ProductTable'
@@ -30,10 +30,9 @@ export function OtherProducts({ job, jobStatus, orderFiles = [] }: Props) {
       )}
 
       <div className="flex flex-col gap-6">
-        <div className="flex items-center justify-between">
-          <SectionTitle>Products</SectionTitle>
+        <SectionHeader title="Products">
           {!productEditor.isReadOnly && <AddProductButton onClick={productEditor.openAdd} />}
-        </div>
+        </SectionHeader>
         {productEditor.productsLoading ? (
           <p className="text-xs text-muted-foreground">Loading products…</p>
         ) : (
