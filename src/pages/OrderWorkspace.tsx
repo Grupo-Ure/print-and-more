@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react'
-import { Link } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { authService } from '../services/authService'
-import { useIsAdmin } from '../queries/userQueries'
 import { Login } from '../components/Login'
 import { OrderSidebar } from '../components/OrderSidebar'
 import { OrderDetails } from '../components/OrderDetails'
-import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { OrderWorkspaceProvider } from '../context/order.context'
 import { useOrderParams } from '../hooks/useOrderParams'
@@ -44,16 +42,6 @@ export function OrderWorkspace() {
     <OrderWorkspaceProvider>
       <WorkspaceShell />
     </OrderWorkspaceProvider>
-  )
-}
-
-function AdminNav() {
-  const { isAdmin } = useIsAdmin()
-  if (!isAdmin) return null
-  return (
-    <Link to="/user-management" className="ml-auto text-xs text-neutral-500 underline hover:text-neutral-800">
-      User management
-    </Link>
   )
 }
 
@@ -135,15 +123,11 @@ function WorkspaceShell() {
     <SidebarProvider
       defaultOpen
       style={{ '--sidebar-width': isCompact ? '15rem' : '17.5rem' } as CSSProperties}
-      className="font-sans text-sm"
+      className="h-full min-h-0 font-sans text-sm"
     >
       <OrderSidebar orderInPlace={orderInPlace} />
 
-      <SidebarInset className="flex flex-col h-screen overflow-hidden">
-        <div className="flex items-center gap-2 border-b border-neutral-200 px-3 py-1.5">
-          <SidebarTrigger />
-          <AdminNav />
-        </div>
+      <SidebarInset className="flex flex-col h-full overflow-hidden">
         <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
           <OrderDetails
             contextRefreshTick={contextRefreshTick}

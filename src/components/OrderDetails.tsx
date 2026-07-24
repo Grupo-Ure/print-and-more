@@ -17,6 +17,7 @@ import { useConfirm } from './ConfirmDialog'
 import type { FileRow } from '../services/fileService'
 import { JobDetail } from './JobDetail'
 import { JobList } from './JobList'
+import { AddJobButton } from './AddJobButton'
 import { useOrderWorkspace } from '../context/order.context'
 import { useOrderParams } from '../hooks/useOrderParams'
 import { orderKeys, useArchiveOrder, useArchiveOrderWithCancelledJobs, useMarkOrderBilled, useOrderById, useSetOrderStatus, useUpdateOrder } from '../queries/orderQueries'
@@ -363,14 +364,17 @@ export function OrderDetails({
 
         <Separator  orientation='vertical'/>
 
-        <div className="flex-1 min-w-0 min-h-0h overflow-y-auto" role="tabpanel">
+        <div className="flex-1 min-w-0 overflow-y-auto" role="tabpanel">
           {activeJob ? (
             <JobDetail
               orderFiles={files}
               onUpdated={handleJobUpdated}
             />
           ) : (
-            <p className="text-sm text-muted-foreground">No jobs yet. Use + to add a department.</p>
+            <div className="flex h-full flex-col items-center justify-center gap-2">
+              <p className="text-sm text-muted-foreground">No jobs yet.</p>
+              <AddJobButton />
+            </div>
           )}
         </div>
       </div>

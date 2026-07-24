@@ -1,23 +1,13 @@
-import { useState } from 'react'
-import { AlertTriangle, Plus } from 'lucide-react'
-import { jobDepartmentLabel } from '../const/departmentAbbreviation'
+import { AlertTriangle } from 'lucide-react'
 import { formatMinutes } from '../lib/formatMinutes'
 import { isInProductionMissingInfo, shortJobNumber } from '../lib/jobShared'
-import { DEPARTMENTS, type Department, type JobStatus } from '../types/database'
+import { type JobStatus } from '../types/database'
 import { useOrderParams } from '../hooks/useOrderParams'
-import { useJobsByOrderId, useCreateJob } from '../queries/jobQueries'
+import { useJobsByOrderId } from '../queries/jobQueries'
 import { useOrderById } from '../queries/orderQueries'
 import { useProductCountsByOrderId } from '../queries/productQueries'
 import { useTimeLogMinutesByOrderId } from '../queries/timeLogQueries'
-import { useToast } from './Toast'
-import { Button } from './ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from './ui/dialog'
+import { AddJobButton } from './AddJobButton'
 import { cn } from '@/lib/utils'
 import { JOB_STATUS_META, WORKFLOW_STATUSES } from '../const/orderStatus'
 
@@ -41,20 +31,19 @@ export function JobList() {
   const orderQuery = useOrderById(activeOrderId)
   const productCountsQuery = useProductCountsByOrderId(activeOrderId)
   const minutesQuery = useTimeLogMinutesByOrderId(activeOrderId)
-  const [dialogOpen, setDialogOpen] = useState(false)
 
   const visibleJobs = (jobsQuery.data ?? []).filter(job => !job.is_cancelled)
   const order = orderQuery.data
   const productCounts = productCountsQuery.data
   const minutesByJob = minutesQuery.data
-  // A finished/billed order is closed for new work — reopen it to add jobs.
-  const jobsLocked = order?.status === 'FINISHED' || order?.status === 'BILLED'
 
   return (
-    <>
-      <nav className="flex flex-col gap-1 w-48 desktop:w-60 shrink-0">
+    <nav className="flex flex-col gap-1 w-48 desktop:w-60 shrink-0">
         <h1>Jobs in this order</h1>
-        {!jobsLocked && <AddJobButton onClick={() => setDialogOpen(true)} />}
+        <AddJobButton />
+        {visibleJobs.length === 0 && !jobsQuery.isLoading && (
+          <p className="p-2 text-sm text-muted-foreground">No jobs yet.</p>
+        )}
         <ul className="flex flex-col flex-1 min-w-0 min-h-0 overflow-y-auto" aria-label="Jobs">
           {visibleJobs.map(job => (
             <li
@@ -92,78 +81,6 @@ export function JobList() {
             </li>
           ))}
         </ul>
-      </nav>
-      <AddJobDialog open={dialogOpen} onOpenChange={setDialogOpen} />
-    </>
+    </nav>
   )
 }
-
-type AddJobDialogProps = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}
-
-function AddJobDialog({ open, onOpenChange }: AddJobDialogProps) {
-  const { activeOrderId, setActiveJob } = useOrderParams()
-  const { showError } = useToast()
-  const createJob = useCreateJob()
-
-  const handleDepartmentSelected = (department: Department) => {
-    if (!activeOrderId || createJob.isPending) return
-
-    createJob.mutate(
-      {
-        order_id: activeOrderId,
-        department,
-        status: 'IN_SETUP',
-        priority: null,
-        detail: {},
-        deadline: null,
-        delivery: null,
-        assignee_id: null,
-        is_cancelled: false,
-        customer_approval_required: false,
-        customer_approval_granted: false,
-        customer_approval_file_id: null,
-      },
-      {
-        onSuccess: created => {
-          setActiveJob(created.id)
-          onOpenChange(false)
-        },
-        onError: () => showError('Error creating job'),
-      },
-    )
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={next => !createJob.isPending && onOpenChange(next)}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>New Job</DialogTitle>
-          <DialogDescription>Select a department:</DialogDescription>
-        </DialogHeader>
-        <div className="grid grid-cols-2 gap-2">
-          {DEPARTMENTS.map(department => (
-            <Button
-              key={department}
-              type="button"
-              variant="outline"
-              disabled={createJob.isPending}
-              onClick={() => handleDepartmentSelected(department)}
-            >
-              {jobDepartmentLabel(department)}
-            </Button>
-          ))}
-        </div>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-const AddJobButton = ({ onClick }: { onClick: () => void }) => (
-  <Button type="button" variant="ghost" onClick={onClick}>
-    <Plus className="mr-2 h-4 w-4" />
-    Add Job
-  </Button>
-)

@@ -4,6 +4,8 @@ import { authService } from '../services/authService'
 import { jobService } from '../services/jobService'
 import { textileMasterDataService, type BrandRow, type VariantWithDetails } from '../services/textileMasterDataService'
 import { Login } from '../components/Login'
+import { AccessDenied } from '../components/AccessDenied'
+import { useIsAdmin } from '../queries/userQueries'
 import { useToast } from '../components/Toast'
 import type { Database } from '../types/supabase'
 
@@ -129,7 +131,8 @@ type ReorderRow = VariantRow & { offene_menge: number; bestellmenge: number }
 export function TextileStockPage() {
   const { showError, showSuccess } = useToast()
   const [session, setSession] = useState<Session | null>(null)
-  const [loading,setLoading] = useState(true)
+  const [loading, setLoading] = useState(true)
+  const { isAdmin, isLoading: roleLoading } = useIsAdmin()
   const [tab, setTab] = useState<Tab>('PRODUCTS')
 
   useEffect(() => {
@@ -886,6 +889,8 @@ export function TextileStockPage() {
 
   if (loading) return null
   if (!session) return <Login />
+  if (roleLoading) return null
+  if (!isAdmin) return <AccessDenied description="Stock management requires an admin account." />
 
   const inVariantView = Boolean(productIdForVariants)
   const inProductView = Boolean(brandIdForProducts) && !inVariantView

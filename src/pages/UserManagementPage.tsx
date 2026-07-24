@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { authService } from '../services/authService'
 import { Login } from '../components/Login'
+import { AccessDenied } from '../components/AccessDenied'
 import { useToast } from '../components/Toast'
 import { useConfirm } from '../components/ConfirmDialog'
 import {
@@ -82,20 +82,10 @@ export function UserManagementPage() {
   if (!session) return <Login />
   if (currentUserLoading) return null
 
-  const callerRole = currentUser?.role
-  const isSuperAdmin = callerRole === 'SUPER_ADMIN'
-  const isAdmin = callerRole === 'ADMIN' || isSuperAdmin
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN'
 
-  if (!isAdmin) {
-    return (
-      <div className="flex h-screen flex-col items-center justify-center gap-3 font-sans">
-        <h1 className="text-lg font-semibold">Access denied</h1>
-        <p className="text-sm text-neutral-500">User management requires an admin account.</p>
-        <Link to="/" className="text-sm underline">
-          Back to orders
-        </Link>
-      </div>
-    )
+  if (!isSuperAdmin) {
+    return <AccessDenied description="User management requires a super admin account." />
   }
 
   // UX gating only — the DB triggers and the Edge Function enforce the matrix.
@@ -142,13 +132,8 @@ export function UserManagementPage() {
   }
 
   return (
-    <div className="mx-auto flex h-screen max-w-4xl flex-col gap-6 overflow-y-auto p-6 font-sans text-sm">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">User management</h1>
-        <Link to="/" className="text-sm underline">
-          Back to orders
-        </Link>
-      </div>
+    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6 font-sans text-sm">
+      <h1 className="text-lg font-semibold">User management</h1>
 
       <section className="rounded-md border border-neutral-200">
         <Table>

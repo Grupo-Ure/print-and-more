@@ -5,6 +5,8 @@ import { userService } from '../services/userService'
 import { jobService } from '../services/jobService'
 import { stampService } from '../services/stampService'
 import { Login } from '../components/Login'
+import { AccessDenied } from '../components/AccessDenied'
+import { useIsAdmin } from '../queries/userQueries'
 import { useToast } from '../components/Toast'
 import { jobDetailToFieldMap } from '../lib/utils'
 import type { Json } from '../types/supabase'
@@ -192,6 +194,7 @@ export function StampStockPage() {
   const { showError } = useToast()
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const { isAdmin, isLoading: roleLoading } = useIsAdmin()
 
   useEffect(() => {
     let alive = true
@@ -553,6 +556,8 @@ export function StampStockPage() {
 
   if (loading) return null
   if (!session) return <Login />
+  if (roleLoading) return null
+  if (!isAdmin) return <AccessDenied description="Stamp stock management requires an admin account." />
 
   return (
     <div style={{ padding: 20, maxWidth: 1200, margin: '0 auto' }}>
