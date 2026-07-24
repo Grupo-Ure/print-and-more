@@ -4,7 +4,6 @@ import {
   fetchOrderById,
   invalidateOrderListsIfCustomerReferenced,
   orderKeys,
-  patchOrderStatusInCache,
   useDeleteOrder,
   useOrdersList,
   type OrdersListFilter,
@@ -13,7 +12,6 @@ import { fetchJobsByOrderId } from '../queries/jobQueries'
 import { orderService } from '../services/orderService'
 import {
   type Auftrag,
-  type OrderStatus,
   type JobRow,
 } from '../types/database'
 import { Search, SlidersHorizontal } from 'lucide-react'
@@ -32,12 +30,6 @@ import { OrderSidebarFilters } from './orderSidebar/OrderSidebarFilters'
 import { OrderSidebarBody } from './orderSidebar/OrderSidebarBody'
 import { useOrderSidebarFilter } from './orderSidebar/useOrderSidebarFilter'
 
-type OrderInPlace = { tick: number; id: string; status: OrderStatus }
-
-type Props = {
-  orderInPlace: OrderInPlace
-}
-
 /** Dot on a header icon button signalling a hidden-but-active state. */
 function ActiveDot() {
   return (
@@ -45,7 +37,7 @@ function ActiveDot() {
   )
 }
 
-export function OrderSidebar({ orderInPlace }: Props) {
+export function OrderSidebar() {
   const { activeOrderId, setActiveOrder } = useOrderParams()
   const { filter, isActive: filterActive, selectedStatuses, hasStatusFilter, actions } = useOrderSidebarFilter()
   const [searchOpen, setSearchOpen] = useState(false)
@@ -76,11 +68,6 @@ export function OrderSidebar({ orderInPlace }: Props) {
   useEffect(() => {
     if (ordersQuery.isError) showError('Orders could not be loaded')
   }, [ordersQuery.isError, showError])
-
-  useEffect(() => {
-    if (orderInPlace.tick === 0) return
-    patchOrderStatusInCache(queryClient, orderInPlace.id, orderInPlace.status)
-  }, [orderInPlace, queryClient])
 
   useEffect(() => {
     return orderService.subscribeToCustomerChanges(customerId => {

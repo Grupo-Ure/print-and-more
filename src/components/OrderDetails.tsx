@@ -4,8 +4,6 @@ import { fileService } from '../services/fileService'
 import { toDateOnly } from '../lib/formatDate'
 import { formatMinutes } from '../lib/formatMinutes'
 import {
-  type Auftrag,
-  type Customer,
   type DeliveryChoice,
   type OrderDetailRow,
   type OrderHeaderPatch,
@@ -37,21 +35,7 @@ import { DeliverySelect } from './fields/DeliverySelect'
 import { PaymentSelect } from './fields/PaymentSelect'
 import { PrioritySelect } from './fields/PrioritySelect'
 
-type Props = {
-  contextRefreshTick: number
-  onActiveJobChanged: (t: JobRow | null) => void
-  onOrderCustomerLoaded: (k: Customer | null) => void
-  onOrderFromWorkArea: (a: Auftrag | null) => void
-  onOrderFilesChanged: (d: FileRow[]) => void
-}
-
-export function OrderDetails({
-  contextRefreshTick,
-  onActiveJobChanged,
-  onOrderCustomerLoaded,
-  onOrderFromWorkArea,
-  onOrderFilesChanged,
-}: Props) {
+export function OrderDetails() {
   const { openCustomerDialog } = useOrderWorkspace()
   const { activeOrderId, activeJobId, setActiveJob, clearActive } = useOrderParams()
   const queryClient = useQueryClient()
@@ -85,24 +69,11 @@ export function OrderDetails({
       return
     }
     void reloadFiles()
-  }, [activeOrderId, contextRefreshTick, reloadFiles])
+  }, [activeOrderId, reloadFiles])
 
   useEffect(() => {
     if (isError) showError('Order could not be loaded')
   }, [isError, showError])
-
-  // ContextPanel still mutates jobs via services and signals through contextRefreshTick.
-  // Re-sync the query caches it doesn't write to, skipping the initial mount.
-  const didMountRef = useRef(false)
-  useEffect(() => {
-    if (!didMountRef.current) {
-      didMountRef.current = true
-      return
-    }
-    if (!activeOrderId) return
-    void queryClient.invalidateQueries({ queryKey: orderKeys.byId(activeOrderId) })
-    void queryClient.invalidateQueries({ queryKey: jobKeys.byOrderId(activeOrderId) })
-  }, [contextRefreshTick, activeOrderId, queryClient])
 
   const visibleJobs = useMemo(
     () => jobs.filter(job => !job.is_cancelled),
@@ -281,35 +252,9 @@ export function OrderDetails({
           old => old?.map(job => (job.id === updatedJob.id ? updatedJob : job)) ?? old,
         )
       }
-      onActiveJobChanged(updatedJob)
     },
-    [activeOrderId, queryClient, onActiveJobChanged]
+    [activeOrderId, queryClient]
   )
-
-  useEffect(() => {
-    if (activeOrderId == null) {
-      onOrderFromWorkArea(null)
-      onOrderCustomerLoaded(null)
-      onActiveJobChanged(null)
-      onOrderFilesChanged([])
-      return
-    }
-    if (loading || !order || order.id !== activeOrderId) return
-    onOrderFromWorkArea(order)
-    onOrderCustomerLoaded(order.customers)
-    onActiveJobChanged(activeJob)
-    onOrderFilesChanged(files)
-  }, [
-    activeOrderId,
-    loading,
-    order,
-    files,
-    activeJob,
-    onOrderFromWorkArea,
-    onOrderCustomerLoaded,
-    onActiveJobChanged,
-    onOrderFilesChanged,
-  ])
 
   if (!activeOrderId) {
     return (
