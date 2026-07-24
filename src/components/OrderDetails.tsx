@@ -9,6 +9,7 @@ import {
   type DeliveryChoice,
   type OrderDetailRow,
   type OrderHeaderPatch,
+  type PaymentMethod,
   type Priority,
   type JobRow,
 } from '../types/database'
@@ -33,6 +34,7 @@ import { OrderHistoryDialog } from './OrderHistoryDialog'
 import { Separator } from './ui/separator'
 import { DeadlinePicker } from './fields/DeadlinePicker'
 import { DeliverySelect } from './fields/DeliverySelect'
+import { PaymentSelect } from './fields/PaymentSelect'
 import { PrioritySelect } from './fields/PrioritySelect'
 
 type Props = {
@@ -148,6 +150,23 @@ export function OrderDetails({
 
   const handleMarkFinished = async () => {
     if (!order || order.status !== 'IN_PROGRESS') return
+    // Cash orders are settled at the counter — they skip FINISHED (no invoice
+    // step) and close terminally (BILLED + archived) in this single action.
+    if (order.payment_method === 'CASH') {
+      const confirmed = await confirm({
+        title: 'Finish and close this cash order?',
+        description: 'Paid in cash — no invoice step. The order will be archived and hidden from the order list.',
+        confirmLabel: 'Finish & close',
+      })
+      if (!confirmed) return
+      try {
+        await markBilled.mutateAsync({ id: order.id, paidCash: true })
+        clearActive()
+      } catch {
+        showError('Order could not be closed')
+      }
+      return
+    }
     const confirmed = await confirm({
       title: 'Mark this order as finished?',
       confirmLabel: 'Mark finished',
@@ -469,6 +488,7 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
           )}
           <OrderLifecycleButton
             status={order.status}
+            paymentMethod={order.payment_method}
             allJobsDone={allJobsDone}
             pending={statusPending}
             onStartProcessing={onStartProcessing}
@@ -569,6 +589,7 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
 
 type OrderLifecycleButtonProps = {
   status: OrderDetailRow['status']
+  paymentMethod: OrderDetailRow['payment_method']
   allJobsDone: boolean
   pending: boolean
   onStartProcessing: () => void
@@ -580,6 +601,8 @@ type OrderLifecycleButtonProps = {
  * The single forward action of the order lifecycle: QUOTE → "Start processing",
  * IN_PROGRESS → "Mark finished", FINISHED → "Mark as invoiced". The latter two
  * require every non-cancelled job to be DONE; otherwise no button renders.
+ * Cash orders skip FINISHED: their IN_PROGRESS action is "Finish & close",
+ * which goes straight to BILLED (handled inside onMarkFinished).
  */
 type LifecycleAction = {
   label: string
@@ -588,7 +611,7 @@ type LifecycleAction = {
   attention: boolean
 }
 
-function OrderLifecycleButton({ status, allJobsDone, pending, onStartProcessing, onMarkFinished, onMarkInvoiced }: OrderLifecycleButtonProps) {
+function OrderLifecycleButton({ status, paymentMethod, allJobsDone, pending, onStartProcessing, onMarkFinished, onMarkInvoiced }: OrderLifecycleButtonProps) {
   let action: LifecycleAction | null = null
   switch (status) {
     case 'QUOTE':
@@ -596,7 +619,10 @@ function OrderLifecycleButton({ status, allJobsDone, pending, onStartProcessing,
       break
     case 'IN_PROGRESS':
       if (allJobsDone) {
-        action = { label: 'Mark finished', target: 'FINISHED', onClick: onMarkFinished, attention: false }
+        action =
+          paymentMethod === 'CASH'
+            ? { label: 'Finish & close (cash)', target: 'BILLED', onClick: onMarkFinished, attention: false }
+            : { label: 'Mark finished', target: 'FINISHED', onClick: onMarkFinished, attention: false }
       }
       break
     case 'FINISHED':
@@ -637,11 +663,13 @@ function OrderSettings({ order, onSave }: OrderSettingsProps) {
   const [headerDeadline, setHeaderDeadline] = useState('')
   const [headerDelivery, setHeaderDelivery] = useState<DeliveryChoice>('PICKUP')
   const [headerPriority, setHeaderPriority] = useState<Priority>('NORMAL')
+  const [headerPayment, setHeaderPayment] = useState<PaymentMethod>('INVOICE')
   const headerSnapshot = useRef<{
     deadline: string | null
     delivery: DeliveryChoice | null
     priority: Priority
-  }>({ deadline: null, delivery: null, priority: 'NORMAL' })
+    payment_method: PaymentMethod
+  }>({ deadline: null, delivery: null, priority: 'NORMAL', payment_method: 'INVOICE' })
 
   useEffect(() => {
     const rawDeadline = order.deadline
@@ -650,10 +678,12 @@ function OrderSettings({ order, onSave }: OrderSettingsProps) {
     setHeaderDeadline(isoDate)
     setHeaderDelivery(order.delivery ?? 'PICKUP')
     setHeaderPriority(order.priority)
+    setHeaderPayment(order.payment_method)
     headerSnapshot.current = {
       deadline: rawDeadline,
       delivery: order.delivery,
       priority: order.priority,
+      payment_method: order.payment_method,
     }
   }, [order])
 
@@ -685,6 +715,15 @@ function OrderSettings({ order, onSave }: OrderSettingsProps) {
           setHeaderPriority(value)
           if (value !== headerSnapshot.current.priority) {
             onSave({ priority: value })
+          }
+        }}
+      />
+      <PaymentSelect
+        value={headerPayment}
+        onChange={value => {
+          setHeaderPayment(value)
+          if (value !== headerSnapshot.current.payment_method) {
+            onSave({ payment_method: value })
           }
         }}
       />

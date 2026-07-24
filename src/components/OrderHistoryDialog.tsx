@@ -127,6 +127,8 @@ function historySegments(
       return [actor, ' reopened the order']
     case 'ORDER_BILLED':
       return [actor, ' marked the order as ', { kind: 'status', meta: ORDER_STATUS_META.BILLED }]
+    case 'ORDER_CLOSED_CASH':
+      return [actor, ' finished and closed the order as ', { kind: 'status', meta: ORDER_STATUS_META.BILLED }, ' (paid in cash)']
     case 'EMERGENCY_TRIGGERED':
       return [actor, ' force-released ', job, ' to ', { kind: 'status', meta: JOB_STATUS_META.IN_PRODUCTION }]
     case 'CUSTOMER_APPROVAL_ACTIVATED':

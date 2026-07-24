@@ -1121,6 +1121,7 @@ export type Database = {
           is_archived: boolean
           is_erp_exported: boolean
           order_number: string
+          payment_method: Database["public"]["Enums"]["payment_method"]
           priority: Database["public"]["Enums"]["priority_type"]
           status: Database["public"]["Enums"]["order_status"]
         }
@@ -1135,6 +1136,7 @@ export type Database = {
           is_archived?: boolean
           is_erp_exported?: boolean
           order_number: string
+          payment_method?: Database["public"]["Enums"]["payment_method"]
           priority?: Database["public"]["Enums"]["priority_type"]
           status?: Database["public"]["Enums"]["order_status"]
         }
@@ -1149,6 +1151,7 @@ export type Database = {
           is_archived?: boolean
           is_erp_exported?: boolean
           order_number?: string
+          payment_method?: Database["public"]["Enums"]["payment_method"]
           priority?: Database["public"]["Enums"]["priority_type"]
           status?: Database["public"]["Enums"]["order_status"]
         }
@@ -2359,6 +2362,7 @@ export type Database = {
         | "ORDER_FINISHED"
         | "ORDER_REOPENED"
         | "ORDER_BILLED"
+        | "ORDER_CLOSED_CASH"
         | "ORDER_ARCHIVED"
         | "TIME_LOGGED"
         | "TIME_LOG_DELETED"
@@ -2373,6 +2377,7 @@ export type Database = {
         | "FILE_REMOVED"
       job_status: "IN_SETUP" | "PREPRESS" | "IN_PRODUCTION" | "DONE"
       order_status: "QUOTE" | "IN_PROGRESS" | "FINISHED" | "BILLED"
+      payment_method: "INVOICE" | "CASH"
       priority_type: "NORMAL" | "HIGH"
       textile_font_class: "SANS_SERIF" | "SERIF" | "ELEGANT" | "PLAYFUL"
       textile_motif_type: "TEXT" | "FILE"
@@ -2543,6 +2548,7 @@ export const Constants = {
         "ORDER_FINISHED",
         "ORDER_REOPENED",
         "ORDER_BILLED",
+        "ORDER_CLOSED_CASH",
         "ORDER_ARCHIVED",
         "TIME_LOGGED",
         "TIME_LOG_DELETED",
@@ -2558,6 +2564,7 @@ export const Constants = {
       ],
       job_status: ["IN_SETUP", "PREPRESS", "IN_PRODUCTION", "DONE"],
       order_status: ["QUOTE", "IN_PROGRESS", "FINISHED", "BILLED"],
+      payment_method: ["INVOICE", "CASH"],
       priority_type: ["NORMAL", "HIGH"],
       textile_font_class: ["SANS_SERIF", "SERIF", "ELEGANT", "PLAYFUL"],
       textile_motif_type: ["TEXT", "FILE"],

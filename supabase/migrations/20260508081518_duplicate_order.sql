@@ -28,6 +28,7 @@ CREATE OR REPLACE FUNCTION "public"."duplicate_order"("source_order_id" "uuid", 
     AS $$
 DECLARE
   source_customer_id    UUID;
+  source_payment        public.payment_method;
   new_order_id          UUID;
   new_job_id      UUID;
   new_product_id        UUID;
@@ -37,15 +38,15 @@ DECLARE
   motif_id_map          JSONB := '{}'::JSONB;
   new_motif_id          UUID;
 BEGIN
-  -- Customer of the source order
-  SELECT customer_id INTO source_customer_id FROM orders WHERE id = source_order_id;
+  -- Customer + payment method of the source order
+  SELECT customer_id, payment_method INTO source_customer_id, source_payment FROM orders WHERE id = source_order_id;
   IF source_customer_id IS NULL THEN
     RAISE EXCEPTION 'customer_id missing on source order';
   END IF;
 
   -- New order
-  INSERT INTO orders (customer_id, status, priority, delivery, deadline)
-  VALUES (source_customer_id, 'QUOTE', new_priority, new_delivery, new_deadline)
+  INSERT INTO orders (customer_id, status, priority, delivery, deadline, payment_method)
+  VALUES (source_customer_id, 'QUOTE', new_priority, new_delivery, new_deadline, source_payment)
   RETURNING id INTO new_order_id;
 
   -- Jobs

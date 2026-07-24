@@ -92,6 +92,7 @@ CREATE TYPE "public"."history_event" AS ENUM (
     'ORDER_FINISHED',
     'ORDER_REOPENED',
     'ORDER_BILLED',
+    'ORDER_CLOSED_CASH',
     'ORDER_ARCHIVED',
     'TIME_LOGGED',
     'TIME_LOG_DELETED',
@@ -121,6 +122,15 @@ CREATE TYPE "public"."priority_type" AS ENUM (
 );
 
 ALTER TYPE "public"."priority_type" OWNER TO "postgres";
+
+-- How the order is settled: INVOICE goes through FINISHED → BILLED manually;
+-- CASH is paid at the counter and closes (BILLED + archived) directly from IN_PROGRESS.
+CREATE TYPE "public"."payment_method" AS ENUM (
+    'INVOICE',
+    'CASH'
+);
+
+ALTER TYPE "public"."payment_method" OWNER TO "postgres";
 
 CREATE TYPE "public"."department" AS ENUM (
     'LFP',

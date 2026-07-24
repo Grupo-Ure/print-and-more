@@ -16,6 +16,9 @@ export const DEPARTMENTS: readonly Department[] = Constants.public.Enums.departm
 /** Matches `priority_type` in the DB (order and job). */
 export type Priority = Enums<'priority_type'>
 
+/** How the order is settled — CASH closes directly from IN_PROGRESS, INVOICE goes through FINISHED. */
+export type PaymentMethod = Enums<'payment_method'>
+
 export type CustomerContactRow = Tables<'customers'>
 
 /** Flat customer shape used everywhere the app needs to read/edit a customer. */
@@ -45,7 +48,7 @@ export type OrderDetailRow = Tables<'orders'> & {
 export type Auftrag = OrderDetailRow
 
 /** Patch for the order header fields editable in WorkArea. */
-export type OrderHeaderPatch = Partial<Pick<Tables<'orders'>, 'deadline' | 'delivery' | 'priority'>>
+export type OrderHeaderPatch = Partial<Pick<Tables<'orders'>, 'deadline' | 'delivery' | 'priority' | 'payment_method'>>
 
 /** Shape of order data needed for PDF generation. */
 export type OrderPdfRow = Pick<Tables<'orders'>, 'order_number' | 'deadline' | 'delivery' | 'priority' | 'created_at'> & {

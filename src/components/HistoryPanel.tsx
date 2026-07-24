@@ -25,6 +25,7 @@ const EVENT_LABELS: Record<HistoryEvent, string> = {
   ORDER_FINISHED: 'Order marked finished',
   ORDER_REOPENED: 'Order reopened',
   ORDER_BILLED: 'Order invoiced',
+  ORDER_CLOSED_CASH: 'Order closed — paid in cash',
   EMERGENCY_TRIGGERED: 'Emergency triggered',
   CUSTOMER_APPROVAL_ACTIVATED: 'Customer approval activated',
   CUSTOMER_APPROVAL_DEACTIVATED: 'Customer approval removed',

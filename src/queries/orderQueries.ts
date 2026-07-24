@@ -228,13 +228,20 @@ export function useArchiveOrderWithCancelledJobs() {
   })
 }
 
-/** Mark invoiced (BILLED + archived). Writes an ORDER_BILLED history entry. */
+/**
+ * Terminal close (BILLED + archived). Invoice orders reach this from FINISHED
+ * ("Mark as invoiced", ORDER_BILLED); cash orders close directly from
+ * IN_PROGRESS ("Finish & close", ORDER_CLOSED_CASH) and skip FINISHED entirely.
+ */
 export function useMarkOrderBilled() {
   const queryClient = useQueryClient()
-  return useMutation<void, Error, { id: string }>({
-    mutationFn: async ({ id }) => {
+  return useMutation<void, Error, { id: string; paidCash?: boolean }>({
+    mutationFn: async ({ id, paidCash }) => {
       await orderService.markOrderBilled(id)
-      await historyService.tryWriteHistory({ order_id: id, event_type: 'ORDER_BILLED' })
+      await historyService.tryWriteHistory({
+        order_id: id,
+        event_type: paidCash ? 'ORDER_CLOSED_CASH' : 'ORDER_BILLED',
+      })
     },
     onSuccess: (_void, { id }) => {
       patchOrderStatusInCache(queryClient, id, 'BILLED')

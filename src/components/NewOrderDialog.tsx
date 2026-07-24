@@ -15,11 +15,13 @@ import { useCreateOrder } from '../queries/orderQueries'
 import { useInfiniteCustomers } from '../queries/customerQueries'
 import { useOrderWorkspace } from '../context/order.context'
 import { useOrderParams } from '../hooks/useOrderParams'
-import type { Customer } from '../types/database'
+import type { Customer, PaymentMethod } from '../types/database'
+import { PaymentSelect } from './fields/PaymentSelect'
 
 export function NewOrderDialog() {
   const [open, setOpen] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('INVOICE')
   const [searchInput, setSearchInput] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
 
@@ -30,6 +32,7 @@ export function NewOrderDialog() {
   useEffect(() => {
     if (!open) {
       setSelectedCustomer(null)
+      setPaymentMethod('INVOICE')
       setSearchInput('')
       setDebouncedQuery('')
       createOrder.reset()
@@ -54,6 +57,7 @@ export function NewOrderDialog() {
         deadline: null,
         delivery: 'PICKUP',
         priority: 'NORMAL',
+        payment_method: paymentMethod,
       } as Parameters<typeof createOrder.mutateAsync>[0]
       const order = await createOrder.mutateAsync(payload)
       setActiveOrder(order.id)
@@ -138,6 +142,13 @@ export function NewOrderDialog() {
                 </div>
               </div>
             )}
+          </section>
+
+          <section className="flex flex-col gap-2 px-2">
+            <h2 className="uppercase tracking-[0.06em] text-muted-foreground">
+              Payment Method
+            </h2>
+            <PaymentSelect value={paymentMethod} onChange={setPaymentMethod} />
           </section>
 
           <DialogFooter>

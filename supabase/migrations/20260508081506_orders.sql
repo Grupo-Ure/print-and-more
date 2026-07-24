@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS "public"."orders" (
     "deadline" "date",
     "delivery" "public"."delivery_type",
     "priority" "public"."priority_type" DEFAULT 'NORMAL'::"public"."priority_type" NOT NULL,
+    "payment_method" "public"."payment_method" DEFAULT 'INVOICE'::"public"."payment_method" NOT NULL,
     "is_archived" boolean DEFAULT false NOT NULL,
     "is_erp_exported" boolean DEFAULT false NOT NULL,
     "billing_note" "text",
