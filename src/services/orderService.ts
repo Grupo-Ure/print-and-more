@@ -105,13 +105,17 @@ class OrderService {
     return ((data ?? []) as unknown as OrderSummaryRow[]).map(flattenCustomerJoin)
   }
 
-  /** Full order row by id, or `null` if not found. */
+  /**
+   * Full order row by id, or `null` if not found. Uses `maybeSingle()` so a
+   * stale id (e.g. a bookmarked `?order=` of a deleted order) resolves to
+   * `null` instead of throwing.
+   */
   async getOrderById(id: string): Promise<Auftrag | null> {
     const { data, error } = await supabase
       .from('orders')
       .select(ORDER_COLUMNS)
       .eq('id', id)
-      .single()
+      .maybeSingle()
     if (error) throw error
     if (data == null) return null
     return flattenCustomerJoin(data as unknown as Auftrag)
