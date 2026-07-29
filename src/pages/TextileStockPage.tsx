@@ -587,10 +587,6 @@ export function TextileStockPage() {
     }
   }
 
-  const logout = async () => {
-    await authService.signOut()
-  }
-
   const saveBrand = async () => {
     const trimmedName = newBrandName.trim()
     if (!trimmedName) return
@@ -955,12 +951,7 @@ export function TextileStockPage() {
     <div style={{ padding: 20, maxWidth: 1200, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <h1 style={{ margin: 0, fontSize: 18 }}>Textiles — Stock Management</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 13, opacity: 0.85 }}>{userEmail}</span>
-          <button type="button" className="cp-btn cp-btn-grau" onClick={() => void logout()}>
-            Logout
-          </button>
-        </div>
+        <span style={{ fontSize: 13, opacity: 0.85 }}>{userEmail}</span>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginTop: 14, marginBottom: 14, flexWrap: 'wrap' }}>
