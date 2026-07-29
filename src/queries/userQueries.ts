@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { userService } from '../services/userService'
 import type { CreateUserInput, UserRow } from '../services/userService'
+import { resizeAvatarImage } from '../lib/avatarImage'
 import type { UserRole } from '../types/database'
 
 export const userKeys = {
@@ -40,6 +41,37 @@ export function useIsSuperAdmin(): { isSuperAdmin: boolean; isLoading: boolean }
     isSuperAdmin: data?.role === 'SUPER_ADMIN',
     isLoading,
   }
+}
+
+export function useUpdateOwnName() {
+  const queryClient = useQueryClient()
+  return useMutation<UserRow, Error, string>({
+    mutationFn: name => userService.updateOwnName(name),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: userKeys.all })
+    },
+  })
+}
+
+/** Resize happens inside the mutation so isPending covers the whole flow. */
+export function useUpdateOwnAvatar() {
+  const queryClient = useQueryClient()
+  return useMutation<UserRow, Error, File>({
+    mutationFn: async file => userService.updateOwnAvatar(await resizeAvatarImage(file)),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: userKeys.all })
+    },
+  })
+}
+
+export function useRemoveOwnAvatar() {
+  const queryClient = useQueryClient()
+  return useMutation<UserRow, Error, void>({
+    mutationFn: () => userService.removeOwnAvatar(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: userKeys.all })
+    },
+  })
 }
 
 export function useUpdateUserRole() {
