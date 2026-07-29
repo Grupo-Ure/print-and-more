@@ -38,7 +38,7 @@ export function NavbarUserMenu() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="group flex items-center gap-2 rounded-lg px-2 py-0.5 text-sm text-neutral-600 transition-colors outline-none select-none hover:text-neutral-900 focus-visible:ring-3 focus-visible:ring-ring/50 aria-expanded:text-neutral-900">
+      <DropdownMenuTrigger className="group flex cursor-pointer items-center gap-2 rounded-lg px-2 py-0.5 text-sm text-neutral-600 transition-colors outline-none select-none hover:text-neutral-900 focus-visible:ring-3 focus-visible:ring-ring/50 aria-expanded:text-neutral-900">
         <UserAvatar name={user.name} avatarUrl={user.avatar_url} />
         <span>
           Hi, <span className="font-medium">{firstNameOf(user.name)}</span>
