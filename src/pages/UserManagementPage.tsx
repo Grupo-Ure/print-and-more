@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
+import { Trash2 } from 'lucide-react'
 import { authService } from '../services/authService'
 import { Login } from '../components/Login'
 import { AccessDenied } from '../components/AccessDenied'
@@ -104,8 +105,14 @@ export function UserManagementPage() {
     )
   }
 
-  const handleCreate = (event: FormEvent) => {
+  const handleCreate = async (event: FormEvent) => {
     event.preventDefault()
+    const confirmed = await confirm({
+      title: 'Create account',
+      description: `Create a ${ROLE_LABELS[createForm.role]} account for ${createForm.name.trim()} (${createForm.email.trim()})?`,
+      confirmLabel: 'Create',
+    })
+    if (!confirmed) return
     createUser.mutate(createForm, {
       onSuccess: user => {
         showSuccess(`Account for ${user.name} created`)
@@ -188,12 +195,16 @@ export function UserManagementPage() {
                 <TableCell className="text-right">
                   {canDelete(user) && (
                     <Button
-                      variant="destructive"
-                      size="sm"
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      title="Delete"
+                      aria-label="Delete"
                       disabled={deleteUser.isPending}
                       onClick={() => void handleDelete(user)}
+                      className="hover:bg-destructive/10 hover:text-destructive"
                     >
-                      Delete
+                      <Trash2 />
                     </Button>
                   )}
                 </TableCell>
