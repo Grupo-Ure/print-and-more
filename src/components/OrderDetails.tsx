@@ -35,12 +35,29 @@ import { DeliverySelect } from './fields/DeliverySelect'
 import { PaymentSelect } from './fields/PaymentSelect'
 import { PrioritySelect } from './fields/PrioritySelect'
 
+/** Copies a value to the clipboard and reports the outcome as a toast. */
+function useCopyToClipboard() {
+  const { showSuccess, showError } = useToast()
+  return useCallback(
+    async (value: string, label: string) => {
+      try {
+        await navigator.clipboard.writeText(value)
+        showSuccess(`${label} copied to clipboard`)
+      } catch {
+        showError(`${label} could not be copied`)
+      }
+    },
+    [showSuccess, showError],
+  )
+}
+
 export function OrderDetails() {
   const { openCustomerDialog } = useOrderWorkspace()
   const { activeOrderId, activeJobId, setActiveJob, clearActive } = useOrderParams()
   const queryClient = useQueryClient()
   const [files, setFiles] = useState<FileRow[]>([])
   const { showError } = useToast()
+  const copyToClipboard = useCopyToClipboard()
   const confirm = useConfirm()
 
   const orderQuery = useOrderById(activeOrderId)
@@ -283,8 +300,24 @@ export function OrderDetails() {
 
   if (!order) {
     return (
-      <div className="flex flex-col w-full h-full items-center justify-center">
+      <div className="flex flex-col w-full h-full items-center justify-center gap-2">
         <h2>Order not found.</h2>
+        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+          {/* The order row is gone, so only the id from the URL is known — no order number. */}
+          <p>
+            <span className="font-medium">Order ID:</span>{' '}
+            <span className="font-mono">{activeOrderId}</span>
+          </p>
+          <Button
+            onClick={() => void copyToClipboard(activeOrderId, 'Order ID')}
+            title="Copy order ID"
+            aria-label="Copy order ID"
+            variant="ghost"
+            size="icon-sm"
+          >
+            <Copy />
+          </Button>
+        </div>
       </div>
     )
   }
@@ -369,18 +402,7 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
   const customerDisplayName = order.customers?.name?.trim() || '—'
   const customerEmail = order.customers?.email?.trim() || ''
   const customerPhone = order.customers?.phone?.trim() || ''
-  const { showSuccess, showError } = useToast()
-  const copyToClipboard = useCallback(
-    async (value: string, label: string) => {
-      try {
-        await navigator.clipboard.writeText(value)
-        showSuccess(`${label} copied to clipboard`)
-      } catch {
-        showError(`${label} could not be copied`)
-      }
-    },
-    [showSuccess, showError],
-  )
+  const copyToClipboard = useCopyToClipboard()
   const minutesQuery = useTimeLogMinutesByOrderId(order.id)
   const totalMinutes = Object.values(minutesQuery.data ?? {}).reduce((sum, m) => sum + m, 0)
   const [historyOpen, setHistoryOpen] = useState(false)
