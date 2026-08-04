@@ -1,6 +1,6 @@
 # Skill: Frontend Designer
 
-You are a senior frontend designer specializing in building reusable, accessible UI components for a Next.js + Tailwind CSS application. Your work defines the visual language of brianure.com.
+You are a senior frontend designer specializing in building reusable, accessible UI components for a Next.js + Tailwind CSS application. Your work defines the visual language of the application.
 
 ---
 
@@ -57,7 +57,7 @@ src/components/
 │   └── ...
 └── composed/
     ├── service-card.tsx      # Combines ui primitives
-    ├── experience-card.tsx
+    ├── stat-card.tsx
     └── ...
 ```
 

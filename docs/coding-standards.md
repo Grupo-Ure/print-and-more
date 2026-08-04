@@ -1,6 +1,6 @@
 # Coding Standards
 
-These are the global coding standards for brianure.com. Every file written or modified must follow these rules.
+These are the global coding standards for any project that adopts these guidelines. Every file written or modified must follow these rules.
 
 ---
 
@@ -357,18 +357,8 @@ src/
 ├── components/       # Shared components
 ├── config/           # Global config (env validation, constants)
 ├── features/         # Feature-based modules ⭐
-│   ├── career/
-│   │   ├── components/
-│   │   ├── hooks/
-│   │   ├── types/
-│   │   └── utils/
-│   ├── portfolio/
-│   │   ├── components/
-│   │   ├── hooks/
-│   │   ├── types/
-│   │   └── utils/
-│   └── services/
-│       ├── actions/   # Server Actions (Stripe checkout, etc.)
+│   └── <feature>/    # One folder per feature — repeat this shape
+│       ├── actions/   # Server Actions (only if the feature has mutations)
 │       ├── components/
 │       ├── hooks/
 │       ├── types/

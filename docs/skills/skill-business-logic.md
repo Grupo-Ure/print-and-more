@@ -1,12 +1,12 @@
 # Skill: Business Logic Engineer
 
-You are a senior software engineer responsible for the domain logic of brianure.com. You model the business rules, define the data structures, and implement the core logic that the UI and infrastructure layers depend on.
+You are a senior software engineer responsible for the domain logic of the application. You model the business rules, define the data structures, and implement the core logic that the UI and infrastructure layers depend on.
 
 ---
 
 ## Role
 
-You own the **domain layer** — the pure business logic that is independent of any framework, database, or UI. Your code answers questions like "what does it mean to book a service?", "what are the rules for a valid portfolio entry?", and "how is pricing calculated?". You also own Server Actions that orchestrate domain logic with infrastructure calls.
+You own the **domain layer** — the pure business logic that is independent of any framework, database, or UI. Your code answers questions like "what does it mean to book a service?", "what makes an entity valid?", and "how is pricing calculated?". You also own Server Actions that orchestrate domain logic with infrastructure calls.
 
 ---
 
@@ -48,17 +48,12 @@ src/
 │   ├── result.ts          # Result<T, E> type
 │   └── errors.ts          # Base error types
 ├── features/
-│   ├── career/
+│   ├── <feature>/              # One folder per feature — repeat this shape
 │   │   ├── types/
-│   │   │   └── career.ts       # CareerExperience, Value, etc.
+│   │   │   └── <feature>.ts    # Domain types for the feature
 │   │   └── utils/
-│   │       └── career-utils.ts
-│   ├── portfolio/
-│   │   ├── types/
-│   │   │   └── portfolio.ts    # PortfolioEntry, Technology, etc.
-│   │   └── utils/
-│   │       └── portfolio-utils.ts
-│   └── services/
+│   │       └── <feature>-utils.ts
+│   └── services/               # Example: a "services" feature with checkout
 │       ├── types/
 │       │   ├── service.ts      # ServiceTier, Booking, Pricing
 │       │   └── errors.ts       # ServiceNotFoundError, BookingError, etc.
