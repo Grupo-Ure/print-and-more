@@ -53,8 +53,8 @@ BEGIN
   FOR source_job IN
     SELECT * FROM jobs WHERE id = ANY(selected_job_ids)
   LOOP
-    INSERT INTO jobs (order_id, department, type, status, priority, delivery, detail)
-    VALUES (new_order_id, source_job.department, source_job.type, 'IN_SETUP', source_job.priority, source_job.delivery, source_job.detail)
+    INSERT INTO jobs (order_id, department, type, status, priority, delivery)
+    VALUES (new_order_id, source_job.department, source_job.type, 'IN_SETUP', source_job.priority, source_job.delivery)
     RETURNING id INTO new_job_id;
 
     -- TEXTILE: copy the per-job designs drawer first, remapping motif ids

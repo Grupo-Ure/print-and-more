@@ -15,6 +15,29 @@ CREATE TABLE IF NOT EXISTS "public"."stamp_stock_movements" (
 
 ALTER TABLE "public"."stamp_stock_movements" OWNER TO "postgres";
 
+-- Lookup table for stamp ink colours (not textile — garment colours are
+-- per-variant free text, a different vocabulary and scale). Kept as a table
+-- rather than a CHECK constraint so the palette can move to a settings UI
+-- without a migration.
+CREATE TABLE IF NOT EXISTS "public"."stamp_ink_colors" (
+    "code" "text" NOT NULL,
+    "label" "text" NOT NULL,
+    "hex" "text",
+    "sort_order" integer DEFAULT 0 NOT NULL,
+    "is_active" boolean DEFAULT true NOT NULL,
+    CONSTRAINT "stamp_ink_colors_pkey" PRIMARY KEY ("code")
+);
+
+ALTER TABLE "public"."stamp_ink_colors" OWNER TO "postgres";
+
+INSERT INTO "public"."stamp_ink_colors" ("code", "label", "hex", "sort_order") VALUES
+    ('BLACK', 'Black', '#000000', 1),
+    ('RED', 'Red', '#DC2626', 2),
+    ('BLUE', 'Blue', '#2563EB', 3),
+    ('GREEN', 'Green', '#16A34A', 4),
+    ('OTHER', 'Other', NULL, 5)
+ON CONFLICT ("code") DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS "public"."stamp_models" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "name" "text" NOT NULL,
@@ -32,8 +55,8 @@ CREATE TABLE IF NOT EXISTS "public"."stamp_models" (
     "replacement_pad_article_number" "text",
     "size" "text",
     "color" "text",
-    CONSTRAINT "stamp_models_color_check" CHECK (("color" = ANY (ARRAY['BLACK'::"text", 'RED'::"text", 'BLUE'::"text", 'GREEN'::"text"]))),
     CONSTRAINT "stamp_models_size_check" CHECK (("size" = ANY (ARRAY['SMALL'::"text", 'MEDIUM'::"text", 'LARGE'::"text"]))),
+    CONSTRAINT "stamp_models_stock_check" CHECK (("stock" >= 0)),
     CONSTRAINT "stamp_models_type_check" CHECK (("type" = ANY (ARRAY['TRODAT_PRINTY'::"text", 'WOODEN_STAMP'::"text", 'STAND_STAMP'::"text", 'DATE_STAMP'::"text", 'INK_PAD_PRODUCT'::"text", 'TRODAT_PAD'::"text"])))
 );
 
@@ -111,6 +134,9 @@ ALTER TABLE ONLY "public"."textile_products"
 ALTER TABLE ONLY "public"."textile_variants"
     ADD CONSTRAINT "textile_variants_pkey" PRIMARY KEY ("id");
 
+ALTER TABLE ONLY "public"."stamp_models"
+    ADD CONSTRAINT "stamp_models_color_fkey" FOREIGN KEY ("color") REFERENCES "public"."stamp_ink_colors"("code");
+
 ALTER TABLE ONLY "public"."stamp_stock_movements"
     ADD CONSTRAINT "stamp_stock_movements_model_id_fkey" FOREIGN KEY ("model_id") REFERENCES "public"."stamp_models"("id");
 
@@ -129,6 +155,8 @@ ALTER TABLE ONLY "public"."textile_products"
 ALTER TABLE ONLY "public"."textile_variants"
     ADD CONSTRAINT "textile_variants_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "public"."textile_products"("id");
 
+CREATE INDEX "idx_stamp_models_color" ON "public"."stamp_models" USING "btree" ("color");
+
 CREATE INDEX "idx_stamp_stock_movements_created" ON "public"."stamp_stock_movements" USING "btree" ("created_at");
 
 CREATE INDEX "idx_stamp_stock_movements_model" ON "public"."stamp_stock_movements" USING "btree" ("model_id");
@@ -143,6 +171,8 @@ CREATE INDEX "idx_textile_stock_movements_variant" ON "public"."textile_stock_mo
 
 CREATE POLICY "Employees: full access" ON "public"."stamp_stock_movements" TO "authenticated" USING (true) WITH CHECK (true);
 
+CREATE POLICY "Employees: full access" ON "public"."stamp_ink_colors" TO "authenticated" USING (true) WITH CHECK (true);
+
 CREATE POLICY "Employees: full access" ON "public"."stamp_models" TO "authenticated" USING (true) WITH CHECK (true);
 
 CREATE POLICY "Employees: full access" ON "public"."textile_stock_movements" TO "authenticated" USING (true) WITH CHECK (true);
@@ -154,6 +184,8 @@ CREATE POLICY "Employees: full access" ON "public"."textile_products" TO "authen
 CREATE POLICY "Employees: full access" ON "public"."textile_variants" TO "authenticated" USING (true) WITH CHECK (true);
 
 ALTER TABLE "public"."stamp_stock_movements" ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE "public"."stamp_ink_colors" ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE "public"."stamp_models" ENABLE ROW LEVEL SECURITY;
 
@@ -170,6 +202,12 @@ GRANT ALL ON TABLE "public"."stamp_stock_movements" TO "anon";
 GRANT ALL ON TABLE "public"."stamp_stock_movements" TO "authenticated";
 
 GRANT ALL ON TABLE "public"."stamp_stock_movements" TO "service_role";
+
+GRANT ALL ON TABLE "public"."stamp_ink_colors" TO "anon";
+
+GRANT ALL ON TABLE "public"."stamp_ink_colors" TO "authenticated";
+
+GRANT ALL ON TABLE "public"."stamp_ink_colors" TO "service_role";
 
 GRANT ALL ON TABLE "public"."stamp_models" TO "anon";
 

@@ -16,7 +16,6 @@ CREATE TABLE IF NOT EXISTS "public"."jobs" (
     "priority" "public"."priority_type",
     "assignee_id" "uuid",
     "data_status" "text",
-    "detail" "jsonb" DEFAULT '{}'::"jsonb" NOT NULL,
     "customer_approval_required" boolean DEFAULT false NOT NULL,
     "customer_approval_granted" boolean DEFAULT false NOT NULL,
     "customer_approval_file_id" "uuid",
@@ -287,9 +286,7 @@ GRANT ALL ON TABLE "public"."job_number_counter" TO "authenticated";
 
 GRANT ALL ON TABLE "public"."job_number_counter" TO "service_role";
 
-COMMENT ON TABLE "public"."jobs" IS 'Core operational unit. Status must never be QUOTE (CHECK constraint). detail (JSONB): required-field logic lives in application code (Zod), not the DB. All type values are ASCII without diacritics (e.g. BROCHURE).';
-
-COMMENT ON COLUMN "public"."jobs"."detail" IS 'Department-specific fields as JSONB. Validation in application code, not the DB. Intentional: allows new departments without a DB migration.';
+COMMENT ON TABLE "public"."jobs" IS 'Core operational unit. Status must never be QUOTE (CHECK constraint). All type values are ASCII without diacritics (e.g. BROCHURE).';
 
 COMMENT ON COLUMN "public"."jobs"."job_number" IS 'Human-facing job number: <order_number>-<DEPT>-<NN> (per-order-per-department sequence). Assigned by fn_generate_job_number() on insert; never set by the client.';
 

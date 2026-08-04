@@ -525,6 +525,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "date_stamp_products_color_fkey"
+            columns: ["color"]
+            isOneToOne: false
+            referencedRelation: "stamp_ink_colors"
+            referencedColumns: ["code"]
+          },
+          {
             foreignKeyName: "date_stamp_products_department_product_id_fkey"
             columns: ["department_product_id"]
             isOneToOne: true
@@ -885,6 +892,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "ink_pad_products_color_fkey"
+            columns: ["color"]
+            isOneToOne: false
+            referencedRelation: "stamp_ink_colors"
+            referencedColumns: ["code"]
+          },
+          {
             foreignKeyName: "ink_pad_products_department_product_id_fkey"
             columns: ["department_product_id"]
             isOneToOne: true
@@ -979,7 +993,6 @@ export type Database = {
           deadline: string | null
           delivery: Database["public"]["Enums"]["delivery_type"] | null
           department: Database["public"]["Enums"]["department"]
-          detail: Json
           id: string
           is_cancelled: boolean
           job_number: string
@@ -999,7 +1012,6 @@ export type Database = {
           deadline?: string | null
           delivery?: Database["public"]["Enums"]["delivery_type"] | null
           department: Database["public"]["Enums"]["department"]
-          detail?: Json
           id?: string
           is_cancelled?: boolean
           job_number: string
@@ -1019,7 +1031,6 @@ export type Database = {
           deadline?: string | null
           delivery?: Database["public"]["Enums"]["delivery_type"] | null
           department?: Database["public"]["Enums"]["department"]
-          detail?: Json
           id?: string
           is_cancelled?: boolean
           job_number?: string
@@ -1277,6 +1288,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "other_stamp_products_color_fkey"
+            columns: ["color"]
+            isOneToOne: false
+            referencedRelation: "stamp_ink_colors"
+            referencedColumns: ["code"]
+          },
+          {
             foreignKeyName: "other_stamp_products_department_product_id_fkey"
             columns: ["department_product_id"]
             isOneToOne: true
@@ -1414,6 +1432,13 @@ export type Database = {
           ink_type?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "refill_ink_products_color_fkey"
+            columns: ["color"]
+            isOneToOne: false
+            referencedRelation: "stamp_ink_colors"
+            referencedColumns: ["code"]
+          },
           {
             foreignKeyName: "refill_ink_products_department_product_id_fkey"
             columns: ["department_product_id"]
@@ -1587,6 +1612,30 @@ export type Database = {
           },
         ]
       }
+      stamp_ink_colors: {
+        Row: {
+          code: string
+          hex: string | null
+          is_active: boolean
+          label: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          hex?: string | null
+          is_active?: boolean
+          label: string
+          sort_order?: number
+        }
+        Update: {
+          code?: string
+          hex?: string | null
+          is_active?: boolean
+          label?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       stamp_models: {
         Row: {
           article_number: string | null
@@ -1642,7 +1691,15 @@ export type Database = {
           stock?: number
           type?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "stamp_models_color_fkey"
+            columns: ["color"]
+            isOneToOne: false
+            referencedRelation: "stamp_ink_colors"
+            referencedColumns: ["code"]
+          },
+        ]
       }
       stamp_plate_products: {
         Row: {
@@ -1741,6 +1798,13 @@ export type Database = {
           width?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "stand_stamp_products_color_fkey"
+            columns: ["color"]
+            isOneToOne: false
+            referencedRelation: "stamp_ink_colors"
+            referencedColumns: ["code"]
+          },
           {
             foreignKeyName: "stand_stamp_products_department_product_id_fkey"
             columns: ["department_product_id"]
@@ -2116,6 +2180,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "trodat_pad_products_color_fkey"
+            columns: ["color"]
+            isOneToOne: false
+            referencedRelation: "stamp_ink_colors"
+            referencedColumns: ["code"]
+          },
+          {
             foreignKeyName: "trodat_pad_products_department_product_id_fkey"
             columns: ["department_product_id"]
             isOneToOne: true
@@ -2133,18 +2204,31 @@ export type Database = {
       }
       trodat_printy_products: {
         Row: {
+          color: string | null
+          color_other: string | null
           department_product_id: string
           model_id: string | null
         }
         Insert: {
+          color?: string | null
+          color_other?: string | null
           department_product_id: string
           model_id?: string | null
         }
         Update: {
+          color?: string | null
+          color_other?: string | null
           department_product_id?: string
           model_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "trodat_printy_products_color_fkey"
+            columns: ["color"]
+            isOneToOne: false
+            referencedRelation: "stamp_ink_colors"
+            referencedColumns: ["code"]
+          },
           {
             foreignKeyName: "trodat_printy_products_department_product_id_fkey"
             columns: ["department_product_id"]
@@ -2275,18 +2359,31 @@ export type Database = {
       }
       wooden_stamp_products: {
         Row: {
+          color: string | null
+          color_other: string | null
           department_product_id: string
           model_id: string | null
         }
         Insert: {
+          color?: string | null
+          color_other?: string | null
           department_product_id: string
           model_id?: string | null
         }
         Update: {
+          color?: string | null
+          color_other?: string | null
           department_product_id?: string
           model_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "wooden_stamp_products_color_fkey"
+            columns: ["color"]
+            isOneToOne: false
+            referencedRelation: "stamp_ink_colors"
+            referencedColumns: ["code"]
+          },
           {
             foreignKeyName: "wooden_stamp_products_department_product_id_fkey"
             columns: ["department_product_id"]
