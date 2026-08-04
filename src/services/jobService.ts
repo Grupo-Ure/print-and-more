@@ -15,7 +15,6 @@ export type ActiveJobSlim = {
   id: string
   status: JobStatus
   department: Department
-  detail: Database['public']['Tables']['jobs']['Row']['detail']
   is_cancelled: boolean
 }
 
@@ -122,7 +121,7 @@ class JobService {
   async getActiveJobsByBereich(department: Department): Promise<ActiveJobSlim[]> {
     const { data, error } = await supabase
       .from('jobs')
-      .select('id, status, department, detail, is_cancelled')
+      .select('id, status, department, is_cancelled')
       .eq('department', department)
     if (error) throw error
     return (data ?? []) as unknown as ActiveJobSlim[]

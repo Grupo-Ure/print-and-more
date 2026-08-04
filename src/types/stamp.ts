@@ -6,19 +6,12 @@
  * (Holzstempel), tripod stamps (Stativstempel), date stamps
  * (Datumsstempel), and miscellaneous stamps. Beyond the stamp itself,
  * the same department also fulfills the consumable line of related
- * articles — refill ink (Nachfuellfarbe), stamp pads (Stempelkissen),
- * and replacement plates (Stempelplatte) — which the validator handles
- * via additional `typ` values declared inside `validateStampDetail`.
- *
- * The shape of a Stamp job's `detail` JSONB column varies by typ.
- * See `validateStampDetail` in `src/lib/stamp/` for the per-typ field
- * requirements; for `TRODAT_PRINTY` and `WOODEN_STAMP` the `detail` also
- * carries a `modell_id` selected from the Stamp catalog
- * (`stempel_modelle` table).
+ * articles — refill ink, stamp pads, and replacement plates — which have
+ * their own product types under `src/lib/products/schemas/stamp.ts`.
  */
 
-/** Core stamp typen, in dropdown order. The validator additionally
- * accepts a few "extra" typen for consumables — see the validator. */
+/** Core stamp types, in dropdown order. The product schemas additionally
+ * cover the consumable types (STAMP_PLATE, REFILL_INK, INK_PAD, TRODAT_PAD). */
 export const STAMP_TYPES = [
   'TRODAT_PRINTY',
   'WOODEN_STAMP',
@@ -39,25 +32,26 @@ export const STAMP_TYPE_LABELS: Record<StampType, string> = {
   OTHER_STAMP: 'Other Stamps',
 }
 
-/** Standard ink colors for stamps. `SONSTIGE` requires a free-text spec. */
-export const STAMP_COLORS = ['SCHWARZ', 'ROT', 'BLAU', 'GRUEN', 'SONSTIGE'] as const
+/**
+ * Standard ink colors for stamps. `OTHER` requires a free-text spec.
+ * Codes match the `stamp_ink_colors` lookup table (FK-enforced on the
+ * stamp product tables and `stamp_models.color`).
+ */
+export const STAMP_COLORS = ['BLACK', 'RED', 'BLUE', 'GREEN', 'OTHER'] as const
 
 export type StampColor = (typeof STAMP_COLORS)[number]
 
+/** Catalog subset: `stamp_models.color` / consumables have no `OTHER`. */
+export const REFILL_INK_COLORS = ['BLACK', 'RED', 'BLUE', 'GREEN'] as const
+
+export type RefillInkColor = (typeof REFILL_INK_COLORS)[number]
+
 /** Display labels for {@link StampColor}. */
 export const STAMP_COLOR_LABELS: Record<StampColor, string> = {
-  SCHWARZ: 'Black',
-  ROT: 'Red',
-  BLAU: 'Blue',
-  GRUEN: 'Green',
-  SONSTIGE: 'Other',
+  BLACK: 'Black',
+  RED: 'Red',
+  BLUE: 'Blue',
+  GREEN: 'Green',
+  OTHER: 'Other',
 }
 
-/**
- * Shape of the JSONB `detail` column for a Stamp job.
- *
- * Keys vary per `typ` — only set keys relevant to the current typ. Kept
- * with the `Json` suffix to disambiguate from the `StampDetail` React
- * component when both are imported into the same consumer file.
- */
-export type StampDetailJson = Record<string, unknown>

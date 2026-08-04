@@ -93,7 +93,6 @@ function AddJobDialog({ open, onOpenChange }: AddJobDialogProps) {
         department,
         status: 'IN_SETUP',
         priority: null,
-        detail: {},
         deadline: null,
         delivery: null,
         assignee_id: null,

@@ -261,11 +261,12 @@ function DesignsDrawer({
 // --- Garment line summary ---------------------------------------------------
 
 function garmentSummary(product: LoadedProduct): string {
-  const c = product.child as { origin?: string | null; garment_type?: string | null; brand?: string | null; model?: string | null; color?: string | null; size?: string | null }
-  if (c.origin === 'CUSTOMER_STOCK') {
-    return [c.garment_type, c.color].filter(Boolean).join(' · ') || 'Customer garment'
+  if (product.type !== 'TEXTILE_GARMENT') return ''
+  const garment = product.child
+  if (garment.origin === 'CUSTOMER_STOCK') {
+    return [garment.garment_type, garment.color].filter(Boolean).join(' · ') || 'Customer garment'
   }
-  return [c.brand, c.model, c.color, c.size].filter(Boolean).join(' · ') || 'In-house garment'
+  return [garment.brand, garment.model, garment.color, garment.size].filter(Boolean).join(' · ') || 'In-house garment'
 }
 
 // --- Host -------------------------------------------------------------------

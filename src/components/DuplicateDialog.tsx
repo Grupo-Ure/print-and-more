@@ -11,7 +11,6 @@ import {
 import { authService } from '../services/authService'
 import { orderService } from '../services/orderService'
 import { type Auftrag, type JobRow } from '../types/database'
-import { jobDetailToFieldMap } from '../lib/utils'
 import { JOB_DEPARTMENT_LABELS, jobDepartmentLabel } from '../const/departmentAbbreviation'
 import { LFP_TYPE_LABELS } from '../types/lfp'
 import { COPY_SHOP_TYPE_LABELS } from '../types/copyshop'
@@ -39,30 +38,13 @@ function readableJobType(bereich: string, typ: string | null): string {
   return typ
 }
 
-function formatDetailDimensions(detail: import('../types/database').JobRow['detail']): string {
-  const fields = jobDetailToFieldMap(detail)
-  const widthRaw = fields.format_breite
-  const heightRaw = fields.format_hoehe
-  const width = typeof widthRaw === 'number' ? widthRaw : typeof widthRaw === 'string' && widthRaw.trim() !== '' ? Number(widthRaw) : null
-  const height = typeof heightRaw === 'number' ? heightRaw : typeof heightRaw === 'string' && heightRaw.trim() !== '' ? Number(heightRaw) : null
-  const widthValid = width != null && Number.isFinite(width) && width > 0
-  const heightValid = height != null && Number.isFinite(height) && height > 0
-  const widthText = widthValid ? String(Math.round(width as number)) : ''
-  const heightText = heightValid ? String(Math.round(height as number)) : ''
-  if (widthValid && heightValid) return `${widthText} × ${heightText} mm`
-  if (widthValid) return `${widthText} mm width`
-  if (heightValid) return `${heightText} mm height`
-  return ''
-}
-
 function jobLabel(job: JobRow): string {
   const department =
     job.department in JOB_DEPARTMENT_LABELS
       ? JOB_DEPARTMENT_LABELS[job.department as keyof typeof JOB_DEPARTMENT_LABELS]
       : jobDepartmentLabel(job.department)
   const type = readableJobType(job.department, job.type)
-  const dims = formatDetailDimensions(job.detail)
-  return dims ? `${department} · ${type} · ${dims}` : `${department} · ${type}`
+  return `${department} · ${type}`
 }
 
 export function DuplicateDialog({ order, jobs, onSuccess, onCancel }: Props) {
@@ -124,9 +106,9 @@ export function DuplicateDialog({ order, jobs, onSuccess, onCancel }: Props) {
 
       showSuccess('Order duplicated')
       onSuccess(newOrderData)
-    } catch (e) {
+    } catch (duplicationError) {
       showError('Order could not be duplicated')
-      setError(e instanceof Error ? e.message : String(e))
+      setError(duplicationError instanceof Error ? duplicationError.message : String(duplicationError))
     } finally {
       setBusy(false)
     }
@@ -187,7 +169,7 @@ export function DuplicateDialog({ order, jobs, onSuccess, onCancel }: Props) {
           <DateInput
             className="w-full h-12 min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50"
             value={newDeadline}
-            onChange={e => setNewDeadline(e.target.value)}
+            onChange={event => setNewDeadline(event.target.value)}
             placeholder="No deadline — set later"
           />
         </section>

@@ -59,8 +59,20 @@ export type ProductChildInsert = {
   [K in ChildTable]: Omit<TablesInsert<K>, 'department_product_id'>
 }[ChildTable]
 
-/** A product loaded from the DB: parent columns + its typed child row. */
-export type LoadedProduct = ProductParent & { child: ProductChildRow }
+/**
+ * A product loaded from the DB: parent columns + its typed child row.
+ *
+ * Discriminated on `type`, so narrowing the discriminator narrows the child:
+ * `if (product.type === 'TRODAT_PRINTY') product.child.model_id` type-checks
+ * with no cast. The DB column is plain `text`; the literal type is asserted
+ * once, where rows are assembled in `departmentProductService`.
+ */
+export type LoadedProduct = {
+  [Type in ProductType]: Omit<ProductParent, 'type'> & {
+    type: Type
+    child: Tables<(typeof CHILD_TABLE_BY_TYPE)[Type]>
+  }
+}[ProductType]
 
 /** Input to create or update a product (id present = update). */
 export type ProductWriteInput = {
@@ -74,8 +86,14 @@ export type ProductWriteInput = {
   child: ProductChildInsert
 }
 
-/** The product `type` discriminator → its child table. */
-export const CHILD_TABLE_BY_TYPE: Record<string, ChildTable> = {
+/**
+ * The product `type` discriminator → its child table.
+ *
+ * `as const satisfies` keeps the key and value literals (which drive
+ * `ProductType` and `LoadedProduct`) while still checking every value is a
+ * real child table.
+ */
+export const CHILD_TABLE_BY_TYPE = {
   // CopyShop
   POSTER: 'poster_products',
   CARD_FLYER: 'card_flyer_products',
@@ -113,10 +131,17 @@ export const CHILD_TABLE_BY_TYPE: Record<string, ChildTable> = {
   OTHER: 'other_products',
   // Textile
   TEXTILE_GARMENT: 'textile_garment_products',
+} as const satisfies Record<string, ChildTable>
+
+/** Every valid product `type` discriminator value. */
+export type ProductType = keyof typeof CHILD_TABLE_BY_TYPE
+
+/** Runtime guard: is this DB `type` string one we know? */
+export function isProductType(type: string): type is ProductType {
+  return type in CHILD_TABLE_BY_TYPE
 }
 
 export function childTableForType(type: string): ChildTable {
-  const table = CHILD_TABLE_BY_TYPE[type]
-  if (!table) throw new Error(`Unknown product type: ${type}`)
-  return table
+  if (!isProductType(type)) throw new Error(`Unknown product type: ${type}`)
+  return CHILD_TABLE_BY_TYPE[type]
 }

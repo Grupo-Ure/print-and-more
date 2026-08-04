@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { jobService } from '../services/jobService'
-import { stampService } from '../services/stampService'
 import {
   useSetOrderStatus,
   useMarkOrderBilled,
@@ -13,7 +12,6 @@ import {
   type Customer,
   type JobRow,
 } from '../types/database'
-import { jobDetailToFieldMap } from '../lib/utils'
 import { FileList } from './FileList'
 import type { FileRow } from '../services/fileService'
 import { HistoryPanel } from './HistoryPanel'
@@ -28,56 +26,9 @@ type Props = {
   orderCustomer: Customer | null
   orderFiles: FileRow[]
   onOrderUpdated: (updatedOrder: Auftrag) => void
-  onOrderDeleted: (auftragId: string) => void
   onJobUpdated: (updatedJob: JobRow) => void
-  onJobRemoved: (id: string) => void
   contextRefreshTick: number
   onFileChanged?: (newFileRow?: FileRow) => void | Promise<void>
-}
-
-function hasStampModelLinked(detail: Record<string, unknown>): boolean {
-  const padModelId = detail.kissen_modell_id
-  const stampModelId = detail.modell_id
-  return !!(padModelId && String(padModelId).trim()) || !!(stampModelId && String(stampModelId).trim())
-}
-
-type StampPadStock = { stampStock: number | null; padStock: number | null }
-
-async function loadStampStock(detail: Record<string, unknown>): Promise<StampPadStock> {
-  const hasStampModel = detail.modell_id && String(detail.modell_id).trim()
-  const hasPadModel = detail.kissen_modell_id && String(detail.kissen_modell_id).trim()
-  const colorValue = detail.farbe
-  const colorSet = colorValue != null && String(colorValue).trim() !== ''
-
-  async function fetchStockById(id: string): Promise<number | null> {
-    const row = await stampService.getStampModelById(id).catch(() => null)
-    if (!row) return null
-    return row.stock ?? 0
-  }
-
-  if (hasPadModel && !hasStampModel) {
-    const padStockValue = await fetchStockById(String(detail.kissen_modell_id))
-    return { stampStock: null, padStock: padStockValue }
-  }
-
-  let stampStockValue: number | null = null
-  let padStockValue: number | null = null
-
-  if (hasStampModel) {
-    stampStockValue = await fetchStockById(String(detail.modell_id))
-    if (colorSet) {
-      const stampModelRow = await stampService.getStampModelForOrder(String(detail.modell_id)).catch(() => null)
-      if (stampModelRow) {
-        const articleNumber = stampModelRow.replacement_pad_article_number?.trim() || null
-        if (articleNumber) {
-          const padRow = await stampService.findReplacementPad(articleNumber, String(colorValue)).catch(() => null)
-          padStockValue = padRow ? (padRow.stock ?? 0) : 0
-        }
-      }
-    }
-  }
-
-  return { stampStock: stampStockValue, padStock: padStockValue }
 }
 
 export function ContextPanel({
@@ -86,9 +37,7 @@ export function ContextPanel({
   orderCustomer,
   orderFiles,
   onOrderUpdated,
-  onOrderDeleted,
   onJobUpdated,
-  onJobRemoved,
   contextRefreshTick,
   onFileChanged = async () => {},
 }: Props) {
@@ -97,35 +46,12 @@ export function ContextPanel({
   const [jobAreaList, setJobAreaList] = useState<{ id: string; department: string }[]>([])
   const [dialogCustomerApprovalFile, setDialogCustomerApprovalFile] = useState(false)
   const [customerApprovalFileId, setCustomerApprovalFileId] = useState('')
-  const [stampStock, setStampStock] = useState<number | null>(null)
-  const [padStock, setPadStock] = useState<number | null>(null)
   const { showError, showSuccess } = useToast()
   const confirm = useConfirm()
 
   const setOrderStatusMutation = useSetOrderStatus()
   const markBilledMutation = useMarkOrderBilled()
   const setApprovalMutation = useSetCustomerApproval()
-
-  useEffect(() => {
-    if (!activeJob || activeJob.department !== 'STAMP') {
-      setStampStock(null)
-      setPadStock(null)
-      return
-    }
-    const stampDetail = jobDetailToFieldMap(activeJob.detail)
-    let alive = true
-    void loadStampStock(stampDetail)
-      .then(stockResult => {
-        if (alive) {
-          setStampStock(stockResult.stampStock)
-          setPadStock(stockResult.padStock)
-        }
-      })
-      .catch((err: unknown) => console.error(err))
-    return () => {
-      alive = false
-    }
-  }, [activeJob, contextRefreshTick])
 
   useEffect(() => {
     if (!order) {
@@ -143,8 +69,8 @@ export function ContextPanel({
           return
         }
         setJobAreaList(summaries)
-      } catch (err: unknown) {
-        if (alive) console.error(err)
+      } catch (error: unknown) {
+        if (alive) console.error(error)
       }
     })()
     return () => {
@@ -227,7 +153,6 @@ export function ContextPanel({
     }
   }
 
-  const currentStampDetail = job ? jobDetailToFieldMap(job.detail) : {}
   const customerApprovalGrantVisible =
     !!job &&
     job.customer_approval_required &&
@@ -247,16 +172,6 @@ export function ContextPanel({
 
   return (
     <div className="cp">
-      <div className="cp-sektion">
-        <h2>Status</h2>
-        <div className="cp-status-komp">
-          {job?.department === 'STAMP' && hasStampModelLinked(currentStampDetail) && (
-            <p className="cp-hinweis cp-hinweis--komp" style={{ marginTop: 6 }}>
-              Stock: Stamp {stampStock ?? '—'} · Pad {padStock ?? '—'}
-            </p>
-          )}
-        </div>
-      </div>
       {(() => {
         if (!orderCustomer) return null
         const street = orderCustomer.street?.trim()
@@ -335,8 +250,8 @@ export function ContextPanel({
       {hints.length > 0 && (
         <div className="cp-sektion">
           <h2>Notes</h2>
-          {hints.map((hint, i) => (
-            <p key={i} className="cp-hinweis">
+          {hints.map((hint, index) => (
+            <p key={index} className="cp-hinweis">
               {hint}
             </p>
           ))}
@@ -362,11 +277,11 @@ export function ContextPanel({
             <select
               className="cp-select"
               value={customerApprovalFileId}
-              onChange={e => setCustomerApprovalFileId(e.target.value)}
+              onChange={event => setCustomerApprovalFileId(event.target.value)}
             >
-              {orderFiles.map(d => (
-                <option key={d.id} value={d.id}>
-                  {d.display_name}
+              {orderFiles.map(file => (
+                <option key={file.id} value={file.id}>
+                  {file.display_name}
                 </option>
               ))}
             </select>

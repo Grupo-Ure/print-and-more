@@ -1,4 +1,5 @@
 import type { Database } from '../../types/supabase'
+import { STAMP_COLOR_LABELS } from '../../types/stamp'
 
 export type StampModelRow = Database['public']['Tables']['stamp_models']['Row']
 
@@ -34,21 +35,10 @@ export const STAMP_TYPE_FILTER_OPTIONS: { value: StampType; label: string }[] = 
   { value: 'INK_PAD_PRODUCT', label: STAMP_TYPE_LABELS.INK_PAD_PRODUCT },
 ]
 
-export type StampColorDb = 'BLACK' | 'RED' | 'BLUE' | 'GREEN'
-
-export const STAMP_COLOR_LABELS: Record<StampColorDb, string> = {
-  BLACK: 'Black',
-  RED: 'Red',
-  BLUE: 'Blue',
-  GREEN: 'Green',
-}
-
+/** Display label for a stored ink-colour code; unknown codes pass through. */
 export function colorLabel(colorCode: string | null | undefined): string {
   if (colorCode == null || colorCode === '') return '—'
-  if ((Object.keys(STAMP_COLOR_LABELS) as StampColorDb[]).includes(colorCode as StampColorDb)) {
-    return STAMP_COLOR_LABELS[colorCode as StampColorDb]
-  }
-  return colorCode
+  return (STAMP_COLOR_LABELS as Record<string, string>)[colorCode] ?? colorCode
 }
 
 export function formatNetRetailPrice(value: number | null | undefined): string {
@@ -61,28 +51,15 @@ export function formatNetRetailPrice(value: number | null | undefined): string {
   }).format(value)
 }
 
-/** Quantity from a legacy job-detail field; falls back to 1 for anything unusable. */
-export function parseJobQuantity(raw: unknown): number {
-  if (typeof raw === 'number' && Number.isFinite(raw)) {
-    const floored = Math.floor(raw)
-    return floored >= 1 ? floored : 1
-  }
-  if (typeof raw === 'string' && raw.trim() !== '') {
-    const parsed = parseInt(raw, 10)
-    if (Number.isFinite(parsed) && parsed >= 1) return parsed
-  }
-  return 1
-}
-
-export type StampStatus = { cls: string; label: string; rank: number }
+export type StampStatus = { badgeClass: string; label: string; rank: number }
 
 export function statusInfo(model: StampModelRow): StampStatus {
   const stock = model.stock ?? 0
   const minimumStock = model.min_stock ?? 0
-  if (stock <= 0) return { cls: 'badge-rot', label: 'Out of stock', rank: 0 }
-  if (stock < minimumStock) return { cls: 'badge-rot', label: 'Reorder', rank: 0 }
-  if (stock === minimumStock) return { cls: 'badge-orange', label: 'At minimum', rank: 1 }
-  return { cls: 'badge-gruen', label: 'OK', rank: 2 }
+  if (stock <= 0) return { badgeClass: 'badge-rot', label: 'Out of stock', rank: 0 }
+  if (stock < minimumStock) return { badgeClass: 'badge-rot', label: 'Reorder', rank: 0 }
+  if (stock === minimumStock) return { badgeClass: 'badge-orange', label: 'At minimum', rank: 1 }
+  return { badgeClass: 'badge-gruen', label: 'OK', rank: 2 }
 }
 
 export type OrderListRow = StampModelRow & {

@@ -1,18 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { jobService } from '../../services/jobService'
 import { stampService } from '../../services/stampService'
-import { jobDetailToFieldMap } from '../../lib/utils'
-import { cellText } from '../../lib/cellText'
+import { departmentProductService } from '../../services/departmentProductService'
 import { errorToString } from '../../lib/errorToString'
-import { toInteger, toNonNegativeInteger } from '../../lib/integers'
 import { useToast } from '../Toast'
-import type { Json } from '../../types/supabase'
-import {
-  colorLabel,
-  parseJobQuantity,
-  typeLabel,
-  type OrderListRow,
-} from './stampStockShared'
+import { colorLabel, typeLabel, type OrderListRow } from './stampStockShared'
 
 export function StampReorderList() {
   const { showError } = useToast()
@@ -26,45 +18,33 @@ export function StampReorderList() {
     try {
       const activeModels = await stampService.getStampModels()
       const allJobs = await jobService.getActiveJobsByBereich('STAMP')
-      const jobData = allJobs.filter(s => s.status !== 'DONE' && !s.is_cancelled)
+      const activeJobIds = allJobs
+        .filter(job => job.status !== 'DONE' && !job.is_cancelled)
+        .map(job => job.id)
 
-      const modelIdSet = new Set(activeModels.map(model => model.id))
+      const activeModelIds = new Set(activeModels.map(model => model.id))
+      const modelUsage = await departmentProductService.getStampModelUsageByJobs(activeJobIds)
+
       const demandByModelId = new Map<string, number>()
-
-      // Legacy job-detail JSONB: these are stored data keys, do not rename.
-      for (const jobItem of (jobData ?? []) as { detail: Json }[]) {
-        const fields = jobDetailToFieldMap(jobItem.detail)
-        const quantity = parseJobQuantity(fields.stueckzahl)
-        const modelId = fields.modell_id != null && String(fields.modell_id).trim() !== '' ? String(fields.modell_id) : null
-        const cushionModelId = fields.kissen_modell_id != null && String(fields.kissen_modell_id).trim() !== '' ? String(fields.kissen_modell_id) : null
-        if (modelId && modelIdSet.has(modelId)) {
-          demandByModelId.set(modelId, (demandByModelId.get(modelId) ?? 0) + quantity)
-        }
-        if (cushionModelId && modelIdSet.has(cushionModelId)) {
-          demandByModelId.set(cushionModelId, (demandByModelId.get(cushionModelId) ?? 0) + quantity)
-        }
+      for (const { modelId, quantity } of modelUsage) {
+        if (!activeModelIds.has(modelId)) continue
+        demandByModelId.set(modelId, (demandByModelId.get(modelId) ?? 0) + quantity)
       }
 
       const orderRows: OrderListRow[] = []
       for (const model of activeModels) {
-        const openQuantity = toInteger(demandByModelId.get(model.id))
-        const stockLevel = toInteger(model.stock)
-        const minimumStock = toInteger(model.min_stock)
-        const orderQuantity = Math.max(0, minimumStock + openQuantity - stockLevel)
+        const openQuantity = demandByModelId.get(model.id) ?? 0
+        const orderQuantity = Math.max(0, model.min_stock + openQuantity - model.stock)
         if (orderQuantity <= 0) continue
-        orderRows.push({
-          ...model,
-          openQuantity,
-          orderQuantity: toInteger(orderQuantity),
-        })
+        orderRows.push({ ...model, openQuantity, orderQuantity })
       }
-      orderRows.sort((a, b) => b.orderQuantity - a.orderQuantity)
+      orderRows.sort((firstRow, secondRow) => secondRow.orderQuantity - firstRow.orderQuantity)
       setOrderListRows(orderRows)
       setOrderListError(null)
-    } catch (e) {
+    } catch (error) {
       showError('Data could not be loaded')
       setOrderListRows([])
-      setOrderListError(errorToString(e))
+      setOrderListError(errorToString(error))
     } finally {
       setOrderListLoading(false)
     }
@@ -84,12 +64,7 @@ export function StampReorderList() {
   const orderListClipboardText = useMemo(() => {
     const header = 'Article number | Name | Colour | Quantity'
     const body = orderListRows
-      .map(orderRow => {
-        const art = cellText(orderRow.article_number, '—')
-        const name = cellText(orderRow.name, '—')
-        const colorValue = typeof orderRow.color === 'string' ? orderRow.color : null
-        return `${art} | ${name} | ${colorLabel(colorValue)} | ${toNonNegativeInteger(orderRow.orderQuantity)}`
-      })
+      .map(orderRow => `${orderRow.article_number ?? '—'} | ${orderRow.name} | ${colorLabel(orderRow.color)} | ${orderRow.orderQuantity}`)
       .join('\n')
     return body ? `${header}\n${body}` : header
   }, [orderListRows])
@@ -153,18 +128,15 @@ export function StampReorderList() {
               </tr>
             </thead>
             <tbody>
-              {orderListRows.map(orderRow => {
-                const typeStr = typeof orderRow.type === 'string' ? orderRow.type : cellText(orderRow.type, '')
-                const colorValue = typeof orderRow.color === 'string' ? orderRow.color : null
-                return (
-                <tr key={String(orderRow.id)} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={{ padding: '8px 6px', fontWeight: 600 }}>{cellText(orderRow.name, '—')}</td>
-                  <td style={{ padding: '8px 6px' }}>{cellText(orderRow.article_number, '—')}</td>
-                  <td style={{ padding: '8px 6px', opacity: 0.9 }}>{typeLabel(typeStr)}</td>
-                  <td style={{ padding: '8px 6px', opacity: 0.9 }}>{colorLabel(colorValue)}</td>
-                  <td style={{ padding: '8px 6px' }}>{toNonNegativeInteger(orderRow.stock)}</td>
-                  <td style={{ padding: '8px 6px' }}>{toNonNegativeInteger(orderRow.openQuantity)}</td>
-                  <td style={{ padding: '8px 6px' }}>{toNonNegativeInteger(orderRow.min_stock)}</td>
+              {orderListRows.map(orderRow => (
+                <tr key={orderRow.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={{ padding: '8px 6px', fontWeight: 600 }}>{orderRow.name}</td>
+                  <td style={{ padding: '8px 6px' }}>{orderRow.article_number ?? '—'}</td>
+                  <td style={{ padding: '8px 6px', opacity: 0.9 }}>{typeLabel(orderRow.type)}</td>
+                  <td style={{ padding: '8px 6px', opacity: 0.9 }}>{colorLabel(orderRow.color)}</td>
+                  <td style={{ padding: '8px 6px' }}>{orderRow.stock}</td>
+                  <td style={{ padding: '8px 6px' }}>{orderRow.openQuantity}</td>
+                  <td style={{ padding: '8px 6px' }}>{orderRow.min_stock}</td>
                   <td
                     style={{
                       padding: '8px 6px',
@@ -172,11 +144,10 @@ export function StampReorderList() {
                       color: '#b91c1c',
                     }}
                   >
-                    {toNonNegativeInteger(orderRow.orderQuantity)}
+                    {orderRow.orderQuantity}
                   </td>
                 </tr>
-                )
-              })}
+              ))}
             </tbody>
           </table>
         </div>

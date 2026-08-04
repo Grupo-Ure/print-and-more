@@ -2,14 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { stampService } from '../../services/stampService'
 import { useToast } from '../Toast'
 import { useStampStockUi } from './useStampStockUi'
+import { REFILL_INK_COLORS, STAMP_COLOR_LABELS } from '../../types/stamp'
 import {
-  STAMP_COLOR_LABELS,
   STAMP_TYPE_FILTER_OPTIONS,
   colorLabel,
   formatNetRetailPrice,
   statusInfo,
   typeLabel,
-  type StampColorDb,
   type StampModelRow,
 } from './stampStockShared'
 
@@ -240,9 +239,9 @@ export function StampOverview({ userId }: StampOverviewProps) {
             aria-label="Filter colour"
           >
             <option value="ALL">All colours</option>
-            {(Object.keys(STAMP_COLOR_LABELS) as StampColorDb[]).map(colorKey => (
-              <option key={colorKey} value={colorKey}>
-                {STAMP_COLOR_LABELS[colorKey]}
+            {REFILL_INK_COLORS.map(colorCode => (
+              <option key={colorCode} value={colorCode}>
+                {STAMP_COLOR_LABELS[colorCode]}
               </option>
             ))}
           </select>
@@ -344,7 +343,7 @@ export function StampOverview({ userId }: StampOverviewProps) {
                   <td style={{ padding: '8px 6px' }}>{formatNetRetailPrice(model.net_price)}</td>
                   <td style={{ padding: '8px 6px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                      <span className={`badge ${status.cls}`}>{status.label}</span>
+                      <span className={`badge ${status.badgeClass}`}>{status.label}</span>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                         <input
                           type="number"

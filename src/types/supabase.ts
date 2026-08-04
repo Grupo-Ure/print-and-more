@@ -2207,18 +2207,21 @@ export type Database = {
           color: string | null
           color_other: string | null
           department_product_id: string
+          description: string | null
           model_id: string | null
         }
         Insert: {
           color?: string | null
           color_other?: string | null
           department_product_id: string
+          description?: string | null
           model_id?: string | null
         }
         Update: {
           color?: string | null
           color_other?: string | null
           department_product_id?: string
+          description?: string | null
           model_id?: string | null
         }
         Relationships: [
@@ -2362,18 +2365,21 @@ export type Database = {
           color: string | null
           color_other: string | null
           department_product_id: string
+          description: string | null
           model_id: string | null
         }
         Insert: {
           color?: string | null
           color_other?: string | null
           department_product_id: string
+          description?: string | null
           model_id?: string | null
         }
         Update: {
           color?: string | null
           color_other?: string | null
           department_product_id?: string
+          description?: string | null
           model_id?: string | null
         }
         Relationships: [

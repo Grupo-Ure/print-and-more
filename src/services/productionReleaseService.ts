@@ -2,28 +2,19 @@ import { authService } from './authService'
 import { stampService } from './stampService'
 import { textileService } from './textileService'
 import { textileMasterDataService } from './textileMasterDataService'
-import { jobDetailToFieldMap } from '../lib/utils'
+import { departmentProductService } from './departmentProductService'
 import type { JobRow } from '../types/database'
 
 /**
  * Automatic stock deduction booked when a job is released to production
- * (the only point stock is consumed — not on "mark done"). Stamp: decrement the
- * stamp model and, if applicable, the matching replacement pad. Textile: decrement
- * each own-stock garment variant. Each deduction is logged as an `AUTO_DEDUCTION`
- * stock movement. Stock never goes below zero.
+ * (the only point stock is consumed — not on "mark done"). Stamp: per product,
+ * decrement the referenced stamp model and, for model stamps with an ink
+ * colour, the matching replacement pad. Textile: decrement each own-stock
+ * garment variant. Each deduction is logged as an `AUTO_DEDUCTION` stock
+ * movement. Stock never goes below zero.
  */
 export async function deductProductionStock(job: JobRow, orderNumber: string | null): Promise<void> {
   if (job.department === 'STAMP') {
-    const stampDetail = jobDetailToFieldMap(job.detail)
-    const rawQuantity = stampDetail.stueckzahl
-    const parsedQuantity =
-      typeof rawQuantity === 'number'
-        ? rawQuantity
-        : typeof rawQuantity === 'string' && rawQuantity.trim() !== ''
-          ? parseInt(rawQuantity, 10)
-          : 1
-    const quantity = Number.isFinite(parsedQuantity) && parsedQuantity >= 1 ? Math.floor(parsedQuantity) : 1
-
     const stampNote = 'Automatic on production release ' + (orderNumber ?? '')
 
     const bookStampStockDeduction = async (modelId: string, quantity: number, note: string) => {
@@ -43,28 +34,35 @@ export async function deductProductionStock(job: JobRow, orderNumber: string | n
       })
     }
 
-    if (job.type === 'TRODAT_PAD' && stampDetail.kissen_modell_id) {
-      await bookStampStockDeduction(String(stampDetail.kissen_modell_id), quantity, stampNote)
-    } else if (stampDetail.modell_id) {
-      const stampId = String(stampDetail.modell_id)
-      await bookStampStockDeduction(stampId, quantity, stampNote)
+    const products = await departmentProductService.getProductsByJobId(job.id)
+    for (const product of products) {
+      const rawQuantity = product.quantity ?? 1
+      const quantity = Number.isFinite(rawQuantity) && rawQuantity >= 1 ? Math.floor(rawQuantity) : 1
 
-      const stampColor = stampDetail.farbe
-      if (stampColor != null && String(stampColor).trim() !== '') {
-        const stampModelRow = await stampService.getStampModelForOrder(stampId)
-        if (stampModelRow) {
-          const articleNumber = stampModelRow.replacement_pad_article_number?.trim() || null
+      if (product.type === 'TRODAT_PRINTY' || product.type === 'WOODEN_STAMP') {
+        const { model_id: modelId, color } = product.child
+        if (!modelId) continue
+        await bookStampStockDeduction(modelId, quantity, stampNote)
+
+        // Model stamps ship with a pad in the chosen ink colour: deduct the
+        // matching replacement pad too. 'OTHER' has no catalog pad.
+        if (color && color !== 'OTHER') {
+          const stampModelRow = await stampService.getStampModelForOrder(modelId)
+          const articleNumber = stampModelRow?.replacement_pad_article_number?.trim() || null
           if (articleNumber) {
-            const padRow = await stampService.findReplacementPad(articleNumber, String(stampColor))
-            if (padRow) {
-              const padCurrentStock = padRow.stock ?? 0
-              if (padCurrentStock > 0) {
-                await bookStampStockDeduction(padRow.id, quantity, stampNote + ' (Pad for stamp)')
-              }
+            const padRow = await stampService.findReplacementPad(articleNumber, color)
+            if (padRow && (padRow.stock ?? 0) > 0) {
+              await bookStampStockDeduction(padRow.id, quantity, stampNote + ' (Pad for stamp)')
             }
           }
         }
+      } else if (product.type === 'TRODAT_PAD') {
+        const { pad_variant_id: padVariantId } = product.child
+        if (!padVariantId) continue
+        await bookStampStockDeduction(padVariantId, quantity, stampNote)
       }
+      // Other stamp types (custom-made stamps, plates, refill ink, loose ink
+      // pads) have no stamp_models reference — nothing to deduct.
     }
   }
 

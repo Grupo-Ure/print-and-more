@@ -1,6 +1,6 @@
 import { supabase } from '../supabase'
 import type { ChildTable, LoadedProduct, ProductWriteInput } from '../types/product'
-import { childTableForType } from '../types/product'
+import { childTableForType, isProductType } from '../types/product'
 import type { TextileMotifLinkRow } from '../types/textile'
 
 export type ProductFileAssignment = {
@@ -40,6 +40,20 @@ async function deleteChild(table: ChildTable, id: string): Promise<void> {
   if (error) throw error
 }
 
+/** One product's claim on a `stamp_models` row. */
+export type StampModelUsage = { modelId: string; quantity: number }
+
+/**
+ * One usage entry per row that actually references a model. A null model
+ * reference yields nothing; a missing quantity counts as 1 — the same default
+ * the production-release deduction applies.
+ */
+function toStampModelUsage(modelId: string | null, quantity: number | null): StampModelUsage[] {
+  if (!modelId) return []
+  const usableQuantity = quantity != null && Number.isFinite(quantity) && quantity >= 1 ? Math.floor(quantity) : 1
+  return [{ modelId, quantity: usableQuantity }]
+}
+
 class DepartmentProductService {
   /** Parent rows + their typed child rows for a job, ordered by sort_order. */
   async getProductsByJobId(jobId: string): Promise<LoadedProduct[]> {
@@ -54,6 +68,7 @@ class DepartmentProductService {
 
     const idsByType = new Map<string, string[]>()
     for (const parent of parents) {
+      if (!isProductType(parent.type)) throw new Error(`Unknown product type: ${parent.type}`)
       const list = idsByType.get(parent.type) ?? []
       list.push(parent.id)
       idsByType.set(parent.type, list)
@@ -61,12 +76,12 @@ class DepartmentProductService {
     const childById = new Map<string, Record<string, unknown>>()
     for (const [type, ids] of idsByType) {
       const rows = await fetchChildren(childTableForType(type), ids)
-      for (const r of rows) childById.set(String(r.department_product_id), r)
+      for (const row of rows) childById.set(String(row.department_product_id), row)
     }
     return parents.map(parent => ({
       ...parent,
-      child: (childById.get(parent.id) ?? {}) as LoadedProduct['child'],
-    }))
+      child: childById.get(parent.id) ?? {},
+    })) as LoadedProduct[]
   }
 
   /**
@@ -82,6 +97,45 @@ class DepartmentProductService {
     return Object.fromEntries(
       (data ?? []).map(row => [row.id, row.department_products?.[0]?.count ?? 0]),
     )
+  }
+
+  /**
+   * Stamp-model usage across the given jobs: one row per product that
+   * references a `stamp_models` row (Trodat Printy / Wooden Stamp via
+   * `model_id`, Trodat Pad via `pad_variant_id`), with the product quantity.
+   * Feeds the reorder list's open-demand figure.
+   */
+  async getStampModelUsageByJobs(jobIds: string[]): Promise<StampModelUsage[]> {
+    if (jobIds.length === 0) return []
+
+    // One query per referencing table. The table names and select strings must
+    // stay literal — that is what lets supabase-js infer the row types.
+    const [printyRows, woodenRows, padRows] = await Promise.all([
+      supabase
+        .from('trodat_printy_products')
+        .select('model_id, department_products!inner(quantity, job_id)')
+        .not('model_id', 'is', null)
+        .in('department_products.job_id', jobIds),
+      supabase
+        .from('wooden_stamp_products')
+        .select('model_id, department_products!inner(quantity, job_id)')
+        .not('model_id', 'is', null)
+        .in('department_products.job_id', jobIds),
+      supabase
+        .from('trodat_pad_products')
+        .select('pad_variant_id, department_products!inner(quantity, job_id)')
+        .not('pad_variant_id', 'is', null)
+        .in('department_products.job_id', jobIds),
+    ])
+    if (printyRows.error) throw printyRows.error
+    if (woodenRows.error) throw woodenRows.error
+    if (padRows.error) throw padRows.error
+
+    return [
+      ...(printyRows.data ?? []).flatMap(row => toStampModelUsage(row.model_id, row.department_products.quantity)),
+      ...(woodenRows.data ?? []).flatMap(row => toStampModelUsage(row.model_id, row.department_products.quantity)),
+      ...(padRows.data ?? []).flatMap(row => toStampModelUsage(row.pad_variant_id, row.department_products.quantity)),
+    ]
   }
 
   /** Insert parent then child (TS two-step). Returns the new product id. */
