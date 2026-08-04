@@ -21,3 +21,10 @@ export function formatDateDe(iso: string | null | undefined): string {
     year: 'numeric',
   })
 }
+
+/** Short de-DE date + time; returns the input unchanged if it is not a valid date. */
+export function formatDateTimeDe(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  return date.toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })
+}
