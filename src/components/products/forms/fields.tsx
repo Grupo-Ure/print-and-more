@@ -7,7 +7,8 @@
  */
 
 import { type AnyFieldApi } from '@tanstack/react-form'
-import type { ReactNode } from 'react'
+import { useContext, type ReactNode } from 'react'
+import { ProductViewContext } from './viewContext'
 import { Input } from '../../ui/input'
 import { Textarea } from '../../ui/textarea'
 import { Label } from '../../ui/label'
@@ -213,20 +214,24 @@ export function DimensionFields({
 
 /** Per-product file assignment: chips for the selected files + a picker to add more. */
 export function FilePickerField({ value, onChange, orderFiles }: { value: string[]; onChange: (next: string[]) => void; orderFiles: FileRow[] }) {
+  const viewing = useContext(ProductViewContext)
   if (orderFiles.length === 0) return null
   const available = orderFiles.filter(f => !value.includes(f.id))
   return (
     <FieldRow label="Files">
       <div className="flex flex-wrap items-center gap-2">
+        {viewing && value.length === 0 && <span className="text-sm text-muted-foreground">—</span>}
         {value.map(fid => (
           <Badge key={fid} variant="secondary" className="gap-1">
             <span className="max-w-45 truncate">{orderFiles.find(f => f.id === fid)?.display_name ?? fid}</span>
-            <button type="button" className="cursor-pointer" title="Remove" onClick={() => onChange(value.filter(id => id !== fid))}>
-              ×
-            </button>
+            {!viewing && (
+              <button type="button" className="cursor-pointer" title="Remove" onClick={() => onChange(value.filter(id => id !== fid))}>
+                ×
+              </button>
+            )}
           </Badge>
         ))}
-        {available.length > 0 && (
+        {!viewing && available.length > 0 && (
           <Select key={value.join('|')} value={undefined} onValueChange={fid => onChange([...value, fid])}>
             <SelectTrigger size="sm" className="w-40">
               <SelectValue placeholder="Add file…" />
@@ -247,6 +252,8 @@ export function FilePickerField({ value, onChange, orderFiles }: { value: string
 
 /** Cancel + Save (Save gated on form validity + the submitting flag). */
 export function FormActions({ canSubmit, submitting, editing, onCancel }: { canSubmit: boolean; submitting: boolean; editing: boolean; onCancel: () => void }) {
+  const viewing = useContext(ProductViewContext)
+  if (viewing) return null
   return (
     <div className="flex gap-2 pt-1">
       <Button type="submit" disabled={!canSubmit || submitting}>

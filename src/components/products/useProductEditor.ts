@@ -21,6 +21,7 @@ export type EditorMode =
   | { kind: 'idle' }
   | { kind: 'add' }
   | { kind: 'edit'; product: LoadedProduct }
+  | { kind: 'view'; product: LoadedProduct }
 
 export function useProductEditor(
   job: JobRow,
@@ -51,6 +52,7 @@ export function useProductEditor(
 
   const openAdd = useCallback(() => setMode({ kind: 'add' }), [])
   const openEdit = useCallback((product: LoadedProduct) => setMode({ kind: 'edit', product }), [])
+  const openView = useCallback((product: LoadedProduct) => setMode({ kind: 'view', product }), [])
   const close = useCallback(() => setMode({ kind: 'idle' }), [])
 
   /** Called by a form after a successful save (closes the add/edit form). */
@@ -93,6 +95,7 @@ export function useProductEditor(
     mode,
     openAdd,
     openEdit,
+    openView,
     close,
     handleSaved,
     handleDelete,

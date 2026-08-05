@@ -1,14 +1,14 @@
 /**
- * OTHER department "add / edit product" dialog. The OTHER department has a
- * single product type, so there is no type picker — the dialog opens straight
- * to the form for both add and edit. Submission stays in the form itself.
+ * OTHER department product dialog. The OTHER department has a single product
+ * type, so there is no type picker — the dialog opens straight to the form.
+ * The modal chrome and view-mode handling live in `ProductDialogShell`;
+ * submission stays in the form itself.
  */
 
 import type { JobRow } from '../../types/database'
 import type { FileRow } from '../../services/fileService'
-import { useOrderById } from '../../queries/orderQueries'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { OtherForm } from './forms/other'
+import { ProductDialogShell } from './ProductDialogShell'
 import type { useProductEditor } from './useProductEditor'
 
 type ProductEditor = ReturnType<typeof useProductEditor>
@@ -22,30 +22,23 @@ export function OtherProductDialog({
   job: JobRow
   orderFiles: FileRow[]
 }) {
-  const { mode, close, handleSaved, fileIdsFor, products } = editor
-  // The quote-relaxation of the product validation is an order-level rule.
-  const orderIsQuote = useOrderById(job.order_id).data?.status === 'QUOTE'
-  const editing = mode.kind === 'edit' ? mode.product : null
-  const open = mode.kind !== 'idle'
+  const { close, handleSaved, fileIdsFor } = editor
 
   return (
-    <Dialog open={open} onOpenChange={o => { if (!o) close() }}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{editing ? 'Edit product' : 'Add product'}</DialogTitle>
-        </DialogHeader>
+    <ProductDialogShell editor={editor} job={job}>
+      {({ product, orderIsQuote, sortOrder }) => (
         <OtherForm
-          key={editing?.id ?? 'new'}
+          key={product?.id ?? 'new'}
           job={job}
           orderIsQuote={orderIsQuote}
-          product={editing}
+          product={product}
           orderFiles={orderFiles}
-          initialFileIds={editing ? fileIdsFor(editing.id) : []}
-          sortOrder={editing ? editing.sort_order : products.length}
+          initialFileIds={product ? fileIdsFor(product.id) : []}
+          sortOrder={sortOrder}
           onSaved={handleSaved}
           onCancel={close}
         />
-      </DialogContent>
-    </Dialog>
+      )}
+    </ProductDialogShell>
   )
 }

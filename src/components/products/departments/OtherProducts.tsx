@@ -21,13 +21,11 @@ export function OtherProducts({ job, jobStatus, orderFiles = [] }: Props) {
     <div className="flex flex-col gap-4">
       <p className="text-xs text-muted-foreground">For ‘Other’, Prepress is set manually only.</p>
 
-      {!productEditor.isReadOnly && (
-        <OtherProductDialog
-          editor={productEditor}
-          job={job}
-          orderFiles={orderFiles}
-        />
-      )}
+      <OtherProductDialog
+        editor={productEditor}
+        job={job}
+        orderFiles={orderFiles}
+      />
 
       <div className="flex flex-col gap-6">
         <SectionHeader title="Products">
@@ -38,7 +36,7 @@ export function OtherProducts({ job, jobStatus, orderFiles = [] }: Props) {
         ) : (
           <OtherProductsTable
             data={productEditor.products}
-            meta={{ onEdit: productEditor.openEdit, onDelete: productEditor.handleDelete, onAdd: productEditor.openAdd, orderFiles, filesByProduct: productEditor.filesByProduct, isReadOnly: productEditor.isReadOnly }}
+            meta={{ onEdit: productEditor.openEdit, onDelete: productEditor.handleDelete, onAdd: productEditor.openAdd, onView: productEditor.openView, orderFiles, filesByProduct: productEditor.filesByProduct, isReadOnly: productEditor.isReadOnly }}
           />
         )}
       </div>

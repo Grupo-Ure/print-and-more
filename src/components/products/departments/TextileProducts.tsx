@@ -288,15 +288,13 @@ export function TextileProducts({ job, jobStatus, orderFiles = [] }: Props) {
     <div className="flex flex-col gap-4">
       <DesignsDrawer job={job} motifs={motifs} orderFiles={orderFiles} isReadOnly={productEditor.isReadOnly} />
 
-      {!productEditor.isReadOnly && (
-        <TextileProductDialog
-          editor={productEditor}
-          job={job}
-          orderFiles={orderFiles}
-          motifs={motifs}
-          linksByProduct={linksByProduct}
-        />
-      )}
+      <TextileProductDialog
+        editor={productEditor}
+        job={job}
+        orderFiles={orderFiles}
+        motifs={motifs}
+        linksByProduct={linksByProduct}
+      />
 
       <div>
         <SectionHeader title="Garments">
@@ -322,7 +320,7 @@ export function TextileProducts({ job, jobStatus, orderFiles = [] }: Props) {
               </TableHeader>
               <TableBody>
                 {productEditor.products.map(prod => (
-                  <TableRow key={prod.id}>
+                  <TableRow key={prod.id} className="cursor-pointer" onClick={() => productEditor.openView(prod)}>
                     <TableCell className={SATELLITE_CELL_CLASS}>
                       <span className="font-medium text-foreground">{garmentSummary(prod)}</span>
                     </TableCell>
@@ -334,10 +332,10 @@ export function TextileProducts({ job, jobStatus, orderFiles = [] }: Props) {
                     </TableCell>
                     <TableCell className={SATELLITE_CELL_CLASS}>
                       <div className="flex gap-2">
-                        <Button type="button" variant="ghost" size="icon-sm" title="Edit" aria-label="Edit" disabled={productEditor.isReadOnly} onClick={() => productEditor.openEdit(prod)}>
+                        <Button type="button" variant="ghost" size="icon-sm" title="Edit" aria-label="Edit" disabled={productEditor.isReadOnly} onClick={e => { e.stopPropagation(); productEditor.openEdit(prod) }}>
                           <Pencil />
                         </Button>
-                        <Button type="button" variant="ghost" size="icon-sm" title="Delete" aria-label="Delete" disabled={productEditor.isReadOnly} onClick={() => productEditor.handleDelete(prod.id)}>
+                        <Button type="button" variant="ghost" size="icon-sm" title="Delete" aria-label="Delete" disabled={productEditor.isReadOnly} onClick={e => { e.stopPropagation(); productEditor.handleDelete(prod.id) }}>
                           <Trash2 />
                         </Button>
                       </div>

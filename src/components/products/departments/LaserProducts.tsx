@@ -33,15 +33,13 @@ export function LaserProducts({ job, jobStatus, orderFiles = [] }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      {!productEditor.isReadOnly && (
-        <ProductDialog
-          editor={productEditor}
-          job={job}
-          orderFiles={orderFiles}
-          types={TYPE_OPTIONS}
-          formByType={FORM_BY_TYPE}
-        />
-      )}
+      <ProductDialog
+        editor={productEditor}
+        job={job}
+        orderFiles={orderFiles}
+        types={TYPE_OPTIONS}
+        formByType={FORM_BY_TYPE}
+      />
 
       <div>
         <SectionHeader title="Products">
@@ -52,7 +50,7 @@ export function LaserProducts({ job, jobStatus, orderFiles = [] }: Props) {
         ) : (
           <LaserProductsTable
             data={productEditor.products}
-            meta={{ onEdit: productEditor.openEdit, onDelete: productEditor.handleDelete, onAdd: productEditor.openAdd, orderFiles, filesByProduct: productEditor.filesByProduct, isReadOnly: productEditor.isReadOnly }}
+            meta={{ onEdit: productEditor.openEdit, onDelete: productEditor.handleDelete, onAdd: productEditor.openAdd, onView: productEditor.openView, orderFiles, filesByProduct: productEditor.filesByProduct, isReadOnly: productEditor.isReadOnly }}
           />
         )}
       </div>

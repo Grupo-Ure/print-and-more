@@ -72,7 +72,7 @@ export function firstOfColumn(id: string, header: string, keys: string[], max = 
   }
 }
 
-/** Actions column: Edit / Delete + the assigned file names (reads table meta). */
+/** Actions column: Edit / Delete (reads table meta). */
 export function actionsColumn(): ColumnDef<LoadedProduct> {
   return {
     id: 'actions',
@@ -80,40 +80,38 @@ export function actionsColumn(): ColumnDef<LoadedProduct> {
     cell: ({ row, table }: CellContext<LoadedProduct, unknown>) => {
       const meta = table.options.meta as ProductTableMeta
       const product = row.original
-      const assignments = meta.filesByProduct[product.id] ?? []
-      const names =
-        assignments.length === 0
-          ? '—'
-          : assignments.map(a => meta.orderFiles.find(f => f.id === a.file_id)?.display_name ?? a.file_id).join(', ')
       return (
-        <div className="flex flex-col gap-1">
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="text-blue-600 hover:bg-transparent hover:text-blue-800 dark:text-blue-500 dark:hover:bg-transparent dark:hover:text-blue-600"
-              title="Edit"
-              aria-label="Edit"
-              disabled={meta.isReadOnly}
-              onClick={() => meta.onEdit(product)}
-            >
-              <Pencil />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="text-red-600 hover:bg-transparent hover:text-red-800 dark:text-red-500 dark:hover:bg-transparent dark:hover:text-red-600"
-              title="Delete"
-              aria-label="Delete"
-              disabled={meta.isReadOnly}
-              onClick={() => meta.onDelete(product.id)}
-            >
-              <Trash2 />
-            </Button>
-          </div>
-          <span className="text-xs text-muted-foreground">{names}</span>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="text-blue-600 hover:bg-transparent hover:text-blue-800 dark:text-blue-500 dark:hover:bg-transparent dark:hover:text-blue-600"
+            title="Edit"
+            aria-label="Edit"
+            disabled={meta.isReadOnly}
+            onClick={e => {
+              e.stopPropagation()
+              meta.onEdit(product)
+            }}
+          >
+            <Pencil />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="text-red-600 hover:bg-transparent hover:text-red-800 dark:text-red-500 dark:hover:bg-transparent dark:hover:text-red-600"
+            title="Delete"
+            aria-label="Delete"
+            disabled={meta.isReadOnly}
+            onClick={e => {
+              e.stopPropagation()
+              meta.onDelete(product.id)
+            }}
+          >
+            <Trash2 />
+          </Button>
         </div>
       )
     },

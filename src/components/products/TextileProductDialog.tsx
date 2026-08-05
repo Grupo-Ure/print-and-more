@@ -1,17 +1,16 @@
 /**
- * Textile department "add / edit garment" dialog. Textile has a single garment
- * type, so there is no type picker — the dialog opens straight to the garment
- * form for both add and edit. The reusable designs drawer stays on the page;
- * this dialog only hosts the garment form (which needs the motif list + the
- * garment's existing design links).
+ * Textile department garment dialog. Textile has a single garment type, so
+ * there is no type picker — the dialog opens straight to the garment form.
+ * The reusable designs drawer stays on the page; this dialog only hosts the
+ * garment form (which needs the motif list + the garment's existing design
+ * links). The modal chrome and view-mode handling live in `ProductDialogShell`.
  */
 
 import type { JobRow } from '../../types/database'
 import type { FileRow } from '../../services/fileService'
 import type { TextileMotifRow, TextileMotifLinkInput } from '../../types/textile'
-import { useOrderById } from '../../queries/orderQueries'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { TextileGarmentForm } from './forms/textile'
+import { ProductDialogShell } from './ProductDialogShell'
 import type { useProductEditor } from './useProductEditor'
 
 type ProductEditor = ReturnType<typeof useProductEditor>
@@ -29,32 +28,25 @@ export function TextileProductDialog({
   motifs: TextileMotifRow[]
   linksByProduct: Record<string, TextileMotifLinkInput[]>
 }) {
-  const { mode, close, handleSaved, products } = editor
-  // The quote-relaxation of the garment validation is an order-level rule.
-  const orderIsQuote = useOrderById(job.order_id).data?.status === 'QUOTE'
-  const editing = mode.kind === 'edit' ? mode.product : null
-  const open = mode.kind !== 'idle'
+  const { close, handleSaved } = editor
 
   return (
-    <Dialog open={open} onOpenChange={o => { if (!o) close() }}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{editing ? 'Edit garment' : 'Add garment'}</DialogTitle>
-        </DialogHeader>
+    <ProductDialogShell editor={editor} job={job} noun="garment">
+      {({ product, orderIsQuote, sortOrder }) => (
         <TextileGarmentForm
-          key={editing?.id ?? 'new'}
+          key={product?.id ?? 'new'}
           job={job}
           orderIsQuote={orderIsQuote}
-          product={editing}
+          product={product}
           orderFiles={orderFiles}
           initialFileIds={[]}
-          sortOrder={editing ? editing.sort_order : products.length}
+          sortOrder={sortOrder}
           onSaved={handleSaved}
           onCancel={close}
           motifs={motifs}
-          initialLinks={editing ? (linksByProduct[editing.id] ?? []) : []}
+          initialLinks={product ? (linksByProduct[product.id] ?? []) : []}
         />
-      </DialogContent>
-    </Dialog>
+      )}
+    </ProductDialogShell>
   )
 }

@@ -24,6 +24,8 @@ import { STAMP_ALL_LABELS } from './forms/stampTypes'
 export type ProductTableMeta = {
   onEdit: (product: LoadedProduct) => void
   onDelete: (id: string) => void
+  /** Opens the product dialog in read-only view mode (row click). */
+  onView: (product: LoadedProduct) => void
   /** Opens the add-product dialog — used from the empty state. */
   onAdd: () => void
   /** Label for the empty-state add button (defaults to "+ Add product"). */
@@ -79,7 +81,7 @@ export function ProductTable({
         </TableHeader>
         <TableBody>
           {table.getRowModel().rows.map(row => (
-            <TableRow key={row.id}>
+            <TableRow key={row.id} className="cursor-pointer" onClick={() => meta.onView(row.original)}>
               {row.getVisibleCells().map(cell => (
                 <TableCell key={cell.id} className="px-3 py-2.5 align-center">
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
