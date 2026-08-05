@@ -1,7 +1,10 @@
 import { supabase } from '../supabase'
 import type { Database } from '../types/supabase'
-import { JOB_COLUMNS } from '../const/jobSelect'
 import type { JobRow, JobStatus, Department } from '../types/database'
+
+/** SELECT for `jobs` — the full row as the app consumes it (`JobRow`). */
+const JOB_COLUMNS =
+  'id, job_number, order_id, department, type, status, deadline, delivery, priority, assignee_id, is_cancelled, customer_approval_required, customer_approval_granted, customer_approval_file_id' as const
 
 export type JobInsert = Omit<Database['public']['Tables']['jobs']['Insert'], 'job_number'>
 type JobUpdate = Database['public']['Tables']['jobs']['Update']
