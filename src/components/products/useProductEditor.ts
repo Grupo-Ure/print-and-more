@@ -14,6 +14,7 @@ import type { JobStatus, JobRow } from '../../types/database'
 import type { LoadedProduct } from '../../types/product'
 import type { ProductFileAssignment } from '../../services/departmentProductService'
 import { useToast } from '../Toast'
+import { useConfirm } from '../ConfirmDialog'
 
 /** Which form (if any) the detail is showing. */
 export type EditorMode =
@@ -26,6 +27,7 @@ export function useProductEditor(
   jobStatus: JobStatus,
 ) {
   const { showError } = useToast()
+  const confirm = useConfirm()
 
   const productsQuery = useProductsByJobId(job.id)
   const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data])
@@ -57,7 +59,14 @@ export function useProductEditor(
   }, [])
 
   const handleDelete = useCallback(
-    (id: string) => {
+    async (id: string) => {
+      const confirmed = await confirm({
+        title: 'Delete this product?',
+        description: 'The product and its file assignments will be removed.',
+        confirmLabel: 'Delete product',
+        destructive: true,
+      })
+      if (!confirmed) return
       deleteProduct.mutate(
         { id, jobId: job.id, orderId: job.order_id },
         {
@@ -68,7 +77,7 @@ export function useProductEditor(
         },
       )
     },
-    [deleteProduct, job.id, job.order_id, showError],
+    [confirm, deleteProduct, job.id, job.order_id, showError],
   )
 
   /** File ids currently assigned to a product (for edit-prefill). */

@@ -92,6 +92,7 @@ export function actionsColumn(): ColumnDef<LoadedProduct> {
               type="button"
               variant="ghost"
               size="icon-sm"
+              className="text-blue-600 hover:bg-transparent hover:text-blue-800 dark:text-blue-500 dark:hover:bg-transparent dark:hover:text-blue-600"
               title="Edit"
               aria-label="Edit"
               disabled={meta.isReadOnly}
@@ -103,6 +104,7 @@ export function actionsColumn(): ColumnDef<LoadedProduct> {
               type="button"
               variant="ghost"
               size="icon-sm"
+              className="text-red-600 hover:bg-transparent hover:text-red-800 dark:text-red-500 dark:hover:bg-transparent dark:hover:text-red-600"
               title="Delete"
               aria-label="Delete"
               disabled={meta.isReadOnly}
