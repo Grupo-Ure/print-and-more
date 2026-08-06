@@ -1,9 +1,8 @@
 import type { Database } from '../../types/supabase'
 import { STAMP_COLOR_LABELS } from '../../types/stamp'
+import { stockStatus, type StockStatus } from '../stock/stockShared'
 
 export type StampModelRow = Database['public']['Tables']['stamp_models']['Row']
-
-export type MovementType = 'INBOUND' | 'OUTBOUND' | 'AUTO_DEDUCTION'
 
 export type StampType =
   | 'TRODAT_PRINTY'
@@ -51,15 +50,8 @@ export function formatNetRetailPrice(value: number | null | undefined): string {
   }).format(value)
 }
 
-export type StampStatus = { badgeClass: string; label: string; rank: number }
-
-export function statusInfo(model: StampModelRow): StampStatus {
-  const stock = model.stock ?? 0
-  const minimumStock = model.min_stock ?? 0
-  if (stock <= 0) return { badgeClass: 'badge-rot', label: 'Out of stock', rank: 0 }
-  if (stock < minimumStock) return { badgeClass: 'badge-rot', label: 'Reorder', rank: 0 }
-  if (stock === minimumStock) return { badgeClass: 'badge-orange', label: 'At minimum', rank: 1 }
-  return { badgeClass: 'badge-gruen', label: 'OK', rank: 2 }
+export function statusInfo(model: StampModelRow): StockStatus {
+  return stockStatus(model.stock, model.min_stock)
 }
 
 export type OrderListRow = StampModelRow & {

@@ -1,9 +1,9 @@
 import { createContext, useContext } from 'react'
-import type { MovementType } from './stampStockShared'
+import type { MovementType, SortState } from '../stock/stockShared'
 
 export type OverviewSortKey = 'name' | 'color' | 'print_area' | 'type' | 'stock' | 'min_stock' | 'status'
 
-export type SortState<K extends string> = { key: K; dir: 'asc' | 'desc' } | null
+export type { SortState }
 
 export type StampStockUi = {
   overviewSearch: string

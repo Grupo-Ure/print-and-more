@@ -25,6 +25,17 @@ export type VariantWithDetails = VariantRow & {
   } | null
 }
 
+export type TextileStockMovementRow = Database['public']['Tables']['textile_stock_movements']['Row'] & {
+  textile_variants: {
+    color: string
+    size: string
+    textile_products: {
+      name: string
+      textile_brands: { name: string } | null
+    } | null
+  } | null
+}
+
 /** Flatten a textile_garment_products row embedding its parent into {variant_id, quantity}. */
 function toVariantUsage(row: unknown): { variant_id: string | null; quantity: number } {
   const r = row as { variant_id: string | null; department_products: { quantity: number | null } | { quantity: number | null }[] | null }
@@ -220,6 +231,16 @@ class TextileMasterDataService {
       .single()
     if (error) throw error
     return data as { stock: number } | null
+  }
+
+  async getStockMovements(): Promise<TextileStockMovementRow[]> {
+    const { data, error } = await supabase
+      .from('textile_stock_movements')
+      .select('*, textile_variants(color, size, textile_products(name, textile_brands(name)))')
+      .order('created_at', { ascending: false })
+      .limit(200)
+    if (error) throw error
+    return (data ?? []) as unknown as TextileStockMovementRow[]
   }
 
   async createTextileStockMovement(payload: StockMovementInsert): Promise<void> {

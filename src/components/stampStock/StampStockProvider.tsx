@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
-import type { MovementType } from './stampStockShared'
-import { StampStockUiContext, type OverviewSortKey, type SortState, type StampStockUi } from './useStampStockUi'
+import { nextSortState, type MovementType, type SortState } from '../stock/stockShared'
+import { StampStockUiContext, type OverviewSortKey, type StampStockUi } from './useStampStockUi'
 
 /** Filter/search/sort state for the stock views — lives at page level so it survives view switches. */
 export function StampStockProvider({ children }: { children: ReactNode }) {
@@ -13,11 +13,7 @@ export function StampStockProvider({ children }: { children: ReactNode }) {
   const [movementSearch, setMovementSearch] = useState('')
 
   const toggleOverviewSort = useCallback((key: OverviewSortKey) => {
-    setOverviewSorting(currentSorting => {
-      if (!currentSorting || currentSorting.key !== key) return { key, dir: 'asc' }
-      if (currentSorting.dir === 'asc') return { key, dir: 'desc' }
-      return null
-    })
+    setOverviewSorting(currentSorting => nextSortState(currentSorting, key))
   }, [])
 
   const value = useMemo<StampStockUi>(
