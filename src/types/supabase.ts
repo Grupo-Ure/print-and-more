@@ -2411,6 +2411,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      book_production_deductions: {
+        Args: { allow_shortage?: boolean; deductions: Json; note: string }
+        Returns: Json
+      }
       current_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]

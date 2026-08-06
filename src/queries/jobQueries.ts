@@ -2,12 +2,13 @@ import { useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { jobService } from '../services/jobService'
 import { historyService, type HistoryEvent } from '../services/historyService'
-import { deductProductionStock } from '../services/productionReleaseService'
+import { productionReleaseService } from '../services/productionReleaseService'
 import { resolveEffectiveJob } from '../lib/jobShared'
 import type { JobRow, JobStatus } from '../types/database'
 import type { Database } from '../types/supabase'
 import { orderKeys, useOrderById } from './orderQueries'
 import { historyKeys } from './historyQueries'
+import { stockAvailabilityKeys } from './stockQueries'
 
 import type { JobInsert } from '../services/jobService'
 type JobUpdate = Database['public']['Tables']['jobs']['Update']
@@ -223,13 +224,15 @@ export function useSetJobStatus() {
 /**
  * Release to production: book stock deductions (stamp/textile), set
  * IN_PRODUCTION, write the PRODUCTION_READY_SET history entry. The stock
- * deduction runs before the status write, matching the prior behaviour.
+ * deduction runs before the status write and is all-or-nothing: on
+ * insufficient stock it throws InsufficientStockError and the job stays in
+ * pre-press.
  */
 export function useReleaseToProduction() {
   const queryClient = useQueryClient()
   return useMutation<JobRow, Error, { job: JobRow; orderId: string; orderNumber: string | null }>({
     mutationFn: async ({ job, orderId, orderNumber }) => {
-      await deductProductionStock(job, orderNumber)
+      await productionReleaseService.deductProductionStock(job, orderNumber)
       const row = await jobService.setJobStatus(job.id, 'IN_PRODUCTION')
       await historyService.tryWriteHistory({
         order_id: orderId,
@@ -241,6 +244,8 @@ export function useReleaseToProduction() {
     onSuccess: (row, { orderId }) => {
       patchJobInCache(queryClient, orderId, row)
       invalidateOrderLists(queryClient)
+      // Stock changed — other pre-press jobs' availability may have too.
+      void queryClient.invalidateQueries({ queryKey: stockAvailabilityKeys.root })
     },
   })
 }
@@ -251,6 +256,8 @@ export function useReleaseToProduction() {
  * regular release and writes an EMERGENCY_TRIGGERED history entry with the
  * reason — history is the sole record of the override. IN_PRODUCTION is
  * outside the automatic status band, so the status manager leaves the job alone.
+ * The stock gate is bypassed too: available stock is deducted (floored at 0)
+ * and the movements record what was actually taken.
  */
 export function useForceReleaseToProduction() {
   const queryClient = useQueryClient()
@@ -260,7 +267,7 @@ export function useForceReleaseToProduction() {
     { job: JobRow; orderId: string; orderNumber: string | null; reason: string }
   >({
     mutationFn: async ({ job, orderId, orderNumber, reason }) => {
-      await deductProductionStock(job, orderNumber)
+      await productionReleaseService.deductProductionStock(job, orderNumber, { allowShortage: true })
       const row = await jobService.setJobStatus(job.id, 'IN_PRODUCTION')
       await historyService.tryWriteHistory({
         order_id: orderId,
@@ -273,6 +280,8 @@ export function useForceReleaseToProduction() {
     onSuccess: (row, { orderId }) => {
       patchJobInCache(queryClient, orderId, row)
       invalidateOrderLists(queryClient)
+      // Stock changed — other pre-press jobs' availability may have too.
+      void queryClient.invalidateQueries({ queryKey: stockAvailabilityKeys.root })
     },
   })
 }

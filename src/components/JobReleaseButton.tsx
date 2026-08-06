@@ -9,6 +9,8 @@ import {
   useSetJobStatus,
 } from '../queries/jobQueries'
 import { useIsAdmin } from '../queries/userQueries'
+import { useStockAvailability } from '../queries/stockQueries'
+import { InsufficientStockError } from '../services/productionReleaseService'
 import { isJobComplete, resolveEffectiveJob } from '../lib/jobShared'
 import { JOB_STATUS_META, WORKFLOW_STATUSES } from '../const/orderStatus'
 import type { JobRow } from '../types/database'
@@ -52,6 +54,8 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
   const order = orderQuery.data
   const orderIsQuote = order?.status === 'QUOTE'
   const hasProducts = (productsQuery.data?.length ?? 0) > 0
+  const { data: shortages = [] } = useStockAvailability(job)
+  const stockBlocked = shortages.length > 0
   const effectiveJob = order ? resolveEffectiveJob(job, order) : null
   const complete = effectiveJob ? isJobComplete(effectiveJob, false, hasProducts) : false
 
@@ -89,8 +93,13 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
         orderId: job.order_id,
         orderNumber,
       })
-    } catch {
-      showError('Status could not be updated')
+    } catch (err) {
+      // Lost the race against a concurrent release: the RPC rejected atomically.
+      if (err instanceof InsufficientStockError) {
+        showError('Not enough stock — the job was not released to production')
+      } else {
+        showError('Status could not be updated')
+      }
     }
   }
 
@@ -150,7 +159,7 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
   const disabled =
     pending ||
     (job.status === 'IN_SETUP' && !complete) ||
-    (job.status === 'PREPRESS' && approvalBlocked)
+    (job.status === 'PREPRESS' && (approvalBlocked || stockBlocked))
 
   const handleClick = () => {
     if (job.status === 'IN_SETUP') return void handleReleaseToPrepress()
@@ -158,11 +167,13 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
     if (job.status === 'IN_PRODUCTION') return void handleMarkDone()
   }
 
-  // The force-release override exists only to bypass the completeness gate,
-  // so the dropdown shows only while that gate is actually failing. Once the
-  // job validates (or is past IN_SETUP), the normal release covers it.
-  // Admin / super admin only.
-  const withDropdown = isAdmin && job.status === 'IN_SETUP' && !complete
+  // The force-release override bypasses the completeness and stock gates, so
+  // the dropdown shows only while one of those gates is actually failing.
+  // Once the job validates (or the stock is topped up), the normal release
+  // covers it. Admin / super admin only.
+  const withDropdown =
+    isAdmin &&
+    ((job.status === 'IN_SETUP' && !complete) || (job.status === 'PREPRESS' && stockBlocked))
 
   const mainClassName = cn(
     'h-10 px-6 text-lg',

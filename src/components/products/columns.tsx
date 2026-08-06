@@ -4,7 +4,7 @@
  */
 
 import type { ColumnDef, CellContext } from '@tanstack/react-table'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2, TriangleAlert } from 'lucide-react'
 import { Button } from '../ui/button'
 import type { LoadedProduct } from '../../types/product'
 import type { ProductTableMeta } from './ProductTable'
@@ -68,6 +68,29 @@ export function firstOfColumn(id: string, header: string, keys: string[], max = 
         if (v) return v.slice(0, max)
       }
       return '—'
+    },
+  }
+}
+
+/**
+ * Stock-shortage alert column. Only appended by ProductTable while the job's
+ * release is blocked by shortages (meta.stockShortages non-empty); rows whose
+ * product isn't affected render an empty cell.
+ */
+export function stockAlertColumn(): ColumnDef<LoadedProduct> {
+  return {
+    id: 'stock-alert',
+    header: '',
+    cell: ({ row, table }: CellContext<LoadedProduct, unknown>) => {
+      const meta = table.options.meta as ProductTableMeta
+      const shortage = meta.stockShortages?.get(row.original.id)
+      if (!shortage) return null
+      return (
+        <span className="flex items-center gap-1.5 text-xs font-medium whitespace-nowrap text-red-600 dark:text-red-500">
+          <TriangleAlert className="size-4 shrink-0" />
+          only {shortage.available} in stock
+        </span>
+      )
     },
   }
 }

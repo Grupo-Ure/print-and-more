@@ -5,10 +5,11 @@ import { useProductsByJobId } from './productQueries'
 import { useEffectiveJob, useSetJobStatus } from './jobQueries'
 
 /**
- * The status manager: watches the active job's cached data and persists the
- * automatic `IN_SETUP ↔ PREPRESS` transition. Mounted once, for the active
- * job (a single writer). It does NOT touch IN_PRODUCTION / DONE rows, and
- * does not do bounce-back.
+ * The status manager: watches one job's cached data and persists the
+ * automatic `IN_SETUP ↔ PREPRESS` transition. Mounted once per auto-band job
+ * of the open order via `StatusManager` (a single writer per job), so the
+ * transition fires when the underlying data changes — not on tab selection.
+ * It does NOT touch IN_PRODUCTION / DONE rows, and does not do bounce-back.
  *
  * Mechanism: read current state from the cache (queries), compute the target status
  * with the pure `deriveAutomaticStatus`, and — only if it differs from the stored
@@ -23,9 +24,9 @@ import { useEffectiveJob, useSetJobStatus } from './jobQueries'
  * while still loading its `data` is `undefined`, which would look like "no content" and
  * could spuriously retract a PREPRESS row, so we wait until it has loaded.
  */
-export function useStatusManager(orderId: string | null, activeJobId: string | null): void {
-  const effectiveJob = useEffectiveJob(orderId, activeJobId)
-  const { data: products } = useProductsByJobId(activeJobId)
+export function useStatusManager(orderId: string | null, jobId: string | null): void {
+  const effectiveJob = useEffectiveJob(orderId, jobId)
+  const { data: products } = useProductsByJobId(jobId)
   const { data: order } = useOrderById(orderId)
   const { mutate: setJobStatus } = useSetJobStatus()
 

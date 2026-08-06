@@ -81,19 +81,24 @@ class TextileService {
    */
   async getTextileGarmentStockUsageByJob(
     jobId: string,
-  ): Promise<{ variant_id: string; quantity: number }[]> {
+  ): Promise<{ product_id: string; variant_id: string; quantity: number }[]> {
     const { data, error } = await supabase
       .from('textile_garment_products')
-      .select('variant_id, department_products!inner(quantity, job_id)')
+      .select('variant_id, department_products!inner(id, quantity, job_id)')
       .eq('origin', 'OWN_STOCK')
       .not('variant_id', 'is', null)
       .eq('department_products.job_id', jobId)
     if (error) throw error
+    type ParentRef = { id: string; quantity: number | null }
     return (data ?? [])
       .map(row => {
-        const r = row as { variant_id: string | null; department_products: { quantity: number | null } | { quantity: number | null }[] | null }
+        const r = row as { variant_id: string | null; department_products: ParentRef | ParentRef[] | null }
         const parent = Array.isArray(r.department_products) ? r.department_products[0] : r.department_products
-        return { variant_id: String(r.variant_id ?? ''), quantity: Number(parent?.quantity ?? 0) }
+        return {
+          product_id: String(parent?.id ?? ''),
+          variant_id: String(r.variant_id ?? ''),
+          quantity: Number(parent?.quantity ?? 0),
+        }
       })
       .filter(r => r.variant_id !== '' && r.quantity >= 1)
   }

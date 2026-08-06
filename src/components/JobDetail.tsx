@@ -2,7 +2,6 @@ import { useCancelJob, useDeleteJob, useEffectiveJob, useSetJobAssignee, useJobB
 import { useIsAdmin, useUsers } from '../queries/userQueries'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import { useOrderById } from '../queries/orderQueries'
-import { useStatusManager } from '../queries/useStatusManager'
 import { useOrderParams } from '../hooks/useOrderParams'
 import { jobDepartmentLabel } from '../const/departmentAbbreviation'
 import { customerMeetsPrepressContact } from '../lib/customer'
@@ -47,11 +46,6 @@ export function JobDetail({
   const { data: users = [] } = useUsers()
   const { showError } = useToast()
   const confirm = useConfirm()
-
-  // Status manager: auto-derives and persists the IN_SETUP ↔ PREPRESS
-  // transition for the active job. Single owner (one JobDetail is mounted
-  // at a time). Called unconditionally (before the early return) per the rules of hooks.
-  useStatusManager(activeOrderId, activeJobId)
 
   if (!order || !job || !effectiveJob) return null
 

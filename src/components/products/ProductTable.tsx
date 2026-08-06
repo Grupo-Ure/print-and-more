@@ -10,12 +10,13 @@ import {
   useReactTable,
   type ColumnDef,
 } from '@tanstack/react-table'
+import { cn } from '@/lib/utils'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
 import type { LoadedProduct } from '../../types/product'
 import type { FileRow } from '../../services/fileService'
 import type { ProductFileAssignment } from '../../services/departmentProductService'
 import { AddProductButton } from './AddProductButton'
-import { actionsColumn, firstOfColumn, formatColumn, quantityColumn, textColumn, typeColumn } from './columns'
+import { actionsColumn, firstOfColumn, formatColumn, quantityColumn, stockAlertColumn, textColumn, typeColumn } from './columns'
 import { LASER_TYPE_LABELS } from '../../types/laser'
 import { LFP_TYPE_LABELS } from '../../types/lfp'
 import { COPY_SHOP_TYPE_LABELS } from '../../types/copyshop'
@@ -34,6 +35,12 @@ export type ProductTableMeta = {
   filesByProduct: Record<string, ProductFileAssignment[]>
   /** When the job is released to production or done, edit/delete are disabled. */
   isReadOnly: boolean
+  /**
+   * Products whose stock target has less stock than the job requires, keyed by
+   * product id. Non-empty → the table appends an alert column and tints the
+   * affected rows red.
+   */
+  stockShortages?: Map<string, { required: number; available: number }>
 }
 
 export function ProductTable({
@@ -45,10 +52,13 @@ export function ProductTable({
   columns: ColumnDef<LoadedProduct>[]
   meta: ProductTableMeta
 }) {
+  const hasShortages = (meta.stockShortages?.size ?? 0) > 0
+  const effectiveColumns = hasShortages ? [...columns, stockAlertColumn()] : columns
+
   // eslint-disable-next-line react-hooks/incompatible-library -- useReactTable returns non-memoizable functions; React Compiler intentionally skips this component
   const table = useReactTable({
     data,
-    columns,
+    columns: effectiveColumns,
     getCoreRowModel: getCoreRowModel(),
     meta,
   })
@@ -81,7 +91,14 @@ export function ProductTable({
         </TableHeader>
         <TableBody>
           {table.getRowModel().rows.map(row => (
-            <TableRow key={row.id} className="cursor-pointer" onClick={() => meta.onView(row.original)}>
+            <TableRow
+              key={row.id}
+              className={cn(
+                'cursor-pointer',
+                meta.stockShortages?.has(row.original.id) && 'bg-red-500/10 hover:bg-red-500/15',
+              )}
+              onClick={() => meta.onView(row.original)}
+            >
               {row.getVisibleCells().map(cell => (
                 <TableCell key={cell.id} className="px-3 py-2.5 align-center">
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}

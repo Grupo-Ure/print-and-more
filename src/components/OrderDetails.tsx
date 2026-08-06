@@ -16,6 +16,7 @@ import { useConfirm } from './ConfirmDialog'
 import type { FileRow } from '../services/fileService'
 import { JobDetail } from './JobDetail'
 import { JobList } from './JobList'
+import { StatusManager } from './StatusManager'
 import { AddJobButton } from './AddJobButton'
 import { useOrderWorkspace } from '../context/order.context'
 import { useOrderParams } from '../hooks/useOrderParams'
@@ -324,6 +325,9 @@ export function OrderDetails() {
 
   return (
     <main className="flex flex-col gap-2 p-3 flex-1 min-h-0">
+      {/* Watches every auto-band job of the order for the automatic
+          IN_SETUP ↔ PREPRESS transition (renders nothing). */}
+      <StatusManager orderId={activeOrderId} />
       <OrderHeader
         order={order}
         hasJobs={visibleJobs.length > 0}

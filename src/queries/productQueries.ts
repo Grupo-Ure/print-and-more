@@ -6,6 +6,7 @@ import { isMeaningfulChange } from '../lib/status/meaningfulChange'
 import { historyService } from '../services/historyService'
 import { bounceBackIfCommitted } from './jobQueries'
 import { textileKeys } from './textileQueries'
+import { stockAvailabilityKeys } from './stockQueries'
 
 export const productKeys = {
   all: ['products'] as const,
@@ -121,6 +122,7 @@ export function useSaveProduct() {
       queryClient.setQueryData(productKeys.byJobId(jobId), products)
       queryClient.setQueryData(productKeys.filesByJobId(jobId), files)
       void queryClient.invalidateQueries({ queryKey: productKeys.countsRoot })
+      void queryClient.invalidateQueries({ queryKey: stockAvailabilityKeys.byJobId(jobId) })
       if (links) void queryClient.invalidateQueries({ queryKey: textileKeys.links(jobId) })
 
       // Bounce-back: a meaningful content change drops a committed job to IN_SETUP.
@@ -165,6 +167,7 @@ export function useDeleteProduct() {
         old => old?.filter(a => a.department_product_id !== id) ?? old,
       )
       void queryClient.invalidateQueries({ queryKey: productKeys.countsRoot })
+      void queryClient.invalidateQueries({ queryKey: stockAvailabilityKeys.byJobId(jobId) })
       // Deleting a product is always a meaningful content change → bounce-back.
       void bounceBackIfCommitted(queryClient, jobId)
 

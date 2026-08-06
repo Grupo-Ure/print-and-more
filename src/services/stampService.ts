@@ -39,6 +39,17 @@ class StampService {
     return data as { stock: number } | null
   }
 
+  /** Batch stock lookup for the production-release availability check. */
+  async getStampModelStocksByIds(ids: string[]): Promise<{ id: string; name: string; stock: number }[]> {
+    if (ids.length === 0) return []
+    const { data, error } = await supabase
+      .from('stamp_models')
+      .select('id, name, stock')
+      .in('id', ids)
+    if (error) throw error
+    return (data ?? []) as { id: string; name: string; stock: number }[]
+  }
+
   async getStampModelForOrder(id: string): Promise<{ replacement_pad_article_number: string | null } | null> {
     const { data, error } = await supabase
       .from('stamp_models')

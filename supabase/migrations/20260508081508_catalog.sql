@@ -238,3 +238,96 @@ GRANT ALL ON TABLE "public"."textile_variants" TO "anon";
 GRANT ALL ON TABLE "public"."textile_variants" TO "authenticated";
 
 GRANT ALL ON TABLE "public"."textile_variants" TO "service_role";
+
+/**
+ * Book the automatic stock deductions of a production release atomically.
+ *
+ * `deductions` is a jsonb array of {"target": "STAMP"|"TEXTILE", "id": uuid,
+ * "quantity": int} — STAMP targets stamp_models, TEXTILE targets
+ * textile_variants. Each target row is locked (FOR UPDATE, in a stable order
+ * to avoid deadlocks between concurrent releases), so two near-simultaneous
+ * releases serialize instead of losing an update.
+ *
+ * allow_shortage = false (normal release): if any item's stock is below its
+ * quantity (or the row is missing), the whole call raises INSUFFICIENT_STOCK
+ * with the shortages as jsonb in DETAIL and rolls back — all-or-nothing.
+ * allow_shortage = true (admin force release): stock is floored at 0 and the
+ * movement row records the actually deducted amount (items deducting 0 get no
+ * movement row — movements require quantity > 0).
+ *
+ * Movement rows (type AUTO_DEDUCTION, the passed note, user_id = auth.uid())
+ * are written in the same transaction. Returns {"ok": true, "shortages": [...]}.
+ */
+CREATE OR REPLACE FUNCTION "public"."book_production_deductions"("deductions" "jsonb", "note" "text", "allow_shortage" boolean DEFAULT false) RETURNS "jsonb"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+  item        RECORD;
+  prev_stock  INTEGER;
+  deducted    INTEGER;
+  shortages   JSONB := '[]'::JSONB;
+BEGIN
+  FOR item IN
+    SELECT
+      d->>'target'              AS target,
+      (d->>'id')::uuid          AS id,
+      (d->>'quantity')::integer AS quantity
+    FROM jsonb_array_elements(deductions) AS d
+    ORDER BY d->>'target', d->>'id'
+  LOOP
+    IF item.target NOT IN ('STAMP', 'TEXTILE') THEN
+      RAISE EXCEPTION 'unknown deduction target %', item.target;
+    END IF;
+    IF item.quantity IS NULL OR item.quantity < 1 THEN
+      RAISE EXCEPTION 'invalid deduction quantity for %', item.id;
+    END IF;
+
+    IF item.target = 'STAMP' THEN
+      SELECT stock INTO prev_stock FROM stamp_models WHERE id = item.id FOR UPDATE;
+    ELSE
+      SELECT stock INTO prev_stock FROM textile_variants WHERE id = item.id FOR UPDATE;
+    END IF;
+
+    IF prev_stock IS NULL OR prev_stock < item.quantity THEN
+      shortages := shortages || jsonb_build_object(
+        'target', item.target,
+        'id', item.id,
+        'required', item.quantity,
+        'available', COALESCE(prev_stock, 0)
+      );
+    END IF;
+
+    -- Missing row: nothing to deduct. Under allow_shortage = false any update
+    -- is rolled back by the shortage exception below, so deducting the full
+    -- quantity here is safe either way.
+    CONTINUE WHEN prev_stock IS NULL;
+
+    deducted := LEAST(prev_stock, item.quantity);
+    CONTINUE WHEN deducted = 0;
+
+    IF item.target = 'STAMP' THEN
+      UPDATE stamp_models SET stock = prev_stock - deducted WHERE id = item.id;
+      INSERT INTO stamp_stock_movements (model_id, quantity, type, note, user_id)
+      VALUES (item.id, deducted, 'AUTO_DEDUCTION', note, auth.uid());
+    ELSE
+      UPDATE textile_variants SET stock = prev_stock - deducted WHERE id = item.id;
+      INSERT INTO textile_stock_movements (variant_id, quantity, type, note, user_id)
+      VALUES (item.id, deducted, 'AUTO_DEDUCTION', note, auth.uid());
+    END IF;
+  END LOOP;
+
+  IF NOT allow_shortage AND jsonb_array_length(shortages) > 0 THEN
+    RAISE EXCEPTION 'INSUFFICIENT_STOCK' USING DETAIL = shortages::text;
+  END IF;
+
+  RETURN jsonb_build_object('ok', true, 'shortages', shortages);
+END;
+$$;
+
+ALTER FUNCTION "public"."book_production_deductions"("deductions" "jsonb", "note" "text", "allow_shortage" boolean) OWNER TO "postgres";
+
+GRANT ALL ON FUNCTION "public"."book_production_deductions"("deductions" "jsonb", "note" "text", "allow_shortage" boolean) TO "anon";
+
+GRANT ALL ON FUNCTION "public"."book_production_deductions"("deductions" "jsonb", "note" "text", "allow_shortage" boolean) TO "authenticated";
+
+GRANT ALL ON FUNCTION "public"."book_production_deductions"("deductions" "jsonb", "note" "text", "allow_shortage" boolean) TO "service_role";

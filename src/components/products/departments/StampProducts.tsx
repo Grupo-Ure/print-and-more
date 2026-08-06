@@ -6,6 +6,7 @@ import type { FileRow } from '../../../services/fileService'
 import { AddProductButton } from '../AddProductButton'
 import { SectionHeader } from '../../ui/section-title'
 import { useProductEditor } from '../useProductEditor'
+import { useStockAvailability } from '../../../queries/stockQueries'
 import { ProductDialog, type ProductTypeOption } from '../ProductDialog'
 import { StampProductsTable } from '../ProductTable'
 import { STAMP_ALL_TYPES, STAMP_ALL_LABELS } from '../forms/stampTypes'
@@ -45,6 +46,12 @@ const TYPE_OPTIONS: ProductTypeOption[] = STAMP_ALL_TYPES.map(t => ({ value: t, 
 export function StampProducts({ job, jobStatus, orderFiles = [] }: Props) {
   const productEditor = useProductEditor(job, jobStatus)
 
+  // Highlights the rows blocking the release to production (pre-press only).
+  const { data: shortages = [] } = useStockAvailability(job)
+  const stockShortages = new Map(
+    shortages.map(s => [s.productId, { required: s.required, available: s.available }]),
+  )
+
   return (
     <div className="flex flex-col gap-4">
       <ProductDialog
@@ -64,7 +71,7 @@ export function StampProducts({ job, jobStatus, orderFiles = [] }: Props) {
         ) : (
           <StampProductsTable
             data={productEditor.products}
-            meta={{ onEdit: productEditor.openEdit, onDelete: productEditor.handleDelete, onAdd: productEditor.openAdd, onView: productEditor.openView, orderFiles, filesByProduct: productEditor.filesByProduct, isReadOnly: productEditor.isReadOnly }}
+            meta={{ onEdit: productEditor.openEdit, onDelete: productEditor.handleDelete, onAdd: productEditor.openAdd, onView: productEditor.openView, orderFiles, filesByProduct: productEditor.filesByProduct, isReadOnly: productEditor.isReadOnly, stockShortages }}
           />
         )}
       </div>
