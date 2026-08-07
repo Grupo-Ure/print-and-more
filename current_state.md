@@ -107,10 +107,13 @@ the implementer.
 
 ### Architecture / Transactions
 
-- Stempel and Textil stock deductions on production release (`ContextPanel`:
-  `ausfuehrenProduktionFrei`) run as sequential client-side DB calls
-  **without a transaction** — partial failure leaves inconsistent state.
-  Candidate for an RPC refactor analogous to order duplication.
+- ~~Stamp and textile stock deductions on production release run as sequential
+  client-side DB calls without a transaction~~ — **done**: the
+  `book_production_deductions` RPC books them atomically (conditional
+  decrement + movement rows in one transaction), insufficient stock blocks the
+  release (UI shortage banner/row highlights via
+  `productionReleaseService.checkStockAvailability`), and admin force release
+  deducts floored at 0.
 - `BestandspflegeSeite` and `TextilBestandSeite`: booking operations
   (`bestand` update + `lager_bewegungen` insert) are not atomic — same
   pattern as above.
