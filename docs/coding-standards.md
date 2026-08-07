@@ -178,6 +178,24 @@ Never skip or reorder these steps. Each step gates the next.
 | DB tables | snake_case, plural | `bookings`, `service_tiers` |
 | DB columns | snake_case | `created_at`, `user_id` |
 
+### Descriptiveness & Length
+A name should say what the thing is. The reader should never have to decode a letter or expand an abbreviation.
+
+- **No one-letter names** — this includes loop counters, callback parameters, and caught errors. Use `index`, `track`, `error` instead of `i`, `t`, `e`.
+- **No abbreviations or truncations**, least of all of words that were already short — write `configuration`, `response`, `button`, `temporary` instead of `cfg`, `res`, `btn`, `tmp`. Established terms that are already words stay as they are (`id`, `url`, `api`).
+- **Length below 20 characters is not a problem** — never shorten a name that is 20 characters or fewer just to make it shorter. Past that, check whether words are redundant; if they aren't, keep the long name.
+- **Use the words the scope needs, and no more.** The container carries context, so the element doesn't have to repeat it. Looping over `redCars` gives you `car` — `redCar` adds nothing a reader didn't already have. Reach for the fuller name only when the shorter one would be ambiguous where it's used.
+
+```typescript
+// ✅ Good
+redCars.forEach((car, index) => { ... });
+const activeSubscriptions = subscriptions.filter((subscription) => subscription.isActive);
+
+// ❌ Bad
+redCars.forEach((c, i) => { ... });
+const actSubs = subs.filter((s) => s.act);
+```
+
 ### Prefixes & Suffixes
 - Booleans: `is*`, `has*`, `should*`, `can*` — e.g. `isLoading`, `hasError`
 - Event handlers: `handle*` for implementation, `on*` for props
