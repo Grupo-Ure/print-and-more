@@ -238,14 +238,19 @@ Flow: `QUOTE` → `INCOMPLETE` → `PREPRESS_READY` → `PRODUCTION_READY` → `
 ## Workflow specifics
 
 - **Release to production** (`PREPRESS_READY` → `PRODUCTION_READY`) books
-  **automatic stock deductions** (only here, not on "mark done"):
-  - **STAMP:** decrement stamp / pad stock; insert a `stamp_stock_movements` row
-    with `type: 'AUTO_DEDUCTION'` and a note incl. the order number. A warning
-    modal shows first if stamp/pad stock is 0.
-  - **TEXTILE:** every `textile_positions` row with `origin = 'OWN_STOCK'` and a
-    set `variant_id` reduces the variant's `stock` by its `quantity` (floored at
-    0); each non-zero deduction logged in `textile_stock_movements`
-    (`AUTO_DEDUCTION`).
+  **automatic stock deductions** (only here, not on "mark done") via the
+  `book_production_deductions` RPC — one transaction, row-locked conditional
+  decrements, `AUTO_DEDUCTION` movement rows with a note incl. the order number:
+  - **STAMP:** stamp-model products decrement their model (plus the matching
+    replacement pad for a catalog ink colour); `TRODAT_PAD` products decrement
+    their pad variant.
+  - **TEXTILE:** every own-stock garment with a set `variant_id` decrements the
+    variant by the product quantity.
+  - Insufficient stock **blocks the release** (red banner + disabled release
+    button while in pre-press, and the RPC rejects atomically if a concurrent
+    release consumed the stock first). The admin **force release** bypasses the
+    shortage: stock is floored at 0 and movements record what was actually
+    deducted.
 - **Customer approval** blocks only *release to production* (cancel/delete have
   their own busy flags).
 - **ERP export** — `erp_exports` (`order_id`, `mode` (`SINGLE`|`BULK`),
