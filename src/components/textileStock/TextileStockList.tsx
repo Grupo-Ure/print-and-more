@@ -14,7 +14,8 @@ import { MinimumStockField } from '../stock/MinimumStockField'
 import { StockTable, type StockColumn } from '../stock/StockTable'
 import { useStockBooking } from '../stock/useStockBooking'
 import { useTextileStockUi, type StockSortKey } from './useTextileStockUi'
-import { brandFromVariant, productNameFromVariant, variantStatus, type VariantRow } from './textileStockShared'
+import { brandFromVariant, productNameFromVariant, variantStatus } from './textileStockShared'
+import type { VariantWithDetails } from '../../services/textileMasterDataService'
 
 type TextileStockListProps = {
   /** Booked movements are attributed to this user. */
@@ -89,7 +90,7 @@ export function TextileStockList({ userId }: TextileStockListProps) {
     return list
   }, [variantsQuery.data, stockBrandFilter, stockSearch, filterReorderOnly, filterSamplesOnly])
 
-  const columns: StockColumn<VariantRow>[] = [
+  const columns: StockColumn<VariantWithDetails>[] = [
     {
       key: 'brand',
       header: 'Brand',
@@ -212,7 +213,7 @@ export function TextileStockList({ userId }: TextileStockListProps) {
       {variantsQuery.isError && <p className="text-destructive">{errorToString(variantsQuery.error)}</p>}
       {variantsQuery.isLoading && <p className="opacity-80">Loading…</p>}
 
-      <StockTable<VariantRow, StockSortKey>
+      <StockTable<VariantWithDetails, StockSortKey>
         columns={columns}
         rows={filteredVariants}
         rowKey={variant => variant.id}

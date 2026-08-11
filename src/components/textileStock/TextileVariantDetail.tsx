@@ -5,7 +5,8 @@ import { useToast } from '../Toast'
 import { useUpdateTextileVariant } from '../../queries/textileStockQueries'
 import { stockInputClass } from '../stock/stockShared'
 import { useTextileVariantDelete } from './useTextileVariantDelete'
-import { variantStatus, type VariantRow } from './textileStockShared'
+import { variantStatus } from './textileStockShared'
+import type { VariantRow } from '../../services/textileMasterDataService'
 
 type TextileVariantDetailProps = {
   variant: VariantRow

@@ -1,7 +1,5 @@
-import type { VariantRow as BaseVariantRow, VariantWithDetails } from '../../services/textileMasterDataService'
+import type { VariantRow, VariantWithDetails } from '../../services/textileMasterDataService'
 import { stockStatus, type StockStatus } from '../stock/stockShared'
-
-export type VariantRow = VariantWithDetails
 
 export const SIZE_RUNS = {
   STANDARD: ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'],
@@ -37,17 +35,17 @@ function oneNested<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? (value[0] ?? null) : value
 }
 
-export function brandFromVariant(variant: VariantRow): string {
+export function brandFromVariant(variant: VariantWithDetails): string {
   const product = oneNested(variant.textile_products)
   return oneNested(product?.textile_brands)?.name ?? ''
 }
 
-export function productNameFromVariant(variant: VariantRow): string {
+export function productNameFromVariant(variant: VariantWithDetails): string {
   return oneNested(variant.textile_products)?.name ?? '—'
 }
 
 /** Samples are outside the stock logic and always show as a grey chip. */
-export function variantStatus(variant: BaseVariantRow): StockStatus {
+export function variantStatus(variant: VariantRow): StockStatus {
   if (variant.is_sample) return { badgeClass: 'badge-grau', label: 'Sample', rank: -1 }
   return stockStatus(variant.stock, variant.min_stock)
 }

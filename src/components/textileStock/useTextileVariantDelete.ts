@@ -1,8 +1,7 @@
 import { useConfirm } from '../ConfirmDialog'
 import { useToast } from '../Toast'
-import { textileMasterDataService } from '../../services/textileMasterDataService'
+import { textileMasterDataService, type VariantRow } from '../../services/textileMasterDataService'
 import { useDeleteTextileVariant } from '../../queries/textileStockQueries'
-import type { VariantRow } from './textileStockShared'
 
 /**
  * Confirmed variant deletion, shared by the variant table and the detail view.
