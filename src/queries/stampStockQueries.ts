@@ -8,6 +8,8 @@ import type { OrderListRow } from '../components/stampStock/stampStockShared'
 export const stampStockKeys = {
   all: ['stamp-stock'] as const,
   models: ['stamp-stock', 'models'] as const,
+  masterData: ['stamp-stock', 'master-data'] as const,
+  padArticleNumbers: ['stamp-stock', 'pad-article-numbers'] as const,
   movements: ['stamp-stock', 'movements'] as const,
   reorderList: ['stamp-stock', 'reorder-list'] as const,
 }
@@ -16,6 +18,44 @@ export function useStampModels() {
   return useQuery({
     queryKey: stampStockKeys.models,
     queryFn: () => stampService.getStampModels(),
+  })
+}
+
+/** All models including inactive ones — master-data tab. */
+export function useStampMasterData() {
+  return useQuery({
+    queryKey: stampStockKeys.masterData,
+    queryFn: () => stampService.getAllStampModelsForMasterData(),
+  })
+}
+
+export function usePadArticleNumbers() {
+  return useQuery({
+    queryKey: stampStockKeys.padArticleNumbers,
+    queryFn: () => stampService.getPadArticleNumbers(),
+  })
+}
+
+type StampModelInsert = Parameters<typeof stampService.createStampModel>[0]
+type StampModelPatch = Parameters<typeof stampService.updateStampModel>[1]
+
+export function useCreateStampModel() {
+  const queryClient = useQueryClient()
+  return useMutation<void, Error, StampModelInsert>({
+    mutationFn: payload => stampService.createStampModel(payload),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: stampStockKeys.all })
+    },
+  })
+}
+
+export function useUpdateStampModel() {
+  const queryClient = useQueryClient()
+  return useMutation<void, Error, { modelId: string; patch: StampModelPatch }>({
+    mutationFn: ({ modelId, patch }) => stampService.updateStampModel(modelId, patch),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: stampStockKeys.all })
+    },
   })
 }
 

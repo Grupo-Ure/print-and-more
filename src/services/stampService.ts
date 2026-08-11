@@ -2,6 +2,7 @@ import { supabase } from '../supabase'
 import type { Database } from '../types/supabase'
 
 type StampModelRow = Database['public']['Tables']['stamp_models']['Row']
+type StampModelInsert = Database['public']['Tables']['stamp_models']['Insert']
 type StampModelUpdate = Database['public']['Tables']['stamp_models']['Update']
 type StockMovementInsert = Database['public']['Tables']['stamp_stock_movements']['Insert']
 
@@ -150,6 +151,40 @@ class StampService {
       .select('id, name, article_number, type, color, stock, min_stock')
     if (error) throw error
     return (data ?? []).filter(r => r.stock <= r.min_stock) as ReorderItem[]
+  }
+
+  /** All models including inactive ones — master-data view only. */
+  async getAllStampModelsForMasterData(): Promise<StampModelRow[]> {
+    const { data, error } = await supabase
+      .from('stamp_models')
+      .select('*')
+      .order('name', { ascending: true })
+    if (error) throw error
+    return (data ?? []) as StampModelRow[]
+  }
+
+  async createStampModel(payload: StampModelInsert): Promise<void> {
+    const { error } = await supabase.from('stamp_models').insert(payload)
+    if (error) throw error
+  }
+
+  async updateStampModel(id: string, patch: StampModelUpdate): Promise<void> {
+    const { error } = await supabase.from('stamp_models').update(patch).eq('id', id)
+    if (error) throw error
+  }
+
+  /** Distinct TRODAT_PAD article numbers — feeds the replacement-pad picker. */
+  async getPadArticleNumbers(): Promise<string[]> {
+    const { data, error } = await supabase
+      .from('stamp_models')
+      .select('article_number')
+      .eq('type', 'TRODAT_PAD')
+      .not('article_number', 'is', null)
+    if (error) throw error
+    const numbers = (data ?? [])
+      .map(row => (row.article_number ?? '').trim())
+      .filter(articleNumber => articleNumber !== '')
+    return Array.from(new Set(numbers)).sort()
   }
 
   async updateStampModelStock(id: string, stock: number): Promise<void> {
