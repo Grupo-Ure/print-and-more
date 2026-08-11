@@ -143,6 +143,22 @@ export function useUpdateTextileProduct() {
   })
 }
 
+export function useDeleteTextileProduct() {
+  const invalidate = useInvalidateTextileStock()
+  return useMutation<void, Error, string>({
+    mutationFn: productId => textileMasterDataService.deleteProduct(productId),
+    onSettled: invalidate,
+  })
+}
+
+export function useDeleteTextileVariant() {
+  const invalidate = useInvalidateTextileStock()
+  return useMutation<void, Error, string>({
+    mutationFn: variantId => textileMasterDataService.deleteVariant(variantId),
+    onSettled: invalidate,
+  })
+}
+
 export function useCreateTextileVariant() {
   const invalidate = useInvalidateTextileStock()
   return useMutation<VariantRow, Error, VariantInsert>({

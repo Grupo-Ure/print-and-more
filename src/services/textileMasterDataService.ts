@@ -248,11 +248,32 @@ class TextileMasterDataService {
     if (error) throw error
   }
 
+  async deleteVariant(id: string): Promise<void> {
+    const { error } = await supabase.from('textile_variants').delete().eq('id', id)
+    if (error) throw error
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    // Variants first — the FK from textile_variants has no cascade.
+    const { error: variantsError } = await supabase
+      .from('textile_variants')
+      .delete()
+      .eq('product_id', id)
+    if (variantsError) throw variantsError
+    const { error } = await supabase.from('textile_products').delete().eq('id', id)
+    if (error) throw error
+  }
+
   async getJobsUsingVariant(varianteId: string): Promise<string[]> {
+    return this.getJobsUsingVariants([varianteId])
+  }
+
+  async getJobsUsingVariants(variantIds: string[]): Promise<string[]> {
+    if (variantIds.length === 0) return []
     const { data, error } = await supabase
       .from('textile_garment_products')
       .select('department_products!inner(job_id)')
-      .eq('variant_id', varianteId)
+      .in('variant_id', variantIds)
     if (error) throw error
     const ids = (data ?? []).map(row => {
       const dp = (row as { department_products: { job_id: string } | { job_id: string }[] | null }).department_products

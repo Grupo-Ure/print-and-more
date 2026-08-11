@@ -1,62 +1,79 @@
-import { useTextileBrands, useTextileProductsByBrand } from '../../queries/textileStockQueries'
-import { TextileBrandBar } from './TextileBrandBar'
+import {
+  useTextileBrands,
+  useTextileProductsByBrand,
+  useTextileVariantsByProduct,
+} from '../../queries/textileStockQueries'
+import { TextileTreeSidebar } from './TextileTreeSidebar'
 import { TextileProductsPanel } from './TextileProductsPanel'
-import { TextileVariantsPanel } from './TextileVariantsPanel'
+import { TextileProductView } from './TextileProductView'
+import { TextileVariantDetail } from './TextileVariantDetail'
 import { useTextileStockUi } from './useTextileStockUi'
 
-type TextileMasterDataProps = {
-  /** Booked movements are attributed to this user. */
-  userId: string
-}
-
-/** Products tab: brands → products → variants drill-down. */
-export function TextileMasterData({ userId }: TextileMasterDataProps) {
+/**
+ * Products tab: brands ▸ products ▸ variants tree on the left; the right pane
+ * follows the selection like a file manager — brand → product table,
+ * product → product view (info + variants), variant → variant detail.
+ */
+export function TextileMasterData() {
   const {
     brandIdForProducts,
-    setBrandIdForProducts,
     productIdForVariants,
     setProductIdForVariants,
+    variantIdForDetail,
+    setVariantIdForDetail,
   } = useTextileStockUi()
 
   const brandsQuery = useTextileBrands()
-  // Also loaded by the products panel; here only for the breadcrumb name.
+  // Also loaded by the tree — reused here for names and the selected rows.
   const productsQuery = useTextileProductsByBrand(brandIdForProducts)
+  const variantsQuery = useTextileVariantsByProduct(productIdForVariants)
 
-  const inVariantView = Boolean(productIdForVariants)
-  const brands = brandsQuery.data ?? []
-  const brandName = brands.find(brand => brand.id === brandIdForProducts)?.name ?? '—'
-  const productName =
-    (productsQuery.data ?? []).find(product => product.id === productIdForVariants)?.name ?? '—'
+  const brandName = (brandsQuery.data ?? []).find(brand => brand.id === brandIdForProducts)?.name ?? '—'
+  const selectedProduct =
+    (productsQuery.data ?? []).find(product => product.id === productIdForVariants) ?? null
+  const variants = variantsQuery.data ?? []
+  const selectedVariant = variants.find(variant => variant.id === variantIdForDetail) ?? null
+
+  const isLoadingSelection =
+    (productIdForVariants && productsQuery.isLoading) || (variantIdForDetail && variantsQuery.isLoading)
 
   return (
-    <div>
-      <TextileBrandBar
-        brands={brands}
-        isLoading={brandsQuery.isLoading}
-        selectedBrandId={brandIdForProducts}
-        onSelectBrand={brandId => {
-          setBrandIdForProducts(brandId)
-          setProductIdForVariants('')
-        }}
-        onRefresh={() => void brandsQuery.refetch()}
-      />
+    <div className="flex h-full min-h-0 gap-4">
+      <aside className="w-56 shrink-0 overflow-y-auto border-r border-border pr-3 desktop:w-72">
+        <TextileTreeSidebar />
+      </aside>
 
-      {brandIdForProducts && !inVariantView && (
-        <TextileProductsPanel brandId={brandIdForProducts} onOpenVariants={setProductIdForVariants} />
-      )}
-
-      {inVariantView && brandIdForProducts && (
-        <TextileVariantsPanel
-          productId={productIdForVariants}
-          breadcrumb={`${brandName} › ${productName} › Variants`}
-          onBack={() => setProductIdForVariants('')}
-          userId={userId}
-        />
-      )}
-
-      {!brandIdForProducts && (
-        <p className="mt-2 text-sm text-muted-foreground">Select a brand first.</p>
-      )}
+      <section className="min-w-0 flex-1 overflow-y-auto">
+        {isLoadingSelection ? (
+          <p className="opacity-80">Loading…</p>
+        ) : selectedVariant && selectedProduct ? (
+          <TextileVariantDetail
+            variant={selectedVariant}
+            siblingCount={variants.length}
+            breadcrumb={`${brandName} › ${selectedProduct.name} › ${selectedVariant.color} / ${selectedVariant.size}`}
+            onBack={() => setVariantIdForDetail('')}
+          />
+        ) : selectedProduct ? (
+          <TextileProductView
+            product={selectedProduct}
+            breadcrumb={`${brandName} › ${selectedProduct.name}`}
+            onBack={() => {
+              setProductIdForVariants('')
+              setVariantIdForDetail('')
+            }}
+          />
+        ) : brandIdForProducts ? (
+          <TextileProductsPanel
+            brandId={brandIdForProducts}
+            onOpenProduct={productId => {
+              setProductIdForVariants(productId)
+              setVariantIdForDetail('')
+            }}
+          />
+        ) : (
+          <p className="mt-2 text-sm text-muted-foreground">Select a brand or product in the tree.</p>
+        )}
+      </section>
     </div>
   )
 }

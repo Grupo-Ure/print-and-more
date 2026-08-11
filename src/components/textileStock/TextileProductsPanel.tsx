@@ -2,39 +2,37 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
+import { useConfirm } from '../ConfirmDialog'
 import { useToast } from '../Toast'
+import { textileMasterDataService } from '../../services/textileMasterDataService'
 import {
   useCreateTextileProduct,
+  useDeleteTextileProduct,
   useTextileProductsByBrand,
-  useUpdateTextileProduct,
 } from '../../queries/textileStockQueries'
 import { stockInputClass } from '../stock/stockShared'
 import type { ProductRow } from '../../services/textileMasterDataService'
 
 type TextileProductsPanelProps = {
   brandId: string
-  onOpenVariants: (productId: string) => void
+  onOpenProduct: (productId: string) => void
 }
 
-/** Product list of the selected brand — step 2 of the master-data drill-down. */
-export function TextileProductsPanel({ brandId, onOpenVariants }: TextileProductsPanelProps) {
+/** Product list of the selected brand — master data only; a product's detail lives in the product view. */
+export function TextileProductsPanel({ brandId, onOpenProduct }: TextileProductsPanelProps) {
+  const confirm = useConfirm()
   const { showError } = useToast()
   const productsQuery = useTextileProductsByBrand(brandId)
   const createProduct = useCreateTextileProduct()
-  const updateProduct = useUpdateTextileProduct()
+  const deleteProduct = useDeleteTextileProduct()
 
   const [formOpen, setFormOpen] = useState(false)
   const [newProduct, setNewProduct] = useState({ name: '', article_number: '', description: '' })
-  const [editProduct, setEditProduct] = useState<ProductRow | null>(null)
-  const [editName, setEditName] = useState('')
-  const [editArticleNumber, setEditArticleNumber] = useState('')
-  const [editDescription, setEditDescription] = useState('')
-  const [editActive, setEditActive] = useState(true)
 
   const saveProduct = (): void => {
     const trimmedName = newProduct.name.trim()
-    if (!brandId || !trimmedName) {
-      showError('Brand and name are required')
+    if (!trimmedName) {
+      showError('Name is required')
       return
     }
     createProduct.mutate(
@@ -46,34 +44,34 @@ export function TextileProductsPanel({ brandId, onOpenVariants }: TextileProduct
         is_active: true,
       },
       {
-        onSuccess: () => {
+        onSuccess: created => {
           setNewProduct({ name: '', article_number: '', description: '' })
           setFormOpen(false)
+          onOpenProduct(created.id)
         },
         onError: () => showError('Product could not be created'),
       },
     )
   }
 
-  const saveEditedProduct = (): void => {
-    if (!editProduct) return
-    const trimmedName = editName.trim()
-    if (!trimmedName) return
-    updateProduct.mutate(
-      {
-        productId: editProduct.id,
-        patch: {
-          name: trimmedName,
-          article_number: editArticleNumber.trim() || null,
-          description: editDescription.trim() || null,
-          is_active: editActive,
-        },
-      },
-      {
-        onSuccess: () => setEditProduct(null),
-        onError: () => showError('Product could not be saved'),
-      },
-    )
+  const removeProduct = async (product: ProductRow): Promise<void> => {
+    const confirmed = await confirm({
+      title: `Delete product "${product.name}"?`,
+      description: 'The product and all its variants are removed permanently.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    })
+    if (!confirmed) return
+    const variants = await textileMasterDataService.getVariantsByProduct(product.id)
+    const jobIds = await textileMasterDataService.getJobsUsingVariants(variants.map(variant => variant.id))
+    if (jobIds.length > 0) {
+      showError('Product variants are used by jobs — deactivate the product instead')
+      return
+    }
+    deleteProduct.mutate(product.id, {
+      onError: () =>
+        showError('Product could not be deleted (variants may have stock movements) — deactivate it instead'),
+    })
   }
 
   return (
@@ -129,77 +127,39 @@ export function TextileProductsPanel({ brandId, onOpenVariants }: TextileProduct
           <TableBody>
             {(productsQuery.data ?? []).map(product => (
               <TableRow key={product.id}>
-                <TableCell className="font-semibold">{product.name}</TableCell>
+                <TableCell className="font-semibold">
+                  <button
+                    type="button"
+                    className="cursor-pointer hover:underline"
+                    onClick={() => onOpenProduct(product.id)}
+                  >
+                    {product.name}
+                  </button>
+                </TableCell>
                 <TableCell>{product.article_number ?? '—'}</TableCell>
                 <TableCell>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      setEditProduct(product)
-                      setEditName(product.name)
-                      setEditArticleNumber(product.article_number ?? '')
-                      setEditDescription(product.description ?? '')
-                      setEditActive(product.is_active)
-                    }}
+                    onClick={() => onOpenProduct(product.id)}
                   >
                     Edit
                   </Button>
                   <Button
                     type="button"
+                    variant="outline"
                     size="sm"
-                    className="ml-2"
-                    onClick={() => onOpenVariants(product.id)}
+                    className="ml-2 text-destructive"
+                    onClick={() => void removeProduct(product)}
                   >
-                    Variants
+                    Delete
                   </Button>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      )}
-      {editProduct && (
-        <div className="mt-3 max-w-xl rounded-lg border border-border p-3">
-          <h3 className="mt-0 text-sm font-semibold">Edit product</h3>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-2">
-            <input
-              className={stockInputClass}
-              value={editName}
-              onChange={event => setEditName(event.target.value)}
-              aria-label="Product name"
-            />
-            <input
-              className={stockInputClass}
-              value={editArticleNumber}
-              onChange={event => setEditArticleNumber(event.target.value)}
-              placeholder="Article number"
-            />
-            <input
-              className={cn(stockInputClass, 'col-span-full')}
-              value={editDescription}
-              onChange={event => setEditDescription(event.target.value)}
-              placeholder="Description"
-            />
-            <label className="flex items-center gap-1.5 text-sm">
-              <input
-                type="checkbox"
-                checked={editActive}
-                onChange={event => setEditActive(event.target.checked)}
-              />
-              Active
-            </label>
-            <div className="flex gap-2">
-              <Button type="button" onClick={saveEditedProduct}>
-                Save
-              </Button>
-              <Button type="button" variant="outline" onClick={() => setEditProduct(null)}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   )

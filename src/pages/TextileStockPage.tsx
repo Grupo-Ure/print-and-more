@@ -25,10 +25,11 @@ export function TextileStockPage() {
       tabs={TABS}
       activeTab={tab}
       onTabChange={key => setTab(key as Tab)}
+      fillViewport={tab === 'PRODUCTS'}
     >
       {session => (
         <TextileStockProvider>
-          {tab === 'PRODUCTS' && <TextileMasterData userId={session.user.id} />}
+          {tab === 'PRODUCTS' && <TextileMasterData />}
           {tab === 'STOCK' && <TextileStockList userId={session.user.id} />}
           {tab === 'MOVEMENTS' && <TextileMovements />}
           {tab === 'ORDER_LIST' && <TextileReorderList />}

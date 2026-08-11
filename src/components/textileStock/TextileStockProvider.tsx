@@ -6,6 +6,7 @@ import { TextileStockUiContext, type StockSortKey, type TextileStockUi } from '.
 export function TextileStockProvider({ children }: { children: ReactNode }) {
   const [brandIdForProducts, setBrandIdForProducts] = useState('')
   const [productIdForVariants, setProductIdForVariants] = useState('')
+  const [variantIdForDetail, setVariantIdForDetail] = useState('')
   const [stockSearch, setStockSearch] = useState('')
   const [stockBrandFilter, setStockBrandFilter] = useState('ALL')
   const [filterReorderOnly, setFilterReorderOnly] = useState(false)
@@ -24,6 +25,8 @@ export function TextileStockProvider({ children }: { children: ReactNode }) {
       setBrandIdForProducts,
       productIdForVariants,
       setProductIdForVariants,
+      variantIdForDetail,
+      setVariantIdForDetail,
       stockSearch,
       setStockSearch,
       stockBrandFilter,
@@ -42,6 +45,7 @@ export function TextileStockProvider({ children }: { children: ReactNode }) {
     [
       brandIdForProducts,
       productIdForVariants,
+      variantIdForDetail,
       stockSearch,
       stockBrandFilter,
       filterReorderOnly,

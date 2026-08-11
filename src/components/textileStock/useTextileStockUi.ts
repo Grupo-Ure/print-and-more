@@ -17,6 +17,8 @@ export type TextileStockUi = {
   setBrandIdForProducts: (value: string) => void
   productIdForVariants: string
   setProductIdForVariants: (value: string) => void
+  variantIdForDetail: string
+  setVariantIdForDetail: (value: string) => void
   // Stock tab
   stockSearch: string
   setStockSearch: (value: string) => void

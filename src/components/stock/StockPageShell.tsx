@@ -12,6 +12,11 @@ type StockPageShellProps = {
   tabs: { key: string; label: string }[]
   activeTab: string
   onTabChange: (key: string) => void
+  /**
+   * Pin the page to the viewport height and let the tab content fill the rest,
+   * for tabs whose panes scroll independently (instead of the page scrolling).
+   */
+  fillViewport?: boolean
   /** Content of the active tab; only rendered once the admin gate has passed. */
   children: (session: Session) => ReactNode
 }
@@ -26,6 +31,7 @@ export function StockPageShell({
   tabs,
   activeTab,
   onTabChange,
+  fillViewport = false,
   children,
 }: StockPageShellProps) {
   const { session, loading } = useSupabaseSession()
@@ -39,7 +45,7 @@ export function StockPageShell({
   const userEmail = session.user?.email ?? session.user?.id ?? ''
 
   return (
-    <div className="mx-auto max-w-6xl p-5">
+    <div className={cn('mx-auto max-w-6xl p-5', fillViewport && 'flex h-screen w-full flex-col')}>
       <div className="flex items-center justify-between gap-3">
         <h1 className="m-0 text-lg">{title}</h1>
         <span className="text-sm opacity-85">{userEmail}</span>
@@ -68,7 +74,7 @@ export function StockPageShell({
         })}
       </div>
 
-      {children(session)}
+      {fillViewport ? <div className="min-h-0 flex-1">{children(session)}</div> : children(session)}
     </div>
   )
 }
