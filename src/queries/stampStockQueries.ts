@@ -94,10 +94,11 @@ async function fetchStampReorderList(): Promise<OrderListRow[]> {
   return orderRows
 }
 
-export function useStampReorderList() {
+export function useStampReorderList(enabled = true) {
   return useQuery({
     queryKey: stampStockKeys.reorderList,
     queryFn: fetchStampReorderList,
+    enabled,
   })
 }
 

@@ -24,8 +24,6 @@ export type TextileStockUi = {
   setStockSearch: (value: string) => void
   stockBrandFilter: string
   setStockBrandFilter: (value: string) => void
-  filterReorderOnly: boolean
-  setFilterReorderOnly: (value: boolean) => void
   filterSamplesOnly: boolean
   setFilterSamplesOnly: (value: boolean) => void
   stockSorting: SortState<StockSortKey>

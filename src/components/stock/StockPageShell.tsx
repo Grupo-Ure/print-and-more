@@ -9,9 +9,10 @@ import { cn } from '@/lib/utils'
 type StockPageShellProps = {
   title: string
   accessDeniedDescription: string
-  tabs: { key: string; label: string }[]
-  activeTab: string
-  onTabChange: (key: string) => void
+  /** Omit for single-view pages — no tab bar is rendered. */
+  tabs?: { key: string; label: string }[]
+  activeTab?: string
+  onTabChange?: (key: string) => void
   /**
    * Pin the page to the viewport height and let the tab content fill the rest,
    * for tabs whose panes scroll independently (instead of the page scrolling).
@@ -42,37 +43,37 @@ export function StockPageShell({
   if (roleLoading) return null
   if (!isAdmin) return <AccessDenied description={accessDeniedDescription} />
 
-  const userEmail = session.user?.email ?? session.user?.id ?? ''
-
   return (
-    <div className={cn('mx-auto max-w-6xl p-5', fillViewport && 'flex h-screen w-full flex-col')}>
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="m-0 text-lg">{title}</h1>
-        <span className="text-sm opacity-85">{userEmail}</span>
-      </div>
+    // h-full, not h-screen: the app shell already subtracts the navbar height.
+    <div className={cn('mx-auto max-w-6xl p-5', fillViewport && 'flex h-full w-full flex-col')}>
+      <h1 className="m-0 text-lg">{title}</h1>
 
-      <div className="my-3.5 flex flex-wrap gap-2" role="tablist" aria-label={title}>
-        {tabs.map(tab => {
-          const isActive = tab.key === activeTab
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              role="tab"
-              aria-selected={isActive}
-              onClick={() => onTabChange(tab.key)}
-              className={cn(
-                'h-8 cursor-pointer rounded-lg border border-transparent px-2.5 text-sm font-medium whitespace-nowrap transition-all',
-                isActive
-                  ? 'bg-primary text-primary-foreground'
-                  : 'border-border bg-background hover:bg-muted',
-              )}
-            >
-              {tab.label}
-            </button>
-          )
-        })}
-      </div>
+      {tabs && tabs.length > 0 ? (
+        <div className="my-3.5 flex flex-wrap gap-2" role="tablist" aria-label={title}>
+          {tabs.map(tab => {
+            const isActive = tab.key === activeTab
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => onTabChange?.(tab.key)}
+                className={cn(
+                  'h-8 cursor-pointer rounded-lg border border-transparent px-2.5 text-sm font-medium whitespace-nowrap transition-all',
+                  isActive
+                    ? 'bg-primary text-primary-foreground'
+                    : 'border-border bg-background hover:bg-muted',
+                )}
+              >
+                {tab.label}
+              </button>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="my-2" />
+      )}
 
       {fillViewport ? <div className="min-h-0 flex-1">{children(session)}</div> : children(session)}
     </div>

@@ -7,7 +7,6 @@ export function StampStockProvider({ children }: { children: ReactNode }) {
   const [overviewSearch, setOverviewSearch] = useState('')
   const [filterType, setFilterType] = useState<string>('ALL')
   const [filterColor, setFilterColor] = useState<string>('ALL')
-  const [filterReorderOnly, setFilterReorderOnly] = useState(false)
   const [overviewSorting, setOverviewSorting] = useState<SortState<OverviewSortKey>>(null)
   const [movementTypeFilter, setMovementTypeFilter] = useState<'ALL' | MovementType>('ALL')
   const [movementSearch, setMovementSearch] = useState('')
@@ -24,8 +23,6 @@ export function StampStockProvider({ children }: { children: ReactNode }) {
       setFilterType,
       filterColor,
       setFilterColor,
-      filterReorderOnly,
-      setFilterReorderOnly,
       overviewSorting,
       toggleOverviewSort,
       movementTypeFilter,
@@ -37,7 +34,6 @@ export function StampStockProvider({ children }: { children: ReactNode }) {
       overviewSearch,
       filterType,
       filterColor,
-      filterReorderOnly,
       overviewSorting,
       toggleOverviewSort,
       movementTypeFilter,

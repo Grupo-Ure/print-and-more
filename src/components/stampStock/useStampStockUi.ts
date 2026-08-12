@@ -1,7 +1,16 @@
 import { createContext, useContext } from 'react'
 import type { MovementType, SortState } from '../stock/stockShared'
 
-export type OverviewSortKey = 'name' | 'color' | 'print_area' | 'type' | 'stock' | 'min_stock' | 'status'
+export type OverviewSortKey =
+  | 'name'
+  | 'article_number'
+  | 'color'
+  | 'print_area'
+  | 'type'
+  | 'stock'
+  | 'min_stock'
+  | 'net_price'
+  | 'status'
 
 export type { SortState }
 
@@ -12,8 +21,6 @@ export type StampStockUi = {
   setFilterType: (value: string) => void
   filterColor: string
   setFilterColor: (value: string) => void
-  filterReorderOnly: boolean
-  setFilterReorderOnly: (value: boolean) => void
   overviewSorting: SortState<OverviewSortKey>
   toggleOverviewSort: (key: OverviewSortKey) => void
   movementTypeFilter: 'ALL' | MovementType

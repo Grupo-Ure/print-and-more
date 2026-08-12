@@ -99,10 +99,11 @@ async function fetchTextileReorderList(): Promise<TextileReorderRow[]> {
   return reorderRows
 }
 
-export function useTextileReorderList() {
+export function useTextileReorderList(enabled = true) {
   return useQuery({
     queryKey: textileStockKeys.reorderList,
     queryFn: fetchTextileReorderList,
+    enabled,
   })
 }
 

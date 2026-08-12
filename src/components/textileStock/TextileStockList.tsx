@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useToast } from '../Toast'
@@ -7,38 +8,72 @@ import {
   useAllTextileVariants,
   useBookTextileMovement,
   useSaveTextileMinimumStock,
+  useTextileReorderList,
+  type TextileReorderRow,
 } from '../../queries/textileStockQueries'
 import { stockInputClass } from '../stock/stockShared'
 import { BookingField } from '../stock/BookingField'
 import { MinimumStockField } from '../stock/MinimumStockField'
+import { ReorderListDialog } from '../stock/ReorderListDialog'
+import { StockHistoryDialog } from '../stock/StockHistoryDialog'
 import { StockTable, type StockColumn } from '../stock/StockTable'
 import { useStockBooking } from '../stock/useStockBooking'
+import { TextileMovements } from './TextileMovements'
 import { useTextileStockUi, type StockSortKey } from './useTextileStockUi'
 import { brandFromVariant, productNameFromVariant, variantStatus } from './textileStockShared'
 import type { VariantWithDetails } from '../../services/textileMasterDataService'
 
+const REORDER_COLUMNS: StockColumn<TextileReorderRow>[] = [
+  { key: 'brand', header: 'Brand', render: row => brandFromVariant(row) || '—' },
+  {
+    key: 'product',
+    header: 'Product',
+    render: row => productNameFromVariant(row),
+    cellClassName: 'font-semibold',
+  },
+  { key: 'color', header: 'Colour', render: row => row.color || '—' },
+  { key: 'size', header: 'Size', render: row => row.size || '—' },
+  { key: 'stock', header: 'Stock', render: row => row.stock ?? 0 },
+  { key: 'open', header: 'Open', render: row => row.openQuantity },
+  { key: 'min_stock', header: 'Min. stock', render: row => row.min_stock ?? 0 },
+  {
+    key: 'order',
+    header: 'Order qty',
+    render: row => row.orderQuantity,
+    cellClassName: 'font-bold text-destructive',
+  },
+]
+
 type TextileStockListProps = {
   /** Booked movements are attributed to this user. */
   userId: string
+  /** Opens the master-data subpage ("Manage brands and products"). */
+  onOpenMasterData: () => void
 }
 
-/** Stock tab: every variant across all brands with filters, sorting and booking. */
-export function TextileStockList({ userId }: TextileStockListProps) {
+/**
+ * The textile stock page: every variant across all brands with filters,
+ * sorting and booking; the reorder list and the movement history open as
+ * dialogs. Master data lives on its own subpage behind the cog button.
+ */
+export function TextileStockList({ userId, onOpenMasterData }: TextileStockListProps) {
   const { showError } = useToast()
   const {
     stockSearch,
     setStockSearch,
     stockBrandFilter,
     setStockBrandFilter,
-    filterReorderOnly,
-    setFilterReorderOnly,
     filterSamplesOnly,
     setFilterSamplesOnly,
     stockSorting,
     toggleStockSort,
   } = useTextileStockUi()
 
+  const [reorderOpen, setReorderOpen] = useState(false)
+
   const variantsQuery = useAllTextileVariants()
+  // Only fetched while the reorder dialog is open.
+  const reorderQuery = useTextileReorderList(reorderOpen)
   const bookMovement = useBookTextileMovement()
   const saveMinimumStock = useSaveTextileMinimumStock()
 
@@ -66,12 +101,6 @@ export function TextileStockList({ userId }: TextileStockListProps) {
       list = list.filter(variant => brandFromVariant(variant) === stockBrandFilter)
     }
     if (filterSamplesOnly) list = list.filter(variant => variant.is_sample)
-    if (filterReorderOnly) {
-      list = list.filter(variant => {
-        if (variant.is_sample) return false
-        return (variant.stock ?? 0) < (variant.min_stock ?? 0)
-      })
-    }
     const searchQuery = stockSearch.trim().toLowerCase()
     if (searchQuery) {
       list = list.filter(variant => {
@@ -88,7 +117,28 @@ export function TextileStockList({ userId }: TextileStockListProps) {
       })
     }
     return list
-  }, [variantsQuery.data, stockBrandFilter, stockSearch, filterReorderOnly, filterSamplesOnly])
+  }, [variantsQuery.data, stockBrandFilter, stockSearch, filterSamplesOnly])
+
+  const reorderRows = useMemo(() => reorderQuery.data ?? [], [reorderQuery.data])
+
+  const clipboardText = useMemo(() => {
+    const header = 'Brand | Product | Colour | Size | Stock | Open | Min. Stock | Order qty'
+    const body = reorderRows
+      .map(row =>
+        [
+          brandFromVariant(row),
+          productNameFromVariant(row),
+          row.color ?? '',
+          row.size ?? '',
+          row.stock ?? 0,
+          row.openQuantity,
+          row.min_stock ?? 0,
+          row.orderQuantity,
+        ].join(' | '),
+      )
+      .join('\n')
+    return body ? `${header}\n${body}` : header
+  }, [reorderRows])
 
   const columns: StockColumn<VariantWithDetails>[] = [
     {
@@ -161,7 +211,7 @@ export function TextileStockList({ userId }: TextileStockListProps) {
   ]
 
   return (
-    <div>
+    <div className="flex h-full min-h-0 flex-col">
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <input
           type="search"
@@ -187,27 +237,23 @@ export function TextileStockList({ userId }: TextileStockListProps) {
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
-            checked={filterReorderOnly}
-            onChange={event => setFilterReorderOnly(event.target.checked)}
-          />
-          Only reorder
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
             checked={filterSamplesOnly}
             onChange={event => setFilterSamplesOnly(event.target.checked)}
           />
           Only samples
         </label>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => void variantsQuery.refetch()}
-          disabled={variantsQuery.isFetching}
-        >
-          Reload
+        <Button type="button" variant="outline" onClick={() => setReorderOpen(true)}>
+          Reorder list
         </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <StockHistoryDialog title="Stock movements">
+            <TextileMovements />
+          </StockHistoryDialog>
+          <Button type="button" variant="outline" onClick={onOpenMasterData}>
+            <Settings />
+            Manage brands and products
+          </Button>
+        </div>
       </div>
 
       {variantsQuery.isError && <p className="text-destructive">{errorToString(variantsQuery.error)}</p>}
@@ -219,6 +265,17 @@ export function TextileStockList({ userId }: TextileStockListProps) {
         rowKey={variant => variant.id}
         sorting={stockSorting}
         onToggleSort={toggleStockSort}
+      />
+
+      <ReorderListDialog
+        open={reorderOpen}
+        onOpenChange={setReorderOpen}
+        rows={reorderRows}
+        isLoading={reorderQuery.isLoading}
+        error={reorderQuery.isError ? errorToString(reorderQuery.error) : null}
+        columns={REORDER_COLUMNS}
+        rowKey={row => row.id}
+        clipboardText={clipboardText}
       />
     </div>
   )
