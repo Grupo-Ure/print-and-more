@@ -106,7 +106,6 @@ CREATE TABLE IF NOT EXISTS "public"."textile_variants" (
     "size" "text" NOT NULL,
     "sort_order" integer DEFAULT 0 NOT NULL,
     "is_sample" boolean DEFAULT false NOT NULL,
-    "is_default" boolean DEFAULT false NOT NULL,
     "stock" integer DEFAULT 0 NOT NULL,
     "min_stock" integer DEFAULT 0 NOT NULL,
     "is_active" boolean DEFAULT true NOT NULL,
@@ -116,28 +115,6 @@ CREATE TABLE IF NOT EXISTS "public"."textile_variants" (
 );
 
 ALTER TABLE "public"."textile_variants" OWNER TO "postgres";
-
-COMMENT ON COLUMN "public"."textile_variants"."is_default" IS
-    'Auto-created starter variant (one per new product). Placeholder color/size until edited; behaves like any other variant.';
-
--- Every product has ≥ 1 variant. Stock is tracked exclusively on
--- textile_variants, so a variant-less product would be invisible to inventory
--- (stock list, movements, reorder, auto-deduction). Creating a product
--- auto-creates one default variant in the same transaction.
-CREATE OR REPLACE FUNCTION "public"."fn_create_default_textile_variant"() RETURNS "trigger"
-    LANGUAGE "plpgsql"
-    SET "search_path" = ''
-    AS $$
-BEGIN
-    INSERT INTO public.textile_variants (product_id, color, size, is_default, sort_order)
-    VALUES (NEW.id, 'Standard', 'One size', true, 1);
-    RETURN NEW;
-END;
-$$;
-
-CREATE TRIGGER "trg_create_default_textile_variant"
-    AFTER INSERT ON "public"."textile_products"
-    FOR EACH ROW EXECUTE FUNCTION "public"."fn_create_default_textile_variant"();
 
 ALTER TABLE ONLY "public"."stamp_stock_movements"
     ADD CONSTRAINT "stamp_stock_movements_pkey" PRIMARY KEY ("id");

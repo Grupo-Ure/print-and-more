@@ -2113,7 +2113,6 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
-          is_default: boolean
           is_sample: boolean
           material: string | null
           min_stock: number
@@ -2128,7 +2127,6 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
-          is_default?: boolean
           is_sample?: boolean
           material?: string | null
           min_stock?: number
@@ -2143,7 +2141,6 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
-          is_default?: boolean
           is_sample?: boolean
           material?: string | null
           min_stock?: number

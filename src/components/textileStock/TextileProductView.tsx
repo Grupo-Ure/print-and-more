@@ -175,11 +175,6 @@ export function TextileProductView({ product, breadcrumb, onBack }: TextileProdu
                     >
                       {variant.color}
                     </button>
-                    {variant.is_default && (
-                      <span className="ml-1.5">
-                        <NeutralChip label="Default" />
-                      </span>
-                    )}
                   </TableCell>
                   <TableCell className="px-3 py-2">
                     {variant.color_hex ? (

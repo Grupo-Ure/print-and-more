@@ -110,7 +110,6 @@ export function TextileVariantDetail({ variant, siblingCount, breadcrumb, onBack
             </h3>
             {/* The status chip covers Sample, so no extra Sample chip needed. */}
             <StockStatusBadge status={status} />
-            {variant.is_default && <NeutralChip label="Default" />}
             {!variant.is_active && <NeutralChip label="Inactive" />}
             <div className="ml-auto flex gap-2">
               <Button type="button" variant="outline" size="sm" onClick={startEditing}>
