@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Archive, ArchiveRestore, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useToast } from '../Toast'
@@ -16,8 +17,10 @@ import { BookingField } from '../stock/BookingField'
 import { MinimumStockField } from '../stock/MinimumStockField'
 import { ReorderListDialog } from '../stock/ReorderListDialog'
 import { StockHistoryDialog } from '../stock/StockHistoryDialog'
+import { StockStatusBadge } from '../stock/StockBadge'
 import { StockTable, type StockColumn } from '../stock/StockTable'
-import { stockInputClass } from '../stock/stockShared'
+import { StockToolbar } from '../stock/StockToolbar'
+import { isStockWarning, stockInputClass } from '../stock/stockShared'
 import { useStockBooking } from '../stock/useStockBooking'
 import { StampModelDialog } from './StampModelDialog'
 import { StampMovements } from './StampMovements'
@@ -34,17 +37,23 @@ import {
 
 const REORDER_COLUMNS: StockColumn<OrderListRow>[] = [
   { key: 'name', header: 'Name', render: row => row.name, cellClassName: 'font-semibold' },
-  { key: 'article_number', header: 'Article number', render: row => row.article_number ?? '—' },
-  { key: 'type', header: 'Type', render: row => typeLabel(row.type), cellClassName: 'opacity-90' },
-  { key: 'color', header: 'Colour', render: row => colorLabel(row.color), cellClassName: 'opacity-90' },
-  { key: 'stock', header: 'Stock', render: row => row.stock },
-  { key: 'open', header: 'Open orders', render: row => row.openQuantity },
-  { key: 'min_stock', header: 'Min. stock', render: row => row.min_stock },
+  {
+    key: 'article_number',
+    header: 'Article number',
+    render: row => row.article_number ?? '—',
+    cellClassName: 'text-muted-foreground',
+  },
+  { key: 'type', header: 'Type', render: row => typeLabel(row.type) },
+  { key: 'color', header: 'Colour', render: row => colorLabel(row.color) },
+  { key: 'stock', header: 'Stock', align: 'right', render: row => row.stock },
+  { key: 'open', header: 'Open orders', align: 'right', render: row => row.openQuantity },
+  { key: 'min_stock', header: 'Min. stock', align: 'right', render: row => row.min_stock },
   {
     key: 'order',
     header: 'Order qty',
+    align: 'right',
     render: row => row.orderQuantity,
-    cellClassName: 'font-bold text-destructive',
+    cellClassName: 'font-semibold text-red-600',
   },
 ]
 
@@ -134,17 +143,11 @@ export function StampStockView({ userId }: StampStockViewProps) {
         return name.includes(searchQuery) || articleNumber.includes(searchQuery)
       })
     }
-    // Default order while no column sort is active: worst status first.
-    if (!sorting) {
-      list.sort((firstModel, secondModel) => {
-        const firstStatus = statusInfo(firstModel)
-        const secondStatus = statusInfo(secondModel)
-        if (firstStatus.rank !== secondStatus.rank) return firstStatus.rank - secondStatus.rank
-        return firstModel.name.localeCompare(secondModel.name)
-      })
-    }
+    // Base order: alphabetical by name — this is a lookup table. Shortages are
+    // surfaced by the red row tint and the reorder list, not by ranking rows.
+    list.sort((firstModel, secondModel) => firstModel.name.localeCompare(secondModel.name))
     return list
-  }, [modelsQuery.data, showInactive, filterType, filterColor, overviewSearch, sorting])
+  }, [modelsQuery.data, showInactive, filterType, filterColor, overviewSearch])
 
   const reorderRows = useMemo(() => reorderQuery.data ?? [], [reorderQuery.data])
 
@@ -171,38 +174,38 @@ export function StampStockView({ userId }: StampStockViewProps) {
       header: 'Article no.',
       sortValue: model => model.article_number ?? '',
       render: model => model.article_number ?? '—',
-      cellClassName: 'opacity-85',
+      cellClassName: 'text-muted-foreground',
     },
     {
       key: 'type',
       header: 'Type',
       sortValue: model => model.type,
       render: model => typeLabel(model.type),
-      cellClassName: 'opacity-90',
     },
     {
       key: 'color',
       header: 'Colour',
       sortValue: model => model.color ?? '',
       render: model => colorLabel(model.color),
-      cellClassName: 'opacity-90',
     },
     {
       key: 'print_area',
       header: 'Print area',
       sortValue: model => model.print_area ?? '',
       render: model => model.print_area ?? '',
-      cellClassName: 'opacity-85',
+      cellClassName: 'text-muted-foreground',
     },
     {
       key: 'stock',
       header: 'Stock',
+      align: 'right',
       sortValue: model => model.stock ?? 0,
       render: model => model.stock ?? 0,
     },
     {
       key: 'min_stock',
       header: 'Min. stock',
+      align: 'right',
       sortValue: model => model.min_stock ?? 0,
       render: model => (
         <MinimumStockField
@@ -219,6 +222,7 @@ export function StampStockView({ userId }: StampStockViewProps) {
     {
       key: 'net_price',
       header: 'Net price',
+      align: 'right',
       sortValue: model => model.net_price ?? 0,
       render: model => formatNetRetailPrice(model.net_price),
     },
@@ -226,32 +230,40 @@ export function StampStockView({ userId }: StampStockViewProps) {
       key: 'status',
       header: 'Status',
       sortValue: model => statusInfo(model).rank,
-      render: model => {
-        const status = statusInfo(model)
-        return (
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className={`badge ${status.badgeClass}`}>{status.label}</span>
-            <BookingField item={model} booking={booking} />
-          </div>
-        )
-      },
+      render: model => <StockStatusBadge status={statusInfo(model)} />,
+    },
+    {
+      key: 'booking',
+      header: 'Update stock',
+      render: model => <BookingField item={model} booking={booking} />,
     },
     {
       key: 'actions',
       header: '',
       render: model => (
-        <div className="flex items-center gap-1.5">
-          <Button type="button" variant="outline" size="sm" onClick={() => openEdit(model)}>
-            Edit
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="text-blue-600 hover:bg-transparent hover:text-blue-800"
+            title="Edit"
+            aria-label={`Edit ${model.name}`}
+            onClick={() => openEdit(model)}
+          >
+            <Pencil />
           </Button>
           <Button
             type="button"
             variant="ghost"
-            size="sm"
+            size="icon-sm"
+            className="text-muted-foreground hover:text-foreground"
+            title={model.is_active ? 'Deactivate' : 'Activate'}
+            aria-label={`${model.is_active ? 'Deactivate' : 'Activate'} ${model.name}`}
             onClick={() => void toggleActive(model)}
             disabled={updateModel.isPending}
           >
-            {model.is_active ? 'Deactivate' : 'Activate'}
+            {model.is_active ? <Archive /> : <ArchiveRestore />}
           </Button>
         </div>
       ),
@@ -259,8 +271,8 @@ export function StampStockView({ userId }: StampStockViewProps) {
   ]
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="mb-3 flex flex-wrap items-center gap-3">
+    <div>
+      <StockToolbar>
         <Button type="button" onClick={openCreate}>
           + New model
         </Button>
@@ -307,6 +319,7 @@ export function StampStockView({ userId }: StampStockViewProps) {
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
+            className="size-4 accent-primary"
             checked={showInactive}
             onChange={event => setShowInactive(event.target.checked)}
           />
@@ -320,10 +333,11 @@ export function StampStockView({ userId }: StampStockViewProps) {
             <StampMovements />
           </StockHistoryDialog>
         </div>
-      </div>
+      </StockToolbar>
 
-      {modelsQuery.isError && <p className="text-destructive">{errorToString(modelsQuery.error)}</p>}
-      {modelsQuery.isLoading && <p className="opacity-80">Loading…</p>}
+      {modelsQuery.isError && (
+        <p className="mb-2 text-sm text-destructive">{errorToString(modelsQuery.error)}</p>
+      )}
 
       <StockTable<StampModelRow, OverviewSortKey>
         columns={columns}
@@ -331,6 +345,13 @@ export function StampStockView({ userId }: StampStockViewProps) {
         rowKey={model => model.id}
         sorting={sorting}
         onToggleSort={toggleSort}
+        rowClassName={model =>
+          // Same red tint as the shortage rows on the orders page.
+          model.is_active && isStockWarning(statusInfo(model))
+            ? 'bg-red-500/10 hover:bg-red-500/15'
+            : undefined
+        }
+        emptyMessage={modelsQuery.isLoading ? 'Loading…' : 'No stamp models match the current filters.'}
       />
 
       <ReorderListDialog

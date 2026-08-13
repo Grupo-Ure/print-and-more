@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
 import { useToast } from '../Toast'
 import { REFILL_INK_COLORS, STAMP_COLOR_LABELS } from '../../types/stamp'
 import {
@@ -332,7 +333,7 @@ function StampModelForm({
         <label className="col-span-2 flex flex-col gap-1 text-sm">
           Note
           <textarea
-            className="min-h-16 rounded-lg border border-input bg-background px-2 py-1.5 text-sm"
+            className={cn(stockInputClass, 'h-auto min-h-16 py-1.5')}
             value={form.note}
             onChange={event => setField('note')(event.target.value)}
           />
@@ -340,8 +341,8 @@ function StampModelForm({
       </div>
 
       {!isEdit && (
-        <p className="text-xs opacity-70">
-          New models start with stock 0 — book the initial inventory via the Overview tab.
+        <p className="text-xs text-muted-foreground">
+          New models start with stock 0 — book the initial inventory in the stock table.
         </p>
       )}
 

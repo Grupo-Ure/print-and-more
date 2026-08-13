@@ -2,11 +2,22 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+function Table({
+  className,
+  containerClassName,
+  ...props
+}: React.ComponentProps<"table"> & {
+  /**
+   * Extra classes for the built-in overflow wrapper. Pass `overflow-visible`
+   * when an ancestor owns scrolling and the header must stick to it — any
+   * overflow other than visible here would trap `position: sticky`.
+   */
+  containerClassName?: string
+}) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      className={cn("relative w-full overflow-x-auto", containerClassName)}
     >
       <table
         data-slot="table"

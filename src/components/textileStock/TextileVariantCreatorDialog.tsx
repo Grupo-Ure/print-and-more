@@ -102,7 +102,7 @@ function VariantCreatorBody({ productId }: { productId: string }) {
               type="color"
               value={newVariant.color_hex || '#000000'}
               onChange={event => setNewVariant(state => ({ ...state, color_hex: event.target.value }))}
-              className="h-8 w-11 border-none p-0"
+              className="h-8 w-11 cursor-pointer rounded-lg border border-input bg-background p-0.5"
               aria-label="Colour picker"
             />
           </div>

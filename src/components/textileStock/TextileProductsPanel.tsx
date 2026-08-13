@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Pencil, RefreshCw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
@@ -77,16 +78,19 @@ export function TextileProductsPanel({ brandId, onOpenProduct }: TextileProducts
   return (
     <div className="mb-2">
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <Button type="button" variant="outline" onClick={() => setFormOpen(open => !open)}>
+        <Button type="button" onClick={() => setFormOpen(open => !open)}>
           + Add product
         </Button>
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
+          size="icon-sm"
           onClick={() => void productsQuery.refetch()}
           disabled={productsQuery.isFetching}
+          title="Reload"
+          aria-label="Reload products"
         >
-          Reload
+          <RefreshCw className={cn(productsQuery.isFetching && 'animate-spin')} />
         </Button>
       </div>
       {formOpen && (
@@ -114,52 +118,75 @@ export function TextileProductsPanel({ brandId, onOpenProduct }: TextileProducts
           </Button>
         </div>
       )}
-      {productsQuery.isLoading && <p className="mb-2 opacity-80">Loading…</p>}
+      {productsQuery.isLoading && <p className="mb-2 text-sm text-muted-foreground">Loading…</p>}
       {!productsQuery.isLoading && (
-        <Table className="text-sm">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Article number</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(productsQuery.data ?? []).map(product => (
-              <TableRow key={product.id}>
-                <TableCell className="font-semibold">
-                  <button
-                    type="button"
-                    className="cursor-pointer hover:underline"
-                    onClick={() => onOpenProduct(product.id)}
-                  >
-                    {product.name}
-                  </button>
-                </TableCell>
-                <TableCell>{product.article_number ?? '—'}</TableCell>
-                <TableCell>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onOpenProduct(product.id)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="ml-2 text-destructive"
-                    onClick={() => void removeProduct(product)}
-                  >
-                    Delete
-                  </Button>
-                </TableCell>
+        <div className="overflow-hidden rounded-lg border">
+          <Table className="text-sm">
+            <TableHeader className="bg-muted/50">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="h-9 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">Name</TableHead>
+                <TableHead className="h-9 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">Article number</TableHead>
+                <TableHead className="h-9 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {(productsQuery.data ?? []).map(product => (
+                // Whole row opens the product (like the orders product tables);
+                // the action icons stop propagation and take priority.
+                <TableRow
+                  key={product.id}
+                  className="cursor-pointer"
+                  onClick={() => onOpenProduct(product.id)}
+                >
+                  <TableCell className="px-3 py-2 font-semibold">
+                    <button
+                      type="button"
+                      className="cursor-pointer hover:underline"
+                      onClick={() => onOpenProduct(product.id)}
+                    >
+                      {product.name}
+                    </button>
+                  </TableCell>
+                  <TableCell className="px-3 py-2 text-muted-foreground">
+                    {product.article_number ?? '—'}
+                  </TableCell>
+                  <TableCell className="px-3 py-2">
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-blue-600 hover:bg-transparent hover:text-blue-800"
+                        title="Edit"
+                        aria-label={`Edit ${product.name}`}
+                        onClick={event => {
+                          event.stopPropagation()
+                          onOpenProduct(product.id)
+                        }}
+                      >
+                        <Pencil />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-red-600 hover:bg-transparent hover:text-red-800"
+                        title="Delete"
+                        aria-label={`Delete ${product.name}`}
+                        onClick={event => {
+                          event.stopPropagation()
+                          void removeProduct(product)
+                        }}
+                      >
+                        <Trash2 />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
     </div>
   )

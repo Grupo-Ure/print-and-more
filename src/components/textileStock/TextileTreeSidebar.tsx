@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pencil } from 'lucide-react'
+import { ChevronRight, Pencil, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useToast } from '../Toast'
@@ -34,9 +34,9 @@ function ExpandChevron({ expanded, onToggle, label }: { expanded: boolean; onTog
       onClick={onToggle}
       aria-label={`${expanded ? 'Collapse' : 'Expand'} ${label}`}
       aria-expanded={expanded}
-      className="w-4 shrink-0 cursor-pointer text-xs text-muted-foreground hover:text-foreground"
+      className="w-4 shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
     >
-      {expanded ? '▾' : '▸'}
+      <ChevronRight className={cn('size-3.5 transition-transform', expanded && 'rotate-90')} />
     </button>
   )
 }
@@ -81,10 +81,12 @@ function ProductTreeNode({ product }: { product: ProductRow }) {
   const [expanded, setExpanded] = useState(product.id === productIdForVariants)
   const isSelected = productIdForVariants === product.id && !variantIdForDetail
 
+  // Clicking the row behaves like a file manager: select AND toggle the folder.
   const selectProduct = (): void => {
     setBrandIdForProducts(product.brand_id)
     setProductIdForVariants(product.id)
     setVariantIdForDetail('')
+    setExpanded(open => !open)
   }
 
   const selectVariant = (variantId: string): void => {
@@ -100,6 +102,7 @@ function ProductTreeNode({ product }: { product: ProductRow }) {
         <button
           type="button"
           onClick={selectProduct}
+          aria-expanded={expanded}
           className={cn('min-w-0 flex-1 cursor-pointer truncate text-left', !product.is_active && 'opacity-60')}
           title={product.is_active ? product.name : `${product.name} (inactive)`}
         >
@@ -145,11 +148,12 @@ function BrandTreeNode({ brand }: { brand: BrandRow }) {
 
   const isSelected = brandIdForProducts === brand.id && !productIdForVariants && !variantIdForDetail
 
+  // Clicking the row behaves like a file manager: select AND toggle the folder.
   const selectBrand = (): void => {
     setBrandIdForProducts(brand.id)
     setProductIdForVariants('')
     setVariantIdForDetail('')
-    setExpanded(true)
+    setExpanded(open => !open)
   }
 
   const saveRename = (): void => {
@@ -189,6 +193,7 @@ function BrandTreeNode({ brand }: { brand: BrandRow }) {
             <button
               type="button"
               onClick={selectBrand}
+              aria-expanded={expanded}
               className={cn('min-w-0 flex-1 cursor-pointer truncate text-left', !brand.is_active && 'opacity-60')}
               title={brand.is_active ? brand.name : `${brand.name} (inactive)`}
             >
@@ -251,7 +256,7 @@ export function TextileTreeSidebar() {
           title="Reload"
           aria-label="Reload catalog"
         >
-          ↻
+          <RefreshCw className={cn(brandsQuery.isFetching && 'animate-spin')} />
         </Button>
       </div>
 

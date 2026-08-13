@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { cn } from '@/lib/utils'
+import { stockInputClass } from './stockShared'
 
 type MinimumStockFieldProps = {
   currentMinimum: number | null
@@ -33,7 +35,7 @@ export function MinimumStockField({ currentMinimum, onSave }: MinimumStockFieldP
       value={value}
       onChange={event => setValue(event.target.value)}
       onBlur={save}
-      className="h-8 max-w-24 rounded-lg border border-input bg-background px-2 text-sm"
+      className={cn(stockInputClass, 'w-20 px-2 text-right tabular-nums')}
       aria-label="Minimum stock"
     />
   )

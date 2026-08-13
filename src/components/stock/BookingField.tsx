@@ -1,4 +1,7 @@
+import { Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+import { stockInputClass } from './stockShared'
 import type { BookingItem, StockBooking } from './useStockBooking'
 
 type BookingFieldProps = {
@@ -24,7 +27,7 @@ export function BookingField({ item, booking }: BookingFieldProps) {
           step={1}
           value={booking.quantityFor(item.id)}
           onChange={event => booking.setQuantity(item.id, event.target.value)}
-          className="h-8 w-13 rounded-lg border border-input bg-background px-2 text-sm [appearance:textfield]"
+          className={cn(stockInputClass, 'w-13 px-2 text-right tabular-nums [appearance:textfield]')}
           aria-label="Booking quantity"
         />
         <Button
@@ -33,9 +36,10 @@ export function BookingField({ item, booking }: BookingFieldProps) {
           size="icon"
           disabled={inboundDisabled}
           onClick={() => void booking.book(item, 'INBOUND')}
-          title="Book stock in"
+          title="Increase stock"
+          aria-label="Increase stock"
         >
-          +
+          <Plus />
         </Button>
         <Button
           type="button"
@@ -43,9 +47,10 @@ export function BookingField({ item, booking }: BookingFieldProps) {
           size="icon"
           disabled={outboundDisabled}
           onClick={() => void booking.book(item, 'OUTBOUND')}
-          title="Book stock out"
+          title="Decrease stock"
+          aria-label="Decrease stock"
         >
-          −
+          <Minus />
         </Button>
       </div>
       {error && <div className="mt-1 text-xs text-destructive">{error}</div>}

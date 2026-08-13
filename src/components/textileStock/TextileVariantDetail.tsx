@@ -1,9 +1,12 @@
 import { useState } from 'react'
+import { ArrowLeft, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useToast } from '../Toast'
 import { useUpdateTextileVariant } from '../../queries/textileStockQueries'
+import { NeutralChip, StockStatusBadge } from '../stock/StockBadge'
 import { stockInputClass } from '../stock/stockShared'
+import { TextileBreadcrumb, type BreadcrumbSegment } from './TextileBreadcrumb'
 import { useTextileVariantDelete } from './useTextileVariantDelete'
 import { variantStatus } from './textileStockShared'
 import type { VariantRow } from '../../services/textileMasterDataService'
@@ -12,7 +15,7 @@ type TextileVariantDetailProps = {
   variant: VariantRow
   /** Number of variants the product has (guards deleting the last one). */
   siblingCount: number
-  breadcrumb: string
+  breadcrumb: BreadcrumbSegment[]
   onBack: () => void
 }
 
@@ -90,22 +93,35 @@ export function TextileVariantDetail({ variant, siblingCount, breadcrumb, onBack
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center gap-2.5">
-        <Button type="button" variant="outline" onClick={onBack}>
-          ← Product
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <Button type="button" variant="outline" size="sm" onClick={onBack}>
+          <ArrowLeft />
+          Product
         </Button>
-        <span className="text-sm text-muted-foreground">{breadcrumb}</span>
+        <TextileBreadcrumb segments={breadcrumb} />
       </div>
 
       {!editing && (
-        <div className="max-w-xl rounded-lg border border-border p-3">
-          <div className="mb-2 flex items-center gap-2">
-            <h3 className="m-0 text-sm font-semibold">
+        <div className="max-w-xl">
+          {/* Header row: title + status chips left, the view's actions right. */}
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <h3 className="m-0 font-semibold">
               {variant.color} / {variant.size}
             </h3>
-            {variant.is_default && <span className="badge badge-grau">Default</span>}
-            {variant.is_sample && <span className="badge badge-grau">Sample</span>}
-            {!variant.is_active && <span className="badge badge-grau">Inactive</span>}
+            {/* The status chip covers Sample, so no extra Sample chip needed. */}
+            <StockStatusBadge status={status} />
+            {variant.is_default && <NeutralChip label="Default" />}
+            {!variant.is_active && <NeutralChip label="Inactive" />}
+            <div className="ml-auto flex gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={startEditing}>
+                <Pencil />
+                Edit
+              </Button>
+              <Button type="button" variant="destructive" size="sm" onClick={() => void deleteVariant()}>
+                <Trash2 />
+                Delete
+              </Button>
+            </div>
           </div>
           <div className="grid gap-1.5">
             <DetailRow label="Colour">
@@ -122,26 +138,8 @@ export function TextileVariantDetail({ variant, siblingCount, breadcrumb, onBack
             </DetailRow>
             <DetailRow label="Size">{variant.size}</DetailRow>
             <DetailRow label="Material">{variant.material || '—'}</DetailRow>
-            <DetailRow label="Stock">
-              <span className="inline-flex items-center gap-1.5">
-                {variant.stock ?? 0}
-                <span className={`badge ${status.badgeClass}`}>{status.label}</span>
-              </span>
-            </DetailRow>
+            <DetailRow label="Stock">{variant.stock ?? 0}</DetailRow>
             <DetailRow label="Min. stock">{variant.min_stock ?? 0}</DetailRow>
-          </div>
-          <div className="mt-3 flex gap-2">
-            <Button type="button" variant="outline" onClick={startEditing}>
-              Edit
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="text-destructive"
-              onClick={() => void deleteVariant()}
-            >
-              Delete
-            </Button>
           </div>
         </div>
       )}
@@ -160,7 +158,7 @@ export function TextileVariantDetail({ variant, siblingCount, breadcrumb, onBack
               type="color"
               value={editColorHex || '#000000'}
               onChange={event => setEditColorHex(event.target.value)}
-              className="h-8 w-11 border-none p-0"
+              className="h-8 w-11 cursor-pointer rounded-lg border border-input bg-background p-0.5"
               aria-label="Colour picker"
             />
             <input

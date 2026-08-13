@@ -11,12 +11,14 @@ import {
   useTextileReorderList,
   type TextileReorderRow,
 } from '../../queries/textileStockQueries'
-import { stockInputClass } from '../stock/stockShared'
+import { isStockWarning, stockInputClass } from '../stock/stockShared'
 import { BookingField } from '../stock/BookingField'
 import { MinimumStockField } from '../stock/MinimumStockField'
 import { ReorderListDialog } from '../stock/ReorderListDialog'
 import { StockHistoryDialog } from '../stock/StockHistoryDialog'
+import { NeutralChip, StockStatusBadge } from '../stock/StockBadge'
 import { StockTable, type StockColumn } from '../stock/StockTable'
+import { StockToolbar } from '../stock/StockToolbar'
 import { useStockBooking } from '../stock/useStockBooking'
 import { TextileMovements } from './TextileMovements'
 import { useTextileStockUi, type StockSortKey } from './useTextileStockUi'
@@ -33,14 +35,15 @@ const REORDER_COLUMNS: StockColumn<TextileReorderRow>[] = [
   },
   { key: 'color', header: 'Colour', render: row => row.color || '—' },
   { key: 'size', header: 'Size', render: row => row.size || '—' },
-  { key: 'stock', header: 'Stock', render: row => row.stock ?? 0 },
-  { key: 'open', header: 'Open', render: row => row.openQuantity },
-  { key: 'min_stock', header: 'Min. stock', render: row => row.min_stock ?? 0 },
+  { key: 'stock', header: 'Stock', align: 'right', render: row => row.stock ?? 0 },
+  { key: 'open', header: 'Open', align: 'right', render: row => row.openQuantity },
+  { key: 'min_stock', header: 'Min. stock', align: 'right', render: row => row.min_stock ?? 0 },
   {
     key: 'order',
     header: 'Order qty',
+    align: 'right',
     render: row => row.orderQuantity,
-    cellClassName: 'font-bold text-destructive',
+    cellClassName: 'font-semibold text-red-600',
   },
 ]
 
@@ -116,6 +119,16 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
         )
       })
     }
+    // Base order: alphabetical brand › product › colour › size — a lookup
+    // table, consistent with the stamp page. Shortages are surfaced by the
+    // red row tint and the reorder list, not by ranking rows.
+    list.sort(
+      (first, second) =>
+        brandFromVariant(first).localeCompare(brandFromVariant(second)) ||
+        productNameFromVariant(first).localeCompare(productNameFromVariant(second)) ||
+        String(first.color ?? '').localeCompare(String(second.color ?? '')) ||
+        String(first.size ?? '').localeCompare(String(second.size ?? '')),
+    )
     return list
   }, [variantsQuery.data, stockBrandFilter, stockSearch, filterSamplesOnly])
 
@@ -170,17 +183,19 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
       key: 'sample',
       header: 'Sample',
       sortValue: variant => (variant.is_sample ? 1 : 0),
-      render: variant => (variant.is_sample ? <span className="badge badge-grau">Sample</span> : '—'),
+      render: variant => (variant.is_sample ? <NeutralChip label="Sample" /> : '—'),
     },
     {
       key: 'stock',
       header: 'Stock',
+      align: 'right',
       sortValue: variant => variant.stock ?? 0,
       render: variant => variant.stock ?? 0,
     },
     {
       key: 'min_stock',
       header: 'Min. stock',
+      align: 'right',
       sortValue: variant => variant.min_stock ?? 0,
       render: variant => (
         <MinimumStockField
@@ -198,21 +213,18 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
       key: 'status',
       header: 'Status',
       sortValue: variant => variantStatus(variant).rank,
-      render: variant => {
-        const status = variantStatus(variant)
-        return <span className={`badge ${status.badgeClass}`}>{status.label}</span>
-      },
+      render: variant => <StockStatusBadge status={variantStatus(variant)} />,
     },
     {
       key: 'booking',
-      header: 'Booking',
+      header: 'Update stock',
       render: variant => <BookingField item={variant} booking={booking} />,
     },
   ]
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="mb-3 flex flex-wrap items-center gap-3">
+    <div>
+      <StockToolbar>
         <input
           type="search"
           placeholder="Brand, product, colour, size…"
@@ -237,6 +249,7 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
+            className="size-4 accent-primary"
             checked={filterSamplesOnly}
             onChange={event => setFilterSamplesOnly(event.target.checked)}
           />
@@ -254,10 +267,11 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
             Manage brands and products
           </Button>
         </div>
-      </div>
+      </StockToolbar>
 
-      {variantsQuery.isError && <p className="text-destructive">{errorToString(variantsQuery.error)}</p>}
-      {variantsQuery.isLoading && <p className="opacity-80">Loading…</p>}
+      {variantsQuery.isError && (
+        <p className="mb-2 text-sm text-destructive">{errorToString(variantsQuery.error)}</p>
+      )}
 
       <StockTable<VariantWithDetails, StockSortKey>
         columns={columns}
@@ -265,6 +279,11 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
         rowKey={variant => variant.id}
         sorting={stockSorting}
         onToggleSort={toggleStockSort}
+        rowClassName={variant =>
+          // Same red tint as the shortage rows on the orders page.
+          isStockWarning(variantStatus(variant)) ? 'bg-red-500/10 hover:bg-red-500/15' : undefined
+        }
+        emptyMessage={variantsQuery.isLoading ? 'Loading…' : 'No variants match the current filters.'}
       />
 
       <ReorderListDialog

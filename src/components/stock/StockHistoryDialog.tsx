@@ -10,9 +10,10 @@ type StockHistoryDialogProps = {
 }
 
 /**
- * History affordance shared by the stock pages: an icon button that opens the
- * movement log in a dialog. The same shell is meant to host any per-page
- * history view (stock movements today, order history once that migrates).
+ * History affordance shared by the stock pages: the same ghost icon button as
+ * the order-history button in the orders header, opening the movement log in
+ * a fixed-height dialog. The same shell is meant to host any per-page history
+ * view (stock movements today, order history once that migrates).
  */
 export function StockHistoryDialog({ title, children }: StockHistoryDialogProps) {
   const [open, setOpen] = useState(false)
@@ -21,8 +22,8 @@ export function StockHistoryDialog({ title, children }: StockHistoryDialogProps)
     <>
       <Button
         type="button"
-        variant="outline"
-        size="icon"
+        variant="ghost"
+        size="icon-sm"
         aria-label={title}
         title={title}
         onClick={() => setOpen(true)}
@@ -30,11 +31,11 @@ export function StockHistoryDialog({ title, children }: StockHistoryDialogProps)
         <History />
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
+        <DialogContent className="flex h-[70vh] flex-col sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
           </DialogHeader>
-          {children}
+          <div className="flex min-h-0 flex-1 flex-col">{children}</div>
         </DialogContent>
       </Dialog>
     </>

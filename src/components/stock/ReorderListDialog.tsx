@@ -1,4 +1,11 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { CheckCircle2 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { CopyReorderButton } from './CopyReorderButton'
 import { StockTable, type StockColumn } from './StockTable'
 
@@ -27,27 +34,40 @@ export function ReorderListDialog<Row>({
 }: ReorderListDialogProps<Row>) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl">
+      <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Reorder list</DialogTitle>
+          <DialogDescription>
+            Everything below its minimum stock, with the quantity to order covering open demand.
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <CopyReorderButton
-            clipboardText={clipboardText}
-            disabled={isLoading || rows.length === 0}
-          />
-        </div>
-
-        {error && <p className="text-destructive">{error}</p>}
-        {isLoading && <p className="opacity-80">Loading…</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
 
         {!isLoading && !error && rows.length === 0 && (
-          <p className="my-3 font-semibold text-green-700">All in stock — no reorder needed</p>
+          <div className="flex min-h-32 items-center justify-center gap-2 rounded-lg border border-dashed p-6">
+            <CheckCircle2 className="size-4 shrink-0 text-green-500" />
+            <p className="text-sm font-medium text-green-500">All in stock — no reorder needed.</p>
+          </div>
         )}
 
         {rows.length > 0 && (
-          <StockTable columns={columns} rows={rows} rowKey={rowKey} className="max-h-[60vh]" />
+          <>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">
+                {rows.length} {rows.length === 1 ? 'item' : 'items'} to reorder
+              </p>
+              <CopyReorderButton clipboardText={clipboardText} disabled={isLoading} />
+            </div>
+            <StockTable
+              columns={columns}
+              rows={rows}
+              rowKey={rowKey}
+              scroll="self"
+              className="max-h-[60vh]"
+            />
+          </>
         )}
       </DialogContent>
     </Dialog>

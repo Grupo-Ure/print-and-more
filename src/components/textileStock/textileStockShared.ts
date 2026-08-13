@@ -46,6 +46,6 @@ export function productNameFromVariant(variant: VariantWithDetails): string {
 
 /** Samples are outside the stock logic and always show as a grey chip. */
 export function variantStatus(variant: VariantRow): StockStatus {
-  if (variant.is_sample) return { badgeClass: 'badge-grau', label: 'Sample', rank: -1 }
+  if (variant.is_sample) return { badgeClass: 'bg-gray-500', label: 'Sample', rank: -1 }
   return stockStatus(variant.stock, variant.min_stock)
 }

@@ -1,9 +1,12 @@
 import { useMemo } from 'react'
+import { RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { cn } from '@/lib/utils'
 import { formatDateTimeDe } from '../../lib/formatDate'
 import { useUsers } from '../../queries/userQueries'
-import { MOVEMENT_TYPE_BADGES, type MovementType } from './stockShared'
+import { MovementTypeBadge } from './StockBadge'
+import { StockTable, type StockColumn } from './StockTable'
+import { MOVEMENT_TYPE_BADGES, stockInputClass, type MovementType } from './stockShared'
 
 export type StockMovementEntry = {
   id: string
@@ -60,8 +63,51 @@ export function MovementsView({
     })
   }, [movements, search, typeFilter])
 
+  const columns: StockColumn<StockMovementEntry>[] = [
+    {
+      key: 'date',
+      header: 'Date',
+      render: movement => formatDateTimeDe(movement.created_at),
+      cellClassName: 'text-muted-foreground tabular-nums',
+    },
+    {
+      key: 'item',
+      header: itemColumnHeader,
+      render: movement => movement.itemLabel,
+      cellClassName: 'font-medium',
+    },
+    {
+      key: 'type',
+      header: 'Type',
+      render: movement => <MovementTypeBadge type={movement.type} />,
+    },
+    {
+      key: 'quantity',
+      header: 'Qty',
+      align: 'right',
+      render: movement => movement.quantity,
+    },
+    {
+      key: 'note',
+      header: 'Note',
+      render: movement => (
+        <span className="block max-w-96 truncate" title={movement.note ?? undefined}>
+          {movement.note ?? ''}
+        </span>
+      ),
+      cellClassName: 'text-muted-foreground',
+    },
+    {
+      key: 'person',
+      header: 'Person',
+      render: movement =>
+        movement.user_id ? emailById.get(movement.user_id) ?? movement.user_id : '',
+      cellClassName: 'text-muted-foreground',
+    },
+  ]
+
   return (
-    <div>
+    <div className="flex h-full min-h-0 flex-col">
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <select
           value={typeFilter}
@@ -76,7 +122,7 @@ export function MovementsView({
               onTypeFilterChange(selectedValue)
             }
           }}
-          className="h-8 max-w-55 rounded-lg border border-input bg-background px-2 text-sm"
+          className={cn(stockInputClass, 'max-w-55')}
           aria-label="Filter movement type"
         >
           <option value="ALL">All</option>
@@ -89,51 +135,31 @@ export function MovementsView({
           placeholder={searchPlaceholder}
           value={search}
           onChange={event => onSearchChange(event.target.value)}
-          className="h-8 min-w-70 rounded-lg border border-input bg-background px-2 text-sm"
+          className={cn(stockInputClass, 'min-w-70')}
           aria-label="Search movements"
         />
-        <Button type="button" variant="outline" onClick={onRefresh} disabled={isLoading}>
-          Refresh
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={onRefresh}
+          disabled={isLoading}
+          title="Refresh"
+          aria-label="Refresh movements"
+        >
+          <RefreshCw className={cn(isLoading && 'animate-spin')} />
         </Button>
       </div>
 
-      {error && <p className="text-destructive">{error}</p>}
-      {isLoading && <p className="opacity-80">Loading…</p>}
+      {error && <p className="mb-2 text-sm text-destructive">{error}</p>}
 
-      <Table className="text-sm">
-        <TableHeader>
-          <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>{itemColumnHeader}</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Quantity</TableHead>
-            <TableHead>Note</TableHead>
-            <TableHead>Person</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filteredMovements.map(movement => {
-            const badge =
-              MOVEMENT_TYPE_BADGES[movement.type as MovementType] ??
-              { badgeClass: 'badge-grau', label: movement.type }
-            const personEmail = movement.user_id
-              ? emailById.get(movement.user_id) ?? movement.user_id
-              : ''
-            return (
-              <TableRow key={movement.id}>
-                <TableCell>{formatDateTimeDe(movement.created_at)}</TableCell>
-                <TableCell className="font-semibold">{movement.itemLabel}</TableCell>
-                <TableCell>
-                  <span className={`badge ${badge.badgeClass}`}>{badge.label}</span>
-                </TableCell>
-                <TableCell>{movement.quantity}</TableCell>
-                <TableCell className="opacity-90">{movement.note ?? ''}</TableCell>
-                <TableCell className="opacity-85">{personEmail}</TableCell>
-              </TableRow>
-            )
-          })}
-        </TableBody>
-      </Table>
+      <StockTable
+        columns={columns}
+        rows={filteredMovements}
+        rowKey={movement => movement.id}
+        scroll="self"
+        emptyMessage={isLoading ? 'Loading…' : 'No stock movements yet.'}
+      />
     </div>
   )
 }

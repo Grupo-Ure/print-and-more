@@ -13,11 +13,7 @@ export function TextileStockPage() {
   const [view, setView] = useState<View>('STOCK')
 
   return (
-    <StockPageShell
-      title="Textiles — Stock Management"
-      accessDeniedDescription="Stock management requires an admin account."
-      fillViewport
-    >
+    <StockPageShell accessDeniedDescription="Stock management requires an admin account.">
       {session => (
         <TextileStockProvider>
           {view === 'STOCK' && (
@@ -27,7 +23,9 @@ export function TextileStockPage() {
             />
           )}
           {view === 'MASTER_DATA' && (
-            <div className="flex h-full min-h-0 flex-col">
+            // pt-3 stands in for the top padding the shell leaves to the
+            // sticky toolbar on the stock view.
+            <div className="pt-3">
               <div className="mb-3 flex items-center gap-3">
                 <Button type="button" variant="outline" size="sm" onClick={() => setView('STOCK')}>
                   <ArrowLeft />
@@ -35,9 +33,7 @@ export function TextileStockPage() {
                 </Button>
                 <h2 className="m-0 text-base">Manage brands and products</h2>
               </div>
-              <div className="min-h-0 flex-1">
-                <TextileMasterData />
-              </div>
+              <TextileMasterData />
             </div>
           )}
         </TextileStockProvider>

@@ -37,30 +37,40 @@ export function TextileMasterData() {
   const isLoadingSelection =
     (productIdForVariants && productsQuery.isLoading) || (variantIdForDetail && variantsQuery.isLoading)
 
+  /** Up to the brand's product list — the brand crumb and the product view's back button. */
+  const backToProductList = (): void => {
+    setProductIdForVariants('')
+    setVariantIdForDetail('')
+  }
+
   return (
-    <div className="flex h-full min-h-0 gap-4">
-      <aside className="w-56 shrink-0 overflow-y-auto border-r border-border pr-3 desktop:w-72">
+    <div className="flex gap-4">
+      <aside className="w-56 shrink-0 border-r border-border pr-3 desktop:w-72">
         <TextileTreeSidebar />
       </aside>
 
-      <section className="min-w-0 flex-1 overflow-y-auto">
+      <section className="min-w-0 flex-1">
         {isLoadingSelection ? (
-          <p className="opacity-80">Loading…</p>
+          <p className="text-sm text-muted-foreground">Loading…</p>
         ) : selectedVariant && selectedProduct ? (
           <TextileVariantDetail
             variant={selectedVariant}
             siblingCount={variants.length}
-            breadcrumb={`${brandName} › ${selectedProduct.name} › ${selectedVariant.color} / ${selectedVariant.size}`}
+            breadcrumb={[
+              { label: brandName, onClick: backToProductList },
+              { label: selectedProduct.name, onClick: () => setVariantIdForDetail('') },
+              { label: `${selectedVariant.color} / ${selectedVariant.size}` },
+            ]}
             onBack={() => setVariantIdForDetail('')}
           />
         ) : selectedProduct ? (
           <TextileProductView
             product={selectedProduct}
-            breadcrumb={`${brandName} › ${selectedProduct.name}`}
-            onBack={() => {
-              setProductIdForVariants('')
-              setVariantIdForDetail('')
-            }}
+            breadcrumb={[
+              { label: brandName, onClick: backToProductList },
+              { label: selectedProduct.name },
+            ]}
+            onBack={backToProductList}
           />
         ) : brandIdForProducts ? (
           <TextileProductsPanel

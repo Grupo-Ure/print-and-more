@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Copy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '../Toast'
 
@@ -8,27 +8,27 @@ type CopyReorderButtonProps = {
   disabled?: boolean
 }
 
-/** "Copy to clipboard" affordance of the reorder mode, shared by both stock pages. */
+/**
+ * "Copy to clipboard" affordance of the reorder list, shared by both stock
+ * pages. Reports the outcome as a toast, like the copy actions in the orders
+ * header.
+ */
 export function CopyReorderButton({ clipboardText, disabled }: CopyReorderButtonProps) {
-  const { showError } = useToast()
-  const [copied, setCopied] = useState(false)
+  const { showError, showSuccess } = useToast()
 
   const copyToClipboard = async (): Promise<void> => {
     try {
       await navigator.clipboard.writeText(clipboardText)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 2000)
+      showSuccess('Reorder list copied to clipboard')
     } catch {
-      showError('Copy failed')
+      showError('Reorder list could not be copied')
     }
   }
 
   return (
-    <span className="flex items-center gap-2">
-      <Button type="button" onClick={() => void copyToClipboard()} disabled={disabled}>
-        Copy to clipboard
-      </Button>
-      {copied && <span className="text-sm text-green-700">Copied</span>}
-    </span>
+    <Button type="button" variant="outline" onClick={() => void copyToClipboard()} disabled={disabled}>
+      <Copy />
+      Copy list
+    </Button>
   )
 }

@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { Pencil } from 'lucide-react'
+import { ArrowLeft, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import { useToast } from '../Toast'
 import { useTextileVariantsByProduct, useUpdateTextileProduct } from '../../queries/textileStockQueries'
+import { NeutralChip } from '../stock/StockBadge'
 import { stockInputClass } from '../stock/stockShared'
+import { TextileBreadcrumb, type BreadcrumbSegment } from './TextileBreadcrumb'
 import { TextileVariantCreatorDialog } from './TextileVariantCreatorDialog'
 import { useTextileStockUi } from './useTextileStockUi'
 import { useTextileVariantDelete } from './useTextileVariantDelete'
@@ -72,7 +74,7 @@ function EditableField({ label, value, onSave, required = false }: EditableField
 
 type TextileProductViewProps = {
   product: ProductRow
-  breadcrumb: string
+  breadcrumb: BreadcrumbSegment[]
   onBack: () => void
 }
 
@@ -101,11 +103,12 @@ export function TextileProductView({ product, breadcrumb, onBack }: TextileProdu
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center gap-2.5">
-        <Button type="button" variant="outline" onClick={onBack}>
-          ← Products
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <Button type="button" variant="outline" size="sm" onClick={onBack}>
+          <ArrowLeft />
+          Products
         </Button>
-        <span className="text-sm text-muted-foreground">{breadcrumb}</span>
+        <TextileBreadcrumb segments={breadcrumb} />
       </div>
 
       <div className="mb-4 grid grid-cols-1 gap-1.5 rounded-lg border border-border p-3 desktop:grid-cols-2">
@@ -136,65 +139,102 @@ export function TextileProductView({ product, breadcrumb, onBack }: TextileProdu
       </div>
 
       <div className="mb-2.5">
-        <Button type="button" variant="outline" onClick={() => setCreatorOpen(true)}>
+        <Button type="button" onClick={() => setCreatorOpen(true)}>
           + Add variants
         </Button>
       </div>
 
-      {variantsQuery.isLoading && <p className="opacity-80">Loading…</p>}
+      {variantsQuery.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
       {!variantsQuery.isLoading && (
-        <Table className="text-sm">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Colour</TableHead>
-              <TableHead>Colour code</TableHead>
-              <TableHead>Size</TableHead>
-              <TableHead>Sample</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {variants.map(variant => (
-              <TableRow key={variant.id}>
-                <TableCell>
-                  <button
-                    type="button"
-                    className="cursor-pointer hover:underline"
-                    onClick={() => setVariantIdForDetail(variant.id)}
-                    aria-label={`Open variant ${variant.color} ${variant.size}`}
-                  >
-                    {variant.color}
-                  </button>
-                  {variant.is_default && <span className="badge badge-grau ml-1.5">Default</span>}
-                </TableCell>
-                <TableCell>{variant.color_hex || '—'}</TableCell>
-                <TableCell>{variant.size}</TableCell>
-                <TableCell>
-                  {variant.is_sample ? <span className="badge badge-grau">Sample</span> : '—'}
-                </TableCell>
-                <TableCell>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setVariantIdForDetail(variant.id)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="ml-2 text-destructive"
-                    onClick={() => void deleteVariantFlow(variant, variants.length)}
-                  >
-                    Delete
-                  </Button>
-                </TableCell>
+        <div className="overflow-hidden rounded-lg border">
+          <Table className="text-sm">
+            <TableHeader className="bg-muted/50">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="h-9 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">Colour</TableHead>
+                <TableHead className="h-9 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">Colour code</TableHead>
+                <TableHead className="h-9 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">Size</TableHead>
+                <TableHead className="h-9 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">Sample</TableHead>
+                <TableHead className="h-9 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {variants.map(variant => (
+                // Whole row opens the variant (like the orders product tables);
+                // the action icons stop propagation and take priority.
+                <TableRow
+                  key={variant.id}
+                  className="cursor-pointer"
+                  onClick={() => setVariantIdForDetail(variant.id)}
+                >
+                  <TableCell className="px-3 py-2">
+                    <button
+                      type="button"
+                      className="cursor-pointer font-medium hover:underline"
+                      onClick={() => setVariantIdForDetail(variant.id)}
+                      aria-label={`Open variant ${variant.color} ${variant.size}`}
+                    >
+                      {variant.color}
+                    </button>
+                    {variant.is_default && (
+                      <span className="ml-1.5">
+                        <NeutralChip label="Default" />
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="px-3 py-2">
+                    {variant.color_hex ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span
+                          className="inline-block size-3.5 rounded-full border border-border"
+                          style={{ backgroundColor: variant.color_hex }}
+                        />
+                        <span className="text-muted-foreground">{variant.color_hex}</span>
+                      </span>
+                    ) : (
+                      '—'
+                    )}
+                  </TableCell>
+                  <TableCell className="px-3 py-2">{variant.size}</TableCell>
+                  <TableCell className="px-3 py-2">
+                    {variant.is_sample ? <NeutralChip label="Sample" /> : '—'}
+                  </TableCell>
+                  <TableCell className="px-3 py-2">
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-blue-600 hover:bg-transparent hover:text-blue-800"
+                        title="Edit"
+                        aria-label={`Edit variant ${variant.color} ${variant.size}`}
+                        onClick={event => {
+                          event.stopPropagation()
+                          setVariantIdForDetail(variant.id)
+                        }}
+                      >
+                        <Pencil />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-red-600 hover:bg-transparent hover:text-red-800"
+                        title="Delete"
+                        aria-label={`Delete variant ${variant.color} ${variant.size}`}
+                        onClick={event => {
+                          event.stopPropagation()
+                          void deleteVariantFlow(variant, variants.length)
+                        }}
+                      >
+                        <Trash2 />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
 
       <TextileVariantCreatorDialog
