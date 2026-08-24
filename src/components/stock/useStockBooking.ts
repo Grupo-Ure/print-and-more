@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
-export type BookingItem = { id: string; stock: number | null }
+/** `sample_stock` (textile only) floors outbound bookings: samples can't be sold. */
+export type BookingItem = { id: string; stock: number | null; sample_stock?: number | null }
 
 export type StockBooking = {
   quantityFor: (itemId: string) => string
@@ -53,8 +54,8 @@ export function useStockBooking(
     }
     const stockDelta = type === 'INBOUND' ? quantity : -quantity
     const nextStock = (item.stock ?? 0) + stockDelta
-    if (nextStock < 0) {
-      setErrors(previous => ({ ...previous, [item.id]: 'Quantity exceeds current stock' }))
+    if (nextStock < (item.sample_stock ?? 0)) {
+      setErrors(previous => ({ ...previous, [item.id]: 'Quantity exceeds available stock' }))
       return
     }
     setBusyId(item.id)

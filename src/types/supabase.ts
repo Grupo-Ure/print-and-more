@@ -2113,10 +2113,10 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
-          is_sample: boolean
           material: string | null
           min_stock: number
           product_id: string
+          sample_stock: number
           size: string
           sort_order: number
           stock: number
@@ -2127,10 +2127,10 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
-          is_sample?: boolean
           material?: string | null
           min_stock?: number
           product_id: string
+          sample_stock?: number
           size: string
           sort_order?: number
           stock?: number
@@ -2141,10 +2141,10 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
-          is_sample?: boolean
           material?: string | null
           min_stock?: number
           product_id?: string
+          sample_stock?: number
           size?: string
           sort_order?: number
           stock?: number

@@ -127,7 +127,8 @@ class ProductionReleaseService {
     for (const row of stampRows) stockByTarget.set(row.id, { label: row.name, stock: row.stock ?? 0 })
     for (const row of textileRows) {
       const label = [row.textile_products?.name, row.color, row.size].filter(Boolean).join(' ')
-      stockByTarget.set(row.id, { label, stock: row.stock ?? 0 })
+      // textile availability excludes declared samples, mirroring the RPC
+      stockByTarget.set(row.id, { label, stock: (row.stock ?? 0) - row.sample_stock })
     }
 
     const requiredByTarget = new Map<string, number>()

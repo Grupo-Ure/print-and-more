@@ -10,7 +10,7 @@ export type VariantWithProduct = {
   stock: number
   color: string
   size: string
-  is_sample: boolean
+  sample_stock: number
   textile_products: { name: string; textile_brands: { name: string } } | null
 }
 
@@ -23,7 +23,7 @@ export type SizeOption = {
   id: string
   size: string
   stock: number
-  is_sample: boolean
+  sample_stock: number
 }
 
 /**
@@ -108,7 +108,7 @@ class TextileService {
   async getVariantsByIds(ids: string[]): Promise<VariantWithProduct[]> {
     const { data, error } = await supabase
       .from('textile_variants')
-      .select('id, stock, color, size, is_sample, textile_products(name, textile_brands(name))')
+      .select('id, stock, color, size, sample_stock, textile_products(name, textile_brands(name))')
       .in('id', ids)
     if (error) throw error
     return (data ?? []) as unknown as VariantWithProduct[]
@@ -139,7 +139,7 @@ class TextileService {
   async getVariantSizesByProductAndColor(productId: string, color: string): Promise<SizeOption[]> {
     const { data, error } = await supabase
       .from('textile_variants')
-      .select('id, size, stock, is_sample')
+      .select('id, size, stock, sample_stock')
       .eq('product_id', productId)
       .eq('color', color)
       .eq('is_active', true)

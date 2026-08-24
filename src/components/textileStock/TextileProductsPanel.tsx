@@ -7,11 +7,10 @@ import { useConfirm } from '../ConfirmDialog'
 import { useToast } from '../Toast'
 import { textileMasterDataService } from '../../services/textileMasterDataService'
 import {
-  useCreateTextileProduct,
   useDeleteTextileProduct,
   useTextileProductsByBrand,
 } from '../../queries/textileStockQueries'
-import { stockInputClass } from '../stock/stockShared'
+import { TextileCreatorDialog } from './TextileCreatorDialog'
 import type { ProductRow } from '../../services/textileMasterDataService'
 
 type TextileProductsPanelProps = {
@@ -24,36 +23,9 @@ export function TextileProductsPanel({ brandId, onOpenProduct }: TextileProducts
   const confirm = useConfirm()
   const { showError } = useToast()
   const productsQuery = useTextileProductsByBrand(brandId)
-  const createProduct = useCreateTextileProduct()
   const deleteProduct = useDeleteTextileProduct()
 
-  const [formOpen, setFormOpen] = useState(false)
-  const [newProduct, setNewProduct] = useState({ name: '', article_number: '', description: '' })
-
-  const saveProduct = (): void => {
-    const trimmedName = newProduct.name.trim()
-    if (!trimmedName) {
-      showError('Name is required')
-      return
-    }
-    createProduct.mutate(
-      {
-        brand_id: brandId,
-        name: trimmedName,
-        article_number: newProduct.article_number.trim() || null,
-        description: newProduct.description.trim() || null,
-        is_active: true,
-      },
-      {
-        onSuccess: created => {
-          setNewProduct({ name: '', article_number: '', description: '' })
-          setFormOpen(false)
-          onOpenProduct(created.id)
-        },
-        onError: () => showError('Product could not be created'),
-      },
-    )
-  }
+  const [creatorOpen, setCreatorOpen] = useState(false)
 
   const removeProduct = async (product: ProductRow): Promise<void> => {
     const confirmed = await confirm({
@@ -78,7 +50,7 @@ export function TextileProductsPanel({ brandId, onOpenProduct }: TextileProducts
   return (
     <div className="mb-2">
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <Button type="button" onClick={() => setFormOpen(open => !open)}>
+        <Button type="button" onClick={() => setCreatorOpen(true)}>
           + Add product
         </Button>
         <Button
@@ -93,31 +65,15 @@ export function TextileProductsPanel({ brandId, onOpenProduct }: TextileProducts
           <RefreshCw className={cn(productsQuery.isFetching && 'animate-spin')} />
         </Button>
       </div>
-      {formOpen && (
-        <div className="mb-3 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2 rounded-lg border border-border p-2.5">
-          <input
-            className={stockInputClass}
-            placeholder="Name (required)"
-            value={newProduct.name}
-            onChange={event => setNewProduct(state => ({ ...state, name: event.target.value }))}
-          />
-          <input
-            className={stockInputClass}
-            placeholder="Article number"
-            value={newProduct.article_number}
-            onChange={event => setNewProduct(state => ({ ...state, article_number: event.target.value }))}
-          />
-          <input
-            className={cn(stockInputClass, 'col-span-full')}
-            placeholder="Description"
-            value={newProduct.description}
-            onChange={event => setNewProduct(state => ({ ...state, description: event.target.value }))}
-          />
-          <Button type="button" onClick={saveProduct}>
-            Save
-          </Button>
-        </div>
-      )}
+      <TextileCreatorDialog
+        level="PRODUCT"
+        brandId={brandId}
+        open={creatorOpen}
+        onOpenChange={setCreatorOpen}
+        onCreated={result => {
+          if (result.productId) onOpenProduct(result.productId)
+        }}
+      />
       {productsQuery.isLoading && <p className="mb-2 text-sm text-muted-foreground">Loading…</p>}
       {!productsQuery.isLoading && (
         <div className="overflow-hidden rounded-lg border">

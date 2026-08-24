@@ -105,13 +105,14 @@ CREATE TABLE IF NOT EXISTS "public"."textile_variants" (
     "color_hex" "text",
     "size" "text" NOT NULL,
     "sort_order" integer DEFAULT 0 NOT NULL,
-    "is_sample" boolean DEFAULT false NOT NULL,
+    "sample_stock" integer DEFAULT 0 NOT NULL,
     "stock" integer DEFAULT 0 NOT NULL,
     "min_stock" integer DEFAULT 0 NOT NULL,
     "is_active" boolean DEFAULT true NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "material" "text",
-    CONSTRAINT "textile_variants_stock_check" CHECK (("stock" >= 0))
+    CONSTRAINT "textile_variants_stock_check" CHECK (("stock" >= 0)),
+    CONSTRAINT "textile_variants_sample_stock_check" CHECK (("sample_stock" >= 0 AND "sample_stock" <= "stock"))
 );
 
 ALTER TABLE "public"."textile_variants" OWNER TO "postgres";
@@ -248,12 +249,16 @@ GRANT ALL ON TABLE "public"."textile_variants" TO "service_role";
  * to avoid deadlocks between concurrent releases), so two near-simultaneous
  * releases serialize instead of losing an update.
  *
- * allow_shortage = false (normal release): if any item's stock is below its
- * quantity (or the row is missing), the whole call raises INSUFFICIENT_STOCK
+ * Availability: STAMP availability is the model's stock; TEXTILE availability
+ * is stock - sample_stock by design — declared samples are never consumed by
+ * a release, only the physical stock above them is.
+ *
+ * allow_shortage = false (normal release): if any item's availability is below
+ * its quantity (or the row is missing), the whole call raises INSUFFICIENT_STOCK
  * with the shortages as jsonb in DETAIL and rolls back — all-or-nothing.
- * allow_shortage = true (admin force release): stock is floored at 0 and the
- * movement row records the actually deducted amount (items deducting 0 get no
- * movement row — movements require quantity > 0).
+ * allow_shortage = true (admin force release): the deduction is floored at the
+ * available amount and the movement row records the actually deducted amount
+ * (items deducting 0 get no movement row — movements require quantity > 0).
  *
  * Movement rows (type AUTO_DEDUCTION, the passed note, user_id = auth.uid())
  * are written in the same transaction. Returns {"ok": true, "shortages": [...]}.
@@ -285,7 +290,8 @@ BEGIN
     IF item.target = 'STAMP' THEN
       SELECT stock INTO prev_stock FROM stamp_models WHERE id = item.id FOR UPDATE;
     ELSE
-      SELECT stock INTO prev_stock FROM textile_variants WHERE id = item.id FOR UPDATE;
+      -- prev_stock holds the *available* amount: declared samples are excluded
+      SELECT stock - sample_stock INTO prev_stock FROM textile_variants WHERE id = item.id FOR UPDATE;
     END IF;
 
     IF prev_stock IS NULL OR prev_stock < item.quantity THEN
@@ -310,7 +316,8 @@ BEGIN
       INSERT INTO stamp_stock_movements (model_id, quantity, type, note, user_id)
       VALUES (item.id, deducted, 'AUTO_DEDUCTION', note, auth.uid());
     ELSE
-      UPDATE textile_variants SET stock = prev_stock - deducted WHERE id = item.id;
+      -- relative decrement: physical pieces leave, the sample count stays
+      UPDATE textile_variants SET stock = stock - deducted WHERE id = item.id;
       INSERT INTO textile_stock_movements (variant_id, quantity, type, note, user_id)
       VALUES (item.id, deducted, 'AUTO_DEDUCTION', note, auth.uid());
     END IF;

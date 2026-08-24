@@ -4,13 +4,13 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useToast } from '../Toast'
 import {
-  useCreateTextileBrand,
   useTextileBrands,
   useTextileProductsByBrand,
   useTextileVariantsByProduct,
   useUpdateTextileBrand,
 } from '../../queries/textileStockQueries'
 import { stockInputClass } from '../stock/stockShared'
+import { TextileCreatorDialog } from './TextileCreatorDialog'
 import { variantStatus } from './textileStockShared'
 import { useTextileStockUi } from './useTextileStockUi'
 import type { BrandRow, ProductRow, VariantRow } from '../../services/textileMasterDataService'
@@ -18,7 +18,6 @@ import type { BrandRow, ProductRow, VariantRow } from '../../services/textileMas
 /** Maps the shared stock status onto a small indicator dot for tree leaf rows. */
 function statusDotClass(variant: VariantRow): string {
   const rank = variantStatus(variant).rank
-  if (rank === -1) return 'bg-gray-400' // sample — outside stock logic
   if (rank <= 1) return 'bg-red-500' // out of stock / reorder
   if (rank === 2) return 'bg-amber-500' // at minimum
   return 'bg-emerald-500' // OK
@@ -221,27 +220,10 @@ function BrandTreeNode({ brand }: { brand: BrandRow }) {
 
 /** Brands ▸ products ▸ variants as a file-tree — the Products tab's local sidebar. */
 export function TextileTreeSidebar() {
-  const { showError } = useToast()
   const brandsQuery = useTextileBrands()
-  const createBrand = useCreateTextileBrand()
+  const { setBrandIdForProducts, setProductIdForVariants, setVariantIdForDetail } = useTextileStockUi()
 
-  const [newFormOpen, setNewFormOpen] = useState(false)
-  const [newName, setNewName] = useState('')
-
-  const saveBrand = (): void => {
-    const trimmedName = newName.trim()
-    if (!trimmedName) {
-      setNewFormOpen(false)
-      return
-    }
-    createBrand.mutate(trimmedName, {
-      onSuccess: () => {
-        setNewName('')
-        setNewFormOpen(false)
-      },
-      onError: () => showError('Brand could not be created'),
-    })
-  }
+  const [creatorOpen, setCreatorOpen] = useState(false)
 
   return (
     <nav aria-label="Textile catalog">
@@ -260,34 +242,27 @@ export function TextileTreeSidebar() {
         </Button>
       </div>
 
-      {!newFormOpen ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="mb-1.5 w-full justify-start text-muted-foreground"
-          onClick={() => {
-            setNewFormOpen(true)
-            setNewName('')
-          }}
-        >
-          + New brand
-        </Button>
-      ) : (
-        <input
-          className={cn(stockInputClass, 'mb-1.5 w-full')}
-          placeholder="Brand name"
-          value={newName}
-          onChange={event => setNewName(event.target.value)}
-          onBlur={saveBrand}
-          onKeyDown={event => {
-            if (event.key === 'Enter') saveBrand()
-            if (event.key === 'Escape') setNewFormOpen(false)
-          }}
-          aria-label="New brand name"
-          autoFocus
-        />
-      )}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="mb-1.5 w-full justify-start text-muted-foreground"
+        onClick={() => setCreatorOpen(true)}
+      >
+        + New brand
+      </Button>
+
+      <TextileCreatorDialog
+        level="BRAND"
+        open={creatorOpen}
+        onOpenChange={setCreatorOpen}
+        onCreated={result => {
+          // Land on whatever was created deepest.
+          setBrandIdForProducts(result.brandId)
+          setProductIdForVariants(result.productId ?? '')
+          setVariantIdForDetail('')
+        }}
+      />
 
       {brandsQuery.isLoading && <p className="text-sm opacity-75">Loading…</p>}
       <ul className="m-0 list-none p-0">

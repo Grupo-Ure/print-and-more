@@ -24,8 +24,9 @@ export type TextileStockUi = {
   setStockSearch: (value: string) => void
   stockBrandFilter: string
   setStockBrandFilter: (value: string) => void
-  filterSamplesOnly: boolean
-  setFilterSamplesOnly: (value: boolean) => void
+  /** Show only variants with a declared sample count (`sample_stock > 0`). */
+  filterWithSamples: boolean
+  setFilterWithSamples: (value: boolean) => void
   stockSorting: SortState<StockSortKey>
   toggleStockSort: (key: StockSortKey) => void
   // Movements tab

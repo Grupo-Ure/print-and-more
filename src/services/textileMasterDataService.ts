@@ -165,28 +165,6 @@ class TextileMasterDataService {
     return (data ?? []).map(toVariantUsage)
   }
 
-  async getMaxSortOrderForProduct(produktId: string): Promise<number | null> {
-    const { data, error } = await supabase
-      .from('textile_variants')
-      .select('sort_order')
-      .eq('product_id', produktId)
-      .order('sort_order', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    if (error) throw error
-    return data?.sort_order ?? null
-  }
-
-  async createVariant(payload: VariantInsert): Promise<VariantRow> {
-    const { data, error } = await supabase
-      .from('textile_variants')
-      .insert(payload)
-      .select('*')
-      .single()
-    if (error) throw error
-    return data as VariantRow
-  }
-
   async createVariantsBatch(payloads: VariantInsert[]): Promise<VariantRow[]> {
     const { data, error } = await supabase
       .from('textile_variants')
@@ -250,6 +228,11 @@ class TextileMasterDataService {
 
   async deleteVariant(id: string): Promise<void> {
     const { error } = await supabase.from('textile_variants').delete().eq('id', id)
+    if (error) throw error
+  }
+
+  async deleteBrand(id: string): Promise<void> {
+    const { error } = await supabase.from('textile_brands').delete().eq('id', id)
     if (error) throw error
   }
 

@@ -10,7 +10,7 @@ function StockChip({ badgeClass, label }: { badgeClass: string; label: string })
   return <Badge className={cn('min-w-21 justify-center text-sm', badgeClass)}>{label}</Badge>
 }
 
-/** Stock-state chip (Out of stock / Reorder / At minimum / OK / Sample). */
+/** Stock-state chip (Out of stock / Reorder / At minimum / OK). */
 export function StockStatusBadge({ status }: { status: StockStatus }) {
   return <StockChip badgeClass={status.badgeClass} label={status.label} />
 }
@@ -21,7 +21,7 @@ export function MovementTypeBadge({ type }: { type: string }) {
   return <StockChip badgeClass={meta.badgeClass} label={meta.label} />
 }
 
-/** Neutral metadata chip (Sample / Default / Inactive) in the same solid style. */
+/** Neutral metadata chip (Default / Inactive) in the same solid style. */
 export function NeutralChip({ label }: { label: string }) {
   return <Badge className="bg-gray-500">{label}</Badge>
 }

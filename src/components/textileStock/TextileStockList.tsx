@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { useToast } from '../Toast'
 import { errorToString } from '../../lib/errorToString'
@@ -8,6 +9,7 @@ import {
   useAllTextileVariants,
   useBookTextileMovement,
   useSaveTextileMinimumStock,
+  useSaveTextileSampleStock,
   useTextileReorderList,
   type TextileReorderRow,
 } from '../../queries/textileStockQueries'
@@ -15,14 +17,15 @@ import { isStockWarning, stockInputClass } from '../stock/stockShared'
 import { BookingField } from '../stock/BookingField'
 import { MinimumStockField } from '../stock/MinimumStockField'
 import { ReorderListDialog } from '../stock/ReorderListDialog'
+import { SampleStockField } from '../stock/SampleStockField'
 import { StockHistoryDialog } from '../stock/StockHistoryDialog'
-import { NeutralChip, StockStatusBadge } from '../stock/StockBadge'
+import { StockStatusBadge } from '../stock/StockBadge'
 import { StockTable, type StockColumn } from '../stock/StockTable'
 import { StockToolbar } from '../stock/StockToolbar'
 import { useStockBooking } from '../stock/useStockBooking'
 import { TextileMovements } from './TextileMovements'
 import { useTextileStockUi, type StockSortKey } from './useTextileStockUi'
-import { brandFromVariant, productNameFromVariant, variantStatus } from './textileStockShared'
+import { availableStock, brandFromVariant, productNameFromVariant, variantStatus } from './textileStockShared'
 import type { VariantWithDetails } from '../../services/textileMasterDataService'
 
 const REORDER_COLUMNS: StockColumn<TextileReorderRow>[] = [
@@ -35,7 +38,7 @@ const REORDER_COLUMNS: StockColumn<TextileReorderRow>[] = [
   },
   { key: 'color', header: 'Colour', render: row => row.color || '—' },
   { key: 'size', header: 'Size', render: row => row.size || '—' },
-  { key: 'stock', header: 'Stock', align: 'right', render: row => row.stock ?? 0 },
+  { key: 'stock', header: 'Stock', align: 'right', render: row => availableStock(row) },
   { key: 'open', header: 'Open', align: 'right', render: row => row.openQuantity },
   { key: 'min_stock', header: 'Min. stock', align: 'right', render: row => row.min_stock ?? 0 },
   {
@@ -66,8 +69,8 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
     setStockSearch,
     stockBrandFilter,
     setStockBrandFilter,
-    filterSamplesOnly,
-    setFilterSamplesOnly,
+    filterWithSamples,
+    setFilterWithSamples,
     stockSorting,
     toggleStockSort,
   } = useTextileStockUi()
@@ -79,6 +82,7 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
   const reorderQuery = useTextileReorderList(reorderOpen)
   const bookMovement = useBookTextileMovement()
   const saveMinimumStock = useSaveTextileMinimumStock()
+  const saveSampleStock = useSaveTextileSampleStock()
 
   const booking = useStockBooking(async ({ itemId, quantity, nextStock, type }) => {
     try {
@@ -103,7 +107,7 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
     if (stockBrandFilter !== 'ALL') {
       list = list.filter(variant => brandFromVariant(variant) === stockBrandFilter)
     }
-    if (filterSamplesOnly) list = list.filter(variant => variant.is_sample)
+    if (filterWithSamples) list = list.filter(variant => variant.sample_stock > 0)
     const searchQuery = stockSearch.trim().toLowerCase()
     if (searchQuery) {
       list = list.filter(variant => {
@@ -130,7 +134,7 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
         String(first.size ?? '').localeCompare(String(second.size ?? '')),
     )
     return list
-  }, [variantsQuery.data, stockBrandFilter, stockSearch, filterSamplesOnly])
+  }, [variantsQuery.data, stockBrandFilter, stockSearch, filterWithSamples])
 
   const reorderRows = useMemo(() => reorderQuery.data ?? [], [reorderQuery.data])
 
@@ -143,7 +147,7 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
           productNameFromVariant(row),
           row.color ?? '',
           row.size ?? '',
-          row.stock ?? 0,
+          availableStock(row),
           row.openQuantity,
           row.min_stock ?? 0,
           row.orderQuantity,
@@ -181,16 +185,29 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
     },
     {
       key: 'sample',
-      header: 'Sample',
-      sortValue: variant => (variant.is_sample ? 1 : 0),
-      render: variant => (variant.is_sample ? <NeutralChip label="Sample" /> : '—'),
+      header: 'Samples',
+      align: 'right',
+      sortValue: variant => variant.sample_stock,
+      render: variant => (
+        <SampleStockField
+          currentSampleStock={variant.sample_stock}
+          stock={variant.stock}
+          onSave={sampleStock =>
+            saveSampleStock.mutate(
+              { variantId: variant.id, sampleStock },
+              { onError: () => showError('Samples could not be saved') },
+            )
+          }
+        />
+      ),
     },
     {
+      // Available (stock − samples): what bookings and releases may consume.
       key: 'stock',
       header: 'Stock',
       align: 'right',
-      sortValue: variant => variant.stock ?? 0,
-      render: variant => variant.stock ?? 0,
+      sortValue: availableStock,
+      render: availableStock,
     },
     {
       key: 'min_stock',
@@ -233,27 +250,27 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
           className={cn(stockInputClass, 'min-w-55 max-w-80')}
           aria-label="Search stock"
         />
-        <select
-          value={stockBrandFilter}
-          onChange={event => setStockBrandFilter(event.target.value)}
-          className={stockInputClass}
-          aria-label="Filter brand"
-        >
-          <option value="ALL">All brands</option>
-          {brandOptions.map(brandName => (
-            <option key={brandName} value={brandName}>
-              {brandName}
-            </option>
-          ))}
-        </select>
+        <Select value={stockBrandFilter} onValueChange={setStockBrandFilter}>
+          <SelectTrigger className="w-auto" aria-label="Filter brand">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All brands</SelectItem>
+            {brandOptions.map(brandName => (
+              <SelectItem key={brandName} value={brandName}>
+                {brandName}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
             className="size-4 accent-primary"
-            checked={filterSamplesOnly}
-            onChange={event => setFilterSamplesOnly(event.target.checked)}
+            checked={filterWithSamples}
+            onChange={event => setFilterWithSamples(event.target.checked)}
           />
-          Only samples
+          With samples
         </label>
         <Button type="button" variant="outline" onClick={() => setReorderOpen(true)}>
           Reorder list

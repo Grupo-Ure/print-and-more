@@ -8,7 +8,7 @@ import { NeutralChip, StockStatusBadge } from '../stock/StockBadge'
 import { stockInputClass } from '../stock/stockShared'
 import { TextileBreadcrumb, type BreadcrumbSegment } from './TextileBreadcrumb'
 import { useTextileVariantDelete } from './useTextileVariantDelete'
-import { variantStatus } from './textileStockShared'
+import { availableStock, variantStatus } from './textileStockShared'
 import type { VariantRow } from '../../services/textileMasterDataService'
 
 type TextileVariantDetailProps = {
@@ -38,7 +38,7 @@ export function TextileVariantDetail({ variant, siblingCount, breadcrumb, onBack
   const [editColor, setEditColor] = useState('')
   const [editColorHex, setEditColorHex] = useState('')
   const [editSize, setEditSize] = useState('')
-  const [editIsSample, setEditIsSample] = useState(false)
+  const [editSamples, setEditSamples] = useState('0')
   const [editMinimum, setEditMinimum] = useState('0')
   const [editActive, setEditActive] = useState(true)
 
@@ -48,7 +48,7 @@ export function TextileVariantDetail({ variant, siblingCount, breadcrumb, onBack
     setEditColor(variant.color)
     setEditColorHex(variant.color_hex ?? '')
     setEditSize(variant.size)
-    setEditIsSample(variant.is_sample)
+    setEditSamples(String(variant.sample_stock))
     setEditMinimum(String(variant.min_stock ?? 0))
     setEditActive(variant.is_active)
     setEditing(true)
@@ -67,6 +67,12 @@ export function TextileVariantDetail({ variant, siblingCount, breadcrumb, onBack
       showError('Invalid minimum stock')
       return
     }
+    const samplesRaw = editSamples.trim()
+    const samplesValue = samplesRaw === '' ? 0 : parseInt(samplesRaw, 10)
+    if (!Number.isInteger(samplesValue) || samplesValue < 0 || samplesValue > variant.stock) {
+      showError('Samples must be between 0 and the stock')
+      return
+    }
     updateVariant.mutate(
       {
         variantId: variant.id,
@@ -74,7 +80,7 @@ export function TextileVariantDetail({ variant, siblingCount, breadcrumb, onBack
           color: colorValue,
           color_hex: editColorHex.trim() || null,
           size: sizeValue,
-          is_sample: editIsSample,
+          sample_stock: samplesValue,
           min_stock: minimumValue,
           is_active: editActive,
         },
@@ -108,7 +114,6 @@ export function TextileVariantDetail({ variant, siblingCount, breadcrumb, onBack
             <h3 className="m-0 font-semibold">
               {variant.color} / {variant.size}
             </h3>
-            {/* The status chip covers Sample, so no extra Sample chip needed. */}
             <StockStatusBadge status={status} />
             {!variant.is_active && <NeutralChip label="Inactive" />}
             <div className="ml-auto flex gap-2">
@@ -137,7 +142,9 @@ export function TextileVariantDetail({ variant, siblingCount, breadcrumb, onBack
             </DetailRow>
             <DetailRow label="Size">{variant.size}</DetailRow>
             <DetailRow label="Material">{variant.material || '—'}</DetailRow>
-            <DetailRow label="Stock">{variant.stock ?? 0}</DetailRow>
+            <DetailRow label="Stock (total)">{variant.stock ?? 0}</DetailRow>
+            <DetailRow label="Samples">{variant.sample_stock}</DetailRow>
+            <DetailRow label="Available">{availableStock(variant)}</DetailRow>
             <DetailRow label="Min. stock">{variant.min_stock ?? 0}</DetailRow>
           </div>
         </div>
@@ -166,22 +173,29 @@ export function TextileVariantDetail({ variant, siblingCount, breadcrumb, onBack
               onChange={event => setEditSize(event.target.value)}
               placeholder="Size"
             />
-            <label className="flex items-center gap-1.5 text-sm">
+            <label className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+              Samples
               <input
-                type="checkbox"
-                checked={editIsSample}
-                onChange={event => setEditIsSample(event.target.checked)}
+                type="number"
+                className={cn(stockInputClass, 'text-sm text-foreground')}
+                min={0}
+                max={variant.stock}
+                value={editSamples}
+                onChange={event => setEditSamples(event.target.value)}
+                aria-label="Sample stock"
               />
-              Sample
             </label>
-            <input
-              type="number"
-              className={cn(stockInputClass)}
-              min={0}
-              value={editMinimum}
-              onChange={event => setEditMinimum(event.target.value)}
-              aria-label="Minimum stock"
-            />
+            <label className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+              Min. stock
+              <input
+                type="number"
+                className={cn(stockInputClass, 'text-sm text-foreground')}
+                min={0}
+                value={editMinimum}
+                onChange={event => setEditMinimum(event.target.value)}
+                aria-label="Minimum stock"
+              />
+            </label>
             <label className="flex items-center gap-1.5 text-sm">
               <input
                 type="checkbox"

@@ -44,8 +44,12 @@ export function productNameFromVariant(variant: VariantWithDetails): string {
   return oneNested(variant.textile_products)?.name ?? '—'
 }
 
-/** Samples are outside the stock logic and always show as a grey chip. */
+/** available = stock − sample_stock: what bookings and releases may consume. */
+export function availableStock(variant: Pick<VariantRow, 'stock' | 'sample_stock'>): number {
+  return variant.stock - variant.sample_stock
+}
+
+/** Stock status over the available amount — declared samples are excluded. */
 export function variantStatus(variant: VariantRow): StockStatus {
-  if (variant.is_sample) return { badgeClass: 'bg-gray-500', label: 'Sample', rank: -1 }
-  return stockStatus(variant.stock, variant.min_stock)
+  return stockStatus(availableStock(variant), variant.min_stock)
 }

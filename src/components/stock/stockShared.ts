@@ -46,7 +46,7 @@ export function stockStatus(stock: number | null | undefined, minimumStock: numb
 
 /** True for the states that should visually alarm (row tint, reorder list). */
 export function isStockWarning(status: StockStatus): boolean {
-  return status.rank >= 0 && status.rank <= 1
+  return status.rank <= 1
 }
 
 export const MOVEMENT_TYPE_BADGES: Record<MovementType, { badgeClass: string; label: string }> = {

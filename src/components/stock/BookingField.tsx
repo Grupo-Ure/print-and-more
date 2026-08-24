@@ -13,7 +13,8 @@ type BookingFieldProps = {
 export function BookingField({ item, booking }: BookingFieldProps) {
   const quantity = booking.parsedQuantity(item.id)
   const inboundDisabled = quantity == null || booking.busyId != null
-  const outboundDisabled = inboundDisabled || (quantity != null && quantity > (item.stock ?? 0))
+  const outboundDisabled =
+    inboundDisabled || (quantity != null && quantity > (item.stock ?? 0) - (item.sample_stock ?? 0))
   const error = booking.errorFor(item.id)
 
   return (

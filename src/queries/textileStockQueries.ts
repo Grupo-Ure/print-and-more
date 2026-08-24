@@ -8,6 +8,7 @@ import {
 } from '../services/textileMasterDataService'
 import { jobService } from '../services/jobService'
 import { reorderQuantity } from '../components/stock/stockShared'
+import { availableStock } from '../components/textileStock/textileStockShared'
 import type { Database } from '../types/supabase'
 
 type BrandUpdate = Database['public']['Tables']['textile_brands']['Update']
@@ -91,7 +92,7 @@ async function fetchTextileReorderList(): Promise<TextileReorderRow[]> {
   const reorderRows: TextileReorderRow[] = []
   for (const variant of activeVariants) {
     const openQuantity = demandByVariantId.get(variant.id) ?? 0
-    const orderQuantity = reorderQuantity(variant.min_stock, openQuantity, variant.stock)
+    const orderQuantity = reorderQuantity(variant.min_stock, openQuantity, availableStock(variant))
     if (orderQuantity <= 0) continue
     reorderRows.push({ ...variant, openQuantity, orderQuantity })
   }
@@ -112,14 +113,6 @@ function useInvalidateTextileStock() {
   return () => void queryClient.invalidateQueries({ queryKey: textileStockKeys.all })
 }
 
-export function useCreateTextileBrand() {
-  const invalidate = useInvalidateTextileStock()
-  return useMutation<BrandRow, Error, string>({
-    mutationFn: name => textileMasterDataService.createBrand(name),
-    onSettled: invalidate,
-  })
-}
-
 export function useUpdateTextileBrand() {
   const invalidate = useInvalidateTextileStock()
   return useMutation<BrandRow, Error, { brandId: string; patch: BrandUpdate }>({
@@ -132,6 +125,99 @@ export function useCreateTextileProduct() {
   const invalidate = useInvalidateTextileStock()
   return useMutation<ProductRow, Error, ProductInsert>({
     mutationFn: payload => textileMasterDataService.createProduct(payload),
+    onSettled: invalidate,
+  })
+}
+
+/** Either an entity that already exists, or the fields to create it with. */
+export type BrandTarget = { id: string } | { name: string }
+export type ProductTarget =
+  | { id: string }
+  | { name: string; article_number: string | null; description: string | null }
+
+export type CreateTextileEntitiesInput = {
+  brand: BrandTarget
+  /** Omitted when only a brand is created. */
+  product?: ProductTarget
+  /** Empty when no variant is created. */
+  variants: Omit<VariantInsert, 'product_id'>[]
+}
+
+export type CreateTextileEntitiesResult = {
+  brandId: string
+  productId: string | null
+  /** Rows actually inserted — lower than requested when duplicates were skipped. */
+  variantCount: number
+}
+
+/**
+ * Creates brand ▸ product ▸ variants in one go, starting at whichever level
+ * the caller doesn't already have. Supabase has no cross-table transaction
+ * here, so a failure unwinds what this call created (newest first) — a
+ * half-built branch of the catalog is worse than none.
+ */
+export function useCreateTextileEntities() {
+  const invalidate = useInvalidateTextileStock()
+  return useMutation<CreateTextileEntitiesResult, Error, CreateTextileEntitiesInput>({
+    mutationFn: async ({ brand, product, variants }) => {
+      const undo: (() => Promise<void>)[] = []
+      try {
+        let brandId: string
+        if ('id' in brand) {
+          brandId = brand.id
+        } else {
+          const createdBrand = await textileMasterDataService.createBrand(brand.name)
+          brandId = createdBrand.id
+          undo.push(() => textileMasterDataService.deleteBrand(createdBrand.id))
+        }
+
+        let productId: string | null = null
+        let productExisted = false
+        if (product) {
+          if ('id' in product) {
+            productId = product.id
+            productExisted = true
+          } else {
+            const createdProduct = await textileMasterDataService.createProduct({
+              brand_id: brandId,
+              name: product.name,
+              article_number: product.article_number,
+              description: product.description,
+              is_active: true,
+            })
+            productId = createdProduct.id
+            undo.push(() => textileMasterDataService.deleteProduct(createdProduct.id))
+          }
+        }
+
+        let variantCount = 0
+        if (productId && variants.length > 0) {
+          let rows = variants
+          // Only an existing product can already hold colliding rows.
+          if (productExisted) {
+            const existing = await textileMasterDataService.getExistingVariantCombinations(
+              productId,
+              [...new Set(variants.map(row => row.color))],
+              [...new Set(variants.map(row => row.size))],
+            )
+            const taken = new Set(existing.map(row => `${row.color}|||${row.size}`))
+            rows = variants.filter(row => !taken.has(`${row.color}|||${row.size}`))
+          }
+          if (rows.length > 0) {
+            const productIdForRows = productId
+            await textileMasterDataService.createVariantsBatch(
+              rows.map(row => ({ ...row, product_id: productIdForRows })),
+            )
+            variantCount = rows.length
+          }
+        }
+
+        return { brandId, productId, variantCount }
+      } catch (error) {
+        for (const step of undo.reverse()) await step().catch(() => {})
+        throw error
+      }
+    },
     onSettled: invalidate,
   })
 }
@@ -156,22 +242,6 @@ export function useDeleteTextileVariant() {
   const invalidate = useInvalidateTextileStock()
   return useMutation<void, Error, string>({
     mutationFn: variantId => textileMasterDataService.deleteVariant(variantId),
-    onSettled: invalidate,
-  })
-}
-
-export function useCreateTextileVariant() {
-  const invalidate = useInvalidateTextileStock()
-  return useMutation<VariantRow, Error, VariantInsert>({
-    mutationFn: payload => textileMasterDataService.createVariant(payload),
-    onSettled: invalidate,
-  })
-}
-
-export function useCreateTextileVariantsBatch() {
-  const invalidate = useInvalidateTextileStock()
-  return useMutation<VariantRow[], Error, VariantInsert[]>({
-    mutationFn: payloads => textileMasterDataService.createVariantsBatch(payloads),
     onSettled: invalidate,
   })
 }
@@ -213,6 +283,16 @@ export function useSaveTextileMinimumStock() {
   return useMutation<void, Error, { variantId: string; minimumStock: number }>({
     mutationFn: ({ variantId, minimumStock }) =>
       textileMasterDataService.updateVariantMinimumStock(variantId, minimumStock),
+    onSettled: invalidate,
+  })
+}
+
+/** Silent counter edit like min-stock — deliberately no movement row. */
+export function useSaveTextileSampleStock() {
+  const invalidate = useInvalidateTextileStock()
+  return useMutation<VariantRow, Error, { variantId: string; sampleStock: number }>({
+    mutationFn: ({ variantId, sampleStock }) =>
+      textileMasterDataService.updateVariant(variantId, { sample_stock: sampleStock }),
     onSettled: invalidate,
   })
 }

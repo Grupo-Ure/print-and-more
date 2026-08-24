@@ -9,7 +9,7 @@ export function TextileStockProvider({ children }: { children: ReactNode }) {
   const [variantIdForDetail, setVariantIdForDetail] = useState('')
   const [stockSearch, setStockSearch] = useState('')
   const [stockBrandFilter, setStockBrandFilter] = useState('ALL')
-  const [filterSamplesOnly, setFilterSamplesOnly] = useState(false)
+  const [filterWithSamples, setFilterWithSamples] = useState(false)
   const [stockSorting, setStockSorting] = useState<SortState<StockSortKey>>(null)
   const [movementTypeFilter, setMovementTypeFilter] = useState<'ALL' | MovementType>('ALL')
   const [movementSearch, setMovementSearch] = useState('')
@@ -30,8 +30,8 @@ export function TextileStockProvider({ children }: { children: ReactNode }) {
       setStockSearch,
       stockBrandFilter,
       setStockBrandFilter,
-      filterSamplesOnly,
-      setFilterSamplesOnly,
+      filterWithSamples,
+      setFilterWithSamples,
       stockSorting,
       toggleStockSort,
       movementTypeFilter,
@@ -45,7 +45,7 @@ export function TextileStockProvider({ children }: { children: ReactNode }) {
       variantIdForDetail,
       stockSearch,
       stockBrandFilter,
-      filterSamplesOnly,
+      filterWithSamples,
       stockSorting,
       toggleStockSort,
       movementTypeFilter,

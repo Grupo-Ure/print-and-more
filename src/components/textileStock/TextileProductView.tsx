@@ -5,10 +5,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { cn } from '@/lib/utils'
 import { useToast } from '../Toast'
 import { useTextileVariantsByProduct, useUpdateTextileProduct } from '../../queries/textileStockQueries'
-import { NeutralChip } from '../stock/StockBadge'
 import { stockInputClass } from '../stock/stockShared'
 import { TextileBreadcrumb, type BreadcrumbSegment } from './TextileBreadcrumb'
-import { TextileVariantCreatorDialog } from './TextileVariantCreatorDialog'
+import { TextileCreatorDialog } from './TextileCreatorDialog'
 import { useTextileStockUi } from './useTextileStockUi'
 import { useTextileVariantDelete } from './useTextileVariantDelete'
 import type { ProductRow } from '../../services/textileMasterDataService'
@@ -153,11 +152,19 @@ export function TextileProductView({ product, breadcrumb, onBack }: TextileProdu
                 <TableHead className="h-9 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">Colour</TableHead>
                 <TableHead className="h-9 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">Colour code</TableHead>
                 <TableHead className="h-9 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">Size</TableHead>
-                <TableHead className="h-9 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">Sample</TableHead>
+                <TableHead className="h-9 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">Samples</TableHead>
                 <TableHead className="h-9 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
+              {variants.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="px-3 py-4 text-center text-sm text-muted-foreground">
+                    No variants yet — this product stays invisible to the stock list until colours
+                    and sizes are added.
+                  </TableCell>
+                </TableRow>
+              )}
               {variants.map(variant => (
                 // Whole row opens the variant (like the orders product tables);
                 // the action icons stop propagation and take priority.
@@ -191,7 +198,7 @@ export function TextileProductView({ product, breadcrumb, onBack }: TextileProdu
                   </TableCell>
                   <TableCell className="px-3 py-2">{variant.size}</TableCell>
                   <TableCell className="px-3 py-2">
-                    {variant.is_sample ? <NeutralChip label="Sample" /> : '—'}
+                    {variant.sample_stock > 0 ? variant.sample_stock : '—'}
                   </TableCell>
                   <TableCell className="px-3 py-2">
                     <div className="flex gap-2">
@@ -232,7 +239,9 @@ export function TextileProductView({ product, breadcrumb, onBack }: TextileProdu
         </div>
       )}
 
-      <TextileVariantCreatorDialog
+      <TextileCreatorDialog
+        level="VARIANT"
+        brandId={product.brand_id}
         productId={product.id}
         open={creatorOpen}
         onOpenChange={setCreatorOpen}

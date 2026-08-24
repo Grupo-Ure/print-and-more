@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Archive, ArchiveRestore, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { useToast } from '../Toast'
 import { useConfirm } from '../ConfirmDialog'
@@ -284,23 +285,25 @@ export function StampStockView({ userId }: StampStockViewProps) {
           aria-label="Search name or article number"
           className={cn(stockInputClass, 'min-w-55 max-w-80')}
         />
-        <select
+        <Select
           value={filterType}
-          onChange={event => {
-            const selectedValue = event.target.value
+          onValueChange={selectedValue => {
             setFilterType(selectedValue)
             if (selectedValue !== 'TRODAT_PAD' && selectedValue !== 'INK_PAD_PRODUCT') setFilterColor('ALL')
           }}
-          className={cn(stockInputClass, 'max-w-65')}
-          aria-label="Filter type"
         >
-          <option value="ALL">All types</option>
-          {STAMP_TYPE_FILTER_OPTIONS.map(option => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-auto max-w-65" aria-label="Filter type">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All types</SelectItem>
+            {STAMP_TYPE_FILTER_OPTIONS.map(option => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {(filterType === 'TRODAT_PAD' || filterType === 'INK_PAD_PRODUCT') && (
           <select
             value={filterColor}
