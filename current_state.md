@@ -23,6 +23,13 @@ workstream.
 
 ## Active Focus
 
+**Electron port (started 2026-08-24)** — the app is being turned into the
+Electron desktop application it was always intended to be (see "Target
+platform" in [README.md](README.md)). Motivation, discussion points, and
+open decisions are tracked point by point in
+[electron_porting.md](electron_porting.md); decisions there are still
+**OPEN** — no implementation has started yet.
+
 **Structural refactor of the home page** — the three-column shell in
 [`src/App.tsx`](src/App.tsx) and its three children:
 [`OrderSidebar`](src/components/OrderSidebar.tsx) (left),
@@ -54,6 +61,7 @@ on stable footing.
 | Code audit (critical & medium) | Done |
 | UI implementation | Open |
 | Lasergravur Bereich | Spec pending |
+| Electron port | In progress — planning ([electron_porting.md](electron_porting.md)) |
 | Server migration | Future task |
 
 ## Production Departments
@@ -130,7 +138,8 @@ the implementer.
 - `App.tsx` renders `null` during auth loading — no loading indicator.
 - Toast system uses `setTimeout` without `clearTimeout` on unmount.
 - `DateiListe`: `file://` path navigation (open in Explorer / Finder) is
-  unreliable in browsers — slated for a later Electron migration.
+  unreliable in browsers — will be fixed by the Electron port now in
+  progress (see [electron_porting.md](electron_porting.md)).
 - Several action buttons in detail views are not disabled during in-flight
   requests.
 - Aggregated `auftraege.status` in the **left list** does not refresh live
@@ -140,6 +149,8 @@ the implementer.
 
 ## Roadmap / Larger Open Themes
 
+- **Electron port** — in progress; plan and open decisions in
+  [electron_porting.md](electron_porting.md).
 - **UI implementation** — a Figma mockup is available as reference; not a
   pixel-perfect spec, with creative freedom for a professional desktop tool.
 - **Lasergravur Bereich** — spec pending; minor addition once the team
