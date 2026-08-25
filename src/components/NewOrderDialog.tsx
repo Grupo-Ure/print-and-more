@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 import { useCreateOrder } from '../queries/orderQueries'
 import { useInfiniteCustomers } from '../queries/customerQueries'
 import { useOrderWorkspace } from '../context/order.context'
-import { useOrderParams } from '../hooks/useOrderParams'
+import { useOrderSelection } from '../hooks/useOrderSelection'
 import type { Customer, PaymentMethod } from '../types/database'
 import { PaymentSelect } from './fields/PaymentSelect'
 
@@ -26,7 +26,7 @@ export function NewOrderDialog() {
   const [debouncedQuery, setDebouncedQuery] = useState('')
 
   const { openCustomerDialog } = useOrderWorkspace()
-  const { setActiveOrder } = useOrderParams()
+  const { setActiveOrder } = useOrderSelection()
   const createOrder = useCreateOrder()
 
   useEffect(() => {

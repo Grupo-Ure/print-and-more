@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { jobDepartmentLabel } from '../const/departmentAbbreviation'
 import { DEPARTMENTS, type Department } from '../types/database'
-import { useOrderParams } from '../hooks/useOrderParams'
+import { useOrderSelection } from '../hooks/useOrderSelection'
 import { useCreateJob } from '../queries/jobQueries'
 import { useOrderById } from '../queries/orderQueries'
 import { useToast } from './Toast'
@@ -20,7 +20,7 @@ import {
  * Renders nothing while the order is finished/billed — closed for new work.
  */
 export function AddJobButton({ className }: { className?: string }) {
-  const { activeOrderId } = useOrderParams()
+  const { activeOrderId } = useOrderSelection()
   const orderQuery = useOrderById(activeOrderId)
   const [dialogOpen, setDialogOpen] = useState(false)
 
@@ -45,7 +45,7 @@ type AddJobDialogProps = {
 }
 
 function AddJobDialog({ open, onOpenChange }: AddJobDialogProps) {
-  const { activeOrderId, setActiveJob } = useOrderParams()
+  const { activeOrderId, setActiveJob } = useOrderSelection()
   const { showError } = useToast()
   const createJob = useCreateJob()
 

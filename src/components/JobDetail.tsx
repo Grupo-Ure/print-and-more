@@ -2,7 +2,7 @@ import { useCancelJob, useDeleteJob, useEffectiveJob, useSetJobAssignee, useJobB
 import { useIsAdmin, useUsers } from '../queries/userQueries'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import { useOrderById } from '../queries/orderQueries'
-import { useOrderParams } from '../hooks/useOrderParams'
+import { useOrderSelection } from '../hooks/useOrderSelection'
 import { jobDepartmentLabel } from '../const/departmentAbbreviation'
 import { customerMeetsPrepressContact } from '../lib/customer'
 import { type JobRow } from '../types/database'
@@ -35,7 +35,7 @@ export function JobDetail({
   orderFiles: FileRow[]
   onUpdated: (updatedJob: JobRow) => void
 }) {
-  const { activeOrderId, activeJobId } = useOrderParams()
+  const { activeOrderId, activeJobId } = useOrderSelection()
   const { data: order } = useOrderById(activeOrderId)
   const job = useJobById(activeOrderId, activeJobId) // raw row (override/inherit state)
   const effectiveJob = useEffectiveJob(activeOrderId, activeJobId) // inherited fields resolved

@@ -19,7 +19,7 @@ import { JobList } from './JobList'
 import { StatusManager } from './StatusManager'
 import { AddJobButton } from './AddJobButton'
 import { useOrderWorkspace } from '../context/order.context'
-import { useOrderParams } from '../hooks/useOrderParams'
+import { useOrderSelection } from '../hooks/useOrderSelection'
 import { orderKeys, useArchiveOrder, useArchiveOrderWithCancelledJobs, useMarkOrderBilled, useOrderById, useSetOrderStatus, useUpdateOrder } from '../queries/orderQueries'
 import { jobKeys, useJobsByOrderId } from '../queries/jobQueries'
 import { useTimeLogMinutesByOrderId } from '../queries/timeLogQueries'
@@ -54,7 +54,7 @@ function useCopyToClipboard() {
 
 export function OrderDetails() {
   const { openCustomerDialog } = useOrderWorkspace()
-  const { activeOrderId, activeJobId, setActiveJob, clearActive } = useOrderParams()
+  const { activeOrderId, activeJobId, setActiveJob, clearActive } = useOrderSelection()
   const queryClient = useQueryClient()
   const [files, setFiles] = useState<FileRow[]>([])
   const { showError } = useToast()

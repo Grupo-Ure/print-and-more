@@ -2,7 +2,7 @@ import { AlertTriangle } from 'lucide-react'
 import { formatMinutes } from '../lib/formatMinutes'
 import { isInProductionMissingInfo, shortJobNumber } from '../lib/jobShared'
 import { type JobStatus } from '../types/database'
-import { useOrderParams } from '../hooks/useOrderParams'
+import { useOrderSelection } from '../hooks/useOrderSelection'
 import { useJobsByOrderId } from '../queries/jobQueries'
 import { useOrderById } from '../queries/orderQueries'
 import { useProductCountsByOrderId } from '../queries/productQueries'
@@ -26,7 +26,7 @@ function JobStatusTrack({ status }: { status: JobStatus }) {
 }
 
 export function JobList() {
-  const { activeOrderId, activeJobId, setActiveJob } = useOrderParams()
+  const { activeOrderId, activeJobId, setActiveJob } = useOrderSelection()
   const jobsQuery = useJobsByOrderId(activeOrderId)
   const orderQuery = useOrderById(activeOrderId)
   const productCountsQuery = useProductCountsByOrderId(activeOrderId)

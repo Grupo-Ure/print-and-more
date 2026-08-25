@@ -24,7 +24,7 @@ import { DuplicateDialog } from './DuplicateDialog'
 import { NewOrderDialog } from './NewOrderDialog'
 import { useToast } from './Toast'
 import { useConfirm } from './ConfirmDialog'
-import { useOrderParams } from '../hooks/useOrderParams'
+import { useOrderSelection } from '../hooks/useOrderSelection'
 import { OrderSidebarSearch } from './orderSidebar/OrderSidebarSearch'
 import { OrderSidebarFilters } from './orderSidebar/OrderSidebarFilters'
 import { OrderSidebarBody } from './orderSidebar/OrderSidebarBody'
@@ -38,7 +38,7 @@ function ActiveDot() {
 }
 
 export function OrderSidebar() {
-  const { activeOrderId, setActiveOrder } = useOrderParams()
+  const { activeOrderId, setActiveOrder } = useOrderSelection()
   const { filter, isActive: filterActive, selectedStatuses, hasStatusFilter, actions } = useOrderSidebarFilter()
   const [searchOpen, setSearchOpen] = useState(false)
   const [filterPopOpen, setFilterPopOpen] = useState(false)
