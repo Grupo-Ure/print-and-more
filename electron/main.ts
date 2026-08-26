@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { app, BrowserWindow } from 'electron'
 import { registerAppScheme, serveRendererBundle, RENDERER_URL } from './appProtocol'
+import { registerIpcHandlers } from './ipc'
 
 registerAppScheme()
 
@@ -35,6 +36,7 @@ function createWindow(): void {
 
 void app.whenReady().then(() => {
   serveRendererBundle()
+  registerIpcHandlers()
   createWindow()
 })
 
