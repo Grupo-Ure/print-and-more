@@ -6,9 +6,12 @@ const key = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 if (!url || !key) {
   throw new Error(
-    'Supabase-Konfiguration fehlt: VITE_SUPABASE_URL und ' +
-      'VITE_SUPABASE_ANON_KEY müssen in der .env gesetzt sein.'
+    'Supabase configuration missing: VITE_SUPABASE_URL and ' +
+      'VITE_SUPABASE_ANON_KEY must be set in .env.'
   )
 }
 
-export const supabase = createClient<Database>(url, key)
+export const supabase = createClient<Database>(url, key, {
+  // Desktop app: no OAuth redirects, so never scan the URL for session tokens.
+  auth: { detectSessionInUrl: false },
+})

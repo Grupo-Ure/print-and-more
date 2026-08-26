@@ -1,5 +1,8 @@
 import path from 'node:path'
 import { app, BrowserWindow } from 'electron'
+import { registerAppScheme, serveRendererBundle, RENDERER_URL } from './appProtocol'
+
+registerAppScheme()
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -26,12 +29,14 @@ function createWindow(): void {
   if (devServerUrl) {
     void win.loadURL(devServerUrl)
   } else {
-    // Interim production loading; replaced by app:// protocol serving in WP4.
-    void win.loadFile(path.join(import.meta.dirname, '../dist/index.html'))
+    void win.loadURL(RENDERER_URL)
   }
 }
 
-void app.whenReady().then(createWindow)
+void app.whenReady().then(() => {
+  serveRendererBundle()
+  createWindow()
+})
 
 app.on('window-all-closed', () => {
   app.quit()
