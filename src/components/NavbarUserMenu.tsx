@@ -1,9 +1,9 @@
-import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, LogOut, Settings } from 'lucide-react'
 import { authService } from '../services/authService'
 import { useCurrentUser } from '../queries/userQueries'
 import { ROLE_LABELS } from '../lib/roleLabels'
+import { useNavigation } from '../context/navigation.context'
 import { UserAvatar } from './UserAvatar'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -23,7 +23,7 @@ function firstNameOf(name: string): string {
  * (identity card, profile settings, sign out).
  */
 export function NavbarUserMenu() {
-  const navigate = useNavigate()
+  const { navigate } = useNavigation()
   const queryClient = useQueryClient()
   const { data: user } = useCurrentUser()
 
@@ -64,7 +64,7 @@ export function NavbarUserMenu() {
         </div>
 
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => navigate('/profile')}>
+        <DropdownMenuItem onSelect={() => navigate('profile')}>
           <Settings className="text-neutral-400" />
           Profile settings
         </DropdownMenuItem>

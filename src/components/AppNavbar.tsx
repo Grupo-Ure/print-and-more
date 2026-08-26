@@ -1,56 +1,51 @@
 import { useEffect, useState } from 'react'
-import { NavLink } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import type { LucideIcon } from 'lucide-react'
 import { ClipboardList, Shirt, Stamp, Users } from 'lucide-react'
 import { authService } from '../services/authService'
 import { useIsAdmin, useIsSuperAdmin } from '../queries/userQueries'
 import { NavbarUserMenu } from './NavbarUserMenu'
+import { useNavigation, type AppView } from '../context/navigation.context'
 import { cn } from '@/lib/utils'
 
 type NavItem = {
-  to: string
+  view: AppView
   label: string
   icon: LucideIcon
-  end?: boolean
 }
 
-const ORDERS_ITEM: NavItem = { to: '/', label: 'Orders', icon: ClipboardList, end: true }
+const ORDERS_ITEM: NavItem = { view: 'orders', label: 'Orders', icon: ClipboardList }
 
 const ADMIN_ITEMS: NavItem[] = [
-  { to: '/stamp-stock', label: 'Stamp stock', icon: Stamp },
-  { to: '/textile-stock', label: 'Textile stock', icon: Shirt },
+  { view: 'stampStock', label: 'Stamp stock', icon: Stamp },
+  { view: 'textileStock', label: 'Textile stock', icon: Shirt },
 ]
 
-const SUPER_ADMIN_ITEM: NavItem = { to: '/user-management', label: 'User management', icon: Users }
+const SUPER_ADMIN_ITEM: NavItem = { view: 'userManagement', label: 'User management', icon: Users }
 
 function NavbarLink({ item }: { item: NavItem }) {
+  const { view, navigate } = useNavigation()
+  const isActive = view === item.view
   const Icon = item.icon
   return (
-    <NavLink
-      to={item.to}
-      end={item.end}
-      className={({ isActive }) =>
-        cn(
-          'group flex items-center gap-1.5 border-b-2 px-2.5 py-1 text-sm transition-colors',
-          isActive
-            ? 'border-primary font-medium text-neutral-900'
-            : 'border-transparent text-neutral-600 hover:text-neutral-900',
-        )
-      }
-    >
-      {({ isActive }) => (
-        <>
-          <Icon
-            className={cn(
-              'size-4 transition-colors',
-              isActive ? 'text-primary' : 'text-neutral-400 group-hover:text-primary',
-            )}
-          />
-          {item.label}
-        </>
+    <button
+      type="button"
+      onClick={() => navigate(item.view)}
+      className={cn(
+        'group flex cursor-pointer items-center gap-1.5 border-b-2 px-2.5 py-1 text-sm transition-colors',
+        isActive
+          ? 'border-primary font-medium text-neutral-900'
+          : 'border-transparent text-neutral-600 hover:text-neutral-900',
       )}
-    </NavLink>
+    >
+      <Icon
+        className={cn(
+          'size-4 transition-colors',
+          isActive ? 'text-primary' : 'text-neutral-400 group-hover:text-primary',
+        )}
+      />
+      {item.label}
+    </button>
   )
 }
 
@@ -59,7 +54,7 @@ function RoleGatedLinks() {
   const { isSuperAdmin } = useIsSuperAdmin()
   return (
     <>
-      {isAdmin && ADMIN_ITEMS.map(item => <NavbarLink key={item.to} item={item} />)}
+      {isAdmin && ADMIN_ITEMS.map(item => <NavbarLink key={item.view} item={item} />)}
       {isSuperAdmin && <NavbarLink item={SUPER_ADMIN_ITEM} />}
     </>
   )

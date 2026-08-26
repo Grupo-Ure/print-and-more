@@ -1,6 +1,10 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+
+export type AppView = 'orders' | 'stampStock' | 'textileStock' | 'userManagement' | 'profile'
 
 type NavigationValue = {
+  view: AppView
+  navigate: (view: AppView) => void
   activeOrderId: string | null
   activeJobId: string | null
   setActiveOrder: (orderId: string | null) => void
@@ -18,7 +22,12 @@ type Selection = {
 const INITIAL_SELECTION: Selection = { activeOrderId: null, activeJobId: null }
 
 export function NavigationProvider({ children }: { children: ReactNode }) {
+  const [view, setView] = useState<AppView>('orders')
   const [selection, setSelection] = useState<Selection>(INITIAL_SELECTION)
+
+  const navigate = useCallback((next: AppView) => {
+    setView(next)
+  }, [])
 
   const setActiveOrder = useCallback((orderId: string | null) => {
     setSelection(prev => {
@@ -39,13 +48,15 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<NavigationValue>(
     () => ({
+      view,
+      navigate,
       activeOrderId: selection.activeOrderId,
       activeJobId: selection.activeJobId,
       setActiveOrder,
       setActiveJob,
       clearActive,
     }),
-    [selection, setActiveOrder, setActiveJob, clearActive],
+    [view, navigate, selection, setActiveOrder, setActiveJob, clearActive],
   )
 
   return <NavigationContext.Provider value={value}>{children}</NavigationContext.Provider>
