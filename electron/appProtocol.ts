@@ -5,8 +5,11 @@ import { net, protocol } from 'electron'
 const APP_SCHEME = 'app'
 const APP_HOST = 'bundle'
 
-/** The packaged renderer's entry URL; its origin (app://bundle) is the stable identity all web storage hangs off. */
-export const RENDERER_URL = `${APP_SCHEME}://${APP_HOST}/index.html`
+/** The packaged renderer's origin — the stable identity all web storage hangs off. */
+export const RENDERER_ORIGIN = `${APP_SCHEME}://${APP_HOST}`
+
+/** The packaged renderer's entry URL. */
+export const RENDERER_URL = `${RENDERER_ORIGIN}/index.html`
 
 /** Must be called before app.whenReady() — Chromium only accepts scheme privileges at startup. */
 export function registerAppScheme(): void {
