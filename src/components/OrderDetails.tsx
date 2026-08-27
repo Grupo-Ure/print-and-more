@@ -14,6 +14,7 @@ import {
 import { useToast } from './Toast'
 import { useConfirm } from './ConfirmDialog'
 import type { FileRow } from '../services/fileService'
+import { OrderFilesDialog } from './OrderFilesDialog'
 import { JobDetail } from './JobDetail'
 import { JobList } from './JobList'
 import { StatusManager } from './StatusManager'
@@ -28,7 +29,7 @@ import './WorkArea.css'
 import { Button } from './ui/button'
 import { cn } from '@/lib/utils'
 import { ORDER_STATUS_META } from '../const/orderStatus'
-import { Archive, Ban, CheckCircle2, Clock, Copy, History, Settings, ShieldCheck, TriangleAlert } from 'lucide-react'
+import { Archive, Ban, CheckCircle2, Clock, Copy, History, Paperclip, Settings, ShieldCheck, TriangleAlert } from 'lucide-react'
 import { OrderHistoryDialog } from './OrderHistoryDialog'
 import { Separator } from './ui/separator'
 import { DeadlinePicker } from './fields/DeadlinePicker'
@@ -57,6 +58,7 @@ export function OrderDetails() {
   const { activeOrderId, activeJobId, setActiveJob, clearActive } = useOrderSelection()
   const queryClient = useQueryClient()
   const [files, setFiles] = useState<FileRow[]>([])
+  const [filesOpen, setFilesOpen] = useState(false)
   const { showError } = useToast()
   const copyToClipboard = useCopyToClipboard()
   const confirm = useConfirm()
@@ -350,6 +352,7 @@ export function OrderDetails() {
         onMarkFinished={() => void handleMarkFinished()}
         onMarkInvoiced={() => void handleMarkInvoiced()}
         onReopenOrder={() => void handleReopenOrder()}
+        onOpenFiles={() => setFilesOpen(true)}
         archivePending={archiveOrder.isPending}
         cancelPending={cancelOrder.isPending}
         statusPending={setOrderStatus.isPending || markBilled.isPending}
@@ -380,6 +383,13 @@ export function OrderDetails() {
         </div>
       </div>
 
+      <OrderFilesDialog
+        orderId={activeOrderId}
+        files={files}
+        onFileChanged={reloadFiles}
+        open={filesOpen}
+        onOpenChange={setFilesOpen}
+      />
     </main>
   )
 }
@@ -397,12 +407,13 @@ type OrderHeaderProps = {
   onMarkFinished: () => void
   onMarkInvoiced: () => void
   onReopenOrder: () => void
+  onOpenFiles: () => void
   archivePending: boolean
   cancelPending: boolean
   statusPending: boolean
 }
 
-function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, onCancelOrder, onStartProcessing, onMarkFinished, onMarkInvoiced, onReopenOrder, archivePending, cancelPending, statusPending }: OrderHeaderProps) {
+function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, onCancelOrder, onStartProcessing, onMarkFinished, onMarkInvoiced, onReopenOrder, onOpenFiles, archivePending, cancelPending, statusPending }: OrderHeaderProps) {
   const customerDisplayName = order.customers?.name?.trim() || '—'
   const customerEmail = order.customers?.email?.trim() || ''
   const customerPhone = order.customers?.phone?.trim() || ''
@@ -466,6 +477,16 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
             onMarkFinished={onMarkFinished}
             onMarkInvoiced={onMarkInvoiced}
           />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            title="Order files"
+            aria-label="Order files"
+            onClick={onOpenFiles}
+          >
+            <Paperclip />
+          </Button>
           <Button
             type="button"
             variant="ghost"

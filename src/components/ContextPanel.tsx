@@ -12,7 +12,6 @@ import {
   type Customer,
   type JobRow,
 } from '../types/database'
-import { FileList } from './FileList'
 import type { FileRow } from '../services/fileService'
 import { HistoryPanel } from './HistoryPanel'
 import { useToast } from './Toast'
@@ -28,7 +27,6 @@ type Props = {
   onOrderUpdated: (updatedOrder: Auftrag) => void
   onJobUpdated: (updatedJob: JobRow) => void
   contextRefreshTick: number
-  onFileChanged?: (newFileRow?: FileRow) => void | Promise<void>
 }
 
 export function ContextPanel({
@@ -39,7 +37,6 @@ export function ContextPanel({
   onOrderUpdated,
   onJobUpdated,
   contextRefreshTick,
-  onFileChanged = async () => {},
 }: Props) {
   const { openCustomerDialog } = useOrderWorkspace()
   const [busy, setBusy] = useState(false)
@@ -236,14 +233,6 @@ export function ContextPanel({
               </>
             )}
           </>
-        )}
-        {order && (
-          <FileList
-            activeOrderId={order.id}
-            files={orderFiles}
-            filesLoading={false}
-            onFileChanged={onFileChanged}
-          />
         )}
       </div>
 

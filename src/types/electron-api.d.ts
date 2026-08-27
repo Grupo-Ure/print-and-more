@@ -5,5 +5,6 @@ interface Window {
   auftrag?: {
     revealPath: (path: string) => Promise<NativeRevealResult>
     pickFile: () => Promise<string | null>
+    getPathForFile: (file: File) => string
   }
 }
