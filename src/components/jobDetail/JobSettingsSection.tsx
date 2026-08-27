@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { Check } from 'lucide-react'
 import { useUpdateJob, useSetCustomerApproval } from '../../queries/jobQueries'
 import { validateJobCommonFields } from '../../lib/jobShared'
 import { toDateOnly, todayDateOnly } from '../../lib/formatDate'
@@ -8,11 +10,14 @@ import {
   type JobRow,
   type JobUpdate,
 } from '../../types/database'
+import type { FileRow } from '../../services/fileService'
 import { DeadlinePicker } from '../fields/DeadlinePicker'
 import { DeliverySelect } from '../fields/DeliverySelect'
 import { PrioritySelect } from '../fields/PrioritySelect'
+import { Button } from '../ui/button'
 import { Switch } from '../ui/switch'
 import { useToast } from '../Toast'
+import { GrantApprovalDialog } from './GrantApprovalDialog'
 
 /**
  * The "Job Settings" section: the separate-value switches (deadline,
@@ -24,16 +29,39 @@ export function JobSettingsSection({
   order,
   job,
   effectiveJob,
+  orderFiles,
+  onOrderFilesChanged,
   onUpdated,
 }: {
   order: OrderDetailRow
   job: JobRow
   effectiveJob: JobRow
+  orderFiles: FileRow[]
+  onOrderFilesChanged: () => void | Promise<void>
   onUpdated: (updatedJob: JobRow) => void
 }) {
   const updateJob = useUpdateJob()
   const setCustomerApproval = useSetCustomerApproval()
   const { showError } = useToast()
+  const [grantOpen, setGrantOpen] = useState(false)
+
+  const handleGrantApproval = (fileId: string) => {
+    setCustomerApproval.mutate(
+      {
+        id: job.id,
+        orderId: job.order_id,
+        patch: { customer_approval_granted: true, customer_approval_file_id: fileId },
+        history: { event_type: 'CUSTOMER_APPROVAL_GRANTED', meta: { file_id: fileId } },
+      },
+      {
+        onSuccess: row => {
+          onUpdated(row)
+          setGrantOpen(false)
+        },
+        onError: () => showError('Save failed'),
+      },
+    )
+  }
 
   // Raw order fields drive the toggle defaults and the equality-collapse compares.
   const orderDeliveryMode = (order.delivery ?? 'PICKUP') as DeliveryChoice
@@ -171,25 +199,58 @@ export function JobSettingsSection({
         {hasSeparatePriority && validationErrors.prioritaet && <p className="text-destructive text-xs mt-1">{validationErrors.prioritaet}</p>}
       </div>
 
-      <label className="col-span-2 flex items-center gap-2 text-[13px] select-none">
-        <Switch
-          disabled={isLocked}
-          checked={job.customer_approval_required}
-          onCheckedChange={checked => {
-            setCustomerApproval.mutate({
-              id: job.id,
-              orderId: job.order_id,
-              patch: checked
-                ? { customer_approval_required: true }
-                : { customer_approval_required: false, customer_approval_granted: false, customer_approval_file_id: null },
-              history: {
-                event_type: checked ? 'CUSTOMER_APPROVAL_ACTIVATED' : 'CUSTOMER_APPROVAL_DEACTIVATED',
-              },
-            })
-          }}
-        />
-        <span>Customer approval required</span>
-      </label>
+      <div className="col-span-2 flex items-center gap-2">
+        <label className="flex items-center gap-2 text-[13px] select-none">
+          <Switch
+            disabled={isLocked}
+            checked={job.customer_approval_required}
+            onCheckedChange={checked => {
+              setCustomerApproval.mutate({
+                id: job.id,
+                orderId: job.order_id,
+                patch: checked
+                  ? { customer_approval_required: true }
+                  : { customer_approval_required: false, customer_approval_granted: false, customer_approval_file_id: null },
+                history: {
+                  event_type: checked ? 'CUSTOMER_APPROVAL_ACTIVATED' : 'CUSTOMER_APPROVAL_DEACTIVATED',
+                },
+              })
+            }}
+          />
+          <span>Customer approval required</span>
+        </label>
+        {job.customer_approval_required && !job.customer_approval_granted && (
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            disabled={isDone}
+            onClick={() => setGrantOpen(true)}
+          >
+            Grant approval…
+          </Button>
+        )}
+        {job.customer_approval_granted && (
+          <span className="flex items-center gap-1 text-xs text-green-600">
+            <Check className="size-3.5" aria-hidden />
+            Granted
+            {(() => {
+              const approvedFile = orderFiles.find(file => file.id === job.customer_approval_file_id)
+              return approvedFile ? ` — ${approvedFile.display_name}` : ''
+            })()}
+          </span>
+        )}
+      </div>
+
+      <GrantApprovalDialog
+        orderId={job.order_id}
+        files={orderFiles}
+        onFilesChanged={onOrderFilesChanged}
+        open={grantOpen}
+        onOpenChange={setGrantOpen}
+        onConfirm={handleGrantApproval}
+        pending={setCustomerApproval.isPending}
+      />
     </div>
   )
 }

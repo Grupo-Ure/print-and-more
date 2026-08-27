@@ -372,6 +372,7 @@ export function OrderDetails() {
           {activeJob ? (
             <JobDetail
               orderFiles={files}
+              onOrderFilesChanged={reloadFiles}
               onUpdated={handleJobUpdated}
             />
           ) : (

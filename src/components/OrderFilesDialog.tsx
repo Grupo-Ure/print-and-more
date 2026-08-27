@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { fileService } from '../services/fileService'
 import { historyService } from '../services/historyService'
 import type { FileRow, FileRole } from '../services/fileService'
+import { useFileLinking } from '../hooks/useFileLinking'
 import { useToast } from './Toast'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog'
@@ -17,8 +18,6 @@ const ROLES: { value: FileRole; label: string }[] = [
   { value: 'CUSTOMER_APPROVAL', label: 'Customer approval' },
   { value: 'REFERENCE', label: 'Reference / Archive' },
 ]
-
-const DEFAULT_ROLE: FileRole = 'PRODUCTION_FILE'
 
 type Props = {
   orderId: string
@@ -34,7 +33,7 @@ type Props = {
  * immediately — display name and role are then edited inline on each row.
  */
 export function OrderFilesDialog({ orderId, files, onFileChanged, open, onOpenChange }: Props) {
-  const { showError, showSuccess } = useToast()
+  const { showError } = useToast()
   const [error, setError] = useState<string | null>(null)
   const [removingId, setRemovingId] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -51,66 +50,18 @@ export function OrderFilesDialog({ orderId, files, onFileChanged, open, onOpenCh
     [showError],
   )
 
-  const linkFile = async (name: string, filePath: string): Promise<boolean> => {
-    try {
-      const data = await fileService.createFile({
-        order_id: orderId,
-        display_name: name,
-        path: filePath,
-        role: DEFAULT_ROLE,
-      })
-      void historyService.tryWriteHistory({
-        order_id: orderId,
-        event_type: 'FILE_ADDED',
-        meta: { display_name: data.display_name, role: data.role },
-      })
-      return true
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error saving')
-      return false
-    }
-  }
-
-  const linkPaths = async (paths: { name: string; path: string }[]) => {
-    setError(null)
-    let added = 0
-    for (const item of paths) {
-      if (!(await linkFile(item.name, item.path))) break
-      added++
-    }
-    if (added > 0) {
-      showSuccess(added === 1 ? '1 file linked' : `${added} files linked`)
-      void onFileChanged()
-    }
-  }
+  const { pickAndLink, linkDropped } = useFileLinking(orderId)
 
   const handlePickAndLink = async () => {
-    if (!window.auftrag) {
-      showError('Linking files requires the desktop app.')
-      return
-    }
-    const picked = await window.auftrag.pickFiles()
-    await linkPaths(
-      picked.map(filePath => ({
-        name: filePath.replace(/\\/g, '/').split('/').pop() ?? filePath,
-        path: filePath,
-      })),
-    )
+    const added = await pickAndLink()
+    if (added.length > 0) void onFileChanged()
   }
 
   const handleDrop = async (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     setIsDragging(false)
-    if (!window.auftrag) {
-      showError('Linking dropped files requires the desktop app.')
-      return
-    }
-    const native = window.auftrag
-    await linkPaths(
-      Array.from(e.dataTransfer.files)
-        .map(item => ({ name: item.name, path: native.getPathForFile(item) }))
-        .filter(item => item.path),
-    )
+    const added = await linkDropped(e)
+    if (added.length > 0) void onFileChanged()
   }
 
   const handleUpdate = async (id: string, patch: { display_name?: string; role?: FileRole }) => {

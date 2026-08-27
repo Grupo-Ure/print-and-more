@@ -30,9 +30,11 @@ import { Separator } from './ui/separator'
 
 export function JobDetail({
   orderFiles,
+  onOrderFilesChanged,
   onUpdated,
 }: {
   orderFiles: FileRow[]
+  onOrderFilesChanged: () => void | Promise<void>
   onUpdated: (updatedJob: JobRow) => void
 }) {
   const { activeOrderId, activeJobId } = useOrderSelection()
@@ -191,6 +193,8 @@ export function JobDetail({
                 order={order}
                 job={job}
                 effectiveJob={effectiveJob}
+                orderFiles={orderFiles}
+                onOrderFilesChanged={onOrderFilesChanged}
                 onUpdated={onUpdated}
               />
             ),
