@@ -4,7 +4,7 @@ type NativeRevealResult = { ok: true } | { ok: false; error: string }
 interface Window {
   auftrag?: {
     revealPath: (path: string) => Promise<NativeRevealResult>
-    pickFile: () => Promise<string | null>
+    pickFiles: () => Promise<string[]>
     getPathForFile: (file: File) => string
   }
 }

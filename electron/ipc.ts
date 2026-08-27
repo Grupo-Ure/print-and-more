@@ -49,11 +49,13 @@ export function registerIpcHandlers(): void {
     }
   })
 
-  ipcMain.handle('dialog:pick-file', async (event): Promise<string | null> => {
+  ipcMain.handle('dialog:pick-files', async (event): Promise<string[]> => {
     const win = BrowserWindow.fromWebContents(event.sender)
-    const options = { title: 'Select file to link', properties: ['openFile' as const] }
+    const options = {
+      title: 'Select files to link',
+      properties: ['openFile' as const, 'multiSelections' as const],
+    }
     const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
-    if (result.canceled || result.filePaths.length === 0) return null
-    return result.filePaths[0]
+    return result.canceled ? [] : result.filePaths
   })
 }

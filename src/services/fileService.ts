@@ -35,6 +35,17 @@ class FileService {
     return data as FileRow
   }
 
+  async updateFile(id: string, patch: { display_name?: string; role?: FileRole }): Promise<FileRow> {
+    const { data, error } = await supabase
+      .from('files')
+      .update(patch)
+      .eq('id', id)
+      .select(FILE_COLUMNS)
+      .single()
+    if (error) throw error
+    return data as FileRow
+  }
+
   async deleteFile(id: string): Promise<void> {
     const { error } = await supabase.from('files').delete().eq('id', id)
     if (error) throw error
