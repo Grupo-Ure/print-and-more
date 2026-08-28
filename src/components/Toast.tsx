@@ -7,90 +7,90 @@ import {
   type ReactNode,
 } from 'react'
 
-export type ToastTyp = 'error' | 'success' | 'info'
+export type ToastType = 'error' | 'success' | 'info'
 
-type ToastEintrag = { id: string; typ: ToastTyp; text: string }
+type ToastEntry = { id: string; type: ToastType; text: string }
 
 const MAX = 3
 const AUTO_MS = 4000
 
-const BORDER: Record<ToastTyp, string> = {
+const BORDER: Record<ToastType, string> = {
   error: '#dc2626',
   success: '#16a34a',
   info: '#2563eb',
 }
 
-type ToastApiKontextWert = {
-  fehler: (text: string) => void
-  erfolg: (text: string) => void
+type ToastApiContextValue = {
+  showError: (text: string) => void
+  showSuccess: (text: string) => void
   info: (text: string) => void
 }
 
-type ToastListKontextWert = {
-  toasts: ToastEintrag[]
+type ToastListContextValue = {
+  toasts: ToastEntry[]
   dismiss: (id: string) => void
 }
 
-const ToastApiKontext = createContext<ToastApiKontextWert | null>(null)
-const ToastListKontext = createContext<ToastListKontextWert | null>(null)
+const ToastApiContext = createContext<ToastApiContextValue | null>(null)
+const ToastListContext = createContext<ToastListContextValue | null>(null)
 
-function pushToastGekappt(
-  prev: ToastEintrag[],
-  t: ToastEintrag
-): ToastEintrag[] {
-  const n = [...prev, t]
-  if (n.length <= MAX) return n
-  return n.slice(n.length - MAX)
+function pushToastCapped(
+  prev: ToastEntry[],
+  entry: ToastEntry
+): ToastEntry[] {
+  const next = [...prev, entry]
+  if (next.length <= MAX) return next
+  return next.slice(next.length - MAX)
 }
 
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const [toasts, setToasts] = useState<ToastEintrag[]>([])
+  const [toasts, setToasts] = useState<ToastEntry[]>([])
 
   const dismiss = useCallback((id: string) => {
     setToasts(p => p.filter(x => x.id !== id))
   }, [])
 
   const add = useCallback(
-    (typ: ToastTyp, text: string) => {
+    (type: ToastType, text: string) => {
       const id = crypto.randomUUID()
-      setToasts(p => pushToastGekappt(p, { id, typ, text: text.trim() || '—' }))
+      setToasts(previous => pushToastCapped(previous, { id, type, text: text.trim() || '—' }))
       window.setTimeout(() => {
-        setToasts(p => p.filter(t => t.id !== id))
+        setToasts(previous => previous.filter(toast => toast.id !== id))
       }, AUTO_MS)
     },
     []
   )
 
-  const fehler = useCallback((t: string) => add('error', t), [add])
-  const erfolg = useCallback((t: string) => add('success', t), [add])
-  const info = useCallback((t: string) => add('info', t), [add])
+  const showError = useCallback((text: string) => add('error', text), [add])
+  const showSuccess = useCallback((text: string) => add('success', text), [add])
+  const info = useCallback((text: string) => add('info', text), [add])
 
-  const apiWert = useMemo(
-    () => ({ fehler, erfolg, info }) satisfies ToastApiKontextWert,
-    [fehler, erfolg, info]
+  const apiValue = useMemo(
+    () => ({ showError, showSuccess, info }) satisfies ToastApiContextValue,
+    [showError, showSuccess, info]
   )
-  const listWert = useMemo(
-    () => ({ toasts, dismiss }) satisfies ToastListKontextWert,
+  const listValue = useMemo(
+    () => ({ toasts, dismiss }) satisfies ToastListContextValue,
     [toasts, dismiss]
   )
 
   return (
-    <ToastApiKontext.Provider value={apiWert}>
-      <ToastListKontext.Provider value={listWert}>{children}</ToastListKontext.Provider>
-    </ToastApiKontext.Provider>
+    <ToastApiContext.Provider value={apiValue}>
+      <ToastListContext.Provider value={listValue}>{children}</ToastListContext.Provider>
+    </ToastApiContext.Provider>
   )
 }
 
 export function useToast() {
-  const c = useContext(ToastApiKontext)
-  if (!c) throw new Error('useToast muss innerhalb von ToastProvider verwendet werden')
-  return { fehler: c.fehler, erfolg: c.erfolg, info: c.info }
+  const context = useContext(ToastApiContext)
+  if (!context) throw new Error('useToast must be used within ToastProvider')
+  return { showError: context.showError, showSuccess: context.showSuccess, info: context.info }
 }
 
 export function ToastContainer() {
-  const c = useContext(ToastListKontext)
-  if (!c) return null
-  const { toasts, dismiss } = c
+  const context = useContext(ToastListContext)
+  if (!context) return null
+  const { toasts, dismiss } = context
 
   return (
     <div
@@ -108,9 +108,9 @@ export function ToastContainer() {
         pointerEvents: 'none',
       }}
     >
-      {toasts.map(t => (
+      {toasts.map(toast => (
         <div
-          key={t.id}
+          key={toast.id}
           role="status"
           style={{
             pointerEvents: 'auto',
@@ -122,16 +122,16 @@ export function ToastContainer() {
             padding: '12px 16px',
             borderRadius: 8,
             background: '#fff',
-            borderLeft: `4px solid ${BORDER[t.typ]}`,
+            borderLeft: `4px solid ${BORDER[toast.type]}`,
             boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
             color: '#111',
           }}
         >
-          <span style={{ flex: 1, minWidth: 0, wordBreak: 'break-word' }}>{t.text}</span>
+          <span style={{ flex: 1, minWidth: 0, wordBreak: 'break-word' }}>{toast.text}</span>
           <button
             type="button"
-            onClick={() => dismiss(t.id)}
-            aria-label="Schließen"
+            onClick={() => dismiss(toast.id)}
+            aria-label="Close"
             style={{
               flexShrink: 0,
               border: 'none',

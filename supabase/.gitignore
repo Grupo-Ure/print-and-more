@@ -1,0 +1,11 @@
+# Supabase
+.branches
+.temp
+
+# Local-only development demo data (loaded after seed.sql on db reset)
+seed.dev.sql
+
+# dotenvx
+.env.keys
+.env.local
+.env.*.local

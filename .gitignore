@@ -9,7 +9,9 @@ lerna-debug.log*
 
 node_modules
 dist
+dist-electron
 dist-ssr
+release
 supabase/.temp/
 *.local
 
@@ -27,3 +29,5 @@ supabase/.temp/
 .env
 .env.local
 .env.*.local
+
+.plans

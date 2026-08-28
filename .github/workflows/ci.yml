@@ -1,0 +1,77 @@
+# CI on pushes/PRs to main; release build + publish to GitHub Releases on version tags.
+#
+# Release ritual:
+#   1. Bump "version" in package.json, commit.
+#   2. git tag v<version> && git push && git push --tags
+#   3. The pipeline builds the Windows installer and uploads it to a DRAFT
+#      release — review it on GitHub and click "Publish release" to ship it
+#      to the auto-updater feed.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY  (baked into the renderer bundle)
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+jobs:
+  checks:
+    name: Checks (tests go here)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npx tsc -b
+      - name: Lint
+        # Non-blocking until the pre-existing lint errors are cleaned up
+        # (tracked in current_state.md); flip to blocking afterwards.
+        run: npm run lint
+        continue-on-error: true
+      - name: Build
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      # Placeholder: automated tests run here once they exist.
+      # - name: Tests
+      #   run: npm test
+
+  release:
+    name: Build & publish Windows installer
+    needs: checks
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-latest
+    permissions:
+      contents: write # create the release and upload artifacts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Guard - tag must match package.json version
+        shell: bash
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "Tag v$TAG_VERSION does not match package.json version $PKG_VERSION" >&2
+            exit 1
+          fi
+      - run: npm ci
+      - name: Build and publish
+        run: npm run dist -- --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}

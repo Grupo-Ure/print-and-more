@@ -1,14 +1,42 @@
-html {
-  font-size: 14px;
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource/pt-sans-narrow";
+@import "@fontsource/pt-sans-narrow/700.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Tailwind config (v4 — the CSS file is the config): the app's single
+ * breakpoint. Two layouts only: compact (small laptops) and desktop. Base
+ * styles are compact; the `desktop:` variant applies at and above this width.
+ * `useIsMobile()` (src/hooks/use-mobile.ts) reads this same variable at
+ * runtime, so the JS hook and the CSS variant always flip together.
+ * Don't introduce other breakpoints (sm:/md:/lg: appear only in vendored
+ * src/components/ui/* code).
+ */
+@theme {
+  --breakpoint-desktop: 80rem;
+}
+
+.b-dev {
+   @apply border-orange-400 border-2;
+}
+
+/* Breathing outer ring for the primary next-step action. */
+@keyframes attention-ring {
+  0%, 100% { box-shadow: 0 0 0 5px transparent; }
+  50% { box-shadow: 0 0 0 5px var(--attention-ring-color, color-mix(in srgb, var(--color-orange-500) 55%, transparent)); }
+}
+.animate-attention-ring {
+  animation: attention-ring 2s ease-in-out infinite;
 }
 
 :root {
-  --col-left: 280px;
-  --col-right: 300px;
   --surface: #f8f9fa;
   --surface-hover: #f1f3f5;
   --border-strong: #d1d5db;
-  --radius: 6px;
+  --radius: 0.625rem;
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
 
   /* Abstände (App-Shell) */
@@ -19,23 +47,27 @@ html {
 
   --text: #6b6375;
   --text-h: #08060d;
+  /* Brand secondary — desaturated mint/grayish green, used for section titles.
+     (shadcn's `--secondary` below is a neutral surface token; this is a hue.) */
+  --secondary-accent: oklch(41.318% 0.00169 285.915);
   --bg: #fff;
-  --border: #e5e4e7;
+  --border: oklch(0.922 0 0);
   --code-bg: #f4f3ec;
-  --accent: #aa3bff;
+  --accent: oklch(0.97 0 0);
   --accent-bg: rgba(170, 59, 255, 0.1);
   --accent-border: rgba(170, 59, 255, 0.5);
   --social-bg: rgba(244, 243, 236, 0.5);
   --shadow:
     rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --sans: 'PT Sans Narrow', system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
-  font: 14px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
+  font: 16px/145% var(--sans);
+  /* Light only: the .dark class is never applied, and advertising dark here
+     makes a dark-mode OS paint native control chrome (autofill, pickers,
+     scrollbars) dark grey on the light UI. */
+  color-scheme: light;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -43,33 +75,69 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
-}
+  --background: oklch(1 0 0);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+  --foreground: oklch(0.145 0 0);
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+  --card: oklch(1 0 0);
+
+  --card-foreground: oklch(0.145 0 0);
+
+  --popover: oklch(1 0 0);
+
+  --popover-foreground: oklch(0.145 0 0);
+
+  --primary: rgba(255, 144, 34, 1);
+
+  --primary-hover: rgba(212, 96, 10, 1);
+;
+
+  --primary-foreground: oklch(0.985 0 0);
+
+  --secondary: oklch(0.97 0 0);
+
+  --secondary-foreground: oklch(0.205 0 0);
+
+  --muted: oklch(0.97 0 0);
+
+  --muted-foreground: oklch(0.556 0 0);
+
+  --accent-foreground: oklch(0.205 0 0);
+
+  --destructive: oklch(0.577 0.245 27.325);
+
+  --input: oklch(0.922 0 0);
+
+  --ring: oklch(0.708 0 0);
+
+  --chart-1: oklch(0.87 0 0);
+
+  --chart-2: oklch(0.556 0 0);
+
+  --chart-3: oklch(0.439 0 0);
+
+  --chart-4: oklch(0.371 0 0);
+
+  --chart-5: oklch(0.269 0 0);
+
+  --sidebar: oklch(0.985 0 0);
+
+  --sidebar-foreground: oklch(0.145 0 0);
+
+  --sidebar-primary: oklch(0.205 0 0);
+
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+
+  --sidebar-accent: oklch(0.97 0 0);
+
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+
+  --sidebar-border: oklch(0.922 0 0);
+
+  --sidebar-ring: oklch(0.708 0 0)
 }
 
 #root {
-  width: 1440px;
   max-width: 100%;
   margin: 0 auto;
   text-align: left;
@@ -83,33 +151,23 @@ body {
   margin: 0;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
+/*
+ * Global element typography (Tailwind @apply). Desktop keeps the original
+ * scale; the compact tier (below --breakpoint-desktop) steps down one size.
+ * Utility classes on a tag always win over these element rules — use them
+ * for per-site deviations.
+ */
 h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
+  @apply text-gray-500 text-base desktop:text-xl font-heading font-bold tracking-tighter;
 }
 h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
+  @apply text-gray-600 text-sm desktop:text-lg font-medium tracking-wide;
+}
+h3 {
+  @apply text-sm desktop:text-base;
 }
 p {
-  margin: 0;
+  @apply text-sm desktop:text-lg font-heading;
 }
 
 code,
@@ -127,46 +185,31 @@ code {
   background: var(--code-bg);
 }
 
-/* Status-Badges (Auftragsliste, WorkArea) */
-.badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 1.3;
-  white-space: nowrap;
-}
-.badge-orange {
-  background: #fef3c7;
-  color: #92400e;
-}
-.badge-blau {
-  background: #dbeafe;
-  color: #1e40af;
-}
-.badge-lila {
-  background: #ede9fe;
-  color: #5b21b6;
-}
-.badge-gruen {
-  background: #d1fae5;
-  color: #065f46;
-}
-.badge-grau {
-  background: #f3f4f6;
-  color: #374151;
-}
-.badge-rot {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
 /* Block 2: Sektionen, Scroll */
 .app-col {
   min-width: 0;
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+/* Slim, themed scrollbars for any scrollable surface. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-foreground);
 }
 
 /* Globale Abschnittstitel (WorkArea, Context, Details) */
@@ -192,4 +235,107 @@ code {
   color: #888;
   margin: 0 0 8px;
   font-weight: 500;
+}
+
+@theme inline {
+   --font-heading: var(--font-sans);
+   --font-sans: 'PT Sans Narrow', sans-serif;
+   --color-sidebar-ring: var(--sidebar-ring);
+   --color-sidebar-border: var(--sidebar-border);
+   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+   --color-sidebar-accent: var(--sidebar-accent);
+   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+   --color-sidebar-primary: var(--sidebar-primary);
+   --color-sidebar-foreground: var(--sidebar-foreground);
+   --color-sidebar: var(--sidebar);
+   --color-chart-5: var(--chart-5);
+   --color-chart-4: var(--chart-4);
+   --color-chart-3: var(--chart-3);
+   --color-chart-2: var(--chart-2);
+   --color-chart-1: var(--chart-1);
+   --color-ring: var(--ring);
+   --color-input: var(--input);
+   --color-border: var(--border);
+   --color-destructive: var(--destructive);
+   --color-accent-foreground: var(--accent-foreground);
+   --color-accent: var(--accent);
+   --color-muted-foreground: var(--muted-foreground);
+   --color-muted: var(--muted);
+   --color-secondary-foreground: var(--secondary-foreground);
+   --color-secondary: var(--secondary);
+   --color-secondary-accent: var(--secondary-accent);
+   --color-primary-foreground: var(--primary-foreground);
+   --color-primary: var(--primary);
+   --color-primary-hover: var(--primary-hover);
+   --color-popover-foreground: var(--popover-foreground);
+   --color-popover: var(--popover);
+   --color-card-foreground: var(--card-foreground);
+   --color-card: var(--card);
+   --color-foreground: var(--foreground);
+   --color-background: var(--background);
+   --radius-sm: calc(var(--radius) * 0.6);
+   --radius-md: calc(var(--radius) * 0.8);
+   --radius-lg: var(--radius);
+   --radius-xl: calc(var(--radius) * 1.4);
+   --radius-2xl: calc(var(--radius) * 1.8);
+   --radius-3xl: calc(var(--radius) * 2.2);
+   --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+.dark {
+   --background: oklch(0.145 0 0);
+   --foreground: oklch(0.985 0 0);
+   --secondary-accent: oklch(0.78 0.05 170);
+   --card: oklch(0.205 0 0);
+   --card-foreground: oklch(0.985 0 0);
+   --popover: oklch(0.205 0 0);
+   --popover-foreground: oklch(0.985 0 0);
+   --primary: rgba(255, 144, 34, 1);
+   --primary-hover: rgb(236, 133, 29);
+   --primary-foreground: oklch(0.985 0 0);
+   --secondary: oklch(0.269 0 0);
+   --secondary-foreground: oklch(0.985 0 0);
+   --muted: oklch(0.269 0 0);
+   --muted-foreground: oklch(0.708 0 0);
+   --accent: oklch(0.269 0 0);
+   --accent-foreground: oklch(0.985 0 0);
+   --destructive: oklch(0.704 0.191 22.216);
+   --border: oklch(1 0 0 / 10%);
+   --input: oklch(1 0 0 / 15%);
+   --ring: oklch(0.556 0 0);
+   --chart-1: oklch(0.87 0 0);
+   --chart-2: oklch(0.556 0 0);
+   --chart-3: oklch(0.439 0 0);
+   --chart-4: oklch(0.371 0 0);
+   --chart-5: oklch(0.269 0 0);
+   --sidebar: oklch(0.205 0 0);
+   --sidebar-foreground: oklch(0.985 0 0);
+   --sidebar-primary: oklch(0.488 0.243 264.376);
+   --sidebar-primary-foreground: oklch(0.985 0 0);
+   --sidebar-accent: oklch(0.269 0 0);
+   --sidebar-accent-foreground: oklch(0.985 0 0);
+   --sidebar-border: oklch(1 0 0 / 10%);
+   --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+   }
+  /* Chrome/Edge paint autofilled fields with their own grey-blue background
+     that background-color cannot override — only an inset shadow can. Keep
+     autofilled inputs on the app surface instead. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--foreground);
+    caret-color: var(--foreground);
+    box-shadow: inset 0 0 0 1000px var(--background);
+  }
+  body {
+    @apply bg-background text-foreground;
+   }
+  html {
+    @apply font-sans;
+   }
 }

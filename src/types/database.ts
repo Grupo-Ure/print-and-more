@@ -1,139 +1,70 @@
-import type { Json } from './supabase'
+import type { Database, Enums, Tables, TablesInsert, TablesUpdate } from './supabase'
+import { Constants } from './supabase'
 
-/** Gemeinsame Status-Werte (Auftrag: Aggregat; Teilauftrag: ohne ANGEBOT) */
-export type AuftragStatus =
-  | 'ANGEBOT'
-  | 'UNVOLLSTAENDIG'
-  | 'PREPRESS_BEREIT'
-  | 'PRODUKTION_BEREIT'
-  | 'FERTIG'
-  | 'ABGERECHNET'
+export type OrderStatus = Enums<'order_status'>
 
-export const AUFTRAG_STATUS_LIST: readonly AuftragStatus[] = [
-  'ANGEBOT',
-  'UNVOLLSTAENDIG',
-  'PREPRESS_BEREIT',
-  'PRODUKTION_BEREIT',
-  'FERTIG',
-  'ABGERECHNET',
-]
+export const ORDER_STATUS_LIST: readonly OrderStatus[] = Constants.public.Enums.order_status
 
-/** Werte = Supabase-Enum `teilauftrag_bereich` (Großbuchstaben, kein Leerzeichen) */
-export const TEILAUFTRAG_BEREICHE = [
-  'LFP',
-  'COPYSHOP',
-  'TEXTIL',
-  'STEMPEL',
-  'LASERGRAVUR',
-  'SONSTIGE',
-] as const
+export type JobStatus = Enums<'job_status'>
 
-export type TeilauftragBereich = (typeof TEILAUFTRAG_BEREICHE)[number]
+export const JOB_STATUS_LIST: readonly JobStatus[] = Constants.public.Enums.job_status
 
-export const TEILAUFTRAG_BEREICH_ANZEIGE: Record<TeilauftragBereich, string> = {
-  LFP: 'LFP',
-  COPYSHOP: 'CopyShop',
-  TEXTIL: 'Textil',
-  STEMPEL: 'Stempel',
-  LASERGRAVUR: 'Lasergravur',
-  SONSTIGE: 'Sonstige',
-}
+export type Department = Enums<'department'>
 
-export type Bereich = TeilauftragBereich
+export const DEPARTMENTS: readonly Department[] = Constants.public.Enums.department
 
-export function teilauftragBereichLabel(bereich: string): string {
-  if (bereich in TEILAUFTRAG_BEREICH_ANZEIGE) {
-    return TEILAUFTRAG_BEREICH_ANZEIGE[bereich as TeilauftragBereich]
-  }
-  return bereich
-}
+/** Matches `priority_type` in the DB (order and job). */
+export type Priority = Enums<'priority_type'>
 
-/** Entspricht `prioritaet_typ` in der DB (Auftrag und Teilauftrag). */
-export type Prioritaet = 'NORMAL' | 'HOCH'
+/** How the order is settled — CASH closes directly from IN_PROGRESS, INVOICE goes through FINISHED. */
+export type PaymentMethod = Enums<'payment_method'>
 
-/** Flaches Objekt für Validierung von JSONB-Details; Arrays/Primitiv oben = leer. */
-export function teilJsonAlsFeldertabelle(d: Json | null): Record<string, unknown> {
-  if (d === null) return {}
-  if (typeof d === 'object' && !Array.isArray(d)) {
-    return d
-  }
-  return {}
-}
+export type CustomerContactRow = Tables<'customers'>
 
-export type KundeName = {
-  name: string
-}
-
-export type KundeKontaktRow = {
+/** Flat customer shape used everywhere the app needs to read/edit a customer. */
+export type Customer = {
   id: string
   name: string
   email: string | null
-  telefon: string | null
-  notiz: string | null
-  strasse: string | null
-  hausnummer: string | null
-  plz: string | null
-  ort: string | null
+  phone: string | null
+  note: string | null
+  street: string | null
+  house_number: string | null
+  postal_code: string | null
+  city: string | null
 }
 
-/** PostgREST liefert eingebettete FK-Zeile als Objekt oder 1-Element-Array (je nach Client-Inferenz). */
-export type KundeJoin = KundeName | KundeName[] | null
-
-export type KundeKontaktJoin = KundeKontaktRow | KundeKontaktRow[] | null
-
-/** SELECT für die Auftragsliste (OrderList) */
-export type AuftragListRow = {
-  id: string
-  auftragsnummer: string
-  status: AuftragStatus
-  erstellt_am: string
-  kunden: KundeJoin
+/** Order list row — minimal customer projection (only `name`). */
+export type OrderSummaryRow = Pick<Tables<'orders'>, 'id' | 'order_number' | 'status' | 'created_at'> & {
+  customers: { name: string } | null
 }
 
-/** SELECT einzelner Auftrag im Arbeitsbereich */
-export type AuftragDetailRow = {
-  id: string
-  auftragsnummer: string
-  status: AuftragStatus
-  kunden: KundeKontaktJoin
-  erp_exportiert: boolean
-  archiviert: boolean
-  termin: string | null
-  lieferung: LieferungWahl | null
-  prioritaet: Prioritaet
-  notfall_aktiv: boolean
-  erstellt_am: string
+/** Single-order row loaded into the workspace. */
+export type OrderDetailRow = Tables<'orders'> & {
+  customers: Customer | null
 }
 
-/** Rechte Spalte / Kontext (identisch mit geladenem Auftrag) */
-export type Auftrag = AuftragDetailRow
+/** Alias used by the context panel and other workspace consumers. */
+export type Auftrag = OrderDetailRow
 
-export type LieferungWahl = 'ABHOLUNG' | 'VERSAND'
+/** Patch for the order header fields editable in WorkArea. */
+export type OrderHeaderPatch = Partial<Pick<Tables<'orders'>, 'deadline' | 'delivery' | 'priority' | 'payment_method'>>
 
-export type TeilauftragRow = {
-  id: string
-  auftrag_id: string
-  bereich: TeilauftragBereich
-  typ: string | null
-  status: AuftragStatus
-  termin: string | null
-  lieferung: LieferungWahl | null
-  prioritaet: Prioritaet
-  verantwortlicher_id: string | null
-  satzzeit_minuten: number | null
-  /** Bereichsspezifische Daten (LFP, …) — JSONB */
-  detail: Json | null
-  notfall_aktiv: boolean
-  notfall_begruendung: string | null
-  storniert: boolean
-  kundenfreigabe_erforderlich: boolean
-  kundenfreigabe_liegt_vor: boolean
-  kundenfreigabe_datei_id: string | null
+/** Shape of order data needed for PDF generation. */
+export type OrderPdfRow = Pick<Tables<'orders'>, 'order_number' | 'deadline' | 'delivery' | 'priority' | 'created_at'> & {
+  customers: Customer | null
 }
 
-export type NeuerTeilauftragEintrag = {
-  auftrag_id: string
-  bereich: TeilauftragBereich
-  status: 'UNVOLLSTAENDIG'
-  prioritaet: 'NORMAL'
-}
+export type DeliveryChoice = Enums<'delivery_type'>
+
+export type JobRow = Tables<'jobs'>
+
+export type JobUpdate = TablesUpdate<'jobs'>
+
+export type NewJobEntry = Pick<TablesInsert<'jobs'>, 'order_id' | 'department' | 'status' | 'priority'>
+
+export type DuplicateOrderArgs = Database['public']['Functions']['duplicate_order']['Args']
+
+export type UserRole = Enums<'user_role'>
+
+export type AppUserRow = Tables<'users'>

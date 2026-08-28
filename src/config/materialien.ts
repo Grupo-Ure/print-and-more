@@ -9,9 +9,9 @@
 // COPYSHOP — Poster/Plakat
 // ------------------------------------------------------------
 export const POSTER_MATERIALIEN = [
-  { wert: '120G_AFFICHEN', anzeige: '120g Affichen' },
-  { wert: '200G_SEIDENGLANZ', anzeige: '200g Seidenglanz' },
-  { wert: '200G_GLANZ', anzeige: '200g Glanz' },
+  { wert: '120G_AFFICHEN', anzeige: '120g Affiches' },
+  { wert: '200G_SEIDENGLANZ', anzeige: '200g Silk gloss' },
+  { wert: '200G_GLANZ', anzeige: '200g Gloss' },
 ] as const
 
 // ------------------------------------------------------------
@@ -26,7 +26,7 @@ export const CC_GRAMMATUREN = [
   { wert: '200G', anzeige: '200g' },
   { wert: '250G', anzeige: '250g' },
   { wert: '300G', anzeige: '300g' },
-  { wert: 'SONSTIGE', anzeige: 'Sonstige' },
+  { wert: 'SONSTIGE', anzeige: 'Other' },
 ] as const
 
 // ------------------------------------------------------------
@@ -43,8 +43,8 @@ export const OFFSET_STANDARD_GRAMMATUREN = [
 ] as const
 
 export const OFFSET_STANDARD_OBERFLAECHEN = [
-  { wert: 'MATT', anzeige: 'Matt' },
-  { wert: 'GLAENZEND', anzeige: 'Glänzend' },
+  { wert: 'MATT', anzeige: 'Matte' },
+  { wert: 'GLAENZEND', anzeige: 'Glossy' },
 ] as const
 
 // ------------------------------------------------------------
@@ -63,20 +63,20 @@ export const OFFSET_OFFSET_GRAMMATUREN = [
 // COPYSHOP — Offset Spezial
 // ------------------------------------------------------------
 export const OFFSET_SPEZIAL_PAPIERE = [
-  { wert: '300G_FOLIENKASCHIERT', anzeige: '300g Folienkaschiert' },
-  { wert: 'RECYCLING', anzeige: 'Recycling' },
-  { wert: '250G_LEINENSTRUKTUR', anzeige: '250g Leinenstruktur' },
-  { wert: 'SONSTIGE', anzeige: 'Sonstige' },
+  { wert: '300G_FOLIENKASCHIERT', anzeige: '300g Laminated' },
+  { wert: 'RECYCLING', anzeige: 'Recycled' },
+  { wert: '250G_LEINENSTRUKTUR', anzeige: '250g Linen texture' },
+  { wert: 'SONSTIGE', anzeige: 'Other' },
 ] as const
 
 export const OFFSET_FOLIENKASCHIERUNG = [
-  { wert: 'MATT', anzeige: 'Matt' },
-  { wert: 'GLAENZEND', anzeige: 'Glänzend' },
+  { wert: 'MATT', anzeige: 'Matte' },
+  { wert: 'GLAENZEND', anzeige: 'Glossy' },
 ] as const
 
 export const OFFSET_FOLIENKASCHIERUNG_SEITEN = [
-  { wert: 'EINSEITIG', anzeige: 'Einseitig' },
-  { wert: 'BEIDSEITIG', anzeige: 'Beidseitig' },
+  { wert: 'EINSEITIG', anzeige: 'Single-sided' },
+  { wert: 'BEIDSEITIG', anzeige: 'Double-sided' },
 ] as const
 
 export const OFFSET_RECYCLING_GRAMMATUREN = [
@@ -109,25 +109,25 @@ export const VISITENKARTE_MATERIALIEN = [
   { wert: '300G_CC', anzeige: '300g CC' },
   { wert: '350G_OFFSET', anzeige: '350g Offset' },
   { wert: '400G_OFFSET', anzeige: '400g Offset' },
-  { wert: '300G_RECYCLING', anzeige: '300g Recycling Offset' },
-  { wert: '250G_LEINENSTRUKTUR', anzeige: '250g Leinenstruktur Offset' },
+  { wert: '300G_RECYCLING', anzeige: '300g Recycled Offset' },
+  { wert: '250G_LEINENSTRUKTUR', anzeige: '250g Linen-textured Offset' },
   { wert: 'MULTILOFT', anzeige: 'Multiloft Offset' },
 ] as const
 
 export const MULTILOFT_FARBKERNE = [
-  { wert: 'SCHWARZ', anzeige: 'Schwarz' },
-  { wert: 'ELFENBEIN', anzeige: 'Elfenbein' },
-  { wert: 'WEISS', anzeige: 'Weiß' },
-  { wert: 'ROT', anzeige: 'Rot' },
-  { wert: 'OLIVGRUEN', anzeige: 'Olivgrün' },
-  { wert: 'HELLGRUEN', anzeige: 'Hellgrün' },
-  { wert: 'TUERKIS', anzeige: 'Türkis' },
-  { wert: 'LILA', anzeige: 'Lila' },
-  { wert: 'GELB', anzeige: 'Gelb' },
+  { wert: 'SCHWARZ', anzeige: 'Black' },
+  { wert: 'ELFENBEIN', anzeige: 'Ivory' },
+  { wert: 'WEISS', anzeige: 'White' },
+  { wert: 'ROT', anzeige: 'Red' },
+  { wert: 'OLIVGRUEN', anzeige: 'Olive green' },
+  { wert: 'HELLGRUEN', anzeige: 'Light green' },
+  { wert: 'TUERKIS', anzeige: 'Teal' },
+  { wert: 'LILA', anzeige: 'Purple' },
+  { wert: 'GELB', anzeige: 'Yellow' },
   { wert: 'ORANGE', anzeige: 'Orange' },
   { wert: 'MAGENTA', anzeige: 'Magenta' },
-  { wert: 'ROSA', anzeige: 'Rosa' },
-  { wert: 'BLAU', anzeige: 'Blau' },
+  { wert: 'ROSA', anzeige: 'Pink' },
+  { wert: 'BLAU', anzeige: 'Blue' },
 ] as const
 
 // ------------------------------------------------------------
@@ -137,7 +137,7 @@ export const BINDUNG_MATERIALIEN = [
   { wert: '80G', anzeige: '80g' },
   { wert: '100G', anzeige: '100g' },
   { wert: '120G', anzeige: '120g' },
-  { wert: 'SONSTIGE', anzeige: 'Sonstige' },
+  { wert: 'SONSTIGE', anzeige: 'Other' },
 ] as const
 
 // ------------------------------------------------------------
@@ -151,7 +151,7 @@ export const AUSDRUCK_MATERIALIEN = [
   { wert: '200G', anzeige: '200g' },
   { wert: '250G', anzeige: '250g' },
   { wert: '300G', anzeige: '300g' },
-  { wert: 'SONSTIGE', anzeige: 'Sonstige' },
+  { wert: 'SONSTIGE', anzeige: 'Other' },
 ] as const
 
 // ------------------------------------------------------------
@@ -165,7 +165,7 @@ export const LFP_AUFKLEBER_MATERIALIEN = [
 ] as const
 
 export const LFP_3551_VARIANTEN = [
-  { wert: null, anzeige: '— (keine)' },
+  { wert: null, anzeige: '— (none)' },
   { wert: 'RA', anzeige: 'RA' },
   { wert: 'T', anzeige: 'T' },
 ] as const

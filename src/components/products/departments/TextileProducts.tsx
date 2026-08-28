@@ -1,0 +1,352 @@
+/**
+ * Textile department detail — a per-job **designs drawer** (reusable
+ * motifs) above the garment product list. Garments ride the generic product
+ * editor; the drawer + design links are the textile-specific satellites.
+ */
+
+import { useMemo, useState } from 'react'
+import { Pencil, Trash2 } from 'lucide-react'
+import type { JobStatus, JobRow } from '../../../types/database'
+import type { FileRow } from '../../../services/fileService'
+import type { TextileMotifRow, TextileMotifLinkInput } from '../../../types/textile'
+import type { LoadedProduct } from '../../../types/product'
+import {
+  useTextileMotifs,
+  useTextileMotifLinksByJobId,
+  useSaveTextileMotif,
+  useDeleteTextileMotif,
+} from '../../../queries/textileQueries'
+import { useToast } from '../../Toast'
+import { Button } from '../../ui/button'
+import { Label } from '../../ui/label'
+import { Input } from '../../ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/table'
+import { useProductEditor } from '../useProductEditor'
+import { AddProductButton } from '../AddProductButton'
+import { SectionHeader } from '../../ui/section-title'
+import { TextileProductDialog } from '../TextileProductDialog'
+import { motifLabel } from '../forms/textileTypes'
+
+type Props = {
+  job: JobRow
+  jobStatus: JobStatus
+  orderFiles?: FileRow[]
+}
+
+const FONT_CLASS_OPTS = [
+  { value: 'SANS_SERIF', label: 'Sans-serif' },
+  { value: 'SERIF', label: 'Serif' },
+  { value: 'ELEGANT', label: 'Elegant' },
+  { value: 'PLAYFUL', label: 'Playful' },
+]
+
+// --- Designs drawer ---------------------------------------------------------
+
+type DesignDraft = {
+  id?: string
+  type: 'TEXT' | 'FILE'
+  content: string
+  color: string
+  font_class: string
+  font_name: string
+  file_id: string
+}
+
+const EMPTY_DESIGN: DesignDraft = { type: 'TEXT', content: '', color: '', font_class: '', font_name: '', file_id: '' }
+
+function designFromRow(m: TextileMotifRow): DesignDraft {
+  return {
+    id: m.id,
+    type: m.type,
+    content: m.content ?? '',
+    color: m.color ?? '',
+    font_class: m.font_class ?? '',
+    font_name: m.font_name ?? '',
+    file_id: m.file_id ?? '',
+  }
+}
+
+function designValid(d: DesignDraft): boolean {
+  if (d.type === 'TEXT') return d.content.trim() !== '' && d.color.trim() !== '' && d.font_class !== ''
+  return d.file_id !== ''
+}
+
+const FONT_CLASS_LABELS: Record<string, string> = Object.fromEntries(FONT_CLASS_OPTS.map(o => [o.value, o.label]))
+
+/** Header cell style shared with the product tables. */
+const SATELLITE_HEAD_CLASS = 'h-9 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase'
+const SATELLITE_CELL_CLASS = 'px-3 py-2.5 align-middle'
+
+function DesignsTable({
+  motifs,
+  orderFiles,
+  isReadOnly,
+  onEdit,
+  onDelete,
+}: {
+  motifs: TextileMotifRow[]
+  orderFiles: FileRow[]
+  isReadOnly: boolean
+  onEdit: (m: TextileMotifRow) => void
+  onDelete: (m: TextileMotifRow) => void
+}) {
+  const designName = (m: TextileMotifRow): string => {
+    if (m.type === 'TEXT') return motifLabel(m)
+    return orderFiles.find(f => f.id === m.file_id)?.display_name ?? 'Graphic design'
+  }
+
+  return (
+    <div className="overflow-hidden rounded-lg border">
+      <Table className="desktop:text-base">
+        <TableHeader className="bg-muted/50">
+          <TableRow className="hover:bg-transparent">
+            <TableHead className={SATELLITE_HEAD_CLASS}>Design</TableHead>
+            <TableHead className={SATELLITE_HEAD_CLASS}>Kind</TableHead>
+            <TableHead className={SATELLITE_HEAD_CLASS}>Colour</TableHead>
+            <TableHead className={SATELLITE_HEAD_CLASS}>Font</TableHead>
+            <TableHead className={SATELLITE_HEAD_CLASS}>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {motifs.map(m => (
+            <TableRow key={m.id}>
+              <TableCell className={SATELLITE_CELL_CLASS}>
+                <span className="font-medium text-foreground">{designName(m)}</span>
+              </TableCell>
+              <TableCell className={SATELLITE_CELL_CLASS}>{m.type === 'TEXT' ? 'Text' : 'Graphic (file)'}</TableCell>
+              <TableCell className={SATELLITE_CELL_CLASS}>
+                {m.color ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span aria-hidden className="size-3 shrink-0 rounded-full border" style={{ backgroundColor: m.color }} />
+                    {m.color}
+                  </span>
+                ) : (
+                  '—'
+                )}
+              </TableCell>
+              <TableCell className={SATELLITE_CELL_CLASS}>
+                {m.font_class ? [FONT_CLASS_LABELS[m.font_class] ?? m.font_class, m.font_name].filter(Boolean).join(' · ') : '—'}
+              </TableCell>
+              <TableCell className={SATELLITE_CELL_CLASS}>
+                <div className="flex gap-2">
+                  <Button type="button" variant="ghost" size="icon-sm" title="Edit" aria-label="Edit" disabled={isReadOnly} onClick={() => onEdit(m)}>
+                    <Pencil />
+                  </Button>
+                  <Button type="button" variant="ghost" size="icon-sm" title="Delete" aria-label="Delete" disabled={isReadOnly} onClick={() => onDelete(m)}>
+                    <Trash2 />
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  )
+}
+
+function DesignsDrawer({
+  job,
+  motifs,
+  orderFiles,
+  isReadOnly,
+}: {
+  job: JobRow
+  motifs: TextileMotifRow[]
+  orderFiles: FileRow[]
+  isReadOnly: boolean
+}) {
+  const save = useSaveTextileMotif(job.id)
+  const del = useDeleteTextileMotif(job.id)
+  const { showError } = useToast()
+  const [draft, setDraft] = useState<DesignDraft | null>(null)
+
+  const submit = () => {
+    if (!draft || !designValid(draft)) return
+    const isText = draft.type === 'TEXT'
+    save.mutate(
+      {
+        id: draft.id,
+        payload: {
+          job_id: job.id,
+          type: draft.type,
+          content: isText ? draft.content.trim() : null,
+          color: isText ? draft.color.trim() : null,
+          font_class: isText ? (draft.font_class as 'SANS_SERIF' | 'SERIF' | 'ELEGANT' | 'PLAYFUL') : null,
+          font_name: isText ? (draft.font_name.trim() || null) : null,
+          file_id: isText ? null : draft.file_id,
+        },
+      },
+      { onSuccess: () => setDraft(null), onError: () => showError('Design could not be saved') },
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-md border p-3">
+      <SectionHeader title="Designs">
+        {!draft && !isReadOnly && <Button type="button" size="sm" variant="outline" onClick={() => setDraft({ ...EMPTY_DESIGN })}>+ New design</Button>}
+      </SectionHeader>
+
+      {motifs.length === 0 && !draft && <p className="text-sm text-muted-foreground">No designs yet. Add one to apply it to garments.</p>}
+
+      {motifs.length > 0 && (
+        <DesignsTable
+          motifs={motifs}
+          orderFiles={orderFiles}
+          isReadOnly={isReadOnly}
+          onEdit={m => setDraft(designFromRow(m))}
+          onDelete={m => del.mutate({ id: m.id }, { onError: () => showError('Design could not be deleted (still applied?)') })}
+        />
+      )}
+
+      {draft && (
+        <div className="flex flex-col gap-2 rounded-md border p-2">
+          <div className="flex flex-col gap-1">
+            <Label>Kind</Label>
+            <Select value={draft.type} onValueChange={v => setDraft({ ...draft, type: v as 'TEXT' | 'FILE' })}>
+              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TEXT">Text</SelectItem>
+                <SelectItem value="FILE">Graphic (file)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {draft.type === 'TEXT' ? (
+            <>
+              <div className="flex flex-col gap-1">
+                <Label>Text</Label>
+                <Input value={draft.content} onChange={e => setDraft({ ...draft, content: e.target.value })} />
+              </div>
+              <div className="flex gap-2">
+                <div className="flex flex-1 flex-col gap-1">
+                  <Label>Colour</Label>
+                  <Input value={draft.color} onChange={e => setDraft({ ...draft, color: e.target.value })} placeholder="#FFFFFF" />
+                </div>
+                <div className="flex flex-1 flex-col gap-1">
+                  <Label>Font</Label>
+                  <Select value={draft.font_class || undefined} onValueChange={v => setDraft({ ...draft, font_class: v })}>
+                    <SelectTrigger className="w-full"><SelectValue placeholder="Font…" /></SelectTrigger>
+                    <SelectContent>{FONT_CLASS_OPTS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label>Font name (optional)</Label>
+                <Input value={draft.font_name} onChange={e => setDraft({ ...draft, font_name: e.target.value })} />
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <Label>File</Label>
+              <Select value={draft.file_id || undefined} onValueChange={v => setDraft({ ...draft, file_id: v })}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Select a file…" /></SelectTrigger>
+                <SelectContent>{orderFiles.map(f => <SelectItem key={f.id} value={f.id}>{f.display_name}</SelectItem>)}</SelectContent>
+              </Select>
+              {orderFiles.length === 0 && <p className="text-xs text-muted-foreground">Link a file to the order first.</p>}
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-1">
+            <Button type="button" size="sm" disabled={!designValid(draft) || save.isPending} onClick={submit}>{save.isPending ? 'Saving…' : draft.id ? 'Save' : 'Add design'}</Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => setDraft(null)}>Cancel</Button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// --- Garment line summary ---------------------------------------------------
+
+function garmentSummary(product: LoadedProduct): string {
+  if (product.type !== 'TEXTILE_GARMENT') return ''
+  const garment = product.child
+  if (garment.origin === 'CUSTOMER_STOCK') {
+    return [garment.garment_type, garment.color].filter(Boolean).join(' · ') || 'Customer garment'
+  }
+  return [garment.brand, garment.model, garment.color, garment.size].filter(Boolean).join(' · ') || 'In-house garment'
+}
+
+// --- Host -------------------------------------------------------------------
+
+export function TextileProducts({ job, jobStatus, orderFiles = [] }: Props) {
+  const productEditor = useProductEditor(job, jobStatus)
+  const motifsQuery = useTextileMotifs(job.id)
+  const motifs = useMemo(() => motifsQuery.data ?? [], [motifsQuery.data])
+  const linksQuery = useTextileMotifLinksByJobId(job.id)
+  const linksByProduct = useMemo(() => {
+    const map: Record<string, TextileMotifLinkInput[]> = {}
+    for (const l of linksQuery.data ?? []) {
+      (map[l.department_product_id] ??= []).push({ id: l.id, motif_id: l.motif_id, placement: l.placement, size: l.size, print_method: l.print_method })
+    }
+    return map
+  }, [linksQuery.data])
+
+  return (
+    <div className="flex flex-col gap-4">
+      <DesignsDrawer job={job} motifs={motifs} orderFiles={orderFiles} isReadOnly={productEditor.isReadOnly} />
+
+      <TextileProductDialog
+        editor={productEditor}
+        job={job}
+        orderFiles={orderFiles}
+        motifs={motifs}
+        linksByProduct={linksByProduct}
+      />
+
+      <div>
+        <SectionHeader title="Garments">
+          {!productEditor.isReadOnly && <AddProductButton onClick={productEditor.openAdd} label="+ Add garment" />}
+        </SectionHeader>
+        {productEditor.productsLoading ? (
+          <p className="text-sm text-muted-foreground">Loading garments…</p>
+        ) : productEditor.products.length === 0 ? (
+          <div className="flex min-h-48 flex-col items-center justify-center gap-3 rounded-lg border border-dashed text-center">
+            <p className="text-sm text-muted-foreground">No garments yet.</p>
+            {!productEditor.isReadOnly && <AddProductButton onClick={productEditor.openAdd} label="+ Add garment" />}
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-lg border">
+            <Table className="desktop:text-base">
+              <TableHeader className="bg-muted/50">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className={SATELLITE_HEAD_CLASS}>Garment</TableHead>
+                  <TableHead className={SATELLITE_HEAD_CLASS}>Quantity</TableHead>
+                  <TableHead className={SATELLITE_HEAD_CLASS}>Designs</TableHead>
+                  <TableHead className={SATELLITE_HEAD_CLASS}>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {productEditor.products.map(prod => (
+                  <TableRow key={prod.id} className="cursor-pointer" onClick={() => productEditor.openView(prod)}>
+                    <TableCell className={SATELLITE_CELL_CLASS}>
+                      <span className="font-medium text-foreground">{garmentSummary(prod)}</span>
+                    </TableCell>
+                    <TableCell className={SATELLITE_CELL_CLASS}>
+                      <span className="tabular-nums">{prod.quantity ?? '—'}</span>
+                    </TableCell>
+                    <TableCell className={SATELLITE_CELL_CLASS}>
+                      <span className="tabular-nums">{(linksByProduct[prod.id] ?? []).length}</span>
+                    </TableCell>
+                    <TableCell className={SATELLITE_CELL_CLASS}>
+                      <div className="flex gap-2">
+                        <Button type="button" variant="ghost" size="icon-sm" title="Edit" aria-label="Edit" disabled={productEditor.isReadOnly} onClick={e => { e.stopPropagation(); productEditor.openEdit(prod) }}>
+                          <Pencil />
+                        </Button>
+                        <Button type="button" variant="ghost" size="icon-sm" title="Delete" aria-label="Delete" disabled={productEditor.isReadOnly} onClick={e => { e.stopPropagation(); productEditor.handleDelete(prod.id) }}>
+                          <Trash2 />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
