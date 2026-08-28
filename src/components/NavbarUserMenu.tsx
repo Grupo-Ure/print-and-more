@@ -74,6 +74,11 @@ export function NavbarUserMenu() {
           <LogOut />
           Sign out
         </DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+        <p className="px-2 py-1 text-center text-xs text-muted-foreground select-none">
+          Print And More v{__APP_VERSION__}
+        </p>
       </DropdownMenuContent>
     </DropdownMenu>
   )

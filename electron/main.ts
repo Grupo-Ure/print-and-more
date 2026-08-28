@@ -1,5 +1,7 @@
 import path from 'node:path'
 import { app, BrowserWindow, shell } from 'electron'
+// electron-updater ships CJS only — default-import and destructure.
+import updater from 'electron-updater'
 import { registerAppScheme, serveRendererBundle, RENDERER_ORIGIN, RENDERER_URL } from './appProtocol'
 import { registerIpcHandlers } from './ipc'
 import { restoreWindowState, trackWindowState } from './windowState'
@@ -75,6 +77,12 @@ if (!app.requestSingleInstanceLock()) {
     serveRendererBundle()
     registerIpcHandlers()
     createWindow()
+    if (app.isPackaged) {
+      // Checks the GitHub Releases feed, downloads in the background, shows a
+      // system notification, and installs on the next quit. Failures (offline,
+      // no newer release) are non-events: the app just runs what it has.
+      updater.autoUpdater.checkForUpdatesAndNotify().catch(() => {})
+    }
   })
 
   app.on('window-all-closed', () => {
