@@ -11,6 +11,7 @@
     "build": "tsc -b && vite build",
     "start": "electron .",
     "dist": "npm run build && electron-builder --win",
+    "release:tag": "node scripts/tag-release.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },
