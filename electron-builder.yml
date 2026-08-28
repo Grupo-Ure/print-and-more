@@ -1,7 +1,7 @@
 # Windows packaging (WP7). Build with `npm run dist` — on a Windows checkout
 # no extra tooling is needed; from Linux/WSL2 a Windows build requires Wine.
-appId: com.arbeitsdenkmal.auftragssystem
-productName: Auftragssystem
+appId: com.grupoure.printandmore
+productName: Print And More
 directories:
   output: release
   buildResources: build
@@ -22,5 +22,10 @@ nsis:
 # No effect on Windows (deep-link registration happens at runtime in WP9's
 # deepLinks.ts); kept for a possible future macOS build.
 protocols:
-  - name: Auftragssystem
-    schemes: [auftrag]
+  - name: Print And More
+    schemes: [pam]
+# Where releases live and where installed apps look for updates (WP8).
+publish:
+  provider: github
+  owner: arbeitsdenkmal
+  repo: Auftragssystem

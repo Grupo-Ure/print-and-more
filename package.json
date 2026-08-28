@@ -1,5 +1,7 @@
 {
-  "name": "auftragssystem",
+  "name": "print-and-more",
+  "description": "Order intake and production control for the Print And More shop",
+  "author": "Grupo Ure",
   "private": true,
   "version": "0.0.0",
   "type": "module",
