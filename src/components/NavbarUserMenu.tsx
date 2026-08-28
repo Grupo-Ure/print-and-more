@@ -46,12 +46,12 @@ export function NavbarUserMenu() {
         <ChevronDown className="size-3 text-neutral-400 transition-transform group-aria-expanded:rotate-180" />
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="start" className="w-64">
+      <DropdownMenuContent align="start" className="w-96">
         <div className="flex items-center gap-3 px-2 pt-2 pb-1.5">
           <UserAvatar name={user.name} avatarUrl={user.avatar_url} className="size-10 text-lg" />
           <div className="min-w-0">
-            <div className="truncate text-sm font-medium text-foreground">{user.name}</div>
-            <div className="truncate text-xs text-muted-foreground">{user.email}</div>
+            <div className="truncate text-xl font-medium text-foreground">{user.name}</div>
+            <div className="truncate text-base text-muted-foreground">{user.email}</div>
           </div>
         </div>
         <div className="flex items-center justify-between gap-2 px-2 pb-2">
@@ -76,7 +76,7 @@ export function NavbarUserMenu() {
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />
-        <p className="px-2 py-1 text-center text-xs text-muted-foreground select-none">
+        <p className="px-2 py-1 text-center text-[11px] text-muted-foreground select-none">
           Print And More v{__APP_VERSION__}
         </p>
       </DropdownMenuContent>
