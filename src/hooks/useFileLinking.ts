@@ -43,11 +43,11 @@ export function useFileLinking(orderId: string) {
 
   /** Native multi-file picker → link everything picked. */
   const pickAndLink = async (): Promise<FileRow[]> => {
-    if (!window.auftrag) {
+    if (!window.pam) {
       showError('Linking files requires the desktop app.')
       return []
     }
-    const picked = await window.auftrag.pickFiles()
+    const picked = await window.pam.pickFiles()
     return linkPaths(
       picked.map(filePath => ({
         name: filePath.replace(/\\/g, '/').split('/').pop() ?? filePath,
@@ -58,11 +58,11 @@ export function useFileLinking(orderId: string) {
 
   /** Dropped File objects → real paths → link them. */
   const linkDropped = async (e: DragEvent): Promise<FileRow[]> => {
-    if (!window.auftrag) {
+    if (!window.pam) {
       showError('Linking dropped files requires the desktop app.')
       return []
     }
-    const native = window.auftrag
+    const native = window.pam
     return linkPaths(
       Array.from(e.dataTransfer.files)
         .map(item => ({ name: item.name, path: native.getPathForFile(item) }))

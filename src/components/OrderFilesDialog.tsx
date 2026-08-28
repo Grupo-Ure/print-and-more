@@ -40,11 +40,11 @@ export function OrderFilesDialog({ orderId, files, onFileChanged, open, onOpenCh
 
   const revealFile = useCallback(
     async (rawPath: string) => {
-      if (!window.auftrag) {
+      if (!window.pam) {
         showError('Opening files requires the desktop app.')
         return
       }
-      const result = await window.auftrag.revealPath(rawPath)
+      const result = await window.pam.revealPath(rawPath)
       if (!result.ok) showError(result.error)
     },
     [showError],

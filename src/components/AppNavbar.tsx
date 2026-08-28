@@ -7,6 +7,7 @@ import { useIsAdmin, useIsSuperAdmin } from '../queries/userQueries'
 import { NavbarUserMenu } from './NavbarUserMenu'
 import { useNavigation, type AppView } from '../context/navigation.context'
 import { cn } from '@/lib/utils'
+import logo from '../assets/pam-logo-full.svg'
 
 type NavItem = {
   view: AppView
@@ -78,14 +79,16 @@ export function AppNavbar() {
 
   return (
     <nav className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b border-neutral-200 bg-neutral-50 px-3 py-1.5 font-sans">
-      <div className="flex justify-start">
-        <NavbarUserMenu />
+      <div className="flex items-center justify-start">
+        <img src={logo} alt="Print And More" draggable={false} className="h-8 w-auto select-none" />
       </div>
       <div className="flex items-center justify-center gap-1">
         <NavbarLink item={ORDERS_ITEM} />
         <RoleGatedLinks />
       </div>
-      <div aria-hidden />
+      <div className="flex justify-end">
+        <NavbarUserMenu />
+      </div>
     </nav>
   )
 }
