@@ -1,11 +1,10 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import type { Session } from '@supabase/supabase-js'
+import { useState, type FormEvent } from 'react'
 import { Trash2 } from 'lucide-react'
-import { authService } from '../services/authService'
 import { Login } from '../components/Login'
 import { AccessDenied } from '../components/AccessDenied'
 import { useToast } from '../components/Toast'
 import { useConfirm } from '../components/ConfirmDialog'
+import { useSupabaseSession } from '../hooks/useSupabaseSession'
 import {
   useCreateUser,
   useCurrentUser,
@@ -17,6 +16,14 @@ import type { UserRow } from '../services/userService'
 import { ROLE_LABELS } from '../lib/roleLabels'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -39,43 +46,144 @@ type ManagedRole = 'EMPLOYEE' | 'ADMIN'
 
 const CREATE_FORM_INITIAL = { email: '', password: '', name: '', role: 'EMPLOYEE' as ManagedRole }
 
+/** Card header of the accounts table, with an optional right-aligned action. */
+function CardHeader({
+  title,
+  note,
+  action,
+}: {
+  title: string
+  note: string
+  action?: React.ReactNode
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-neutral-200 px-4 py-3">
+      <div>
+        <h2 className="font-semibold">{title}</h2>
+        <p className="text-xs text-neutral-500 desktop:text-sm">{note}</p>
+      </div>
+      {action}
+    </div>
+  )
+}
+
+/** Create-account dialog; the page is super-admin gated, so the role is freely selectable. */
+function CreateAccountDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        {/* The content unmounts on close, so the form starts fresh each time. */}
+        <CreateAccountForm onOpenChange={onOpenChange} />
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function CreateAccountForm({ onOpenChange }: { onOpenChange: (open: boolean) => void }) {
+  const { showError, showSuccess } = useToast()
+  const createUser = useCreateUser()
+  const [form, setForm] = useState(CREATE_FORM_INITIAL)
+
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault()
+    createUser.mutate(form, {
+      onSuccess: user => {
+        showSuccess(`Account for ${user.name} created`)
+        onOpenChange(false)
+      },
+      onError: err => showError(err.message),
+    })
+  }
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Create account</DialogTitle>
+        <DialogDescription>
+          The new user signs in with this email and initial password.
+        </DialogDescription>
+      </DialogHeader>
+
+      <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="new-user-name">Name</Label>
+          <Input
+            id="new-user-name"
+            autoFocus
+            required
+            value={form.name}
+            onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="new-user-email">Email</Label>
+          <Input
+            id="new-user-email"
+            type="email"
+            required
+            value={form.email}
+            onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="new-user-password">Initial password</Label>
+          <Input
+            id="new-user-password"
+            type="password"
+            required
+            minLength={6}
+            value={form.password}
+            onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label>Role</Label>
+          <Select
+            value={form.role}
+            onValueChange={next => {
+              if (next === 'EMPLOYEE' || next === 'ADMIN') setForm(f => ({ ...f, role: next }))
+            }}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="EMPLOYEE">{ROLE_LABELS.EMPLOYEE}</SelectItem>
+              <SelectItem value="ADMIN">{ROLE_LABELS.ADMIN}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <DialogFooter className="mt-1">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={createUser.isPending}>
+            {createUser.isPending ? 'Creating…' : 'Create account'}
+          </Button>
+        </DialogFooter>
+      </form>
+    </>
+  )
+}
+
 export function UserManagementPage() {
   const { showError, showSuccess } = useToast()
   const confirm = useConfirm()
-  const [session, setSession] = useState<Session | null>(null)
-  const [sessionLoading, setSessionLoading] = useState(true)
-
-  useEffect(() => {
-    let alive = true
-    void (async () => {
-      try {
-        const session = await authService.getSession()
-        if (!alive) return
-        setSession(session)
-      } finally {
-        if (alive) setSessionLoading(false)
-      }
-    })()
-    const { subscription } = authService.onAuthStateChange((_event, newSession) => {
-      if (!alive) return
-      setSession(newSession)
-      // getSession() can stall on supabase's auth lock; the listener always
-      // fires INITIAL_SESSION on subscribe, so it also resolves loading.
-      setSessionLoading(false)
-    })
-    return () => {
-      alive = false
-      subscription.unsubscribe()
-    }
-  }, [])
+  const { session, loading: sessionLoading } = useSupabaseSession()
 
   const { data: currentUser, isLoading: currentUserLoading } = useCurrentUser()
   const { data: users, isLoading: usersLoading } = useUsers()
   const updateRole = useUpdateUserRole()
-  const createUser = useCreateUser()
   const deleteUser = useDeleteUser()
 
-  const [createForm, setCreateForm] = useState(CREATE_FORM_INITIAL)
+  const [createOpen, setCreateOpen] = useState(false)
 
   if (sessionLoading) return null
   if (!session) return <Login />
@@ -105,23 +213,6 @@ export function UserManagementPage() {
     )
   }
 
-  const handleCreate = async (event: FormEvent) => {
-    event.preventDefault()
-    const confirmed = await confirm({
-      title: 'Create account',
-      description: `Create a ${ROLE_LABELS[createForm.role]} account for ${createForm.name.trim()} (${createForm.email.trim()})?`,
-      confirmLabel: 'Create',
-    })
-    if (!confirmed) return
-    createUser.mutate(createForm, {
-      onSuccess: user => {
-        showSuccess(`Account for ${user.name} created`)
-        setCreateForm(CREATE_FORM_INITIAL)
-      },
-      onError: err => showError(err.message),
-    })
-  }
-
   const handleDelete = async (user: UserRow) => {
     const confirmed = await confirm({
       title: 'Delete account',
@@ -137,31 +228,40 @@ export function UserManagementPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6 font-sans text-sm">
-      <h1 className="text-lg font-semibold">User management</h1>
+    <main className="flex w-full flex-col gap-3 p-3">
+      <h1>User management</h1>
 
       <section className="rounded-md border border-neutral-200">
+        <CardHeader
+          title="Accounts"
+          note="Change roles or delete accounts. Super admin accounts and your own account can't be changed here."
+          action={
+            <Button type="button" onClick={() => setCreateOpen(true)}>
+              + Create account
+            </Button>
+          }
+        />
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
+              <TableHead className="pl-4">Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Created</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="pr-4 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {usersLoading && (
               <TableRow>
-                <TableCell colSpan={5} className="text-neutral-500">
+                <TableCell colSpan={5} className="pl-4 text-neutral-500">
                   Loading…
                 </TableCell>
               </TableRow>
             )}
             {(users ?? []).map(user => (
               <TableRow key={user.id}>
-                <TableCell>
+                <TableCell className="pl-4">
                   {user.name}
                   {user.id === currentUser?.id && (
                     <span className="ml-1 text-neutral-400">(you)</span>
@@ -192,7 +292,7 @@ export function UserManagementPage() {
                   )}
                 </TableCell>
                 <TableCell>{new Date(user.created_at).toLocaleDateString('en-GB')}</TableCell>
-                <TableCell className="text-right">
+                <TableCell className="pr-4 text-right">
                   {canDelete(user) && (
                     <Button
                       type="button"
@@ -214,72 +314,7 @@ export function UserManagementPage() {
         </Table>
       </section>
 
-      <section className="rounded-md border border-neutral-200 p-4">
-        <h2 className="mb-3 font-semibold">Create account</h2>
-        <form className="grid grid-cols-2 gap-3" onSubmit={handleCreate}>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="new-user-name">Name</Label>
-            <Input
-              id="new-user-name"
-              required
-              value={createForm.name}
-              onChange={e => setCreateForm(f => ({ ...f, name: e.target.value }))}
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="new-user-email">Email</Label>
-            <Input
-              id="new-user-email"
-              type="email"
-              required
-              value={createForm.email}
-              onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))}
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="new-user-password">Initial password</Label>
-            <Input
-              id="new-user-password"
-              type="password"
-              required
-              minLength={6}
-              value={createForm.password}
-              onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label>Role</Label>
-            {isSuperAdmin ? (
-              <Select
-                value={createForm.role}
-                onValueChange={next => {
-                  if (next === 'EMPLOYEE' || next === 'ADMIN') {
-                    setCreateForm(f => ({ ...f, role: next }))
-                  }
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="EMPLOYEE">{ROLE_LABELS.EMPLOYEE}</SelectItem>
-                  <SelectItem value="ADMIN">{ROLE_LABELS.ADMIN}</SelectItem>
-                </SelectContent>
-              </Select>
-            ) : (
-              <Badge variant="secondary" className="w-fit">
-                {ROLE_LABELS.EMPLOYEE}
-              </Badge>
-            )}
-          </div>
-          <div className="col-span-2">
-            <Button type="submit" disabled={createUser.isPending}>
-              {createUser.isPending ? 'Creating…' : 'Create account'}
-            </Button>
-          </div>
-        </form>
-      </section>
-
-    </div>
+      <CreateAccountDialog open={createOpen} onOpenChange={setCreateOpen} />
+    </main>
   )
 }
