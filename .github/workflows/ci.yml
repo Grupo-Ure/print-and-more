@@ -1,4 +1,4 @@
-# CI on every push/PR; release build + publish to GitHub Releases on version tags.
+# CI on pushes/PRs to main; release build + publish to GitHub Releases on version tags.
 #
 # Release ritual:
 #   1. Bump "version" in package.json, commit.
@@ -14,9 +14,10 @@ name: CI
 
 on:
   push:
-    branches: ['**']
+    branches: [main]
     tags: ['v*']
   pull_request:
+    branches: [main]
 
 jobs:
   checks:
