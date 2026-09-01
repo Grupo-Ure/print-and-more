@@ -12,6 +12,8 @@ if (!url || !key) {
 }
 
 export const supabase = createClient<Database>(url, key, {
-  // Desktop app: no OAuth redirects, so never scan the URL for session tokens.
-  auth: { detectSessionInUrl: false },
+  // Google OAuth returns the session in the URL fragment, so it has to be read
+  // on load. When this is packaged for Electron the callback arrives through a
+  // custom protocol instead and this goes back to false.
+  auth: { detectSessionInUrl: true },
 })

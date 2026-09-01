@@ -20,6 +20,14 @@ class AuthService {
     return data.session
   }
 
+  // Navigates the window to Google; nothing is returned here. The session
+  // arrives in the URL on the way back and is picked up by the client
+  // (detectSessionInUrl) which then fires onAuthStateChange.
+  async signInWithGoogle(): Promise<void> {
+    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' })
+    if (error) throw error
+  }
+
   async signOut(): Promise<void> {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
