@@ -27,5 +27,5 @@ protocols:
 # Where releases live and where installed apps look for updates (WP8).
 publish:
   provider: github
-  owner: arbeitsdenkmal
-  repo: Auftragssystem
+  owner: Grupo-Ure
+  repo: print-and-more
