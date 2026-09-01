@@ -76,9 +76,9 @@ export function NavbarUserMenu() {
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />
-        <p className="px-2 py-1 text-center text-[11px] text-muted-foreground select-none">
+        <div className="px-2 py-1 text-center text-sm text-muted-foreground select-none">
           Print And More v{__APP_VERSION__}
-        </p>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   )
