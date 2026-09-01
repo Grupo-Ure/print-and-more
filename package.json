@@ -3,7 +3,7 @@
   "description": "Order intake and production control for the Print And More shop",
   "author": "Grupo Ure",
   "private": true,
-  "version": "0.4.0",
+  "version": "1.0.0",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
