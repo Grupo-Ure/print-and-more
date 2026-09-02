@@ -5,6 +5,7 @@ import { authService } from '../services/authService'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import logo from '../assets/pam-logo-full.svg'
 
 // Brand mark — the fixed Google colours are required by their branding rules,
 // so this is a deliberate exception to the CSS-variable colour system.
@@ -99,6 +100,20 @@ export function Login() {
   return (
     <div className="flex min-h-svh flex-1 items-center justify-center bg-neutral-50 p-6 font-sans">
       <div className="flex w-full max-w-sm flex-col gap-6">
+        {/* Shrink-wrapped and centred; the version hangs off the right edge
+            absolutely so it never shifts the logo off centre. */}
+        <div className="relative mx-auto w-fit">
+          <img
+            src={logo}
+            alt="Print And More"
+            draggable={false}
+            className="h-10 w-auto select-none"
+          />
+          <span className="absolute top-0 left-full ml-1.5 text-[10px] leading-none text-muted-foreground select-none">
+            v{__APP_VERSION__}
+          </span>
+        </div>
+
         <div className="text-center">
           <h1 className="text-xl font-bold tracking-tight text-foreground">Welcome back</h1>
           <p className="text-sm font-normal text-muted-foreground">
