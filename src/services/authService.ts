@@ -57,6 +57,18 @@ class AuthService {
     return data.session
   }
 
+  /**
+   * Sets a new password and clears the first-login flag in the same call, so a
+   * forced change can never be dismissed without actually changing anything.
+   */
+  async changePassword(password: string): Promise<void> {
+    const { error } = await supabase.auth.updateUser({
+      password,
+      data: { must_change_password: false },
+    })
+    if (error) throw error
+  }
+
   async signOut(): Promise<void> {
     const { error } = await supabase.auth.signOut()
     if (error) throw error

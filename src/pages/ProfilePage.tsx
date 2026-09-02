@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Camera, Check, Loader2, Pencil, X } from 'lucide-react'
 import { Login } from '../components/Login'
+import { ChangePasswordDialog } from '../components/ChangePasswordDialog'
 import { UserAvatar } from '../components/UserAvatar'
 import { useToast } from '../components/Toast'
 import { useSupabaseSession } from '../hooks/useSupabaseSession'
@@ -190,6 +191,7 @@ function IdentityCard({ user }: { user: UserRow }) {
 export function ProfilePage() {
   const { session, loading: sessionLoading } = useSupabaseSession()
   const { data: user, isLoading: userLoading } = useCurrentUser()
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
 
   if (sessionLoading) return null
   if (!session) return <Login />
@@ -220,8 +222,16 @@ export function ProfilePage() {
               value={new Date(user.created_at).toLocaleDateString('en-GB')}
             />
           </div>
+
+          <div className="border-t border-neutral-200 px-4 py-3">
+            <Button type="button" variant="outline" onClick={() => setPasswordDialogOpen(true)}>
+              Change password
+            </Button>
+          </div>
         </section>
       </div>
+
+      <ChangePasswordDialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen} />
     </main>
   )
 }
