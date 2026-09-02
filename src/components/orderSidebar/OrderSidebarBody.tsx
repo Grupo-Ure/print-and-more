@@ -20,7 +20,6 @@ type Props = {
   isLoading: boolean
   isFetching: boolean
   isEmpty: boolean
-  onResetFilters: () => void
   onDuplicate: (orderId: string) => void
   duplicateBusy: boolean
   onDelete: (orderId: string) => void
@@ -33,7 +32,6 @@ export function OrderSidebarBody({
   isLoading,
   isFetching,
   isEmpty,
-  onResetFilters,
   onDuplicate,
   duplicateBusy,
   onDelete,
@@ -47,15 +45,8 @@ export function OrderSidebarBody({
     >
       {isLoading && <div className="p-4 text-neutral-500 text-[13px]">Loading...</div>}
       {isEmpty && (
-        <div className="p-4 text-neutral-500 text-[13px]">
-          <div className="mb-2">No orders found</div>
-          <button
-            type="button"
-            onClick={onResetFilters}
-            className="inline p-0 m-0 border-0 bg-transparent text-blue-600 hover:text-blue-700 text-xs underline underline-offset-2 cursor-pointer"
-          >
-            Reset filters
-          </button>
+        <div className="flex h-full items-center justify-center p-6 text-center text-sm text-neutral-500">
+          There are no orders yet.
         </div>
       )}
       {!isLoading &&

@@ -227,7 +227,6 @@ export function OrderSidebar() {
           isLoading={ordersQuery.isLoading}
           isFetching={ordersQuery.isFetching}
           isEmpty={isEmpty}
-          onResetFilters={actions.reset}
           onDuplicate={orderId => {
             void openDuplicateDialog(orderId)
           }}
