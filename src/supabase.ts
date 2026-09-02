@@ -12,8 +12,13 @@ if (!url || !key) {
 }
 
 export const supabase = createClient<Database>(url, key, {
-  // Google OAuth returns the session in the URL fragment, so it has to be read
-  // on load. When this is packaged for Electron the callback arrives through a
-  // custom protocol instead and this goes back to false.
-  auth: { detectSessionInUrl: true },
+  auth: {
+    // PKCE: the OAuth callback carries a single-use code rather than a session,
+    // so no token ever travels through a URL the OS can log. On the desktop the
+    // code arrives via pam://auth/callback and is exchanged explicitly.
+    flowType: 'pkce',
+    // Only the browser build can receive a callback in its own address bar; the
+    // Electron renderer is served from app://bundle and never navigates away.
+    detectSessionInUrl: window.pam == null,
+  },
 })

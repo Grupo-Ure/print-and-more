@@ -1,4 +1,13 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
+import { useSupabaseSession } from '../hooks/useSupabaseSession'
 
 export type AppView = 'orders' | 'stampStock' | 'textileStock' | 'userManagement' | 'profile'
 
@@ -45,6 +54,34 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   const clearActive = useCallback(() => {
     setSelection(INITIAL_SELECTION)
   }, [])
+
+  const { session } = useSupabaseSession()
+  const isSignedIn = session != null
+
+  // pam://order/<id>: main parks the id and nudges us. A link clicked while
+  // logged out simply waits — this collects it as soon as a session exists.
+  // Reading through consumePending() means a live push and a post-login pickup
+  // can never both act on the same link.
+  useEffect(() => {
+    const bridge = window.pam
+    if (!bridge || !isSignedIn) return
+
+    let alive = true
+    const collect = (): void => {
+      void bridge.deepLinks.consumePending().then(orderId => {
+        if (!alive || orderId == null) return
+        setView('orders')
+        setActiveOrder(orderId)
+      })
+    }
+
+    collect()
+    const unsubscribe = bridge.deepLinks.onOrderLink(collect)
+    return () => {
+      alive = false
+      unsubscribe()
+    }
+  }, [isSignedIn, setActiveOrder])
 
   const value = useMemo<NavigationValue>(
     () => ({

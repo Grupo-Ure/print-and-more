@@ -3,10 +3,37 @@ import { app, BrowserWindow, shell } from 'electron'
 // electron-updater ships CJS only — default-import and destructure.
 import updater from 'electron-updater'
 import { registerAppScheme, serveRendererBundle, RENDERER_ORIGIN, RENDERER_URL } from './appProtocol'
+import { findDeepLink, parseDeepLink, registerDeepLinkScheme, setPendingOrderId } from './deepLinks'
 import { registerIpcHandlers } from './ipc'
 import { restoreWindowState, trackWindowState } from './windowState'
 
 const EXTERNAL_URL = /^(https?|mailto):/i
+
+/**
+ * Routes an incoming pam:// link. Order links are parked as pending and the
+ * renderer is nudged to collect them — it may still be on the login screen, in
+ * which case it collects after sign-in instead.
+ */
+function dispatchDeepLink(rawUrl: string): void {
+  const link = parseDeepLink(rawUrl)
+  if (link == null) return
+
+  const win = BrowserWindow.getAllWindows()[0]
+  if (win) {
+    if (win.isMinimized()) win.restore()
+    win.focus()
+  }
+
+  if (link.verb === 'order') {
+    setPendingOrderId(link.orderId)
+    // Deliberately payload-free: the renderer always reads the id back through
+    // consume-pending, so a live push and a post-login pickup cannot both act.
+    win?.webContents.send('deeplink:order')
+    return
+  }
+
+  win?.webContents.send('deeplink:auth', link.result)
+}
 
 function createWindow(): void {
   const state = restoreWindowState()
@@ -59,18 +86,38 @@ function createWindow(): void {
   } else {
     void win.loadURL(RENDERER_URL)
   }
+
+  // Cold start straight from a pam:// link: the renderer has to be listening
+  // before the link can be delivered.
+  const initialLink = findDeepLink(process.argv)
+  if (initialLink != null) {
+    win.webContents.once('did-finish-load', () => dispatchDeepLink(initialLink))
+  }
 }
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
   registerAppScheme()
+  registerDeepLinkScheme()
 
-  app.on('second-instance', () => {
+  // Windows and Linux deliver a deep link as the second instance's command line.
+  app.on('second-instance', (_event, argv) => {
+    const link = findDeepLink(argv)
+    if (link != null) {
+      dispatchDeepLink(link)
+      return
+    }
     const win = BrowserWindow.getAllWindows()[0]
     if (!win) return
     if (win.isMinimized()) win.restore()
     win.focus()
+  })
+
+  // macOS delivers it as an event instead. Harmless to register elsewhere.
+  app.on('open-url', (event, url) => {
+    event.preventDefault()
+    dispatchDeepLink(url)
   })
 
   void app.whenReady().then(() => {

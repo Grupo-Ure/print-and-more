@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { CircleAlert } from 'lucide-react'
 import { authService } from '../services/authService'
@@ -56,6 +56,31 @@ export function Login() {
       setSubmitting(false)
     }
   }
+
+  // Desktop only: the system browser sends the PKCE code back through
+  // pam://auth/callback, which main forwards here.
+  useEffect(() => {
+    const bridge = window.pam
+    if (!bridge) return
+
+    return bridge.deepLinks.onAuthCallback(result => {
+      if (!result.ok) {
+        setLoginError(result.error)
+        setRedirecting(false)
+        return
+      }
+      void (async () => {
+        try {
+          await authService.completeOAuthSignIn(result.code)
+          void queryClient.invalidateQueries()
+        } catch (err) {
+          const raw = err instanceof Error ? err.message : ''
+          setLoginError(raw || 'Google sign-in failed. Please try again.')
+          setRedirecting(false)
+        }
+      })()
+    })
+  }, [queryClient])
 
   async function handleGoogleLogin() {
     setLoginError('')

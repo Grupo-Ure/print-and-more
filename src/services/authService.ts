@@ -20,12 +20,41 @@ class AuthService {
     return data.session
   }
 
-  // Navigates the window to Google; nothing is returned here. The session
-  // arrives in the URL on the way back and is picked up by the client
-  // (detectSessionInUrl) which then fires onAuthStateChange.
+  /**
+   * Desktop: Google refuses OAuth inside embedded app windows, so the sign-in
+   * page opens in the system browser and returns through pam://auth/callback.
+   * Browser: the ordinary redirect, completed by detectSessionInUrl.
+   */
   async signInWithGoogle(): Promise<void> {
-    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' })
+    const bridge = window.pam
+    if (!bridge) {
+      // Explicit, because the project's Site URL is the desktop deep link —
+      // falling back to it would send a browser session into pam://.
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin },
+      })
+      if (error) throw error
+      return
+    }
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { skipBrowserRedirect: true, redirectTo: 'pam://auth/callback' },
+    })
     if (error) throw error
+    if (!data.url) throw new Error('Sign-in could not be started.')
+
+    const opened = await bridge.openExternal(data.url)
+    if (!opened.ok) throw new Error(opened.error)
+  }
+
+  /** Completes the desktop flow: the PKCE code from the deep link → a session. */
+  async completeOAuthSignIn(code: string): Promise<Session> {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    if (error) throw error
+    if (!data.session) throw new Error('Sign-in completed but no session was returned')
+    return data.session
   }
 
   async signOut(): Promise<void> {
