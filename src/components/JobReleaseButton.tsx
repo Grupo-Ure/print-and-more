@@ -1,21 +1,9 @@
 import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useProductsByJobId } from '../queries/productQueries'
-import { useOrderById } from '../queries/orderQueries'
-import {
-  useForceReleaseToProduction,
-  useReleaseToProduction,
-  useSetJobStatus,
-} from '../queries/jobQueries'
-import { useIsAdmin } from '../queries/userQueries'
-import { useStockAvailability } from '../queries/stockQueries'
-import { InsufficientStockError } from '../services/productionReleaseService'
-import { isJobComplete, resolveEffectiveJob } from '../lib/jobShared'
-import { JOB_STATUS_META, WORKFLOW_STATUSES } from '../const/orderStatus'
+import { useJobRelease } from '../hooks/useJobRelease'
+import { JOB_STATUS_META } from '../const/orderStatus'
 import type { JobRow } from '../types/database'
-import { useToast } from './Toast'
-import { useConfirm } from './ConfirmDialog'
 import { Button } from './ui/button'
 import {
   Dialog,
@@ -38,148 +26,33 @@ type Props = {
   orderNumber: string | null
 }
 
+/**
+ * The job header's forward action: advances the job one workflow step, in the
+ * colour of the target status. Admins additionally get a dropdown with the
+ * force release while a completeness/stock gate is failing. Every rule lives
+ * in useJobRelease; this component is the presentation.
+ */
 export function JobReleaseButton({ job, orderNumber }: Props) {
-  const setJobStatus = useSetJobStatus()
-  const releaseToProduction = useReleaseToProduction()
-  const forceRelease = useForceReleaseToProduction()
-  const { showError } = useToast()
-  const confirm = useConfirm()
-  const { isAdmin } = useIsAdmin()
-  const orderQuery = useOrderById(job.order_id)
-  const productsQuery = useProductsByJobId(job.id)
-
+  const release = useJobRelease(job, orderNumber)
   const [forceDialogOpen, setForceDialogOpen] = useState(false)
   const [forceReason, setForceReason] = useState('')
 
-  const order = orderQuery.data
-  const orderIsQuote = order?.status === 'QUOTE'
-  const hasProducts = (productsQuery.data?.length ?? 0) > 0
-  const { data: shortages = [] } = useStockAvailability(job)
-  const stockBlocked = shortages.length > 0
-  const effectiveJob = order ? resolveEffectiveJob(job, order) : null
-  const complete = effectiveJob ? isJobComplete(effectiveJob, false, hasProducts) : false
-
-  const handleReleaseToPrepress = async () => {
-    const confirmed = await confirm({
-      title: 'Release this job to pre-press?',
-      confirmLabel: 'Release',
-    })
-    if (!confirmed) return
-    try {
-      await setJobStatus.mutateAsync({
-        id: job.id,
-        orderId: job.order_id,
-        status: 'PREPRESS',
-        history: { event_type: 'PREPRESS_READY_MANUAL' },
-      })
-    } catch {
-      showError('Status could not be updated')
-    }
-  }
-
-  const handleReleaseToProduction = async () => {
-    const confirmed = await confirm({
-      title: 'Release this job to production?',
-      description:
-        job.department === 'STAMP' || job.department === 'TEXTILE'
-          ? 'Stock deductions are booked automatically on release.'
-          : undefined,
-      confirmLabel: 'Release',
-    })
-    if (!confirmed) return
-    try {
-      await releaseToProduction.mutateAsync({
-        job,
-        orderId: job.order_id,
-        orderNumber,
-      })
-    } catch (err) {
-      // Lost the race against a concurrent release: the RPC rejected atomically.
-      if (err instanceof InsufficientStockError) {
-        showError('Not enough stock — the job was not released to production')
-      } else {
-        showError('Status could not be updated')
-      }
-    }
-  }
-
-  const handleMarkDone = async () => {
-    const confirmed = await confirm({
-      title: 'Mark job as done?',
-      confirmLabel: 'Mark done',
-    })
-    if (!confirmed) return
-    try {
-      await setJobStatus.mutateAsync({
-        id: job.id,
-        orderId: job.order_id,
-        status: 'DONE',
-        history: { event_type: 'MARKED_DONE' },
-      })
-    } catch {
-      showError('Status could not be updated')
-    }
-  }
+  // No next status (DONE) or the order is still a quote → nothing to advance.
+  if (release.target == null || release.label == null) return null
+  const target = release.target
 
   const handleForceRelease = async () => {
-    try {
-      await forceRelease.mutateAsync({
-        job,
-        orderId: job.order_id,
-        orderNumber,
-        reason: forceReason.trim(),
-      })
-      setForceDialogOpen(false)
-      setForceReason('')
-    } catch {
-      showError('Status could not be updated')
-    }
+    const released = await release.forceRelease(forceReason.trim())
+    if (!released) return
+    setForceDialogOpen(false)
+    setForceReason('')
   }
-
-  // The button advances the job to the next status in the workflow track; its
-  // color is that target status' central color (JOB_STATUS_META). No next
-  // status (DONE) → nothing to advance, so the button disappears.
-  const target = WORKFLOW_STATUSES[WORKFLOW_STATUSES.indexOf(job.status) + 1]
-
-  const label =
-    job.status === 'IN_SETUP' ? 'Release to Pre-Press' :
-    job.status === 'PREPRESS' ? 'Release to Production' :
-    job.status === 'IN_PRODUCTION' ? 'Mark job as done' :
-    null
-
-  if (!label || !target || orderIsQuote) return null
-
-  const pending = setJobStatus.isPending || releaseToProduction.isPending || forceRelease.isPending
-
-  // Customer approval blocks any release to production — including a forced
-  // one; only the completeness gate is overridable.
-  const approvalBlocked =
-    job.customer_approval_required === true && job.customer_approval_granted !== true
-
-  const disabled =
-    pending ||
-    (job.status === 'IN_SETUP' && !complete) ||
-    (job.status === 'PREPRESS' && (approvalBlocked || stockBlocked))
-
-  const handleClick = () => {
-    if (job.status === 'IN_SETUP') return void handleReleaseToPrepress()
-    if (job.status === 'PREPRESS') return void handleReleaseToProduction()
-    if (job.status === 'IN_PRODUCTION') return void handleMarkDone()
-  }
-
-  // The force-release override bypasses the completeness and stock gates, so
-  // the dropdown shows only while one of those gates is actually failing.
-  // Once the job validates (or the stock is topped up), the normal release
-  // covers it. Admin / super admin only.
-  const withDropdown =
-    isAdmin &&
-    ((job.status === 'IN_SETUP' && !complete) || (job.status === 'PREPRESS' && stockBlocked))
 
   const mainClassName = cn(
     'h-10 px-6 text-lg',
     JOB_STATUS_META[target].color,
     JOB_STATUS_META[target].hoverColor,
-    withDropdown ? 'rounded-l-full rounded-r-none' : 'ml-auto rounded-full',
+    release.canForceRelease ? 'rounded-l-full rounded-r-none' : 'ml-auto rounded-full',
   )
 
   const mainButton = (
@@ -187,14 +60,14 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
       type="button"
       variant="default"
       className={mainClassName}
-      disabled={disabled}
-      onClick={handleClick}
+      disabled={release.disabled}
+      onClick={() => void release.advance()}
     >
-      {pending ? '…' : label}
+      {release.pending ? '…' : release.label}
     </Button>
   )
 
-  if (!withDropdown) return mainButton
+  if (!release.canForceRelease) return mainButton
 
   return (
     <div className="ml-auto flex items-center">
@@ -209,7 +82,7 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
               JOB_STATUS_META[target].color,
               JOB_STATUS_META[target].hoverColor,
             )}
-            disabled={pending}
+            disabled={release.pending}
             aria-label="More release options"
           >
             <ChevronDown className="h-4 w-4" />
@@ -217,13 +90,13 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-auto min-w-64 p-0 overflow-hidden">
           <DropdownMenuItem
-            disabled={pending || approvalBlocked || !hasProducts}
+            disabled={release.pending || release.approvalBlocked || !release.hasProducts}
             onSelect={() => setForceDialogOpen(true)}
             className={cn('rounded-none px-3 py-2.5', JOB_STATUS_META[target].softHoverColor)}
           >
             <div className="flex flex-col">
               <span>Force release to Production…</span>
-              {!hasProducts && (
+              {!release.hasProducts && (
                 <span className="text-xs text-muted-foreground">
                   Requires at least one product
                 </span>
@@ -260,7 +133,7 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
               type="button"
               variant="outline"
               onClick={() => setForceDialogOpen(false)}
-              disabled={forceRelease.isPending}
+              disabled={release.pending}
             >
               Cancel
             </Button>
@@ -273,9 +146,9 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
                 JOB_STATUS_META.IN_PRODUCTION.hoverColor,
               )}
               onClick={() => void handleForceRelease()}
-              disabled={forceRelease.isPending || forceReason.trim() === ''}
+              disabled={release.pending || forceReason.trim() === ''}
             >
-              {forceRelease.isPending ? '…' : 'Force Release to Production'}
+              {release.pending ? '…' : 'Force Release to Production'}
             </Button>
           </DialogFooter>
         </DialogContent>

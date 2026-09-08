@@ -8,6 +8,7 @@ import { useOrderById } from '../queries/orderQueries'
 import { useProductCountsByOrderId } from '../queries/productQueries'
 import { useTimeLogMinutesByOrderId } from '../queries/timeLogQueries'
 import { AddJobButtons } from './AddJobButtons'
+import { JobContextMenu } from './JobContextMenu'
 import { cn } from '@/lib/utils'
 import { JOB_STATUS_META, WORKFLOW_STATUSES } from '../const/orderStatus'
 
@@ -46,13 +47,16 @@ export function JobList() {
         )}
         <ul className="flex flex-col flex-1 min-w-0 min-h-0 overflow-y-auto" aria-label="Jobs">
           {visibleJobs.map(job => (
+            <JobContextMenu key={job.id} job={job} orderNumber={order?.order_number ?? null}>
             <li
-              key={job.id}
               className={cn(
                 'flex items-center justify-between w-full cursor-pointer p-2',
                 job.id === activeJobId && 'bg-primary/10',
               )}
               onClick={() => setActiveJob(job.id)}
+              // Right-click selects the row too, so the detail view shows the
+              // job the menu is about to act on.
+              onContextMenu={() => setActiveJob(job.id)}
               title={`Order: ${job.job_number}`}
             >
               <span className="flex items-center gap-1.5 min-w-0">
@@ -79,6 +83,7 @@ export function JobList() {
               )}
               <JobStatusTrack status={job.status} />
             </li>
+            </JobContextMenu>
           ))}
         </ul>
     </nav>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useCancelJob, useDeleteJob, useEffectiveJob, useSetJobAssignee, useJobById } from '../queries/jobQueries'
+import { useEffectiveJob, useSetJobAssignee, useJobById } from '../queries/jobQueries'
+import { useJobRemoval } from '../hooks/useJobRemoval'
 import { useIsAdmin, useUsers } from '../queries/userQueries'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import { useOrderById } from '../queries/orderQueries'
@@ -11,7 +12,6 @@ import { EmployeeCombobox } from './fields/EmployeeCombobox'
 import { JobSettingsDialog } from './jobDetail/JobSettingsDialog'
 import { JobTimeLogsDialog } from './jobDetail/JobTimeLogsDialog'
 import { useToast } from './Toast'
-import { useConfirm } from './ConfirmDialog'
 import { CopyShopProducts } from './products/departments/CopyShopProducts'
 import { LfpProducts } from './products/departments/LfpProducts'
 import { StampProducts } from './products/departments/StampProducts'
@@ -42,12 +42,10 @@ export function JobDetail({
   const job = useJobById(activeOrderId, activeJobId) // raw row (override/inherit state)
   const effectiveJob = useEffectiveJob(activeOrderId, activeJobId) // inherited fields resolved
   const setJobAssignee = useSetJobAssignee()
-  const cancelJob = useCancelJob()
-  const deleteJob = useDeleteJob()
+  const removal = useJobRemoval(job ?? null)
   const { isAdmin } = useIsAdmin()
   const { data: users = [] } = useUsers()
   const { showError } = useToast()
-  const confirm = useConfirm()
   // Job settings and time logs open as dialogs from the header row so the
   // detail view keeps its space for the products.
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -58,34 +56,6 @@ export function JobDetail({
   const handleDownloadPdf = async () => {
     const ok = await generateAndDownloadPdf(job.id, order.id)
     if (!ok) showError('PDF could not be generated')
-  }
-
-  const handleCancel = async () => {
-    const confirmed = await confirm({
-      title: 'Cancel this job?',
-      confirmLabel: 'Cancel job',
-      destructive: true,
-    })
-    if (!confirmed) return
-    try {
-      await cancelJob.mutateAsync({ id: job.id, orderId: job.order_id })
-    } catch {
-      showError('Job could not be cancelled')
-    }
-  }
-
-  const handleDelete = async () => {
-    const confirmed = await confirm({
-      title: 'Permanently delete this job?',
-      confirmLabel: 'Delete job',
-      destructive: true,
-    })
-    if (!confirmed) return
-    try {
-      await deleteJob.mutateAsync({ id: job.id, orderId: job.order_id })
-    } catch {
-      showError('Job could not be deleted')
-    }
   }
 
   // Admin-only (also enforced by a DB trigger). Writes the ASSIGNEE_CHANGED
@@ -162,12 +132,12 @@ export function JobDetail({
               Download PDF
             </Button>
 
-            {job.status === 'IN_SETUP' ? (
+            {removal.canDelete ? (
               <Button
                 type="button"
                 variant="ghost"
-                disabled={deleteJob.isPending}
-                onClick={() => void handleDelete()}
+                disabled={removal.pending}
+                onClick={() => void removal.requestDelete()}
                 size="sm"
                 className="text-destructive hover:text-destructive"
               >
@@ -178,8 +148,8 @@ export function JobDetail({
               <Button
                 type="button"
                 variant="ghost"
-                disabled={job.is_cancelled || job.status === 'IN_PRODUCTION' || job.status === 'DONE' || cancelJob.isPending}
-                onClick={() => void handleCancel()}
+                disabled={!removal.canCancel || removal.pending}
+                onClick={() => void removal.requestCancel()}
                 size="sm"
                 className="text-destructive hover:text-destructive"
               >
