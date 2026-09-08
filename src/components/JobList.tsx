@@ -7,7 +7,7 @@ import { useJobsByOrderId } from '../queries/jobQueries'
 import { useOrderById } from '../queries/orderQueries'
 import { useProductCountsByOrderId } from '../queries/productQueries'
 import { useTimeLogMinutesByOrderId } from '../queries/timeLogQueries'
-import { AddJobButton } from './AddJobButton'
+import { AddJobButtons } from './AddJobButtons'
 import { cn } from '@/lib/utils'
 import { JOB_STATUS_META, WORKFLOW_STATUSES } from '../const/orderStatus'
 
@@ -40,7 +40,7 @@ export function JobList() {
   return (
     <nav className="flex flex-col gap-1 w-48 desktop:w-60 shrink-0">
         <h1>Jobs in this order</h1>
-        <AddJobButton />
+        <AddJobButtons />
         {visibleJobs.length === 0 && !jobsQuery.isLoading && (
           <p className="p-2 text-sm text-muted-foreground">No jobs yet.</p>
         )}

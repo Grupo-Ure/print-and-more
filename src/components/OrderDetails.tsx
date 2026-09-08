@@ -18,7 +18,6 @@ import { OrderFilesDialog } from './OrderFilesDialog'
 import { JobDetail } from './JobDetail'
 import { JobList } from './JobList'
 import { StatusManager } from './StatusManager'
-import { AddJobButton } from './AddJobButton'
 import { useOrderWorkspace } from '../context/order.context'
 import { useOrderSelection } from '../hooks/useOrderSelection'
 import { orderKeys, useArchiveOrder, useArchiveOrderWithCancelledJobs, useMarkOrderBilled, useOrderById, useSetOrderStatus, useUpdateOrder } from '../queries/orderQueries'
@@ -376,9 +375,13 @@ export function OrderDetails() {
               onUpdated={handleJobUpdated}
             />
           ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-2">
+            <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
               <p className="text-sm text-muted-foreground">No jobs yet.</p>
-              <AddJobButton />
+              {/* The department buttons live at the top of the job list; a
+                  finished/billed order has none, so no hint either. */}
+              {order.status !== 'FINISHED' && order.status !== 'BILLED' && (
+                <p className="text-sm text-muted-foreground">Pick a department on the left to add one.</p>
+              )}
             </div>
           )}
         </div>
