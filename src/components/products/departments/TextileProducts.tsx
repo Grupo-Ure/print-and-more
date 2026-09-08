@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/table'
 import { useProductEditor } from '../useProductEditor'
 import { AddProductButton } from '../AddProductButton'
+import { DELETE_ACTION_CLASS, EDIT_ACTION_CLASS } from '../columns'
 import { SectionHeader } from '../../ui/section-title'
 import { TextileProductDialog } from '../TextileProductDialog'
 import { motifLabel } from '../forms/textileTypes'
@@ -105,7 +106,7 @@ function DesignsTable({
             <TableHead className={SATELLITE_HEAD_CLASS}>Kind</TableHead>
             <TableHead className={SATELLITE_HEAD_CLASS}>Colour</TableHead>
             <TableHead className={SATELLITE_HEAD_CLASS}>Font</TableHead>
-            <TableHead className={SATELLITE_HEAD_CLASS}>Actions</TableHead>
+            {!isReadOnly && <TableHead className={SATELLITE_HEAD_CLASS}>Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -128,16 +129,18 @@ function DesignsTable({
               <TableCell className={SATELLITE_CELL_CLASS}>
                 {m.font_class ? [FONT_CLASS_LABELS[m.font_class] ?? m.font_class, m.font_name].filter(Boolean).join(' · ') : '—'}
               </TableCell>
-              <TableCell className={SATELLITE_CELL_CLASS}>
-                <div className="flex gap-2">
-                  <Button type="button" variant="ghost" size="icon-sm" title="Edit" aria-label="Edit" disabled={isReadOnly} onClick={() => onEdit(m)}>
-                    <Pencil />
-                  </Button>
-                  <Button type="button" variant="ghost" size="icon-sm" title="Delete" aria-label="Delete" disabled={isReadOnly} onClick={() => onDelete(m)}>
-                    <Trash2 />
-                  </Button>
-                </div>
-              </TableCell>
+              {!isReadOnly && (
+                <TableCell className={SATELLITE_CELL_CLASS}>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="ghost" size="icon-sm" className={EDIT_ACTION_CLASS} title="Edit" aria-label="Edit" onClick={() => onEdit(m)}>
+                      <Pencil />
+                    </Button>
+                    <Button type="button" variant="ghost" size="icon-sm" className={DELETE_ACTION_CLASS} title="Delete" aria-label="Delete" onClick={() => onDelete(m)}>
+                      <Trash2 />
+                    </Button>
+                  </div>
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>
@@ -315,7 +318,9 @@ export function TextileProducts({ job, jobStatus, orderFiles = [] }: Props) {
                   <TableHead className={SATELLITE_HEAD_CLASS}>Garment</TableHead>
                   <TableHead className={SATELLITE_HEAD_CLASS}>Quantity</TableHead>
                   <TableHead className={SATELLITE_HEAD_CLASS}>Designs</TableHead>
-                  <TableHead className={SATELLITE_HEAD_CLASS}>Actions</TableHead>
+                  {/* No actions column while read-only: a disabled icon would
+                      let the click fall through to the row (pointer-events: none). */}
+                  {!productEditor.isReadOnly && <TableHead className={SATELLITE_HEAD_CLASS}>Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -330,16 +335,18 @@ export function TextileProducts({ job, jobStatus, orderFiles = [] }: Props) {
                     <TableCell className={SATELLITE_CELL_CLASS}>
                       <span className="tabular-nums">{(linksByProduct[prod.id] ?? []).length}</span>
                     </TableCell>
-                    <TableCell className={SATELLITE_CELL_CLASS}>
-                      <div className="flex gap-2">
-                        <Button type="button" variant="ghost" size="icon-sm" title="Edit" aria-label="Edit" disabled={productEditor.isReadOnly} onClick={e => { e.stopPropagation(); productEditor.openEdit(prod) }}>
-                          <Pencil />
-                        </Button>
-                        <Button type="button" variant="ghost" size="icon-sm" title="Delete" aria-label="Delete" disabled={productEditor.isReadOnly} onClick={e => { e.stopPropagation(); productEditor.handleDelete(prod.id) }}>
-                          <Trash2 />
-                        </Button>
-                      </div>
-                    </TableCell>
+                    {!productEditor.isReadOnly && (
+                      <TableCell className={SATELLITE_CELL_CLASS}>
+                        <div className="flex gap-2">
+                          <Button type="button" variant="ghost" size="icon-sm" className={EDIT_ACTION_CLASS} title="Edit" aria-label="Edit" onClick={e => { e.stopPropagation(); productEditor.openEdit(prod) }}>
+                            <Pencil />
+                          </Button>
+                          <Button type="button" variant="ghost" size="icon-sm" className={DELETE_ACTION_CLASS} title="Delete" aria-label="Delete" onClick={e => { e.stopPropagation(); productEditor.handleDelete(prod.id) }}>
+                            <Trash2 />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

@@ -52,8 +52,12 @@ export function ProductTable({
   columns: ColumnDef<LoadedProduct>[]
   meta: ProductTableMeta
 }) {
+  // A disabled button gets pointer-events: none, so a click on a greyed-out
+  // icon would fall through to the row and open the dialog anyway. A read-only
+  // table therefore has no actions column at all.
+  const editableColumns = meta.isReadOnly ? columns.filter(column => column.id !== 'actions') : columns
   const hasShortages = (meta.stockShortages?.size ?? 0) > 0
-  const effectiveColumns = hasShortages ? [...columns, stockAlertColumn()] : columns
+  const effectiveColumns = hasShortages ? [...editableColumns, stockAlertColumn()] : editableColumns
 
   // eslint-disable-next-line react-hooks/incompatible-library -- useReactTable returns non-memoizable functions; React Compiler intentionally skips this component
   const table = useReactTable({

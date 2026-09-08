@@ -95,6 +95,12 @@ export function stockAlertColumn(): ColumnDef<LoadedProduct> {
   }
 }
 
+/** Icon-button colours for the row actions — shared with the hand-written textile tables. */
+export const EDIT_ACTION_CLASS =
+  'cursor-pointer text-blue-700 hover:bg-transparent hover:text-blue-400 dark:text-blue-500 dark:hover:bg-transparent dark:hover:text-blue-600'
+export const DELETE_ACTION_CLASS =
+  'cursor-pointer text-red-700 hover:bg-transparent hover:text-red-400 dark:text-red-500 dark:hover:bg-transparent dark:hover:text-red-600'
+
 /** Actions column: Edit / Delete (reads table meta). */
 export function actionsColumn(): ColumnDef<LoadedProduct> {
   return {
@@ -109,7 +115,7 @@ export function actionsColumn(): ColumnDef<LoadedProduct> {
             type="button"
             variant="ghost"
             size="icon-sm"
-            className="text-blue-600 hover:bg-transparent hover:text-blue-800 dark:text-blue-500 dark:hover:bg-transparent dark:hover:text-blue-600"
+            className={EDIT_ACTION_CLASS}
             title="Edit"
             aria-label="Edit"
             disabled={meta.isReadOnly}
@@ -124,7 +130,7 @@ export function actionsColumn(): ColumnDef<LoadedProduct> {
             type="button"
             variant="ghost"
             size="icon-sm"
-            className="text-red-600 hover:bg-transparent hover:text-red-800 dark:text-red-500 dark:hover:bg-transparent dark:hover:text-red-600"
+            className={DELETE_ACTION_CLASS}
             title="Delete"
             aria-label="Delete"
             disabled={meta.isReadOnly}
