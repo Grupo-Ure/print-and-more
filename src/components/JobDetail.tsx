@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useCancelJob, useDeleteJob, useEffectiveJob, useSetJobAssignee, useJobById } from '../queries/jobQueries'
 import { useIsAdmin, useUsers } from '../queries/userQueries'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
@@ -7,9 +8,8 @@ import { jobDepartmentLabel } from '../const/departmentAbbreviation'
 import { customerMeetsPrepressContact } from '../lib/customer'
 import { type JobRow } from '../types/database'
 import { EmployeeCombobox } from './fields/EmployeeCombobox'
-import { JobSections } from './jobDetail/JobSections'
-import { JobSettingsSection } from './jobDetail/JobSettingsSection'
-import { JobTimeLogs } from './JobTimeLogs'
+import { JobSettingsDialog } from './jobDetail/JobSettingsDialog'
+import { JobTimeLogsDialog } from './jobDetail/JobTimeLogsDialog'
 import { useToast } from './Toast'
 import { useConfirm } from './ConfirmDialog'
 import { CopyShopProducts } from './products/departments/CopyShopProducts'
@@ -24,7 +24,7 @@ import { JOB_STATUS_META } from '../const/orderStatus'
 import { JobReleaseButton } from './JobReleaseButton'
 import { JobProductionBanner } from './JobProductionBanner'
 import { Button } from './ui/button'
-import { Ban, FileDown, Trash2 } from 'lucide-react'
+import { Ban, Clock, FileDown, SlidersHorizontal, Trash2 } from 'lucide-react'
 import './WorkArea.css'
 import { Separator } from './ui/separator'
 
@@ -48,6 +48,10 @@ export function JobDetail({
   const { data: users = [] } = useUsers()
   const { showError } = useToast()
   const confirm = useConfirm()
+  // Job settings and time logs open as dialogs from the header row so the
+  // detail view keeps its space for the products.
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [timeLogsOpen, setTimeLogsOpen] = useState(false)
 
   if (!order || !job || !effectiveJob) return null
 
@@ -134,6 +138,24 @@ export function JobDetail({
               type="button"
               variant="ghost"
               size="sm"
+              onClick={() => setSettingsOpen(true)}
+            >
+              <SlidersHorizontal />
+              Job settings
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setTimeLogsOpen(true)}
+            >
+              <Clock />
+              Time logs
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => void handleDownloadPdf()}
             >
               <FileDown />
@@ -182,33 +204,6 @@ export function JobDetail({
           (job.department === 'LASER_ENGRAVING' && job.type !== 'OTHER_LASER')) && (
           <p className="text-xs italic text-muted-foreground">For auto-PREPRESS: Customer needs name and email or phone.</p>
         )}
-      <JobSections
-        sections={[
-          {
-            key: 'settings',
-            title: 'Job Settings',
-            content: (
-              <JobSettingsSection
-                key={job.id}
-                order={order}
-                job={job}
-                effectiveJob={effectiveJob}
-                orderFiles={orderFiles}
-                onOrderFilesChanged={onOrderFilesChanged}
-                onUpdated={onUpdated}
-              />
-            ),
-          },
-          {
-            key: 'time-logs',
-            title: 'Time Logs',
-            content: <JobTimeLogs key={job.id} orderId={order.id} jobId={job.id} disabled={isDone} />,
-          },
-        ]}
-      />
-
-      <Separator/>
-
       <section>
         {job.department === 'LFP' && (
           <LfpProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
@@ -234,6 +229,24 @@ export function JobDetail({
           <TextileProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
         )}
       </section>
+
+      <JobSettingsDialog
+        order={order}
+        job={job}
+        effectiveJob={effectiveJob}
+        orderFiles={orderFiles}
+        onOrderFilesChanged={onOrderFilesChanged}
+        onUpdated={onUpdated}
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+      />
+      <JobTimeLogsDialog
+        orderId={order.id}
+        jobId={job.id}
+        disabled={isDone}
+        open={timeLogsOpen}
+        onOpenChange={setTimeLogsOpen}
+      />
     </div>
   )
 }

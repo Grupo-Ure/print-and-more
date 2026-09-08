@@ -74,24 +74,24 @@ export function JobTimeLogs({
   }
 
   return (
-    // Full width inside the compact tab panel; fixed column width in the
-    // desktop side-by-side layout (stable, never content-driven).
-    <div className="flex w-full desktop:w-96 flex-col gap-2">
-      <div className="text-[13px]">
+    // Fills the height its host (the time-logs dialog) grants: the list
+    // scrolls inside while the total and the entry form stay in place.
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      <div className="text-sm">
         Total: <span className="font-semibold text-foreground">{formatMinutes(total)}</span>
       </div>
 
-      {/* Fixed-height viewport: the list scrolls inside; the section never
-          grows or shrinks with the number of entries. */}
-      <div className="h-28 shrink-0 overflow-y-auto px-2 border-gray-200 border rounded-md flex items-center justify-center">
+      {/* min-h keeps the empty and loading states from collapsing the dialog;
+          flex-1 + overflow lets a long list scroll within the host's max height. */}
+      <div className="min-h-24 flex-1 overflow-y-auto">
         {logsQuery.isLoading ? (
-          <p className="p-1 text-sm! text-muted-foreground">Loading…</p>
+          <p className="text-sm! text-muted-foreground">Loading…</p>
         ) : logs.length === 0 ? (
-          <p className="p-1 text-sm! text-muted-foreground">No time logged yet.</p>
+          <p className="text-sm! text-muted-foreground">No time logged yet.</p>
         ) : (
-          <ul className="flex flex-col divide-y divide-border h-full w-full" aria-label="Time logs">
+          <ul className="divide-y divide-border" aria-label="Time logs">
           {logs.map(log => (
-            <li key={log.id} className="group grid grid-cols-[1fr_1fr_2fr_auto] items-center gap-2 py-1 border-gray-200!">
+            <li key={log.id} className="group grid grid-cols-[1fr_1fr_2fr_auto] items-center gap-2 py-1.5 text-sm">
               <span className="shrink-0 font-medium tabular-nums">{formatMinutes(log.minutes)}</span>
               <span className="shrink-0 text-muted-foreground tabular-nums">
                 {formatDateDe(log.created_at)}
@@ -131,7 +131,7 @@ export function JobTimeLogs({
       </div>
 
       {!disabled && (
-        <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t pt-3">
           <Input
             type="number"
             min={1}
