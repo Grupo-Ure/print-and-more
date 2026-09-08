@@ -5,7 +5,7 @@ import updater from 'electron-updater'
 import { registerAppScheme, serveRendererBundle, RENDERER_ORIGIN, RENDERER_URL } from './appProtocol'
 import { findDeepLink, parseDeepLink, registerDeepLinkScheme, setPendingOrderId } from './deepLinks'
 import { registerIpcHandlers } from './ipc'
-import { restoreWindowState, trackWindowState } from './windowState'
+import { defaultWindowSize, restoreWindowState, trackWindowState } from './windowState'
 
 const EXTERNAL_URL = /^(https?|mailto):/i
 
@@ -37,10 +37,12 @@ function dispatchDeepLink(rawUrl: string): void {
 
 function createWindow(): void {
   const state = restoreWindowState()
+  // Saved bounds win; only a window without them gets the Full HD default.
+  const size = state.bounds ?? defaultWindowSize()
 
   const win = new BrowserWindow({
-    width: state.bounds?.width ?? 1280,
-    height: state.bounds?.height ?? 800,
+    width: size.width,
+    height: size.height,
     x: state.bounds?.x,
     y: state.bounds?.y,
     minWidth: 1024,

@@ -10,7 +10,23 @@ export type WindowState = {
 // First run (no saved state): open maximized at a sane un-maximize size.
 const DEFAULT_STATE: WindowState = { bounds: null, isMaximized: true }
 
+// The shop's smallest monitor is a 24" Full HD panel, so a fresh window is
+// sized to that resolution. The layout is designed against this size.
+const DEFAULT_WINDOW_SIZE = { width: 1920, height: 1080 } as const
+
 const SAVE_DEBOUNCE_MS = 500
+
+/**
+ * Size for a window without saved bounds: Full HD, clamped to the primary
+ * display's work area so it never overflows a smaller screen or the taskbar.
+ */
+export function defaultWindowSize(): { width: number; height: number } {
+  const { workAreaSize } = screen.getPrimaryDisplay()
+  return {
+    width: Math.min(DEFAULT_WINDOW_SIZE.width, workAreaSize.width),
+    height: Math.min(DEFAULT_WINDOW_SIZE.height, workAreaSize.height),
+  }
+}
 
 function stateFilePath(): string {
   return path.join(app.getPath('userData'), 'window-state.json')
