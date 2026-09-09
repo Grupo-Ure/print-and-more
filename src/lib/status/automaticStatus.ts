@@ -1,5 +1,5 @@
 import type { Customer, JobStatus, OrderStatus, JobRow } from '../../types/database'
-import { autoPrepressAllowed, isJobComplete } from '../jobShared'
+import { autoPrepressAllowed, isDeadlineMissed, isJobComplete } from '../jobShared'
 import { customerMeetsPrepressContact } from '../customer'
 
 /**
@@ -10,6 +10,9 @@ import { customerMeetsPrepressContact } from '../customer'
  *
  * Rules:
  * - Not complete → `IN_SETUP`.
+ * - Missed deadline → an `IN_SETUP` job stays `IN_SETUP` (entry gate only; a job
+ *   already in `PREPRESS` is not retracted). This is the one clock dependency —
+ *   `isDeadlineMissed` compares against today's date.
  * - Structured (auto-prepress-eligible) type → advance to `PREPRESS` when the
  *   customer-contact requirement is met, else `IN_SETUP` (auto-advance + retract).
  * - Free-form type (OTHER department, OTHER_* types) → never auto-advances, but a
@@ -32,6 +35,9 @@ export function deriveAutomaticStatus(
     orderIsQuote && status === 'PREPRESS' ? 'IN_SETUP' : status
 
   if (!isJobComplete(job, orderIsQuote, hasContent)) return 'IN_SETUP'
+
+  // A missed deadline blocks the *entry* into pre-press; it never pulls a job back.
+  if (job.status === 'IN_SETUP' && isDeadlineMissed(job)) return 'IN_SETUP'
 
   if (autoPrepressAllowed(job)) {
     return customerMeetsPrepressContact(customer) ? cap('PREPRESS') : 'IN_SETUP'

@@ -1,7 +1,7 @@
 import { useConfirm } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
 import { WORKFLOW_STATUSES } from '../const/orderStatus'
-import { isJobComplete, resolveEffectiveJob } from '../lib/jobShared'
+import { isDeadlineMissed, isJobComplete, resolveEffectiveJob } from '../lib/jobShared'
 import {
   useForceReleaseToProduction,
   useReleaseToProduction,
@@ -31,7 +31,9 @@ export type JobRelease = {
   disabled: boolean
   hasProducts: boolean
   approvalBlocked: boolean
-  /** Admins may bypass the completeness/stock gates while one of them is failing. */
+  /** The release to pre-press is blocked because the effective deadline has passed. */
+  deadlineBlocked: boolean
+  /** Admins may bypass the completeness/deadline/stock gates while one of them is failing. */
   canForceRelease: boolean
   /** Confirms with the user, then advances the job one workflow step. */
   advance: () => Promise<void>
@@ -41,8 +43,8 @@ export type JobRelease = {
 
 /**
  * The single forward action of a job's workflow — IN_SETUP → PREPRESS →
- * IN_PRODUCTION → DONE — with its gates (completeness, customer approval,
- * stock) and confirmations. Shared by the release button in the job header
+ * IN_PRODUCTION → DONE — with its gates (completeness, missed deadline,
+ * customer approval, stock) and confirmations. Shared by the release button in the job header
  * and the job list's context menu so both enforce the same rules.
  */
 export function useJobRelease(job: JobRow, orderNumber: string | null): JobRelease {
@@ -62,6 +64,8 @@ export function useJobRelease(job: JobRow, orderNumber: string | null): JobRelea
   const stockBlocked = shortages.length > 0
   const effectiveJob = order ? resolveEffectiveJob(job, order) : null
   const complete = effectiveJob ? isJobComplete(effectiveJob, false, hasProducts) : false
+  // Entering pre-press is refused while the (effective) deadline lies in the past.
+  const deadlineBlocked = effectiveJob ? isDeadlineMissed(effectiveJob) : false
 
   // The next status on the workflow track — none once the job is DONE.
   // Nothing advances while the order is still a quote.
@@ -81,14 +85,17 @@ export function useJobRelease(job: JobRow, orderNumber: string | null): JobRelea
 
   const disabled =
     pending ||
-    (job.status === 'IN_SETUP' && !complete) ||
+    (job.status === 'IN_SETUP' && (!complete || deadlineBlocked)) ||
     (job.status === 'PREPRESS' && (approvalBlocked || stockBlocked))
 
   // The override is offered only while a gate it can bypass is actually
-  // failing; once the job validates the normal release covers it.
+  // failing; once the job validates the normal release covers it. The missed
+  // deadline counts as such a gate: the emergency path may still push a late
+  // job straight into production (recorded with a reason).
   const canForceRelease =
     isAdmin &&
-    ((job.status === 'IN_SETUP' && !complete) || (job.status === 'PREPRESS' && stockBlocked))
+    ((job.status === 'IN_SETUP' && (!complete || deadlineBlocked)) ||
+      (job.status === 'PREPRESS' && stockBlocked))
 
   const releaseToPrepress = async (): Promise<void> => {
     const confirmed = await confirm({
@@ -171,6 +178,7 @@ export function useJobRelease(job: JobRow, orderNumber: string | null): JobRelea
     disabled,
     hasProducts,
     approvalBlocked,
+    deadlineBlocked,
     canForceRelease,
     advance,
     forceRelease,
