@@ -15,13 +15,11 @@ import { useCreateOrder } from '../queries/orderQueries'
 import { useInfiniteCustomers } from '../queries/customerQueries'
 import { useOrderWorkspace } from '../context/order.context'
 import { useOrderSelection } from '../hooks/useOrderSelection'
-import type { Customer, PaymentMethod } from '../types/database'
-import { PaymentSelect } from './fields/PaymentSelect'
+import type { Customer } from '../types/database'
 
 export function NewOrderDialog() {
   const [open, setOpen] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('INVOICE')
   const [searchInput, setSearchInput] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
 
@@ -32,7 +30,6 @@ export function NewOrderDialog() {
   useEffect(() => {
     if (!open) {
       setSelectedCustomer(null)
-      setPaymentMethod('INVOICE')
       setSearchInput('')
       setDebouncedQuery('')
       createOrder.reset()
@@ -50,14 +47,13 @@ export function NewOrderDialog() {
   const handleSubmit = async () => {
     if (!selectedCustomer) return
     try {
-      // order_number is generated server-side via DB default; the client omits it.
+      // order_number and payment_method come from DB defaults; the client omits them.
       const payload = {
         customer_id: selectedCustomer.id,
         status: 'QUOTE',
         deadline: null,
         delivery: 'PICKUP',
         priority: 'NORMAL',
-        payment_method: paymentMethod,
       } as Parameters<typeof createOrder.mutateAsync>[0]
       const order = await createOrder.mutateAsync(payload)
       setActiveOrder(order.id)
@@ -78,8 +74,8 @@ export function NewOrderDialog() {
             New Order
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-md p-4 sm:h-2/3 flex flex-col">
-          <DialogHeader className='flex-initial'>
+        <DialogContent className="max-w-md p-4">
+          <DialogHeader>
             <DialogTitle>New Order</DialogTitle>
           </DialogHeader>
 
@@ -89,7 +85,7 @@ export function NewOrderDialog() {
             </p>
           )}
 
-          <section className="flex flex-col gap-2 overflow-y-hidden px-2 flex-1">
+          <section className="flex flex-col gap-2 px-2">
             <h2 className="uppercase tracking-[0.06em] text-muted-foreground">
               Customer
             </h2>
@@ -144,13 +140,6 @@ export function NewOrderDialog() {
             )}
           </section>
 
-          <section className="flex flex-col gap-2 px-2">
-            <h2 className="uppercase tracking-[0.06em] text-muted-foreground">
-              Payment Method
-            </h2>
-            <PaymentSelect value={paymentMethod} onChange={setPaymentMethod} />
-          </section>
-
           <DialogFooter>
             <Button
               type="button"
@@ -201,7 +190,7 @@ function CustomerList({ query, onSelect }: { query: string; onSelect: (customer:
   }, [scrollEl, sentinelEl, hasNextPage, isFetchingNextPage, fetchNextPage])
 
   return (
-    <div ref={setScrollEl} className="overflow-y-auto rounded-md">
+    <div ref={setScrollEl} className="max-h-80 overflow-y-auto rounded-md">
       {isFetching && !isFetchingNextPage && (
         <p className="px-3 py-2 text-xs text-muted-foreground">Searching…</p>
       )}
