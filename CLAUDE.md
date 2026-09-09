@@ -45,8 +45,8 @@ identifiers, names, or strings.
 - The product name **"Auftragssystem"** is a proper noun (repo/product name) and
   is left as-is.
 
-**Issue tracking** — work is tracked in **Jira**, project/space **Markus**. When
-asked about tasks/tickets, look there first.
+**Issue tracking** — work is tracked in **Jira**, project **Print And More**
+(issue key prefix `MKS`). When asked about tasks/tickets, look there first.
 
 **Where things go**
 - **README.md** (this file) — stable architecture, domain model, workflows. No
@@ -251,6 +251,17 @@ Flow: `QUOTE` → `INCOMPLETE` → `PREPRESS_READY` → `PRODUCTION_READY` → `
     release consumed the stock first). The admin **force release** bypasses the
     shortage: stock is floored at 0 and movements record what was actually
     deducted.
+- **Release to pre-press** requires a complete job (`isJobComplete` in
+  `jobShared.ts`: an *effective* deadline and at least one product — delivery
+  and priority always resolve via the order) and is refused while the
+  effective deadline lies in the past (`isDeadlineMissed`). While a job is held
+  in setup, `JobProductionBanner` names every unmet requirement (no deadline,
+  missed deadline, no product) above the disabled release button, the order's
+  deadline field pulses red until a deadline is set (`DeadlinePicker`
+  `attention`), and the automatic advance keeps the job in setup. Nothing is required while the
+  order is still a quote. The deadline gate is entry-only — a job already in
+  pre-press is not retracted when its deadline passes. The admin **force
+  release** bypasses both gates.
 - **Customer approval** blocks only *release to production* (cancel/delete have
   their own busy flags).
 - **ERP export** — `erp_exports` (`order_id`, `mode` (`SINGLE`|`BULK`),
