@@ -138,7 +138,8 @@ export function JobSettingsSection({
             }
           }}
         />
-        {hasSeparateDeadline && validationErrors.termin && <p className="text-destructive text-xs mt-1">{validationErrors.termin}</p>}
+        {/* Shown while inheriting too: an order without a deadline leaves the job without one. */}
+        {validationErrors.termin && <p className="text-destructive text-xs mt-1">{validationErrors.termin}</p>}
       </div>
 
       <label className="flex items-center gap-2 text-[13px] select-none">
