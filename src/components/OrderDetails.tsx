@@ -103,6 +103,17 @@ export function OrderDetails() {
     return visibleJobs.find(job => job.id === activeJobId) ?? null
   }, [visibleJobs, activeJobId])
 
+  // The active job is held in setup for want of a deadline it inherits from the
+  // order (same condition as its "no deadline set" banner) — guide the user to
+  // the order's deadline field.
+  const deadlineRequired =
+    order != null &&
+    order.status !== 'QUOTE' &&
+    order.deadline == null &&
+    activeJob != null &&
+    activeJob.status === 'IN_SETUP' &&
+    activeJob.deadline == null
+
   // Pick a default job tab when ?sub= is unset or no longer matches a visible row.
   useEffect(() => {
     if (visibleJobs.length === 0) {
@@ -358,7 +369,7 @@ export function OrderDetails() {
       />
       <Separator />
 
-      <OrderSettings order={order} onSave={saveOrderHeader} />
+      <OrderSettings order={order} onSave={saveOrderHeader} deadlineRequired={deadlineRequired} />
 
       <Separator />
 
@@ -653,9 +664,11 @@ function OrderLifecycleButton({ status, paymentMethod, allJobsDone, pending, onS
 type OrderSettingsProps = {
   order: OrderDetailRow
   onSave: (patch: OrderHeaderPatch) => void
+  /** A job is blocked for want of the order's deadline — highlight the field. */
+  deadlineRequired: boolean
 }
 
-function OrderSettings({ order, onSave }: OrderSettingsProps) {
+function OrderSettings({ order, onSave, deadlineRequired }: OrderSettingsProps) {
   const [headerDeadline, setHeaderDeadline] = useState('')
   const [headerDelivery, setHeaderDelivery] = useState<DeliveryChoice>('PICKUP')
   const [headerPriority, setHeaderPriority] = useState<Priority>('NORMAL')
@@ -688,6 +701,8 @@ function OrderSettings({ order, onSave }: OrderSettingsProps) {
     <section className="flex flex-wrap items-center gap-x-4 gap-y-1" aria-label="Order meta">
       <DeadlinePicker
         value={headerDeadline}
+        // Judged on the local value so the ring settles the moment a date is picked.
+        attention={deadlineRequired && headerDeadline === ''}
         onChange={value => {
           setHeaderDeadline(value ?? '')
           const snapshot = toDateOnly(headerSnapshot.current.deadline) ?? ''
