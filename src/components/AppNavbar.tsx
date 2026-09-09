@@ -7,7 +7,7 @@ import { useIsAdmin, useIsSuperAdmin } from '../queries/userQueries'
 import { NavbarUserMenu } from './NavbarUserMenu'
 import { useNavigation, type AppView } from '../context/navigation.context'
 import { cn } from '@/lib/utils'
-import logo from '../assets/pam-logo-full.svg'
+import logo from '../assets/pam-logo-full.png'
 
 type NavItem = {
   view: AppView
