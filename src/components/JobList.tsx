@@ -42,9 +42,12 @@ export function JobList() {
     <nav className="flex flex-col gap-1 w-48 desktop:w-60 shrink-0">
         <h1>Jobs in this order</h1>
         <AddJobButtons />
-        {visibleJobs.length === 0 && !jobsQuery.isLoading && (
-          <p className="p-2 text-sm text-muted-foreground">No jobs yet.</p>
-        )}
+        {visibleJobs.length === 0 && !jobsQuery.isLoading ? (
+          // Takes the list's space so the hint sits in the middle of the column.
+          <p className="flex flex-1 items-center justify-center p-2 text-center text-sm text-muted-foreground">
+            No jobs yet.
+          </p>
+        ) : (
         <ul className="flex flex-col flex-1 min-w-0 min-h-0 overflow-y-auto" aria-label="Jobs">
           {visibleJobs.map(job => (
             <JobContextMenu key={job.id} job={job} orderNumber={order?.order_number ?? null}>
@@ -86,6 +89,7 @@ export function JobList() {
             </JobContextMenu>
           ))}
         </ul>
+        )}
     </nav>
   )
 }
