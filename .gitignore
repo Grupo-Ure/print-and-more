@@ -13,6 +13,8 @@ dist-electron
 dist-ssr
 release
 supabase/.temp/
+test-results
+playwright-report
 *.local
 
 # Editor directories and files

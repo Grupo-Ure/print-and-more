@@ -9,7 +9,7 @@ export default defineConfig([
   globalIgnores(['dist', 'dist-electron', 'supabase/.temp/**']),
   {
     files: ['**/*.{ts,tsx}'],
-    ignores: ['electron/**'],
+    ignores: ['electron/**', 'e2e/**', 'playwright.config.ts'],
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
@@ -21,7 +21,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['electron/**/*.ts'],
+    files: ['electron/**/*.ts', 'e2e/**/*.ts', 'playwright.config.ts'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
     languageOptions: {
       globals: globals.node,
