@@ -1,9 +1,10 @@
 # Auftragssystem — Order Intake & Production Control
 
-Internal web tool for a print and advertising shop. Used by a small team to
-manage customer orders across multiple production departments: order intake,
-status tracking through the production workflow, inventory, customer approvals,
-history logging, and ERP export.
+Internal desktop tool for a print and advertising shop (product name in the
+app: **Print And More**). Used by a small team to manage customer orders
+across multiple production departments: order intake, status tracking
+through the production workflow, inventory, customer approvals, time
+logging, history logging, and ERP export.
 
 This file describes **architecture, domain model, and workflows** — the stable
 properties of the application. For the **current implementation status** (what
@@ -16,9 +17,9 @@ the main file to consult whenever you need to know the architectural patterns
 we follow or should follow — coding standards, per-role skill docs, and
 reference material. Read it (and the docs it links) before making changes.
 
-> This file is also the project's `CLAUDE.md` (symlinked) — the conventions
-> below apply to AI assistants working in this repo as well as to human
-> contributors.
+> This file is the project's `CLAUDE.md` and doubles as its README — the
+> conventions below apply to AI assistants working in this repo as well as
+> to human contributors.
 
 ## Working with this project
 
@@ -37,9 +38,10 @@ identifiers, names, or strings.
   types, enum/check values, functions) and [.plans/I18N_MAP.md](.plans/I18N_MAP.md)
   (UI display strings → i18next).
 - **Known remaining German** (deferred, tracked — not "the convention"):
-  1. **Stored enum VALUE strings** (e.g. stamp `color='SCHWARZ'`, fold
-     `'MITTELFALZ'`, installation `'MIT'`). Columns are plain `text`; UI labels
-     already show English. Deferred to a shop-confirmed value-rename pass.
+  1. **Stored enum VALUE strings** inside product specs (e.g. binding colour
+     `'SCHWARZ'`, fold `'MITTELFALZ'`, the material list in
+     `src/config/materialien.ts`). Columns are plain `text`; UI labels already
+     show English. Deferred to a shop-confirmed value-rename pass.
   2. **UI display strings** still hardcoded in components — the i18next pass
      ([I18N_MAP.md](.plans/I18N_MAP.md)) is not yet done.
 - The product name **"Auftragssystem"** is a proper noun (repo/product name) and
@@ -49,47 +51,95 @@ identifiers, names, or strings.
 (issue key prefix `MKS`). When asked about tasks/tickets, look there first.
 
 **Where things go**
-- **README.md** (this file) — stable architecture, domain model, workflows. No
+- **CLAUDE.md** (this file) — stable architecture, domain model, workflows. No
   version pins, no pixel widths, no current-state info.
 - **[current_state.md](current_state.md)** — what's done/pending, known debt.
 - **[DOCS.md](DOCS.md)** — documentation index; entry point to
   [docs/](docs/) (coding standards, skill docs, reference). Consult it for the
   architectural patterns to follow.
+- **[.plans/electron_porting.md](.plans/electron_porting.md)** /
+  **[.plans/electron_workplan.md](.plans/electron_workplan.md)** — design
+  decisions and work packages of the (completed) Electron port, kept for
+  reference.
 - **`package.json`** = library versions; CSS files = UI dimensions. Don't
   duplicate those into prose.
 
 ## Tech Stack
 
-- **Frontend:** React + TypeScript + Vite
-- **Styling:** Tailwind CSS + CSS variables (colour system in `index.css`)
+- **Frontend:** React + TypeScript + Vite; TanStack Query for server state
+  (`src/queries/*`), TanStack Form + Zod for product forms.
+- **Styling:** Tailwind CSS + CSS variables (colour system in `index.css`);
+  shadcn-style primitives vendored under `src/components/ui/*`.
 - **Backend:** Supabase — PostgreSQL with Auth and Row-Level Security; RLS
-  policies live in Supabase. The base schema is split into domain migration
-  files under `supabase/migrations/` (types, core, orders, jobs,
-  catalog, products_core, the per-department product tables, textile, audit,
-  duplicate_order).
+  policies and triggers live in the migrations. The base schema is split into
+  domain migration files under `supabase/migrations/` (types, core, orders,
+  jobs, catalog, products_core, one file per department's product tables,
+  blueprint, audit, duplicate_order). `supabase/seed.sql` holds catalog
+  master data; `seed.dev.sql` (git-ignored) holds local demo data. One edge
+  function, `manage-users`, exists for what the browser cannot do
+  (create/delete auth accounts).
 - **Client:** [src/supabase.ts](src/supabase.ts) (`createClient`); generated
-  types in [src/types/supabase.ts](src/types/supabase.ts).
-- **Service layer:** DB access goes through `src/services/*`; components avoid
-  calling `supabase` directly (textile / PDF are the few exceptions).
-- **Target platform:** desktop only — currently a desktop browser, eventually
-  packaged as an **Electron** app. No mobile/touch support, but **small
+  types in [src/types/supabase.ts](src/types/supabase.ts), app-facing aliases
+  in [src/types/database.ts](src/types/database.ts).
+- **Service layer:** DB access goes through `src/services/*`; components read
+  and mutate through the hooks in `src/queries/*`, never `supabase` directly
+  (PDF generation is the one remaining exception).
+- **Desktop shell:** **Electron** (`electron/` — main, preload, IPC, custom
+  app protocol, deep links, window state, Sentry). The renderer is the Vite
+  bundle; the preload exposes a small typed bridge as `window.pam`
+  ([src/types/electron-api.d.ts](src/types/electron-api.d.ts)): reveal a path
+  in the file manager, pick files, open external URLs, and deep-link
+  callbacks. The app must still run in a plain browser tab for development;
+  code that needs the bridge checks for `window.pam` and degrades with a
+  toast.
+- **Deep links:** the `pam://` scheme. `pam://order/<uuid>` opens that order
+  (parked in main until the renderer has a session); `pam://auth/…` completes
+  the Google OAuth PKCE flow that runs in the system browser.
+- **Target platform:** desktop only. No mobile/touch support, but **small
   laptops (~1075px wide) must be usable**; see "Responsive layout" below.
+- **Testing:** Playwright end-to-end tests under `e2e/` drive the built
+  Electron app against a local Supabase (`npm run test:e2e`). The fixture in
+  `e2e/fixtures/electron.ts` launches one app per worker with a throwaway
+  profile.
 
 ## UI Layout
 
-Three-column layout, full height:
+[`App.tsx`](src/App.tsx) mounts the providers (toast, confirm, forced password
+change), the top [`AppNavbar`](src/components/AppNavbar.tsx), and the active
+view. There is **no router**: the view and the active order/job selection
+live in [`navigation.context.tsx`](src/context/navigation.context.tsx)
+(`AppView`: `orders`, `stampStock`, `textileStock`, `userManagement`,
+`profile`). The stock views are for everyone; user management is super-admin
+only.
+
+### The orders view
+
+[`OrderWorkspace`](src/pages/OrderWorkspace.tsx) renders the login layout
+without a session, otherwise a two-column shell:
 
 | Column | Component | Role |
 |--------|-----------|------|
-| Left   | [`OrderSidebar`](src/components/OrderSidebar.tsx) | "+ New order" ([`NewOrderDialog`](src/components/NewOrderDialog.tsx)); order list with selection; archived orders excluded |
-| Centre | [`WorkArea`](src/components/WorkArea.tsx) | Order header, files, job tabs ([`JobTabs`](src/components/JobTabs.tsx)), active job detail mask ([`JobDetail`](src/components/JobDetail.tsx)) |
-| Right  | [`ContextPanel`](src/components/ContextPanel.tsx) | Status, workflow actions, hints (order + job workflow) |
+| Left   | [`OrderSidebar`](src/components/OrderSidebar.tsx) | Search + filters (status, department, deadline/intake ranges), order list with selection, per-order menu (duplicate / delete quote), "+ New Order" ([`NewOrderDialog`](src/components/NewOrderDialog.tsx)). Archived orders are never listed; finished/billed are hidden by the default status filter. |
+| Centre | [`OrderDetails`](src/components/OrderDetails.tsx) | Order header (number, customer, lifecycle button, files/history/archive/cancel actions), order settings row (deadline, delivery, priority, payment), then [`JobList`](src/components/JobList.tsx) (add-job buttons, one row per job with status track and right-click menu) next to the active job's [`JobDetail`](src/components/JobDetail.tsx). |
+
+`JobDetail` shows the job header (assignee, status badge, settings / time
+logs / PDF / delete-or-cancel actions, the
+[`JobReleaseButton`](src/components/JobReleaseButton.tsx)), the
+[`JobProductionBanner`](src/components/JobProductionBanner.tsx) naming unmet
+release requirements, and the department's product section. Job settings
+(separate deadline/delivery/priority overrides, customer approval) and time
+logs open as dialogs from that header
+([`src/components/jobDetail/`](src/components/jobDetail/)). The
+former right-hand `ContextPanel` is gone; every workflow action now lives in
+the header of the order or the job (or the job list's context menu). The
+invisible [`StatusManager`](src/components/StatusManager.tsx) mounted in
+`OrderDetails` runs the automatic status logic (see "Status").
 
 ### Responsive layout — one breakpoint, two strategies
 
 The app has exactly **one breakpoint** and two layouts: *compact* (small
-laptops) and *desktop*. It is defined once as `--breakpoint-desktop` (80rem /
-1280px) in the `@theme` block of `src/index.css` and consumed two ways:
+laptops) and *desktop*. It is defined once as `--breakpoint-desktop` in the
+`@theme` block of `src/index.css` and consumed two ways:
 
 - **CSS / Tailwind:** base styles are the compact variant; apply the
   `desktop:` variant for the roomier layout (mobile-first). Don't introduce
@@ -100,9 +150,11 @@ laptops) and *desktop*. It is defined once as `--breakpoint-desktop` (80rem /
   hook and the variant can never drift apart.
 
 Column widths are **fixed per breakpoint** (never content-driven): the order
-sidebar is a fixed-width column that is simply narrower in compact mode, set
-via `--sidebar-width` in `OrderWorkspace`. The shadcn sidebar is pinned to
-desktop mode (no mobile Sheet overlay) since this is a desktop-only app.
+sidebar and the job list are fixed-width columns that are simply narrower in
+compact mode (`--sidebar-width` is set in `OrderWorkspace`). The shadcn
+sidebar is pinned to desktop mode (no mobile Sheet overlay) since this is a
+desktop-only app. In compact mode the sidebar's search and filters collapse
+behind icon toggles.
 
 Styling lives in Tailwind utilities on the components, with one deliberate
 exception: **global element typography** (`h1`/`h2`/`h3`/`p` via `@apply` in
@@ -112,188 +164,285 @@ Legacy plain-CSS rules (remnants from before Tailwind was introduced) are
 being eliminated — don't add new ones, and when you touch code that depends
 on one, replace it with utilities.
 
+### Dialogs and confirmations
+
 **Global dialogs:** [`NewOrderDialog`](src/components/NewOrderDialog.tsx),
-[`CustomerDialog`](src/components/CustomerDialog.tsx),
-[`DuplicateDialog`](src/components/DuplicateDialog.tsx).
-Simple confirmations (archive/cancel/delete/mark-done prompts) go through the
-promise-based `useConfirm()` hook from
+[`CustomerDialog`](src/components/CustomerDialog.tsx) (opened through
+`useOrderWorkspace().openCustomerDialog`, mounted once by
+[`order.context.tsx`](src/context/order.context.tsx)),
+[`DuplicateDialog`](src/components/DuplicateDialog.tsx),
+[`OrderFilesDialog`](src/components/OrderFilesDialog.tsx) (order-wide file
+links), [`OrderHistoryDialog`](src/components/OrderHistoryDialog.tsx).
+Simple confirmations (archive/cancel/delete/mark-done/release prompts) go
+through the promise-based `useConfirm()` hook from
 [`ConfirmDialog`](src/components/ConfirmDialog.tsx) (`ConfirmProvider` is
 mounted in `App.tsx`) — don't use `window.confirm` or one-off confirm dialogs.
-[`HistoryPanel`](src/components/HistoryPanel.tsx) shows order history;
-[`FileList`](src/components/FileList.tsx) the order-wide file links.
+Errors surface as toasts (`useToast()` from
+[`Toast.tsx`](src/components/Toast.tsx)).
 
-**Auth:** [`Login`](src/components/Login.tsx) calls
-`supabase.auth.signInWithPassword`; without a session the app renders only the
-login layout.
+### Auth and roles
 
-**Full-page routes:** `StampStockPage` ([src/pages/StampStockPage.tsx](src/pages/StampStockPage.tsx))
-— stamp inventory; `TextileStockPage` ([src/pages/TextileStockPage.tsx](src/pages/TextileStockPage.tsx))
-— textile master data + variant stock. [`OrderWorkspace`](src/pages/OrderWorkspace.tsx)
-hosts the three-column shell.
+[`Login`](src/components/Login.tsx) offers email/password
+(`signInWithPassword`) and Google sign-in; on desktop the OAuth flow runs in
+the system browser and returns through the `pam://auth` deep link
+([`authService`](src/services/authService.ts)). Without a session the app
+renders only the login layout; a user flagged for a forced password change
+gets [`ChangePasswordDialog`](src/components/ChangePasswordDialog.tsx) first.
+
+Roles (`user_role` enum, table `users`): `EMPLOYEE`, `ADMIN`, `SUPER_ADMIN`
+(hierarchical — `useIsAdmin()` in [`userQueries`](src/queries/userQueries.ts)).
+Admin-only actions in the orders view: change a job's assignee, force-release
+a job, reopen a finished order, log time on someone else's behalf or delete a
+time log. Account creation/deletion goes through the `manage-users` edge
+function; role changes are plain updates on `users`, guarded by RLS and a
+trigger. DB triggers backstop every role rule — the UI only hides what the
+DB would reject anyway.
+
+### Full-page views
+
+`StampStockPage` ([src/pages/StampStockPage.tsx](src/pages/StampStockPage.tsx))
+— stamp models, ink colours, stock bookings and movements;
+`TextileStockPage` ([src/pages/TextileStockPage.tsx](src/pages/TextileStockPage.tsx))
+— textile master data (brand → product → variant) and variant stock;
+`UserManagementPage`, `ProfilePage`. Shared stock UI (booking fields, movement
+views, reorder list) lives in [`src/components/stock/`](src/components/stock/).
 
 ## Production Departments (`department` enum)
 
-Every order has 1…n jobs, each assigned to one production department.
+Every order has 0…n jobs, each assigned to one production department.
 Enum `department`: `LFP`, `COPYSHOP`, `TEXTILE`, `STAMP`, `LASER_ENGRAVING`,
-`OTHER`. Each has a detail mask under `src/components/departments/` and a
-validator under `src/lib/<dept>/`.
+`OTHER` (display labels and job-number abbreviations in
+[`src/const/departmentAbbreviation.ts`](src/const/departmentAbbreviation.ts)).
+Each department has a product section component, a set of per-type forms, and
+per-type Zod schemas:
 
-| Department | Component |
-|---------|-----------|
-| LFP (Großformatdruck) | [`LFPDetail.tsx`](src/components/departments/LFPDetail.tsx) |
-| CopyShop | [`CopyShopDetail.tsx`](src/components/departments/CopyShopDetail.tsx) |
-| Textile | [`TextileDetail.tsx`](src/components/departments/TextileDetail.tsx) |
-| Stamp | [`StampDetail.tsx`](src/components/departments/StampDetail.tsx) |
-| Laser | [`LaserDetail.tsx`](src/components/departments/LaserDetail.tsx) |
-| Other | [`OtherDetail.tsx`](src/components/departments/OtherDetail.tsx) |
+| Department | Products section | Forms | Schemas |
+|---------|-----------|-------|---------|
+| LFP (large format) | [`LfpProducts.tsx`](src/components/products/departments/LfpProducts.tsx) | [`forms/lfp.tsx`](src/components/products/forms/lfp.tsx) | [`schemas/lfp.ts`](src/lib/products/schemas/lfp.ts) |
+| CopyShop | [`CopyShopProducts.tsx`](src/components/products/departments/CopyShopProducts.tsx) | [`forms/copyshop.tsx`](src/components/products/forms/copyshop.tsx) | [`schemas/copyshop.ts`](src/lib/products/schemas/copyshop.ts) |
+| Textile | [`TextileProducts.tsx`](src/components/products/departments/TextileProducts.tsx) | [`forms/textile.tsx`](src/components/products/forms/textile.tsx) | [`schemas/textile.ts`](src/lib/products/schemas/textile.ts) |
+| Stamp | [`StampProducts.tsx`](src/components/products/departments/StampProducts.tsx) | [`forms/stamp.tsx`](src/components/products/forms/stamp.tsx) | [`schemas/stamp.ts`](src/lib/products/schemas/stamp.ts) |
+| Laser | [`LaserProducts.tsx`](src/components/products/departments/LaserProducts.tsx) | [`forms/laser.tsx`](src/components/products/forms/laser.tsx) | [`schemas/laser.ts`](src/lib/products/schemas/laser.ts) |
+| Other | [`OtherProducts.tsx`](src/components/products/departments/OtherProducts.tsx) | [`forms/other.tsx`](src/components/products/forms/other.tsx) | [`schemas/other.ts`](src/lib/products/schemas/other.ts) |
+
+All six compose the same plumbing: [`useProductEditor`](src/components/products/useProductEditor.ts)
+(queries, add/edit/view mode machine, delete, read-only gating by job status),
+[`ProductDialog`](src/components/products/ProductDialog.tsx) (type picker →
+per-type form), and the tables in [`ProductTable.tsx`](src/components/products/ProductTable.tsx).
 
 ## Domain Model
 
-- **Customer** — table `customers` (`name`, `email`, `phone`, `note`, address,
-  `is_archived`). Created/edited via `CustomerDialog`; searched by `ilike` on
-  `name` (only `is_archived = false`).
-- **Order** — table `orders` (`customer_id`, `status`, `deadline`, `delivery`
-  (`PICKUP`|`SHIPPING`), `priority` (`HIGH`|`NORMAL`),
-  `is_erp_exported`, `is_archived`, `created_at`). Status kept in sync via
-  `orderService.recalculateOrderStatus` (TS `calculateOrderStatus`). Has 1…n
-  jobs.
-- **Job** — table `jobs` (the per-department production unit; formerly
-  "sub-order" / `department_orders`). Carries `job_number`
-  (`<order_number>-<DEPT>-<NN>`, assigned by DB trigger
-  `fn_generate_job_number`, never by the client), `department`, `type`,
-  `status`, schedule fields, `assignee_id`, `is_cancelled`,
-  customer-approval fields. It still has its own legacy `detail`
-  JSONB + `type` + type-check trigger (used by Textile's `eigenware_modus` and
-  the type guard) — a later cleanup, out of scope of the product redesign.
+- **Customer** — table `customers` (`name`, `email`, `phone`, `note`, address
+  fields, `is_archived`). Created/edited via `CustomerDialog`; searched by
+  `ilike` on `name` (only `is_archived = false`). A customer needs a name plus
+  email or phone before a job may auto-advance to pre-press
+  (`customerMeetsPrepressContact` in [src/lib/customer.ts](src/lib/customer.ts)).
+- **Order** — table `orders` (`order_number` from a DB counter, `customer_id`,
+  `status`, `deadline`, `delivery` (`PICKUP`|`SHIPPING`), `priority`
+  (`NORMAL`|`HIGH`), `payment_method` (`INVOICE`|`CASH`), `billing_note`,
+  `is_erp_exported`, `is_archived`, `created_by`, `created_at`). The header
+  fields save on change, one field per save, each logged as a
+  `SETTINGS_CHANGED` history entry.
+- **Job** — table `jobs` (the per-department production unit). Carries
+  `job_number` (`<order_number>-<DEPT>-<NN>`, assigned by a DB trigger, never
+  by the client), `department`, `type` (legacy discriminator, nullable),
+  `status`, `sort_order`, `deadline` / `delivery` / `priority` (**nullable =
+  inherit from the order**; `resolveEffectiveJob` in
+  [src/lib/jobShared.ts](src/lib/jobShared.ts) resolves the effective values),
+  `assignee_id`, `is_cancelled`, and the customer-approval fields
+  (`customer_approval_required` / `_granted` / `_file_id`).
 - **Time logs** — table `job_time_logs`: worked-time entries per job
   (`minutes` > 0, `created_at`). `user_id` = the employee the time is
   attributed to; `created_by` = who wrote the row. Employees log as
   themselves; only admins may log on someone else's behalf or delete a log
   (RLS-enforced). The job's total time is `SUM(minutes)` over its logs —
   there is no aggregate column. Every create/delete writes a history event
-  (`TIME_LOGGED` / `TIME_LOG_DELETED`, actor in `user_id`, attributed
-  user + minutes in `meta`). UI:
-  [`JobTimeLogs`](src/components/JobTimeLogs.tsx) in the job detail;
-  service [`timeLogService`](src/services/timeLogService.ts).
-- **Files** — table `files` (`order_id`, `display_name`, `role`, …). Attached at
-  the **order** level, loaded in `WorkArea`, selectable for customer approval in
-  `ContextPanel`. UNC-path **linking**, not upload.
+  (`TIME_LOGGED` / `TIME_LOG_DELETED`). UI:
+  [`JobTimeLogs`](src/components/JobTimeLogs.tsx) inside the job's time-logs
+  dialog; service [`timeLogService`](src/services/timeLogService.ts).
+- **Files** — table `files` (`order_id`, `display_name`, `path`, `role`
+  (`PRODUCTION_FILE` | `PREVIEW` | `CUSTOMER_APPROVAL` | `REFERENCE`)).
+  Attached at the **order** level via `OrderFilesDialog` (drop or pick files;
+  the desktop bridge resolves the real path); products link to them through
+  `product_files`; a customer approval is granted against one of them.
+  UNC-path **linking**, not upload — the files stay on the network share, and
+  "open" reveals them through `window.pam.revealPath`.
+- **History** — table `history` (`order_id`, `job_id`, `event_type`
+  (`history_event` enum), `user_id`, `meta`). Written alongside every
+  workflow action by [`historyService`](src/services/historyService.ts);
+  shown in `OrderHistoryDialog`.
 - **Products** — see below (the typed per-type model).
-- **Textile** — relational, not in the product hierarchy: `textile_brands` →
-  `textile_products` → `textile_variants` (master data, with `color_hex`,
-  `stock`, `min_stock`); plus `textile_motifs`, `textile_positions`,
-  `textile_assignments` (per-order); `textile_stock_movements`. Eigenware mode
-  (`STAMMDATEN` | `FREITEXT`) lives in the job detail.
+- **Textile master data** — `textile_brands` → `textile_products` →
+  `textile_variants` (`color`, `color_hex`, `size`, `stock`, `min_stock`),
+  `textile_stock_movements`. Per-order textile data is in the product
+  hierarchy: a `TEXTILE_GARMENT` product (`origin` `OWN_STOCK` with a catalog
+  `variant_id` or free-text brand/model/colour/size, or `CUSTOMER_STOCK`),
+  its design applications as `textile_motif_links` referencing the order's
+  `textile_motifs`.
+- **Stamp master data** — `stamp_models`, `stamp_ink_colors`,
+  `stamp_stock_movements`.
+- **Users** — table `users` (`name`, `email`, `role`, `avatar_url`), mirrored
+  from Supabase Auth.
+- **Blueprint** — `blueprint_*` tables exist in the schema (a separate
+  blueprint-copying feature) but nothing in the client uses them yet.
 
-### Products — typed per-type tables (post-refactor)
+### Products — typed per-type tables
 
-Products no longer use a JSONB `detail` blob. The model is supertype/subtype
-(class-table inheritance):
+The model is supertype/subtype (class-table inheritance):
 
 - **Parent `department_products`** — `id`, `job_id`, `department`,
   `type` (discriminator), `quantity`, `notes`, `sort_order`, `created_at`.
-- **One typed child table per product type** (30 total: 7 CopyShop, 9 Stamp,
-  8 LFP, 5 Laser, 1 Other), PK = FK to `department_products`
+- **One typed child table per product type** (31 total: 7 CopyShop, 9 Stamp,
+  8 LFP, 5 Laser, 1 Other, 1 Textile), PK = FK to `department_products`
   (`department_product_id`), holding that type's English spec columns. The
   `type` value selects the child (e.g. `POSTER` → `poster_products`,
-  `TRODAT_PRINTY` → `trodat_printy_products`). Textile is **not** in this
-  hierarchy.
+  `TRODAT_PRINTY` → `trodat_printy_products`, `TEXTILE_GARMENT` →
+  `textile_garment_products`).
 - **`product_files`** — M:N file links on the parent (`department_product_id` →
   `department_products`, `file_id` → `files`).
 
 **Code contract:** [src/types/product.ts](src/types/product.ts) defines
 `LoadedProduct` (parent + typed `child`), `ProductWriteInput`, the `ChildTable`
-union, and `childTableForType()`.
+union, `CHILD_TABLE_BY_TYPE` / `childTableForType()`.
 [`departmentProductService`](src/services/departmentProductService.ts) is the only
 product service: `getProductsByJobId` (parent + child), `createProduct` /
 `updateProduct` (TS two-step — insert/update parent then child, no RPC),
-`deleteProduct` (cascade), and the `product_files` helpers. Per-department
-validators (`src/lib/<dept>/validate*Detail.ts`) are pure functions over the
-typed fields. The detail components hold a flat English form object and split it
-into parent (`type`/`quantity`/`notes`) + typed child via a `buildChild`-style
-mapper on save.
+`deleteProduct` (cascade), the `product_files` helpers, and the textile motif
+links. Validation is **one Zod schema per product type** under
+[src/lib/products/schemas/](src/lib/products/schemas/), registered in
+[`registry.ts`](src/lib/products/registry.ts) (`SCHEMA_BY_TYPE` mirrors
+`CHILD_TABLE_BY_TYPE`; `validateProduct` is the single entry point). Each
+schema also owns the flat-form → child-row mapper, and a drift assertion ties
+its inferred shape to the generated child table type — add a column in the
+migration, regenerate types, and the schema fails to compile until updated.
 
 ### Status (Order & Job)
 
-Flow: `QUOTE` → `INCOMPLETE` → `PREPRESS_READY` → `PRODUCTION_READY` → `DONE`
-(orders may also reach `INVOICED`).
+Orders and jobs have **separate, independent lifecycles**; the only coupling
+is that jobs cannot leave setup while the order is still a quote.
 
-- **Aggregate order status is derived from the jobs** by
-  `calculateOrderStatus` ([src/lib/orderStatus.ts](src/lib/orderStatus.ts)) — the
-  lowest status across non-cancelled jobs. `orderService.recalculateOrderStatus`
-  reads the order + jobs, computes this, and writes `orders.status`. (This
-  was formerly a Postgres RPC; it now lives entirely in the client/service layer.)
-- **Per-job transitions** are governed by the completeness logic in
-  [src/lib/jobShared.ts](src/lib/jobShared.ts) (`isJobComplete`,
-  `autoPrepressAllowed`), the automatic-status logic under `src/lib/status/`
-  (driven by [src/queries/useStatusManager.ts](src/queries/useStatusManager.ts)),
-  and the per-department validators (`OTHER_STAMP`, `OTHER_LFP`, `OTHER_LASER`,
-  and the `OTHER` department are auto-prepress-ineligible — manual only).
-- **`ContextPanel`** is the single point of manual workflow control: set status,
-  ERP insert, archive, write `history` entries. Admins can additionally
-  force-release an incomplete job to production via `JobReleaseButton`
-  (bypasses the completeness gate; recorded as an `EMERGENCY_TRIGGERED`
-  history entry with a required reason).
+**Order lifecycle** (`order_status`): `QUOTE` → `IN_PROGRESS` → `FINISHED` →
+`BILLED`. Every transition is **manual**, through the single lifecycle button
+in the order header ([`OrderDetails`](src/components/OrderDetails.tsx)):
+
+- *Start processing* (`QUOTE` → `IN_PROGRESS`).
+- *Mark finished* (`IN_PROGRESS` → `FINISHED`) — offered only once every
+  non-cancelled job is `DONE`. **Cash orders skip `FINISHED`:** their action
+  is *Finish & close*, which goes straight to `BILLED` and archives.
+- *Mark as invoiced* (`FINISHED` → `BILLED`) — archives the order and drops it
+  from the list.
+- Admins may *reopen* a finished order (`FINISHED` → `IN_PROGRESS`).
+- Finished/billed orders are read-only: no new jobs, no product edits.
+- Archive (hide) and cancel (cancel every job, then hide) are available in
+  any non-billed state; a quote can be deleted outright from the sidebar.
+
+**Job workflow** (`job_status`): `IN_SETUP` → `PREPRESS` → `IN_PRODUCTION` →
+`DONE`. The rules live in one place each:
+
+- **Completeness** — [src/lib/jobShared.ts](src/lib/jobShared.ts):
+  `isJobComplete` (effective deadline present, at least one product; nothing
+  is required while the order is a quote), `isDeadlineMissed` (effective
+  deadline strictly before today), `autoPrepressAllowed` (free-form types —
+  `OTHER_STAMP`, `OTHER_LFP`, `OTHER_LASER`, and the whole `OTHER`
+  department — never auto-advance), `isInProductionMissingInfo` (derived
+  warning for a job in production that fails completeness, typically after a
+  force release).
+- **Automatic `IN_SETUP` ↔ `PREPRESS`** — `deriveAutomaticStatus` in
+  [src/lib/status/automaticStatus.ts](src/lib/status/automaticStatus.ts), run
+  by [`useStatusManager`](src/queries/useStatusManager.ts) for every
+  non-committed job of the open order. A complete, auto-eligible job whose
+  customer has the required contact data is promoted to `PREPRESS` on its own
+  (`PREPRESS_READY_AUTO`); it is retracted to `IN_SETUP` when it stops being
+  complete or the order drops back to quote. The missed-deadline gate is
+  entry-only: a job already in pre-press is not pulled back. It never touches
+  `IN_PRODUCTION` / `DONE`.
+- **Manual advance** — [`useJobRelease`](src/hooks/useJobRelease.ts), shared by
+  the header's `JobReleaseButton` and the job list's context menu: *Release to
+  Pre-Press* (the manual path for free-form types), *Release to Production*,
+  *Mark job as done*. Each confirms first and writes its history event
+  (`PREPRESS_READY_MANUAL`, `PRODUCTION_READY_SET`, `MARKED_DONE`).
+- **Removal** — [`useJobRemoval`](src/hooks/useJobRemoval.ts): a job in setup
+  is deleted; past setup it is cancelled (kept for history); once in
+  production or done it can be neither.
+- **Force release** — admins can push an incomplete, late, or stock-blocked
+  job straight into production from the release button's dropdown; a reason
+  is required and recorded as `EMERGENCY_TRIGGERED`. Customer approval is the
+  one gate the force release does not bypass.
 
 ## Workflow specifics
 
-- **Release to production** (`PREPRESS_READY` → `PRODUCTION_READY`) books
+- **Release to production** (`PREPRESS` → `IN_PRODUCTION`) books
   **automatic stock deductions** (only here, not on "mark done") via the
   `book_production_deductions` RPC — one transaction, row-locked conditional
-  decrements, `AUTO_DEDUCTION` movement rows with a note incl. the order number:
+  decrements, `AUTO_DEDUCTION` movement rows with a note incl. the order number
+  ([`productionReleaseService`](src/services/productionReleaseService.ts)):
   - **STAMP:** stamp-model products decrement their model (plus the matching
     replacement pad for a catalog ink colour); `TRODAT_PAD` products decrement
     their pad variant.
   - **TEXTILE:** every own-stock garment with a set `variant_id` decrements the
     variant by the product quantity.
-  - Insufficient stock **blocks the release** (red banner + disabled release
-    button while in pre-press, and the RPC rejects atomically if a concurrent
-    release consumed the stock first). The admin **force release** bypasses the
-    shortage: stock is floored at 0 and movements record what was actually
-    deducted.
-- **Release to pre-press** requires a complete job (`isJobComplete` in
-  `jobShared.ts`: an *effective* deadline and at least one product — delivery
-  and priority always resolve via the order) and is refused while the
-  effective deadline lies in the past (`isDeadlineMissed`). While a job is held
-  in setup, `JobProductionBanner` names every unmet requirement (no deadline,
-  missed deadline, no product) above the disabled release button, the order's
-  deadline field pulses red until a deadline is set (`DeadlinePicker`
-  `attention`), and the automatic advance keeps the job in setup. Nothing is required while the
-  order is still a quote. The deadline gate is entry-only — a job already in
-  pre-press is not retracted when its deadline passes. The admin **force
-  release** bypasses both gates.
-- **Customer approval** blocks only *release to production* (cancel/delete have
-  their own busy flags).
-- **ERP export** — `erp_exports` (`order_id`, `mode` (`SINGLE`|`BULK`),
-  `export_data`).
+  - Insufficient stock **blocks the release** (shortage rows highlighted in the
+    product table, release button disabled while in pre-press, and the RPC
+    rejects atomically if a concurrent release consumed the stock first). The
+    admin **force release** bypasses the shortage: stock is floored at 0 and
+    movements record what was actually deducted.
+- **Release to pre-press** requires a complete job and is refused while the
+  effective deadline lies in the past. While a job is held in setup,
+  `JobProductionBanner` names every unmet requirement (no deadline, missed
+  deadline, no product), and the order's deadline field pulses until a
+  deadline is set (`DeadlinePicker` `attention`). The admin force release
+  bypasses both gates.
+- **Job settings overrides** — a job inherits deadline, delivery and priority
+  from the order unless its "separate …" switch is on; setting an override
+  equal to the order's value collapses it back to inherit. Deadline and
+  approval are locked once the job is in production; everything is read-only
+  once done.
+- **Customer approval** — toggled per job in its settings; when required, the
+  release to production stays blocked until an approval is granted against
+  one of the order's files (`CUSTOMER_APPROVAL_GRANTED`, file id in `meta`).
+- **ERP export** — table `erp_exports` (`order_id`, `mode` (`SINGLE`|`BULK`),
+  `export_data`) and [`erpService`](src/services/erpService.ts) exist; no UI
+  currently triggers an export.
 - **Duplicate order** — RPC `duplicate_order` deep-copies an order (jobs,
   products incl. the typed child by `type`, `product_files`, textile rows) in one
   transaction; called from [`DuplicateDialog`](src/components/DuplicateDialog.tsx).
+- **PDF production sheet** — per job, from the job header
+  ([`src/lib/pdf/orderPdf.ts`](src/lib/pdf/orderPdf.ts); German output is
+  intentional).
 
 ## Key Files (selection)
 
 | Path | Role |
 |------|------|
-| [`src/types/product.ts`](src/types/product.ts) | Typed product model: `LoadedProduct`, `ProductWriteInput`, `ChildTable`, `childTableForType()` |
+| [`src/App.tsx`](src/App.tsx) / [`src/context/navigation.context.tsx`](src/context/navigation.context.tsx) | Providers, navbar, view switch, active order/job selection, deep-link pickup |
+| [`src/pages/OrderWorkspace.tsx`](src/pages/OrderWorkspace.tsx) | Session gate + the two-column orders shell |
+| [`src/components/OrderDetails.tsx`](src/components/OrderDetails.tsx) | Order header, lifecycle actions, settings row, job list + detail host |
+| [`src/hooks/useJobRelease.ts`](src/hooks/useJobRelease.ts) / [`useJobRemoval.ts`](src/hooks/useJobRemoval.ts) | Every job workflow rule, shared by button and context menu |
+| [`src/lib/jobShared.ts`](src/lib/jobShared.ts) | Inheritance + completeness (`resolveEffectiveJob`, `isJobComplete`, `isDeadlineMissed`, `autoPrepressAllowed`) |
+| [`src/lib/status/automaticStatus.ts`](src/lib/status/automaticStatus.ts) / [`src/queries/useStatusManager.ts`](src/queries/useStatusManager.ts) | Automatic setup ↔ pre-press transition |
+| [`src/const/orderStatus.ts`](src/const/orderStatus.ts) | Status labels/colours for orders and jobs |
+| [`src/types/product.ts`](src/types/product.ts) | Typed product model: `LoadedProduct`, `ProductWriteInput`, `ChildTable`, `CHILD_TABLE_BY_TYPE` |
+| [`src/lib/products/registry.ts`](src/lib/products/registry.ts) | Per-type Zod schema registry, `validateProduct` |
 | [`src/types/database.ts`](src/types/database.ts) | App-facing row/enum aliases over the generated `supabase.ts` |
 | [`src/types/supabase.ts`](src/types/supabase.ts) | Generated DB types (regenerate after migrations) |
-| [`src/services/departmentProductService.ts`](src/services/departmentProductService.ts) | Product CRUD (parent + typed child), file links |
-| [`src/services/orderService.ts`](src/services/orderService.ts) | Orders, list, `recalculateOrderStatus`, `duplicate_order` |
-| [`src/services/jobService.ts`](src/services/jobService.ts) | Jobs (table `jobs`) |
-| [`src/services/textileService.ts`](src/services/textileService.ts) / [`textileMasterDataService.ts`](src/services/textileMasterDataService.ts) | Textile per-order + master data |
+| [`src/services/departmentProductService.ts`](src/services/departmentProductService.ts) | Product CRUD (parent + typed child), file links, motif links |
+| [`src/services/orderService.ts`](src/services/orderService.ts) / [`jobService.ts`](src/services/jobService.ts) | Orders (list, filters, lifecycle, `duplicate_order`) and jobs |
+| [`src/services/productionReleaseService.ts`](src/services/productionReleaseService.ts) | Stock requirements, shortage check, `book_production_deductions` |
+| [`src/services/textileService.ts`](src/services/textileService.ts) / [`textileMasterDataService.ts`](src/services/textileMasterDataService.ts) | Textile per-order (motifs, variant lookups) + master data |
 | [`src/services/historyService.ts`](src/services/historyService.ts) | History events |
-| [`src/lib/jobShared.ts`](src/lib/jobShared.ts) | Cross-cutting completeness (`isJobComplete`, `autoPrepressAllowed`) |
-| [`src/lib/pdf/orderPdf.ts`](src/lib/pdf/orderPdf.ts) | PDF production sheet (German output is intentional) |
+| [`electron/`](electron/) | Main process: window, app protocol, deep links, IPC bridge, updater |
 | [`.plans/DB_RENAME_MAP.md`](.plans/DB_RENAME_MAP.md) | German→English schema map (authoritative) |
 
 ## Notes for Developers
 
-- The application architecture (three-column shell, per-department modules,
-  server-derived aggregate status, file linking instead of upload, products as
-  parent + typed child tables) is fixed; no restructuring intended.
+- The application architecture (navbar + view switch, sidebar + order
+  details shell, per-department product modules, manual order lifecycle with
+  automatic job pre-press, file linking instead of upload, products as parent
+  + typed child tables) is fixed; no restructuring intended.
 - The colour system is centralised in `src/index.css` as CSS variables — consume
   the tokens, don't hardcode colours.
 - **Open refactor streams** (see `.plans/`): value-rename of stored enum strings
-  to English; the i18next UI-string pass; per-type Zod validation schemas (to
-  replace the per-department validators). Don't fold these into unrelated work.
+  to English; the i18next UI-string pass. Don't fold these into unrelated work.
+- Dead code awaiting removal: [`src/components/JobTabs.tsx`](src/components/JobTabs.tsx)
+  (replaced by `JobList`, no longer imported).
 - For current status / known debt see [current_state.md](current_state.md).
