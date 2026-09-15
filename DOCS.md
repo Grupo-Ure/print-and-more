@@ -27,7 +27,14 @@ Each skill doc defines a role, its responsibilities, what it owns, patterns to f
 
 ## Testing Guides
 
-- [Backend Unit Testing](docs/testing/backend-unit-testing.md) — conventions for unit testing NestJS controllers and services: fixtures files, guard overrides, black-box schema-first assertions.
+- [Testing Standards](docs/testing/testing-standards.md) — technology-agnostic
+  testing strategy: fixtures/mocks in their own files, black-box and
+  minimal-assertion style, the setup/assert/cleanup test case structure. Read
+  this first, for any kind of test, in any stack.
+- [Backend Unit Testing](docs/testing/backend-unit-testing.md) — a worked
+  example of the standards above applied to unit testing NestJS controllers
+  and services (fixtures files, guard overrides). Illustrative of one stack,
+  not a separate set of rules.
 
 ---
 
@@ -51,7 +58,7 @@ Vendor documentation snapshots for the tools these guidelines build on.
 2. **Building a component?** Read [Frontend Designer](docs/skills/skill-frontend-designer.md).
 3. **Adding business logic, types, or Server Actions?** Read [Business Logic Engineer](docs/skills/skill-business-logic.md).
 4. **Working on Edge Functions or webhooks?** Read [Edge Functions Expert](docs/skills/skill-edge-functions.md).
-5. **Writing backend unit tests?** Read [Backend Unit Testing](docs/testing/backend-unit-testing.md).
+5. **Writing any kind of test?** Read [Testing Standards](docs/testing/testing-standards.md) (and [Backend Unit Testing](docs/testing/backend-unit-testing.md) if you're in a NestJS backend).
 6. **Reviewing or finishing work?** Read [Reviewer](docs/skills/skill-reviewer.md) and run the checklist.
 
 ---
