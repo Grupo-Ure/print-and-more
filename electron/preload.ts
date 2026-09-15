@@ -1,3 +1,6 @@
+// Exposes window.__SENTRY_IPC__ so the renderer SDK forwards events to the
+// main process over IPC (sandbox-safe; falls back to sentry-ipc:// without it).
+import '@sentry/electron/preload'
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
 import type { AuthCallback } from './deepLinks'
 

@@ -5,7 +5,12 @@ import updater from 'electron-updater'
 import { registerAppScheme, serveRendererBundle, RENDERER_ORIGIN, RENDERER_URL } from './appProtocol'
 import { findDeepLink, parseDeepLink, registerDeepLinkScheme, setPendingOrderId } from './deepLinks'
 import { registerIpcHandlers } from './ipc'
+import { initSentry } from './sentry'
 import { defaultWindowSize, restoreWindowState, trackWindowState } from './windowState'
+
+// Before anything else: Sentry registers its own privileged scheme and must
+// precede registerAppScheme() / registerDeepLinkScheme() and app 'ready'.
+initSentry()
 
 const EXTERNAL_URL = /^(https?|mailto):/i
 
