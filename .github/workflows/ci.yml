@@ -9,6 +9,8 @@
 #
 # Required repo secrets (Settings → Secrets and variables → Actions):
 #   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY  (baked into the renderer bundle)
+#   VITE_SENTRY_DSN                            (release builds only; leave unset to disable Sentry)
+#   SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN  (release builds only; source map upload)
 
 name: CI
 
@@ -75,3 +77,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
