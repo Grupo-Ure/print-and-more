@@ -7,8 +7,13 @@
 #      release — review it on GitHub and click "Publish release" to ship it
 #      to the auto-updater feed.
 #
-# Required repo secrets (Settings → Secrets and variables → Actions):
-#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY  (baked into the renderer bundle)
+# Secrets (Settings → Secrets and variables → Actions):
+#   The "checks" job runs in the GitHub environment "test" and reads the
+#   Supabase pair from that environment's secrets, so the test build can point
+#   at a database other than production once one exists (currently it is the
+#   same project). The release job reads the repo-level secrets.
+#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY  (baked into the renderer bundle;
+#                                               environment "test" + repo level)
 #   VITE_SENTRY_DSN                            (release builds only; leave unset to disable Sentry)
 #   SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN  (release builds only; source map upload)
 
@@ -25,6 +30,9 @@ jobs:
   checks:
     name: Checks (tests go here)
     runs-on: ubuntu-latest
+    # Environment secrets override repo secrets of the same name, so the test
+    # database is swapped by editing the environment, not this file.
+    environment: test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
