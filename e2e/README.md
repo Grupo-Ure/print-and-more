@@ -58,11 +58,14 @@ Nothing here is imported by hand; the runner drives it from the config:
 | `fixtures/electron.ts` | Launches the built app; replaces Playwright's browser `page` |
 | `fixtures/auth.ts` | `user` option + signed-in `page`; `signIn` / `signOut` helpers |
 | `fixtures/users.ts` | The test logins (data fixture) |
+| `fixtures/orders.ts` | `order` fixture: a fresh quote per test, created before and deleted after it |
+| `fixtures/customers.ts` | The customer the per-test order belongs to (data fixture) |
 | `pom/*POM.ts` | Page objects — every locator a spec uses, one class per view/dialog, composed parent → child |
 | `pom/BasePOM.ts` | Ancestor of every page object: holds the page and the shared helpers (`withAttr()` picks one instance of a repeated element by data attribute) |
 | `support/testIds.ts` | The `TEST_IDS` registry, imported by components (`data-testid`) and page objects alike |
 | `support/admin.ts` | Service-role client for the runner — bypasses RLS, exposes `auth.admin` |
 | `support/users.ts` | Create / remove a test login through that client |
+| `support/orders.ts` | Create / remove a test customer + order through that client |
 | `global-setup.ts`, `global-teardown.ts` | Run-wide data, wired via `playwright.config.ts` |
 
 ## Environment
