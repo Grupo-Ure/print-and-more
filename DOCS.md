@@ -35,6 +35,13 @@ Each skill doc defines a role, its responsibilities, what it owns, patterns to f
   example of the standards above applied to unit testing NestJS controllers
   and services (fixtures files, guard overrides). Illustrative of one stack,
   not a separate set of rules.
+- [Playwright End-to-End Testing](docs/testing/playwright-e2e.md) — the
+  standards above applied to the e2e suite: locate by test ID (never by
+  hard-coded text), the single `TEST_IDS` registry shared by components and
+  tests, and the modular Page Object Model (`e2e/pom/*POM.ts`).
+- [End-to-end suite](e2e/README.md) — this project's Playwright/Electron
+  runner: the run lifecycle (config → global setup → workers → teardown), what
+  belongs in global setup versus fixtures, and where each file lives.
 
 ---
 
