@@ -7,15 +7,17 @@
 #      release — review it on GitHub and click "Publish release" to ship it
 #      to the auto-updater feed.
 #
-# Secrets (Settings → Secrets and variables → Actions):
-#   The "checks" job runs in the GitHub environment "test" and reads the
-#   Supabase pair from that environment's secrets, so the test build can point
-#   at a database other than production once one exists (currently it is the
-#   same project). The release job reads the repo-level secrets.
-#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY  (baked into the renderer bundle;
-#                                               environment "test" + repo level)
-#   VITE_SENTRY_DSN                            (release builds only; leave unset to disable Sentry)
-#   SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN  (release builds only; source map upload)
+# Test database:
+#   The "checks" job starts a local Supabase on the runner (`supabase start`:
+#   migrations + seed.sql, thrown away with the runner) and builds the app
+#   against it. No hosted project is involved; the end-to-end suite can never
+#   reach production data. The runner's URL/keys are exported into the job
+#   env by the "Export local Supabase credentials" step.
+#
+# Secrets (Settings → Secrets and variables → Actions), release job only:
+#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY  (baked into the renderer bundle)
+#   VITE_SENTRY_DSN                            (leave unset to disable Sentry)
+#   SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN  (source map upload)
 
 name: CI
 
@@ -28,11 +30,8 @@ on:
 
 jobs:
   checks:
-    name: Checks (tests go here)
+    name: Checks
     runs-on: ubuntu-latest
-    # Environment secrets override repo secrets of the same name, so the test
-    # database is swapped by editing the environment, not this file.
-    environment: test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -47,14 +46,47 @@ jobs:
         # (tracked in current_state.md); flip to blocking afterwards.
         run: npm run lint
         continue-on-error: true
+
+      - uses: supabase/setup-cli@v1
+        with:
+          # Keep in step with the CLI version developers run locally.
+          version: 2.84.2
+      - name: Start local Supabase
+        # Only the services the app talks to (postgres, kong, gotrue,
+        # postgrest, realtime, storage); the rest would just slow the start.
+        # Prints "WARN: environment variable is unset" for the Google OAuth
+        # pair referenced in config.toml — harmless: the provider config is
+        # left empty and the OAuth flow is never exercised here.
+        run: supabase start -x studio,postgres-meta,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor
+      - name: Export local Supabase credentials
+        # The build inlines the VITE_ pair; the service-role key is for the
+        # e2e runner's test-data client only and never reaches the bundle.
+        run: |
+          eval "$(supabase status -o env)"
+          {
+            echo "VITE_SUPABASE_URL=$API_URL"
+            echo "VITE_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } >> "$GITHUB_ENV"
+
       - name: Build
         run: npm run build
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-      # Placeholder: automated tests run here once they exist.
-      # - name: Tests
-      #   run: npm test
+      - name: Install Electron system dependencies
+        run: npx playwright install-deps chromium
+      - name: End-to-end tests
+        # `npx playwright test` rather than `npm run test:e2e` so the build
+        # above isn't repeated. Electron needs a display on Linux → xvfb.
+        # Drop --pass-with-no-tests once the first spec is in e2e/.
+        run: xvfb-run --auto-servernum npx playwright test --pass-with-no-tests
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
 
   release:
     name: Build & publish Windows installer
