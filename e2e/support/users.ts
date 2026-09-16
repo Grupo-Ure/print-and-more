@@ -9,9 +9,9 @@ async function findUserId(admin: AdminClient, email: string): Promise<string | n
 
 /**
  * Creates the login unless a previous (crashed) run left it behind. The role
- * goes in via app_metadata: the on_auth_user_created trigger reads it from
- * there, so the public.users row is born with the right role and no update —
- * which the role-guard trigger would refuse — is needed.
+ * goes in via app_metadata: the on_auth_user_role_updated trigger copies it
+ * into public.users, so no update from here — which the role-guard trigger
+ * would refuse — is needed.
  */
 export async function ensureTestUser(admin: AdminClient, user: TestUser): Promise<void> {
   if (await findUserId(admin, user.email)) return

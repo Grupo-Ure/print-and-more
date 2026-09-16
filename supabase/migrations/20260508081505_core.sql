@@ -41,10 +41,11 @@ ALTER TABLE ONLY "public"."users"
 ALTER TABLE ONLY "public"."users"
     ADD CONSTRAINT "users_id_fkey" FOREIGN KEY ("id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
 
--- Auto-provision a public.users row for every new auth user. The initial role
--- is read from raw_app_meta_data, which only the service-role admin API can
--- set (client signUp option data lands in raw_user_meta_data), and is capped
--- at ADMIN: SUPER_ADMIN can never enter through this path.
+-- Auto-provision a public.users row for every new auth user. Always EMPLOYEE:
+-- the Auth server stores a new account in two writes, and the INSERT this
+-- trigger sees carries only the default app metadata (provider, providers).
+-- The role a caller passes to auth.admin.createUser arrives in a follow-up
+-- UPDATE of raw_app_meta_data and is applied by on_auth_user_role_updated.
 CREATE OR REPLACE FUNCTION "public"."handle_new_user"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" = ''
@@ -55,10 +56,7 @@ BEGIN
     NEW.id,
     NEW.email,
     COALESCE(NULLIF(NEW.raw_user_meta_data->>'name', ''), split_part(NEW.email, '@', 1)),
-    CASE WHEN NEW.raw_app_meta_data->>'role' = 'ADMIN'
-         THEN 'ADMIN'::public.user_role
-         ELSE 'EMPLOYEE'::public.user_role
-    END,
+    'EMPLOYEE'::public.user_role,
     NULLIF(NEW.raw_user_meta_data->>'avatar_url', '')
   );
   RETURN NEW;
@@ -70,6 +68,39 @@ ALTER FUNCTION "public"."handle_new_user"() OWNER TO "postgres";
 CREATE TRIGGER "on_auth_user_created"
   AFTER INSERT ON "auth"."users"
   FOR EACH ROW EXECUTE FUNCTION "public"."handle_new_user"();
+
+-- Apply the initial role once it arrives in raw_app_meta_data. Only the
+-- service-role admin API can write that column (client signUp option data
+-- lands in raw_user_meta_data), so it stays the trusted channel for the
+-- initial role, capped at ADMIN: SUPER_ADMIN can never enter through this
+-- path, and an existing SUPER_ADMIN row is never touched. SECURITY DEFINER
+-- (owner postgres) is required because the Auth server connects as
+-- supabase_auth_admin, which enforce_user_role_rules below would refuse.
+CREATE OR REPLACE FUNCTION "public"."sync_role_from_app_metadata"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" = ''
+    AS $$
+BEGIN
+  UPDATE public.users
+  SET role = CASE WHEN NEW.raw_app_meta_data->>'role' = 'ADMIN'
+                  THEN 'ADMIN'::public.user_role
+                  ELSE 'EMPLOYEE'::public.user_role
+             END
+  WHERE id = NEW.id
+    AND role <> 'SUPER_ADMIN';
+  RETURN NEW;
+END;
+$$;
+
+ALTER FUNCTION "public"."sync_role_from_app_metadata"() OWNER TO "postgres";
+
+REVOKE ALL ON FUNCTION "public"."sync_role_from_app_metadata"() FROM PUBLIC;
+
+CREATE TRIGGER "on_auth_user_role_updated"
+  AFTER UPDATE OF "raw_app_meta_data" ON "auth"."users"
+  FOR EACH ROW
+  WHEN (OLD.raw_app_meta_data->>'role' IS DISTINCT FROM NEW.raw_app_meta_data->>'role')
+  EXECUTE FUNCTION "public"."sync_role_from_app_metadata"();
 
 -- Caller's role, readable from RLS policies without recursing into the
 -- users table's own policies.

@@ -102,7 +102,7 @@ Deno.serve(async req => {
         // The password is admin-chosen, so the owner is prompted to replace it
         // on first sign-in; changePassword() clears the flag.
         user_metadata: { name: name.trim(), must_change_password: true },
-        // handle_new_user reads the initial role from app_metadata only.
+        // The on_auth_user_role_updated trigger copies the initial role from here into public.users.
         app_metadata: { role },
       })
       if (createError) {
