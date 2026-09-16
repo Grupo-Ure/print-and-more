@@ -1,11 +1,11 @@
 import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
-import { withAttr } from '../support/locators'
+import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.orders.newOrderDialog
 
 /** "+ New Order": pick or create a customer, then create the quote. */
-export class NewOrderDialogPOM {
+export class NewOrderDialogPOM extends BasePOM {
   readonly root: Locator
   readonly error: Locator
   readonly customerSearch: Locator
@@ -20,6 +20,7 @@ export class NewOrderDialogPOM {
   readonly submit: Locator
 
   constructor(page: Page) {
+    super(page)
     this.root = page.getByTestId(IDS.root)
     this.error = this.root.getByTestId(IDS.error)
     this.customerSearch = this.root.getByTestId(IDS.customerSearch)
@@ -33,6 +34,6 @@ export class NewOrderDialogPOM {
   }
 
   customerOption(customerId: string): Locator {
-    return withAttr(this.customerOptions, 'data-customer-id', customerId)
+    return this.withAttr(this.customerOptions, 'data-customer-id', customerId)
   }
 }

@@ -1,15 +1,15 @@
 import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
-import { withAttr } from '../support/locators'
 import { CreateAccountDialogPOM } from './CreateAccountDialogPOM'
 import { ConfirmDialogPOM } from './ConfirmDialogPOM'
 import { AccessDeniedPOM } from './AccessDeniedPOM'
 import { ToastPOM } from './ToastPOM'
+import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.userManagement
 
 /** User management page (super admins): accounts table, role changes, deletion. */
-export class UserManagementPOM {
+export class UserManagementPOM extends BasePOM {
   readonly root: Locator
   readonly create: Locator
   readonly table: Locator
@@ -21,6 +21,7 @@ export class UserManagementPOM {
   readonly toast: ToastPOM
 
   constructor(page: Page) {
+    super(page)
     this.root = page.getByTestId(IDS.root)
     this.create = this.root.getByTestId(IDS.create)
     this.table = this.root.getByTestId(IDS.table)
@@ -32,7 +33,7 @@ export class UserManagementPOM {
   }
 
   row(userId: string): Locator {
-    return withAttr(this.rows, 'data-user-id', userId)
+    return this.withAttr(this.rows, 'data-user-id', userId)
   }
 
   /** Role select for accounts the current user may change; carries `data-value`. */

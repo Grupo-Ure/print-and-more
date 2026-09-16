@@ -5,11 +5,12 @@ import { StampModelDialogPOM } from './StampModelDialogPOM'
 import { ConfirmDialogPOM } from './ConfirmDialogPOM'
 import { AccessDeniedPOM } from './AccessDeniedPOM'
 import { ToastPOM } from './ToastPOM'
+import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.stampStock
 
 /** Stamp stock page (admins): models, bookings, reorder list, movements. */
-export class StampStockPOM {
+export class StampStockPOM extends BasePOM {
   readonly root: Locator
   readonly newModel: Locator
   readonly search: Locator
@@ -27,6 +28,7 @@ export class StampStockPOM {
   readonly toast: ToastPOM
 
   constructor(page: Page) {
+    super(page)
     this.root = page.getByTestId(TEST_IDS.stock.root)
     this.newModel = this.root.getByTestId(IDS.newModel)
     this.search = this.root.getByTestId(IDS.search)

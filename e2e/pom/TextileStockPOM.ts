@@ -4,6 +4,7 @@ import { StockTablePOM } from './StockTablePOM'
 import { ConfirmDialogPOM } from './ConfirmDialogPOM'
 import { AccessDeniedPOM } from './AccessDeniedPOM'
 import { ToastPOM } from './ToastPOM'
+import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.textileStock
 
@@ -11,7 +12,7 @@ const IDS = TEST_IDS.textileStock
  * Textile stock page (admins): variant stock and bookings. The master-data
  * subpage (brands → products → variants) is not modelled yet.
  */
-export class TextileStockPOM {
+export class TextileStockPOM extends BasePOM {
   readonly root: Locator
   readonly search: Locator
   readonly brandFilter: Locator
@@ -28,6 +29,7 @@ export class TextileStockPOM {
   readonly toast: ToastPOM
 
   constructor(page: Page) {
+    super(page)
     this.root = page.getByTestId(TEST_IDS.stock.root)
     this.search = this.root.getByTestId(IDS.search)
     this.brandFilter = this.root.getByTestId(IDS.brandFilter)

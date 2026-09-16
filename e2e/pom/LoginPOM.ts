@@ -1,11 +1,12 @@
 import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
 import type { TestUser } from '../fixtures/users'
+import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.login
 
 /** The sign-in screen shown while no session exists. */
-export class LoginPOM {
+export class LoginPOM extends BasePOM {
   readonly root: Locator
   readonly email: Locator
   readonly password: Locator
@@ -14,6 +15,7 @@ export class LoginPOM {
   readonly error: Locator
 
   constructor(page: Page) {
+    super(page)
     this.root = page.getByTestId(IDS.root)
     this.email = this.root.getByTestId(IDS.email)
     this.password = this.root.getByTestId(IDS.password)

@@ -4,6 +4,7 @@ import { JobListPOM } from './JobListPOM'
 import { JobDetailPOM } from './JobDetailPOM'
 import { OrderFilesDialogPOM } from './OrderFilesDialogPOM'
 import { OrderHistoryDialogPOM } from './OrderHistoryDialogPOM'
+import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.orders.details
 
@@ -11,7 +12,7 @@ const IDS = TEST_IDS.orders.details
  * Centre column with an order selected: header, settings row, job list and
  * the active job. The root carries `data-order-id` and `data-status`.
  */
-export class OrderDetailsPOM {
+export class OrderDetailsPOM extends BasePOM {
   readonly root: Locator
 
   // Header
@@ -43,6 +44,7 @@ export class OrderDetailsPOM {
   readonly historyDialog: OrderHistoryDialogPOM
 
   constructor(page: Page) {
+    super(page)
     this.root = page.getByTestId(IDS.root)
 
     const h = IDS.header

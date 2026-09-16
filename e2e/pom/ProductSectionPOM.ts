@@ -1,12 +1,12 @@
 import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
-import { withAttr } from '../support/locators'
 import { ProductDialogPOM } from './ProductDialogPOM'
+import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.orders.jobDetail.products
 
 /** The active job's product table plus its add/edit dialog. */
-export class ProductSectionPOM {
+export class ProductSectionPOM extends BasePOM {
   readonly root: Locator
   readonly add: Locator
   readonly table: Locator
@@ -16,6 +16,7 @@ export class ProductSectionPOM {
   readonly dialog: ProductDialogPOM
 
   constructor(page: Page) {
+    super(page)
     this.root = page.getByTestId(IDS.root)
     this.add = this.root.getByTestId(IDS.add)
     this.table = this.root.getByTestId(IDS.table)
@@ -25,7 +26,7 @@ export class ProductSectionPOM {
   }
 
   row(productId: string): Locator {
-    return withAttr(this.rows, 'data-product-id', productId)
+    return this.withAttr(this.rows, 'data-product-id', productId)
   }
 
   rowEdit(row: Locator): Locator {

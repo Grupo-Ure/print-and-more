@@ -1,11 +1,11 @@
 import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
-import { withAttr } from '../support/locators'
+import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.orders.duplicateDialog
 
 /** Duplicate an order: choose the jobs to copy and an optional new deadline. */
-export class DuplicateDialogPOM {
+export class DuplicateDialogPOM extends BasePOM {
   readonly root: Locator
   readonly selectAll: Locator
   /** One checkbox per job; each carries `data-job-id`. */
@@ -16,6 +16,7 @@ export class DuplicateDialogPOM {
   readonly submit: Locator
 
   constructor(page: Page) {
+    super(page)
     this.root = page.getByTestId(IDS.root)
     this.selectAll = this.root.getByTestId(IDS.selectAll)
     this.jobs = this.root.getByTestId(IDS.job)
@@ -26,6 +27,6 @@ export class DuplicateDialogPOM {
   }
 
   job(jobId: string): Locator {
-    return withAttr(this.jobs, 'data-job-id', jobId)
+    return this.withAttr(this.jobs, 'data-job-id', jobId)
   }
 }

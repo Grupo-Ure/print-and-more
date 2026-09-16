@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
-import { withAttr } from '../support/locators'
+import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.stock
 
@@ -13,20 +13,21 @@ export type BookingField = {
 }
 
 /** The sortable stock table shared by the stamp and textile pages. */
-export class StockTablePOM {
+export class StockTablePOM extends BasePOM {
   readonly root: Locator
   readonly empty: Locator
   /** Every row; each carries `data-row-id` (stamp model id / textile variant id). */
   readonly rows: Locator
 
   constructor(page: Page) {
+    super(page)
     this.root = page.getByTestId(IDS.table.root)
     this.empty = this.root.getByTestId(IDS.table.empty)
     this.rows = this.root.getByTestId(IDS.table.row)
   }
 
   row(rowId: string): Locator {
-    return withAttr(this.rows, 'data-row-id', rowId)
+    return this.withAttr(this.rows, 'data-row-id', rowId)
   }
 
   booking(row: Locator): BookingField {

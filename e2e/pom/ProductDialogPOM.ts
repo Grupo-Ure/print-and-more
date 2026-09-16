@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
-import { withAttr } from '../support/locators'
+import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.orders.jobDetail.products.dialog
 
@@ -9,7 +9,7 @@ const IDS = TEST_IDS.orders.jobDetail.products.dialog
  * per-type form fields are not modelled yet — they come with the specs that
  * need them.
  */
-export class ProductDialogPOM {
+export class ProductDialogPOM extends BasePOM {
   readonly root: Locator
   /** Step 1 of "add": one button per product type; each carries `data-type`. */
   readonly typeOptions: Locator
@@ -18,6 +18,7 @@ export class ProductDialogPOM {
   readonly close: Locator
 
   constructor(page: Page) {
+    super(page)
     this.root = page.getByTestId(IDS.root)
     this.typeOptions = this.root.getByTestId(IDS.typeOption)
     this.back = this.root.getByTestId(IDS.back)
@@ -26,6 +27,6 @@ export class ProductDialogPOM {
   }
 
   typeOption(type: string): Locator {
-    return withAttr(this.typeOptions, 'data-type', type)
+    return this.withAttr(this.typeOptions, 'data-type', type)
   }
 }

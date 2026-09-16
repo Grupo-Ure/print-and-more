@@ -1,10 +1,11 @@
 import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
+import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.navbar.userMenu
 
 /** The navbar's account menu: trigger plus the dropdown it opens. */
-export class UserMenuPOM {
+export class UserMenuPOM extends BasePOM {
   /** Carries `data-user-email` of the signed-in user. */
   readonly trigger: Locator
   readonly content: Locator
@@ -16,6 +17,7 @@ export class UserMenuPOM {
   readonly signOut: Locator
 
   constructor(page: Page) {
+    super(page)
     this.trigger = page.getByTestId(IDS.trigger)
     this.content = page.getByTestId(IDS.content)
     this.name = this.content.getByTestId(IDS.name)
@@ -25,9 +27,9 @@ export class UserMenuPOM {
     this.signOut = this.content.getByTestId(IDS.signOut)
   }
 
-  /** Email of the signed-in user as shown by the trigger, or null when signed out. */
-  async signedInEmail(): Promise<string | null> {
-    return this.trigger.getAttribute('data-user-email')
+  /** The trigger, but only while this user is the one signed in. */
+  signedInAs(email: string): Locator {
+    return this.withAttr(this.trigger, 'data-user-email', email)
   }
 
   async open(): Promise<void> {

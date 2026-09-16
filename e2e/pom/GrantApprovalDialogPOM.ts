@@ -1,11 +1,11 @@
 import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
-import { withAttr } from '../support/locators'
+import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.orders.jobDetail.settingsDialog.grantDialog
 
 /** Pick which of the order's files the customer approved. */
-export class GrantApprovalDialogPOM {
+export class GrantApprovalDialogPOM extends BasePOM {
   readonly root: Locator
   readonly addFiles: Locator
   /** One radio per file; each carries `data-file-id`. */
@@ -14,6 +14,7 @@ export class GrantApprovalDialogPOM {
   readonly submit: Locator
 
   constructor(page: Page) {
+    super(page)
     this.root = page.getByTestId(IDS.root)
     this.addFiles = this.root.getByTestId(IDS.addFiles)
     this.files = this.root.getByTestId(IDS.file)
@@ -22,6 +23,6 @@ export class GrantApprovalDialogPOM {
   }
 
   file(fileId: string): Locator {
-    return withAttr(this.files, 'data-file-id', fileId)
+    return this.withAttr(this.files, 'data-file-id', fileId)
   }
 }

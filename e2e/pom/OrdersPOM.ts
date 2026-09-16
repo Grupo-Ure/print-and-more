@@ -7,13 +7,14 @@ import { CustomerDialogPOM } from './CustomerDialogPOM'
 import { DuplicateDialogPOM } from './DuplicateDialogPOM'
 import { ConfirmDialogPOM } from './ConfirmDialogPOM'
 import { ToastPOM } from './ToastPOM'
+import { BasePOM } from './BasePOM'
 
 /**
  * The orders view — the app's main screen. Everything a spec needs is reachable
  * from here: the sidebar, the selected order's details (with job list and
  * active job), and every dialog the view can open.
  */
-export class OrdersPOM {
+export class OrdersPOM extends BasePOM {
   /** Centre column while no order is selected. */
   readonly welcome: Locator
   readonly sidebar: OrderSidebarPOM
@@ -25,6 +26,7 @@ export class OrdersPOM {
   readonly toast: ToastPOM
 
   constructor(page: Page) {
+    super(page)
     this.welcome = page.getByTestId(TEST_IDS.orders.welcome)
     this.sidebar = new OrderSidebarPOM(page)
     this.details = new OrderDetailsPOM(page)

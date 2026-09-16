@@ -1,10 +1,11 @@
 import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
+import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.orders.customerDialog
 
 /** Create / edit a customer (opened from the new-order dialog or the order header). */
-export class CustomerDialogPOM {
+export class CustomerDialogPOM extends BasePOM {
   readonly root: Locator
   readonly error: Locator
   readonly name: Locator
@@ -20,6 +21,7 @@ export class CustomerDialogPOM {
   readonly submit: Locator
 
   constructor(page: Page) {
+    super(page)
     this.root = page.getByTestId(IDS.root)
     this.error = this.root.getByTestId(IDS.error)
     this.name = this.root.getByTestId(IDS.name)

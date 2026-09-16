@@ -1,11 +1,12 @@
 import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
 import { GrantApprovalDialogPOM } from './GrantApprovalDialogPOM'
+import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.orders.jobDetail.settingsDialog
 
 /** Per-job overrides (deadline / delivery / priority) and customer approval. */
-export class JobSettingsDialogPOM {
+export class JobSettingsDialogPOM extends BasePOM {
   readonly root: Locator
   readonly separateDeadline: Locator
   /** Carries `data-value` = ISO date when set. */
@@ -22,6 +23,7 @@ export class JobSettingsDialogPOM {
   readonly grantDialog: GrantApprovalDialogPOM
 
   constructor(page: Page) {
+    super(page)
     this.root = page.getByTestId(IDS.root)
     this.separateDeadline = this.root.getByTestId(IDS.separateDeadline)
     this.deadline = this.root.getByTestId(IDS.deadline)

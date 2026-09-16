@@ -4,6 +4,7 @@ import { ForceReleaseDialogPOM } from './ForceReleaseDialogPOM'
 import { ProductSectionPOM } from './ProductSectionPOM'
 import { JobSettingsDialogPOM } from './JobSettingsDialogPOM'
 import { TimeLogsDialogPOM } from './TimeLogsDialogPOM'
+import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.orders.jobDetail
 
@@ -12,7 +13,7 @@ const IDS = TEST_IDS.orders.jobDetail
  * banner naming unmet requirements, and the product section. The root
  * carries `data-job-id`, `data-status` and `data-department`.
  */
-export class JobDetailPOM {
+export class JobDetailPOM extends BasePOM {
   readonly root: Locator
   readonly title: Locator
   /** Carries `data-value` = assignee user id. */
@@ -40,6 +41,7 @@ export class JobDetailPOM {
   readonly timeLogsDialog: TimeLogsDialogPOM
 
   constructor(page: Page) {
+    super(page)
     this.root = page.getByTestId(IDS.root)
     this.title = this.root.getByTestId(IDS.title)
     this.assignee = this.root.getByTestId(IDS.assignee)

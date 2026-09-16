@@ -76,6 +76,11 @@ including those of nested components.
 - Folder: `e2e/pom/`.
 - One class per file; class and file share a name suffixed with `POM`:
   `OrdersPOM.ts` exports `class OrdersPOM`.
+- **Every page object extends `BasePOM`** (`e2e/pom/BasePOM.ts`). It holds
+  the `page` and the locator helpers every page object shares — e.g.
+  `withAttr(locator, attr, value)`, which narrows a repeated element to one
+  instance. Shared helpers live there and nowhere else; a page object never
+  imports helpers from outside the class hierarchy.
 - Top-level page objects, one per view: the orders workspace, the stamp and
   textile stock pages, the user menu, the user management page.
 
@@ -87,24 +92,33 @@ and the parent exposes it as a property:
 
 ```ts
 // e2e/pom/NewOrderDialogPOM.ts
-export class NewOrderDialogPOM {
+export class NewOrderDialogPOM extends BasePOM {
   readonly root: Locator
   readonly customerInput: Locator
+  readonly customerOptions: Locator
   readonly submitButton: Locator
 
   constructor(page: Page) {
+    super(page)
     this.root = page.getByTestId(TEST_IDS.orders.newOrderDialog.root)
     this.customerInput = this.root.getByTestId(TEST_IDS.orders.newOrderDialog.customerInput)
+    this.customerOptions = this.root.getByTestId(TEST_IDS.orders.newOrderDialog.customerOption)
     this.submitButton = this.root.getByTestId(TEST_IDS.orders.newOrderDialog.submitButton)
+  }
+
+  /** One of the repeated result rows, picked by its `data-customer-id`. */
+  customerOption(customerId: string): Locator {
+    return this.withAttr(this.customerOptions, 'data-customer-id', customerId)
   }
 }
 
 // e2e/pom/OrdersPOM.ts
-export class OrdersPOM {
+export class OrdersPOM extends BasePOM {
   readonly newOrderButton: Locator
   readonly newOrderDialog: NewOrderDialogPOM
 
   constructor(page: Page) {
+    super(page)
     this.newOrderButton = page.getByTestId(TEST_IDS.orders.sidebar.newOrderButton)
     this.newOrderDialog = new NewOrderDialogPOM(page)
   }
@@ -139,6 +153,27 @@ Rules of thumb:
 - **Never assertions.** `expect` stays in the spec, where the Testing
   Standards' minimal-assertion rule governs it. A page object that asserts
   hides what a test is actually checking.
+
+### `expect` is for specs only
+
+This applies to fixtures as much as to page objects: **no `expect` outside a
+spec file.** An `expect` in support code can fail a test on its own, and the
+report then blames an assertion when the real problem was setup.
+
+When support code has to wait for the app to reach a state, use Playwright's
+waiting API on a locator that only matches in that state:
+
+```ts
+// Good — a wait; a timeout reads as a setup failure
+await userMenu.signedInAs(user.email).waitFor()
+await login.root.or(userMenu.trigger).waitFor()
+
+// Bad — an assertion in a fixture
+await expect(userMenu.trigger).toHaveAttribute('data-user-email', user.email)
+```
+
+`waitFor()` retries and times out exactly like a web-first `expect`, so
+nothing is lost — only the wrong label.
 - **Never test data.** Values come from `e2e/fixtures/*`; the page object
   receives them as arguments.
 
@@ -179,5 +214,5 @@ object members and fixture values.
 | Typing a test ID string in a component or spec | Duplicates the registry; app and suite drift apart | Import `TEST_IDS` on both sides |
 | `page.getByTestId(...)` inside a spec | Puts locator knowledge in the test; every spec re-learns the page | Add the locator to the page object |
 | One page object class for an entire view | Grows unreadable; every change touches it | Child `POM` classes per dialog/panel, composed by the parent |
-| `expect` inside a page object | Hides what the test asserts; violates minimal assertions | Return locators; assert in the spec |
+| `expect` inside a page object or fixture | Hides what the test asserts; a failure is reported as an assertion instead of a setup problem | Return locators; wait with `waitFor()`; assert in the spec |
 | Test data as defaults inside a page object | Same data problem the Testing Standards forbid in specs | Pass fixture values in |

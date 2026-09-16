@@ -1,12 +1,12 @@
 import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
-import { withAttr } from '../support/locators'
 import type { OrderStatus } from '../../src/types/database'
+import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.orders.sidebar.filters
 
 /** The sidebar's filter panel (inline on desktop, popover in compact mode). */
-export class OrderSidebarFiltersPOM {
+export class OrderSidebarFiltersPOM extends BasePOM {
   readonly root: Locator
   readonly allStatuses: Locator
   readonly department: Locator
@@ -18,6 +18,7 @@ export class OrderSidebarFiltersPOM {
   private readonly statuses: Locator
 
   constructor(page: Page) {
+    super(page)
     this.root = page.getByTestId(IDS.root)
     this.allStatuses = this.root.getByTestId(IDS.allStatuses)
     this.statuses = this.root.getByTestId(IDS.status)
@@ -30,6 +31,6 @@ export class OrderSidebarFiltersPOM {
   }
 
   status(status: OrderStatus): Locator {
-    return withAttr(this.statuses, 'data-status', status)
+    return this.withAttr(this.statuses, 'data-status', status)
   }
 }

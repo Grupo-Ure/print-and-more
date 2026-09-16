@@ -1,11 +1,11 @@
 import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
-import { withAttr } from '../support/locators'
+import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.orders.jobDetail.timeLogsDialog
 
 /** Worked time on the active job. */
-export class TimeLogsDialogPOM {
+export class TimeLogsDialogPOM extends BasePOM {
   readonly root: Locator
   /** Carries `data-minutes`. */
   readonly total: Locator
@@ -19,6 +19,7 @@ export class TimeLogsDialogPOM {
   readonly submit: Locator
 
   constructor(page: Page) {
+    super(page)
     this.root = page.getByTestId(IDS.root)
     this.total = this.root.getByTestId(IDS.total)
     this.list = this.root.getByTestId(IDS.list)
@@ -30,7 +31,7 @@ export class TimeLogsDialogPOM {
   }
 
   item(logId: string): Locator {
-    return withAttr(this.items, 'data-log-id', logId)
+    return this.withAttr(this.items, 'data-log-id', logId)
   }
 
   itemDelete(item: Locator): Locator {

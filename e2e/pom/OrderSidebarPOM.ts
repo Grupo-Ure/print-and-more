@@ -1,12 +1,12 @@
 import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
-import { withAttr } from '../support/locators'
 import { OrderSidebarFiltersPOM } from './OrderSidebarFiltersPOM'
+import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.orders.sidebar
 
 /** Left column of the orders view: search, filters, the order list, "+ New Order". */
-export class OrderSidebarPOM {
+export class OrderSidebarPOM extends BasePOM {
   readonly root: Locator
   readonly searchToggle: Locator
   readonly filterToggle: Locator
@@ -23,6 +23,7 @@ export class OrderSidebarPOM {
   readonly rowMenuDelete: Locator
 
   constructor(page: Page) {
+    super(page)
     this.root = page.getByTestId(IDS.root)
     this.searchToggle = this.root.getByTestId(IDS.searchToggle)
     this.filterToggle = this.root.getByTestId(IDS.filterToggle)
@@ -38,7 +39,7 @@ export class OrderSidebarPOM {
   }
 
   row(orderId: string): Locator {
-    return withAttr(this.rows, 'data-order-id', orderId)
+    return this.withAttr(this.rows, 'data-order-id', orderId)
   }
 
   rowNumber(row: Locator): Locator {

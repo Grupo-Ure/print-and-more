@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import { test as base } from './electron'
 import { TEST_USERS, type TestUser } from './users'
 import { LoginPOM } from '../pom/LoginPOM'
@@ -12,12 +12,15 @@ type AuthFixtures = {
   user: TestUser | null
 }
 
-/** Fills the login form and waits until the navbar greets the user. */
+// No `expect` in here: fixtures synchronise with `waitFor()`. A timeout then
+// reads as a setup failure, not as a test assertion.
+
+/** Fills the login form and waits until the navbar shows this user signed in. */
 export async function signIn(page: Page, user: TestUser): Promise<void> {
   const login = new LoginPOM(page)
   const { userMenu } = new NavbarPOM(page)
   await login.signIn(user)
-  await expect(userMenu.trigger).toHaveAttribute('data-user-email', user.email)
+  await userMenu.signedInAs(user.email).waitFor()
 }
 
 /** Signs out through the account menu and waits for the login screen. */
@@ -26,7 +29,7 @@ export async function signOut(page: Page): Promise<void> {
   const { userMenu } = new NavbarPOM(page)
   await userMenu.open()
   await userMenu.signOut.click()
-  await expect(login.root).toBeVisible()
+  await login.root.waitFor()
 }
 
 /**
@@ -40,7 +43,7 @@ async function ensureAuthState(page: Page, user: TestUser | null): Promise<void>
 
   // The app renders nothing until the stored session is resolved, then
   // either the login screen or the navbar with the account menu.
-  await expect(login.root.or(userMenu.trigger)).toBeVisible()
+  await login.root.or(userMenu.trigger).waitFor()
   const signedOut = await login.root.isVisible()
 
   if (user == null) {
@@ -48,7 +51,7 @@ async function ensureAuthState(page: Page, user: TestUser | null): Promise<void>
     return
   }
   if (!signedOut) {
-    if ((await userMenu.signedInEmail()) === user.email) return
+    if (await userMenu.signedInAs(user.email).isVisible()) return
     await signOut(page)
   }
   await signIn(page, user)

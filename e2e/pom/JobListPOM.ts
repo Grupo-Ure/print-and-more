@@ -1,13 +1,13 @@
 import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
-import { withAttr } from '../support/locators'
 import { JobContextMenuPOM } from './JobContextMenuPOM'
 import type { Department } from '../../src/types/database'
+import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.orders.jobList
 
 /** The job column: one add-job button per department and a row per job. */
-export class JobListPOM {
+export class JobListPOM extends BasePOM {
   readonly root: Locator
   readonly list: Locator
   readonly empty: Locator
@@ -17,6 +17,7 @@ export class JobListPOM {
   private readonly addJobButtons: Locator
 
   constructor(page: Page) {
+    super(page)
     this.root = page.getByTestId(IDS.root)
     this.addJobButtons = this.root.getByTestId(IDS.addJob)
     this.list = this.root.getByTestId(IDS.list)
@@ -26,11 +27,11 @@ export class JobListPOM {
   }
 
   addJob(department: Department): Locator {
-    return withAttr(this.addJobButtons, 'data-department', department)
+    return this.withAttr(this.addJobButtons, 'data-department', department)
   }
 
   row(jobId: string): Locator {
-    return withAttr(this.rows, 'data-job-id', jobId)
+    return this.withAttr(this.rows, 'data-job-id', jobId)
   }
 
   rowMissingInfo(row: Locator): Locator {
