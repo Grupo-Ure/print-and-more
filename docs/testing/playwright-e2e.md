@@ -177,6 +177,38 @@ nothing is lost — only the wrong label.
 - **Never test data.** Values come from `e2e/fixtures/*`; the page object
   receives them as arguments.
 
+## Asserting Over Repeated Elements
+
+The Testing Standards forbid assertions inside loops. In Playwright that
+rule meets one more constraint: assertions must stay **web-first** (they
+retry until they hold or time out), so the collection has to be gathered in
+a way that retries too.
+
+- **Prefer a list-aware matcher on the repeated locator** when one fits:
+  `toHaveCount(n)` for how many there are; `toHaveText([...])` for what they
+  say, but only where the text is the behaviour under test.
+- **Otherwise read the values through the page object and assert with
+  `expect.poll`.** The page object exposes a read helper that returns what
+  the repeated elements carry — usually their data attributes. The spec
+  wraps the call in `expect.poll`, which re-runs the whole read until the
+  assertion holds or times out, exactly like a web-first `expect`. Compare
+  as a `Set` when order is not the point.
+
+```ts
+// e2e/pom/NavbarPOM.ts
+/** The views that currently have a navbar link. */
+async renderedViews(): Promise<NavbarView[]> {
+  return this.links.evaluateAll(els => els.map(el => el.getAttribute('data-view') as NavbarView))
+}
+
+// spec — exactly the role's views, no more, no less
+await expect.poll(async () => new Set(await navbar.renderedViews())).toEqual(allowed)
+```
+
+The helper is a read, not an assertion, so it belongs in the page object. A
+plain `expect(await navbar.renderedViews())` would read once and never
+retry — anything that depends on rendering goes through `expect.poll`.
+
 ---
 
 ## Putting It Together
@@ -214,5 +246,6 @@ object members and fixture values.
 | Typing a test ID string in a component or spec | Duplicates the registry; app and suite drift apart | Import `TEST_IDS` on both sides |
 | `page.getByTestId(...)` inside a spec | Puts locator knowledge in the test; every spec re-learns the page | Add the locator to the page object |
 | One page object class for an entire view | Grows unreadable; every change touches it | Child `POM` classes per dialog/panel, composed by the parent |
+| `expect` inside a `for` over views, rows or other repeated elements | Stops at the first failure; zero iterations pass silently; the list of what is on screen never appears in the report | A list-aware matcher on the repeated locator, or a page-object read helper + `expect.poll` |
 | `expect` inside a page object or fixture | Hides what the test asserts; a failure is reported as an assertion instead of a setup problem | Return locators; wait with `waitFor()`; assert in the spec |
 | Test data as defaults inside a page object | Same data problem the Testing Standards forbid in specs | Pass fixture values in |

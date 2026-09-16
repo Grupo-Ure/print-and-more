@@ -126,6 +126,37 @@ the direct result of the action being tested — assert that value exactly.
 The rule is to be deliberate: assert precisely what's semantically
 meaningful to the case, and nothing that's incidental to it.
 
+### Never assert inside a loop
+
+An assertion never lives in a loop body — not in a `for`, a `forEach`, a
+`map`, or any other iteration. Two things go wrong when it does: the run
+stops at the first failing iteration and hides whether the others would have
+failed too, and a loop that happens to iterate zero times asserts nothing
+while the test still passes.
+
+Instead, gather what the loop would have checked into one value and make one
+assertion against one fixture value. Use the framework's collection matchers
+where they exist (a count, an "equals this list/set", an "every item
+matches"). Where the framework has no such matcher, collect the values
+yourself — an array, a set, a map keyed by the thing you iterated — and
+compare the whole structure. The test then reads as one scenario with one
+reason to fail, and the failure message shows the complete difference at
+once.
+
+```
+// Bad — stops at the first mismatch; passes silently if `items` is empty
+for (const item of items) {
+  expect(item.status).toBe(fixtures.doneStatus)
+}
+
+// Good — one assertion, whole picture on failure
+expect(items.map(item => item.status)).toEqual(fixtures.allDoneStatuses)
+```
+
+Generating *test cases* in a loop — one case per entry of a fixture table —
+is a different thing and is fine: each generated case still contains its own
+straight-line assertions.
+
 ---
 
 ## Black-Box Testing
@@ -202,6 +233,7 @@ maximizes assertion count or case count.
 | Declaring mock/fixture data inline in a test file | Duplicates data, invisible to other tests that need the same value, breaks silently when it drifts | Declare it once in the fixtures/mocks file and import it |
 | Hardcoding the same literal in both setup and assertion | The assertion can silently stop testing anything if the two drift apart | Reference the same fixture constant in both places |
 | Asserting an exact error message | Brittle — breaks on copy changes unrelated to behavior | Assert a status/code/category |
+| An assertion inside a loop body | Stops at the first failing iteration and hides the rest; zero iterations pass silently | Collect the values and make one assertion against the whole collection |
 | Asserting every field of a result with exact values | Over-specified, couples the test to incidental detail | Assert only the fields that are semantically meaningful to the case |
 | Testing internal implementation details | Breaks on refactors that don't change behavior | Test the public input/output contract |
 | One test case asserting many unrelated behaviors | Failure doesn't say what broke; hard to read | Split into focused cases, one reason to fail each |
