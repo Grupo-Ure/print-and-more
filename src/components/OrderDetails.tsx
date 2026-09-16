@@ -35,6 +35,10 @@ import { DeadlinePicker } from './fields/DeadlinePicker'
 import { DeliverySelect } from './fields/DeliverySelect'
 import { PaymentSelect } from './fields/PaymentSelect'
 import { PrioritySelect } from './fields/PrioritySelect'
+import { TEST_IDS } from '@e2e/support/testIds'
+
+const HEADER_IDS = TEST_IDS.orders.details.header
+const SETTINGS_IDS = TEST_IDS.orders.details.settings
 
 /** Copies a value to the clipboard and reports the outcome as a toast. */
 function useCopyToClipboard() {
@@ -288,7 +292,7 @@ export function OrderDetails() {
 
   if (!activeOrderId) {
     return (
-      <div className="flex flex-col w-full h-full items-center justify-center">
+      <div data-testid={TEST_IDS.orders.welcome} className="flex flex-col w-full h-full items-center justify-center">
         <h1 className="tracking-widest">Welcome</h1>
         <h2>Select an order on the left to view details and jobs.</h2>
       </div>
@@ -336,7 +340,12 @@ export function OrderDetails() {
   }
 
   return (
-    <main className="flex flex-col gap-2 p-3 flex-1 min-h-0">
+    <main
+      data-testid={TEST_IDS.orders.details.root}
+      data-order-id={order.id}
+      data-status={order.status}
+      className="flex flex-col gap-2 p-3 flex-1 min-h-0"
+    >
       {/* Watches every auto-band job of the order for the automatic
           IN_SETUP ↔ PREPRESS transition (renders nothing). */}
       <StatusManager orderId={activeOrderId} />
@@ -443,11 +452,12 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
       <div className="flex flex-wrap gap-x-4 gap-y-1 items-center justify-between">
         <div className="flex gap-4 items-center">
           <h1>Order:</h1>
-          <h2 className="text-xl desktop:text-2xl" title="Order number">
+          <h2 data-testid={HEADER_IDS.orderNumber} className="text-xl desktop:text-2xl" title="Order number">
             {order.order_number}
           </h2>
           {totalMinutes > 0 && (
             <span
+              data-testid={HEADER_IDS.totalTime}
               className="flex items-center gap-1 text-sm text-muted-foreground tabular-nums"
               title="Total time logged across all jobs"
             >
@@ -458,13 +468,19 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
         </div>
         <div className="flex items-center gap-1">
           {order.status === 'QUOTE' && hasJobs && (
-            <span className="mr-2 flex items-center gap-2 text-lg font-medium text-amber-500">
+            <span
+              data-testid={HEADER_IDS.quoteNotice}
+              className="mr-2 flex items-center gap-2 text-lg font-medium text-amber-500"
+            >
               <TriangleAlert size={16} className="shrink-0" />
               Jobs cannot move to pre-press until you start processing the order.
             </span>
           )}
           {(order.status === 'FINISHED' || order.status === 'BILLED') && (
-            <span className="mr-2 flex items-center gap-2 text-lg font-medium text-green-500">
+            <span
+              data-testid={HEADER_IDS.doneNotice}
+              className="mr-2 flex items-center gap-2 text-lg font-medium text-green-500"
+            >
               <CheckCircle2 size={16} className="shrink-0" />
               This order is done and can no longer be modified.
             </span>
@@ -476,6 +492,7 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
               size="lg"
               className="text-blue-500 hover:text-blue-500"
               title="Admin-only action"
+              data-testid={HEADER_IDS.reopen}
               disabled={statusPending}
               onClick={onReopenOrder}
             >
@@ -498,6 +515,7 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
             size="icon-sm"
             title="Order files"
             aria-label="Order files"
+            data-testid={HEADER_IDS.files}
             onClick={onOpenFiles}
           >
             <Paperclip />
@@ -508,6 +526,7 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
             size="icon-sm"
             title="Order history"
             aria-label="Order history"
+            data-testid={HEADER_IDS.history}
             onClick={() => setHistoryOpen(true)}
           >
             <History />
@@ -519,6 +538,7 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
               size="icon-sm"
               title="Archive order"
               aria-label="Archive order"
+              data-testid={HEADER_IDS.archive}
               disabled={archivePending || cancelPending}
               onClick={onArchive}
             >
@@ -532,6 +552,7 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
               size="icon-sm"
               title="Cancel order"
               aria-label="Cancel order"
+              data-testid={HEADER_IDS.cancel}
               disabled={archivePending || cancelPending}
               onClick={onCancelOrder}
               className="text-destructive hover:text-destructive"
@@ -543,13 +564,14 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
       </div>
       <div className="flex items-center gap-4 text-sm text-muted-foreground">
         <div className="flex items-center gap-1">
-          <h1 title="Customer">
+          <h1 data-testid={HEADER_IDS.customerName} title="Customer">
             {customerDisplayName}
           </h1>
           <Button
             onClick={onEditCustomer}
             title="Edit customer"
             aria-label="Edit customer"
+            data-testid={HEADER_IDS.editCustomer}
             variant="ghost"
             size="icon-sm"
           >
@@ -558,7 +580,7 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
         </div>
         {customerEmail && (
           <div className="flex items-center gap-1">
-            <p title="Email">
+            <p data-testid={HEADER_IDS.customerEmail} title="Email">
               <span className="font-medium">Email:</span> {customerEmail}
             </p>
             <Button
@@ -574,7 +596,7 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
         )}
         {customerPhone && (
           <div className="flex items-center gap-1">
-            <p title="Phone">
+            <p data-testid={HEADER_IDS.customerPhone} title="Phone">
               <span className="font-medium">Phone:</span> {customerPhone}
             </p>
             <Button
@@ -647,6 +669,8 @@ function OrderLifecycleButton({ status, paymentMethod, allJobsDone, pending, onS
     <Button
       type="button"
       variant="default"
+      data-testid={HEADER_IDS.lifecycle}
+      data-target={action.target}
       className={cn(
         'h-9 px-5 text-base desktop:h-10 desktop:px-6 desktop:text-lg rounded-full',
         action.attention && 'animate-attention-ring',
@@ -698,8 +722,13 @@ function OrderSettings({ order, onSave, deadlineRequired }: OrderSettingsProps) 
 
 
   return (
-    <section className="flex flex-wrap items-center gap-x-4 gap-y-1" aria-label="Order meta">
+    <section
+      data-testid={SETTINGS_IDS.root}
+      className="flex flex-wrap items-center gap-x-4 gap-y-1"
+      aria-label="Order meta"
+    >
       <DeadlinePicker
+        testId={SETTINGS_IDS.deadline}
         value={headerDeadline}
         // Judged on the local value so the ring settles the moment a date is picked.
         attention={deadlineRequired && headerDeadline === ''}
@@ -712,6 +741,7 @@ function OrderSettings({ order, onSave, deadlineRequired }: OrderSettingsProps) 
         }}
       />
       <DeliverySelect
+        testId={SETTINGS_IDS.delivery}
         value={headerDelivery}
         onChange={value => {
           setHeaderDelivery(value)
@@ -721,6 +751,7 @@ function OrderSettings({ order, onSave, deadlineRequired }: OrderSettingsProps) 
         }}
       />
       <PrioritySelect
+        testId={SETTINGS_IDS.priority}
         value={headerPriority}
         onChange={value => {
           setHeaderPriority(value)
@@ -730,6 +761,7 @@ function OrderSettings({ order, onSave, deadlineRequired }: OrderSettingsProps) 
         }}
       />
       <PaymentSelect
+        testId={SETTINGS_IDS.payment}
         value={headerPayment}
         onChange={value => {
           setHeaderPayment(value)

@@ -1,6 +1,8 @@
-import { expect, type Locator, type Page } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 import { test as base } from './electron'
 import { TEST_USERS, type TestUser } from './users'
+import { LoginPOM } from '../pom/LoginPOM'
+import { NavbarPOM } from '../pom/NavbarPOM'
 
 type AuthFixtures = {
   /**
@@ -10,34 +12,21 @@ type AuthFixtures = {
   user: TestUser | null
 }
 
-const GREETING = /Hi, /
-
-function firstNameOf(user: TestUser): string {
-  return user.name.split(' ')[0] ?? user.name
-}
-
-function loginHeading(page: Page): Locator {
-  return page.getByRole('heading', { name: 'Welcome back' })
-}
-
-/** The navbar's account-menu trigger, which greets the signed-in user. */
-function userMenu(page: Page, user?: TestUser): Locator {
-  return page.getByRole('button', { name: user ? `Hi, ${firstNameOf(user)}` : GREETING })
-}
-
-/** Fills the login form and waits until the app greets the user. */
+/** Fills the login form and waits until the navbar greets the user. */
 export async function signIn(page: Page, user: TestUser): Promise<void> {
-  await page.getByLabel('Email').fill(user.email)
-  await page.getByLabel('Password').fill(user.password)
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(userMenu(page, user)).toBeVisible()
+  const login = new LoginPOM(page)
+  const { userMenu } = new NavbarPOM(page)
+  await login.signIn(user)
+  await expect(userMenu.trigger).toHaveAttribute('data-user-email', user.email)
 }
 
 /** Signs out through the account menu and waits for the login screen. */
 export async function signOut(page: Page): Promise<void> {
-  await userMenu(page).click()
-  await page.getByRole('menuitem', { name: 'Sign out' }).click()
-  await expect(loginHeading(page)).toBeVisible()
+  const login = new LoginPOM(page)
+  const { userMenu } = new NavbarPOM(page)
+  await userMenu.open()
+  await userMenu.signOut.click()
+  await expect(login.root).toBeVisible()
 }
 
 /**
@@ -46,17 +35,20 @@ export async function signOut(page: Page): Promise<void> {
  * the time this finds the right user already signed in and does nothing.
  */
 async function ensureAuthState(page: Page, user: TestUser | null): Promise<void> {
+  const login = new LoginPOM(page)
+  const { userMenu } = new NavbarPOM(page)
+
   // The app renders nothing until the stored session is resolved, then
   // either the login screen or the navbar with the account menu.
-  await expect(loginHeading(page).or(userMenu(page))).toBeVisible()
-  const signedOut = await loginHeading(page).isVisible()
+  await expect(login.root.or(userMenu.trigger)).toBeVisible()
+  const signedOut = await login.root.isVisible()
 
   if (user == null) {
     if (!signedOut) await signOut(page)
     return
   }
   if (!signedOut) {
-    if (await userMenu(page, user).isVisible()) return
+    if ((await userMenu.signedInEmail()) === user.email) return
     await signOut(page)
   }
   await signIn(page, user)

@@ -11,9 +11,11 @@ type PaymentSelectProps = {
   value: PaymentMethod
   onChange: (value: PaymentMethod) => void
   disabled?: boolean
+  /** data-testid for the trigger. */
+  testId?: string
 }
 
-export function PaymentSelect({ value, onChange, disabled = false }: PaymentSelectProps) {
+export function PaymentSelect({ value, onChange, disabled = false, testId }: PaymentSelectProps) {
   return (
     <label className="meta-pill" title="Payment method">
       <Select
@@ -23,7 +25,7 @@ export function PaymentSelect({ value, onChange, disabled = false }: PaymentSele
           if (next === 'INVOICE' || next === 'CASH') onChange(next)
         }}
       >
-        <SelectTrigger size="sm">
+        <SelectTrigger size="sm" data-testid={testId} data-value={value}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

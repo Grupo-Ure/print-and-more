@@ -7,6 +7,7 @@ import { useIsAdmin, useIsSuperAdmin } from '../queries/userQueries'
 import { NavbarUserMenu } from './NavbarUserMenu'
 import { useNavigation, type AppView } from '../context/navigation.context'
 import { cn } from '@/lib/utils'
+import { TEST_IDS } from '@e2e/support/testIds'
 import logo from '../assets/pam-logo-full.png'
 
 type NavItem = {
@@ -31,6 +32,9 @@ function NavbarLink({ item }: { item: NavItem }) {
   return (
     <button
       type="button"
+      data-testid={TEST_IDS.navbar.link}
+      data-view={item.view}
+      aria-current={isActive ? 'page' : undefined}
       onClick={() => navigate(item.view)}
       className={cn(
         'group flex cursor-pointer items-center gap-1.5 border-b-2 px-2.5 py-1 text-sm transition-colors',
@@ -78,7 +82,10 @@ export function AppNavbar() {
   if (!session) return null
 
   return (
-    <nav className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b border-neutral-200 bg-neutral-50 px-3 py-1.5 font-sans">
+    <nav
+      data-testid={TEST_IDS.navbar.root}
+      className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b border-neutral-200 bg-neutral-50 px-3 py-1.5 font-sans"
+    >
       <div className="flex items-center justify-start">
         <img src={logo} alt="Print And More" draggable={false} className="h-8 w-auto select-none" />
       </div>

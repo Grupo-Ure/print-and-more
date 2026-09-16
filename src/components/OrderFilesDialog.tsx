@@ -11,6 +11,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from './ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Separator } from './ui/separator'
+import { TEST_IDS } from '@e2e/support/testIds'
+
+const IDS = TEST_IDS.orders.details.filesDialog
 
 const ROLES: { value: FileRole; label: string }[] = [
   { value: 'PRODUCTION_FILE', label: 'Production file' },
@@ -102,6 +105,7 @@ export function OrderFilesDialog({ orderId, files, onFileChanged, open, onOpenCh
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        data-testid={IDS.root}
         className={cn(
           'flex h-[70vh] flex-col sm:max-w-3xl',
           isDragging && 'ring-2 ring-primary',
@@ -129,6 +133,7 @@ export function OrderFilesDialog({ orderId, files, onFileChanged, open, onOpenCh
 
         <button
           type="button"
+          data-testid={IDS.addFiles}
           onClick={() => void handlePickAndLink()}
           title="Click to browse, or drop files here"
           className={cn(
@@ -140,20 +145,21 @@ export function OrderFilesDialog({ orderId, files, onFileChanged, open, onOpenCh
           <Plus className={cn(files.length === 0 ? 'size-6' : 'size-4')} aria-hidden />
           {files.length === 0 ? 'Click here or drop files to link them' : 'Add files'}
         </button>
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <p data-testid={IDS.error} className="text-sm text-destructive">{error}</p>}
 
         {files.length > 0 && (
           <>
             <Separator />
             <div className="min-h-0 flex-1 overflow-y-auto">
-              <ul className="divide-y divide-border">
+              <ul data-testid={IDS.list} className="divide-y divide-border">
                 {files.map(file => (
-                  <li key={file.id} className="py-1.5">
+                  <li key={file.id} data-testid={IDS.item} data-file-id={file.id} className="py-1.5">
                     <div className="flex items-center gap-2">
                       <FileText className="size-4 shrink-0 text-primary" aria-hidden />
                       <Input
                         defaultValue={file.display_name}
                         aria-label="Display name"
+                        data-testid={IDS.itemName}
                         maxLength={500}
                         className="h-7 min-w-0 flex-1"
                         onKeyDown={commitNameOnEnter}
@@ -170,7 +176,7 @@ export function OrderFilesDialog({ orderId, files, onFileChanged, open, onOpenCh
                       value={file.role}
                       onValueChange={value => void handleUpdate(file.id, { role: value as FileRole })}
                     >
-                      <SelectTrigger className="w-44" aria-label="Role">
+                      <SelectTrigger className="w-44" aria-label="Role" data-testid={IDS.itemRole} data-value={file.role}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -190,12 +196,14 @@ export function OrderFilesDialog({ orderId, files, onFileChanged, open, onOpenCh
                         disabled={removingId === file.id}
                         title="Remove link"
                         aria-label={`Remove: ${file.display_name}`}
+                        data-testid={IDS.itemRemove}
                       >
                         <X />
                       </Button>
                     </div>
                     <button
                       type="button"
+                      data-testid={IDS.itemPath}
                       onClick={() => void revealFile(file.path)}
                       title={`Open in file manager\n${file.path}`}
                       className="mt-0.5 ml-6 block max-w-full cursor-pointer truncate rounded-sm text-xs text-muted-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"

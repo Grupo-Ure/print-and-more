@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { TEST_IDS } from '@e2e/support/testIds'
 
 export type ConfirmOptions = {
   title: string
@@ -62,9 +63,9 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           if (!open) settle(false)
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" data-testid={TEST_IDS.confirmDialog.root}>
           <DialogHeader>
-            <DialogTitle>{options?.title}</DialogTitle>
+            <DialogTitle data-testid={TEST_IDS.confirmDialog.title}>{options?.title}</DialogTitle>
             {options?.description != null && (
               <DialogDescription className="whitespace-pre-line">
                 {options.description}
@@ -72,12 +73,18 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             )}
           </DialogHeader>
           <DialogFooter>
-            <Button type="button" variant="secondary" onClick={() => settle(false)}>
+            <Button
+              type="button"
+              variant="secondary"
+              data-testid={TEST_IDS.confirmDialog.cancel}
+              onClick={() => settle(false)}
+            >
               {options?.cancelLabel ?? 'Cancel'}
             </Button>
             <Button
               type="button"
               variant={options?.destructive ? 'destructive' : 'default'}
+              data-testid={TEST_IDS.confirmDialog.confirm}
               onClick={() => settle(true)}
             >
               {options?.confirmLabel ?? 'Confirm'}

@@ -7,6 +7,7 @@ import { useCreateJob } from '../queries/jobQueries'
 import { useOrderById } from '../queries/orderQueries'
 import { useToast } from './Toast'
 import { Button } from './ui/button'
+import { TEST_IDS } from '@e2e/support/testIds'
 
 /**
  * "Add Job" group for the active order: one button per department, each
@@ -64,6 +65,8 @@ export function AddJobButtons({ className }: { className?: string }) {
             type="button"
             variant="outline"
             size="xs"
+            data-testid={TEST_IDS.orders.jobList.addJob}
+            data-department={department}
             // Long labels ("Laser Engraving") wrap onto two lines in the
             // compact list width instead of overflowing the button.
             className="h-auto min-h-6 whitespace-normal py-0.5 leading-tight"

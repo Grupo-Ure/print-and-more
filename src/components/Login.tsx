@@ -5,6 +5,7 @@ import { authService } from '../services/authService'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { TEST_IDS } from '@e2e/support/testIds'
 import logo from '../assets/pam-logo-full.svg'
 
 // Brand mark — the fixed Google colours are required by their branding rules,
@@ -123,12 +124,14 @@ export function Login() {
 
         <form
           onSubmit={handleLogin}
+          data-testid={TEST_IDS.login.root}
           className="flex flex-col gap-4 rounded-md border border-neutral-200 bg-white p-6 shadow-sm"
         >
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="login-email">Email</Label>
             <Input
               id="login-email"
+              data-testid={TEST_IDS.login.email}
               type="email"
               autoComplete="email"
               autoFocus
@@ -144,6 +147,7 @@ export function Login() {
             <Label htmlFor="login-password">Password</Label>
             <Input
               id="login-password"
+              data-testid={TEST_IDS.login.password}
               type="password"
               autoComplete="current-password"
               required
@@ -155,13 +159,22 @@ export function Login() {
           </div>
 
           {loginError && (
-            <div className="flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <div
+              data-testid={TEST_IDS.login.error}
+              className="flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
               <CircleAlert className="mt-0.5 size-4 shrink-0" />
               {loginError}
             </div>
           )}
 
-          <Button type="submit" size="lg" disabled={submitting || redirecting} className="mt-1">
+          <Button
+            type="submit"
+            size="lg"
+            data-testid={TEST_IDS.login.submit}
+            disabled={submitting || redirecting}
+            className="mt-1"
+          >
             {submitting ? 'Signing in…' : 'Sign in'}
           </Button>
 
@@ -176,6 +189,7 @@ export function Login() {
             type="button"
             variant="outline"
             size="lg"
+            data-testid={TEST_IDS.login.google}
             disabled={submitting || redirecting}
             onClick={handleGoogleLogin}
           >

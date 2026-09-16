@@ -11,9 +11,11 @@ type PrioritySelectProps = {
   value: Priority
   onChange: (value: Priority) => void
   disabled?: boolean
+  /** data-testid for the trigger — the field is shared by the order row and the job dialog. */
+  testId?: string
 }
 
-export function PrioritySelect({ value, onChange, disabled = false }: PrioritySelectProps) {
+export function PrioritySelect({ value, onChange, disabled = false, testId }: PrioritySelectProps) {
   return (
     <label className="meta-pill" title="Priority">
       <Select
@@ -23,7 +25,7 @@ export function PrioritySelect({ value, onChange, disabled = false }: PrioritySe
           if (next === 'NORMAL' || next === 'HIGH') onChange(next)
         }}
       >
-        <SelectTrigger size="sm">
+        <SelectTrigger size="sm" data-testid={testId} data-value={value}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

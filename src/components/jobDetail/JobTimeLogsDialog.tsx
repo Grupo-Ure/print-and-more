@@ -1,5 +1,6 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog'
 import { JobTimeLogs } from '../JobTimeLogs'
+import { TEST_IDS } from '@e2e/support/testIds'
 
 type Props = {
   orderId: string
@@ -18,7 +19,10 @@ type Props = {
 export function JobTimeLogsDialog({ orderId, jobId, disabled, open, onOpenChange }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[70vh] flex-col sm:max-w-lg">
+      <DialogContent
+        className="flex max-h-[70vh] flex-col sm:max-w-lg"
+        data-testid={TEST_IDS.orders.jobDetail.timeLogsDialog.root}
+      >
         <DialogHeader>
           <DialogTitle>Time logs</DialogTitle>
           <DialogDescription className="text-xs">Worked time logged on this job.</DialogDescription>

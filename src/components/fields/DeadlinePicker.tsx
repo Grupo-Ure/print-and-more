@@ -15,9 +15,11 @@ type DeadlinePickerProps = {
    * green once and fades out.
    */
   attention?: boolean
+  /** data-testid for the trigger — the field is shared by the order row and the job dialog. */
+  testId?: string
 }
 
-export function DeadlinePicker({ value, onChange, disabled = false, attention = false }: DeadlinePickerProps) {
+export function DeadlinePicker({ value, onChange, disabled = false, attention = false, testId }: DeadlinePickerProps) {
   const [open, setOpen] = useState(false)
   const selectedDate = value ? parse(value, 'yyyy-MM-dd', new Date()) : undefined
   const triggerLabel = selectedDate ? format(selectedDate, 'PPP') : 'No deadline'
@@ -38,6 +40,8 @@ export function DeadlinePicker({ value, onChange, disabled = false, attention = 
           <Button
             variant="ghost"
             size="sm"
+            data-testid={testId}
+            data-value={value || undefined}
             disabled={disabled}
             className={cn(
               attention && 'animate-deadline-required',

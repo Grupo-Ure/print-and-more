@@ -11,9 +11,11 @@ type DeliverySelectProps = {
   value: DeliveryChoice
   onChange: (value: DeliveryChoice) => void
   disabled?: boolean
+  /** data-testid for the trigger — the field is shared by the order row and the job dialog. */
+  testId?: string
 }
 
-export function DeliverySelect({ value, onChange, disabled = false }: DeliverySelectProps) {
+export function DeliverySelect({ value, onChange, disabled = false, testId }: DeliverySelectProps) {
   return (
     <label className="meta-pill" title="Delivery">
       <Select
@@ -23,7 +25,7 @@ export function DeliverySelect({ value, onChange, disabled = false }: DeliverySe
           if (next === 'PICKUP' || next === 'SHIPPING') onChange(next)
         }}
       >
-        <SelectTrigger size="sm">
+        <SelectTrigger size="sm" data-testid={testId} data-value={value}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

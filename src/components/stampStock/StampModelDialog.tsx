@@ -10,6 +10,7 @@ import {
   useUpdateStampModel,
 } from '../../queries/stampStockQueries'
 import { stockInputClass } from '../stock/stockShared'
+import { TEST_IDS } from '@e2e/support/testIds'
 import { STAMP_TYPE_FILTER_OPTIONS, typeLabel, type StampModelRow, type StampType } from './stampStockShared'
 
 /** Types that are physical stamp bodies with a print area. */
@@ -80,7 +81,10 @@ type StampModelDialogProps = {
 export function StampModelDialog({ open, onOpenChange, model }: StampModelDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent
+        className="max-h-[85vh] overflow-y-auto sm:max-w-lg"
+        data-testid={TEST_IDS.stampStock.modelDialog.root}
+      >
         {/* Keyed remount seeds the form per target — no effect needed. */}
         <StampModelForm key={model?.id ?? 'new'} model={model} onOpenChange={onOpenChange} />
       </DialogContent>
@@ -347,10 +351,15 @@ function StampModelForm({
       )}
 
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+        <Button
+          type="button"
+          variant="outline"
+          data-testid={TEST_IDS.stampStock.modelDialog.cancel}
+          onClick={() => onOpenChange(false)}
+        >
           Cancel
         </Button>
-        <Button type="button" onClick={save} disabled={saving}>
+        <Button type="button" data-testid={TEST_IDS.stampStock.modelDialog.save} onClick={save} disabled={saving}>
           {isEdit ? 'Save' : 'Create'}
         </Button>
       </div>

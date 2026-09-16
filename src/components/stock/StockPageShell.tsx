@@ -4,6 +4,7 @@ import { Login } from '../Login'
 import { AccessDenied } from '../AccessDenied'
 import { useSupabaseSession } from '../../hooks/useSupabaseSession'
 import { useIsAdmin } from '../../queries/userQueries'
+import { TEST_IDS } from '@e2e/support/testIds'
 
 type StockPageShellProps = {
   accessDeniedDescription: string
@@ -29,5 +30,9 @@ export function StockPageShell({ accessDeniedDescription, children }: StockPageS
   // No top padding here: the sticky StockToolbar carries it inside its own
   // box, so its rest position equals its pinned position and there is no
   // visible "travel" before the sticky settles when scrolling starts.
-  return <main className="w-full px-3 pb-3">{children(session)}</main>
+  return (
+    <main data-testid={TEST_IDS.stock.root} className="w-full px-3 pb-3">
+      {children(session)}
+    </main>
+  )
 }

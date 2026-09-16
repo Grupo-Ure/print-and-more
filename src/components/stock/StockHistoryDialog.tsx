@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { History } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { TEST_IDS } from '@e2e/support/testIds'
 
 type StockHistoryDialogProps = {
   title: string
@@ -26,12 +27,16 @@ export function StockHistoryDialog({ title, children }: StockHistoryDialogProps)
         size="icon-sm"
         aria-label={title}
         title={title}
+        data-testid={TEST_IDS.stock.movementsButton}
         onClick={() => setOpen(true)}
       >
         <History />
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="flex h-[70vh] flex-col sm:max-w-4xl">
+        <DialogContent
+          className="flex h-[70vh] flex-col sm:max-w-4xl"
+          data-testid={TEST_IDS.stock.movementsDialog.root}
+        >
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
           </DialogHeader>
