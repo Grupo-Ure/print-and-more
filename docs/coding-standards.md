@@ -487,7 +487,7 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY= # Safe for browser
 
 ```typescript
 describe("when [condition]", () => {
-  it("does [expected behavior]", () => {
+  it("[doing the action] [causes the consequence]", () => {
     // Setup
     // Act
     // Assert

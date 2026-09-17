@@ -9,7 +9,7 @@ test.describe('authentication', () => {
     // The login itself is the behaviour under test here, so this test spells
     // out the steps instead of using the sign-in helper every other test
     // relies on through the `page` fixture.
-    test('signs in with email and password', async ({ login, navbar }) => {
+    test('signing in with email and password shows the user in the navbar', async ({ login, navbar }) => {
       // Setup — the account to sign in with.
       const user = TEST_USERS.employee
 
@@ -27,7 +27,7 @@ test.describe('authentication', () => {
     test.describe(`as ${user.role}`, () => {
       test.use({ user })
 
-      test('sees exactly the navigation of the role', async ({ navbar }) => {
+      test('signing in renders exactly the navigation links of the role', async ({ navbar }) => {
         // Setup — the views this role is allowed to see; the fixture has already signed in as this user.
         const allowed = new Set(NAVBAR_VIEWS_BY_ROLE[user.role])
 

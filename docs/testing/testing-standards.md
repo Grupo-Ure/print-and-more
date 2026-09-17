@@ -202,7 +202,7 @@ this order:
    include it only then.
 
 ```
-it("<describes the behavior in plain terms>", () => {
+it("<action> <consequence>", () => {
   // Setup
   ...
 
@@ -216,6 +216,39 @@ it("<describes the behavior in plain terms>", () => {
   ...
 })
 ```
+
+### Naming — an action and its consequence
+
+A test case's name states **what is done** and **what that causes**, as one
+sentence: `<action> <consequence>`. The action is the Act stage in words;
+the consequence is what the Assert stage checks. Read together with the
+`describe` block it sits in, the name should tell a reader what would have
+to break for the test to fail — before they read a line of its body.
+
+```
+// Bad — names the action only; what is being checked?
+it("adds a product to the active job")
+
+// Bad — names the feature only; neither the action nor the outcome
+it("order deadline")
+
+// Good — the action, and the outcome the assertions prove
+it("adding a product to a job lists it in the job's product table")
+it("picking a date in the deadline calendar sets it as the order deadline")
+```
+
+Rules of thumb:
+
+- Lead with the action as a gerund ("adding", "signing in", "selecting"),
+  then the consequence as a plain verb phrase ("lists it", "shows the
+  user", "opens its details").
+- The consequence names the observable result, not the mechanism: "lists
+  it in the product table", not "calls the save mutation".
+- One consequence per name. If the name needs an "and" between two
+  unrelated outcomes, the case is covering two scenarios (see "Test Suite
+  Shape").
+- When a precondition matters to the scenario, it goes in the `describe`
+  block name ("signed out", "as ADMIN"), not in the test name.
 
 **Fixtures prepare data, not state in the interface.** A fixture inserts,
 generates or removes data; it never drives the UI to a place. A fixture that
@@ -263,5 +296,6 @@ maximizes assertion count or case count.
 | Asserting every field of a result with exact values | Over-specified, couples the test to incidental detail | Assert only the fields that are semantically meaningful to the case |
 | Testing internal implementation details | Breaks on refactors that don't change behavior | Test the public input/output contract |
 | One test case asserting many unrelated behaviors | Failure doesn't say what broke; hard to read | Split into focused cases, one reason to fail each |
+| A test name that states only the action, or only the feature | The report can't say what broke without reading the body | Name the action and its consequence: `<doing X> <causes Y>` |
 | Skipping cleanup for a test with an external side effect | Leaks state into other tests, causes flaky failures | Add a Cleanup stage that undoes it |
 | A stage comment with no code under it (an empty Setup, Act or Cleanup) | Noise, makes the suite harder to scan | Omit the stage entirely when it has nothing in it |

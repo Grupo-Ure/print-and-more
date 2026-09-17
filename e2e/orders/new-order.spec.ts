@@ -4,7 +4,7 @@ import { expect, test, NEW_ORDER_STATUS } from '../fixtures/orders'
 // remove it with its customer, so neither test needs a cleanup stage.
 
 test.describe('new order', () => {
-  test('creates a quote for an existing customer', async ({ ordersPage, customer }) => {
+  test('creating an order for an existing customer opens it as a quote for that customer', async ({ ordersPage, customer }) => {
     // Setup — the `customer` fixture inserted the customer row.
     const dialog = ordersPage.newOrderDialog
 
@@ -19,7 +19,7 @@ test.describe('new order', () => {
     await expect(ordersPage.details.root).toHaveAttribute('data-customer-id', customer.id)
   })
 
-  test('creates a quote for a customer created on the spot', async ({ ordersPage, newCustomer }) => {
+  test('creating an order with a customer created in the dialog opens it as a quote for that customer', async ({ ordersPage, newCustomer }) => {
     // Act — create the customer from inside the new-order dialog (saving makes it the pick), then submit.
     await ordersPage.sidebar.newOrderButton.click()
     await ordersPage.newOrderDialog.newCustomer.click()

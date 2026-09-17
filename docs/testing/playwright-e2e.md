@@ -134,7 +134,7 @@ provided by a Playwright fixture in the fixture file for its layer —
 tree is then reachable from that one argument:
 
 ```ts
-test('…', async ({ ordersPage, customer }) => {
+test('creating an order for an existing customer opens it as a quote', async ({ ordersPage, customer }) => {
   await ordersPage.sidebar.newOrderButton.click()
   await ordersPage.newOrderDialog.customerSearch.fill(customer.name)
 })
@@ -249,7 +249,7 @@ folders stay at the root, and a spec reaches them with `../fixtures/…`.
 // e2e/orders/new-order.spec.ts
 import { expect, test, NEW_ORDER_STATUS } from '../fixtures/orders'
 
-test('creates a quote for an existing customer', async ({ ordersPage, customer }) => {
+test('creating an order for an existing customer opens it as a quote', async ({ ordersPage, customer }) => {
   // Setup — the `customer` fixture inserted the row and removes it (with its orders) afterwards.
   const dialog = ordersPage.newOrderDialog
 

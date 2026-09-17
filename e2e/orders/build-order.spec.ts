@@ -2,7 +2,7 @@ import { expect, test, nextOrderDeadline } from '../fixtures/orders'
 import { OTHER_PRODUCT, TEST_JOB_DEPARTMENT, firstTestJobNumber } from '../fixtures/jobs'
 
 test.describe('build the order', () => {
-  test('adds a job, which gets a job number and becomes the active job', async ({ ordersPage, order }) => {
+  test('adding a job to an order selects it and shows its job number in the job detail', async ({ ordersPage, order }) => {
     // Setup — the number the database assigns to the order's first job of this department.
     const jobNumber = firstTestJobNumber(order.orderNumber)
 
@@ -15,7 +15,7 @@ test.describe('build the order', () => {
     await expect(ordersPage.details.jobDetail.title).toContainText(jobNumber)
   })
 
-  test('adds a product to the active job', async ({ ordersPage, job }) => {
+  test("adding a product to a job lists it in the job's product table", async ({ ordersPage, job }) => {
     // Setup — the job's product section.
     const products = ordersPage.details.jobDetail.products
 
@@ -31,7 +31,7 @@ test.describe('build the order', () => {
     await expect(products.rows).toHaveCount(1)
   })
 
-  test('sets the order deadline', async ({ ordersPage, order }) => {
+  test('picking a date in the deadline calendar sets it as the order deadline', async ({ ordersPage, order }) => {
     // Setup — a date the picker accepts.
     const deadline = nextOrderDeadline()
     const picker = ordersPage.details.deadline
