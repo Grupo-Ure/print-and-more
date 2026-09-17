@@ -18,20 +18,41 @@ playwright test
 │   ├─ fixtures/electron.ts        launch one app with a throwaway profile (per worker)
 │   ├─ fixtures/auth.ts            bring the app into the auth state the spec asked for
 │   ├─ fixtures/orders.ts          the orders view's page object + per-test rows
-│   └─ <view>/*.spec.ts            one folder per view: auth/, orders/, …
+│   └─ <page>/<feature>/*.spec.ts  one folder per page, subfolders per feature: auth/, orders-page/order/status/, …
 └─ e2e/global-teardown.ts          default() → delete the test logins
 ```
 
 ## Where specs live
 
-Specs are grouped **one folder per view**, named after the view they
-exercise (`e2e/auth/`, `e2e/orders/`; later `stamp-stock/`, `textile-stock/`,
-`user-management/`, `profile/`). Playwright reports by file path, so the
-folder appears as the top-level group in the list reporter, the HTML report
-and UI mode, and `npx playwright test orders` runs one view's specs. The
-support folders (`fixtures/`, `pom/`, `support/`) stay at the `e2e/` root; a
-spec imports them with `../fixtures/…`. A new spec goes into the folder of
-the view it drives, never at the root.
+Specs are grouped **by page, then by feature, then by sub-feature**. The top
+folder is the page, suffixed `-page` so that a page and a feature of the
+same name never collide (`orders-page/` is the page; `orders-page/order/`
+is the order feature on it). Inside, a folder per feature, and a nested
+folder where a feature has a sub-feature big enough to own one:
+
+```
+e2e/
+├─ auth/                          sign-in, navigation per role
+└─ orders-page/
+   ├─ sidebar.spec.ts             list → select → details
+   ├─ new-order.spec.ts
+   ├─ order/                      the order feature
+   │   ├─ settings.spec.ts
+   │   └─ status/                 its lifecycle: start processing, finish, invoice, …
+   └─ job/                        the job feature
+       ├─ add-job.spec.ts
+       ├─ products.spec.ts
+       └─ status/                 its workflow: pre-press, production, done, gates, …
+```
+
+Later pages follow the same shape (`stamp-stock-page/`, `textile-stock-page/`,
+`user-management-page/`, `profile-page/`). Playwright reports by file path,
+so every folder level is a group in the list reporter, the HTML report and
+UI mode, and any path fragment filters a run (`npx playwright test
+orders-page`, `npx playwright test job/status`). The support folders
+(`fixtures/`, `pom/`, `support/`) stay at the `e2e/` root; a spec reaches
+them with as many `../` as it is deep. A new spec goes into the folder of the
+feature it drives, never at the root.
 
 ## The fixture chain
 
@@ -92,7 +113,7 @@ Nothing here is imported by hand; the runner drives it from the config:
 
 | Path | Role |
 |---|---|
-| `<view>/*.spec.ts` | The specs, one folder per view (`auth/`, `orders/`, …) |
+| `<page>/<feature>/*.spec.ts` | The specs: a folder per page, subfolders per feature (see "Where specs live") |
 | `fixtures/database.ts` | Base of the chain: the worker-scoped `database` connection |
 | `fixtures/electron.ts` | Launches the built app; replaces Playwright's browser `page` |
 | `fixtures/auth.ts` | `user` option + signed-in `page`; `login` / `navbar` page objects; `signIn` / `signOut` helpers |

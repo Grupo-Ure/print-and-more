@@ -233,20 +233,24 @@ retry — anything that depends on rendering goes through `expect.poll`.
 
 ---
 
-## Spec Files — One Folder per View
+## Spec Files — Page, then Feature
 
-Specs live in `e2e/<view>/`, one folder per app view (`e2e/auth/`,
-`e2e/orders/`, and so on), never at the `e2e/` root. Playwright groups by
-file path, so the folder is the top-level group in every report and the
-filter for running one view (`npx playwright test orders`). The support
-folders stay at the root, and a spec reaches them with `../fixtures/…`.
+Specs live in `e2e/<page>/<feature>/`, never at the `e2e/` root. The page
+folder carries a `-page` suffix so a page and a feature of the same name
+stay apart (`orders-page/` is the page, `orders-page/order/` the order
+feature on it). A feature with a sub-feature of its own gets a nested
+folder (`orders-page/job/status/`). Playwright groups by file path, so
+every level is a group in every report, and any path fragment filters a
+run (`npx playwright test orders-page`, `npx playwright test job/status`).
+The support folders stay at the root, and a spec reaches them with as many
+`../` as it is deep. The concrete tree is in [`e2e/README.md`](../../e2e/README.md).
 
 ---
 
 ## Putting It Together
 
 ```ts
-// e2e/orders/new-order.spec.ts
+// e2e/orders-page/new-order.spec.ts
 import { expect, test, NEW_ORDER_STATUS } from '../fixtures/orders'
 
 test('creating an order for an existing customer opens it as a quote', async ({ ordersPage, customer }) => {
