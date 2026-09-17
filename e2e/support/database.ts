@@ -1,5 +1,5 @@
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../../src/types/supabase'
-import type { AdminClient } from './admin'
 import type { TestCustomer } from '../fixtures/customers'
 import type { TestUser } from '../fixtures/users'
 
@@ -15,26 +15,45 @@ export type TestOrder = {
   customerId: string
 }
 
+function requiredEnv(name: string): string {
+  const value = process.env[name]
+  if (!value) {
+    throw new Error(
+      `${name} is not set. The e2e runner needs it to provision test data — ` +
+        'for a local Supabase, copy it from `supabase status`.',
+    )
+  }
+  return value
+}
+
 /**
- * Seeds and removes test data through the service-role client. Deliberately
- * dumb: raw rows in, raw rows out. It never replays the app's business rules
- * (history entries, status workflows, refusals) — a fixture that needs an
- * order in some state inserts that state; the tests are what drive the app.
+ * The test runner's own connection to the database: a service-role Supabase
+ * client (bypasses RLS, exposes `auth.admin`) with the seeding methods every
+ * fixture uses. Never used from inside the app under test.
  *
- * One instance per worker (the `testData` fixture) and one per runner process
+ * Deliberately dumb: raw rows in, raw rows out. It never replays the app's
+ * business rules (history entries, status workflows, refusals) — a fixture
+ * that needs an order in some state inserts that state; the tests are what
+ * drive the app.
+ *
+ * One instance per worker (the `database` fixture) and one per runner process
  * (global setup/teardown, where fixtures do not exist).
  */
-export class TestData {
-  private readonly admin: AdminClient
+export class TestDatabase {
+  private readonly client: SupabaseClient<Database>
 
-  constructor(admin: AdminClient) {
-    this.admin = admin
+  constructor() {
+    this.client = createClient<Database>(
+      requiredEnv('VITE_SUPABASE_URL'),
+      requiredEnv('SUPABASE_SERVICE_ROLE_KEY'),
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    )
   }
 
   // ── Users ────────────────────────────────────────────────────────────────
 
   private async findUserId(email: string): Promise<string | null> {
-    const { data, error } = await this.admin.from('users').select('id').eq('email', email).maybeSingle()
+    const { data, error } = await this.client.from('users').select('id').eq('email', email).maybeSingle()
     if (error) throw error
     return data?.id ?? null
   }
@@ -47,7 +66,7 @@ export class TestData {
    */
   async ensureUser(user: TestUser): Promise<void> {
     if (await this.findUserId(user.email)) return
-    const { error } = await this.admin.auth.admin.createUser({
+    const { error } = await this.client.auth.admin.createUser({
       email: user.email,
       password: user.password,
       email_confirm: true,
@@ -61,14 +80,14 @@ export class TestData {
   async removeUser(user: TestUser): Promise<void> {
     const id = await this.findUserId(user.email)
     if (!id) return
-    const { error } = await this.admin.auth.admin.deleteUser(id)
+    const { error } = await this.client.auth.admin.deleteUser(id)
     if (error) throw error
   }
 
   // ── Customers ────────────────────────────────────────────────────────────
 
   async createCustomer(customer: TestCustomer): Promise<TestCustomerRow> {
-    const { data, error } = await this.admin
+    const { data, error } = await this.client
       .from('customers')
       .insert({ name: customer.name, email: customer.email })
       .select('id')
@@ -87,7 +106,7 @@ export class TestData {
    * a test just created through the app, or a leftover of an aborted run.
    */
   async removeCustomersByEmail(email: string): Promise<void> {
-    const { data, error } = await this.admin.from('customers').select('id').eq('email', email)
+    const { data, error } = await this.client.from('customers').select('id').eq('email', email)
     if (error) throw error
     await this.removeCustomers(data.map(row => row.id))
   }
@@ -98,9 +117,9 @@ export class TestData {
    */
   private async removeCustomers(ids: string[]): Promise<void> {
     if (ids.length === 0) return
-    const { error: orderError } = await this.admin.from('orders').delete().in('customer_id', ids)
+    const { error: orderError } = await this.client.from('orders').delete().in('customer_id', ids)
     if (orderError) throw orderError
-    const { error: customerError } = await this.admin.from('customers').delete().in('id', ids)
+    const { error: customerError } = await this.client.from('customers').delete().in('id', ids)
     if (customerError) throw customerError
   }
 
@@ -113,14 +132,14 @@ export class TestData {
    */
   async createOrder(customerId: string): Promise<TestOrder> {
     const payload = { customer_id: customerId } as OrderInsert
-    const { data, error } = await this.admin.from('orders').insert(payload).select('id, order_number').single()
+    const { data, error } = await this.client.from('orders').insert(payload).select('id, order_number').single()
     if (error) throw error
     return { id: data.id, orderNumber: data.order_number, customerId }
   }
 
   /** Deletes the order; jobs, files and history follow by cascade. The customer stays. */
   async removeOrder(orderId: string): Promise<void> {
-    const { error } = await this.admin.from('orders').delete().eq('id', orderId)
+    const { error } = await this.client.from('orders').delete().eq('id', orderId)
     if (error) throw error
   }
 }

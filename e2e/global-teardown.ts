@@ -1,11 +1,10 @@
-import { createAdminClient } from './support/admin'
-import { TestData } from './support/testData'
+import { TestDatabase } from './support/database'
 import { TEST_USERS } from './fixtures/users'
 
 /** Runs once after the suite: leaves no test logins behind. */
 export default async function globalTeardown(): Promise<void> {
-  const testData = new TestData(createAdminClient())
+  const database = new TestDatabase()
   for (const user of Object.values(TEST_USERS)) {
-    await testData.removeUser(user)
+    await database.removeUser(user)
   }
 }

@@ -1,5 +1,5 @@
 /**
- * Fixture chain: `@playwright/test` → testData → electron → **auth** → orders.
+ * Fixture chain: `@playwright/test` → database → electron → **auth** → orders.
  * Adds `user` (who the test runs as), brings `page` into that auth state, and
  * hands out the page objects of the session-level UI (`login`, `navbar`).
  */

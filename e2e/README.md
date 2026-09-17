@@ -14,7 +14,7 @@ playwright test
 ├─ playwright.config.ts            loads .env into process.env (existing vars win)
 ├─ e2e/global-setup.ts             default() → create the test logins via the Auth admin API
 ├─ worker
-│   ├─ fixtures/testData.ts        one seeding client (per worker)
+│   ├─ fixtures/database.ts        one database connection for seeding (per worker)
 │   ├─ fixtures/electron.ts        launch one app with a throwaway profile (per worker)
 │   ├─ fixtures/auth.ts            bring the app into the auth state the spec asked for
 │   ├─ fixtures/orders.ts          the orders view's page object + per-test rows
@@ -29,7 +29,7 @@ previous file's `test` and extends it, so the chain is built by four import
 lines:
 
 ```
-@playwright/test → fixtures/testData.ts → fixtures/electron.ts → fixtures/auth.ts → fixtures/orders.ts
+@playwright/test → fixtures/database.ts → fixtures/electron.ts → fixtures/auth.ts → fixtures/orders.ts
 ```
 
 A spec imports `test` from the link it needs — `./fixtures/auth` for a
@@ -49,7 +49,7 @@ Nothing here is imported by hand; the runner drives it from the config:
 |---|---|---|---|
 | Load `.env` | top of `playwright.config.ts` | once | runner |
 | `globalSetup` | `playwright.config.ts` → `e2e/global-setup.ts` (default export) | once, before any worker | runner |
-| Seeding client | `testData` fixture, `scope: 'worker'` | once per worker, on first use | worker |
+| Database connection | `database` fixture, `scope: 'worker'` | once per worker, on first use | worker |
 | App launch | `electronApp` fixture, `scope: 'worker'` | once per worker | worker |
 | Auth state | `page` fixture override in `fixtures/auth.ts` | before every test | worker |
 | `globalTeardown` | `playwright.config.ts` → `e2e/global-teardown.ts` (default export) | once, after the last test | runner |
@@ -77,7 +77,7 @@ Nothing here is imported by hand; the runner drives it from the config:
 
 | Path | Role |
 |---|---|
-| `fixtures/testData.ts` | Base of the chain: the worker-scoped `testData` seeding client |
+| `fixtures/database.ts` | Base of the chain: the worker-scoped `database` connection |
 | `fixtures/electron.ts` | Launches the built app; replaces Playwright's browser `page` |
 | `fixtures/auth.ts` | `user` option + signed-in `page`; `login` / `navbar` page objects; `signIn` / `signOut` helpers |
 | `fixtures/users.ts` | The test logins (data fixture) |
@@ -86,8 +86,7 @@ Nothing here is imported by hand; the runner drives it from the config:
 | `pom/*POM.ts` | Page objects — every locator a spec uses, one class per view/dialog, composed parent → child |
 | `pom/BasePOM.ts` | Ancestor of every page object: holds the page and the shared helpers (`withAttr()` picks one instance of a repeated element by data attribute) |
 | `support/testIds.ts` | The `TEST_IDS` registry, imported by components (`data-testid`) and page objects alike |
-| `support/admin.ts` | Service-role client for the runner — bypasses RLS, exposes `auth.admin` |
-| `support/testData.ts` | `TestData`: seeds and removes users, customers and orders through that client — raw rows only, no app business logic |
+| `support/database.ts` | `TestDatabase`: the runner's service-role connection (bypasses RLS, exposes `auth.admin`) with the methods that seed and remove users, customers and orders — raw rows only, no app business logic |
 | `global-setup.ts`, `global-teardown.ts` | Run-wide data, wired via `playwright.config.ts` |
 
 ## Environment

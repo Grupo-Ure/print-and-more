@@ -1,5 +1,5 @@
 /**
- * Fixture chain: `@playwright/test` → testData → electron → auth → **orders**.
+ * Fixture chain: `@playwright/test` → database → electron → auth → **orders**.
  * Adds the orders view's page object (`ordersPage`) and the per-test data of
  * that view (`customer`, `order`, `newCustomer`).
  */
@@ -7,7 +7,7 @@ import type { Page } from '@playwright/test'
 import type { OrderStatus } from '../../src/types/database'
 import { test as base } from './auth'
 import { NEW_CUSTOMER, TEST_CUSTOMER, type TestCustomer } from './customers'
-import type { TestCustomerRow, TestOrder } from '../support/testData'
+import type { TestCustomerRow, TestOrder } from '../support/database'
 import { NavbarPOM } from '../pom/NavbarPOM'
 import { OrdersPOM } from '../pom/OrdersPOM'
 
@@ -19,8 +19,8 @@ type OrdersViewFixtures = {
   ordersPage: OrdersPOM
   /**
    * A customer that exists only for this test: inserted before it through
-   * the seeding client, deleted after it — together with any order the test
-   * created for it — even when the test fails.
+   * the runner's database connection, deleted after it — together with any
+   * order the test created for it — even when the test fails.
    */
   customer: TestCustomerRow
   /** A fresh quote for `customer`, created before the test and deleted after it. */
@@ -51,27 +51,27 @@ export const test = base.extend<OrdersViewFixtures>({
     await use(new OrdersPOM(page))
   },
 
-  customer: async ({ page, navbar, testData }, use) => {
-    const customer = await testData.createCustomer(TEST_CUSTOMER)
+  customer: async ({ page, navbar, database }, use) => {
+    const customer = await database.createCustomer(TEST_CUSTOMER)
     await reloadApp(page, navbar)
 
     await use(customer)
-    await testData.removeCustomer(customer.id)
+    await database.removeCustomer(customer.id)
   },
 
-  order: async ({ page, navbar, testData, customer }, use) => {
-    const order = await testData.createOrder(customer.id)
+  order: async ({ page, navbar, database, customer }, use) => {
+    const order = await database.createOrder(customer.id)
     await reloadApp(page, navbar)
 
     await use(order)
-    await testData.removeOrder(order.id)
+    await database.removeOrder(order.id)
   },
 
-  newCustomer: async ({ testData }, use) => {
-    await testData.removeCustomersByEmail(NEW_CUSTOMER.email)
+  newCustomer: async ({ database }, use) => {
+    await database.removeCustomersByEmail(NEW_CUSTOMER.email)
 
     await use(NEW_CUSTOMER)
-    await testData.removeCustomersByEmail(NEW_CUSTOMER.email)
+    await database.removeCustomersByEmail(NEW_CUSTOMER.email)
   },
 })
 
