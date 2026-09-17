@@ -18,6 +18,9 @@ import { Button } from '../ui/button'
 import { Switch } from '../ui/switch'
 import { useToast } from '../Toast'
 import { GrantApprovalDialog } from './GrantApprovalDialog'
+import { TEST_IDS } from '@e2e/support/testIds'
+
+const IDS = TEST_IDS.orders.jobDetail.settingsDialog
 
 /**
  * The "Job Settings" section: the separate-value switches (deadline,
@@ -114,6 +117,7 @@ export function JobSettingsSection({
     <div className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
       <label className="flex items-center gap-2 text-[13px] select-none">
         <Switch
+          data-testid={IDS.separateDeadline}
           disabled={isLocked}
           checked={hasSeparateDeadline}
           onCheckedChange={checked => {
@@ -128,6 +132,7 @@ export function JobSettingsSection({
       </label>
       <div className="min-w-0">
         <DeadlinePicker
+          testId={IDS.deadline}
           disabled={!hasSeparateDeadline || isLocked}
           value={toDateOnly(job.deadline) ?? deadlineIso}
           onChange={value => {
@@ -144,6 +149,7 @@ export function JobSettingsSection({
 
       <label className="flex items-center gap-2 text-[13px] select-none">
         <Switch
+          data-testid={IDS.separateDelivery}
           disabled={isDone}
           checked={hasSeparateDelivery}
           onCheckedChange={checked => {
@@ -158,6 +164,7 @@ export function JobSettingsSection({
       </label>
       <div className="min-w-0">
         <DeliverySelect
+          testId={IDS.delivery}
           disabled={!hasSeparateDelivery || isDone}
           value={effectiveDelivery}
           onChange={value => {
@@ -173,6 +180,7 @@ export function JobSettingsSection({
 
       <label className="flex items-center gap-2 text-[13px] select-none">
         <Switch
+          data-testid={IDS.separatePriority}
           disabled={isDone}
           checked={hasSeparatePriority}
           onCheckedChange={checked => {
@@ -187,6 +195,7 @@ export function JobSettingsSection({
       </label>
       <div className="min-w-0">
         <PrioritySelect
+          testId={IDS.priority}
           disabled={!hasSeparatePriority || isDone}
           value={effectivePriority}
           onChange={value => {
@@ -203,6 +212,7 @@ export function JobSettingsSection({
       <div className="col-span-2 flex items-center gap-2">
         <label className="flex items-center gap-2 text-[13px] select-none">
           <Switch
+            data-testid={IDS.approvalRequired}
             disabled={isLocked}
             checked={job.customer_approval_required}
             onCheckedChange={checked => {
@@ -225,6 +235,7 @@ export function JobSettingsSection({
             type="button"
             variant="outline"
             size="xs"
+            data-testid={IDS.grantApproval}
             disabled={isDone}
             onClick={() => setGrantOpen(true)}
           >
@@ -232,7 +243,7 @@ export function JobSettingsSection({
           </Button>
         )}
         {job.customer_approval_granted && (
-          <span className="flex items-center gap-1 text-xs text-green-600">
+          <span data-testid={IDS.approvalGranted} className="flex items-center gap-1 text-xs text-green-600">
             <Check className="size-3.5" aria-hidden />
             Granted
             {(() => {

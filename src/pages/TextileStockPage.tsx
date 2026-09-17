@@ -5,6 +5,7 @@ import { StockPageShell } from '../components/stock/StockPageShell'
 import { TextileStockProvider } from '../components/textileStock/TextileStockProvider'
 import { TextileMasterData } from '../components/textileStock/TextileMasterData'
 import { TextileStockList } from '../components/textileStock/TextileStockList'
+import { TEST_IDS } from '@e2e/support/testIds'
 
 /** Stock is the page; master data is a subpage behind the cog button. */
 type View = 'STOCK' | 'MASTER_DATA'
@@ -27,7 +28,13 @@ export function TextileStockPage() {
             // sticky toolbar on the stock view.
             <div className="pt-3">
               <div className="mb-3 flex items-center gap-3">
-                <Button type="button" variant="outline" size="sm" onClick={() => setView('STOCK')}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  data-testid={TEST_IDS.textileStock.backToStock}
+                  onClick={() => setView('STOCK')}
+                >
                   <ArrowLeft />
                   Back to stock
                 </Button>

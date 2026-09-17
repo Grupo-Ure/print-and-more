@@ -41,6 +41,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { TEST_IDS } from '@e2e/support/testIds'
+
+const IDS = TEST_IDS.userManagement
 
 type ManagedRole = 'EMPLOYEE' | 'ADMIN'
 
@@ -77,7 +80,7 @@ function CreateAccountDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" data-testid={IDS.createDialog.root}>
         {/* The content unmounts on close, so the form starts fresh each time. */}
         <CreateAccountForm onOpenChange={onOpenChange} />
       </DialogContent>
@@ -115,6 +118,7 @@ function CreateAccountForm({ onOpenChange }: { onOpenChange: (open: boolean) => 
           <Label htmlFor="new-user-name">Name</Label>
           <Input
             id="new-user-name"
+            data-testid={IDS.createDialog.name}
             autoFocus
             required
             value={form.name}
@@ -125,6 +129,7 @@ function CreateAccountForm({ onOpenChange }: { onOpenChange: (open: boolean) => 
           <Label htmlFor="new-user-email">Email</Label>
           <Input
             id="new-user-email"
+            data-testid={IDS.createDialog.email}
             type="email"
             required
             value={form.email}
@@ -135,6 +140,7 @@ function CreateAccountForm({ onOpenChange }: { onOpenChange: (open: boolean) => 
           <Label htmlFor="new-user-password">Initial password</Label>
           <Input
             id="new-user-password"
+            data-testid={IDS.createDialog.password}
             type="password"
             required
             minLength={6}
@@ -150,7 +156,7 @@ function CreateAccountForm({ onOpenChange }: { onOpenChange: (open: boolean) => 
               if (next === 'EMPLOYEE' || next === 'ADMIN') setForm(f => ({ ...f, role: next }))
             }}
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full" data-testid={IDS.createDialog.role} data-value={form.role}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -161,10 +167,15 @@ function CreateAccountForm({ onOpenChange }: { onOpenChange: (open: boolean) => 
         </div>
 
         <DialogFooter className="mt-1">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="outline"
+            data-testid={IDS.createDialog.cancel}
+            onClick={() => onOpenChange(false)}
+          >
             Cancel
           </Button>
-          <Button type="submit" disabled={createUser.isPending}>
+          <Button type="submit" data-testid={IDS.createDialog.submit} disabled={createUser.isPending}>
             {createUser.isPending ? 'Creating…' : 'Create account'}
           </Button>
         </DialogFooter>
@@ -228,7 +239,7 @@ export function UserManagementPage() {
   }
 
   return (
-    <main className="flex w-full flex-col gap-3 p-3">
+    <main data-testid={IDS.root} className="flex w-full flex-col gap-3 p-3">
       <h1>User management</h1>
 
       <section className="rounded-md border border-neutral-200">
@@ -236,12 +247,12 @@ export function UserManagementPage() {
           title="Accounts"
           note="Change roles or delete accounts. Super admin accounts and your own account can't be changed here."
           action={
-            <Button type="button" onClick={() => setCreateOpen(true)}>
+            <Button type="button" data-testid={IDS.create} onClick={() => setCreateOpen(true)}>
               + Create account
             </Button>
           }
         />
-        <Table>
+        <Table data-testid={IDS.table}>
           <TableHeader>
             <TableRow>
               <TableHead className="pl-4">Name</TableHead>
@@ -260,7 +271,7 @@ export function UserManagementPage() {
               </TableRow>
             )}
             {(users ?? []).map(user => (
-              <TableRow key={user.id}>
+              <TableRow key={user.id} data-testid={IDS.row} data-user-id={user.id} data-role={user.role}>
                 <TableCell className="pl-4">
                   {user.name}
                   {user.id === currentUser?.id && (
@@ -277,7 +288,7 @@ export function UserManagementPage() {
                         if (next === 'EMPLOYEE' || next === 'ADMIN') handleRoleChange(user, next)
                       }}
                     >
-                      <SelectTrigger size="sm" className="w-32">
+                      <SelectTrigger size="sm" className="w-32" data-testid={IDS.rowRole} data-value={user.role}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -286,7 +297,11 @@ export function UserManagementPage() {
                       </SelectContent>
                     </Select>
                   ) : (
-                    <Badge variant={user.role === 'EMPLOYEE' ? 'secondary' : 'default'}>
+                    <Badge
+                      data-testid={IDS.rowRoleBadge}
+                      data-value={user.role}
+                      variant={user.role === 'EMPLOYEE' ? 'secondary' : 'default'}
+                    >
                       {ROLE_LABELS[user.role]}
                     </Badge>
                   )}
@@ -300,6 +315,7 @@ export function UserManagementPage() {
                       size="icon-sm"
                       title="Delete"
                       aria-label="Delete"
+                      data-testid={IDS.rowDelete}
                       disabled={deleteUser.isPending}
                       onClick={() => void handleDelete(user)}
                       className="hover:bg-destructive/10 hover:text-destructive"

@@ -21,6 +21,9 @@ import { LASER_TYPE_LABELS } from '../../types/laser'
 import { LFP_TYPE_LABELS } from '../../types/lfp'
 import { COPY_SHOP_TYPE_LABELS } from '../../types/copyshop'
 import { STAMP_ALL_LABELS } from './forms/stampTypes'
+import { TEST_IDS } from '@e2e/support/testIds'
+
+const IDS = TEST_IDS.orders.jobDetail.products
 
 export type ProductTableMeta = {
   onEdit: (product: LoadedProduct) => void
@@ -69,15 +72,18 @@ export function ProductTable({
 
   if (data.length === 0) {
     return (
-      <div className="flex min-h-48 flex-col items-center justify-center gap-3 rounded-lg border border-dashed text-center">
+      <div
+        data-testid={IDS.empty}
+        className="flex min-h-48 flex-col items-center justify-center gap-3 rounded-lg border border-dashed text-center"
+      >
         <p className="text-sm text-muted-foreground">Add the first product</p>
-        {!meta.isReadOnly && <AddProductButton onClick={meta.onAdd} label={meta.addLabel} />}
+        {!meta.isReadOnly && <AddProductButton onClick={meta.onAdd} label={meta.addLabel} testId={IDS.emptyAdd} />}
       </div>
     )
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border">
+    <div data-testid={IDS.table} className="overflow-hidden rounded-lg border">
       <Table className="desktop:text-base">
         <TableHeader className="bg-muted/50">
           {table.getHeaderGroups().map(group => (
@@ -97,6 +103,10 @@ export function ProductTable({
           {table.getRowModel().rows.map(row => (
             <TableRow
               key={row.id}
+              data-testid={IDS.row}
+              data-product-id={row.original.id}
+              data-type={row.original.type}
+              data-shortage={meta.stockShortages?.has(row.original.id) ? 'true' : undefined}
               className={cn(
                 'cursor-pointer',
                 meta.stockShortages?.has(row.original.id) && 'bg-red-500/10 hover:bg-red-500/15',

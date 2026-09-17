@@ -8,8 +8,9 @@ import { Pencil, Trash2, TriangleAlert } from 'lucide-react'
 import { Button } from '../ui/button'
 import type { LoadedProduct } from '../../types/product'
 import type { ProductTableMeta } from './ProductTable'
+import { TEST_IDS } from '@e2e/support/testIds'
 
-const child = (p: LoadedProduct) => (p.child ?? {}) as Record<string, unknown>
+const child =(p: LoadedProduct) => (p.child ?? {}) as Record<string, unknown>
 const str = (v: unknown): string | null => {
   if (v == null) return null
   const s = String(v).trim()
@@ -118,6 +119,7 @@ export function actionsColumn(): ColumnDef<LoadedProduct> {
             className={EDIT_ACTION_CLASS}
             title="Edit"
             aria-label="Edit"
+            data-testid={TEST_IDS.orders.jobDetail.products.rowEdit}
             disabled={meta.isReadOnly}
             onClick={e => {
               e.stopPropagation()
@@ -133,6 +135,7 @@ export function actionsColumn(): ColumnDef<LoadedProduct> {
             className={DELETE_ACTION_CLASS}
             title="Delete"
             aria-label="Delete"
+            data-testid={TEST_IDS.orders.jobDetail.products.rowDelete}
             disabled={meta.isReadOnly}
             onClick={e => {
               e.stopPropagation()

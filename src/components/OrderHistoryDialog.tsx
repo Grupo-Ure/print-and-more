@@ -9,6 +9,9 @@ import { LASER_TYPE_LABELS } from '../types/laser'
 import { LFP_TYPE_LABELS } from '../types/lfp'
 import { STAMP_TYPE_LABELS } from '../types/stamp'
 import { cn } from '../lib/utils'
+import { TEST_IDS } from '@e2e/support/testIds'
+
+const IDS = TEST_IDS.orders.details.historyDialog
 
 /** Human labels for every product type, for the PRODUCT_* sentences. */
 const PRODUCT_TYPE_LABELS: Record<string, string> = {
@@ -245,7 +248,7 @@ export function OrderHistoryDialog({ orderId, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl h-[70vh] flex flex-col">
+      <DialogContent className="sm:max-w-xl h-[70vh] flex flex-col" data-testid={IDS.root}>
         <DialogHeader>
           <DialogTitle>Order history</DialogTitle>
         </DialogHeader>
@@ -256,10 +259,10 @@ export function OrderHistoryDialog({ orderId, open, onOpenChange }: Props) {
             <p className="text-sm text-destructive">History could not be loaded</p>
           )}
           {historyQuery.isSuccess && entries.length === 0 && (
-            <p className="text-sm text-muted-foreground">No history entries yet</p>
+            <p data-testid={IDS.empty} className="text-sm text-muted-foreground">No history entries yet</p>
           )}
           {entries.length > 0 && (
-            <ul className="divide-y divide-border">
+            <ul data-testid={IDS.list} className="divide-y divide-border">
               {entries.map(entry => (
                 <HistoryItem
                   key={entry.id}
@@ -295,7 +298,7 @@ function HistoryItem({ entry, jobLabel, staffById }: HistoryItemProps) {
   const plain = `${time} — ${segments.map(segmentText).join('')}${entry.reason ? ` — ${entry.reason}` : ''}`
 
   return (
-    <li className="py-1.5 text-sm">
+    <li data-testid={IDS.item} data-event-type={entry.event_type} className="py-1.5 text-sm">
       <p className="truncate" title={plain}>
         <span className="text-muted-foreground">{time}</span>
         <span className="text-muted-foreground"> — </span>

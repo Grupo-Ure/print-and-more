@@ -15,6 +15,9 @@ import type { FileRow } from '../../services/fileService'
 import type { ProductFormProps } from './forms/shared'
 import { ProductDialogShell } from './ProductDialogShell'
 import type { useProductEditor } from './useProductEditor'
+import { TEST_IDS } from '@e2e/support/testIds'
+
+const IDS = TEST_IDS.orders.jobDetail.products.dialog
 
 export type ProductTypeOption = { value: string; label: string }
 
@@ -61,6 +64,8 @@ export function ProductDialog({
                 <button
                   key={t.value}
                   type="button"
+                  data-testid={IDS.typeOption}
+                  data-type={t.value}
                   className="rounded-md px-3 py-2 text-left text-sm hover:bg-primary hover:text-primary-foreground"
                   onClick={() => setSelectedType(t.value)}
                 >
@@ -77,6 +82,7 @@ export function ProductDialog({
             {mode.kind === 'add' && (
               <button
                 type="button"
+                data-testid={IDS.back}
                 className="self-start text-xs text-muted-foreground hover:text-foreground"
                 onClick={clearType}
               >

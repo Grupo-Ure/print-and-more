@@ -15,6 +15,9 @@ import { Button } from '../ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { ProductViewContext } from './forms/viewContext'
 import type { useProductEditor } from './useProductEditor'
+import { TEST_IDS } from '@e2e/support/testIds'
+
+const IDS = TEST_IDS.orders.jobDetail.products.dialog
 
 type ProductEditor = ReturnType<typeof useProductEditor>
 
@@ -60,7 +63,11 @@ export function ProductDialogShell({
 
   return (
     <Dialog open={mode.kind !== 'idle'} onOpenChange={o => { if (!o) handleClose() }}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent
+        className="sm:max-w-lg max-h-[85vh] overflow-y-auto"
+        data-testid={IDS.root}
+        data-mode={mode.kind}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
@@ -75,10 +82,10 @@ export function ProductDialogShell({
         </ProductViewContext.Provider>
         {viewing && !isReadOnly && (
           <div className="flex gap-2 pt-1">
-            <Button type="button" onClick={() => openEdit(viewing)}>
+            <Button type="button" data-testid={IDS.edit} onClick={() => openEdit(viewing)}>
               <Pencil /> Edit
             </Button>
-            <Button type="button" variant="outline" onClick={handleClose}>
+            <Button type="button" variant="outline" data-testid={IDS.close} onClick={handleClose}>
               Close
             </Button>
           </div>

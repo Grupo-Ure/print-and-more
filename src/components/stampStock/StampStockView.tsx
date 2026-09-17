@@ -26,6 +26,9 @@ import { useStockBooking } from '../stock/useStockBooking'
 import { StampModelDialog } from './StampModelDialog'
 import { StampMovements } from './StampMovements'
 import { useStampStockUi, type OverviewSortKey } from './useStampStockUi'
+import { TEST_IDS } from '@e2e/support/testIds'
+
+const IDS = TEST_IDS.stampStock
 import {
   STAMP_TYPE_FILTER_OPTIONS,
   colorLabel,
@@ -201,7 +204,11 @@ export function StampStockView({ userId }: StampStockViewProps) {
       header: 'Stock',
       align: 'right',
       sortValue: model => model.stock ?? 0,
-      render: model => model.stock ?? 0,
+      render: model => (
+        <span data-testid={TEST_IDS.stock.table.rowStock} data-stock={model.stock ?? 0}>
+          {model.stock ?? 0}
+        </span>
+      ),
     },
     {
       key: 'min_stock',
@@ -250,6 +257,7 @@ export function StampStockView({ userId }: StampStockViewProps) {
             className="text-blue-600 hover:bg-transparent hover:text-blue-800"
             title="Edit"
             aria-label={`Edit ${model.name}`}
+            data-testid={IDS.rowEdit}
             onClick={() => openEdit(model)}
           >
             <Pencil />
@@ -261,6 +269,8 @@ export function StampStockView({ userId }: StampStockViewProps) {
             className="text-muted-foreground hover:text-foreground"
             title={model.is_active ? 'Deactivate' : 'Activate'}
             aria-label={`${model.is_active ? 'Deactivate' : 'Activate'} ${model.name}`}
+            data-testid={IDS.rowToggleActive}
+            data-active={model.is_active ? 'true' : 'false'}
             onClick={() => void toggleActive(model)}
             disabled={updateModel.isPending}
           >
@@ -274,12 +284,13 @@ export function StampStockView({ userId }: StampStockViewProps) {
   return (
     <div>
       <StockToolbar>
-        <Button type="button" onClick={openCreate}>
+        <Button type="button" data-testid={IDS.newModel} onClick={openCreate}>
           + New model
         </Button>
         <input
           type="search"
           placeholder="Name or article number…"
+          data-testid={IDS.search}
           value={overviewSearch}
           onChange={event => setOverviewSearch(event.target.value)}
           aria-label="Search name or article number"
@@ -292,7 +303,7 @@ export function StampStockView({ userId }: StampStockViewProps) {
             if (selectedValue !== 'TRODAT_PAD' && selectedValue !== 'INK_PAD_PRODUCT') setFilterColor('ALL')
           }}
         >
-          <SelectTrigger className="w-auto max-w-65" aria-label="Filter type">
+          <SelectTrigger className="w-auto max-w-65" aria-label="Filter type" data-testid={IDS.typeFilter}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -310,6 +321,7 @@ export function StampStockView({ userId }: StampStockViewProps) {
             onChange={event => setFilterColor(event.target.value)}
             className={cn(stockInputClass, 'max-w-50')}
             aria-label="Filter colour"
+            data-testid={IDS.colourFilter}
           >
             <option value="ALL">All colours</option>
             {REFILL_INK_COLORS.map(colorCode => (
@@ -323,12 +335,13 @@ export function StampStockView({ userId }: StampStockViewProps) {
           <input
             type="checkbox"
             className="size-4 accent-primary"
+            data-testid={IDS.showInactive}
             checked={showInactive}
             onChange={event => setShowInactive(event.target.checked)}
           />
           Show inactive
         </label>
-        <Button type="button" variant="outline" onClick={() => setReorderOpen(true)}>
+        <Button type="button" variant="outline" data-testid={IDS.reorder} onClick={() => setReorderOpen(true)}>
           Reorder list
         </Button>
         <div className="ml-auto">

@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { TEST_IDS } from '@e2e/support/testIds'
 
 export type ToastType = 'error' | 'success' | 'info'
 
@@ -95,6 +96,7 @@ export function ToastContainer() {
   return (
     <div
       className="toast-container"
+      data-testid={TEST_IDS.toast.container}
       style={{
         position: 'fixed',
         top: 16,
@@ -112,6 +114,8 @@ export function ToastContainer() {
         <div
           key={toast.id}
           role="status"
+          data-testid={TEST_IDS.toast.item}
+          data-type={toast.type}
           style={{
             pointerEvents: 'auto',
             display: 'flex',
@@ -132,6 +136,7 @@ export function ToastContainer() {
             type="button"
             onClick={() => dismiss(toast.id)}
             aria-label="Close"
+            data-testid={TEST_IDS.toast.close}
             style={{
               flexShrink: 0,
               border: 'none',

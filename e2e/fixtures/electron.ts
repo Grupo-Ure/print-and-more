@@ -1,8 +1,14 @@
+/**
+ * Fixture chain: `@playwright/test` → database → **electron** → auth → orders.
+ * Adds `electronApp` (one launched app per worker) and replaces `page` with
+ * the app's main window.
+ */
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
-import { _electron as electron, test as base, type ElectronApplication, type Page } from '@playwright/test'
+import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
+import { test as base } from './database'
 
 // The `electron` package resolves to the path of the Electron binary.
 const electronBinary = createRequire(import.meta.url)('electron') as string

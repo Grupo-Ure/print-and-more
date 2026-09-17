@@ -10,6 +10,8 @@ type EmployeeComboboxProps = {
   value: string | null
   onChange: (user: { id: string; name: string } | null) => void
   disabled?: boolean
+  /** data-testid for the trigger — the field is shared by the job header and the time-log form. */
+  testId?: string
 }
 
 /** Accent-insensitive fold: "Müller" matches "muller", "José" matches "jose". */
@@ -21,7 +23,7 @@ function normalizeForSearch(text: string): string {
     .replace(/[\u0300-\u036f]/g, '')
 }
 
-export function EmployeeCombobox({ value, onChange, disabled = false }: EmployeeComboboxProps) {
+export function EmployeeCombobox({ value, onChange, disabled = false, testId }: EmployeeComboboxProps) {
   const { data: users = [] } = useUsers()
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -59,6 +61,8 @@ export function EmployeeCombobox({ value, onChange, disabled = false }: Employee
           size="sm"
           role="combobox"
           aria-expanded={open}
+          data-testid={testId}
+          data-value={value ?? undefined}
           disabled={disabled}
           className="w-40 justify-between"
         >
@@ -95,6 +99,7 @@ export function EmployeeCombobox({ value, onChange, disabled = false }: Employee
             <button
               key={user.id}
               type="button"
+              data-user-id={user.id}
               className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-primary/10 cursor-pointer"
               onClick={() => pick({ id: user.id, name: user.name })}
             >

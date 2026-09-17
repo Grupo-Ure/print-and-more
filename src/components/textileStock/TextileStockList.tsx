@@ -27,6 +27,9 @@ import { TextileMovements } from './TextileMovements'
 import { useTextileStockUi, type StockSortKey } from './useTextileStockUi'
 import { availableStock, brandFromVariant, productNameFromVariant, variantStatus } from './textileStockShared'
 import type { VariantWithDetails } from '../../services/textileMasterDataService'
+import { TEST_IDS } from '@e2e/support/testIds'
+
+const IDS = TEST_IDS.textileStock
 
 const REORDER_COLUMNS: StockColumn<TextileReorderRow>[] = [
   { key: 'brand', header: 'Brand', render: row => brandFromVariant(row) || '—' },
@@ -207,7 +210,11 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
       header: 'Stock',
       align: 'right',
       sortValue: availableStock,
-      render: availableStock,
+      render: row => (
+        <span data-testid={TEST_IDS.stock.table.rowStock} data-stock={availableStock(row)}>
+          {availableStock(row)}
+        </span>
+      ),
     },
     {
       key: 'min_stock',
@@ -245,13 +252,14 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
         <input
           type="search"
           placeholder="Brand, product, colour, size…"
+          data-testid={IDS.search}
           value={stockSearch}
           onChange={event => setStockSearch(event.target.value)}
           className={cn(stockInputClass, 'min-w-55 max-w-80')}
           aria-label="Search stock"
         />
         <Select value={stockBrandFilter} onValueChange={setStockBrandFilter}>
-          <SelectTrigger className="w-auto" aria-label="Filter brand">
+          <SelectTrigger className="w-auto" aria-label="Filter brand" data-testid={IDS.brandFilter}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -267,19 +275,20 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
           <input
             type="checkbox"
             className="size-4 accent-primary"
+            data-testid={IDS.withSamples}
             checked={filterWithSamples}
             onChange={event => setFilterWithSamples(event.target.checked)}
           />
           With samples
         </label>
-        <Button type="button" variant="outline" onClick={() => setReorderOpen(true)}>
+        <Button type="button" variant="outline" data-testid={IDS.reorder} onClick={() => setReorderOpen(true)}>
           Reorder list
         </Button>
         <div className="ml-auto flex items-center gap-2">
           <StockHistoryDialog title="Stock movements">
             <TextileMovements />
           </StockHistoryDialog>
-          <Button type="button" variant="outline" onClick={onOpenMasterData}>
+          <Button type="button" variant="outline" data-testid={IDS.masterData} onClick={onOpenMasterData}>
             <Settings />
             Manage brands and products
           </Button>

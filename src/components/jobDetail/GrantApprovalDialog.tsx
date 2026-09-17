@@ -12,6 +12,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog'
+import { TEST_IDS } from '@e2e/support/testIds'
+
+const IDS = TEST_IDS.orders.jobDetail.settingsDialog.grantDialog
 
 type Props = {
   orderId: string
@@ -68,6 +71,7 @@ export function GrantApprovalDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
+        data-testid={IDS.root}
         className={cn(
           'flex max-h-[60vh] flex-col sm:max-w-lg',
           isDragging && 'ring-2 ring-primary',
@@ -93,6 +97,7 @@ export function GrantApprovalDialog({
 
         <button
           type="button"
+          data-testid={IDS.addFiles}
           onClick={() => void handlePick()}
           title="Click to browse, or drop files here"
           className={cn(
@@ -116,6 +121,8 @@ export function GrantApprovalDialog({
                       type="button"
                       role="radio"
                       aria-checked={isSelected}
+                      data-testid={IDS.file}
+                      data-file-id={file.id}
                       onClick={() => setSelected(file.id)}
                       className={cn(
                         'flex w-full cursor-pointer items-center gap-2 rounded-lg border p-2 text-left transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
@@ -137,11 +144,12 @@ export function GrantApprovalDialog({
         )}
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
+          <Button type="button" variant="outline" data-testid={IDS.cancel} onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
           <Button
             type="button"
+            data-testid={IDS.submit}
             disabled={selectedId == null || pending}
             onClick={() => selectedId && onConfirm(selectedId)}
           >

@@ -74,6 +74,9 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
+        // Only e2e/support/testIds is meant to cross this boundary — the
+        // data-testid registry shared with the Playwright page objects.
+        '@e2e': path.resolve(__dirname, './e2e'),
       },
     },
   }

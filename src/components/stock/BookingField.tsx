@@ -3,6 +3,9 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { stockInputClass } from './stockShared'
 import type { BookingItem, StockBooking } from './useStockBooking'
+import { TEST_IDS } from '@e2e/support/testIds'
+
+const IDS = TEST_IDS.stock.booking
 
 type BookingFieldProps = {
   item: BookingItem
@@ -30,11 +33,13 @@ export function BookingField({ item, booking }: BookingFieldProps) {
           onChange={event => booking.setQuantity(item.id, event.target.value)}
           className={cn(stockInputClass, 'w-13 px-2 text-right tabular-nums [appearance:textfield]')}
           aria-label="Booking quantity"
+          data-testid={IDS.quantity}
         />
         <Button
           type="button"
           variant="outline"
           size="icon"
+          data-testid={IDS.increase}
           disabled={inboundDisabled}
           onClick={() => void booking.book(item, 'INBOUND')}
           title="Increase stock"
@@ -46,6 +51,7 @@ export function BookingField({ item, booking }: BookingFieldProps) {
           type="button"
           variant="outline"
           size="icon"
+          data-testid={IDS.decrease}
           disabled={outboundDisabled}
           onClick={() => void booking.book(item, 'OUTBOUND')}
           title="Decrease stock"
@@ -54,7 +60,7 @@ export function BookingField({ item, booking }: BookingFieldProps) {
           <Minus />
         </Button>
       </div>
-      {error && <div className="mt-1 text-xs text-destructive">{error}</div>}
+      {error && <div data-testid={IDS.error} className="mt-1 text-xs text-destructive">{error}</div>}
     </div>
   )
 }

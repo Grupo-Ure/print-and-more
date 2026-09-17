@@ -12,8 +12,11 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
+import { TEST_IDS } from '@e2e/support/testIds'
 import { useUpsertCustomer } from '../queries/customerQueries'
 import type { Customer } from '../types/database'
+
+const IDS = TEST_IDS.orders.customerDialog
 
 type Props = {
   open: boolean
@@ -67,7 +70,7 @@ export function CustomerDialog({ open, onOpenChange, customer, onSaved }: Props)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" data-testid={IDS.root}>
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Edit Customer' : 'New Customer'}</DialogTitle>
         </DialogHeader>
@@ -129,7 +132,7 @@ function CustomerForm({ customer, submitting, serverError, onCancel, onSubmit }:
       className="flex flex-col gap-3"
     >
       {serverError && (
-        <p className="text-xs text-destructive">
+        <p data-testid={IDS.error} className="text-xs text-destructive">
           {serverError.message || 'Error saving customer'}
         </p>
       )}
@@ -146,6 +149,7 @@ function CustomerForm({ customer, submitting, serverError, onCancel, onSubmit }:
             <Input
               id={field.name}
               name={field.name}
+              data-testid={IDS.name}
               value={field.state.value}
               onChange={e => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
@@ -164,6 +168,7 @@ function CustomerForm({ customer, submitting, serverError, onCancel, onSubmit }:
               id={field.name}
               name={field.name}
               type="email"
+              data-testid={IDS.email}
               value={field.state.value}
               onChange={e => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
@@ -179,6 +184,7 @@ function CustomerForm({ customer, submitting, serverError, onCancel, onSubmit }:
               id={field.name}
               name={field.name}
               type="tel"
+              data-testid={IDS.phone}
               value={field.state.value}
               onChange={e => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
@@ -193,6 +199,7 @@ function CustomerForm({ customer, submitting, serverError, onCancel, onSubmit }:
             <textarea
               id={field.name}
               name={field.name}
+              data-testid={IDS.note}
               value={field.state.value}
               onChange={e => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
@@ -208,6 +215,7 @@ function CustomerForm({ customer, submitting, serverError, onCancel, onSubmit }:
       <button
         type="button"
         onClick={() => setAddressExpanded(v => !v)}
+        data-testid={IDS.addressToggle}
         className="flex items-center gap-1 self-start text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground hover:text-foreground"
         aria-expanded={addressExpanded}
       >
@@ -223,6 +231,7 @@ function CustomerForm({ customer, submitting, serverError, onCancel, onSubmit }:
                 <Input
                   id={field.name}
                   name={field.name}
+                  data-testid={IDS.street}
                   value={field.state.value}
                   onChange={e => field.handleChange(e.target.value)}
                   onBlur={field.handleBlur}
@@ -237,6 +246,7 @@ function CustomerForm({ customer, submitting, serverError, onCancel, onSubmit }:
                 <Input
                   id={field.name}
                   name={field.name}
+                  data-testid={IDS.houseNumber}
                   value={field.state.value}
                   onChange={e => field.handleChange(e.target.value)}
                   onBlur={field.handleBlur}
@@ -251,6 +261,7 @@ function CustomerForm({ customer, submitting, serverError, onCancel, onSubmit }:
                 <Input
                   id={field.name}
                   name={field.name}
+                  data-testid={IDS.postalCode}
                   value={field.state.value}
                   onChange={e => field.handleChange(e.target.value)}
                   onBlur={field.handleBlur}
@@ -265,6 +276,7 @@ function CustomerForm({ customer, submitting, serverError, onCancel, onSubmit }:
                 <Input
                   id={field.name}
                   name={field.name}
+                  data-testid={IDS.city}
                   value={field.state.value}
                   onChange={e => field.handleChange(e.target.value)}
                   onBlur={field.handleBlur}
@@ -276,12 +288,12 @@ function CustomerForm({ customer, submitting, serverError, onCancel, onSubmit }:
       )}
 
       <DialogFooter>
-        <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>
+        <Button type="button" variant="outline" data-testid={IDS.cancel} onClick={onCancel} disabled={submitting}>
           Cancel
         </Button>
         <form.Subscribe selector={state => state.canSubmit}>
           {canSubmit => (
-            <Button type="submit" disabled={!canSubmit || submitting}>
+            <Button type="submit" data-testid={IDS.submit} disabled={!canSubmit || submitting}>
               {submitting ? 'Saving…' : 'Save'}
             </Button>
           )}

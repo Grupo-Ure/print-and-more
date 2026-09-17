@@ -6,6 +6,7 @@ import { ROLE_LABELS } from '../lib/roleLabels'
 import { useNavigation } from '../context/navigation.context'
 import { UserAvatar } from './UserAvatar'
 import { Badge } from '@/components/ui/badge'
+import { TEST_IDS } from '@e2e/support/testIds'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,7 +39,11 @@ export function NavbarUserMenu() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="group flex cursor-pointer items-center gap-2 rounded-lg px-2 py-0.5 text-sm text-neutral-600 transition-colors outline-none select-none hover:text-neutral-900 focus-visible:ring-3 focus-visible:ring-ring/50 aria-expanded:text-neutral-900">
+      <DropdownMenuTrigger
+        data-testid={TEST_IDS.navbar.userMenu.trigger}
+        data-user-email={user.email}
+        className="group flex cursor-pointer items-center gap-2 rounded-lg px-2 py-0.5 text-sm text-neutral-600 transition-colors outline-none select-none hover:text-neutral-900 focus-visible:ring-3 focus-visible:ring-ring/50 aria-expanded:text-neutral-900"
+      >
         <UserAvatar name={user.name} avatarUrl={user.avatar_url} />
         <span>
           Hi, <span className="font-medium">{firstNameOf(user.name)}</span>
@@ -46,16 +51,24 @@ export function NavbarUserMenu() {
         <ChevronDown className="size-3 text-neutral-400 transition-transform group-aria-expanded:rotate-180" />
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="start" className="w-96">
+      <DropdownMenuContent align="start" className="w-96" data-testid={TEST_IDS.navbar.userMenu.content}>
         <div className="flex items-center gap-3 px-2 pt-2 pb-1.5">
           <UserAvatar name={user.name} avatarUrl={user.avatar_url} className="size-10 text-lg" />
           <div className="min-w-0">
-            <div className="truncate text-xl font-medium text-foreground">{user.name}</div>
-            <div className="truncate text-base text-muted-foreground">{user.email}</div>
+            <div data-testid={TEST_IDS.navbar.userMenu.name} className="truncate text-xl font-medium text-foreground">
+              {user.name}
+            </div>
+            <div data-testid={TEST_IDS.navbar.userMenu.email} className="truncate text-base text-muted-foreground">
+              {user.email}
+            </div>
           </div>
         </div>
         <div className="flex items-center justify-between gap-2 px-2 pb-2">
-          <Badge variant={user.role === 'EMPLOYEE' ? 'secondary' : 'default'}>
+          <Badge
+            data-testid={TEST_IDS.navbar.userMenu.role}
+            data-role={user.role}
+            variant={user.role === 'EMPLOYEE' ? 'secondary' : 'default'}
+          >
             {ROLE_LABELS[user.role]}
           </Badge>
           <span className="text-xs text-muted-foreground">
@@ -64,13 +77,17 @@ export function NavbarUserMenu() {
         </div>
 
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => navigate('profile')}>
+        <DropdownMenuItem data-testid={TEST_IDS.navbar.userMenu.profile} onSelect={() => navigate('profile')}>
           <Settings className="text-neutral-400" />
           Profile settings
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onSelect={() => void signOut()}>
+        <DropdownMenuItem
+          data-testid={TEST_IDS.navbar.userMenu.signOut}
+          variant="destructive"
+          onSelect={() => void signOut()}
+        >
           <LogOut />
           Sign out
         </DropdownMenuItem>

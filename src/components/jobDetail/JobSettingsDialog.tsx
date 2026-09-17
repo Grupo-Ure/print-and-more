@@ -2,6 +2,7 @@ import type { JobRow, OrderDetailRow } from '../../types/database'
 import type { FileRow } from '../../services/fileService'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog'
 import { JobSettingsSection } from './JobSettingsSection'
+import { TEST_IDS } from '@e2e/support/testIds'
 
 type Props = {
   order: OrderDetailRow
@@ -22,7 +23,7 @@ type Props = {
 export function JobSettingsDialog({ open, onOpenChange, ...sectionProps }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" data-testid={TEST_IDS.orders.jobDetail.settingsDialog.root}>
         <DialogHeader>
           <DialogTitle>Job settings</DialogTitle>
           <DialogDescription className="text-xs">

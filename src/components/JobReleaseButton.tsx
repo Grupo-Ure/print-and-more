@@ -20,6 +20,9 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu'
 import { Textarea } from './ui/textarea'
+import { TEST_IDS } from '@e2e/support/testIds'
+
+const IDS = TEST_IDS.orders.jobDetail.release
 
 type Props = {
   job: JobRow
@@ -59,6 +62,8 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
     <Button
       type="button"
       variant="default"
+      data-testid={IDS.button}
+      data-target={target}
       className={mainClassName}
       disabled={release.disabled}
       onClick={() => void release.advance()}
@@ -84,12 +89,14 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
             )}
             disabled={release.pending}
             aria-label="More release options"
+            data-testid={IDS.menuTrigger}
           >
             <ChevronDown className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-auto min-w-64 p-0 overflow-hidden">
           <DropdownMenuItem
+            data-testid={IDS.forceItem}
             disabled={release.pending || release.approvalBlocked || !release.hasProducts}
             onSelect={() => setForceDialogOpen(true)}
             className={cn('rounded-none px-3 py-2.5', JOB_STATUS_META[target].softHoverColor)}
@@ -113,7 +120,7 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
           if (!open) setForceReason('')
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" data-testid={IDS.dialog.root}>
           <DialogHeader>
             <DialogTitle>Force release to production?</DialogTitle>
             <DialogDescription>
@@ -123,6 +130,7 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
             </DialogDescription>
           </DialogHeader>
           <Textarea
+            data-testid={IDS.dialog.reason}
             value={forceReason}
             onChange={e => setForceReason(e.target.value)}
             placeholder="Reason for the emergency release"
@@ -132,6 +140,7 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
             <Button
               type="button"
               variant="outline"
+              data-testid={IDS.dialog.cancel}
               onClick={() => setForceDialogOpen(false)}
               disabled={release.pending}
             >
@@ -140,6 +149,7 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
             <Button
               type="button"
               variant="default"
+              data-testid={IDS.dialog.submit}
               className={cn(
                 'text-primary-foreground',
                 JOB_STATUS_META.IN_PRODUCTION.color,

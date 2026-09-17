@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog'
 import { CopyReorderButton } from './CopyReorderButton'
 import { StockTable, type StockColumn } from './StockTable'
+import { TEST_IDS } from '@e2e/support/testIds'
 
 type ReorderListDialogProps<Row> = {
   open: boolean
@@ -34,7 +35,10 @@ export function ReorderListDialog<Row>({
 }: ReorderListDialogProps<Row>) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-4xl">
+      <DialogContent
+        className="flex max-h-[85vh] flex-col sm:max-w-4xl"
+        data-testid={TEST_IDS.stock.reorderDialog.root}
+      >
         <DialogHeader>
           <DialogTitle>Reorder list</DialogTitle>
           <DialogDescription>

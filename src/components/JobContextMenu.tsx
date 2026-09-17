@@ -10,6 +10,9 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from './ui/context-menu'
+import { TEST_IDS } from '@e2e/support/testIds'
+
+const IDS = TEST_IDS.orders.jobList.contextMenu
 
 type Props = {
   job: JobRow
@@ -42,7 +45,12 @@ function JobContextMenuItems({ job, orderNumber }: Omit<Props, 'children'>) {
     <>
       {release.label != null && (
         <>
-          <ContextMenuItem disabled={release.disabled} onSelect={() => void release.advance()}>
+          <ContextMenuItem
+            data-testid={IDS.advance}
+            data-target={release.target ?? undefined}
+            disabled={release.disabled}
+            onSelect={() => void release.advance()}
+          >
             <ArrowRight />
             {release.label}
           </ContextMenuItem>
@@ -51,6 +59,7 @@ function JobContextMenuItems({ job, orderNumber }: Omit<Props, 'children'>) {
       )}
       {removal.canDelete ? (
         <ContextMenuItem
+          data-testid={IDS.delete}
           variant="destructive"
           disabled={removal.pending}
           onSelect={() => void removal.requestDelete()}
@@ -60,6 +69,7 @@ function JobContextMenuItems({ job, orderNumber }: Omit<Props, 'children'>) {
         </ContextMenuItem>
       ) : (
         <ContextMenuItem
+          data-testid={IDS.cancel}
           variant="destructive"
           disabled={!removal.canCancel || removal.pending}
           onSelect={() => void removal.requestCancel()}

@@ -15,7 +15,10 @@ import {
 } from '../ui/select'
 import { Separator } from '../ui/separator'
 import { DateInput } from '../DateInput'
+import { TEST_IDS } from '@e2e/support/testIds'
 import type { FilterActions, FilterState } from './useOrderSidebarFilter'
+
+const IDS = TEST_IDS.orders.sidebar.filters
 
 const DATE_INPUT_CLASSES =
   'h-8 w-full min-w-0 rounded-md border border-input bg-transparent px-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
@@ -40,13 +43,17 @@ export function OrderSidebarFilters({ filter, actions, isActive, variant }: Prop
 
   if (variant === 'popover') {
     return (
-      <PopoverContent align="end" className="w-72 p-3 gap-0 border-gray-200">
+      <PopoverContent align="end" className="w-72 p-3 gap-0 border-gray-200" data-testid={IDS.root}>
         {body}
       </PopoverContent>
     )
   }
 
-  return <div className="mt-2 rounded-lg border border-gray-200 bg-white p-3 shadow-xs">{body}</div>
+  return (
+    <div data-testid={IDS.root} className="mt-2 rounded-lg border border-gray-200 bg-white p-3 shadow-xs">
+      {body}
+    </div>
+  )
 }
 
 function FilterPanelBody({ filter, actions, isActive }: Omit<Props, 'variant'>) {
@@ -59,6 +66,7 @@ function FilterPanelBody({ filter, actions, isActive }: Omit<Props, 'variant'>) 
           <FilterSectionLabel>Status</FilterSectionLabel>
           <label className="flex items-center gap-2 text-sm cursor-pointer select-none pb-1.5">
             <Checkbox
+              data-testid={IDS.allStatuses}
               checked={statusAll}
               onCheckedChange={checked => actions.setStatusAll(checked === true)}
             />
@@ -74,6 +82,8 @@ function FilterPanelBody({ filter, actions, isActive }: Omit<Props, 'variant'>) 
                 )}
               >
                 <Checkbox
+                  data-testid={IDS.status}
+                  data-status={status}
                   checked={statusToggles[status]}
                   disabled={statusAll}
                   onCheckedChange={checked => actions.toggleStatus(status, checked === true)}
@@ -91,7 +101,7 @@ function FilterPanelBody({ filter, actions, isActive }: Omit<Props, 'variant'>) 
             value={department}
             onValueChange={value => actions.setDepartment(value as FilterState['department'])}
           >
-            <SelectTrigger className="h-8 w-full">
+            <SelectTrigger className="h-8 w-full" data-testid={IDS.department}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -111,12 +121,14 @@ function FilterPanelBody({ filter, actions, isActive }: Omit<Props, 'variant'>) 
             <DateInput
               className={DATE_INPUT_CLASSES}
               aria-label="Deadline from"
+              data-testid={IDS.deadlineFrom}
               value={deadlineFrom}
               onChange={e => actions.setDeadlineFrom(e.target.value)}
             />
             <DateInput
               className={DATE_INPUT_CLASSES}
               aria-label="Deadline to"
+              data-testid={IDS.deadlineTo}
               value={deadlineTo}
               onChange={e => actions.setDeadlineTo(e.target.value)}
             />
@@ -129,12 +141,14 @@ function FilterPanelBody({ filter, actions, isActive }: Omit<Props, 'variant'>) 
             <DateInput
               className={DATE_INPUT_CLASSES}
               aria-label="Intake from"
+              data-testid={IDS.intakeFrom}
               value={intakeFrom}
               onChange={e => actions.setIntakeFrom(e.target.value)}
             />
             <DateInput
               className={DATE_INPUT_CLASSES}
               aria-label="Intake to"
+              data-testid={IDS.intakeTo}
               value={intakeTo}
               onChange={e => actions.setIntakeTo(e.target.value)}
             />
@@ -147,6 +161,7 @@ function FilterPanelBody({ filter, actions, isActive }: Omit<Props, 'variant'>) 
       <Button
         variant="ghost"
         size="sm"
+        data-testid={IDS.reset}
         disabled={!isActive}
         onClick={actions.reset}
         className="w-full text-muted-foreground"

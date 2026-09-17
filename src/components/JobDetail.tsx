@@ -27,6 +27,9 @@ import { Button } from './ui/button'
 import { Ban, Clock, FileDown, SlidersHorizontal, Trash2 } from 'lucide-react'
 import './WorkArea.css'
 import { Separator } from './ui/separator'
+import { TEST_IDS } from '@e2e/support/testIds'
+
+const IDS = TEST_IDS.orders.jobDetail
 
 export function JobDetail({
   orderFiles,
@@ -83,11 +86,17 @@ export function JobDetail({
   const isDone = job.status === 'DONE'
 
   return (
-    <div className="flex flex-col gap-4">
+    <div
+      data-testid={IDS.root}
+      data-job-id={job.id}
+      data-status={job.status}
+      data-department={job.department}
+      className="flex flex-col gap-4"
+    >
       <JobProductionBanner job={job} />
       <div aria-label="Job" className="flex flex-col gap-2">
         <div className="flex items-center gap-6">
-          <h1 className="flex items-baseline gap-2">
+          <h1 data-testid={IDS.title} className="flex items-baseline gap-2">
             {jobDepartmentLabel(job.department)}
             <span>-</span>
             {job.job_number}
@@ -95,6 +104,7 @@ export function JobDetail({
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-medium text-muted-foreground">Assigned to</span>
             <EmployeeCombobox
+              testId={IDS.assignee}
               value={job.assignee_id}
               onChange={handleAssigneeChange}
               disabled={!isAdmin || isDone || setJobAssignee.isPending}
@@ -102,12 +112,15 @@ export function JobDetail({
           </div>
         </div>
         <div className="flex items-center">
-          <StatusBadge meta={JOB_STATUS_META[job.status]} />
+          <span data-testid={IDS.status} data-status={job.status} className="contents">
+            <StatusBadge meta={JOB_STATUS_META[job.status]} />
+          </span>
           <div className="flex items-center gap-1">
             <Button
               type="button"
               variant="ghost"
               size="sm"
+              data-testid={IDS.settingsButton}
               onClick={() => setSettingsOpen(true)}
             >
               <SlidersHorizontal />
@@ -117,6 +130,7 @@ export function JobDetail({
               type="button"
               variant="ghost"
               size="sm"
+              data-testid={IDS.timeLogsButton}
               onClick={() => setTimeLogsOpen(true)}
             >
               <Clock />
@@ -126,6 +140,7 @@ export function JobDetail({
               type="button"
               variant="ghost"
               size="sm"
+              data-testid={IDS.pdfButton}
               onClick={() => void handleDownloadPdf()}
             >
               <FileDown />
@@ -136,6 +151,7 @@ export function JobDetail({
               <Button
                 type="button"
                 variant="ghost"
+                data-testid={IDS.deleteButton}
                 disabled={removal.pending}
                 onClick={() => void removal.requestDelete()}
                 size="sm"
@@ -148,6 +164,7 @@ export function JobDetail({
               <Button
                 type="button"
                 variant="ghost"
+                data-testid={IDS.cancelButton}
                 disabled={!removal.canCancel || removal.pending}
                 onClick={() => void removal.requestCancel()}
                 size="sm"
@@ -174,7 +191,7 @@ export function JobDetail({
           (job.department === 'LASER_ENGRAVING' && job.type !== 'OTHER_LASER')) && (
           <p className="text-xs italic text-muted-foreground">For auto-PREPRESS: Customer needs name and email or phone.</p>
         )}
-      <section>
+      <section data-testid={IDS.products.root}>
         {job.department === 'LFP' && (
           <LfpProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
         )}

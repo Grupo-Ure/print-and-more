@@ -20,6 +20,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
+import { TEST_IDS } from '@e2e/support/testIds'
 import { DuplicateDialog } from './DuplicateDialog'
 import { NewOrderDialog } from './NewOrderDialog'
 import { useToast } from './Toast'
@@ -144,7 +145,12 @@ export function OrderSidebar() {
   const searchActive = filter.searchInput.trim() !== ''
 
   return (
-    <Sidebar collapsible="none" side="left" className="shrink-0 border-r! border-gray-200">
+    <Sidebar
+      collapsible="none"
+      side="left"
+      data-testid={TEST_IDS.orders.sidebar.root}
+      className="shrink-0 border-r! border-gray-200"
+    >
       <SidebarHeader className="border-b border-neutral-200 px-3.5 py-2.5 bg-neutral-50">
         <div className="flex items-center justify-between gap-2 min-h-7">
           <h1 className="font-bold uppercase text-neutral-500">
@@ -156,6 +162,7 @@ export function OrderSidebar() {
               size="icon-sm"
               title="Search"
               aria-label="Search"
+              data-testid={TEST_IDS.orders.sidebar.searchToggle}
               aria-pressed={searchOpen}
               onClick={() => setSearchOpen(o => !o)}
               className={cn('relative desktop:hidden', searchOpen && 'bg-muted text-foreground')}
@@ -171,6 +178,7 @@ export function OrderSidebar() {
                     size="icon-sm"
                     title="Filter"
                     aria-label="Filter"
+                    data-testid={TEST_IDS.orders.sidebar.filterToggle}
                     className="relative"
                   >
                     <SlidersHorizontal className="size-3.5" />
@@ -190,6 +198,7 @@ export function OrderSidebar() {
                 size="icon-sm"
                 title="Filter"
                 aria-label="Filter"
+                data-testid={TEST_IDS.orders.sidebar.filterToggle}
                 aria-pressed={filterPopOpen}
                 onClick={() => setFilterPopOpen(o => !o)}
                 className={cn('relative', filterPopOpen && 'bg-muted text-foreground')}

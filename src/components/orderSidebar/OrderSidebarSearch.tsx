@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Search, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Input } from '../ui/input'
+import { TEST_IDS } from '@e2e/support/testIds'
 
 type Props = {
   value: string
@@ -29,6 +30,7 @@ export function OrderSidebarSearch({ value, onChange, onClear, open = false, cla
         onChange={e => onChange(e.target.value)}
         placeholder="Search customer..."
         aria-label="Search customer"
+        data-testid={TEST_IDS.orders.sidebar.searchInput}
         className="h-8 bg-white pl-8 pr-8 text-sm [&::-webkit-search-cancel-button]:appearance-none"
       />
       {value !== '' && (
@@ -36,6 +38,7 @@ export function OrderSidebarSearch({ value, onChange, onClear, open = false, cla
           type="button"
           title="Clear search"
           aria-label="Clear search"
+          data-testid={TEST_IDS.orders.sidebar.clearSearch}
           onClick={() => {
             onClear()
             queueMicrotask(() => inputRef.current?.focus())

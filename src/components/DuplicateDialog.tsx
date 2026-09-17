@@ -18,6 +18,9 @@ import { STAMP_TYPE_LABELS } from '../types/stamp'
 import { LASER_TYPE_LABELS } from '../types/laser'
 import { DateInput } from './DateInput'
 import { useToast } from './Toast'
+import { TEST_IDS } from '@e2e/support/testIds'
+
+const IDS = TEST_IDS.orders.duplicateDialog
 
 type Props = {
   order: Auftrag
@@ -121,7 +124,7 @@ export function DuplicateDialog({ order, jobs, onSuccess, onCancel }: Props) {
         if (!open && !busy) onCancel()
       }}
     >
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" data-testid={IDS.root}>
         <DialogHeader>
           <DialogTitle>Duplicate Order</DialogTitle>
         </DialogHeader>
@@ -137,6 +140,7 @@ export function DuplicateDialog({ order, jobs, onSuccess, onCancel }: Props) {
             </h2>
             <label className="flex items-center gap-2.5 rounded-md border bg-muted/40 px-3 py-2 cursor-pointer">
               <Checkbox
+                data-testid={IDS.selectAll}
                 checked={masterChecked}
                 onCheckedChange={toggleAll}
               />
@@ -152,6 +156,8 @@ export function DuplicateDialog({ order, jobs, onSuccess, onCancel }: Props) {
                 >
                   <Checkbox
                     className="mt-0.5"
+                    data-testid={IDS.job}
+                    data-job-id={job.id}
                     checked={!!selection[job.id]}
                     onCheckedChange={() => toggle(job.id)}
                   />
@@ -168,18 +174,20 @@ export function DuplicateDialog({ order, jobs, onSuccess, onCancel }: Props) {
           </h2>
           <DateInput
             className="w-full h-12 min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50"
+            data-testid={IDS.deadline}
             value={newDeadline}
             onChange={event => setNewDeadline(event.target.value)}
             placeholder="No deadline — set later"
           />
         </section>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <p data-testid={IDS.error} className="text-sm text-destructive">{error}</p>}
 
         <DialogFooter>
           <Button
             type="button"
             variant="secondary"
+            data-testid={IDS.cancel}
             onClick={onCancel}
             disabled={busy}
           >
@@ -187,6 +195,7 @@ export function DuplicateDialog({ order, jobs, onSuccess, onCancel }: Props) {
           </Button>
           <Button
             type="button"
+            data-testid={IDS.submit}
             onClick={() => void handleDuplicate()}
             disabled={busy || blocksDuplicate}
           >

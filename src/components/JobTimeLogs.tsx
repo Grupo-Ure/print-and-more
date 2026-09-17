@@ -11,6 +11,9 @@ import { Input } from './ui/input'
 import { UserAvatar } from './UserAvatar'
 import { useConfirm } from './ConfirmDialog'
 import { useToast } from './Toast'
+import { TEST_IDS } from '@e2e/support/testIds'
+
+const IDS = TEST_IDS.orders.jobDetail.timeLogsDialog
 
 /**
  * Worked-time log for one job: total, the individual entries (minutes, date,
@@ -78,7 +81,10 @@ export function JobTimeLogs({
     // scrolls inside while the total and the entry form stay in place.
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       <div className="text-sm">
-        Total: <span className="font-semibold text-foreground">{formatMinutes(total)}</span>
+        Total:{' '}
+        <span data-testid={IDS.total} data-minutes={total} className="font-semibold text-foreground">
+          {formatMinutes(total)}
+        </span>
       </div>
 
       {/* min-h keeps the empty and loading states from collapsing the dialog;
@@ -87,11 +93,17 @@ export function JobTimeLogs({
         {logsQuery.isLoading ? (
           <p className="text-sm! text-muted-foreground">Loading…</p>
         ) : logs.length === 0 ? (
-          <p className="text-sm! text-muted-foreground">No time logged yet.</p>
+          <p data-testid={IDS.empty} className="text-sm! text-muted-foreground">No time logged yet.</p>
         ) : (
-          <ul className="divide-y divide-border" aria-label="Time logs">
+          <ul data-testid={IDS.list} className="divide-y divide-border" aria-label="Time logs">
           {logs.map(log => (
-            <li key={log.id} className="group grid grid-cols-[1fr_1fr_2fr_auto] items-center gap-2 py-1.5 text-sm">
+            <li
+              key={log.id}
+              data-testid={IDS.item}
+              data-log-id={log.id}
+              data-minutes={log.minutes}
+              className="group grid grid-cols-[1fr_1fr_2fr_auto] items-center gap-2 py-1.5 text-sm"
+            >
               <span className="shrink-0 font-medium tabular-nums">{formatMinutes(log.minutes)}</span>
               <span className="shrink-0 text-muted-foreground tabular-nums">
                 {formatDateDe(log.created_at)}
@@ -117,6 +129,7 @@ export function JobTimeLogs({
                   size="icon-sm"
                   title="Delete log"
                   aria-label="Delete log"
+                  data-testid={IDS.itemDelete}
                   className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-destructive hover:text-destructive"
                   disabled={deleteLog.isPending}
                   onClick={() => void handleDelete(log)}
@@ -143,9 +156,11 @@ export function JobTimeLogs({
               if (e.key === 'Enter') handleCreate()
             }}
             aria-label="Minutes to log"
+            data-testid={IDS.minutes}
           />
           {isAdmin && (
             <EmployeeCombobox
+              testId={IDS.onBehalfOf}
               value={onBehalfOf?.id ?? currentUser?.id ?? null}
               onChange={user => setOnBehalfOf(user)}
               disabled={createLog.isPending}
@@ -155,6 +170,7 @@ export function JobTimeLogs({
             type="button"
             variant="default"
             size="sm"
+            data-testid={IDS.submit}
             disabled={!minutesValid || !currentUser || createLog.isPending}
             onClick={handleCreate}
           >

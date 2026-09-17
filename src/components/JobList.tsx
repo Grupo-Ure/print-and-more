@@ -11,6 +11,9 @@ import { AddJobButtons } from './AddJobButtons'
 import { JobContextMenu } from './JobContextMenu'
 import { cn } from '@/lib/utils'
 import { JOB_STATUS_META, WORKFLOW_STATUSES } from '../const/orderStatus'
+import { TEST_IDS } from '@e2e/support/testIds'
+
+const IDS = TEST_IDS.orders.jobList
 
 function JobStatusTrack({ status }: { status: JobStatus }) {
   return (
@@ -39,19 +42,26 @@ export function JobList() {
   const minutesByJob = minutesQuery.data
 
   return (
-    <nav className="flex flex-col gap-1 w-48 desktop:w-60 shrink-0">
+    <nav data-testid={IDS.root} className="flex flex-col gap-1 w-48 desktop:w-60 shrink-0">
         <h1>Jobs in this order</h1>
         <AddJobButtons />
         {visibleJobs.length === 0 && !jobsQuery.isLoading ? (
           // Takes the list's space so the hint sits in the middle of the column.
-          <p className="flex flex-1 items-center justify-center p-2 text-center text-sm text-muted-foreground">
+          <p
+            data-testid={IDS.empty}
+            className="flex flex-1 items-center justify-center p-2 text-center text-sm text-muted-foreground"
+          >
             No jobs yet.
           </p>
         ) : (
-        <ul className="flex flex-col flex-1 min-w-0 min-h-0 overflow-y-auto" aria-label="Jobs">
+        <ul data-testid={IDS.list} className="flex flex-col flex-1 min-w-0 min-h-0 overflow-y-auto" aria-label="Jobs">
           {visibleJobs.map(job => (
             <JobContextMenu key={job.id} job={job} orderNumber={order?.order_number ?? null}>
             <li
+              data-testid={IDS.row}
+              data-job-id={job.id}
+              data-status={job.status}
+              aria-current={job.id === activeJobId ? 'true' : undefined}
               className={cn(
                 'flex items-center justify-between w-full cursor-pointer p-2',
                 job.id === activeJobId && 'bg-primary/10',
@@ -67,7 +77,7 @@ export function JobList() {
                 {order &&
                   productCounts &&
                   isInProductionMissingInfo(job, order, (productCounts[job.id] ?? 0) > 0) && (
-                    <span title="In production with missing information">
+                    <span data-testid={IDS.rowMissingInfo} title="In production with missing information">
                       <AlertTriangle
                         size={14}
                         className="text-red-700 shrink-0"

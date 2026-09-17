@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import { TEST_IDS } from '@e2e/support/testIds'
 import { useCreateOrder } from '../queries/orderQueries'
 import { useInfiniteCustomers } from '../queries/customerQueries'
 import { useOrderWorkspace } from '../context/order.context'
@@ -26,6 +27,7 @@ export function NewOrderDialog() {
   const { openCustomerDialog } = useOrderWorkspace()
   const { setActiveOrder } = useOrderSelection()
   const createOrder = useCreateOrder()
+  const IDS = TEST_IDS.orders.newOrderDialog
 
   useEffect(() => {
     if (!open) {
@@ -68,19 +70,20 @@ export function NewOrderDialog() {
         <DialogTrigger asChild>
           <Button
             type="button"
+            data-testid={TEST_IDS.orders.sidebar.newOrderButton}
             className="h-10 text-base px-6 desktop:h-16 desktop:text-2xl desktop:px-12 m-auto"
           >
             <Plus strokeWidth={4} />
             New Order
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-w-md p-4">
+        <DialogContent className="max-w-md p-4" data-testid={IDS.root}>
           <DialogHeader>
             <DialogTitle>New Order</DialogTitle>
           </DialogHeader>
 
           {createOrder.error && (
-            <p className="text-destructive">
+            <p data-testid={IDS.error} className="text-destructive">
               {createOrder.error instanceof Error ? createOrder.error.message : 'Error creating order'}
             </p>
           )}
@@ -95,6 +98,7 @@ export function NewOrderDialog() {
                 <Input
                   type="search"
                   placeholder="Search customer…"
+                  data-testid={IDS.customerSearch}
                   value={searchInput}
                   onChange={e => setSearchInput(e.target.value)}
                   autoFocus
@@ -102,6 +106,7 @@ export function NewOrderDialog() {
                 <CustomerList query={debouncedQuery} onSelect={setSelectedCustomer} />
                 <Button
                   type="button"
+                  data-testid={IDS.newCustomer}
                   onClick={() => openCustomerDialog(null, { onSaved: setSelectedCustomer })}
                 >
                   <Plus className="size-3.5" />
@@ -109,7 +114,11 @@ export function NewOrderDialog() {
                 </Button>
               </>
             ) : (
-              <div className="flex items-start justify-between gap-3 rounded-md bg-muted p-3">
+              <div
+                data-testid={IDS.selectedCustomer}
+                data-customer-id={selectedCustomer.id}
+                className="flex items-start justify-between gap-3 rounded-md bg-muted p-3"
+              >
                 <div className="min-w-0">
                   <h2 className="truncate">{selectedCustomer.name}</h2>
                   <h3 className="truncate">
@@ -121,6 +130,7 @@ export function NewOrderDialog() {
                     type="button"
                     variant="outline"
                     size="xs"
+                    data-testid={IDS.editCustomer}
                     onClick={() => openCustomerDialog(selectedCustomer, { onSaved: setSelectedCustomer })}
                   >
                     <Pencil className="size-3" />
@@ -130,6 +140,7 @@ export function NewOrderDialog() {
                     type="button"
                     variant="outline"
                     size="xs"
+                    data-testid={IDS.changeCustomer}
                     onClick={() => setSelectedCustomer(null)}
                   >
                     <Replace className="size-3" />
@@ -144,6 +155,7 @@ export function NewOrderDialog() {
             <Button
               type="button"
               variant="secondary"
+              data-testid={IDS.cancel}
               onClick={() => setOpen(false)}
               disabled={createOrder.isPending}
             >
@@ -151,6 +163,7 @@ export function NewOrderDialog() {
             </Button>
             <Button
               type="button"
+              data-testid={IDS.submit}
               onClick={() => void handleSubmit()}
               disabled={!selectedCustomer || createOrder.isPending}
             >
@@ -201,6 +214,8 @@ function CustomerList({ query, onSelect }: { query: string; onSelect: (customer:
         <button
           key={customer.id}
           type="button"
+          data-testid={TEST_IDS.orders.newOrderDialog.customerOption}
+          data-customer-id={customer.id}
           onClick={() => onSelect(customer)}
           className={cn(
             'block w-full border-b border-gray-300 px-3 py-2 text-left text-sm hover:bg-muted',
