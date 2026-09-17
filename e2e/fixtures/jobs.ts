@@ -8,11 +8,19 @@ import type { ProductSeed } from '../support/database'
  */
 export const TEST_JOB_DEPARTMENT: Department = 'OTHER'
 
+// ── Statuses ──────────────────────────────────────────────────────────────
+
 /** The status every job starts in. */
 export const NEW_JOB_STATUS: JobStatus = 'IN_SETUP'
 
 /** The status a complete job advances to, automatically or by manual release. */
 export const PREPRESS_STATUS: JobStatus = 'PREPRESS'
+
+/** The status "Release to Production" moves a job to. */
+export const IN_PRODUCTION_STATUS: JobStatus = 'IN_PRODUCTION'
+
+/** The status "Mark job as done" moves a job to; the end of the workflow. */
+export const DONE_STATUS: JobStatus = 'DONE'
 
 /**
  * The job number the database assigns to an order's first job in
@@ -47,17 +55,38 @@ export const POSTER_PRODUCT_ROW: ProductSeed = {
   child: { format: 'A2', material: '120G_AFFICHEN', laminate: 'NEIN', width: 420, height: 594 },
 }
 
-/** What the `job` fixture inserts: the department and, optionally, one product. */
+/**
+ * What the `job` fixture inserts: the department, the status, and optionally
+ * one product.
+ *
+ * A seed must describe a state the app can reach, since nothing in the
+ * database enforces the workflow:
+ * - `PREPRESS` and beyond require a complete job: a product here, and the
+ *   deadline and delivery from the order — pair these with `IN_PROGRESS_ORDER`.
+ * - `IN_PRODUCTION` and `DONE` in the STAMP or TEXTILE departments would also
+ *   have booked stock deductions on release; the seeds below stay in OTHER,
+ *   which books none.
+ */
 export type JobSeed = {
   department: Department
+  status: JobStatus
   product: ProductSeed | null
 }
 
 /** A job with nothing in it — the default. */
-export const EMPTY_JOB: JobSeed = { department: TEST_JOB_DEPARTMENT, product: null }
+export const EMPTY_JOB: JobSeed = { department: TEST_JOB_DEPARTMENT, status: NEW_JOB_STATUS, product: null }
 
 /** A free-form job with content: complete once the order supplies deadline and delivery, but never auto-advances. */
-export const FREE_FORM_JOB_WITH_PRODUCT: JobSeed = { department: 'OTHER', product: OTHER_PRODUCT_ROW }
+export const FREE_FORM_JOB_WITH_PRODUCT: JobSeed = { ...EMPTY_JOB, product: OTHER_PRODUCT_ROW }
 
 /** A structured job with content: auto-advances to pre-press once complete. */
-export const STRUCTURED_JOB_WITH_PRODUCT: JobSeed = { department: 'COPYSHOP', product: POSTER_PRODUCT_ROW }
+export const STRUCTURED_JOB_WITH_PRODUCT: JobSeed = { department: 'COPYSHOP', status: NEW_JOB_STATUS, product: POSTER_PRODUCT_ROW }
+
+/** A complete free-form job already released to pre-press. */
+export const JOB_IN_PREPRESS: JobSeed = { ...FREE_FORM_JOB_WITH_PRODUCT, status: PREPRESS_STATUS }
+
+/** A complete free-form job already in production. */
+export const JOB_IN_PRODUCTION: JobSeed = { ...FREE_FORM_JOB_WITH_PRODUCT, status: IN_PRODUCTION_STATUS }
+
+/** A complete free-form job already done — what an order needs before it can be finished. */
+export const JOB_DONE: JobSeed = { ...FREE_FORM_JOB_WITH_PRODUCT, status: DONE_STATUS }

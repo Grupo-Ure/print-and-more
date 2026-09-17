@@ -235,14 +235,18 @@ retry — anything that depends on rendering goes through `expect.poll`.
 
 ## Spec Files — Page, then Feature
 
-Specs live in `e2e/<page>/<feature>/`, never at the `e2e/` root. The page
-folder carries a `-page` suffix so a page and a feature of the same name
-stay apart (`orders-page/` is the page, `orders-page/order/` the order
-feature on it). A feature with a sub-feature of its own gets a nested
-folder (`orders-page/job/status/`). Playwright groups by file path, so
-every level is a group in every report, and any path fragment filters a
-run (`npx playwright test orders-page`, `npx playwright test job/status`).
-The support folders stay at the root, and a spec reaches them with as many
+Specs live in `e2e/<page>/<feature>/<sub-feature>.spec.ts`, never at the
+`e2e/` root. The page folder carries a `-page` suffix so a page and a
+feature of the same name stay apart (`orders-page/` is the page,
+`orders-page/order/` the order feature on it). One file holds every test of
+a sub-feature (`orders-page/job/status.spec.ts` covers the whole job
+workflow); a file is split only when it covers two sub-features, never for
+having several tests. Inside a file, no `describe` names the feature — the
+path does — and a `describe` block exists only to carry a precondition
+(`test.use({ … })`) for the tests in it. Playwright groups by file path, so
+every level is a group in every report, and any path fragment filters a run
+(`npx playwright test orders-page`, `npx playwright test job/status`). The
+support folders stay at the root, and a spec reaches them with as many
 `../` as it is deep. The concrete tree is in [`e2e/README.md`](../../e2e/README.md).
 
 ---

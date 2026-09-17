@@ -9,7 +9,7 @@
  */
 import type { Page } from '@playwright/test'
 import { addDays, format } from 'date-fns'
-import type { DeliveryChoice, OrderStatus } from '../../src/types/database'
+import type { DeliveryChoice, OrderStatus, PaymentMethod } from '../../src/types/database'
 import { test as base } from './auth'
 import { NEW_CUSTOMER, TEST_CUSTOMER, type TestCustomer } from './customers'
 import { EMPTY_JOB, type JobSeed } from './jobs'
@@ -23,6 +23,9 @@ export const NEW_ORDER_STATUS: OrderStatus = 'QUOTE'
 /** The status "Start processing" moves an order to. */
 export const IN_PROGRESS_STATUS: OrderStatus = 'IN_PROGRESS'
 
+/** The status "Mark finished" moves an invoice order to. */
+export const FINISHED_STATUS: OrderStatus = 'FINISHED'
+
 /**
  * A deadline the picker accepts: the earliest selectable day is tomorrow, so
  * this is produced at call time, never stored.
@@ -34,21 +37,36 @@ export function nextOrderDeadline(): string {
 /**
  * What the `order` fixture inserts. The deadline is a flag rather than a
  * date because a valid one has to be produced at call time.
+ *
+ * A seed must describe a state the app can reach, since nothing in the
+ * database enforces the lifecycle:
+ * - `QUOTE` and `IN_PROGRESS` have no requirements of their own.
+ * - `FINISHED` is only offered once every job is done, so a job seeded into
+ *   such an order must be `JOB_DONE`.
+ * - `BILLED` is never seeded: the app archives the order at that moment and
+ *   a billed order is never listed, so there is nothing left to drive.
  */
 export type OrderSeed = {
   status: OrderStatus
   delivery: DeliveryChoice | null
+  paymentMethod: PaymentMethod
   withDeadline: boolean
 }
 
 /** A fresh quote with nothing set — the default. */
-export const QUOTE_ORDER: OrderSeed = { status: NEW_ORDER_STATUS, delivery: null, withDeadline: false }
+export const QUOTE_ORDER: OrderSeed = { status: NEW_ORDER_STATUS, delivery: null, paymentMethod: 'INVOICE', withDeadline: false }
 
 /** An accepted order with deadline and delivery set: a job in it is complete as soon as it has a product. */
-export const IN_PROGRESS_ORDER: OrderSeed = { status: IN_PROGRESS_STATUS, delivery: 'PICKUP', withDeadline: true }
+export const IN_PROGRESS_ORDER: OrderSeed = { ...QUOTE_ORDER, status: IN_PROGRESS_STATUS, delivery: 'PICKUP', withDeadline: true }
 
 /** An accepted order still missing its deadline: a job in it is held in setup until one is set. */
 export const IN_PROGRESS_ORDER_WITHOUT_DEADLINE: OrderSeed = { ...IN_PROGRESS_ORDER, withDeadline: false }
+
+/** An accepted order paid in cash: it skips FINISHED and closes in one step. */
+export const IN_PROGRESS_CASH_ORDER: OrderSeed = { ...IN_PROGRESS_ORDER, paymentMethod: 'CASH' }
+
+/** A finished invoice order, awaiting "Mark as invoiced". Seed only `JOB_DONE` jobs into it. */
+export const FINISHED_ORDER: OrderSeed = { ...IN_PROGRESS_ORDER, status: FINISHED_STATUS }
 
 type OrdersViewFixtures = {
   /** The orders view — the app's main screen, with every dialog it can open. */
@@ -105,10 +123,11 @@ export const test = base.extend<OrdersViewFixtures>({
   },
 
   order: async ({ page, navbar, database, customer, orderSeed }, use) => {
-    const { withDeadline, ...columns } = orderSeed
     const order = await database.createOrder(customer.id, {
-      ...columns,
-      deadline: withDeadline ? nextOrderDeadline() : null,
+      status: orderSeed.status,
+      delivery: orderSeed.delivery,
+      payment_method: orderSeed.paymentMethod,
+      deadline: orderSeed.withDeadline ? nextOrderDeadline() : null,
     })
     await reloadApp(page, navbar)
 
@@ -117,7 +136,7 @@ export const test = base.extend<OrdersViewFixtures>({
   },
 
   job: async ({ page, navbar, database, order, jobSeed }, use) => {
-    const job = await database.createJob(order.id, jobSeed.department)
+    const job = await database.createJob(order.id, { department: jobSeed.department, status: jobSeed.status })
     if (jobSeed.product) await database.createProduct(job, jobSeed.product)
     await reloadApp(page, navbar)
 

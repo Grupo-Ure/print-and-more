@@ -24,35 +24,39 @@ playwright test
 
 ## Where specs live
 
-Specs are grouped **by page, then by feature, then by sub-feature**. The top
-folder is the page, suffixed `-page` so that a page and a feature of the
-same name never collide (`orders-page/` is the page; `orders-page/order/`
-is the order feature on it). Inside, a folder per feature, and a nested
-folder where a feature has a sub-feature big enough to own one:
+Specs are grouped **by page, then by feature**, and **one file holds every
+test of one sub-feature**. The top folder is the page, suffixed `-page` so
+that a page and a feature of the same name never collide (`orders-page/` is
+the page; `orders-page/order/` is the order feature on it). Inside, a folder
+per feature, and a file per sub-feature:
 
 ```
 e2e/
 ├─ auth/                          sign-in, navigation per role
 └─ orders-page/
    ├─ sidebar.spec.ts             list → select → details
-   ├─ new-order.spec.ts
    ├─ order/                      the order feature
+   │   ├─ new-order.spec.ts
    │   ├─ settings.spec.ts
-   │   └─ status/                 its lifecycle: start processing, finish, invoice, …
+   │   └─ status.spec.ts          the whole lifecycle: start, finish, invoice, cash close, …
    └─ job/                        the job feature
        ├─ add-job.spec.ts
        ├─ products.spec.ts
-       └─ status/                 its workflow: pre-press, production, done, gates, …
+       └─ status.spec.ts          the whole workflow: pre-press, production, done, gates, …
 ```
 
 Later pages follow the same shape (`stamp-stock-page/`, `textile-stock-page/`,
-`user-management-page/`, `profile-page/`). Playwright reports by file path,
-so every folder level is a group in the list reporter, the HTML report and
-UI mode, and any path fragment filters a run (`npx playwright test
-orders-page`, `npx playwright test job/status`). The support folders
-(`fixtures/`, `pom/`, `support/`) stay at the `e2e/` root; a spec reaches
-them with as many `../` as it is deep. A new spec goes into the folder of the
-feature it drives, never at the root.
+`user-management-page/`, `profile-page/`). A file is never split just because
+it has several tests; it is split when it covers two sub-features. Inside a
+file there is no `describe` for the feature — the path already names it — and
+a `describe` block exists only to carry a precondition (`test.use({ … })`)
+shared by the tests inside it. Playwright reports by file path, so every
+folder level is a group in the list reporter, the HTML report and UI mode,
+and any path fragment filters a run (`npx playwright test orders-page`,
+`npx playwright test job/status`). The support folders (`fixtures/`, `pom/`,
+`support/`) stay at the `e2e/` root; a spec reaches them with as many `../`
+as it is deep. A new spec goes into the folder of the feature it drives,
+never at the root.
 
 ## The fixture chain
 

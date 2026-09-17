@@ -9,12 +9,21 @@ type JobInsert = Database['public']['Tables']['jobs']['Insert']
 type Department = Database['public']['Enums']['department']
 type OrderStatus = Database['public']['Enums']['order_status']
 type DeliveryType = Database['public']['Enums']['delivery_type']
+type PaymentMethod = Database['public']['Enums']['payment_method']
+type JobStatus = Database['public']['Enums']['job_status']
 
 /** The columns a fixture chooses for an order it inserts; everything else takes the table's defaults. */
 export type OrderSeedRow = {
   status: OrderStatus
   deadline: string | null
   delivery: DeliveryType | null
+  payment_method: PaymentMethod
+}
+
+/** The columns a fixture chooses for a job it inserts; everything else takes the table's defaults. */
+export type JobSeedRow = {
+  department: Department
+  status: JobStatus
 }
 
 /**
@@ -179,15 +188,15 @@ export class TestDatabase {
   // ── Jobs ─────────────────────────────────────────────────────────────────
 
   /**
-   * Inserts a job in its initial state (the table's defaults: in setup, no
-   * overrides). `job_number` is assigned by the trg_job_number trigger, so it
+   * Inserts a job in the given status with no overrides (the table's
+   * defaults). `job_number` is assigned by the trg_job_number trigger, so it
    * is left out of the payload. Removed with its order — no separate cleanup.
    */
-  async createJob(orderId: string, department: Department): Promise<TestJob> {
-    const payload = { order_id: orderId, department } as JobInsert
+  async createJob(orderId: string, seed: JobSeedRow): Promise<TestJob> {
+    const payload = { order_id: orderId, ...seed } as JobInsert
     const { data, error } = await this.client.from('jobs').insert(payload).select('id, job_number').single()
     if (error) throw error
-    return { id: data.id, jobNumber: data.job_number, orderId, department }
+    return { id: data.id, jobNumber: data.job_number, orderId, department: seed.department }
   }
 
   // ── Products ─────────────────────────────────────────────────────────────
