@@ -17,6 +17,8 @@ export class OrderSidebarPOM extends BasePOM {
   readonly empty: Locator
   /** Every order row; each carries `data-order-id`, `data-status`, and `aria-current` when selected. */
   readonly rows: Locator
+  /** The row of the selected order (the one the details column shows). */
+  readonly selectedRow: Locator
   readonly newOrderButton: Locator
   /** Items of the per-row menu (portal — not scoped to the row). */
   readonly rowMenuDuplicate: Locator
@@ -33,6 +35,7 @@ export class OrderSidebarPOM extends BasePOM {
     this.list = this.root.getByTestId(IDS.list)
     this.empty = this.list.getByTestId(IDS.empty)
     this.rows = this.list.getByTestId(IDS.row)
+    this.selectedRow = this.withAttr(this.rows, 'aria-current', 'true')
     this.newOrderButton = this.root.getByTestId(IDS.newOrderButton)
     this.rowMenuDuplicate = page.getByTestId(IDS.rowMenuDuplicate)
     this.rowMenuDelete = page.getByTestId(IDS.rowMenuDelete)

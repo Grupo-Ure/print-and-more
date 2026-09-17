@@ -40,7 +40,8 @@ e2e/
    │   ├─ new-order.spec.ts
    │   ├─ settings.spec.ts
    │   ├─ status.spec.ts          the whole lifecycle: start, finish, invoice, cash close, reopen
-   │   └─ remove.spec.ts          archive, cancel, delete a quote
+   │   ├─ remove.spec.ts          archive, cancel, delete a quote
+   │   └─ duplicate.spec.ts       the copy: a new quote, selected, with the jobs and products
    └─ job/                        the job feature
        ├─ add-remove.spec.ts      add, delete in setup, cancel past setup
        ├─ products.spec.ts

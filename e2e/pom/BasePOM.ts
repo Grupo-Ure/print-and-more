@@ -19,4 +19,9 @@ export abstract class BasePOM {
   protected withAttr(locator: Locator, attr: string, value: string): Locator {
     return locator.and(this.page.locator(`[${attr}="${value}"]`))
   }
+
+  /** The opposite: every instance except the one carrying `attr="value"`. */
+  protected withoutAttr(locator: Locator, attr: string, value: string): Locator {
+    return locator.and(this.page.locator(`:not([${attr}="${value}"])`))
+  }
 }

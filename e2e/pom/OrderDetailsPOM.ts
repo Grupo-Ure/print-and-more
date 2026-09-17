@@ -82,4 +82,9 @@ export class OrderDetailsPOM extends BasePOM {
   forOrder(orderId: string): Locator {
     return this.withAttr(this.root, 'data-order-id', orderId)
   }
+
+  /** The details column only while it shows an order other than this one — e.g. a copy whose id the spec cannot know. */
+  forOrderOtherThan(orderId: string): Locator {
+    return this.withoutAttr(this.root, 'data-order-id', orderId)
+  }
 }
