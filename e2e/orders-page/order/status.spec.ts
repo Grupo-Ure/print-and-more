@@ -38,9 +38,11 @@ test.describe('finished, every job done', () => {
   test.use({ orderSeed: FINISHED_ORDER, jobSeed: JOB_DONE })
 
   test('marking the order as invoiced closes it and removes it from the order list', async ({ ordersPage, order, job }) => {
-    // Act — show finished orders in the list (hidden by default), open the order, mark it invoiced and confirm.
+    // Act — show finished orders in the list (hidden by default) and close the filter again
+    // (in the compact layout it is a popover over the list), open the order, mark it invoiced and confirm.
     await ordersPage.sidebar.filterToggle.click()
     await ordersPage.sidebar.filters.status(FINISHED_STATUS).click()
+    await ordersPage.sidebar.filterToggle.click()
     await ordersPage.sidebar.row(order.id).click()
     await ordersPage.details.jobList.row(job.id).waitFor()
     await ordersPage.details.lifecycle.click()
