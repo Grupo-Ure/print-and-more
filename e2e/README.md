@@ -96,7 +96,7 @@ The runner reads `VITE_SUPABASE_URL` (the same one the build inlines) and
 come from `.env`; for a local Supabase the key is in `supabase status`. In CI
 the job exports them from its own instance and has no `.env`.
 
-Test conventions (fixtures files, minimal assertions, setup/assert/cleanup
+Test conventions (fixtures files, minimal assertions, setup/act/assert/cleanup
 stages) are in [`docs/testing/testing-standards.md`](../docs/testing/testing-standards.md);
 how specs locate elements (test IDs, the `TEST_IDS` registry, page objects
 under `pom/`) is in [`docs/testing/playwright-e2e.md`](../docs/testing/playwright-e2e.md).

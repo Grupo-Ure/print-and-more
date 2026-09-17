@@ -5,9 +5,11 @@ test.describe('orders view', () => {
     // Setup — signed in; the fixture created a quote and reloaded the list.
     const row = ordersPage.sidebar.row(order.id)
 
-    // Assert — the sidebar lists it; selecting it opens that order's details.
-    await expect(row).toBeVisible()
+    // Act — select the order in the sidebar.
     await row.click()
+
+    // Assert — the sidebar lists it, and selecting it opened that order's details.
+    await expect(row).toBeVisible()
     await expect(ordersPage.details.root).toHaveAttribute('data-order-id', order.id)
   })
 })

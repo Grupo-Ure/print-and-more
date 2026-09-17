@@ -483,17 +483,21 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY= # Safe for browser
 - Focus on critical paths and business logic
 - Don't chase 100%
 
-### Structure (AAA Pattern)
+### Structure (Setup / Act / Assert / Cleanup)
 
 ```typescript
 describe("when [condition]", () => {
   it("does [expected behavior]", () => {
-    // Arrange
+    // Setup
     // Act
     // Assert
+    // Cleanup (only when needed — an empty stage is omitted)
   });
 });
 ```
+
+The stages are defined in [Testing Standards](testing/testing-standards.md),
+which is authoritative.
 
 ### Principles
 - **Test behavior, not implementation** — don't test internal state

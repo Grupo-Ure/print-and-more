@@ -2,7 +2,7 @@
 
 How we write Playwright specs for this project. This guide implements the
 [Testing Standards](testing-standards.md) for the e2e suite — those rules
-(fixtures files, minimal assertions, setup/assert/cleanup stages) apply
+(fixtures files, minimal assertions, setup/act/assert/cleanup stages) apply
 unchanged here, and win if the two ever disagree. For how a run is wired
 (config, global setup, workers, teardown) see [`e2e/README.md`](../../e2e/README.md).
 
@@ -230,19 +230,23 @@ import { expect, test, NEW_ORDER_STATUS } from './fixtures/orders'
 test('creates a quote for an existing customer', async ({ ordersPage, customer }) => {
   // Setup — the `customer` fixture inserted the row and removes it (with its orders) afterwards.
   const dialog = ordersPage.newOrderDialog
+
+  // Act — create the order for that customer through the dialog.
   await ordersPage.sidebar.newOrderButton.click()
   await dialog.customerSearch.fill(customer.name)
   await dialog.customerOption(customer.id).click()
-
-  // Assert
   await dialog.submit.click()
+
+  // Assert — the created order opens as a quote.
   await expect(ordersPage.details.root).toHaveAttribute('data-status', NEW_ORDER_STATUS)
 })
 ```
 
 The spec names no test ID, no visible text and no selector — only page
 object members and fixture values — and it constructs nothing: the page
-object and the data both come from the fixture arguments.
+object and the data both come from the fixture arguments. Every locator
+interaction sits in the Act stage; Setup holds only data and page-object
+references, and Assert holds only `expect` calls.
 
 ---
 

@@ -21,8 +21,8 @@ and we learn what needs to be stricter or looser.
    values only when the value itself is the point of the test.
 3. **Prefer black-box testing.** Test inputs and outputs, not internal
    implementation details, whenever the type of test allows it.
-4. **Every test case has three stages** — setup, assert, cleanup — marked
-   with comments, with cleanup used only when needed.
+4. **Every test case has four stages** — setup, act, assert, cleanup —
+   marked with comments, with cleanup used only when needed.
 5. **Short and elegant over exhaustive.** A test suite should be quick to
    read and understand. Testing the minimum that proves correctness beats
    testing everything that's possible to test.
@@ -178,14 +178,21 @@ than a return value. Use judgment, but default to the outside view.
 
 ## Test Case Structure
 
-Every test case is written in three stages, each marked with a comment, in
+Every test case is written in four stages, each marked with a comment, in
 this order:
 
-1. **Setup** — build the input and any preconditions. Values come from the
-   fixtures/mocks files, not inline literals.
-2. **Assert** — perform the action and check the outcome. Keep this to the
-   minimal set of assertions that proves the behavior (see above).
-3. **Cleanup** — undo anything the test created or changed that would
+1. **Setup** — prepare all the data the test is going to need: build the
+   input, instantiate mock data, establish any preconditions. Values come
+   from the fixtures/mocks files, not inline literals. Nothing in this stage
+   exercises the behavior under test.
+2. **Act** — perform the action being tested. In a UI test this is where the
+   locators are used to trigger actions in the interface; in a unit test it
+   is the call to the function under test. No assertions here.
+3. **Assert** — check the outcome. Keep this to the minimal set of
+   assertions that proves the behavior (see above). No further actions here
+   — if an assertion needs another action first, that action belongs in
+   the Act stage.
+4. **Cleanup** — undo anything the test created or changed that would
    otherwise leak into other tests (e.g. a record written to a shared
    store). Most test cases don't need this stage — recognize when a test
    does (anything with a side effect outside the test's own scope) and
@@ -196,6 +203,9 @@ it("<describes the behavior in plain terms>", () => {
   // Setup
   ...
 
+  // Act
+  ...
+
   // Assert
   ...
 
@@ -204,8 +214,12 @@ it("<describes the behavior in plain terms>", () => {
 })
 ```
 
-Omit the Cleanup comment/stage entirely when there's nothing to clean up —
-don't leave an empty stage as a placeholder.
+**A stage with no code does not exist.** Omit its comment entirely — don't
+leave a comment with an empty line below it as a placeholder. This applies
+to every stage, not just Cleanup: a test whose data all comes from fixtures
+has no Setup stage, and a test that only observes a state a fixture already
+produced has no Act stage. If it helps the reader, mention what the fixture
+did in the comment of a stage that does exist.
 
 ---
 
@@ -238,4 +252,4 @@ maximizes assertion count or case count.
 | Testing internal implementation details | Breaks on refactors that don't change behavior | Test the public input/output contract |
 | One test case asserting many unrelated behaviors | Failure doesn't say what broke; hard to read | Split into focused cases, one reason to fail each |
 | Skipping cleanup for a test with an external side effect | Leaks state into other tests, causes flaky failures | Add a Cleanup stage that undoes it |
-| Adding a Cleanup stage to a test that doesn't need one | Noise, makes the suite harder to scan | Omit the stage entirely when there's nothing to clean up |
+| A stage comment with no code under it (an empty Setup, Act or Cleanup) | Noise, makes the suite harder to scan | Omit the stage entirely when it has nothing in it |

@@ -29,7 +29,7 @@ Each skill doc defines a role, its responsibilities, what it owns, patterns to f
 
 - [Testing Standards](docs/testing/testing-standards.md) — technology-agnostic
   testing strategy: fixtures/mocks in their own files, black-box and
-  minimal-assertion style, the setup/assert/cleanup test case structure. Read
+  minimal-assertion style, the setup/act/assert/cleanup test case structure. Read
   this first, for any kind of test, in any stack.
 - [Backend Unit Testing](docs/testing/backend-unit-testing.md) — a worked
   example of the standards above applied to unit testing NestJS controllers
