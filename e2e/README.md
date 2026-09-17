@@ -39,9 +39,10 @@ e2e/
    ├─ order/                      the order feature
    │   ├─ new-order.spec.ts
    │   ├─ settings.spec.ts
-   │   └─ status.spec.ts          the whole lifecycle: start, finish, invoice, cash close, …
+   │   ├─ status.spec.ts          the whole lifecycle: start, finish, invoice, cash close, reopen
+   │   └─ remove.spec.ts          archive, cancel, delete a quote
    └─ job/                        the job feature
-       ├─ add-job.spec.ts
+       ├─ add-remove.spec.ts      add, delete in setup, cancel past setup
        ├─ products.spec.ts
        ├─ status.spec.ts          the workflow: pre-press, production, done
        ├─ release-gates.spec.ts   what refuses a release, and the admin override

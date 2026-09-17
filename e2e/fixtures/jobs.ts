@@ -52,6 +52,14 @@ export const FORCE_RELEASE_REASON = 'E2E emergency release'
 /** The history entry a force release writes. */
 export const FORCE_RELEASE_HISTORY_EVENT: HistoryEvent = 'EMERGENCY_TRIGGERED'
 
+// ── Removal ───────────────────────────────────────────────────────────────
+
+/** The history entry deleting a job (only possible in setup) writes. */
+export const JOB_DELETED_HISTORY_EVENT: HistoryEvent = 'JOB_DELETED'
+
+/** The history entry cancelling a job (past setup, kept for history) writes. */
+export const JOB_CANCELLED_HISTORY_EVENT: HistoryEvent = 'JOB_CANCELLED'
+
 // ── Rows to insert ────────────────────────────────────────────────────────
 
 /** The same OTHER product, as the rows the `job` fixture inserts. */

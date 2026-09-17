@@ -8,6 +8,7 @@ import {
   FINISHED_STATUS,
 } from '../../fixtures/orders'
 import { JOB_DONE } from '../../fixtures/jobs'
+import { TEST_USERS } from '../../fixtures/users'
 
 test('starting processing a quote moves the order to in progress', async ({ ordersPage, order }) => {
   // Act — open the order, start processing and confirm.
@@ -51,6 +52,25 @@ test.describe('finished, every job done', () => {
     // Assert — the order is gone from the list and nothing is selected.
     await expect(ordersPage.sidebar.row(order.id)).toHaveCount(0)
     await expect(ordersPage.welcome).toBeVisible()
+  })
+})
+
+test.describe('as admin, finished, every job done', () => {
+  test.use({ user: TEST_USERS.admin, orderSeed: FINISHED_ORDER, jobSeed: JOB_DONE })
+
+  test('reopening the order moves it back to in progress', async ({ ordersPage, order, job }) => {
+    // Act — show finished orders in the list (hidden by default) and close the filter again,
+    // open the order, reopen it and confirm.
+    await ordersPage.sidebar.filterToggle.click()
+    await ordersPage.sidebar.filters.status(FINISHED_STATUS).click()
+    await ordersPage.sidebar.filterToggle.click()
+    await ordersPage.sidebar.row(order.id).click()
+    await ordersPage.details.jobList.row(job.id).waitFor()
+    await ordersPage.details.reopen.click()
+    await ordersPage.confirmDialog.confirm.click()
+
+    // Assert — the order is shown in progress again.
+    await expect(ordersPage.details.forOrder(order.id)).toHaveAttribute('data-status', IN_PROGRESS_STATUS)
   })
 })
 
