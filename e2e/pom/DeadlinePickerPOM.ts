@@ -28,15 +28,13 @@ export class DeadlinePickerPOM extends BasePOM {
   }
 
   /**
-   * Opens the calendar and picks the date. The popover opens on the current
-   * month, so a date that falls just past the month's end may need one page
-   * forward first.
+   * Pages the open calendar to the month that shows the date. The popover
+   * opens on the current month, so a date just past the month's end needs
+   * one page forward. Navigation inside the calendar; the pick itself stays
+   * with the spec.
    */
-  async pick(isoDate: string): Promise<void> {
-    await this.trigger.click()
+  async showMonthOf(isoDate: string): Promise<void> {
     await this.calendar.waitFor()
-    const day = this.day(isoDate)
-    if ((await day.count()) === 0) await this.nextMonth.click()
-    await day.click()
+    if ((await this.day(isoDate).count()) === 0) await this.nextMonth.click()
   }
 }

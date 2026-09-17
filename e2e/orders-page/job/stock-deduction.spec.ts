@@ -16,14 +16,13 @@ test.use({ user: TEST_USERS.admin })
 test.describe('in progress, stamp job in pre-press, model in stock', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, jobSeed: STAMP_JOB_IN_PREPRESS_IN_STOCK })
 
-  test('releasing the job to production deducts the product quantity from the model stock', async ({ ordersPage, navbar, stampStockPage, order, job }) => {
-    // Setup — the stock the model is left with, and its row on the stock page.
+  test('releasing the job to production deducts the product quantity from the model stock', async ({ ordersPage, navbar, stampStockPage, job }) => {
+    // Setup — the stock the model is left with and its row on the stock page, with the job open.
     const remaining = IN_STOCK_STAMP_MODEL.stock - IN_STOCK_STAMP_PRODUCT_ROW.quantity
     const modelRow = stampStockPage.table.row(IN_STOCK_STAMP_MODEL.id)
+    await ordersPage.openJob(job)
 
-    // Act — open the order and the job, release it and confirm, then find the model on the stamp stock page.
-    await ordersPage.sidebar.row(order.id).click()
-    await ordersPage.details.jobList.row(job.id).click()
+    // Act — release it and confirm, then find the model on the stamp stock page.
     await ordersPage.details.jobDetail.releaseButton.click()
     await ordersPage.confirmDialog.confirm.click()
     await ordersPage.details.jobDetail.releaseButtonTo(DONE_STATUS).waitFor()
@@ -34,14 +33,13 @@ test.describe('in progress, stamp job in pre-press, model in stock', () => {
     await expect(stampStockPage.table.rowStock(modelRow)).toHaveAttribute('data-stock', String(remaining))
   })
 
-  test('marking the job done after the release deducts nothing more', async ({ ordersPage, navbar, stampStockPage, order, job }) => {
-    // Setup — the stock the model is left with, and its row on the stock page.
+  test('marking the job done after the release deducts nothing more', async ({ ordersPage, navbar, stampStockPage, job }) => {
+    // Setup — the stock the model is left with and its row on the stock page, with the job open.
     const remaining = IN_STOCK_STAMP_MODEL.stock - IN_STOCK_STAMP_PRODUCT_ROW.quantity
     const modelRow = stampStockPage.table.row(IN_STOCK_STAMP_MODEL.id)
+    await ordersPage.openJob(job)
 
-    // Act — release the job, then mark it done, each confirmed, then find the model on the stamp stock page.
-    await ordersPage.sidebar.row(order.id).click()
-    await ordersPage.details.jobList.row(job.id).click()
+    // Act — release it, then mark it done, each confirmed, then find the model on the stamp stock page.
     await ordersPage.details.jobDetail.releaseButton.click()
     await ordersPage.confirmDialog.confirm.click()
     await ordersPage.details.jobDetail.releaseButtonTo(DONE_STATUS).click()
@@ -58,14 +56,13 @@ test.describe('in progress, stamp job in pre-press, model in stock', () => {
 test.describe('in progress, textile job in pre-press, variant in stock', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, jobSeed: TEXTILE_JOB_IN_PREPRESS_IN_STOCK })
 
-  test('releasing the job to production deducts the garment quantity from the variant stock', async ({ ordersPage, navbar, textileStockPage, order, job }) => {
-    // Setup — the stock the variant is left with, and its row on the stock page.
+  test('releasing the job to production deducts the garment quantity from the variant stock', async ({ ordersPage, navbar, textileStockPage, job }) => {
+    // Setup — the stock the variant is left with and its row on the stock page, with the job open.
     const remaining = IN_STOCK_TEXTILE_CHAIN.variant.stock - OWN_STOCK_GARMENT_ROW.quantity
     const variantRow = textileStockPage.table.row(IN_STOCK_TEXTILE_CHAIN.variant.id)
+    await ordersPage.openJob(job)
 
-    // Act — open the order and the job, release it and confirm, then find the variant on the textile stock page.
-    await ordersPage.sidebar.row(order.id).click()
-    await ordersPage.details.jobList.row(job.id).click()
+    // Act — release it and confirm, then find the variant on the textile stock page.
     await ordersPage.details.jobDetail.releaseButton.click()
     await ordersPage.confirmDialog.confirm.click()
     await ordersPage.details.jobDetail.releaseButtonTo(DONE_STATUS).waitFor()
@@ -76,14 +73,13 @@ test.describe('in progress, textile job in pre-press, variant in stock', () => {
     await expect(textileStockPage.table.rowStock(variantRow)).toHaveAttribute('data-stock', String(remaining))
   })
 
-  test('marking the job done after the release deducts nothing more', async ({ ordersPage, navbar, textileStockPage, order, job }) => {
-    // Setup — the stock the variant is left with, and its row on the stock page.
+  test('marking the job done after the release deducts nothing more', async ({ ordersPage, navbar, textileStockPage, job }) => {
+    // Setup — the stock the variant is left with and its row on the stock page, with the job open.
     const remaining = IN_STOCK_TEXTILE_CHAIN.variant.stock - OWN_STOCK_GARMENT_ROW.quantity
     const variantRow = textileStockPage.table.row(IN_STOCK_TEXTILE_CHAIN.variant.id)
+    await ordersPage.openJob(job)
 
-    // Act — release the job, then mark it done, each confirmed, then find the variant on the textile stock page.
-    await ordersPage.sidebar.row(order.id).click()
-    await ordersPage.details.jobList.row(job.id).click()
+    // Act — release it, then mark it done, each confirmed, then find the variant on the textile stock page.
     await ordersPage.details.jobDetail.releaseButton.click()
     await ordersPage.confirmDialog.confirm.click()
     await ordersPage.details.jobDetail.releaseButtonTo(DONE_STATUS).click()

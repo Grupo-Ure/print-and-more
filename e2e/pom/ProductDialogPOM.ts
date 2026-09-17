@@ -40,11 +40,4 @@ export class ProductDialogPOM extends BasePOM {
   field(name: string): Locator {
     return this.withAttr(this.fields, 'data-field', name)
   }
-
-  /** Fills each named form field with its value, in the given order. */
-  async fill(values: Record<string, string>): Promise<void> {
-    for (const [name, value] of Object.entries(values)) {
-      await this.field(name).fill(value)
-    }
-  }
 }

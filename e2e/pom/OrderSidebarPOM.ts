@@ -1,4 +1,5 @@
 import type { Locator, Page } from '@playwright/test'
+import type { OrderStatus } from '../../src/types/database'
 import { TEST_IDS } from '../support/testIds'
 import { OrderSidebarFiltersPOM } from './OrderSidebarFiltersPOM'
 import { BasePOM } from './BasePOM'
@@ -60,5 +61,16 @@ export class OrderSidebarPOM extends BasePOM {
 
   rowMenuTrigger(row: Locator): Locator {
     return row.getByTestId(IDS.rowMenuTrigger)
+  }
+
+  /**
+   * Adds a status the default filter hides (finished, billed) to the list,
+   * then closes the filter again — in the compact layout it is a popover over
+   * the list. Navigation, for a spec's Setup stage.
+   */
+  async includeStatus(status: OrderStatus): Promise<void> {
+    await this.filterToggle.click()
+    await this.filters.status(status).click()
+    await this.filterToggle.click()
   }
 }

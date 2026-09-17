@@ -21,10 +21,9 @@ import { TEST_USERS } from '../../fixtures/users'
 test.describe('in progress, structured job with a product, no deadline', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, jobSeed: STRUCTURED_JOB_WITH_PRODUCT })
 
-  test('opening the job shows it held in setup with the release blocked', async ({ ordersPage, order, job }) => {
-    // Act — open the order and the job.
-    await ordersPage.sidebar.row(order.id).click()
-    await ordersPage.details.jobList.row(job.id).click()
+  test('the job is held in setup with the release blocked', async ({ ordersPage, job }) => {
+    // Setup — the job open.
+    await ordersPage.openJob(job)
 
     // Assert — the banner names the block and the release cannot be pressed.
     await expect(ordersPage.details.jobDetail.banner).toHaveAttribute('data-kind', 'blocked')
@@ -35,10 +34,9 @@ test.describe('in progress, structured job with a product, no deadline', () => {
 test.describe('in progress, structured job with a product, deadline passed', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER_PAST_DEADLINE, jobSeed: STRUCTURED_JOB_WITH_PRODUCT })
 
-  test('opening the job shows it held in setup with the release blocked', async ({ ordersPage, order, job }) => {
-    // Act — open the order and the job.
-    await ordersPage.sidebar.row(order.id).click()
-    await ordersPage.details.jobList.row(job.id).click()
+  test('the job is held in setup with the release blocked', async ({ ordersPage, job }) => {
+    // Setup — the job open.
+    await ordersPage.openJob(job)
 
     // Assert — the banner names the block and the release cannot be pressed.
     await expect(ordersPage.details.jobDetail.banner).toHaveAttribute('data-kind', 'blocked')
@@ -49,10 +47,9 @@ test.describe('in progress, structured job with a product, deadline passed', () 
 test.describe('in progress, structured job without a product', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, jobSeed: STRUCTURED_JOB_WITHOUT_PRODUCT })
 
-  test('opening the job shows it held in setup with the release blocked', async ({ ordersPage, order, job }) => {
-    // Act — open the order and the job.
-    await ordersPage.sidebar.row(order.id).click()
-    await ordersPage.details.jobList.row(job.id).click()
+  test('the job is held in setup with the release blocked', async ({ ordersPage, job }) => {
+    // Setup — the job open.
+    await ordersPage.openJob(job)
 
     // Assert — the banner names the block and the release cannot be pressed.
     await expect(ordersPage.details.jobDetail.banner).toHaveAttribute('data-kind', 'blocked')
@@ -65,23 +62,20 @@ test.describe('in progress, structured job without a product', () => {
 test.describe('in progress, job in pre-press awaiting customer approval', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, jobSeed: JOB_IN_PREPRESS_AWAITING_APPROVAL })
 
-  test('opening the job shows the release to production blocked', async ({ ordersPage, order, job }) => {
-    // Act — open the order and the job.
-    await ordersPage.sidebar.row(order.id).click()
-    await ordersPage.details.jobList.row(job.id).click()
+  test('the release to production is blocked', async ({ ordersPage, job }) => {
+    // Setup — the job open.
+    await ordersPage.openJob(job)
 
     // Assert — the release cannot be pressed.
     await expect(ordersPage.details.jobDetail.releaseButton).toBeDisabled()
   })
 
-  test('granting the approval against a file unblocks the release to production', async ({ ordersPage, order, job, orderFile }) => {
-    // Setup — the dialogs the approval goes through.
+  test('granting the approval against a file unblocks the release to production', async ({ ordersPage, job, orderFile }) => {
+    // Setup — the job's settings dialog open.
     const settings = ordersPage.details.jobDetail.settingsDialog
+    await ordersPage.openJobSettings(job)
 
-    // Act — open the order and the job, grant the approval against the linked file, close the settings.
-    await ordersPage.sidebar.row(order.id).click()
-    await ordersPage.details.jobList.row(job.id).click()
-    await ordersPage.details.jobDetail.settingsButton.click()
+    // Act — grant the approval against the linked file, then close the settings.
     await settings.grantApproval.click()
     await settings.grantDialog.file(orderFile.id).click()
     await settings.grantDialog.submit.click()
@@ -98,10 +92,9 @@ test.describe('in progress, job in pre-press awaiting customer approval', () => 
 test.describe('in progress, stamp job in pre-press, model out of stock', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, jobSeed: STAMP_JOB_IN_PREPRESS_OUT_OF_STOCK })
 
-  test('opening the job shows the shortage and blocks the release to production', async ({ ordersPage, order, job }) => {
-    // Act — open the order and the job.
-    await ordersPage.sidebar.row(order.id).click()
-    await ordersPage.details.jobList.row(job.id).click()
+  test('the shortage is shown and the release to production is blocked', async ({ ordersPage, job }) => {
+    // Setup — the job open.
+    await ordersPage.openJob(job)
 
     // Assert — the banner names the shortage, the product is flagged, and the release cannot be pressed.
     await expect(ordersPage.details.jobDetail.banner).toHaveAttribute('data-kind', 'shortage')
@@ -115,10 +108,11 @@ test.describe('in progress, stamp job in pre-press, model out of stock', () => {
 test.describe('as admin, in progress, structured job with a product, no deadline', () => {
   test.use({ user: TEST_USERS.admin, orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, jobSeed: STRUCTURED_JOB_WITH_PRODUCT })
 
-  test('opening the force release prompt without a reason keeps it unsubmittable', async ({ ordersPage, order, job }) => {
-    // Act — open the order and the job, then the force release from the release menu.
-    await ordersPage.sidebar.row(order.id).click()
-    await ordersPage.details.jobList.row(job.id).click()
+  test('opening the force release prompt without a reason keeps it unsubmittable', async ({ ordersPage, job }) => {
+    // Setup — the job open.
+    await ordersPage.openJob(job)
+
+    // Act — open the force release from the release menu.
     await ordersPage.details.jobDetail.releaseMenuTrigger.click()
     await ordersPage.details.jobDetail.forceReleaseItem.click()
 
@@ -126,13 +120,12 @@ test.describe('as admin, in progress, structured job with a product, no deadline
     await expect(ordersPage.details.jobDetail.forceReleaseDialog.submit).toBeDisabled()
   })
 
-  test('force releasing the job with a reason moves it to production flagged as missing information', async ({ ordersPage, order, job }) => {
-    // Setup — the job's row in the list.
+  test('force releasing the job with a reason moves it to production flagged as missing information', async ({ ordersPage, job }) => {
+    // Setup — the job's row in the list, with the job open.
     const row = ordersPage.details.jobList.row(job.id)
+    await ordersPage.openJob(job)
 
-    // Act — open the order and the job, force release it with a reason.
-    await ordersPage.sidebar.row(order.id).click()
-    await row.click()
+    // Act — force release it with a reason.
     await ordersPage.details.jobDetail.releaseMenuTrigger.click()
     await ordersPage.details.jobDetail.forceReleaseItem.click()
     await ordersPage.details.jobDetail.forceReleaseDialog.reason.fill(FORCE_RELEASE_REASON)
@@ -143,10 +136,11 @@ test.describe('as admin, in progress, structured job with a product, no deadline
     await expect(ordersPage.details.jobList.rowMissingInfo(row)).toBeVisible()
   })
 
-  test('force releasing the job records an emergency entry in the order history', async ({ ordersPage, order, job }) => {
-    // Act — open the order and the job, force release it with a reason, then open the history.
-    await ordersPage.sidebar.row(order.id).click()
-    await ordersPage.details.jobList.row(job.id).click()
+  test('force releasing the job records an emergency entry in the order history', async ({ ordersPage, job }) => {
+    // Setup — the job open.
+    await ordersPage.openJob(job)
+
+    // Act — force release it with a reason, then open the history.
     await ordersPage.details.jobDetail.releaseMenuTrigger.click()
     await ordersPage.details.jobDetail.forceReleaseItem.click()
     await ordersPage.details.jobDetail.forceReleaseDialog.reason.fill(FORCE_RELEASE_REASON)

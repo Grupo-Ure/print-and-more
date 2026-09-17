@@ -192,11 +192,16 @@ this order:
    input, instantiate mock data, establish any preconditions. Values come
    from the fixtures/mocks files, not inline literals. Nothing in this stage
    exercises the behavior under test.
-2. **Act** — perform the action being tested. In a UI test this is where the
-   locators are used to trigger actions in the interface — *every* click,
-   including the ones that get to the screen under test (opening the record,
-   selecting the row). Getting where you need to be in the app is part of
-   the test, not of a fixture. In a unit test it is the call to the function
+   In a UI test, **getting to the subject of the test is setup too**:
+   opening the record, selecting the row, showing a hidden list entry.
+   Those steps go here, and they go through a page-object navigation
+   method (`ordersPage.openJob(job)`), so the same path is written once
+   and a failure on the way is reported as setup, not as the behaviour
+   under test. Never in a fixture — a fixture prepares data only.
+2. **Act** — perform the action being tested: the clicks and inputs that
+   *are* the scope of the test, written **inline**, locator by locator.
+   Nothing here hides behind a helper method: a reader of the test must
+   see exactly what was done. In a unit test it is the call to the function
    under test. No assertions here.
 3. **Assert** — check the outcome. Keep this to the minimal set of
    assertions that proves the behavior (see above). No further actions here
@@ -251,6 +256,9 @@ Rules of thumb:
   user", "opens its details").
 - The consequence names the observable result, not the mechanism: "lists
   it in the product table", not "calls the save mutation".
+- A test with no action of its own — it only looks at a state the setup
+  produced and has no Act stage — names the state and the consequence
+  instead: "the job is held in setup with the release blocked".
 - One consequence per name. If the name needs an "and" between two
   unrelated outcomes, the case is covering two scenarios (see "Test Suite
   Shape").

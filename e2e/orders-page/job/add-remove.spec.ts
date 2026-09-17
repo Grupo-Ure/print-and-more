@@ -8,11 +8,11 @@ import {
 } from '../../fixtures/jobs'
 
 test('adding a job to an order selects it and shows its job number in the job detail', async ({ ordersPage, order }) => {
-  // Setup — the number the database assigns to the order's first job of this department.
+  // Setup — the number the database assigns to the order's first job of this department, with the order open.
   const jobNumber = firstTestJobNumber(order.orderNumber)
+  await ordersPage.openOrder(order.id)
 
-  // Act — open the order and add a job through the department's add-job button.
-  await ordersPage.sidebar.row(order.id).click()
+  // Act — add a job through the department's add-job button.
   await ordersPage.details.jobList.addJob(TEST_JOB_DEPARTMENT).click()
 
   // Assert — the list marks a row as active, and the detail shows that job's number.
@@ -21,9 +21,10 @@ test('adding a job to an order selects it and shows its job number in the job de
 })
 
 test('deleting a job in setup removes it from the order and records the deletion', async ({ ordersPage, job }) => {
-  // Act — open the order and the job, delete it and confirm, then open the history.
-  await ordersPage.sidebar.row(job.orderId).click()
-  await ordersPage.details.jobList.row(job.id).click()
+  // Setup — the job open.
+  await ordersPage.openJob(job)
+
+  // Act — delete it and confirm, then open the history.
   await ordersPage.details.jobDetail.deleteButton.click()
   await ordersPage.confirmDialog.confirm.click()
   await ordersPage.details.historyButton.click()
@@ -36,10 +37,11 @@ test('deleting a job in setup removes it from the order and records the deletion
 test.describe('in progress, job in pre-press', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, jobSeed: JOB_IN_PREPRESS })
 
-  test('cancelling a job past setup removes it from the order and records the cancellation', async ({ ordersPage, order, job }) => {
-    // Act — open the order and the job, cancel it and confirm, then open the history.
-    await ordersPage.sidebar.row(order.id).click()
-    await ordersPage.details.jobList.row(job.id).click()
+  test('cancelling a job past setup removes it from the order and records the cancellation', async ({ ordersPage, job }) => {
+    // Setup — the job open.
+    await ordersPage.openJob(job)
+
+    // Act — cancel it and confirm, then open the history.
     await ordersPage.details.jobDetail.cancelButton.click()
     await ordersPage.confirmDialog.confirm.click()
     await ordersPage.details.historyButton.click()

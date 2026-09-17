@@ -148,12 +148,14 @@ Child page objects are never fixtures; the parent composes them.
 
 A data fixture (`customer`, `order`, `job`) inserts its rows through the
 runner's database connection and reloads the app so it can see them. That
-is all it does. It never clicks: opening the order in the sidebar, selecting
-the job, opening a dialog — every step to the screen under test is part of
-the spec's Act stage, where a failure on the way is reported as what it is.
-The only fixture that drives the UI is the auth state in `fixtures/auth.ts`,
-because every test needs it in exactly the same way; the login spec covers
-those steps itself.
+is all it does. It never clicks. Getting from there to the subject of the
+test — the order open, its job selected, a hidden status shown in the list
+— is the spec's Setup stage, through a page-object navigation helper, so
+a failure on the way is reported as setup and the path is written once.
+The actions the spec is about then follow inline in Act. The only fixture
+that drives the UI is the auth state in `fixtures/auth.ts`, because every
+test needs it in exactly the same way; the login spec covers those steps
+itself.
 
 Rules of thumb:
 
@@ -168,10 +170,15 @@ Rules of thumb:
 ### What goes in a page object
 
 - **Locators** — the reason the class exists.
-- **Short interaction helpers** when a user-level action spans several
-  steps and is used by more than one spec (e.g. `signIn(user)` fills two
-  fields and clicks). They describe *what a user does*, not what the test
-  expects.
+- **Navigation helpers** for the steps that get a spec to its subject and
+  are not what it tests: `ordersPage.openOrder(order.id)`,
+  `ordersPage.openJob(job)`, `sidebar.includeStatus(status)`. A spec calls
+  them in its Setup stage. They click and then `waitFor()` the screen they
+  lead to; they never assert.
+- **Never a helper for the action under test.** What a spec is about is
+  written inline in its Act stage, locator by locator, so the report and
+  the reader see exactly what was done. (`LoginPOM.signIn` exists for the
+  auth fixture; the login spec spells the steps out itself.)
 - **Never assertions.** `expect` stays in the spec, where the Testing
   Standards' minimal-assertion rule governs it. A page object that asserts
   hides what a test is actually checking.

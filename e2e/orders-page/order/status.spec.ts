@@ -11,8 +11,10 @@ import { JOB_DONE } from '../../fixtures/jobs'
 import { TEST_USERS } from '../../fixtures/users'
 
 test('starting processing a quote moves the order to in progress', async ({ ordersPage, order }) => {
-  // Act — open the order, start processing and confirm.
-  await ordersPage.sidebar.row(order.id).click()
+  // Setup — the order open.
+  await ordersPage.openOrder(order.id)
+
+  // Act — start processing and confirm.
   await ordersPage.details.lifecycle.click()
   await ordersPage.confirmDialog.confirm.click()
 
@@ -24,8 +26,10 @@ test.describe('in progress, every job done', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, jobSeed: JOB_DONE })
 
   test('marking the order finished moves it to finished', async ({ ordersPage, order, job }) => {
-    // Act — open the order, mark it finished and confirm.
-    await ordersPage.sidebar.row(order.id).click()
+    // Setup — the order open.
+    await ordersPage.openOrder(order.id)
+
+    // Act — mark it finished and confirm.
     await ordersPage.details.lifecycle.click()
     await ordersPage.confirmDialog.confirm.click()
 
@@ -39,13 +43,13 @@ test.describe('finished, every job done', () => {
   test.use({ orderSeed: FINISHED_ORDER, jobSeed: JOB_DONE })
 
   test('marking the order as invoiced closes it and removes it from the order list', async ({ ordersPage, order, job }) => {
-    // Act — show finished orders in the list (hidden by default) and close the filter again
-    // (in the compact layout it is a popover over the list), open the order, mark it invoiced and confirm.
-    await ordersPage.sidebar.filterToggle.click()
-    await ordersPage.sidebar.filters.status(FINISHED_STATUS).click()
-    await ordersPage.sidebar.filterToggle.click()
-    await ordersPage.sidebar.row(order.id).click()
+    // Setup — finished orders shown in the list (hidden by default), the order open with its done job loaded
+    // (the action is offered only once every job is done).
+    await ordersPage.sidebar.includeStatus(FINISHED_STATUS)
+    await ordersPage.openOrder(order.id)
     await ordersPage.details.jobList.row(job.id).waitFor()
+
+    // Act — mark it invoiced and confirm.
     await ordersPage.details.lifecycle.click()
     await ordersPage.confirmDialog.confirm.click()
 
@@ -59,13 +63,12 @@ test.describe('as admin, finished, every job done', () => {
   test.use({ user: TEST_USERS.admin, orderSeed: FINISHED_ORDER, jobSeed: JOB_DONE })
 
   test('reopening the order moves it back to in progress', async ({ ordersPage, order, job }) => {
-    // Act — show finished orders in the list (hidden by default) and close the filter again,
-    // open the order, reopen it and confirm.
-    await ordersPage.sidebar.filterToggle.click()
-    await ordersPage.sidebar.filters.status(FINISHED_STATUS).click()
-    await ordersPage.sidebar.filterToggle.click()
-    await ordersPage.sidebar.row(order.id).click()
+    // Setup — finished orders shown in the list (hidden by default), the order open with its done job loaded.
+    await ordersPage.sidebar.includeStatus(FINISHED_STATUS)
+    await ordersPage.openOrder(order.id)
     await ordersPage.details.jobList.row(job.id).waitFor()
+
+    // Act — reopen it and confirm.
     await ordersPage.details.reopen.click()
     await ordersPage.confirmDialog.confirm.click()
 
@@ -78,9 +81,11 @@ test.describe('in progress cash order, every job done', () => {
   test.use({ orderSeed: IN_PROGRESS_CASH_ORDER, jobSeed: JOB_DONE })
 
   test('finishing the cash order closes it in one step and removes it from the order list', async ({ ordersPage, order, job }) => {
-    // Act — open the order, finish and close it and confirm.
-    await ordersPage.sidebar.row(order.id).click()
+    // Setup — the order open with its done job loaded (the action is offered only once every job is done).
+    await ordersPage.openOrder(order.id)
     await ordersPage.details.jobList.row(job.id).waitFor()
+
+    // Act — finish and close it and confirm.
     await ordersPage.details.lifecycle.click()
     await ordersPage.confirmDialog.confirm.click()
 

@@ -9,6 +9,9 @@ import { ConfirmDialogPOM } from './ConfirmDialogPOM'
 import { ToastPOM } from './ToastPOM'
 import { BasePOM } from './BasePOM'
 
+/** What the navigation helpers need to know about a job: which order it is in. */
+type JobRef = { id: string; orderId: string }
+
 /**
  * The orders view — the app's main screen. Everything a spec needs is reachable
  * from here: the sidebar, the selected order's details (with job list and
@@ -35,5 +38,27 @@ export class OrdersPOM extends BasePOM {
     this.duplicateDialog = new DuplicateDialogPOM(page)
     this.confirmDialog = new ConfirmDialogPOM(page)
     this.toast = new ToastPOM(page)
+  }
+
+  // ── Navigation (for a spec's Setup stage) ───────────────────────────────
+
+  /** Selects the order in the sidebar and waits for its details. */
+  async openOrder(orderId: string): Promise<void> {
+    await this.sidebar.row(orderId).click()
+    await this.details.forOrder(orderId).waitFor()
+  }
+
+  /** Opens the job's order, selects the job and waits for its detail. */
+  async openJob(job: JobRef): Promise<void> {
+    await this.openOrder(job.orderId)
+    await this.details.jobList.row(job.id).click()
+    await this.details.jobDetail.forJob(job.id).waitFor()
+  }
+
+  /** Opens the job and its settings dialog. */
+  async openJobSettings(job: JobRef): Promise<void> {
+    await this.openJob(job)
+    await this.details.jobDetail.settingsButton.click()
+    await this.details.jobDetail.settingsDialog.root.waitFor()
   }
 }

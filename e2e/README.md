@@ -106,9 +106,11 @@ Nothing here is imported by hand; the runner drives it from the config:
   nothing; specs find the credentials in `fixtures/users.ts`, which is the
   single source for them.
 - **Fixtures seed data; they do not navigate.** A data fixture inserts rows
-  and reloads the app; the spec itself clicks its way to the order or job
-  under test, in its Act stage. The auth state (`fixtures/auth.ts`) is the
-  one fixture that drives the UI, being the prerequisite every test shares.
+  and reloads the app; the spec gets to the order or job under test in its
+  Setup stage through a page-object navigation helper (`ordersPage.openJob`),
+  and performs the actions it is about inline in Act. The auth state
+  (`fixtures/auth.ts`) is the one fixture that drives the UI, being the
+  prerequisite every test shares.
 - **Setup is idempotent.** `globalTeardown` is skipped when a run is killed
   hard (Ctrl-C), so `ensureTestUser` looks before it creates — a leftover
   login from an aborted run does not break the next one.

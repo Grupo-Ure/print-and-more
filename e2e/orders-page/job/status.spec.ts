@@ -13,12 +13,15 @@ test.describe('in progress, structured job with a product, deadline missing', ()
   test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, jobSeed: STRUCTURED_JOB_WITH_PRODUCT })
 
   test('setting the deadline completes the job and promotes it to pre-press', async ({ ordersPage, order, job }) => {
-    // Setup — a date the picker accepts.
+    // Setup — a date the picker accepts, with the order open.
     const deadline = nextOrderDeadline()
+    const picker = ordersPage.details.deadline
+    await ordersPage.openOrder(order.id)
 
-    // Act — open the order and pick the deadline, the job's last missing requirement.
-    await ordersPage.sidebar.row(order.id).click()
-    await ordersPage.details.deadline.pick(deadline)
+    // Act — pick the deadline, the job's last missing requirement.
+    await picker.trigger.click()
+    await picker.showMonthOf(deadline)
+    await picker.day(deadline).click()
 
     // Assert — the job advanced on its own.
     await expect(ordersPage.details.jobList.row(job.id)).toHaveAttribute('data-status', PREPRESS_STATUS)
@@ -28,10 +31,11 @@ test.describe('in progress, structured job with a product, deadline missing', ()
 test.describe('in progress, complete free-form job', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, jobSeed: FREE_FORM_JOB_WITH_PRODUCT })
 
-  test('releasing the job manually moves it to pre-press', async ({ ordersPage, order, job }) => {
-    // Act — open the order and the job, release it and confirm.
-    await ordersPage.sidebar.row(order.id).click()
-    await ordersPage.details.jobList.row(job.id).click()
+  test('releasing the job manually moves it to pre-press', async ({ ordersPage, job }) => {
+    // Setup — the job open.
+    await ordersPage.openJob(job)
+
+    // Act — release it and confirm.
     await ordersPage.details.jobDetail.releaseButton.click()
     await ordersPage.confirmDialog.confirm.click()
 
@@ -43,10 +47,11 @@ test.describe('in progress, complete free-form job', () => {
 test.describe('in progress, job in pre-press', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, jobSeed: JOB_IN_PREPRESS })
 
-  test('releasing the job to production moves it to in production', async ({ ordersPage, order, job }) => {
-    // Act — open the order and the job, release it and confirm.
-    await ordersPage.sidebar.row(order.id).click()
-    await ordersPage.details.jobList.row(job.id).click()
+  test('releasing the job to production moves it to in production', async ({ ordersPage, job }) => {
+    // Setup — the job open.
+    await ordersPage.openJob(job)
+
+    // Act — release it and confirm.
     await ordersPage.details.jobDetail.releaseButton.click()
     await ordersPage.confirmDialog.confirm.click()
 
@@ -58,10 +63,11 @@ test.describe('in progress, job in pre-press', () => {
 test.describe('in progress, job in production', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, jobSeed: JOB_IN_PRODUCTION })
 
-  test('marking the job as done moves it to done', async ({ ordersPage, order, job }) => {
-    // Act — open the order and the job, mark it done and confirm.
-    await ordersPage.sidebar.row(order.id).click()
-    await ordersPage.details.jobList.row(job.id).click()
+  test('marking the job as done moves it to done', async ({ ordersPage, job }) => {
+    // Setup — the job open.
+    await ordersPage.openJob(job)
+
+    // Act — mark it done and confirm.
     await ordersPage.details.jobDetail.releaseButton.click()
     await ordersPage.confirmDialog.confirm.click()
 

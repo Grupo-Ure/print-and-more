@@ -1,8 +1,10 @@
 import { expect, test } from '../../fixtures/orders'
 
 test('archiving an order removes it from the order list', async ({ ordersPage, order }) => {
-  // Act — open the order, archive it and confirm.
-  await ordersPage.sidebar.row(order.id).click()
+  // Setup — the order open.
+  await ordersPage.openOrder(order.id)
+
+  // Act — archive it and confirm.
   await ordersPage.details.archive.click()
   await ordersPage.confirmDialog.confirm.click()
 
@@ -12,8 +14,10 @@ test('archiving an order removes it from the order list', async ({ ordersPage, o
 })
 
 test('cancelling an order removes it from the order list', async ({ ordersPage, order }) => {
-  // Act — open the order, cancel it and confirm.
-  await ordersPage.sidebar.row(order.id).click()
+  // Setup — the order open.
+  await ordersPage.openOrder(order.id)
+
+  // Act — cancel it and confirm.
   await ordersPage.details.cancel.click()
   await ordersPage.confirmDialog.confirm.click()
 
