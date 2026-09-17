@@ -14,11 +14,32 @@ playwright test
 ├─ playwright.config.ts            loads .env into process.env (existing vars win)
 ├─ e2e/global-setup.ts             default() → create the test logins via the Auth admin API
 ├─ worker
+│   ├─ fixtures/testData.ts        one seeding client (per worker)
 │   ├─ fixtures/electron.ts        launch one app with a throwaway profile (per worker)
 │   ├─ fixtures/auth.ts            bring the app into the auth state the spec asked for
+│   ├─ fixtures/orders.ts          the orders view's page object + per-test rows
 │   └─ spec … spec … spec
 └─ e2e/global-teardown.ts          default() → delete the test logins
 ```
+
+## The fixture chain
+
+Nothing assembles the fixtures in one place. Each fixture file imports the
+previous file's `test` and extends it, so the chain is built by four import
+lines:
+
+```
+@playwright/test → fixtures/testData.ts → fixtures/electron.ts → fixtures/auth.ts → fixtures/orders.ts
+```
+
+A spec imports `test` from the link it needs — `./fixtures/auth` for a
+session-level test, `./fixtures/orders` for anything on the orders view — and
+gets every fixture of that link and of all the links below it. A new fixture
+is declared once, in the lowest link that can provide it, and inherited by
+everything above.
+
+Page objects are fixtures too (`login`, `navbar`, `ordersPage`): a spec takes
+them from its arguments and never constructs one itself.
 
 ## Who calls what
 
@@ -28,6 +49,7 @@ Nothing here is imported by hand; the runner drives it from the config:
 |---|---|---|---|
 | Load `.env` | top of `playwright.config.ts` | once | runner |
 | `globalSetup` | `playwright.config.ts` → `e2e/global-setup.ts` (default export) | once, before any worker | runner |
+| Seeding client | `testData` fixture, `scope: 'worker'` | once per worker, on first use | worker |
 | App launch | `electronApp` fixture, `scope: 'worker'` | once per worker | worker |
 | Auth state | `page` fixture override in `fixtures/auth.ts` | before every test | worker |
 | `globalTeardown` | `playwright.config.ts` → `e2e/global-teardown.ts` (default export) | once, after the last test | runner |
@@ -55,18 +77,17 @@ Nothing here is imported by hand; the runner drives it from the config:
 
 | Path | Role |
 |---|---|
+| `fixtures/testData.ts` | Base of the chain: the worker-scoped `testData` seeding client |
 | `fixtures/electron.ts` | Launches the built app; replaces Playwright's browser `page` |
-| `fixtures/auth.ts` | `user` option + signed-in `page`; `signIn` / `signOut` helpers |
+| `fixtures/auth.ts` | `user` option + signed-in `page`; `login` / `navbar` page objects; `signIn` / `signOut` helpers |
 | `fixtures/users.ts` | The test logins (data fixture) |
-| `fixtures/orders.ts` | Per-test data of the orders view: `customer` (a fresh customer), `order` (a fresh quote for it), `newCustomer` (data for a customer the test creates in the app) — each created/cleaned up around the test |
+| `fixtures/orders.ts` | `ordersPage` page object + per-test data of the orders view: `customer` (a fresh customer), `order` (a fresh quote for it), `newCustomer` (data for a customer the test creates in the app) — each created/cleaned up around the test |
 | `fixtures/customers.ts` | The customers those fixtures use (data fixture) |
 | `pom/*POM.ts` | Page objects — every locator a spec uses, one class per view/dialog, composed parent → child |
 | `pom/BasePOM.ts` | Ancestor of every page object: holds the page and the shared helpers (`withAttr()` picks one instance of a repeated element by data attribute) |
 | `support/testIds.ts` | The `TEST_IDS` registry, imported by components (`data-testid`) and page objects alike |
 | `support/admin.ts` | Service-role client for the runner — bypasses RLS, exposes `auth.admin` |
-| `support/users.ts` | Create / remove a test login through that client |
-| `support/customers.ts` | Create / remove a test customer (with its orders) through that client |
-| `support/orders.ts` | Create / remove a test order through that client |
+| `support/testData.ts` | `TestData`: seeds and removes users, customers and orders through that client — raw rows only, no app business logic |
 | `global-setup.ts`, `global-teardown.ts` | Run-wide data, wired via `playwright.config.ts` |
 
 ## Environment

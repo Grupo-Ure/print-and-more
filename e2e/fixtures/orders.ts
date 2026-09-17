@@ -1,25 +1,26 @@
+/**
+ * Fixture chain: `@playwright/test` → testData → electron → auth → **orders**.
+ * Adds the orders view's page object (`ordersPage`) and the per-test data of
+ * that view (`customer`, `order`, `newCustomer`).
+ */
 import type { Page } from '@playwright/test'
 import type { OrderStatus } from '../../src/types/database'
 import { test as base } from './auth'
 import { NEW_CUSTOMER, TEST_CUSTOMER, type TestCustomer } from './customers'
-import { createAdminClient } from '../support/admin'
-import {
-  createTestCustomer,
-  removeTestCustomer,
-  removeTestCustomersByEmail,
-  type TestCustomerRow,
-} from '../support/customers'
-import { createTestOrder, removeTestOrder, type TestOrder } from '../support/orders'
+import type { TestCustomerRow, TestOrder } from '../support/testData'
 import { NavbarPOM } from '../pom/NavbarPOM'
+import { OrdersPOM } from '../pom/OrdersPOM'
 
 /** The status every order starts in, however it was created. */
 export const NEW_ORDER_STATUS: OrderStatus = 'QUOTE'
 
 type OrdersViewFixtures = {
+  /** The orders view — the app's main screen, with every dialog it can open. */
+  ordersPage: OrdersPOM
   /**
    * A customer that exists only for this test: inserted before it through
-   * the service-role client, deleted after it — together with any order the
-   * test created for it — even when the test fails.
+   * the seeding client, deleted after it — together with any order the test
+   * created for it — even when the test fails.
    */
   customer: TestCustomerRow
   /** A fresh quote for `customer`, created before the test and deleted after it. */
@@ -40,37 +41,37 @@ type OrdersViewFixtures = {
  * needs a reload to show up (in the order list, in the customer search). The
  * session lives in web storage and survives it; wait until the navbar is back.
  */
-async function reloadApp(page: Page): Promise<void> {
+async function reloadApp(page: Page, navbar: NavbarPOM): Promise<void> {
   await page.reload()
-  await new NavbarPOM(page).userMenu.trigger.waitFor()
+  await navbar.userMenu.trigger.waitFor()
 }
 
 export const test = base.extend<OrdersViewFixtures>({
-  customer: async ({ page }, use) => {
-    const admin = createAdminClient()
-    const customer = await createTestCustomer(admin, TEST_CUSTOMER)
-    await reloadApp(page)
+  ordersPage: async ({ page }, use) => {
+    await use(new OrdersPOM(page))
+  },
+
+  customer: async ({ page, navbar, testData }, use) => {
+    const customer = await testData.createCustomer(TEST_CUSTOMER)
+    await reloadApp(page, navbar)
 
     await use(customer)
-    await removeTestCustomer(admin, customer.id)
+    await testData.removeCustomer(customer.id)
   },
 
-  order: async ({ page, customer }, use) => {
-    const admin = createAdminClient()
-    const order = await createTestOrder(admin, customer.id)
-    await reloadApp(page)
+  order: async ({ page, navbar, testData, customer }, use) => {
+    const order = await testData.createOrder(customer.id)
+    await reloadApp(page, navbar)
 
     await use(order)
-    await removeTestOrder(admin, order.id)
+    await testData.removeOrder(order.id)
   },
 
-  // eslint-disable-next-line no-empty-pattern
-  newCustomer: async ({}, use) => {
-    const admin = createAdminClient()
-    await removeTestCustomersByEmail(admin, NEW_CUSTOMER.email)
+  newCustomer: async ({ testData }, use) => {
+    await testData.removeCustomersByEmail(NEW_CUSTOMER.email)
 
     await use(NEW_CUSTOMER)
-    await removeTestCustomersByEmail(admin, NEW_CUSTOMER.email)
+    await testData.removeCustomersByEmail(NEW_CUSTOMER.email)
   },
 })
 

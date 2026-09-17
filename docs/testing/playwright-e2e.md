@@ -125,13 +125,24 @@ export class OrdersPOM extends BasePOM {
 }
 ```
 
-From a spec the whole tree is one import away:
+### Page objects arrive as fixtures
+
+A spec never constructs a page object. Each top-level page object is
+provided by a Playwright fixture in the fixture file for its layer —
+`login` and `navbar` in `fixtures/auth.ts`, `ordersPage` in
+`fixtures/orders.ts` — and the spec takes it from its arguments. The whole
+tree is then reachable from that one argument:
 
 ```ts
-const orders = new OrdersPOM(page)
-await orders.newOrderButton.click()
-await orders.newOrderDialog.customerInput.fill(fixtures.customer.name)
+test('…', async ({ ordersPage, customer }) => {
+  await ordersPage.sidebar.newOrderButton.click()
+  await ordersPage.newOrderDialog.customerSearch.fill(customer.name)
+})
 ```
+
+A new top-level page object gets a fixture in the lowest fixture file that
+can provide it (see the fixture chain in [`e2e/README.md`](../../e2e/README.md)).
+Child page objects are never fixtures; the parent composes them.
 
 Rules of thumb:
 
@@ -214,27 +225,24 @@ retry — anything that depends on rendering goes through `expect.poll`.
 ## Putting It Together
 
 ```ts
-import { expect, test } from './fixtures/auth'
-import { OrdersPOM } from './pom/OrdersPOM'
-import { orderFixtures } from './fixtures/orders'
+import { expect, test, NEW_ORDER_STATUS } from './fixtures/orders'
 
-test('creates a quote for an existing customer', async ({ page }) => {
-  // Setup
-  const orders = new OrdersPOM(page)
-  await orders.newOrderButton.click()
-  await orders.newOrderDialog.customerInput.fill(orderFixtures.customer.name)
+test('creates a quote for an existing customer', async ({ ordersPage, customer }) => {
+  // Setup — the `customer` fixture inserted the row and removes it (with its orders) afterwards.
+  const dialog = ordersPage.newOrderDialog
+  await ordersPage.sidebar.newOrderButton.click()
+  await dialog.customerSearch.fill(customer.name)
+  await dialog.customerOption(customer.id).click()
 
   // Assert
-  await orders.newOrderDialog.submitButton.click()
-  await expect(orders.details.statusBadge).toBeVisible()
-
-  // Cleanup
-  ...
+  await dialog.submit.click()
+  await expect(ordersPage.details.root).toHaveAttribute('data-status', NEW_ORDER_STATUS)
 })
 ```
 
 The spec names no test ID, no visible text and no selector — only page
-object members and fixture values.
+object members and fixture values — and it constructs nothing: the page
+object and the data both come from the fixture arguments.
 
 ---
 
@@ -245,6 +253,7 @@ object members and fixture values.
 | Locating by visible text (`getByText`, `getByRole` with `name`) | Breaks on copy changes that have nothing to do with behaviour | `data-testid` + `getByTestId` through a page object |
 | Typing a test ID string in a component or spec | Duplicates the registry; app and suite drift apart | Import `TEST_IDS` on both sides |
 | `page.getByTestId(...)` inside a spec | Puts locator knowledge in the test; every spec re-learns the page | Add the locator to the page object |
+| `new SomePOM(page)` inside a spec | Every spec repeats the wiring; the spec depends on `page` only to build it | Take the page object from the fixture arguments (`ordersPage`, `navbar`, `login`) |
 | One page object class for an entire view | Grows unreadable; every change touches it | Child `POM` classes per dialog/panel, composed by the parent |
 | `expect` inside a `for` over views, rows or other repeated elements | Stops at the first failure; zero iterations pass silently; the list of what is on screen never appears in the report | A list-aware matcher on the repeated locator, or a page-object read helper + `expect.poll` |
 | `expect` inside a page object or fixture | Hides what the test asserts; a failure is reported as an assertion instead of a setup problem | Return locators; wait with `waitFor()`; assert in the spec |

@@ -1,3 +1,8 @@
+/**
+ * Fixture chain: `@playwright/test` → testData → electron → **auth** → orders.
+ * Adds `user` (who the test runs as), brings `page` into that auth state, and
+ * hands out the page objects of the session-level UI (`login`, `navbar`).
+ */
 import type { Page } from '@playwright/test'
 import { test as base } from './electron'
 import { TEST_USERS, type TestUser } from './users'
@@ -10,6 +15,10 @@ type AuthFixtures = {
    * Override per file or describe block: `test.use({ user: TEST_USERS.admin })`.
    */
   user: TestUser | null
+  /** The sign-in screen (rendered only without a session). */
+  login: LoginPOM
+  /** The top navigation bar (rendered only with a session). */
+  navbar: NavbarPOM
 }
 
 // No `expect` in here: fixtures synchronise with `waitFor()`. A timeout then
@@ -63,6 +72,14 @@ export const test = base.extend<AuthFixtures>({
   page: async ({ page, user }, use) => {
     await ensureAuthState(page, user)
     await use(page)
+  },
+
+  login: async ({ page }, use) => {
+    await use(new LoginPOM(page))
+  },
+
+  navbar: async ({ page }, use) => {
+    await use(new NavbarPOM(page))
   },
 })
 
