@@ -290,5 +290,6 @@ references, and Assert holds only `expect` calls.
 | `new SomePOM(page)` inside a spec | Every spec repeats the wiring; the spec depends on `page` only to build it | Take the page object from the fixture arguments (`ordersPage`, `navbar`, `login`) |
 | One page object class for an entire view | Grows unreadable; every change touches it | Child `POM` classes per dialog/panel, composed by the parent |
 | `expect` inside a `for` over views, rows or other repeated elements | Stops at the first failure; zero iterations pass silently; the list of what is on screen never appears in the report | A list-aware matcher on the repeated locator, or a page-object read helper + `expect.poll` |
+| `test` / `test.describe` / `test.use` inside a `for` over users, seeds or other fixture tables | The cases exist only implicitly; one cannot be found, read or run on its own | One describe block per case, written out |
 | `expect` inside a page object or fixture | Hides what the test asserts; a failure is reported as an assertion instead of a setup problem | Return locators; wait with `waitFor()`; assert in the spec |
 | Test data as defaults inside a page object | Same data problem the Testing Standards forbid in specs | Pass fixture values in |
