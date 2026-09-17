@@ -10,7 +10,8 @@ const IDS = TEST_IDS.orders.details
 
 /**
  * Centre column with an order selected: header, settings row, job list and
- * the active job. The root carries `data-order-id` and `data-status`.
+ * the active job. The root carries `data-order-id`, `data-customer-id` and
+ * `data-status`.
  */
 export class OrderDetailsPOM extends BasePOM {
   readonly root: Locator

@@ -343,6 +343,7 @@ export function OrderDetails() {
     <main
       data-testid={TEST_IDS.orders.details.root}
       data-order-id={order.id}
+      data-customer-id={order.customers?.id}
       data-status={order.status}
       className="flex flex-col gap-2 p-3 flex-1 min-h-0"
     >
