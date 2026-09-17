@@ -4,6 +4,7 @@ import { JobListPOM } from './JobListPOM'
 import { JobDetailPOM } from './JobDetailPOM'
 import { OrderFilesDialogPOM } from './OrderFilesDialogPOM'
 import { OrderHistoryDialogPOM } from './OrderHistoryDialogPOM'
+import { DeadlinePickerPOM } from './DeadlinePickerPOM'
 import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.orders.details
@@ -34,7 +35,7 @@ export class OrderDetailsPOM extends BasePOM {
   readonly customerPhone: Locator
 
   // Settings row — each carries `data-value` with the current selection.
-  readonly deadline: Locator
+  readonly deadline: DeadlinePickerPOM
   readonly delivery: Locator
   readonly priority: Locator
   readonly payment: Locator
@@ -66,7 +67,7 @@ export class OrderDetailsPOM extends BasePOM {
 
     const s = IDS.settings
     const settings = this.root.getByTestId(s.root)
-    this.deadline = settings.getByTestId(s.deadline)
+    this.deadline = new DeadlinePickerPOM(page, { trigger: s.deadline, calendar: s.deadlineCalendar })
     this.delivery = settings.getByTestId(s.delivery)
     this.priority = settings.getByTestId(s.priority)
     this.payment = settings.getByTestId(s.payment)
@@ -75,5 +76,10 @@ export class OrderDetailsPOM extends BasePOM {
     this.jobDetail = new JobDetailPOM(page)
     this.filesDialog = new OrderFilesDialogPOM(page)
     this.historyDialog = new OrderHistoryDialogPOM(page)
+  }
+
+  /** The details column only while it shows this order. */
+  forOrder(orderId: string): Locator {
+    return this.withAttr(this.root, 'data-order-id', orderId)
   }
 }

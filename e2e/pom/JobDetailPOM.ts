@@ -65,4 +65,9 @@ export class JobDetailPOM extends BasePOM {
     this.settingsDialog = new JobSettingsDialogPOM(page)
     this.timeLogsDialog = new TimeLogsDialogPOM(page)
   }
+
+  /** The job detail only while it shows this job. */
+  forJob(jobId: string): Locator {
+    return this.withAttr(this.root, 'data-job-id', jobId)
+  }
 }

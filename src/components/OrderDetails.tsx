@@ -730,6 +730,7 @@ function OrderSettings({ order, onSave, deadlineRequired }: OrderSettingsProps) 
     >
       <DeadlinePicker
         testId={SETTINGS_IDS.deadline}
+        calendarTestId={SETTINGS_IDS.deadlineCalendar}
         value={headerDeadline}
         // Judged on the local value so the ring settles the moment a date is picked.
         attention={deadlineRequired && headerDeadline === ''}

@@ -77,7 +77,7 @@ export function ProductTable({
         className="flex min-h-48 flex-col items-center justify-center gap-3 rounded-lg border border-dashed text-center"
       >
         <p className="text-sm text-muted-foreground">Add the first product</p>
-        {!meta.isReadOnly && <AddProductButton onClick={meta.onAdd} label={meta.addLabel} />}
+        {!meta.isReadOnly && <AddProductButton onClick={meta.onAdd} label={meta.addLabel} testId={IDS.emptyAdd} />}
       </div>
     )
   }

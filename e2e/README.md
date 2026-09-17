@@ -75,6 +75,10 @@ Nothing here is imported by hand; the runner drives it from the config:
 - **Setup and tests share nothing but the database.** Global setup returns
   nothing; specs find the credentials in `fixtures/users.ts`, which is the
   single source for them.
+- **Fixtures seed data; they do not navigate.** A data fixture inserts rows
+  and reloads the app; the spec itself clicks its way to the order or job
+  under test, in its Act stage. The auth state (`fixtures/auth.ts`) is the
+  one fixture that drives the UI, being the prerequisite every test shares.
 - **Setup is idempotent.** `globalTeardown` is skipped when a run is killed
   hard (Ctrl-C), so `ensureTestUser` looks before it creates — a leftover
   login from an aborted run does not break the next one.
@@ -93,8 +97,9 @@ Nothing here is imported by hand; the runner drives it from the config:
 | `fixtures/electron.ts` | Launches the built app; replaces Playwright's browser `page` |
 | `fixtures/auth.ts` | `user` option + signed-in `page`; `login` / `navbar` page objects; `signIn` / `signOut` helpers |
 | `fixtures/users.ts` | The test logins (data fixture) |
-| `fixtures/orders.ts` | `ordersPage` page object + per-test data of the orders view: `customer` (a fresh customer), `order` (a fresh quote for it), `newCustomer` (data for a customer the test creates in the app) — each created/cleaned up around the test |
+| `fixtures/orders.ts` | `ordersPage` page object + per-test data of the orders view: `customer` (a fresh customer), `order` (a fresh quote for it), `job` (a fresh job in that order), `newCustomer` (data for a customer the test creates in the app) — each created/cleaned up around the test |
 | `fixtures/customers.ts` | The customers those fixtures use (data fixture) |
+| `fixtures/jobs.ts` | The department, product and expected job number the suite builds jobs with (data fixture) |
 | `pom/*POM.ts` | Page objects — every locator a spec uses, one class per view/dialog, composed parent → child |
 | `pom/BasePOM.ts` | Ancestor of every page object: holds the page and the shared helpers (`withAttr()` picks one instance of a repeated element by data attribute) |
 | `support/testIds.ts` | The `TEST_IDS` registry, imported by components (`data-testid`) and page objects alike |

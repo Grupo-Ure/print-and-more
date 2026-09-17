@@ -17,9 +17,11 @@ type DeadlinePickerProps = {
   attention?: boolean
   /** data-testid for the trigger — the field is shared by the order row and the job dialog. */
   testId?: string
+  /** data-testid for the calendar popover (portalled, so it cannot be found through the trigger). */
+  calendarTestId?: string
 }
 
-export function DeadlinePicker({ value, onChange, disabled = false, attention = false, testId }: DeadlinePickerProps) {
+export function DeadlinePicker({ value, onChange, disabled = false, attention = false, testId, calendarTestId }: DeadlinePickerProps) {
   const [open, setOpen] = useState(false)
   const selectedDate = value ? parse(value, 'yyyy-MM-dd', new Date()) : undefined
   const triggerLabel = selectedDate ? format(selectedDate, 'PPP') : 'No deadline'
@@ -54,7 +56,7 @@ export function DeadlinePicker({ value, onChange, disabled = false, attention = 
             {triggerLabel}
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-auto p-0">
+        <PopoverContent align="start" className="w-auto p-0" data-testid={calendarTestId}>
           <Calendar
             mode="single"
             selected={selectedDate}

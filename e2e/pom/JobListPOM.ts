@@ -13,6 +13,8 @@ export class JobListPOM extends BasePOM {
   readonly empty: Locator
   /** Every job row; each carries `data-job-id`, `data-status`, and `aria-current` when selected. */
   readonly rows: Locator
+  /** The row of the active job (the one `JobDetail` shows). */
+  readonly selectedRow: Locator
   readonly contextMenu: JobContextMenuPOM
   private readonly addJobButtons: Locator
 
@@ -23,6 +25,7 @@ export class JobListPOM extends BasePOM {
     this.list = this.root.getByTestId(IDS.list)
     this.empty = this.root.getByTestId(IDS.empty)
     this.rows = this.list.getByTestId(IDS.row)
+    this.selectedRow = this.withAttr(this.rows, 'aria-current', 'true')
     this.contextMenu = new JobContextMenuPOM(page)
   }
 

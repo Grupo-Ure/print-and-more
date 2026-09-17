@@ -155,6 +155,8 @@ export const TEST_IDS = {
       settings: {
         root: 'order-settings',
         deadline: 'order-settings-deadline',
+        /** The deadline's calendar popover; day cells inside carry `data-day` = ISO date (react-day-picker). */
+        deadlineCalendar: 'order-settings-deadline-calendar',
         delivery: 'order-settings-delivery',
         priority: 'order-settings-priority',
         payment: 'order-settings-payment',
@@ -226,9 +228,12 @@ export const TEST_IDS = {
       },
       products: {
         root: 'job-products',
+        /** The section header's add button (always there while editable). */
         add: 'job-products-add',
         table: 'job-products-table',
         empty: 'job-products-empty',
+        /** The add button inside the empty state (only while the job has no product). */
+        emptyAdd: 'job-products-empty-add',
         /** One per product; `data-product-id`, `data-type`. */
         row: 'job-products-row',
         rowEdit: 'job-products-row-edit',
@@ -237,6 +242,10 @@ export const TEST_IDS = {
           root: 'product-dialog',
           /** One per product type; `data-type`. */
           typeOption: 'product-dialog-type-option',
+          /** One per form input, whatever the product type; `data-field` = the form field name. */
+          field: 'product-dialog-field',
+          submit: 'product-dialog-submit',
+          cancel: 'product-dialog-cancel',
           back: 'product-dialog-back',
           edit: 'product-dialog-edit',
           close: 'product-dialog-close',

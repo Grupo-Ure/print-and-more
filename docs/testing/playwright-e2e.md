@@ -144,6 +144,17 @@ A new top-level page object gets a fixture in the lowest fixture file that
 can provide it (see the fixture chain in [`e2e/README.md`](../../e2e/README.md)).
 Child page objects are never fixtures; the parent composes them.
 
+### Fixtures seed, specs navigate
+
+A data fixture (`customer`, `order`, `job`) inserts its rows through the
+runner's database connection and reloads the app so it can see them. That
+is all it does. It never clicks: opening the order in the sidebar, selecting
+the job, opening a dialog — every step to the screen under test is part of
+the spec's Act stage, where a failure on the way is reported as what it is.
+The only fixture that drives the UI is the auth state in `fixtures/auth.ts`,
+because every test needs it in exactly the same way; the login spec covers
+those steps itself.
+
 Rules of thumb:
 
 - A child page object owns everything inside its `root`; the parent never
@@ -242,7 +253,7 @@ test('creates a quote for an existing customer', async ({ ordersPage, customer }
   // Setup — the `customer` fixture inserted the row and removes it (with its orders) afterwards.
   const dialog = ordersPage.newOrderDialog
 
-  // Act — create the order for that customer through the dialog.
+  // Act — open the new-order dialog and create the order for that customer.
   await ordersPage.sidebar.newOrderButton.click()
   await dialog.customerSearch.fill(customer.name)
   await dialog.customerOption(customer.id).click()

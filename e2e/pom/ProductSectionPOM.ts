@@ -8,9 +8,12 @@ const IDS = TEST_IDS.orders.jobDetail.products
 /** The active job's product table plus its add/edit dialog. */
 export class ProductSectionPOM extends BasePOM {
   readonly root: Locator
+  /** The header's add button. */
   readonly add: Locator
   readonly table: Locator
   readonly empty: Locator
+  /** The empty state's add button (only while the job has no product). */
+  readonly emptyAdd: Locator
   /** Every product row; each carries `data-product-id`, `data-type`, and `data-shortage` when stock is short. */
   readonly rows: Locator
   readonly dialog: ProductDialogPOM
@@ -21,6 +24,7 @@ export class ProductSectionPOM extends BasePOM {
     this.add = this.root.getByTestId(IDS.add)
     this.table = this.root.getByTestId(IDS.table)
     this.empty = this.root.getByTestId(IDS.empty)
+    this.emptyAdd = this.empty.getByTestId(IDS.emptyAdd)
     this.rows = this.table.getByTestId(IDS.row)
     this.dialog = new ProductDialogPOM(page)
   }

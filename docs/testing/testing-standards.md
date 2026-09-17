@@ -186,8 +186,11 @@ this order:
    from the fixtures/mocks files, not inline literals. Nothing in this stage
    exercises the behavior under test.
 2. **Act** — perform the action being tested. In a UI test this is where the
-   locators are used to trigger actions in the interface; in a unit test it
-   is the call to the function under test. No assertions here.
+   locators are used to trigger actions in the interface — *every* click,
+   including the ones that get to the screen under test (opening the record,
+   selecting the row). Getting where you need to be in the app is part of
+   the test, not of a fixture. In a unit test it is the call to the function
+   under test. No assertions here.
 3. **Assert** — check the outcome. Keep this to the minimal set of
    assertions that proves the behavior (see above). No further actions here
    — if an assertion needs another action first, that action belongs in
@@ -213,6 +216,15 @@ it("<describes the behavior in plain terms>", () => {
   ...
 })
 ```
+
+**Fixtures prepare data, not state in the interface.** A fixture inserts,
+generates or removes data; it never drives the UI to a place. A fixture that
+navigated would assume every step on the way works, and two such fixtures in
+one test would fight over what is on screen. The one exception is the
+prerequisite *every* test shares and performs identically — in this app,
+being signed in — which lives in one fixture. The test that covers that
+prerequisite itself (the login test) spells the steps out instead of using
+the fixture.
 
 **A stage with no code does not exist.** Omit its comment entirely — don't
 leave a comment with an empty line below it as a placeholder. This applies

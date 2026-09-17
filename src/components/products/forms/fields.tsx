@@ -22,6 +22,12 @@ import {
   SelectValue,
 } from '../../ui/select'
 import type { FileRow } from '../../../services/fileService'
+import { TEST_IDS } from '@e2e/support/testIds'
+
+const IDS = TEST_IDS.orders.jobDetail.products.dialog
+
+/** Marks an input for the e2e suite: one shared test ID, the field name as the instance key. */
+const fieldTestAttrs = (field: AnyFieldApi) => ({ 'data-testid': IDS.field, 'data-field': field.name })
 
 export function FieldRow({
   label,
@@ -65,6 +71,7 @@ export function TextField({ field, label, error, hint, autoFocus }: { field: Any
       <Input
         id={field.name}
         name={field.name}
+        {...fieldTestAttrs(field)}
         value={asString(field.state.value)}
         onChange={e => field.handleChange(e.target.value)}
         onBlur={field.handleBlur}
@@ -82,6 +89,7 @@ export function TextareaField({ field, label, error, rows = 6, hint }: { field: 
       <Textarea
         id={field.name}
         name={field.name}
+        {...fieldTestAttrs(field)}
         rows={rows}
         value={asString(field.state.value)}
         onChange={e => field.handleChange(e.target.value || null)}
@@ -100,6 +108,7 @@ export function QuantityField({ field, label = 'Quantity', error, hint }: { fiel
       <Input
         id={field.name}
         name={field.name}
+        {...fieldTestAttrs(field)}
         type="number"
         min={1}
         value={asString(field.state.value)}
@@ -119,6 +128,7 @@ export function DateField({ field, label, error }: { field: AnyFieldApi; label: 
       <Input
         id={field.name}
         name={field.name}
+        {...fieldTestAttrs(field)}
         type="date"
         value={asString(field.state.value)}
         onChange={e => field.handleChange(e.target.value || null)}
@@ -256,10 +266,10 @@ export function FormActions({ canSubmit, submitting, editing, onCancel }: { canS
   if (viewing) return null
   return (
     <div className="flex gap-2 pt-1">
-      <Button type="submit" disabled={!canSubmit || submitting}>
+      <Button type="submit" data-testid={IDS.submit} disabled={!canSubmit || submitting}>
         {submitting ? 'Saving…' : editing ? 'Save' : 'Add product'}
       </Button>
-      <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>
+      <Button type="button" variant="outline" data-testid={IDS.cancel} onClick={onCancel} disabled={submitting}>
         Cancel
       </Button>
     </div>

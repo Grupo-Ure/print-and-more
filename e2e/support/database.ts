@@ -4,6 +4,8 @@ import type { TestCustomer } from '../fixtures/customers'
 import type { TestUser } from '../fixtures/users'
 
 type OrderInsert = Database['public']['Tables']['orders']['Insert']
+type JobInsert = Database['public']['Tables']['jobs']['Insert']
+type Department = Database['public']['Enums']['department']
 
 /** What a spec gets to know about the customer the fixture inserted for it. */
 export type TestCustomerRow = TestCustomer & { id: string }
@@ -13,6 +15,14 @@ export type TestOrder = {
   id: string
   orderNumber: string
   customerId: string
+}
+
+/** What a spec gets to know about the job the fixture created for it. */
+export type TestJob = {
+  id: string
+  jobNumber: string
+  orderId: string
+  department: Department
 }
 
 function requiredEnv(name: string): string {
@@ -141,5 +151,19 @@ export class TestDatabase {
   async removeOrder(orderId: string): Promise<void> {
     const { error } = await this.client.from('orders').delete().eq('id', orderId)
     if (error) throw error
+  }
+
+  // ── Jobs ─────────────────────────────────────────────────────────────────
+
+  /**
+   * Inserts a job in its initial state (the table's defaults: in setup, no
+   * overrides). `job_number` is assigned by the trg_job_number trigger, so it
+   * is left out of the payload. Removed with its order — no separate cleanup.
+   */
+  async createJob(orderId: string, department: Department): Promise<TestJob> {
+    const payload = { order_id: orderId, department } as JobInsert
+    const { data, error } = await this.client.from('jobs').insert(payload).select('id, job_number').single()
+    if (error) throw error
+    return { id: data.id, jobNumber: data.job_number, orderId, department }
   }
 }
