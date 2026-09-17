@@ -222,10 +222,21 @@ retry — anything that depends on rendering goes through `expect.poll`.
 
 ---
 
+## Spec Files — One Folder per View
+
+Specs live in `e2e/<view>/`, one folder per app view (`e2e/auth/`,
+`e2e/orders/`, and so on), never at the `e2e/` root. Playwright groups by
+file path, so the folder is the top-level group in every report and the
+filter for running one view (`npx playwright test orders`). The support
+folders stay at the root, and a spec reaches them with `../fixtures/…`.
+
+---
+
 ## Putting It Together
 
 ```ts
-import { expect, test, NEW_ORDER_STATUS } from './fixtures/orders'
+// e2e/orders/new-order.spec.ts
+import { expect, test, NEW_ORDER_STATUS } from '../fixtures/orders'
 
 test('creates a quote for an existing customer', async ({ ordersPage, customer }) => {
   // Setup — the `customer` fixture inserted the row and removes it (with its orders) afterwards.

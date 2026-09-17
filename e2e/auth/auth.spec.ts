@@ -1,6 +1,6 @@
-import { expect, test } from './fixtures/auth'
-import { NAVBAR_VIEWS_BY_ROLE } from './fixtures/navigation'
-import { TEST_USERS } from './fixtures/users'
+import { expect, test } from '../fixtures/auth'
+import { NAVBAR_VIEWS_BY_ROLE } from '../fixtures/navigation'
+import { TEST_USERS } from '../fixtures/users'
 
 test.describe('authentication', () => {
   for (const user of Object.values(TEST_USERS)) {

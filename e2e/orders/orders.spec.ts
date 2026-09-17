@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures/orders'
+import { expect, test } from '../fixtures/orders'
 
 test.describe('orders view', () => {
   test('lists the order, and selecting it loads its details', async ({ ordersPage, order }) => {

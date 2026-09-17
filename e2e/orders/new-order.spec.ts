@@ -1,4 +1,4 @@
-import { expect, test, NEW_ORDER_STATUS } from './fixtures/orders'
+import { expect, test, NEW_ORDER_STATUS } from '../fixtures/orders'
 
 // Both tests leave an order behind; the `customer` / `newCustomer` fixtures
 // remove it with its customer, so neither test needs a cleanup stage.

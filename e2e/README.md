@@ -18,9 +18,20 @@ playwright test
 │   ├─ fixtures/electron.ts        launch one app with a throwaway profile (per worker)
 │   ├─ fixtures/auth.ts            bring the app into the auth state the spec asked for
 │   ├─ fixtures/orders.ts          the orders view's page object + per-test rows
-│   └─ spec … spec … spec
+│   └─ <view>/*.spec.ts            one folder per view: auth/, orders/, …
 └─ e2e/global-teardown.ts          default() → delete the test logins
 ```
+
+## Where specs live
+
+Specs are grouped **one folder per view**, named after the view they
+exercise (`e2e/auth/`, `e2e/orders/`; later `stamp-stock/`, `textile-stock/`,
+`user-management/`, `profile/`). Playwright reports by file path, so the
+folder appears as the top-level group in the list reporter, the HTML report
+and UI mode, and `npx playwright test orders` runs one view's specs. The
+support folders (`fixtures/`, `pom/`, `support/`) stay at the `e2e/` root; a
+spec imports them with `../fixtures/…`. A new spec goes into the folder of
+the view it drives, never at the root.
 
 ## The fixture chain
 
@@ -77,6 +88,7 @@ Nothing here is imported by hand; the runner drives it from the config:
 
 | Path | Role |
 |---|---|
+| `<view>/*.spec.ts` | The specs, one folder per view (`auth/`, `orders/`, …) |
 | `fixtures/database.ts` | Base of the chain: the worker-scoped `database` connection |
 | `fixtures/electron.ts` | Launches the built app; replaces Playwright's browser `page` |
 | `fixtures/auth.ts` | `user` option + signed-in `page`; `login` / `navbar` page objects; `signIn` / `signOut` helpers |
