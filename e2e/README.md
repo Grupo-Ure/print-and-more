@@ -17,7 +17,8 @@ playwright test
 │   ├─ fixtures/database.ts        one database connection for seeding (per worker)
 │   ├─ fixtures/electron.ts        launch one app with a throwaway profile (per worker)
 │   ├─ fixtures/auth.ts            bring the app into the auth state the spec asked for
-│   ├─ fixtures/orders.ts          the orders view's page object + per-test rows
+│   ├─ fixtures/orders.ts          the orders view's page object + per-test rows + the catalog rows
+│   ├─ fixtures/stock.ts           the stock pages' page objects
 │   └─ <page>/<feature>/*.spec.ts  one folder per page, subfolders per feature: auth/, orders-page/order/status/, …
 └─ e2e/global-teardown.ts          default() → delete the test logins
 ```
@@ -43,7 +44,8 @@ e2e/
        ├─ add-job.spec.ts
        ├─ products.spec.ts
        ├─ status.spec.ts          the workflow: pre-press, production, done
-       └─ release-gates.spec.ts   what refuses a release, and the admin override
+       ├─ release-gates.spec.ts   what refuses a release, and the admin override
+       └─ stock-deduction.spec.ts what a release books against the stock pages
 ```
 
 Later pages follow the same shape (`stamp-stock-page/`, `textile-stock-page/`,
@@ -62,11 +64,11 @@ never at the root.
 ## The fixture chain
 
 Nothing assembles the fixtures in one place. Each fixture file imports the
-previous file's `test` and extends it, so the chain is built by four import
+previous file's `test` and extends it, so the chain is built by five import
 lines:
 
 ```
-@playwright/test → fixtures/database.ts → fixtures/electron.ts → fixtures/auth.ts → fixtures/orders.ts
+@playwright/test → fixtures/database.ts → fixtures/electron.ts → fixtures/auth.ts → fixtures/orders.ts → fixtures/stock.ts
 ```
 
 A spec imports `test` from the link it needs — `./fixtures/auth` for a
@@ -123,11 +125,13 @@ Nothing here is imported by hand; the runner drives it from the config:
 | `fixtures/electron.ts` | Launches the built app; replaces Playwright's browser `page` |
 | `fixtures/auth.ts` | `user` option + signed-in `page`; `login` / `navbar` page objects; `signIn` / `signOut` helpers |
 | `fixtures/users.ts` | The test logins (data fixture) |
-| `fixtures/orders.ts` | `ordersPage` page object + per-test data of the orders view: `customer` (a fresh customer), `order` (a fresh order for it), `job` (a fresh job in that order), `orderFile` (a file linked to it), `newCustomer` (data for a customer the test creates in the app) — each created/cleaned up around the test. The state `order` and `job` are inserted in comes from the `orderSeed` / `jobSeed` options (`test.use({ orderSeed: IN_PROGRESS_ORDER })`); the defaults are an empty quote and an empty job. `stampModel` is worker-scoped catalog data the stock gate needs |
+| `fixtures/orders.ts` | `ordersPage` page object + per-test data of the orders view: `customer` (a fresh customer), `order` (a fresh order for it), `job` (a fresh job in that order), `orderFile` (a file linked to it), `newCustomer` (data for a customer the test creates in the app) — each created/cleaned up around the test. The state `order` and `job` are inserted in comes from the `orderSeed` / `jobSeed` options (`test.use({ orderSeed: IN_PROGRESS_ORDER })`); the defaults are an empty quote and an empty job. `catalog` (automatic) keeps the stamp models and the textile chain the product seeds reference in the catalog, reset to their seed stock before every test |
+| `fixtures/stock.ts` | `stampStockPage` / `textileStockPage` page objects, for reading stock after a release |
 | `fixtures/customers.ts` | The customers those fixtures use (data fixture) |
 | `fixtures/jobs.ts` | Job seeds (department, status, approval flag, optional product rows), product form values, the expected job number, the force-release reason (data fixture) |
 | `fixtures/files.ts` | The file the `orderFile` fixture links for the customer approval (data fixture) |
-| `fixtures/stamps.ts` | The out-of-stock stamp model the worker-scoped `stampModel` fixture keeps in the catalog for the stock gate (data fixture) |
+| `fixtures/stamps.ts` | The stamp models the `catalog` fixture keeps in the catalog: one out of stock for the gate, one in stock for the deduction (data fixture) |
+| `fixtures/textiles.ts` | The textile brand → product → variant chain the `catalog` fixture keeps in the catalog, in stock for the deduction (data fixture) |
 | `pom/*POM.ts` | Page objects — every locator a spec uses, one class per view/dialog, composed parent → child |
 | `pom/BasePOM.ts` | Ancestor of every page object: holds the page and the shared helpers (`withAttr()` picks one instance of a repeated element by data attribute) |
 | `support/testIds.ts` | The `TEST_IDS` registry, imported by components (`data-testid`) and page objects alike |

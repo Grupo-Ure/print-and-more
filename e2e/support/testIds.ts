@@ -293,6 +293,8 @@ export const TEST_IDS = {
       root: 'stock-table',
       /** One per row; `data-row-id` = model / variant id. */
       row: 'stock-table-row',
+      /** The row's stock figure; `data-stock` = the number shown (available stock on the textile page). */
+      rowStock: 'stock-table-row-stock',
       empty: 'stock-table-empty',
     },
     booking: {

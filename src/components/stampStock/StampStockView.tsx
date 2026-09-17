@@ -204,7 +204,11 @@ export function StampStockView({ userId }: StampStockViewProps) {
       header: 'Stock',
       align: 'right',
       sortValue: model => model.stock ?? 0,
-      render: model => model.stock ?? 0,
+      render: model => (
+        <span data-testid={TEST_IDS.stock.table.rowStock} data-stock={model.stock ?? 0}>
+          {model.stock ?? 0}
+        </span>
+      ),
     },
     {
       key: 'min_stock',

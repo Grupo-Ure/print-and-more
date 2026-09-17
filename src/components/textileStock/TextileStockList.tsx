@@ -210,7 +210,11 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
       header: 'Stock',
       align: 'right',
       sortValue: availableStock,
-      render: availableStock,
+      render: row => (
+        <span data-testid={TEST_IDS.stock.table.rowStock} data-stock={availableStock(row)}>
+          {availableStock(row)}
+        </span>
+      ),
     },
     {
       key: 'min_stock',

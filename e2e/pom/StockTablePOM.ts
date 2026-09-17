@@ -30,6 +30,11 @@ export class StockTablePOM extends BasePOM {
     return this.withAttr(this.rows, 'data-row-id', rowId)
   }
 
+  /** The row's stock figure; carries `data-stock`. */
+  rowStock(row: Locator): Locator {
+    return row.getByTestId(IDS.table.rowStock)
+  }
+
   booking(row: Locator): BookingField {
     return {
       quantity: row.getByTestId(IDS.booking.quantity),

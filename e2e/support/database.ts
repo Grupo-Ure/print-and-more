@@ -42,6 +42,13 @@ export type StampModelSeedRow = {
   stock: number
 }
 
+/** A brand → product → variant chain in the textile catalog; ids are fixed so products can reference the variant. */
+export type TextileChainSeed = {
+  brand: { id: string; name: string }
+  product: { id: string; brand_id: string; name: string }
+  variant: { id: string; product_id: string; color: string; size: string; stock: number }
+}
+
 /** What a spec gets to know about the file the fixture linked for it. */
 export type TestFile = FileSeedRow & { id: string; orderId: string }
 
@@ -53,6 +60,7 @@ export type TestFile = FileSeedRow & { id: string; orderId: string }
 export type ProductSeed = {
   [T in ChildTable]: {
     type: string
+    quantity: number
     childTable: T
     child: Omit<TablesInsert<T>, 'department_product_id'>
   }
@@ -235,16 +243,44 @@ export class TestDatabase {
 
   // ── Catalog ──────────────────────────────────────────────────────────────
 
-  /** Inserts the stamp model, or resets it to the seed if a previous run left it behind. */
+  /** Inserts the stamp model, or resets it to the seed (stock included) if it is already there. */
   async upsertStampModel(seed: StampModelSeedRow): Promise<void> {
     const { error } = await this.client.from('stamp_models').upsert(seed)
     if (error) throw error
   }
 
-  /** Deletes the stamp model; products that referenced it lose the reference (set null). */
+  /**
+   * Deletes the stamp model with the movements booked against it (a release
+   * writes those, and they block the delete); products that referenced it
+   * lose the reference (set null).
+   */
   async removeStampModel(id: string): Promise<void> {
+    const { error: movementError } = await this.client.from('stamp_stock_movements').delete().eq('model_id', id)
+    if (movementError) throw movementError
     const { error } = await this.client.from('stamp_models').delete().eq('id', id)
     if (error) throw error
+  }
+
+  /** Inserts the brand, product and variant, or resets them to the seed (stock included) if already there. */
+  async upsertTextileChain(seed: TextileChainSeed): Promise<void> {
+    const { error: brandError } = await this.client.from('textile_brands').upsert(seed.brand)
+    if (brandError) throw brandError
+    const { error: productError } = await this.client.from('textile_products').upsert(seed.product)
+    if (productError) throw productError
+    const { error: variantError } = await this.client.from('textile_variants').upsert(seed.variant)
+    if (variantError) throw variantError
+  }
+
+  /** Deletes the chain leaf first, with the movements booked against the variant; garments that referenced it lose the reference. */
+  async removeTextileChain(seed: TextileChainSeed): Promise<void> {
+    const { error: movementError } = await this.client.from('textile_stock_movements').delete().eq('variant_id', seed.variant.id)
+    if (movementError) throw movementError
+    const { error: variantError } = await this.client.from('textile_variants').delete().eq('id', seed.variant.id)
+    if (variantError) throw variantError
+    const { error: productError } = await this.client.from('textile_products').delete().eq('id', seed.product.id)
+    if (productError) throw productError
+    const { error: brandError } = await this.client.from('textile_brands').delete().eq('id', seed.brand.id)
+    if (brandError) throw brandError
   }
 
   // ── Products ─────────────────────────────────────────────────────────────
@@ -257,7 +293,7 @@ export class TestDatabase {
   async createProduct(job: TestJob, seed: ProductSeed): Promise<string> {
     const { data, error } = await this.client
       .from('department_products')
-      .insert({ job_id: job.id, department: job.department, type: seed.type, quantity: 1 })
+      .insert({ job_id: job.id, department: job.department, type: seed.type, quantity: seed.quantity })
       .select('id')
       .single()
     if (error) throw error

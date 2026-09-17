@@ -1,4 +1,5 @@
 import type { Locator, Page } from '@playwright/test'
+import type { JobStatus } from '../../src/types/database'
 import { TEST_IDS } from '../support/testIds'
 import { ForceReleaseDialogPOM } from './ForceReleaseDialogPOM'
 import { ProductSectionPOM } from './ProductSectionPOM'
@@ -69,5 +70,10 @@ export class JobDetailPOM extends BasePOM {
   /** The job detail only while it shows this job. */
   forJob(jobId: string): Locator {
     return this.withAttr(this.root, 'data-job-id', jobId)
+  }
+
+  /** The release button only while its next step is this status — to wait for the previous step to land. */
+  releaseButtonTo(target: JobStatus): Locator {
+    return this.withAttr(this.releaseButton, 'data-target', target)
   }
 }

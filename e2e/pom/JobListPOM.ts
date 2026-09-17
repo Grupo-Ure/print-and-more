@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
 import { JobContextMenuPOM } from './JobContextMenuPOM'
-import type { Department } from '../../src/types/database'
+import type { Department, JobStatus } from '../../src/types/database'
 import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.orders.jobList
@@ -35,6 +35,11 @@ export class JobListPOM extends BasePOM {
 
   row(jobId: string): Locator {
     return this.withAttr(this.rows, 'data-job-id', jobId)
+  }
+
+  /** The job's row only while the job is in this status — to wait for a transition to land. */
+  rowInStatus(jobId: string, status: JobStatus): Locator {
+    return this.withAttr(this.row(jobId), 'data-status', status)
   }
 
   rowMissingInfo(row: Locator): Locator {

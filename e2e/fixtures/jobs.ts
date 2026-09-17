@@ -1,7 +1,8 @@
 import type { Department, JobStatus } from '../../src/types/database'
 import type { Database } from '../../src/types/supabase'
 import type { ProductSeed } from '../support/database'
-import { OUT_OF_STOCK_STAMP_MODEL } from './stamps'
+import { IN_STOCK_STAMP_MODEL, OUT_OF_STOCK_STAMP_MODEL } from './stamps'
+import { IN_STOCK_TEXTILE_CHAIN } from './textiles'
 
 type HistoryEvent = Database['public']['Enums']['history_event']
 
@@ -56,6 +57,7 @@ export const FORCE_RELEASE_HISTORY_EVENT: HistoryEvent = 'EMERGENCY_TRIGGERED'
 /** The same OTHER product, as the rows the `job` fixture inserts. */
 export const OTHER_PRODUCT_ROW: ProductSeed = {
   type: 'OTHER',
+  quantity: Number(OTHER_PRODUCT.quantity),
   childTable: 'other_products',
   child: { description: OTHER_PRODUCT.description },
 }
@@ -63,6 +65,7 @@ export const OTHER_PRODUCT_ROW: ProductSeed = {
 /** A structured CopyShop product; its job auto-advances to pre-press once complete. */
 export const POSTER_PRODUCT_ROW: ProductSeed = {
   type: 'POSTER',
+  quantity: 1,
   childTable: 'poster_products',
   child: { format: 'A2', material: '120G_AFFICHEN', laminate: 'NEIN', width: 420, height: 594 },
 }
@@ -73,8 +76,24 @@ export const POSTER_PRODUCT_ROW: ProductSeed = {
  */
 export const OUT_OF_STOCK_STAMP_PRODUCT_ROW: ProductSeed = {
   type: 'TRODAT_PRINTY',
+  quantity: 1,
   childTable: 'trodat_printy_products',
   child: { model_id: OUT_OF_STOCK_STAMP_MODEL.id, color: 'OTHER' },
+}
+
+/** The same stamp product on the in-stock model: a release deducts `quantity` from that model. */
+export const IN_STOCK_STAMP_PRODUCT_ROW: ProductSeed = {
+  ...OUT_OF_STOCK_STAMP_PRODUCT_ROW,
+  quantity: 2,
+  child: { model_id: IN_STOCK_STAMP_MODEL.id, color: 'OTHER' },
+}
+
+/** A garment from own stock on the in-stock variant: a release deducts `quantity` from that variant. */
+export const OWN_STOCK_GARMENT_ROW: ProductSeed = {
+  type: 'TEXTILE_GARMENT',
+  quantity: 2,
+  childTable: 'textile_garment_products',
+  child: { origin: 'OWN_STOCK', variant_id: IN_STOCK_TEXTILE_CHAIN.variant.id },
 }
 
 /**
@@ -124,6 +143,19 @@ export const STAMP_JOB_IN_PREPRESS_OUT_OF_STOCK: JobSeed = {
   ...JOB_IN_PREPRESS,
   department: 'STAMP',
   product: OUT_OF_STOCK_STAMP_PRODUCT_ROW,
+}
+
+/** A complete stamp job in pre-press whose model can cover it. */
+export const STAMP_JOB_IN_PREPRESS_IN_STOCK: JobSeed = {
+  ...STAMP_JOB_IN_PREPRESS_OUT_OF_STOCK,
+  product: IN_STOCK_STAMP_PRODUCT_ROW,
+}
+
+/** A complete textile job in pre-press whose garment comes from a variant that can cover it. */
+export const TEXTILE_JOB_IN_PREPRESS_IN_STOCK: JobSeed = {
+  ...JOB_IN_PREPRESS,
+  department: 'TEXTILE',
+  product: OWN_STOCK_GARMENT_ROW,
 }
 
 /** A complete free-form job already in production. */

@@ -14,8 +14,9 @@ import { test as base } from './auth'
 import { NEW_CUSTOMER, TEST_CUSTOMER, type TestCustomer } from './customers'
 import { EMPTY_JOB, type JobSeed } from './jobs'
 import { APPROVAL_FILE } from './files'
-import { OUT_OF_STOCK_STAMP_MODEL } from './stamps'
-import type { StampModelSeedRow, TestCustomerRow, TestFile, TestJob, TestOrder } from '../support/database'
+import { IN_STOCK_STAMP_MODEL, OUT_OF_STOCK_STAMP_MODEL } from './stamps'
+import { IN_STOCK_TEXTILE_CHAIN } from './textiles'
+import type { TestCustomerRow, TestFile, TestJob, TestOrder } from '../support/database'
 import { NavbarPOM } from '../pom/NavbarPOM'
 import { OrdersPOM } from '../pom/OrdersPOM'
 
@@ -84,6 +85,14 @@ export const IN_PROGRESS_CASH_ORDER: OrderSeed = { ...IN_PROGRESS_ORDER, payment
 export const FINISHED_ORDER: OrderSeed = { ...IN_PROGRESS_ORDER, status: FINISHED_STATUS }
 
 type OrdersViewFixtures = {
+  /**
+   * The catalog rows the product seeds reference (two stamp models, one
+   * textile brand → product → variant). Automatic: before every test the
+   * rows are inserted, or reset to their seed if already there — so stock a
+   * previous test deducted is back to its seed value — and after the test
+   * they are removed with the movements booked against them.
+   */
+  catalog: void
   /** The orders view — the app's main screen, with every dialog it can open. */
   ordersPage: OrdersPOM
   /** What `order` inserts; override per describe block with `test.use({ orderSeed })`. */
@@ -110,15 +119,6 @@ type OrdersViewFixtures = {
   newCustomer: TestCustomer
 }
 
-type OrdersWorkerFixtures = {
-  /**
-   * The out-of-stock stamp model the stock-gate seeds reference. Catalog
-   * data, so inserted once per worker (reset if a previous run left it),
-   * automatically, and removed when the worker ends.
-   */
-  stampModel: StampModelSeedRow
-}
-
 // No `expect` in here: fixtures synchronise with `waitFor()`. A timeout then
 // reads as a setup failure, not as a test assertion.
 
@@ -132,16 +132,22 @@ async function reloadApp(page: Page, navbar: NavbarPOM): Promise<void> {
   await navbar.userMenu.trigger.waitFor()
 }
 
-export const test = base.extend<OrdersViewFixtures, OrdersWorkerFixtures>({
-  stampModel: [
+export const test = base.extend<OrdersViewFixtures>({
+  catalog: [
     async ({ database }, use) => {
       await database.upsertStampModel(OUT_OF_STOCK_STAMP_MODEL)
-      await use(OUT_OF_STOCK_STAMP_MODEL)
+      await database.upsertStampModel(IN_STOCK_STAMP_MODEL)
+      await database.upsertTextileChain(IN_STOCK_TEXTILE_CHAIN)
+
+      await use()
+
+      await database.removeTextileChain(IN_STOCK_TEXTILE_CHAIN)
+      await database.removeStampModel(IN_STOCK_STAMP_MODEL.id)
       await database.removeStampModel(OUT_OF_STOCK_STAMP_MODEL.id)
     },
-    // `auto`: present in every worker without a test naming it, so a stamp
-    // product seed always finds its model in the catalog.
-    { scope: 'worker', auto: true },
+    // `auto`: runs for every test without being named, so a product seed
+    // always finds its catalog row, at its seed stock.
+    { auto: true },
   ],
 
   ordersPage: async ({ page }, use) => {
