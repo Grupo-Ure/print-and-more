@@ -13,7 +13,9 @@ import type { DeliveryChoice, OrderStatus, PaymentMethod } from '../../src/types
 import { test as base } from './auth'
 import { NEW_CUSTOMER, TEST_CUSTOMER, type TestCustomer } from './customers'
 import { EMPTY_JOB, type JobSeed } from './jobs'
-import type { TestCustomerRow, TestJob, TestOrder } from '../support/database'
+import { APPROVAL_FILE } from './files'
+import { OUT_OF_STOCK_STAMP_MODEL } from './stamps'
+import type { StampModelSeedRow, TestCustomerRow, TestFile, TestJob, TestOrder } from '../support/database'
 import { NavbarPOM } from '../pom/NavbarPOM'
 import { OrdersPOM } from '../pom/OrdersPOM'
 
@@ -34,9 +36,14 @@ export function nextOrderDeadline(): string {
   return format(addDays(new Date(), 1), 'yyyy-MM-dd')
 }
 
+/** A deadline that has already passed (yesterday), produced at call time like the one above. */
+export function missedOrderDeadline(): string {
+  return format(addDays(new Date(), -1), 'yyyy-MM-dd')
+}
+
 /**
- * What the `order` fixture inserts. The deadline is a flag rather than a
- * date because a valid one has to be produced at call time.
+ * What the `order` fixture inserts. The deadline is named relative to today
+ * rather than as a date because a valid one has to be produced at call time.
  *
  * A seed must describe a state the app can reach, since nothing in the
  * database enforces the lifecycle:
@@ -50,17 +57,25 @@ export type OrderSeed = {
   status: OrderStatus
   delivery: DeliveryChoice | null
   paymentMethod: PaymentMethod
-  withDeadline: boolean
+  deadline: 'tomorrow' | 'yesterday' | null
 }
 
 /** A fresh quote with nothing set — the default. */
-export const QUOTE_ORDER: OrderSeed = { status: NEW_ORDER_STATUS, delivery: null, paymentMethod: 'INVOICE', withDeadline: false }
+export const QUOTE_ORDER: OrderSeed = { status: NEW_ORDER_STATUS, delivery: null, paymentMethod: 'INVOICE', deadline: null }
 
 /** An accepted order with deadline and delivery set: a job in it is complete as soon as it has a product. */
-export const IN_PROGRESS_ORDER: OrderSeed = { ...QUOTE_ORDER, status: IN_PROGRESS_STATUS, delivery: 'PICKUP', withDeadline: true }
+export const IN_PROGRESS_ORDER: OrderSeed = { ...QUOTE_ORDER, status: IN_PROGRESS_STATUS, delivery: 'PICKUP', deadline: 'tomorrow' }
 
 /** An accepted order still missing its deadline: a job in it is held in setup until one is set. */
-export const IN_PROGRESS_ORDER_WITHOUT_DEADLINE: OrderSeed = { ...IN_PROGRESS_ORDER, withDeadline: false }
+export const IN_PROGRESS_ORDER_WITHOUT_DEADLINE: OrderSeed = { ...IN_PROGRESS_ORDER, deadline: null }
+
+/** An accepted order whose deadline has passed: a job in it cannot enter pre-press any more. */
+export const IN_PROGRESS_ORDER_PAST_DEADLINE: OrderSeed = { ...IN_PROGRESS_ORDER, deadline: 'yesterday' }
+
+const DEADLINE_BY_NAME: Record<NonNullable<OrderSeed['deadline']>, () => string> = {
+  tomorrow: nextOrderDeadline,
+  yesterday: missedOrderDeadline,
+}
 
 /** An accepted order paid in cash: it skips FINISHED and closes in one step. */
 export const IN_PROGRESS_CASH_ORDER: OrderSeed = { ...IN_PROGRESS_ORDER, paymentMethod: 'CASH' }
@@ -85,12 +100,23 @@ type OrdersViewFixtures = {
   order: TestOrder
   /** A fresh job in `order` as `jobSeed` describes it, in its initial status. Removed with the order. */
   job: TestJob
+  /** A file linked to `order`, for the customer approval. Removed with the order. */
+  orderFile: TestFile
   /**
    * The data for a customer the test creates itself, through the app.
    * Whatever was saved under that email — the customer and its orders — is
    * removed afterwards, and beforehand in case an aborted run left it behind.
    */
   newCustomer: TestCustomer
+}
+
+type OrdersWorkerFixtures = {
+  /**
+   * The out-of-stock stamp model the stock-gate seeds reference. Catalog
+   * data, so inserted once per worker (reset if a previous run left it),
+   * automatically, and removed when the worker ends.
+   */
+  stampModel: StampModelSeedRow
 }
 
 // No `expect` in here: fixtures synchronise with `waitFor()`. A timeout then
@@ -106,7 +132,18 @@ async function reloadApp(page: Page, navbar: NavbarPOM): Promise<void> {
   await navbar.userMenu.trigger.waitFor()
 }
 
-export const test = base.extend<OrdersViewFixtures>({
+export const test = base.extend<OrdersViewFixtures, OrdersWorkerFixtures>({
+  stampModel: [
+    async ({ database }, use) => {
+      await database.upsertStampModel(OUT_OF_STOCK_STAMP_MODEL)
+      await use(OUT_OF_STOCK_STAMP_MODEL)
+      await database.removeStampModel(OUT_OF_STOCK_STAMP_MODEL.id)
+    },
+    // `auto`: present in every worker without a test naming it, so a stamp
+    // product seed always finds its model in the catalog.
+    { scope: 'worker', auto: true },
+  ],
+
   ordersPage: async ({ page }, use) => {
     await use(new OrdersPOM(page))
   },
@@ -127,7 +164,7 @@ export const test = base.extend<OrdersViewFixtures>({
       status: orderSeed.status,
       delivery: orderSeed.delivery,
       payment_method: orderSeed.paymentMethod,
-      deadline: orderSeed.withDeadline ? nextOrderDeadline() : null,
+      deadline: orderSeed.deadline ? DEADLINE_BY_NAME[orderSeed.deadline]() : null,
     })
     await reloadApp(page, navbar)
 
@@ -136,11 +173,22 @@ export const test = base.extend<OrdersViewFixtures>({
   },
 
   job: async ({ page, navbar, database, order, jobSeed }, use) => {
-    const job = await database.createJob(order.id, { department: jobSeed.department, status: jobSeed.status })
-    if (jobSeed.product) await database.createProduct(job, jobSeed.product)
+    const created = await database.createJob(order.id, {
+      department: jobSeed.department,
+      status: jobSeed.status,
+      customer_approval_required: jobSeed.customerApprovalRequired,
+    })
+    const productId = jobSeed.product ? await database.createProduct(created, jobSeed.product) : null
     await reloadApp(page, navbar)
 
-    await use(job)
+    await use({ ...created, productId })
+  },
+
+  orderFile: async ({ page, navbar, database, order }, use) => {
+    const file = await database.createFile(order.id, APPROVAL_FILE)
+    await reloadApp(page, navbar)
+
+    await use(file)
   },
 
   newCustomer: async ({ database }, use) => {

@@ -16,6 +16,8 @@ export class ProductSectionPOM extends BasePOM {
   readonly emptyAdd: Locator
   /** Every product row; each carries `data-product-id`, `data-type`, and `data-shortage` when stock is short. */
   readonly rows: Locator
+  /** The rows whose stock target cannot cover them. */
+  readonly shortageRows: Locator
   readonly dialog: ProductDialogPOM
 
   constructor(page: Page) {
@@ -26,6 +28,7 @@ export class ProductSectionPOM extends BasePOM {
     this.empty = this.root.getByTestId(IDS.empty)
     this.emptyAdd = this.empty.getByTestId(IDS.emptyAdd)
     this.rows = this.table.getByTestId(IDS.row)
+    this.shortageRows = this.withAttr(this.rows, 'data-shortage', 'true')
     this.dialog = new ProductDialogPOM(page)
   }
 

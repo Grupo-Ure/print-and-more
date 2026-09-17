@@ -21,10 +21,13 @@ export class JobSettingsDialogPOM extends BasePOM {
   readonly grantApproval: Locator
   readonly approvalGranted: Locator
   readonly grantDialog: GrantApprovalDialogPOM
+  /** The dialog's own close control — the vendored dialog primitive renders it, so it is found by role inside the root. */
+  readonly close: Locator
 
   constructor(page: Page) {
     super(page)
     this.root = page.getByTestId(IDS.root)
+    this.close = this.root.getByRole('button', { name: 'Close' })
     this.separateDeadline = this.root.getByTestId(IDS.separateDeadline)
     this.deadline = this.root.getByTestId(IDS.deadline)
     this.separateDelivery = this.root.getByTestId(IDS.separateDelivery)

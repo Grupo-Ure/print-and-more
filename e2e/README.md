@@ -42,7 +42,8 @@ e2e/
    └─ job/                        the job feature
        ├─ add-job.spec.ts
        ├─ products.spec.ts
-       └─ status.spec.ts          the whole workflow: pre-press, production, done, gates, …
+       ├─ status.spec.ts          the workflow: pre-press, production, done
+       └─ release-gates.spec.ts   what refuses a release, and the admin override
 ```
 
 Later pages follow the same shape (`stamp-stock-page/`, `textile-stock-page/`,
@@ -122,9 +123,11 @@ Nothing here is imported by hand; the runner drives it from the config:
 | `fixtures/electron.ts` | Launches the built app; replaces Playwright's browser `page` |
 | `fixtures/auth.ts` | `user` option + signed-in `page`; `login` / `navbar` page objects; `signIn` / `signOut` helpers |
 | `fixtures/users.ts` | The test logins (data fixture) |
-| `fixtures/orders.ts` | `ordersPage` page object + per-test data of the orders view: `customer` (a fresh customer), `order` (a fresh order for it), `job` (a fresh job in that order), `newCustomer` (data for a customer the test creates in the app) — each created/cleaned up around the test. The state `order` and `job` are inserted in comes from the `orderSeed` / `jobSeed` options (`test.use({ orderSeed: IN_PROGRESS_ORDER })`); the defaults are an empty quote and an empty job |
+| `fixtures/orders.ts` | `ordersPage` page object + per-test data of the orders view: `customer` (a fresh customer), `order` (a fresh order for it), `job` (a fresh job in that order), `orderFile` (a file linked to it), `newCustomer` (data for a customer the test creates in the app) — each created/cleaned up around the test. The state `order` and `job` are inserted in comes from the `orderSeed` / `jobSeed` options (`test.use({ orderSeed: IN_PROGRESS_ORDER })`); the defaults are an empty quote and an empty job. `stampModel` is worker-scoped catalog data the stock gate needs |
 | `fixtures/customers.ts` | The customers those fixtures use (data fixture) |
-| `fixtures/jobs.ts` | Job seeds (department + optional product rows), product form values and the expected job number (data fixture) |
+| `fixtures/jobs.ts` | Job seeds (department, status, approval flag, optional product rows), product form values, the expected job number, the force-release reason (data fixture) |
+| `fixtures/files.ts` | The file the `orderFile` fixture links for the customer approval (data fixture) |
+| `fixtures/stamps.ts` | The out-of-stock stamp model the worker-scoped `stampModel` fixture keeps in the catalog for the stock gate (data fixture) |
 | `pom/*POM.ts` | Page objects — every locator a spec uses, one class per view/dialog, composed parent → child |
 | `pom/BasePOM.ts` | Ancestor of every page object: holds the page and the shared helpers (`withAttr()` picks one instance of a repeated element by data attribute) |
 | `support/testIds.ts` | The `TEST_IDS` registry, imported by components (`data-testid`) and page objects alike |

@@ -153,9 +153,16 @@ for (const item of items) {
 expect(items.map(item => item.status)).toEqual(fixtures.allDoneStatuses)
 ```
 
-Generating *test cases* in a loop — one case per entry of a fixture table —
-is a different thing and is fine: each generated case still contains its own
-straight-line assertions.
+### Never register a test inside a loop
+
+The same goes for the test object itself: no `test(...)`, `describe(...)`
+or `test.use(...)` inside a `for`, a `forEach`, a `map` or any other
+iteration, even when the cases would be generated from a fixture table.
+Each case is written out in full, with its own name and its own block.
+Generated cases hide what is actually being run behind the table, make a
+single case impossible to find, read or run on its own, and a change to
+the table silently adds or removes tests. Three similar cases written out
+three times are the intended cost.
 
 ---
 
@@ -293,6 +300,7 @@ maximizes assertion count or case count.
 | Hardcoding the same literal in both setup and assertion | The assertion can silently stop testing anything if the two drift apart | Reference the same fixture constant in both places |
 | Asserting an exact error message | Brittle — breaks on copy changes unrelated to behavior | Assert a status/code/category |
 | An assertion inside a loop body | Stops at the first failing iteration and hides the rest; zero iterations pass silently | Collect the values and make one assertion against the whole collection |
+| A `test` / `describe` registered inside a loop | Hides which cases exist behind a table; a case cannot be found or run on its own | Write each case out in full |
 | Asserting every field of a result with exact values | Over-specified, couples the test to incidental detail | Assert only the fields that are semantically meaningful to the case |
 | Testing internal implementation details | Breaks on refactors that don't change behavior | Test the public input/output contract |
 | One test case asserting many unrelated behaviors | Failure doesn't say what broke; hard to read | Split into focused cases, one reason to fail each |

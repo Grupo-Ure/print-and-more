@@ -1,5 +1,9 @@
 import type { Department, JobStatus } from '../../src/types/database'
+import type { Database } from '../../src/types/supabase'
 import type { ProductSeed } from '../support/database'
+import { OUT_OF_STOCK_STAMP_MODEL } from './stamps'
+
+type HistoryEvent = Database['public']['Enums']['history_event']
 
 /**
  * The department the suite adds jobs to when the department itself is not
@@ -39,6 +43,14 @@ export const OTHER_PRODUCT = {
   quantity: '2',
 } as const satisfies Record<string, string>
 
+// ── Force release ─────────────────────────────────────────────────────────
+
+/** What an admin types into the force-release prompt. */
+export const FORCE_RELEASE_REASON = 'E2E emergency release'
+
+/** The history entry a force release writes. */
+export const FORCE_RELEASE_HISTORY_EVENT: HistoryEvent = 'EMERGENCY_TRIGGERED'
+
 // ── Rows to insert ────────────────────────────────────────────────────────
 
 /** The same OTHER product, as the rows the `job` fixture inserts. */
@@ -56,8 +68,18 @@ export const POSTER_PRODUCT_ROW: ProductSeed = {
 }
 
 /**
- * What the `job` fixture inserts: the department, the status, and optionally
- * one product.
+ * A stamp product on the out-of-stock model. `OTHER` as the ink colour means
+ * no replacement pad is looked up, so the model is the only stock target.
+ */
+export const OUT_OF_STOCK_STAMP_PRODUCT_ROW: ProductSeed = {
+  type: 'TRODAT_PRINTY',
+  childTable: 'trodat_printy_products',
+  child: { model_id: OUT_OF_STOCK_STAMP_MODEL.id, color: 'OTHER' },
+}
+
+/**
+ * What the `job` fixture inserts: the department, the status, whether the
+ * customer has to approve it, and optionally one product.
  *
  * A seed must describe a state the app can reach, since nothing in the
  * database enforces the workflow:
@@ -70,20 +92,39 @@ export const POSTER_PRODUCT_ROW: ProductSeed = {
 export type JobSeed = {
   department: Department
   status: JobStatus
+  customerApprovalRequired: boolean
   product: ProductSeed | null
 }
 
 /** A job with nothing in it — the default. */
-export const EMPTY_JOB: JobSeed = { department: TEST_JOB_DEPARTMENT, status: NEW_JOB_STATUS, product: null }
+export const EMPTY_JOB: JobSeed = {
+  department: TEST_JOB_DEPARTMENT,
+  status: NEW_JOB_STATUS,
+  customerApprovalRequired: false,
+  product: null,
+}
 
 /** A free-form job with content: complete once the order supplies deadline and delivery, but never auto-advances. */
 export const FREE_FORM_JOB_WITH_PRODUCT: JobSeed = { ...EMPTY_JOB, product: OTHER_PRODUCT_ROW }
 
 /** A structured job with content: auto-advances to pre-press once complete. */
-export const STRUCTURED_JOB_WITH_PRODUCT: JobSeed = { department: 'COPYSHOP', status: NEW_JOB_STATUS, product: POSTER_PRODUCT_ROW }
+export const STRUCTURED_JOB_WITH_PRODUCT: JobSeed = { ...EMPTY_JOB, department: 'COPYSHOP', product: POSTER_PRODUCT_ROW }
+
+/** A structured job without content: held in setup whatever the order supplies. */
+export const STRUCTURED_JOB_WITHOUT_PRODUCT: JobSeed = { ...STRUCTURED_JOB_WITH_PRODUCT, product: null }
 
 /** A complete free-form job already released to pre-press. */
 export const JOB_IN_PREPRESS: JobSeed = { ...FREE_FORM_JOB_WITH_PRODUCT, status: PREPRESS_STATUS }
+
+/** A complete job in pre-press that the customer still has to approve. */
+export const JOB_IN_PREPRESS_AWAITING_APPROVAL: JobSeed = { ...JOB_IN_PREPRESS, customerApprovalRequired: true }
+
+/** A complete stamp job in pre-press whose only stock target is empty. */
+export const STAMP_JOB_IN_PREPRESS_OUT_OF_STOCK: JobSeed = {
+  ...JOB_IN_PREPRESS,
+  department: 'STAMP',
+  product: OUT_OF_STOCK_STAMP_PRODUCT_ROW,
+}
 
 /** A complete free-form job already in production. */
 export const JOB_IN_PRODUCTION: JobSeed = { ...FREE_FORM_JOB_WITH_PRODUCT, status: IN_PRODUCTION_STATUS }

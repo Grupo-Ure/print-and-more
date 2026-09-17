@@ -32,10 +32,16 @@ export async function signIn(page: Page, user: TestUser): Promise<void> {
   await userMenu.signedInAs(user.email).waitFor()
 }
 
-/** Signs out through the account menu and waits for the login screen. */
+/**
+ * Signs out through the account menu and waits for the login screen. Reloads
+ * first: the previous test may have left a dialog open, and its overlay would
+ * swallow the click on the menu.
+ */
 export async function signOut(page: Page): Promise<void> {
   const login = new LoginPOM(page)
   const { userMenu } = new NavbarPOM(page)
+  await page.reload()
+  await userMenu.trigger.waitFor()
   await userMenu.open()
   await userMenu.signOut.click()
   await login.root.waitFor()

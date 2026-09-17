@@ -24,7 +24,26 @@ export type OrderSeedRow = {
 export type JobSeedRow = {
   department: Department
   status: JobStatus
+  customer_approval_required: boolean
 }
+
+/** The columns a fixture chooses for a file it links to an order. */
+export type FileSeedRow = {
+  display_name: string
+  path: string
+  role: Database['public']['Enums']['file_role']
+}
+
+/** The columns a fixture chooses for a stamp model in the catalog; the id is fixed so products can reference it. */
+export type StampModelSeedRow = {
+  id: string
+  name: string
+  type: string
+  stock: number
+}
+
+/** What a spec gets to know about the file the fixture linked for it. */
+export type TestFile = FileSeedRow & { id: string; orderId: string }
 
 /**
  * A product to insert for a job: the parent's `type` plus the typed child row
@@ -55,6 +74,8 @@ export type TestJob = {
   jobNumber: string
   orderId: string
   department: Department
+  /** The product the fixture inserted with the job, if its seed had one. */
+  productId: string | null
 }
 
 function requiredEnv(name: string): string {
@@ -196,7 +217,34 @@ export class TestDatabase {
     const payload = { order_id: orderId, ...seed } as JobInsert
     const { data, error } = await this.client.from('jobs').insert(payload).select('id, job_number').single()
     if (error) throw error
-    return { id: data.id, jobNumber: data.job_number, orderId, department: seed.department }
+    return { id: data.id, jobNumber: data.job_number, orderId, department: seed.department, productId: null }
+  }
+
+  // ── Files ────────────────────────────────────────────────────────────────
+
+  /** Links a file to an order (a row only — nothing is stored on disk). Removed with the order by cascade. */
+  async createFile(orderId: string, seed: FileSeedRow): Promise<TestFile> {
+    const { data, error } = await this.client
+      .from('files')
+      .insert({ order_id: orderId, ...seed })
+      .select('id')
+      .single()
+    if (error) throw error
+    return { ...seed, id: data.id, orderId }
+  }
+
+  // ── Catalog ──────────────────────────────────────────────────────────────
+
+  /** Inserts the stamp model, or resets it to the seed if a previous run left it behind. */
+  async upsertStampModel(seed: StampModelSeedRow): Promise<void> {
+    const { error } = await this.client.from('stamp_models').upsert(seed)
+    if (error) throw error
+  }
+
+  /** Deletes the stamp model; products that referenced it lose the reference (set null). */
+  async removeStampModel(id: string): Promise<void> {
+    const { error } = await this.client.from('stamp_models').delete().eq('id', id)
+    if (error) throw error
   }
 
   // ── Products ─────────────────────────────────────────────────────────────
