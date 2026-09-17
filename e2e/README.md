@@ -97,9 +97,9 @@ Nothing here is imported by hand; the runner drives it from the config:
 | `fixtures/electron.ts` | Launches the built app; replaces Playwright's browser `page` |
 | `fixtures/auth.ts` | `user` option + signed-in `page`; `login` / `navbar` page objects; `signIn` / `signOut` helpers |
 | `fixtures/users.ts` | The test logins (data fixture) |
-| `fixtures/orders.ts` | `ordersPage` page object + per-test data of the orders view: `customer` (a fresh customer), `order` (a fresh quote for it), `job` (a fresh job in that order), `newCustomer` (data for a customer the test creates in the app) — each created/cleaned up around the test |
+| `fixtures/orders.ts` | `ordersPage` page object + per-test data of the orders view: `customer` (a fresh customer), `order` (a fresh order for it), `job` (a fresh job in that order), `newCustomer` (data for a customer the test creates in the app) — each created/cleaned up around the test. The state `order` and `job` are inserted in comes from the `orderSeed` / `jobSeed` options (`test.use({ orderSeed: IN_PROGRESS_ORDER })`); the defaults are an empty quote and an empty job |
 | `fixtures/customers.ts` | The customers those fixtures use (data fixture) |
-| `fixtures/jobs.ts` | The department, product and expected job number the suite builds jobs with (data fixture) |
+| `fixtures/jobs.ts` | Job seeds (department + optional product rows), product form values and the expected job number (data fixture) |
 | `pom/*POM.ts` | Page objects — every locator a spec uses, one class per view/dialog, composed parent → child |
 | `pom/BasePOM.ts` | Ancestor of every page object: holds the page and the shared helpers (`withAttr()` picks one instance of a repeated element by data attribute) |
 | `support/testIds.ts` | The `TEST_IDS` registry, imported by components (`data-testid`) and page objects alike |

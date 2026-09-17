@@ -1,11 +1,34 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import type { Database } from '../../src/types/supabase'
+import type { Database, TablesInsert } from '../../src/types/supabase'
+import type { ChildTable } from '../../src/types/product'
 import type { TestCustomer } from '../fixtures/customers'
 import type { TestUser } from '../fixtures/users'
 
 type OrderInsert = Database['public']['Tables']['orders']['Insert']
 type JobInsert = Database['public']['Tables']['jobs']['Insert']
 type Department = Database['public']['Enums']['department']
+type OrderStatus = Database['public']['Enums']['order_status']
+type DeliveryType = Database['public']['Enums']['delivery_type']
+
+/** The columns a fixture chooses for an order it inserts; everything else takes the table's defaults. */
+export type OrderSeedRow = {
+  status: OrderStatus
+  deadline: string | null
+  delivery: DeliveryType | null
+}
+
+/**
+ * A product to insert for a job: the parent's `type` plus the typed child row
+ * that type maps to. Distributed over the child tables so `child` is typed by
+ * the `childTable` chosen.
+ */
+export type ProductSeed = {
+  [T in ChildTable]: {
+    type: string
+    childTable: T
+    child: Omit<TablesInsert<T>, 'department_product_id'>
+  }
+}[ChildTable]
 
 /** What a spec gets to know about the customer the fixture inserted for it. */
 export type TestCustomerRow = TestCustomer & { id: string }
@@ -136,12 +159,12 @@ export class TestDatabase {
   // ── Orders ───────────────────────────────────────────────────────────────
 
   /**
-   * Inserts a quote for an existing customer. `order_number` is assigned by the
-   * trg_order_number trigger, so it is left out of the payload (as the app's
-   * NewOrderDialog does); `created_by` stays null under the service role.
+   * Inserts an order for an existing customer in the given state. `order_number`
+   * is assigned by the trg_order_number trigger, so it is left out of the payload
+   * (as the app's NewOrderDialog does); `created_by` stays null under the service role.
    */
-  async createOrder(customerId: string): Promise<TestOrder> {
-    const payload = { customer_id: customerId } as OrderInsert
+  async createOrder(customerId: string, seed: OrderSeedRow): Promise<TestOrder> {
+    const payload = { customer_id: customerId, ...seed } as OrderInsert
     const { data, error } = await this.client.from('orders').insert(payload).select('id, order_number').single()
     if (error) throw error
     return { id: data.id, orderNumber: data.order_number, customerId }
@@ -165,5 +188,26 @@ export class TestDatabase {
     const { data, error } = await this.client.from('jobs').insert(payload).select('id, job_number').single()
     if (error) throw error
     return { id: data.id, jobNumber: data.job_number, orderId, department }
+  }
+
+  // ── Products ─────────────────────────────────────────────────────────────
+
+  /**
+   * Inserts one product for a job the same way the app does: the parent row in
+   * `department_products`, then the typed child row keyed by the parent's id.
+   * Removed with the job (cascade) — no separate cleanup.
+   */
+  async createProduct(job: TestJob, seed: ProductSeed): Promise<string> {
+    const { data, error } = await this.client
+      .from('department_products')
+      .insert({ job_id: job.id, department: job.department, type: seed.type, quantity: 1 })
+      .select('id')
+      .single()
+    if (error) throw error
+    const { error: childError } = await this.client
+      .from(seed.childTable)
+      .insert({ department_product_id: data.id, ...seed.child })
+    if (childError) throw childError
+    return data.id
   }
 }

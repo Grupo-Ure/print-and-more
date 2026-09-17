@@ -9,16 +9,19 @@
  */
 import type { Page } from '@playwright/test'
 import { addDays, format } from 'date-fns'
-import type { OrderStatus } from '../../src/types/database'
+import type { DeliveryChoice, OrderStatus } from '../../src/types/database'
 import { test as base } from './auth'
 import { NEW_CUSTOMER, TEST_CUSTOMER, type TestCustomer } from './customers'
-import { TEST_JOB_DEPARTMENT } from './jobs'
+import { EMPTY_JOB, type JobSeed } from './jobs'
 import type { TestCustomerRow, TestJob, TestOrder } from '../support/database'
 import { NavbarPOM } from '../pom/NavbarPOM'
 import { OrdersPOM } from '../pom/OrdersPOM'
 
 /** The status every order starts in, however it was created. */
 export const NEW_ORDER_STATUS: OrderStatus = 'QUOTE'
+
+/** The status "Start processing" moves an order to. */
+export const IN_PROGRESS_STATUS: OrderStatus = 'IN_PROGRESS'
 
 /**
  * A deadline the picker accepts: the earliest selectable day is tomorrow, so
@@ -28,21 +31,41 @@ export function nextOrderDeadline(): string {
   return format(addDays(new Date(), 1), 'yyyy-MM-dd')
 }
 
+/**
+ * What the `order` fixture inserts. The deadline is a flag rather than a
+ * date because a valid one has to be produced at call time.
+ */
+export type OrderSeed = {
+  status: OrderStatus
+  delivery: DeliveryChoice | null
+  withDeadline: boolean
+}
+
+/** A fresh quote with nothing set — the default. */
+export const QUOTE_ORDER: OrderSeed = { status: NEW_ORDER_STATUS, delivery: null, withDeadline: false }
+
+/** An accepted order with deadline and delivery set: a job in it is complete as soon as it has a product. */
+export const IN_PROGRESS_ORDER: OrderSeed = { status: IN_PROGRESS_STATUS, delivery: 'PICKUP', withDeadline: true }
+
+/** An accepted order still missing its deadline: a job in it is held in setup until one is set. */
+export const IN_PROGRESS_ORDER_WITHOUT_DEADLINE: OrderSeed = { ...IN_PROGRESS_ORDER, withDeadline: false }
+
 type OrdersViewFixtures = {
   /** The orders view — the app's main screen, with every dialog it can open. */
   ordersPage: OrdersPOM
+  /** What `order` inserts; override per describe block with `test.use({ orderSeed })`. */
+  orderSeed: OrderSeed
+  /** What `job` inserts; override per describe block with `test.use({ jobSeed })`. */
+  jobSeed: JobSeed
   /**
    * A customer that exists only for this test: inserted before it through
    * the runner's database connection, deleted after it — together with any
    * order the test created for it — even when the test fails.
    */
   customer: TestCustomerRow
-  /** A fresh quote for `customer`, created before the test and deleted after it. */
+  /** A fresh order for `customer` in the state `orderSeed` describes, created before the test and deleted after it. */
   order: TestOrder
-  /**
-   * A fresh job of `TEST_JOB_DEPARTMENT` in `order`, inserted in its initial
-   * state. Removed with the order.
-   */
+  /** A fresh job in `order` as `jobSeed` describes it, in its initial status. Removed with the order. */
   job: TestJob
   /**
    * The data for a customer the test creates itself, through the app.
@@ -70,6 +93,9 @@ export const test = base.extend<OrdersViewFixtures>({
     await use(new OrdersPOM(page))
   },
 
+  orderSeed: [QUOTE_ORDER, { option: true }],
+  jobSeed: [EMPTY_JOB, { option: true }],
+
   customer: async ({ page, navbar, database }, use) => {
     const customer = await database.createCustomer(TEST_CUSTOMER)
     await reloadApp(page, navbar)
@@ -78,16 +104,21 @@ export const test = base.extend<OrdersViewFixtures>({
     await database.removeCustomer(customer.id)
   },
 
-  order: async ({ page, navbar, database, customer }, use) => {
-    const order = await database.createOrder(customer.id)
+  order: async ({ page, navbar, database, customer, orderSeed }, use) => {
+    const { withDeadline, ...columns } = orderSeed
+    const order = await database.createOrder(customer.id, {
+      ...columns,
+      deadline: withDeadline ? nextOrderDeadline() : null,
+    })
     await reloadApp(page, navbar)
 
     await use(order)
     await database.removeOrder(order.id)
   },
 
-  job: async ({ page, navbar, database, order }, use) => {
-    const job = await database.createJob(order.id, TEST_JOB_DEPARTMENT)
+  job: async ({ page, navbar, database, order, jobSeed }, use) => {
+    const job = await database.createJob(order.id, jobSeed.department)
+    if (jobSeed.product) await database.createProduct(job, jobSeed.product)
     await reloadApp(page, navbar)
 
     await use(job)
