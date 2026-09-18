@@ -11,7 +11,8 @@ import { TEST_IDS } from '@e2e/support/testIds'
 
 /**
  * "Add Job" group for the active order: one button per department, each
- * creating a job for that department straight away — no picker dialog.
+ * creating a job for that department straight away — no picker dialog. The
+ * new job is selected with its "add product" dialog already open.
  * Renders nothing while the order is finished/billed — closed for new work.
  */
 export function AddJobButtons({ className }: { className?: string }) {
@@ -47,7 +48,8 @@ export function AddJobButtons({ className }: { className?: string }) {
         customer_approval_file_id: null,
       },
       {
-        onSuccess: created => setActiveJob(created.id),
+        // A new job is empty, so go straight on to its first product.
+        onSuccess: created => setActiveJob(created.id, { openProductAdd: true }),
         onError: () => showError('Error creating job'),
       },
     )

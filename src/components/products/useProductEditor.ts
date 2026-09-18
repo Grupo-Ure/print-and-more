@@ -4,7 +4,7 @@
  * department detail composes this with its own type dropdown, forms, and table.
  */
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   useDeleteProduct,
   useProductFilesByJobId,
@@ -13,6 +13,7 @@ import {
 import type { JobStatus, JobRow } from '../../types/database'
 import type { LoadedProduct } from '../../types/product'
 import type { ProductFileAssignment } from '../../services/departmentProductService'
+import { useOrderSelection } from '../../hooks/useOrderSelection'
 import { useToast } from '../Toast'
 import { useConfirm } from '../ConfirmDialog'
 
@@ -45,10 +46,19 @@ export function useProductEditor(
 
   const deleteProduct = useDeleteProduct()
 
-  const [mode, setMode] = useState<EditorMode>({ kind: 'idle' })
-
   // Products are read-only once the job is released to production or done.
   const isReadOnly = jobStatus === 'IN_PRODUCTION' || jobStatus === 'DONE'
+
+  // A freshly created job is selected with a one-shot request to start in
+  // "add" mode (see AddJobButtons). The department sections are keyed by job
+  // id, so this initialiser runs once per job; the request is cleared right
+  // after so re-selecting the job later opens the editor idle as usual.
+  const { pendingProductAddJobId, clearPendingProductAdd } = useOrderSelection()
+  const startInAdd = pendingProductAddJobId === job.id && !isReadOnly
+  const [mode, setMode] = useState<EditorMode>(() => (startInAdd ? { kind: 'add' } : { kind: 'idle' }))
+  useEffect(() => {
+    if (pendingProductAddJobId === job.id) clearPendingProductAdd()
+  }, [pendingProductAddJobId, job.id, clearPendingProductAdd])
 
   const openAdd = useCallback(() => setMode({ kind: 'add' }), [])
   const openEdit = useCallback((product: LoadedProduct) => setMode({ kind: 'edit', product }), [])
