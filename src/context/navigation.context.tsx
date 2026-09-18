@@ -11,13 +11,26 @@ import { useSupabaseSession } from '../hooks/useSupabaseSession'
 
 export type AppView = 'orders' | 'stampStock' | 'textileStock' | 'userManagement' | 'profile'
 
+type SetActiveJobOptions = {
+  /**
+   * Open the job's "add product" dialog as soon as its detail mounts. Used
+   * right after creating a job so the user lands in product entry without a
+   * second click. One-shot: consumed by the product editor of that job.
+   */
+  openProductAdd?: boolean
+}
+
 type NavigationValue = {
   view: AppView
   navigate: (view: AppView) => void
   activeOrderId: string | null
   activeJobId: string | null
+  /** The job whose product editor should open in "add" mode on mount, if any. */
+  pendingProductAddJobId: string | null
   setActiveOrder: (orderId: string | null) => void
-  setActiveJob: (jobId: string | null) => void
+  setActiveJob: (jobId: string | null, options?: SetActiveJobOptions) => void
+  /** Called by the product editor once it has acted on the pending request. */
+  clearPendingProductAdd: () => void
   clearActive: () => void
 }
 
@@ -26,9 +39,14 @@ const NavigationContext = createContext<NavigationValue | null>(null)
 type Selection = {
   activeOrderId: string | null
   activeJobId: string | null
+  pendingProductAddJobId: string | null
 }
 
-const INITIAL_SELECTION: Selection = { activeOrderId: null, activeJobId: null }
+const INITIAL_SELECTION: Selection = {
+  activeOrderId: null,
+  activeJobId: null,
+  pendingProductAddJobId: null,
+}
 
 export function NavigationProvider({ children }: { children: ReactNode }) {
   const [view, setView] = useState<AppView>('orders')
@@ -42,13 +60,25 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
     setSelection(prev => {
       if (orderId == null) return INITIAL_SELECTION
       // A job selection is only meaningful within its order.
-      if (prev.activeOrderId !== orderId) return { activeOrderId: orderId, activeJobId: null }
+      if (prev.activeOrderId !== orderId) return { ...INITIAL_SELECTION, activeOrderId: orderId }
       return { ...prev, activeOrderId: orderId }
     })
   }, [])
 
-  const setActiveJob = useCallback((jobId: string | null) => {
-    setSelection(prev => ({ ...prev, activeJobId: jobId }))
+  const setActiveJob = useCallback((jobId: string | null, options?: SetActiveJobOptions) => {
+    setSelection(prev => ({
+      ...prev,
+      activeJobId: jobId,
+      // Selecting a job in the same update as the request means the editor can
+      // never observe the flag for a job other than the one it was meant for.
+      pendingProductAddJobId: jobId != null && options?.openProductAdd ? jobId : null,
+    }))
+  }, [])
+
+  const clearPendingProductAdd = useCallback(() => {
+    setSelection(prev =>
+      prev.pendingProductAddJobId == null ? prev : { ...prev, pendingProductAddJobId: null },
+    )
   }, [])
 
   const clearActive = useCallback(() => {
@@ -89,11 +119,13 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       navigate,
       activeOrderId: selection.activeOrderId,
       activeJobId: selection.activeJobId,
+      pendingProductAddJobId: selection.pendingProductAddJobId,
       setActiveOrder,
       setActiveJob,
+      clearPendingProductAdd,
       clearActive,
     }),
-    [view, navigate, selection, setActiveOrder, setActiveJob, clearActive],
+    [view, navigate, selection, setActiveOrder, setActiveJob, clearPendingProductAdd, clearActive],
   )
 
   return <NavigationContext.Provider value={value}>{children}</NavigationContext.Provider>
