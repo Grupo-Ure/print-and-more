@@ -4,6 +4,7 @@ import { historyService, type HistoryEvent } from '../services/historyService'
 import { orderService, type OrderListEntry } from '../services/orderService'
 import type { Auftrag, Department, OrderStatus } from '../types/database'
 import type { Database } from '../types/supabase'
+import { UNASSIGNED_ASSIGNEE, type AssigneeFilterValue } from '../lib/orderFilters'
 
 type OrderInsert = Database['public']['Tables']['orders']['Insert']
 type OrderUpdate = Database['public']['Tables']['orders']['Update']
@@ -16,7 +17,21 @@ export type OrdersListFilter = {
   deadlineTo: string
   intakeFrom: string
   intakeTo: string
-  department: Department | 'All'
+  /** Empty = every department. */
+  departments: Department[]
+  /** Empty = every assignee. */
+  assigneeIds: AssigneeFilterValue[]
+}
+
+function matchesJobFilters(order: OrderListEntry, filter: OrdersListFilter): boolean {
+  const jobs = order.jobs ?? []
+  const departmentOk =
+    filter.departments.length === 0 ||
+    jobs.some(job => filter.departments.includes(job.department))
+  const assigneeOk =
+    filter.assigneeIds.length === 0 ||
+    jobs.some(job => filter.assigneeIds.includes(job.assignee_id ?? UNASSIGNED_ASSIGNEE))
+  return departmentOk && assigneeOk
 }
 
 export const orderKeys = {
@@ -87,15 +102,12 @@ export function useOrdersList(filter: OrdersListFilter) {
     },
     enabled: hasStatusFilter && searchSettled,
     refetchOnWindowFocus: false,
-    // Department is filtered over the cached rows (jobs are already loaded),
-    // so switching departments never triggers a refetch — hence not in the key.
+    // Department and assignee are filtered over the cached rows (jobs are already
+    // loaded), so toggling them never triggers a refetch — hence not in the key.
     select:
-      filter.department === 'All'
+      filter.departments.length === 0 && filter.assigneeIds.length === 0
         ? undefined
-        : orders =>
-            orders.filter(
-              order => order.jobs?.some(job => job.department === filter.department) ?? false,
-            ),
+        : orders => orders.filter(order => matchesJobFilters(order, filter)),
   })
 
   return {

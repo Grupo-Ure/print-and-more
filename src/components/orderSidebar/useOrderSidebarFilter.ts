@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { DEPARTMENTS, ORDER_STATUS_LIST, type OrderStatus } from '../../types/database'
+import { ORDER_STATUS_LIST, type Department, type OrderStatus } from '../../types/database'
+import type { AssigneeFilterValue } from '../../lib/orderFilters'
 
 const DEFAULT_STATUS_TOGGLES: Record<OrderStatus, boolean> = {
   QUOTE: true,
@@ -13,11 +14,14 @@ export type FilterState = {
   searchDebounced: string
   statusAll: boolean
   statusToggles: Record<OrderStatus, boolean>
+  /** Empty = every department. */
+  departments: Department[]
   deadlineFrom: string
   deadlineTo: string
   intakeFrom: string
   intakeTo: string
-  department: 'All' | (typeof DEPARTMENTS)[number]
+  /** Empty = every assignee. */
+  assigneeIds: AssigneeFilterValue[]
 }
 
 function defaultFilterState(): FilterState {
@@ -26,24 +30,31 @@ function defaultFilterState(): FilterState {
     searchDebounced: '',
     statusAll: false,
     statusToggles: { ...DEFAULT_STATUS_TOGGLES },
+    departments: [],
     deadlineFrom: '',
     deadlineTo: '',
     intakeFrom: '',
     intakeTo: '',
-    department: 'All',
+    assigneeIds: [],
   }
 }
 
-function dirtyAgainstDefaults(state: FilterState): boolean {
+export function isStatusFilterActive(state: FilterState): boolean {
   const defaults = defaultFilterState()
-  if (state.searchInput.trim() !== '' || state.searchDebounced.trim() !== '') return true
-  if (state.deadlineFrom || state.deadlineTo || state.intakeFrom || state.intakeTo) return true
-  if (state.department !== 'All') return true
   if (state.statusAll !== defaults.statusAll) return true
-  for (const status of ORDER_STATUS_LIST) {
-    if (state.statusToggles[status] !== defaults.statusToggles[status]) return true
-  }
-  return false
+  return ORDER_STATUS_LIST.some(status => state.statusToggles[status] !== defaults.statusToggles[status])
+}
+
+export function isDepartmentFilterActive(state: FilterState): boolean {
+  return state.departments.length > 0
+}
+
+export function isDeadlineFilterActive(state: FilterState): boolean {
+  return !!(state.deadlineFrom || state.deadlineTo || state.intakeFrom || state.intakeTo)
+}
+
+export function isUsersFilterActive(state: FilterState): boolean {
+  return state.assigneeIds.length > 0
 }
 
 export type FilterActions = {
@@ -51,12 +62,21 @@ export type FilterActions = {
   clearSearch: () => void
   setStatusAll: (value: boolean) => void
   toggleStatus: (status: OrderStatus, checked: boolean) => void
-  setDepartment: (value: FilterState['department']) => void
+  resetStatus: () => void
+  toggleDepartment: (department: Department, checked: boolean) => void
+  resetDepartments: () => void
   setDeadlineFrom: (value: string) => void
   setDeadlineTo: (value: string) => void
   setIntakeFrom: (value: string) => void
   setIntakeTo: (value: string) => void
-  reset: () => void
+  resetDeadline: () => void
+  toggleAssignee: (value: AssigneeFilterValue, checked: boolean) => void
+  resetAssignees: () => void
+}
+
+function toggled<T>(list: T[], value: T, checked: boolean): T[] {
+  if (checked) return list.includes(value) ? list : [...list, value]
+  return list.filter(item => item !== value)
 }
 
 export function useOrderSidebarFilter() {
@@ -81,12 +101,22 @@ export function useOrderSidebarFilter() {
         statusAll: false,
         statusToggles: { ...f.statusToggles, [status]: checked },
       })),
-    setDepartment: value => setFilter(f => ({ ...f, department: value })),
+    resetStatus: () => {
+      const defaults = defaultFilterState()
+      setFilter(f => ({ ...f, statusAll: defaults.statusAll, statusToggles: defaults.statusToggles }))
+    },
+    toggleDepartment: (department, checked) =>
+      setFilter(f => ({ ...f, departments: toggled(f.departments, department, checked) })),
+    resetDepartments: () => setFilter(f => ({ ...f, departments: [] })),
     setDeadlineFrom: value => setFilter(f => ({ ...f, deadlineFrom: value })),
     setDeadlineTo: value => setFilter(f => ({ ...f, deadlineTo: value })),
     setIntakeFrom: value => setFilter(f => ({ ...f, intakeFrom: value })),
     setIntakeTo: value => setFilter(f => ({ ...f, intakeTo: value })),
-    reset: () => setFilter(defaultFilterState()),
+    resetDeadline: () =>
+      setFilter(f => ({ ...f, deadlineFrom: '', deadlineTo: '', intakeFrom: '', intakeTo: '' })),
+    toggleAssignee: (value, checked) =>
+      setFilter(f => ({ ...f, assigneeIds: toggled(f.assigneeIds, value, checked) })),
+    resetAssignees: () => setFilter(f => ({ ...f, assigneeIds: [] })),
   }), [])
 
   const selectedStatuses = useMemo<OrderStatus[]>(
@@ -95,11 +125,9 @@ export function useOrderSidebarFilter() {
   )
 
   const hasStatusFilter = filter.statusAll || selectedStatuses.length > 0
-  const isActive = dirtyAgainstDefaults(filter)
 
   return {
     filter,
-    isActive,
     selectedStatuses,
     hasStatusFilter,
     actions,
