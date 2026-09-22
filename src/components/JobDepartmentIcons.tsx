@@ -26,7 +26,8 @@ export function JobDepartmentIcons({ jobs, className }: JobDepartmentIconsProps)
         const label = jobDepartmentLabel(department)
         return (
           <span key={department} className="relative inline-flex shrink-0" title={label}>
-            <Icon size={14} className={colorClassName} aria-label={label} />
+            <Icon size={14} className="text-neutral-500" aria-label={label} />
+            {/* <Icon size={14} className={colorClassName} aria-label={label} /> */}
           </span>
         )
       })}
