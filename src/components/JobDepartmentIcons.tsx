@@ -22,7 +22,7 @@ export function JobDepartmentIcons({ jobs, className }: JobDepartmentIconsProps)
   return (
     <div className={cn('flex items-center gap-2', className)}>
       {present.map(department => {
-        const { icon: Icon, colorClassName } = departmentIcon(department)
+        const { icon: Icon } = departmentIcon(department)
         const label = jobDepartmentLabel(department)
         return (
           <span key={department} className="relative inline-flex shrink-0" title={label}>
