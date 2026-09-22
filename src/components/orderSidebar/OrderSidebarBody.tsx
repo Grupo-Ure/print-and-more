@@ -1,32 +1,39 @@
-import { AlertTriangle, ArrowUp, Copy, MoreHorizontal, Trash2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { formatDateDe } from '../../lib/formatDate'
-import { isInProductionMissingInfo } from '../../lib/jobShared'
-import type { OrderListEntry } from '../../services/orderService'
-import type { OrderStatus } from '../../types/database'
-import { StatusBadge } from '../StatusBadge'
-import { ORDER_STATUS_META } from '../../const/orderStatus'
+import {
+  AlertTriangle,
+  ArrowUp,
+  Copy,
+  MoreHorizontal,
+  Trash2,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { formatDateDe } from '../../lib/formatDate';
+import { isInProductionMissingInfo } from '../../lib/jobShared';
+import type { OrderListEntry } from '../../services/orderService';
+import type { OrderStatus } from '../../types/database';
+import { StatusBadge } from '../StatusBadge';
+import { ORDER_STATUS_META } from '../../const/orderStatus';
+import { JobDepartmentIcons } from '../JobDepartmentIcons';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { TEST_IDS } from '@e2e/support/testIds'
+} from '@/components/ui/dropdown-menu';
+import { TEST_IDS } from '@e2e/support/testIds';
 
-const IDS = TEST_IDS.orders.sidebar
+const IDS = TEST_IDS.orders.sidebar;
 
 type Props = {
-  orders: OrderListEntry[]
-  activeOrderId: string | null
-  onSelectOrder: (id: string) => void
-  isLoading: boolean
-  isFetching: boolean
-  isEmpty: boolean
-  onDuplicate: (orderId: string) => void
-  duplicateBusy: boolean
-  onDelete: (orderId: string) => void
-}
+  orders: OrderListEntry[];
+  activeOrderId: string | null;
+  onSelectOrder: (id: string) => void;
+  isLoading: boolean;
+  isFetching: boolean;
+  isEmpty: boolean;
+  onDuplicate: (orderId: string) => void;
+  duplicateBusy: boolean;
+  onDelete: (orderId: string) => void;
+};
 
 export function OrderSidebarBody({
   orders,
@@ -47,7 +54,9 @@ export function OrderSidebarBody({
         isFetching && !isLoading ? 'opacity-50' : 'opacity-100',
       )}
     >
-      {isLoading && <div className="p-4 text-neutral-500 text-[13px]">Loading...</div>}
+      {isLoading && (
+        <div className="p-4 text-neutral-500 text-[13px]">Loading...</div>
+      )}
       {isEmpty && (
         <div
           data-testid={IDS.empty}
@@ -57,7 +66,7 @@ export function OrderSidebarBody({
         </div>
       )}
       {!isLoading &&
-        orders.map(order => (
+        orders.map((order) => (
           <OrderSidebarItem
             key={order.id}
             order={order}
@@ -69,17 +78,17 @@ export function OrderSidebarBody({
           />
         ))}
     </div>
-  )
+  );
 }
 
 type OrderSidebarItemProps = {
-  order: OrderListEntry
-  isActive: boolean
-  onSelect: (id: string) => void
-  onDuplicate: (orderId: string) => void
-  duplicateBusy: boolean
-  onDelete: (orderId: string) => void
-}
+  order: OrderListEntry;
+  isActive: boolean;
+  onSelect: (id: string) => void;
+  onDuplicate: (orderId: string) => void;
+  duplicateBusy: boolean;
+  onDelete: (orderId: string) => void;
+};
 
 function OrderSidebarItem({
   order,
@@ -91,9 +100,13 @@ function OrderSidebarItem({
 }: OrderSidebarItemProps) {
   // Derived, not stored: any job in production that fails the completeness
   // check (typically a force-released one) flags the order.
-  const missingInfoInProduction = (order.jobs ?? []).some(job =>
-    isInProductionMissingInfo(job, order, (job.department_products[0]?.count ?? 0) > 0),
-  )
+  const missingInfoInProduction = (order.jobs ?? []).some((job) =>
+    isInProductionMissingInfo(
+      job,
+      order,
+      (job.department_products[0]?.count ?? 0) > 0,
+    ),
+  );
 
   return (
     <div
@@ -102,10 +115,10 @@ function OrderSidebarItem({
         isActive && 'bg-primary/8 border-l-primary',
       )}
       onClick={() => onSelect(order.id)}
-      onKeyDown={e => {
+      onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          onSelect(order.id)
+          e.preventDefault();
+          onSelect(order.id);
         }
       }}
       role="button"
@@ -118,8 +131,12 @@ function OrderSidebarItem({
       <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
         <div className="flex items-center justify-between gap-1.5">
           <div className="flex items-center min-w-0 flex-1 gap-1">
-            <h2 data-testid={IDS.rowNumber} className="truncate font-semibold" title={order.order_number}>
-              {order.order_number}
+            <h2
+              data-testid={IDS.rowNumber}
+              className="truncate font-semibold"
+              title={order.customers?.name ?? undefined}
+            >
+              {order.customers?.name ?? '-'}
             </h2>
             {missingInfoInProduction && (
               <span title="In production with missing information">
@@ -127,22 +144,19 @@ function OrderSidebarItem({
                   size={16}
                   className="text-red-700 shrink-0"
                   aria-label="In production with missing information"
-                  />
-                </span>
+                />
+              </span>
             )}
             {order.priority === 'HIGH' && (
-              <span title='High Priority'>
+              <span title="High Priority">
                 <ArrowUp
                   size={16}
                   className="text-blue-600 shrink-0"
                   aria-label="High priority"
-                  />
-                </span>
+                />
+              </span>
             )}
           </div>
-          <span className="text-xs desktop:text-base text-neutral-400 shrink-0 tracking-wide">
-            {formatDateDe(order.created_at)}
-          </span>
           <OrderSidebarItemMenu
             isActive={isActive}
             duplicateBusy={duplicateBusy}
@@ -152,29 +166,31 @@ function OrderSidebarItem({
           />
         </div>
         <div className="flex items-center justify-between gap-1.5">
-          <span
-            data-testid={IDS.rowCustomer}
-            className="truncate min-w-0 text-[13px] text-neutral-500"
-            title={order.customers?.name ?? undefined}
-          >
-            {order.customers?.name ?? '—'}
-          </span>
-          <span data-testid={IDS.rowStatus} data-status={order.status} className="contents">
+        <span
+          data-testid={IDS.rowCustomer}
+          className="truncate min-w-0 text-[13px] text-neutral-500"
+          title={order.deadline ? formatDateDe(order.deadline) : undefined}
+        >
+          {"deadline: "}
+          {order.deadline ? formatDateDe(order.deadline) : 'no deadline'}
+        </span>
+          <span data-testid={IDS.rowStatus} data-status={order.status}>
             <StatusBadge meta={ORDER_STATUS_META[order.status]} />
           </span>
         </div>
+          <JobDepartmentIcons jobs={order.jobs ?? []} className="shrink-0" />
       </div>
     </div>
-  )
+  );
 }
 
 type OrderSidebarItemMenuProps = {
-  isActive: boolean
-  duplicateBusy: boolean
-  onDuplicate: () => void
-  orderStatus: OrderStatus
-  onDelete: () => void
-}
+  isActive: boolean;
+  duplicateBusy: boolean;
+  onDuplicate: () => void;
+  orderStatus: OrderStatus;
+  onDelete: () => void;
+};
 
 function OrderSidebarItemMenu({
   isActive,
@@ -183,15 +199,15 @@ function OrderSidebarItemMenu({
   orderStatus,
   onDelete,
 }: OrderSidebarItemMenuProps) {
-  const canDelete = orderStatus === 'QUOTE'
-  
+  const canDelete = orderStatus === 'QUOTE';
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          onClick={e => e.stopPropagation()}
-          onKeyDown={e => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
           aria-label="Order actions"
           data-testid={IDS.rowMenuTrigger}
           className={cn(
@@ -203,12 +219,16 @@ function OrderSidebarItemMenu({
           <MoreHorizontal className="size-4" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" onClick={e => e.stopPropagation()} className='w-40'>
+      <DropdownMenuContent
+        align="end"
+        onClick={(e) => e.stopPropagation()}
+        className="w-40"
+      >
         <DropdownMenuItem
           data-testid={IDS.rowMenuDuplicate}
           disabled={duplicateBusy}
           onSelect={() => onDuplicate()}
-          className='text-base hover:text-primary font-medium'
+          className="text-base hover:text-primary font-medium"
         >
           <Copy />
           Duplicate order
@@ -217,12 +237,12 @@ function OrderSidebarItemMenu({
           data-testid={IDS.rowMenuDelete}
           disabled={!canDelete}
           onSelect={() => onDelete()}
-          className='text-base font-medium text-red-600 focus:text-red-700 focus:bg-red-50'
+          className="text-base font-medium text-red-600 focus:text-red-700 focus:bg-red-50"
         >
           <Trash2 />
           Delete order
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }
