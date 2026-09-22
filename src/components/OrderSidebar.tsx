@@ -14,7 +14,7 @@ import {
   type Auftrag,
   type JobRow,
 } from '../types/database'
-import { Search } from 'lucide-react'
+import { Archive, Search } from 'lucide-react'
 import { Sidebar, SidebarHeader, SidebarContent, SidebarFooter } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -56,8 +56,9 @@ export function OrderSidebar() {
       intakeTo: filter.intakeTo,
       departments: filter.departments,
       assigneeIds: filter.assigneeIds,
+      showArchived: filter.showArchived,
     }),
-    [filter.searchDebounced, filter.statusAll, selectedStatuses, filter.deadlineFrom, filter.deadlineTo, filter.intakeFrom, filter.intakeTo, filter.departments, filter.assigneeIds],
+    [filter.searchDebounced, filter.statusAll, selectedStatuses, filter.deadlineFrom, filter.deadlineTo, filter.intakeFrom, filter.intakeTo, filter.departments, filter.assigneeIds, filter.showArchived],
   )
 
   const ordersQuery = useOrdersList(ordersFilter)
@@ -170,6 +171,18 @@ export function OrderSidebar() {
             <DepartmentFilterButton filter={filter} actions={actions} />
             <DeadlineFilterButton filter={filter} actions={actions} />
             <UsersFilterButton filter={filter} actions={actions} />
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              title="Show archived"
+              aria-label="Show archived"
+              data-testid={TEST_IDS.orders.sidebar.archivedToggle}
+              aria-pressed={filter.showArchived}
+              onClick={() => actions.setShowArchived(!filter.showArchived)}
+              className={cn(filter.showArchived && 'bg-muted text-foreground')}
+            >
+              <Archive className="size-3.5" />
+            </Button>
           </div>
         </div>
 

@@ -68,6 +68,8 @@ export const TEST_IDS = {
       departmentFilterToggle: 'orders-sidebar-department-filter-toggle',
       deadlineFilterToggle: 'orders-sidebar-deadline-filter-toggle',
       usersFilterToggle: 'orders-sidebar-users-filter-toggle',
+      /** Carries `aria-pressed`: on = archived orders listed too. */
+      archivedToggle: 'orders-sidebar-archived-toggle',
       searchInput: 'orders-sidebar-search-input',
       clearSearch: 'orders-sidebar-clear-search',
       /** One popover per filter group, each opened by its own header toggle. */

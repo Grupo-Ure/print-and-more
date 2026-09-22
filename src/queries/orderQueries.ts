@@ -21,6 +21,8 @@ export type OrdersListFilter = {
   departments: Department[]
   /** Empty = every assignee. */
   assigneeIds: AssigneeFilterValue[]
+  /** Off = non-archived orders plus billed ones; on = archived orders too. */
+  showArchived: boolean
 }
 
 function matchesJobFilters(order: OrderListEntry, filter: OrdersListFilter): boolean {
@@ -39,7 +41,7 @@ export const orderKeys = {
   lists: ['orders', 'list'] as const,
   customerIdSearch: (query: string) => ['customers', 'id-search', query] as const,
   list: (params: {
-    is_archived: boolean | undefined
+    includeArchived: boolean
     customerIds: string[] | null
     statuses: OrderStatus[] | null
     deadlineFrom: string
@@ -48,16 +50,6 @@ export const orderKeys = {
     intakeTo: string
   }) => ['orders', 'list', params] as const,
   byId: (id: string) => ['orders', 'by-id', id] as const,
-}
-
-// BILLED orders live in the archived bucket; mixed selections need both, so is_archived becomes undefined.
-function deriveIsArchived(filter: OrdersListFilter): boolean | undefined {
-  if (filter.statusAll) return false
-  const billedSelected = filter.selectedStatuses.includes('BILLED')
-  const otherSelected = filter.selectedStatuses.some(status => status !== 'BILLED')
-  if (billedSelected && otherSelected) return undefined
-  if (billedSelected) return true
-  return false
 }
 
 export function useCustomerIdSearch(query: string) {
@@ -80,7 +72,7 @@ export function useOrdersList(filter: OrdersListFilter) {
 
   const ordersQuery = useQuery({
     queryKey: orderKeys.list({
-      is_archived: deriveIsArchived(filter),
+      includeArchived: filter.showArchived,
       customerIds,
       statuses: !filter.statusAll ? filter.selectedStatuses : null,
       deadlineFrom: filter.deadlineFrom,
@@ -91,7 +83,7 @@ export function useOrdersList(filter: OrdersListFilter) {
     queryFn: async (): Promise<OrderListEntry[]> => {
       if (trimmedSearch && (customerIds === null || customerIds.length === 0)) return []
       return orderService.getOrdersForList({
-        is_archived: deriveIsArchived(filter),
+        includeArchived: filter.showArchived,
         customerIds: customerIds ?? undefined,
         statuses: !filter.statusAll ? filter.selectedStatuses : undefined,
         deadlineFrom: filter.deadlineFrom || undefined,

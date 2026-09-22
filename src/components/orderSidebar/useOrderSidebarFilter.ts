@@ -22,6 +22,8 @@ export type FilterState = {
   intakeTo: string
   /** Empty = every assignee. */
   assigneeIds: AssigneeFilterValue[]
+  /** Off = non-archived orders plus billed ones; on = archived orders too. */
+  showArchived: boolean
 }
 
 function defaultFilterState(): FilterState {
@@ -36,6 +38,7 @@ function defaultFilterState(): FilterState {
     intakeFrom: '',
     intakeTo: '',
     assigneeIds: [],
+    showArchived: false,
   }
 }
 
@@ -72,6 +75,7 @@ export type FilterActions = {
   resetDeadline: () => void
   toggleAssignee: (value: AssigneeFilterValue, checked: boolean) => void
   resetAssignees: () => void
+  setShowArchived: (value: boolean) => void
 }
 
 function toggled<T>(list: T[], value: T, checked: boolean): T[] {
@@ -117,6 +121,7 @@ export function useOrderSidebarFilter() {
     toggleAssignee: (value, checked) =>
       setFilter(f => ({ ...f, assigneeIds: toggled(f.assigneeIds, value, checked) })),
     resetAssignees: () => setFilter(f => ({ ...f, assigneeIds: [] })),
+    setShowArchived: value => setFilter(f => ({ ...f, showArchived: value })),
   }), [])
 
   const selectedStatuses = useMemo<OrderStatus[]>(

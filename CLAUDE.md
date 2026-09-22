@@ -119,7 +119,7 @@ without a session, otherwise a two-column shell:
 
 | Column | Component | Role |
 |--------|-----------|------|
-| Left   | [`OrderSidebar`](src/components/OrderSidebar.tsx) | Search + filters (status, department, deadline/intake ranges), order list with selection, per-order menu (duplicate / delete quote), "+ New Order" ([`NewOrderDialog`](src/components/NewOrderDialog.tsx)). Archived orders are never listed; finished/billed are hidden by the default status filter. |
+| Left   | [`OrderSidebar`](src/components/OrderSidebar.tsx) | Search + filters (status, department, deadline/intake ranges), order list with selection, per-order menu (duplicate / delete quote), "+ New Order" ([`NewOrderDialog`](src/components/NewOrderDialog.tsx)). Archived orders are listed only while the header's *Show archived* toggle is on, except billed ones, which appear whenever Billed is ticked; finished/billed are hidden by the default status filter. |
 | Centre | [`OrderDetails`](src/components/OrderDetails.tsx) | Order header (number, customer, lifecycle button, files/history/archive/cancel actions), order settings row (deadline, delivery, priority, payment), then [`JobList`](src/components/JobList.tsx) (add-job buttons, one row per job with status track and right-click menu) next to the active job's [`JobDetail`](src/components/JobDetail.tsx). |
 
 `JobDetail` shows the job header (assignee, status badge, settings / time

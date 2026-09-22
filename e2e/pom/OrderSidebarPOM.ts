@@ -14,6 +14,8 @@ export class OrderSidebarPOM extends BasePOM {
   readonly departmentFilterToggle: Locator
   readonly deadlineFilterToggle: Locator
   readonly usersFilterToggle: Locator
+  /** Carries `aria-pressed`; on lists archived orders as well. */
+  readonly archivedToggle: Locator
   readonly searchInput: Locator
   readonly clearSearch: Locator
   readonly filters: OrderSidebarFiltersPOM
@@ -36,6 +38,7 @@ export class OrderSidebarPOM extends BasePOM {
     this.departmentFilterToggle = this.root.getByTestId(IDS.departmentFilterToggle)
     this.deadlineFilterToggle = this.root.getByTestId(IDS.deadlineFilterToggle)
     this.usersFilterToggle = this.root.getByTestId(IDS.usersFilterToggle)
+    this.archivedToggle = this.root.getByTestId(IDS.archivedToggle)
     this.searchInput = this.root.getByTestId(IDS.searchInput)
     this.clearSearch = this.root.getByTestId(IDS.clearSearch)
     this.filters = new OrderSidebarFiltersPOM(page)
