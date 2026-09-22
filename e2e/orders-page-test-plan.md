@@ -20,6 +20,7 @@ candidate spec; details come later.
 ## 2. Create an order — done
 
 - New Order → pick / create customer → order selected as Quote
+- New order defaults: cash payment, deadline today, pickup — open
 - Specs: `e2e/orders-page/order/new-order.spec.ts` (existing customer, customer created in the dialog)
 
 ## 3. Build the order — done

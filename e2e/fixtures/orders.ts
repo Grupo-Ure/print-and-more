@@ -30,8 +30,9 @@ export const IN_PROGRESS_STATUS: OrderStatus = 'IN_PROGRESS'
 export const FINISHED_STATUS: OrderStatus = 'FINISHED'
 
 /**
- * A deadline the picker accepts: the earliest selectable day is tomorrow, so
- * this is produced at call time, never stored.
+ * A deadline the picker accepts that differs from the default a new order gets
+ * (today), so a test can see that a pick changed it. Produced at call time,
+ * never stored.
  */
 export function nextOrderDeadline(): string {
   return format(addDays(new Date(), 1), 'yyyy-MM-dd')

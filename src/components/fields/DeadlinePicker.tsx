@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { format, parse, startOfTomorrow } from 'date-fns'
+import { format, parse, startOfToday } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { Button } from '../ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
@@ -60,7 +60,7 @@ export function DeadlinePicker({ value, onChange, disabled = false, attention = 
           <Calendar
             mode="single"
             selected={selectedDate}
-            disabled={{ before: startOfTomorrow() }}
+            disabled={{ before: startOfToday() }}
             onSelect={date => {
               onChange(date ? format(date, 'yyyy-MM-dd') : null)
               setOpen(false)
