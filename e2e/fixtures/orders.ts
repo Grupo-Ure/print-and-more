@@ -99,6 +99,8 @@ type OrdersViewFixtures = {
   catalog: void
   /** The orders view — the app's main screen, with every dialog it can open. */
   ordersPage: OrdersPOM
+  /** What `customer` inserts; override per describe block with `test.use({ customerSeed })`. */
+  customerSeed: TestCustomer
   /** What `order` inserts; override per describe block with `test.use({ orderSeed })`. */
   orderSeed: OrderSeed
   /** What `job` inserts; override per describe block with `test.use({ jobSeed })`. */
@@ -171,12 +173,13 @@ export const test = base.extend<OrdersViewFixtures>({
     await use(new OrdersPOM(page))
   },
 
+  customerSeed: [TEST_CUSTOMER, { option: true }],
   orderSeed: [QUOTE_ORDER, { option: true }],
   jobSeed: [EMPTY_JOB, { option: true }],
   jobSeeds: [[], { option: true }],
 
-  customer: async ({ page, navbar, database }, use) => {
-    const customer = await database.createCustomer(TEST_CUSTOMER)
+  customer: async ({ page, navbar, database, customerSeed }, use) => {
+    const customer = await database.createCustomer(customerSeed)
     await reloadApp(page, navbar)
 
     await use(customer)

@@ -160,7 +160,15 @@ export class TestDatabase {
   async createCustomer(customer: TestCustomer): Promise<TestCustomerRow> {
     const { data, error } = await this.client
       .from('customers')
-      .insert({ name: customer.name, email: customer.email })
+      .insert({
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone ?? null,
+        street: customer.street ?? null,
+        house_number: customer.houseNumber ?? null,
+        postal_code: customer.postalCode ?? null,
+        city: customer.city ?? null,
+      })
       .select('id')
       .single()
     if (error) throw error

@@ -476,6 +476,7 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
                 onClick={() => copyToClipboard(customerEmail, 'Email')}
                 title="Copy email"
                 aria-label="Copy email"
+                data-testid={HEADER_IDS.copyCustomerEmail}
                 variant="ghost"
                 size="icon-sm"
               >
@@ -492,6 +493,7 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
                 onClick={() => copyToClipboard(customerPhone, 'Phone number')}
                 title="Copy phone number"
                 aria-label="Copy phone number"
+                data-testid={HEADER_IDS.copyCustomerPhone}
                 variant="ghost"
                 size="icon-sm"
               >
@@ -508,6 +510,7 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
                 onClick={() => copyToClipboard(customerAddress, 'Address')}
                 title="Copy address"
                 aria-label="Copy address"
+                data-testid={HEADER_IDS.copyCustomerAddress}
                 variant="ghost"
                 size="icon-sm"
               >
