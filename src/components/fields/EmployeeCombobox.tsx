@@ -12,6 +12,12 @@ type EmployeeComboboxProps = {
   disabled?: boolean
   /** data-testid for the trigger — the field is shared by the job header and the time-log form. */
   testId?: string
+  /** What the empty choice is called where "nobody" has a meaning of its own (e.g. "Creator", "Everyone"). */
+  emptyLabel?: string
+  /** data-testid of the empty option in the list, where a test has to pick it. */
+  emptyOptionTestId?: string
+  /** data-testid shared by the user options in the list (each carries `data-user-id`). */
+  userOptionTestId?: string
 }
 
 /** Accent-insensitive fold: "Müller" matches "muller", "José" matches "jose". */
@@ -23,7 +29,15 @@ function normalizeForSearch(text: string): string {
     .replace(/[\u0300-\u036f]/g, '')
 }
 
-export function EmployeeCombobox({ value, onChange, disabled = false, testId }: EmployeeComboboxProps) {
+export function EmployeeCombobox({
+  value,
+  onChange,
+  disabled = false,
+  testId,
+  emptyLabel = 'Unassigned',
+  emptyOptionTestId,
+  userOptionTestId,
+}: EmployeeComboboxProps) {
   const { data: users = [] } = useUsers()
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -70,7 +84,7 @@ export function EmployeeCombobox({ value, onChange, disabled = false, testId }: 
             {selected && (
               <UserAvatar name={selected.name} avatarUrl={selected.avatar_url} />
             )}
-            <span className="truncate">{selected ? selected.name : 'Unassigned'}</span>
+            <span className="truncate">{selected ? selected.name : emptyLabel}</span>
           </span>
           <ChevronsUpDown className="opacity-50" />
         </Button>
@@ -86,12 +100,11 @@ export function EmployeeCombobox({ value, onChange, disabled = false, testId }: 
         <div className="max-h-56 overflow-y-auto">
           <button
             type="button"
+            data-testid={emptyOptionTestId}
             className=" flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-primary/10 cursor-pointer"
             onClick={() => pick(null)}
           >
-            <p>
-            Unassigned
-            </p>
+            <p>{emptyLabel}</p>
             <UserX className="size-4" />
             {value === null && <Check className="ml-auto size-4" />}
           </button>
@@ -99,6 +112,7 @@ export function EmployeeCombobox({ value, onChange, disabled = false, testId }: 
             <button
               key={user.id}
               type="button"
+              data-testid={userOptionTestId}
               data-user-id={user.id}
               className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-primary/10 cursor-pointer"
               onClick={() => pick({ id: user.id, name: user.name })}

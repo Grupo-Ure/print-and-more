@@ -354,23 +354,36 @@ export const TEST_IDS = {
     backToStock: 'textile-stock-back-to-stock',
   },
 
-  userManagement: {
-    root: 'user-management',
-    create: 'user-management-create',
-    table: 'user-management-table',
-    /** One per user; `data-user-id`. */
-    row: 'user-management-row',
-    rowRole: 'user-management-row-role',
-    rowRoleBadge: 'user-management-row-role-badge',
-    rowDelete: 'user-management-row-delete',
-    createDialog: {
-      root: 'create-account-dialog',
-      name: 'create-account-dialog-name',
-      email: 'create-account-dialog-email',
-      password: 'create-account-dialog-password',
-      role: 'create-account-dialog-role',
-      cancel: 'create-account-dialog-cancel',
-      submit: 'create-account-dialog-submit',
+  /** The Settings page (admins): a section sidebar plus the active section. */
+  settings: {
+    root: 'settings-page',
+    /** One per section; `data-section` = SettingsSection, `aria-current="page"` when active. */
+    sectionLink: 'settings-section-link',
+    userManagement: {
+      root: 'user-management',
+      create: 'user-management-create',
+      table: 'user-management-table',
+      /** One per user; `data-user-id`. */
+      row: 'user-management-row',
+      rowRole: 'user-management-row-role',
+      rowRoleBadge: 'user-management-row-role-badge',
+      rowDelete: 'user-management-row-delete',
+      createDialog: {
+        root: 'create-account-dialog',
+        name: 'create-account-dialog-name',
+        email: 'create-account-dialog-email',
+        password: 'create-account-dialog-password',
+        role: 'create-account-dialog-role',
+        cancel: 'create-account-dialog-cancel',
+        submit: 'create-account-dialog-submit',
+      },
+    },
+    departments: {
+      root: 'department-settings',
+      /** One per department; `data-department` = Department. */
+      row: 'department-settings-row',
+      /** The default-assignee combobox trigger; `data-value` = users.id, absent while unset. */
+      rowAssignee: 'department-settings-row-assignee',
     },
   },
 } as const

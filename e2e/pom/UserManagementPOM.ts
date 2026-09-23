@@ -6,9 +6,9 @@ import { AccessDeniedPOM } from './AccessDeniedPOM'
 import { ToastPOM } from './ToastPOM'
 import { BasePOM } from './BasePOM'
 
-const IDS = TEST_IDS.userManagement
+const IDS = TEST_IDS.settings.userManagement
 
-/** User management page (super admins): accounts table, role changes, deletion. */
+/** Settings → User management (super admins): accounts table, role changes, deletion. */
 export class UserManagementPOM extends BasePOM {
   readonly root: Locator
   readonly create: Locator

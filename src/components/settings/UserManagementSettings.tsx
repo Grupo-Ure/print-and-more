@@ -1,19 +1,16 @@
 import { useState, type FormEvent } from 'react'
 import { Trash2 } from 'lucide-react'
-import { Login } from '../components/Login'
-import { AccessDenied } from '../components/AccessDenied'
-import { useToast } from '../components/Toast'
-import { useConfirm } from '../components/ConfirmDialog'
-import { useSupabaseSession } from '../hooks/useSupabaseSession'
+import { useToast } from '../Toast'
+import { useConfirm } from '../ConfirmDialog'
 import {
   useCreateUser,
   useCurrentUser,
   useDeleteUser,
   useUpdateUserRole,
   useUsers,
-} from '../queries/userQueries'
-import type { UserRow } from '../services/userService'
-import { ROLE_LABELS } from '../lib/roleLabels'
+} from '../../queries/userQueries'
+import type { UserRow } from '../../services/userService'
+import { ROLE_LABELS } from '../../lib/roleLabels'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -43,7 +40,7 @@ import {
 } from '@/components/ui/table'
 import { TEST_IDS } from '@e2e/support/testIds'
 
-const IDS = TEST_IDS.userManagement
+const IDS = TEST_IDS.settings.userManagement
 
 type ManagedRole = 'EMPLOYEE' | 'ADMIN'
 
@@ -184,10 +181,14 @@ function CreateAccountForm({ onOpenChange }: { onOpenChange: (open: boolean) => 
   )
 }
 
-export function UserManagementPage() {
+/**
+ * Settings → User management (super admins): the accounts table with role
+ * changes, deletion and account creation. The Settings page only offers this
+ * section to super admins; the DB and the Edge Function enforce the rules.
+ */
+export function UserManagementSettings() {
   const { showError, showSuccess } = useToast()
   const confirm = useConfirm()
-  const { session, loading: sessionLoading } = useSupabaseSession()
 
   const { data: currentUser, isLoading: currentUserLoading } = useCurrentUser()
   const { data: users, isLoading: usersLoading } = useUsers()
@@ -196,15 +197,9 @@ export function UserManagementPage() {
 
   const [createOpen, setCreateOpen] = useState(false)
 
-  if (sessionLoading) return null
-  if (!session) return <Login />
   if (currentUserLoading) return null
 
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN'
-
-  if (!isSuperAdmin) {
-    return <AccessDenied description="User management requires a super admin account." />
-  }
 
   // UX gating only — the DB triggers and the Edge Function enforce the matrix.
   const canChangeRole = (target: UserRow) =>
@@ -239,7 +234,7 @@ export function UserManagementPage() {
   }
 
   return (
-    <main data-testid={IDS.root} className="flex w-full flex-col gap-3 p-3">
+    <div data-testid={IDS.root} className="flex w-full flex-col gap-3">
       <h1>User management</h1>
 
       <section className="rounded-md border border-neutral-200">
@@ -331,6 +326,6 @@ export function UserManagementPage() {
       </section>
 
       <CreateAccountDialog open={createOpen} onOpenChange={setCreateOpen} />
-    </main>
+    </div>
   )
 }
