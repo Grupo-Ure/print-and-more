@@ -48,6 +48,7 @@ export function DeadlinePicker({ value, onChange, disabled = false, attention = 
             className={cn(
               attention && 'animate-deadline-required',
               settling && 'animate-deadline-settled',
+              "text-lg"
             )}
             onAnimationEnd={event => {
               if (event.animationName === 'deadline-settled') setSettling(false)
