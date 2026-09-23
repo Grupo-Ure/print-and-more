@@ -4,6 +4,7 @@ import { fileService } from '../services/fileService'
 import { toDateOnly } from '../lib/formatDate'
 import { formatMinutes } from '../lib/formatMinutes'
 import { areAllJobsDone } from '../lib/jobShared'
+import { formatCustomerAddress } from '../lib/customer'
 import {
   type DeliveryChoice,
   type OrderDetailRow,
@@ -440,6 +441,7 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
   const customerDisplayName = order.customers?.name?.trim() || '—'
   const customerEmail = order.customers?.email?.trim() || ''
   const customerPhone = order.customers?.phone?.trim() || ''
+  const customerAddress = formatCustomerAddress(order.customers)
   const copyToClipboard = useCopyToClipboard()
   const minutesQuery = useTimeLogMinutesByOrderId(order.id)
   const totalMinutes = Object.values(minutesQuery.data ?? {}).reduce((sum, m) => sum + m, 0)
@@ -490,6 +492,22 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
                 onClick={() => copyToClipboard(customerPhone, 'Phone number')}
                 title="Copy phone number"
                 aria-label="Copy phone number"
+                variant="ghost"
+                size="icon-sm"
+              >
+                <Copy />
+              </Button>
+            </div>
+          )}
+          {customerAddress && (
+            <div className="flex items-center gap-1">
+              <p data-testid={HEADER_IDS.customerAddress} title="Address">
+                <span className="font-medium">Address:</span> {customerAddress}
+              </p>
+              <Button
+                onClick={() => copyToClipboard(customerAddress, 'Address')}
+                title="Copy address"
+                aria-label="Copy address"
                 variant="ghost"
                 size="icon-sm"
               >
@@ -596,9 +614,21 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
       </div>
       <div className="flex items-center gap-3 text-muted-foreground">
         <span className="text-sm desktop:text-base">Order:</span>
-        <h2 data-testid={HEADER_IDS.orderNumber} className="text-base desktop:text-lg" title="Order number">
-          {order.order_number}
-        </h2>
+        <div className="flex items-center gap-1">
+          <h2 data-testid={HEADER_IDS.orderNumber} className="text-base desktop:text-lg" title="Order number">
+            {order.order_number}
+          </h2>
+          <Button
+            onClick={() => copyToClipboard(order.order_number, 'Order number')}
+            title="Copy order number"
+            aria-label="Copy order number"
+            data-testid={HEADER_IDS.copyOrderNumber}
+            variant="ghost"
+            size="icon-sm"
+          >
+            <Copy />
+          </Button>
+        </div>
         {totalMinutes > 0 && (
           <span
             data-testid={HEADER_IDS.totalTime}

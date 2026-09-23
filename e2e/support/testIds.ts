@@ -175,6 +175,8 @@ export const TEST_IDS = {
         editCustomer: 'order-header-edit-customer',
         customerEmail: 'order-header-customer-email',
         customerPhone: 'order-header-customer-phone',
+        customerAddress: 'order-header-customer-address',
+        copyOrderNumber: 'order-header-copy-order-number',
       },
       settings: {
         root: 'order-settings',

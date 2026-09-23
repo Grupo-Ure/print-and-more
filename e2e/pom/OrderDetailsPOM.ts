@@ -33,6 +33,8 @@ export class OrderDetailsPOM extends BasePOM {
   readonly editCustomer: Locator
   readonly customerEmail: Locator
   readonly customerPhone: Locator
+  readonly customerAddress: Locator
+  readonly copyOrderNumber: Locator
 
   // Settings row — each carries `data-value` with the current selection.
   readonly deadline: DeadlinePickerPOM
@@ -64,6 +66,8 @@ export class OrderDetailsPOM extends BasePOM {
     this.editCustomer = this.root.getByTestId(h.editCustomer)
     this.customerEmail = this.root.getByTestId(h.customerEmail)
     this.customerPhone = this.root.getByTestId(h.customerPhone)
+    this.customerAddress = this.root.getByTestId(h.customerAddress)
+    this.copyOrderNumber = this.root.getByTestId(h.copyOrderNumber)
 
     const s = IDS.settings
     const settings = this.root.getByTestId(s.root)
