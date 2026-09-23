@@ -10,7 +10,12 @@ const IDS = TEST_IDS.orders.sidebar
 export class OrderSidebarPOM extends BasePOM {
   readonly root: Locator
   readonly searchToggle: Locator
-  readonly filterToggle: Locator
+  readonly statusFilterToggle: Locator
+  readonly departmentFilterToggle: Locator
+  readonly deadlineFilterToggle: Locator
+  readonly usersFilterToggle: Locator
+  /** Carries `aria-pressed`; on lists archived orders as well. */
+  readonly archivedToggle: Locator
   readonly searchInput: Locator
   readonly clearSearch: Locator
   readonly filters: OrderSidebarFiltersPOM
@@ -29,7 +34,11 @@ export class OrderSidebarPOM extends BasePOM {
     super(page)
     this.root = page.getByTestId(IDS.root)
     this.searchToggle = this.root.getByTestId(IDS.searchToggle)
-    this.filterToggle = this.root.getByTestId(IDS.filterToggle)
+    this.statusFilterToggle = this.root.getByTestId(IDS.statusFilterToggle)
+    this.departmentFilterToggle = this.root.getByTestId(IDS.departmentFilterToggle)
+    this.deadlineFilterToggle = this.root.getByTestId(IDS.deadlineFilterToggle)
+    this.usersFilterToggle = this.root.getByTestId(IDS.usersFilterToggle)
+    this.archivedToggle = this.root.getByTestId(IDS.archivedToggle)
     this.searchInput = this.root.getByTestId(IDS.searchInput)
     this.clearSearch = this.root.getByTestId(IDS.clearSearch)
     this.filters = new OrderSidebarFiltersPOM(page)
@@ -65,12 +74,12 @@ export class OrderSidebarPOM extends BasePOM {
 
   /**
    * Adds a status the default filter hides (finished, billed) to the list,
-   * then closes the filter again — in the compact layout it is a popover over
-   * the list. Navigation, for a spec's Setup stage.
+   * then closes the status popover again (it floats over the list).
+   * Navigation, for a spec's Setup stage.
    */
   async includeStatus(status: OrderStatus): Promise<void> {
-    await this.filterToggle.click()
-    await this.filters.status(status).click()
-    await this.filterToggle.click()
+    await this.statusFilterToggle.click()
+    await this.filters.status.status(status).click()
+    await this.statusFilterToggle.click()
   }
 }

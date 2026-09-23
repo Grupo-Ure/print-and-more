@@ -19,9 +19,20 @@ type WorkerFixtures = {
   electronApp: ElectronApplication
 }
 
+/**
+ * The system clipboard, reached through the main process: the renderer's
+ * `navigator.clipboard` is permission-gated, Electron's module is not.
+ */
+export type TestClipboard = {
+  read(): Promise<string>
+  clear(): Promise<void>
+}
+
 type TestFixtures = {
   /** The app's main window (replaces Playwright's browser `page`). */
   page: Page
+  /** What the app put on the system clipboard. */
+  clipboard: TestClipboard
 }
 
 /** process.env without the undefined entries Playwright's launch() rejects. */
@@ -61,6 +72,13 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     const page = await electronApp.firstWindow()
     await page.waitForLoadState('domcontentloaded')
     await use(page)
+  },
+
+  clipboard: async ({ electronApp }, use) => {
+    await use({
+      read: () => electronApp.evaluate(({ clipboard }) => clipboard.readText()),
+      clear: () => electronApp.evaluate(({ clipboard }) => clipboard.writeText('')),
+    })
   },
 })
 

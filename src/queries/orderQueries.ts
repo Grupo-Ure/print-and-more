@@ -4,6 +4,7 @@ import { historyService, type HistoryEvent } from '../services/historyService'
 import { orderService, type OrderListEntry } from '../services/orderService'
 import type { Auftrag, Department, OrderStatus } from '../types/database'
 import type { Database } from '../types/supabase'
+import { UNASSIGNED_ASSIGNEE, type AssigneeFilterValue } from '../lib/orderFilters'
 
 type OrderInsert = Database['public']['Tables']['orders']['Insert']
 type OrderUpdate = Database['public']['Tables']['orders']['Update']
@@ -16,7 +17,23 @@ export type OrdersListFilter = {
   deadlineTo: string
   intakeFrom: string
   intakeTo: string
-  department: Department | 'All'
+  /** Empty = every department. */
+  departments: Department[]
+  /** Empty = every assignee. */
+  assigneeIds: AssigneeFilterValue[]
+  /** Off = non-archived orders plus billed ones; on = archived orders too. */
+  showArchived: boolean
+}
+
+function matchesJobFilters(order: OrderListEntry, filter: OrdersListFilter): boolean {
+  const jobs = order.jobs ?? []
+  const departmentOk =
+    filter.departments.length === 0 ||
+    jobs.some(job => filter.departments.includes(job.department))
+  const assigneeOk =
+    filter.assigneeIds.length === 0 ||
+    jobs.some(job => filter.assigneeIds.includes(job.assignee_id ?? UNASSIGNED_ASSIGNEE))
+  return departmentOk && assigneeOk
 }
 
 export const orderKeys = {
@@ -24,7 +41,7 @@ export const orderKeys = {
   lists: ['orders', 'list'] as const,
   customerIdSearch: (query: string) => ['customers', 'id-search', query] as const,
   list: (params: {
-    is_archived: boolean | undefined
+    includeArchived: boolean
     customerIds: string[] | null
     statuses: OrderStatus[] | null
     deadlineFrom: string
@@ -33,16 +50,6 @@ export const orderKeys = {
     intakeTo: string
   }) => ['orders', 'list', params] as const,
   byId: (id: string) => ['orders', 'by-id', id] as const,
-}
-
-// BILLED orders live in the archived bucket; mixed selections need both, so is_archived becomes undefined.
-function deriveIsArchived(filter: OrdersListFilter): boolean | undefined {
-  if (filter.statusAll) return false
-  const billedSelected = filter.selectedStatuses.includes('BILLED')
-  const otherSelected = filter.selectedStatuses.some(status => status !== 'BILLED')
-  if (billedSelected && otherSelected) return undefined
-  if (billedSelected) return true
-  return false
 }
 
 export function useCustomerIdSearch(query: string) {
@@ -65,7 +72,7 @@ export function useOrdersList(filter: OrdersListFilter) {
 
   const ordersQuery = useQuery({
     queryKey: orderKeys.list({
-      is_archived: deriveIsArchived(filter),
+      includeArchived: filter.showArchived,
       customerIds,
       statuses: !filter.statusAll ? filter.selectedStatuses : null,
       deadlineFrom: filter.deadlineFrom,
@@ -76,7 +83,7 @@ export function useOrdersList(filter: OrdersListFilter) {
     queryFn: async (): Promise<OrderListEntry[]> => {
       if (trimmedSearch && (customerIds === null || customerIds.length === 0)) return []
       return orderService.getOrdersForList({
-        is_archived: deriveIsArchived(filter),
+        includeArchived: filter.showArchived,
         customerIds: customerIds ?? undefined,
         statuses: !filter.statusAll ? filter.selectedStatuses : undefined,
         deadlineFrom: filter.deadlineFrom || undefined,
@@ -87,15 +94,12 @@ export function useOrdersList(filter: OrdersListFilter) {
     },
     enabled: hasStatusFilter && searchSettled,
     refetchOnWindowFocus: false,
-    // Department is filtered over the cached rows (jobs are already loaded),
-    // so switching departments never triggers a refetch — hence not in the key.
+    // Department and assignee are filtered over the cached rows (jobs are already
+    // loaded), so toggling them never triggers a refetch — hence not in the key.
     select:
-      filter.department === 'All'
+      filter.departments.length === 0 && filter.assigneeIds.length === 0
         ? undefined
-        : orders =>
-            orders.filter(
-              order => order.jobs?.some(job => job.department === filter.department) ?? false,
-            ),
+        : orders => orders.filter(order => matchesJobFilters(order, filter)),
   })
 
   return {

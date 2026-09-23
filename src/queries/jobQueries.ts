@@ -1,12 +1,13 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { jobService } from '../services/jobService'
 import { historyService, type HistoryEvent } from '../services/historyService'
 import { productionReleaseService } from '../services/productionReleaseService'
 import { resolveEffectiveJob } from '../lib/jobShared'
-import type { JobRow, JobStatus } from '../types/database'
+import { deriveAutomaticOrderStatus } from '../lib/status/automaticStatus'
+import type { Auftrag, JobRow, JobStatus } from '../types/database'
 import type { Database } from '../types/supabase'
-import { orderKeys, useOrderById } from './orderQueries'
+import { orderKeys, useOrderById, useSetOrderStatus } from './orderQueries'
 import { historyKeys } from './historyQueries'
 import { stockAvailabilityKeys } from './stockQueries'
 
@@ -37,10 +38,11 @@ export function fetchJobsByOrderId(queryClient: QueryClient, orderId: string) {
 }
 
 /**
- * Refresh the order lists after a job change. Order status is a manual,
- * independent lifecycle (no aggregation from jobs), but the sidebar still shows
- * job-derived data (e.g. the in-production-missing-info warning), so the lists
- * are invalidated whenever a job changes.
+ * Refresh the order lists after a job change. Order status is an independent
+ * lifecycle (the one job-driven step, the automatic finish, is a separate
+ * write — see {@link useFinishOrderWhenAllJobsDone}), but the sidebar still
+ * shows job-derived data (e.g. the in-production-missing-info warning), so the
+ * lists are invalidated whenever a job changes.
  */
 function invalidateOrderLists(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
@@ -96,6 +98,35 @@ export async function bounceBackIfCommitted(queryClient: QueryClient, jobId: str
     event_type: 'ROLLED_BACK',
     meta: { previous_status: job.status },
   })
+}
+
+/**
+ * The automatic order finish: once every non-cancelled job of an invoice
+ * order is DONE, the order moves to FINISHED on its own (ORDER_FINISHED with
+ * `meta.automatic`). The returned function is called right after a mutation
+ * that can complete the order's work (mark done, cancel job, delete job) —
+ * their `onSuccess` has patched the job cache by then, so the cached rows are
+ * current. It reads the order and jobs from the cache only; when either is
+ * missing it does nothing, which leaves the manual "Mark finished" as the
+ * fallback. The rule itself is `deriveAutomaticOrderStatus`.
+ */
+export function useFinishOrderWhenAllJobsDone(): (orderId: string) => Promise<void> {
+  const queryClient = useQueryClient()
+  const { mutateAsync: setOrderStatus } = useSetOrderStatus()
+  return useCallback(
+    async (orderId: string) => {
+      const order = queryClient.getQueryData<Auftrag | null>(orderKeys.byId(orderId))
+      const jobs = queryClient.getQueryData<JobRow[]>(jobKeys.byOrderId(orderId))
+      if (!order || !jobs) return
+      if (deriveAutomaticOrderStatus(order, jobs) !== 'FINISHED') return
+      await setOrderStatus({
+        id: orderId,
+        status: 'FINISHED',
+        history: { event_type: 'ORDER_FINISHED', meta: { automatic: true } },
+      })
+    },
+    [queryClient, setOrderStatus],
+  )
 }
 
 /**

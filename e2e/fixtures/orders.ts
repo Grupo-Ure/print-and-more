@@ -26,12 +26,13 @@ export const NEW_ORDER_STATUS: OrderStatus = 'QUOTE'
 /** The status "Start processing" moves an order to. */
 export const IN_PROGRESS_STATUS: OrderStatus = 'IN_PROGRESS'
 
-/** The status "Mark finished" moves an invoice order to. */
+/** The status an invoice order reaches once its last job is done — on its own, or by "Mark finished". */
 export const FINISHED_STATUS: OrderStatus = 'FINISHED'
 
 /**
- * A deadline the picker accepts: the earliest selectable day is tomorrow, so
- * this is produced at call time, never stored.
+ * A deadline the picker accepts that differs from the default a new order gets
+ * (today), so a test can see that a pick changed it. Produced at call time,
+ * never stored.
  */
 export function nextOrderDeadline(): string {
   return format(addDays(new Date(), 1), 'yyyy-MM-dd')
@@ -64,6 +65,9 @@ export type OrderSeed = {
 /** A fresh quote with nothing set — the default. */
 export const QUOTE_ORDER: OrderSeed = { status: NEW_ORDER_STATUS, delivery: null, paymentMethod: 'INVOICE', deadline: null }
 
+/** A quote with deadline and delivery set: a job in it is complete the moment processing starts. */
+export const COMPLETE_QUOTE_ORDER: OrderSeed = { ...QUOTE_ORDER, delivery: 'PICKUP', deadline: 'tomorrow' }
+
 /** An accepted order with deadline and delivery set: a job in it is complete as soon as it has a product. */
 export const IN_PROGRESS_ORDER: OrderSeed = { ...QUOTE_ORDER, status: IN_PROGRESS_STATUS, delivery: 'PICKUP', deadline: 'tomorrow' }
 
@@ -95,10 +99,19 @@ type OrdersViewFixtures = {
   catalog: void
   /** The orders view — the app's main screen, with every dialog it can open. */
   ordersPage: OrdersPOM
+  /** What `customer` inserts; override per describe block with `test.use({ customerSeed })`. */
+  customerSeed: TestCustomer
   /** What `order` inserts; override per describe block with `test.use({ orderSeed })`. */
   orderSeed: OrderSeed
   /** What `job` inserts; override per describe block with `test.use({ jobSeed })`. */
   jobSeed: JobSeed
+  /**
+   * What `jobs` inserts, one job per entry. Override per describe block as
+   * `test.use({ jobSeeds: [SEEDS, { scope: 'test' }] })`: Playwright reads any
+   * array whose second element is an object as a `[value, options]` tuple, so
+   * a bare array of seeds would be taken apart.
+   */
+  jobSeeds: readonly JobSeed[]
   /**
    * A customer that exists only for this test: inserted before it through
    * the runner's database connection, deleted after it — together with any
@@ -109,6 +122,12 @@ type OrdersViewFixtures = {
   order: TestOrder
   /** A fresh job in `order` as `jobSeed` describes it, in its initial status. Removed with the order. */
   job: TestJob
+  /**
+   * Several fresh jobs in `order`, one per `jobSeeds` entry in that order — for
+   * what the app does to every job of an order at once. Independent of `job`.
+   * Removed with the order.
+   */
+  jobs: TestJob[]
   /** A file linked to `order`, for the customer approval. Removed with the order. */
   orderFile: TestFile
   /**
@@ -154,11 +173,13 @@ export const test = base.extend<OrdersViewFixtures>({
     await use(new OrdersPOM(page))
   },
 
+  customerSeed: [TEST_CUSTOMER, { option: true }],
   orderSeed: [QUOTE_ORDER, { option: true }],
   jobSeed: [EMPTY_JOB, { option: true }],
+  jobSeeds: [[], { option: true }],
 
-  customer: async ({ page, navbar, database }, use) => {
-    const customer = await database.createCustomer(TEST_CUSTOMER)
+  customer: async ({ page, navbar, database, customerSeed }, use) => {
+    const customer = await database.createCustomer(customerSeed)
     await reloadApp(page, navbar)
 
     await use(customer)
@@ -188,6 +209,22 @@ export const test = base.extend<OrdersViewFixtures>({
     await reloadApp(page, navbar)
 
     await use({ ...created, productId })
+  },
+
+  jobs: async ({ page, navbar, database, order, jobSeeds }, use) => {
+    const jobs: TestJob[] = []
+    for (const seed of jobSeeds) {
+      const created = await database.createJob(order.id, {
+        department: seed.department,
+        status: seed.status,
+        customer_approval_required: seed.customerApprovalRequired,
+      })
+      const productId = seed.product ? await database.createProduct(created, seed.product) : null
+      jobs.push({ ...created, productId })
+    }
+    await reloadApp(page, navbar)
+
+    await use(jobs)
   },
 
   orderFile: async ({ page, navbar, database, order }, use) => {

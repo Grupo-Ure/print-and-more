@@ -64,20 +64,44 @@ export const TEST_IDS = {
     sidebar: {
       root: 'orders-sidebar',
       searchToggle: 'orders-sidebar-search-toggle',
-      filterToggle: 'orders-sidebar-filter-toggle',
+      statusFilterToggle: 'orders-sidebar-status-filter-toggle',
+      departmentFilterToggle: 'orders-sidebar-department-filter-toggle',
+      deadlineFilterToggle: 'orders-sidebar-deadline-filter-toggle',
+      usersFilterToggle: 'orders-sidebar-users-filter-toggle',
+      /** Carries `aria-pressed`: on = archived orders listed too. */
+      archivedToggle: 'orders-sidebar-archived-toggle',
       searchInput: 'orders-sidebar-search-input',
       clearSearch: 'orders-sidebar-clear-search',
+      /** One popover per filter group, each opened by its own header toggle. */
       filters: {
-        root: 'orders-sidebar-filters',
-        allStatuses: 'orders-sidebar-filters-all-statuses',
-        /** One per order status; `data-status` = OrderStatus. */
-        status: 'orders-sidebar-filters-status',
-        department: 'orders-sidebar-filters-department',
-        deadlineFrom: 'orders-sidebar-filters-deadline-from',
-        deadlineTo: 'orders-sidebar-filters-deadline-to',
-        intakeFrom: 'orders-sidebar-filters-intake-from',
-        intakeTo: 'orders-sidebar-filters-intake-to',
-        reset: 'orders-sidebar-filters-reset',
+        status: {
+          root: 'orders-sidebar-filters-status',
+          allStatuses: 'orders-sidebar-filters-status-all',
+          /** One per order status; `data-status` = OrderStatus. */
+          status: 'orders-sidebar-filters-status-option',
+          reset: 'orders-sidebar-filters-status-reset',
+        },
+        department: {
+          root: 'orders-sidebar-filters-department',
+          /** One per department; `data-department` = Department. */
+          option: 'orders-sidebar-filters-department-option',
+          reset: 'orders-sidebar-filters-department-reset',
+        },
+        deadline: {
+          root: 'orders-sidebar-filters-deadline',
+          deadlineFrom: 'orders-sidebar-filters-deadline-from',
+          deadlineTo: 'orders-sidebar-filters-deadline-to',
+          intakeFrom: 'orders-sidebar-filters-intake-from',
+          intakeTo: 'orders-sidebar-filters-intake-to',
+          reset: 'orders-sidebar-filters-deadline-reset',
+        },
+        users: {
+          root: 'orders-sidebar-filters-users',
+          unassigned: 'orders-sidebar-filters-users-unassigned',
+          /** One per user; `data-user-id` = users.id. */
+          user: 'orders-sidebar-filters-users-option',
+          reset: 'orders-sidebar-filters-users-reset',
+        },
       },
       list: 'orders-sidebar-list',
       empty: 'orders-sidebar-empty',
@@ -151,6 +175,11 @@ export const TEST_IDS = {
         editCustomer: 'order-header-edit-customer',
         customerEmail: 'order-header-customer-email',
         customerPhone: 'order-header-customer-phone',
+        customerAddress: 'order-header-customer-address',
+        copyOrderNumber: 'order-header-copy-order-number',
+        copyCustomerEmail: 'order-header-copy-customer-email',
+        copyCustomerPhone: 'order-header-copy-customer-phone',
+        copyCustomerAddress: 'order-header-copy-customer-address',
       },
       settings: {
         root: 'order-settings',

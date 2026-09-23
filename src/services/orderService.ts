@@ -57,7 +57,12 @@ const ORDER_LIST_SELECT =
   'id, order_number, status, created_at, deadline, delivery, priority, customer_id, customers(name), jobs(id, department, status, deadline, delivery, priority, assignee_id, is_cancelled, department_products(count))'
 
 export type OrderListParams = {
-  is_archived?: boolean
+  /**
+   * `false` lists non-archived orders plus billed ones (every billed order is
+   * archived, so the status filter alone could never reach them); `true` adds
+   * archived quotes and cancelled orders.
+   */
+  includeArchived: boolean
   customerIds?: string[]
   statuses?: OrderStatus[]
   deadlineFrom?: string
@@ -74,18 +79,20 @@ const ORDER_LIST_COLUMNS = 'id, order_number, status, created_at, customers(name
  * `customers(...)` join return it flattened to a single row via
  * {@link flattenCustomerJoin}.
  *
- * Note on status: order status is a manual lifecycle (QUOTE → IN_PROGRESS →
- * FINISHED → BILLED), independent of job statuses — every transition is an
- * explicit user action, written via {@link setOrderStatus} / {@link markOrderBilled}.
+ * Note on status: order status is its own lifecycle (QUOTE → IN_PROGRESS →
+ * FINISHED → BILLED), written via {@link setOrderStatus} / {@link markOrderBilled}.
+ * Every transition is an explicit user action except IN_PROGRESS → FINISHED,
+ * which the client also performs on its own once every job of an invoice
+ * order is done (`useFinishOrderWhenAllJobsDone`).
  */
 class OrderService {
-  /** Filtered order list for the sidebar (archived flag, customer, status, deadline/intake ranges). Newest first. */
+  /** Filtered order list for the sidebar (archived toggle, customer, status, deadline/intake ranges). Newest first. */
   async getOrdersForList(params: OrderListParams): Promise<OrderListEntry[]> {
     let query = supabase
       .from('orders')
       .select(ORDER_LIST_SELECT)
       .order('created_at', { ascending: false })
-    if (params.is_archived !== undefined) query = query.eq('is_archived', params.is_archived)
+    if (!params.includeArchived) query = query.or('is_archived.eq.false,status.eq.BILLED')
     if (params.customerIds) query = query.in('customer_id', params.customerIds)
     if (params.statuses) query = query.in('status', params.statuses)
     if (params.deadlineFrom) query = query.gte('deadline', params.deadlineFrom)
@@ -159,7 +166,7 @@ class OrderService {
     return flattenCustomerJoin(data as unknown as Auftrag)
   }
 
-  /** Soft-archive an order (`is_archived = true`); excludes it from the sidebar list. */
+  /** Soft-archive an order (`is_archived = true`); hidden from the sidebar list unless "Show archived" is on. */
   async archiveOrder(id: string): Promise<void> {
     const { error } = await supabase
       .from('orders')

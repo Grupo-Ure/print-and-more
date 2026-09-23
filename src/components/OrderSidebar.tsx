@@ -14,11 +14,9 @@ import {
   type Auftrag,
   type JobRow,
 } from '../types/database'
-import { Search, SlidersHorizontal } from 'lucide-react'
+import { Archive, Search } from 'lucide-react'
 import { Sidebar, SidebarHeader, SidebarContent, SidebarFooter } from '@/components/ui/sidebar'
-import { useIsMobile } from '@/hooks/use-mobile'
 import { Button } from '@/components/ui/button'
-import { Popover, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { TEST_IDS } from '@e2e/support/testIds'
 import { DuplicateDialog } from './DuplicateDialog'
@@ -26,24 +24,21 @@ import { NewOrderDialog } from './NewOrderDialog'
 import { useToast } from './Toast'
 import { useConfirm } from './ConfirmDialog'
 import { useOrderSelection } from '../hooks/useOrderSelection'
+import { ActiveDot } from './orderSidebar/ActiveDot'
 import { OrderSidebarSearch } from './orderSidebar/OrderSidebarSearch'
-import { OrderSidebarFilters } from './orderSidebar/OrderSidebarFilters'
+import {
+  DeadlineFilterButton,
+  DepartmentFilterButton,
+  StatusFilterButton,
+  UsersFilterButton,
+} from './orderSidebar/OrderSidebarFilters'
 import { OrderSidebarBody } from './orderSidebar/OrderSidebarBody'
 import { useOrderSidebarFilter } from './orderSidebar/useOrderSidebarFilter'
 
-/** Dot on a header icon button signalling a hidden-but-active state. */
-function ActiveDot() {
-  return (
-    <span className="absolute top-1 right-1 size-1.5 rounded-full bg-orange-600 ring-1 ring-white" />
-  )
-}
-
 export function OrderSidebar() {
   const { activeOrderId, setActiveOrder } = useOrderSelection()
-  const { filter, isActive: filterActive, selectedStatuses, hasStatusFilter, actions } = useOrderSidebarFilter()
+  const { filter, selectedStatuses, hasStatusFilter, actions } = useOrderSidebarFilter()
   const [searchOpen, setSearchOpen] = useState(false)
-  const [filterPopOpen, setFilterPopOpen] = useState(false)
-  const isCompact = useIsMobile()
 
   const { showError, showSuccess } = useToast()
   const confirm = useConfirm()
@@ -59,9 +54,11 @@ export function OrderSidebar() {
       deadlineTo: filter.deadlineTo,
       intakeFrom: filter.intakeFrom,
       intakeTo: filter.intakeTo,
-      department: filter.department,
+      departments: filter.departments,
+      assigneeIds: filter.assigneeIds,
+      showArchived: filter.showArchived,
     }),
-    [filter.searchDebounced, filter.statusAll, selectedStatuses, filter.deadlineFrom, filter.deadlineTo, filter.intakeFrom, filter.intakeTo, filter.department],
+    [filter.searchDebounced, filter.statusAll, selectedStatuses, filter.deadlineFrom, filter.deadlineTo, filter.intakeFrom, filter.intakeTo, filter.departments, filter.assigneeIds, filter.showArchived],
   )
 
   const ordersQuery = useOrdersList(ordersFilter)
@@ -170,43 +167,22 @@ export function OrderSidebar() {
               <Search className="size-3.5" />
               {searchActive && !searchOpen && <ActiveDot />}
             </Button>
-            {isCompact ? (
-              <Popover open={filterPopOpen} onOpenChange={setFilterPopOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    title="Filter"
-                    aria-label="Filter"
-                    data-testid={TEST_IDS.orders.sidebar.filterToggle}
-                    className="relative"
-                  >
-                    <SlidersHorizontal className="size-3.5" />
-                    {filterActive && <ActiveDot />}
-                  </Button>
-                </PopoverTrigger>
-                <OrderSidebarFilters
-                  filter={filter}
-                  actions={actions}
-                  isActive={filterActive}
-                  variant="popover"
-                />
-              </Popover>
-            ) : (
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                title="Filter"
-                aria-label="Filter"
-                data-testid={TEST_IDS.orders.sidebar.filterToggle}
-                aria-pressed={filterPopOpen}
-                onClick={() => setFilterPopOpen(o => !o)}
-                className={cn('relative', filterPopOpen && 'bg-muted text-foreground')}
-              >
-                <SlidersHorizontal className="size-3.5" />
-                {filterActive && <ActiveDot />}
-              </Button>
-            )}
+            <StatusFilterButton filter={filter} actions={actions} />
+            <DepartmentFilterButton filter={filter} actions={actions} />
+            <DeadlineFilterButton filter={filter} actions={actions} />
+            <UsersFilterButton filter={filter} actions={actions} />
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              title="Show archived"
+              aria-label="Show archived"
+              data-testid={TEST_IDS.orders.sidebar.archivedToggle}
+              aria-pressed={filter.showArchived}
+              onClick={() => actions.setShowArchived(!filter.showArchived)}
+              className={cn(filter.showArchived && 'bg-muted text-foreground')}
+            >
+              <Archive className="size-3.5" />
+            </Button>
           </div>
         </div>
 
@@ -217,15 +193,6 @@ export function OrderSidebar() {
           open={searchOpen}
           className={cn('hidden desktop:flex', searchOpen && 'flex')}
         />
-
-        {!isCompact && filterPopOpen && (
-          <OrderSidebarFilters
-            filter={filter}
-            actions={actions}
-            isActive={filterActive}
-            variant="inline"
-          />
-        )}
       </SidebarHeader>
 
       <SidebarContent className="p-0">

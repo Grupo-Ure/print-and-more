@@ -125,6 +125,10 @@ function historySegments(
     case 'MARKED_DONE':
       return [actor, ' marked ', job, ' as ', { kind: 'status', meta: JOB_STATUS_META.DONE }]
     case 'ORDER_FINISHED':
+      // Written automatically when the last job was done — no one clicked.
+      if (meta?.automatic === true) {
+        return ['Every job is done — the order became ', { kind: 'status', meta: ORDER_STATUS_META.FINISHED }]
+      }
       return [actor, ' marked the order as ', { kind: 'status', meta: ORDER_STATUS_META.FINISHED }]
     case 'ORDER_REOPENED':
       return [actor, ' reopened the order']

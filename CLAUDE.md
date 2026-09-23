@@ -7,9 +7,8 @@ through the production workflow, inventory, customer approvals, time
 logging, history logging, and ERP export.
 
 This file describes **architecture, domain model, and workflows** — the stable
-properties of the application. For the **current implementation status** (what
-is finished, what is open, known gaps) see [current_state.md](current_state.md).
-The authoritative source for library versions is `package.json`; the
+properties of the application. Open work and known gaps are tracked in Jira,
+not here. The authoritative source for library versions is `package.json`; the
 authoritative source for UI dimensions is the relevant CSS file.
 
 **[DOCS.md](DOCS.md) is the entry point into the [docs/](docs/) folder.** It is
@@ -22,6 +21,30 @@ reference material. Read it (and the docs it links) before making changes.
 > to human contributors.
 
 ## Working with this project
+
+**The app is in production.** The shop works in it daily against the hosted
+Supabase project, which holds real orders, customers and stock. Treat the
+database as live:
+
+- **Every schema change is a new migration** under `supabase/migrations/`
+  (`supabase migration new <name>`): tables, columns, enum values, check
+  constraints, RLS policies, triggers, functions, and changes to catalog
+  master data alike. Nothing is changed by hand in the Supabase dashboard or
+  SQL editor, and nothing is changed by editing an existing migration file.
+- **Applied migrations are frozen.** The dated base files (types, core,
+  orders, jobs, …) are the schema as it went live; a correction is a new
+  migration on top, never an edit of the file that is already applied.
+- `supabase/seed.sql` only feeds fresh databases (local, CI). A change to
+  master data that production must also see needs a migration as well.
+- A migration is verified against a local Supabase (`supabase db reset`
+  replays every migration plus the seed) and the e2e suite before it is
+  pushed. After it lands, regenerate `src/types/supabase.ts` — the product
+  schemas' drift assertions will not compile until the types match.
+- No destructive change (drop, rename, type change of a populated column)
+  without a data-preserving path in the same migration.
+
+The Supabase CLI workflow and the migration rules are spelled out in
+[docs/coding-standards.md](docs/coding-standards.md) ("Migrations").
 
 **Language — the repo is being Anglicized; English is the target.**
 
@@ -52,8 +75,7 @@ identifiers, names, or strings.
 
 **Where things go**
 - **CLAUDE.md** (this file) — stable architecture, domain model, workflows. No
-  version pins, no pixel widths, no current-state info.
-- **[current_state.md](current_state.md)** — what's done/pending, known debt.
+  version pins, no pixel widths, no status or to-do lists (those live in Jira).
 - **[DOCS.md](DOCS.md)** — documentation index; entry point to
   [docs/](docs/) (coding standards, skill docs, reference). Consult it for the
   architectural patterns to follow.
@@ -74,7 +96,9 @@ identifiers, names, or strings.
   policies and triggers live in the migrations. The base schema is split into
   domain migration files under `supabase/migrations/` (types, core, orders,
   jobs, catalog, products_core, one file per department's product tables,
-  blueprint, audit, duplicate_order). `supabase/seed.sql` holds catalog
+  blueprint, audit, duplicate_order); everything since went live is a dated
+  migration after them, and that is the only way the schema changes (see
+  "The app is in production" above). `supabase/seed.sql` holds catalog
   master data; `seed.dev.sql` (git-ignored) holds local demo data. One edge
   function, `manage-users`, exists for what the browser cannot do
   (create/delete auth accounts).
@@ -119,7 +143,7 @@ without a session, otherwise a two-column shell:
 
 | Column | Component | Role |
 |--------|-----------|------|
-| Left   | [`OrderSidebar`](src/components/OrderSidebar.tsx) | Search + filters (status, department, deadline/intake ranges), order list with selection, per-order menu (duplicate / delete quote), "+ New Order" ([`NewOrderDialog`](src/components/NewOrderDialog.tsx)). Archived orders are never listed; finished/billed are hidden by the default status filter. |
+| Left   | [`OrderSidebar`](src/components/OrderSidebar.tsx) | Search + filters (status, department, deadline/intake ranges), order list with selection, per-order menu (duplicate / delete quote), "+ New Order" ([`NewOrderDialog`](src/components/NewOrderDialog.tsx)). Archived orders are listed only while the header's *Show archived* toggle is on, except billed ones, which appear whenever Billed is ticked; finished/billed are hidden by the default status filter. |
 | Centre | [`OrderDetails`](src/components/OrderDetails.tsx) | Order header (number, customer, lifecycle button, files/history/archive/cancel actions), order settings row (deadline, delivery, priority, payment), then [`JobList`](src/components/JobList.tsx) (add-job buttons, one row per job with status track and right-click menu) next to the active job's [`JobDetail`](src/components/JobDetail.tsx). |
 
 `JobDetail` shows the job header (assignee, status badge, settings / time
@@ -323,12 +347,24 @@ is that jobs cannot leave setup while the order is still a quote.
 
 **Order lifecycle** (`order_status`): `QUOTE` → `IN_PROGRESS` → `FINISHED` →
 `BILLED`. Every transition is **manual**, through the single lifecycle button
-in the order header ([`OrderDetails`](src/components/OrderDetails.tsx)):
+in the order header ([`OrderDetails`](src/components/OrderDetails.tsx)), with
+one automatic step: an invoice order finishes on its own when its last job
+is done.
 
 - *Start processing* (`QUOTE` → `IN_PROGRESS`).
-- *Mark finished* (`IN_PROGRESS` → `FINISHED`) — offered only once every
-  non-cancelled job is `DONE`. **Cash orders skip `FINISHED`:** their action
-  is *Finish & close*, which goes straight to `BILLED` and archives.
+- **Automatic finish** (`IN_PROGRESS` → `FINISHED`) — the moment every
+  non-cancelled job of an invoice order is `DONE` (a job marked done, or the
+  last open job cancelled or deleted), the order moves to `FINISHED` by itself
+  (`deriveAutomaticOrderStatus` in
+  [src/lib/status/automaticStatus.ts](src/lib/status/automaticStatus.ts),
+  applied by `useFinishOrderWhenAllJobsDone` from the job mutations; history
+  `ORDER_FINISHED` with `meta.automatic`). It fires on those events only, so
+  a reopened order stays open until something changes again.
+- *Mark finished* (`IN_PROGRESS` → `FINISHED`) — the manual fallback, offered
+  only once every non-cancelled job is `DONE` (e.g. after a reopen). **Cash
+  orders skip `FINISHED`** and never auto-finish: their action is *Finish &
+  close*, which goes straight to `BILLED` and archives — that step records the
+  cash payment, which the last job being done says nothing about.
 - *Mark as invoiced* (`FINISHED` → `BILLED`) — archives the order and drops it
   from the list.
 - Admins may *reopen* a finished order (`FINISHED` → `IN_PROGRESS`).
@@ -342,23 +378,24 @@ in the order header ([`OrderDetails`](src/components/OrderDetails.tsx)):
 - **Completeness** — [src/lib/jobShared.ts](src/lib/jobShared.ts):
   `isJobComplete` (effective deadline present, at least one product; nothing
   is required while the order is a quote), `isDeadlineMissed` (effective
-  deadline strictly before today), `autoPrepressAllowed` (free-form types —
-  `OTHER_STAMP`, `OTHER_LFP`, `OTHER_LASER`, and the whole `OTHER`
-  department — never auto-advance), `isInProductionMissingInfo` (derived
+  deadline strictly before today), `isInProductionMissingInfo` (derived
   warning for a job in production that fails completeness, typically after a
-  force release).
+  force release). The rules are the same for every department and product
+  type — there is no free-form exception.
 - **Automatic `IN_SETUP` ↔ `PREPRESS`** — `deriveAutomaticStatus` in
   [src/lib/status/automaticStatus.ts](src/lib/status/automaticStatus.ts), run
   by [`useStatusManager`](src/queries/useStatusManager.ts) for every
-  non-committed job of the open order. A complete, auto-eligible job whose
-  customer has the required contact data is promoted to `PREPRESS` on its own
-  (`PREPRESS_READY_AUTO`); it is retracted to `IN_SETUP` when it stops being
-  complete or the order drops back to quote. The missed-deadline gate is
-  entry-only: a job already in pre-press is not pulled back. It never touches
-  `IN_PRODUCTION` / `DONE`.
+  non-committed job of the open order. A complete job whose customer has the
+  required contact data is promoted to `PREPRESS` on its own
+  (`PREPRESS_READY_AUTO`), whatever its department — so starting processing
+  on an order promotes every complete job at once; it is retracted to
+  `IN_SETUP` when it stops being complete or the order drops back to quote.
+  The missed-deadline gate is entry-only: a job already in pre-press is not
+  pulled back. It never touches `IN_PRODUCTION` / `DONE`.
 - **Manual advance** — [`useJobRelease`](src/hooks/useJobRelease.ts), shared by
   the header's `JobReleaseButton` and the job list's context menu: *Release to
-  Pre-Press* (the manual path for free-form types), *Release to Production*,
+  Pre-Press* (a manual fallback; complete jobs normally get there on their
+  own), *Release to Production*,
   *Mark job as done*. Each confirms first and writes its history event
   (`PREPRESS_READY_MANUAL`, `PRODUCTION_READY_SET`, `MARKED_DONE`).
 - **Removal** — [`useJobRemoval`](src/hooks/useJobRemoval.ts): a job in setup
@@ -418,7 +455,7 @@ in the order header ([`OrderDetails`](src/components/OrderDetails.tsx)):
 | [`src/pages/OrderWorkspace.tsx`](src/pages/OrderWorkspace.tsx) | Session gate + the two-column orders shell |
 | [`src/components/OrderDetails.tsx`](src/components/OrderDetails.tsx) | Order header, lifecycle actions, settings row, job list + detail host |
 | [`src/hooks/useJobRelease.ts`](src/hooks/useJobRelease.ts) / [`useJobRemoval.ts`](src/hooks/useJobRemoval.ts) | Every job workflow rule, shared by button and context menu |
-| [`src/lib/jobShared.ts`](src/lib/jobShared.ts) | Inheritance + completeness (`resolveEffectiveJob`, `isJobComplete`, `isDeadlineMissed`, `autoPrepressAllowed`) |
+| [`src/lib/jobShared.ts`](src/lib/jobShared.ts) | Inheritance + completeness (`resolveEffectiveJob`, `isJobComplete`, `isDeadlineMissed`) |
 | [`src/lib/status/automaticStatus.ts`](src/lib/status/automaticStatus.ts) / [`src/queries/useStatusManager.ts`](src/queries/useStatusManager.ts) | Automatic setup ↔ pre-press transition |
 | [`src/const/orderStatus.ts`](src/const/orderStatus.ts) | Status labels/colours for orders and jobs |
 | [`src/types/product.ts`](src/types/product.ts) | Typed product model: `LoadedProduct`, `ProductWriteInput`, `ChildTable`, `CHILD_TABLE_BY_TYPE` |
@@ -441,8 +478,10 @@ in the order header ([`OrderDetails`](src/components/OrderDetails.tsx)):
   + typed child tables) is fixed; no restructuring intended.
 - The colour system is centralised in `src/index.css` as CSS variables — consume
   the tokens, don't hardcode colours.
+- The database is live. A schema or master-data change is a new migration
+  file, verified locally and by the e2e suite, followed by regenerated types
+  — never a dashboard edit or a change to an applied migration.
 - **Open refactor streams** (see `.plans/`): value-rename of stored enum strings
   to English; the i18next UI-string pass. Don't fold these into unrelated work.
 - Dead code awaiting removal: [`src/components/JobTabs.tsx`](src/components/JobTabs.tsx)
   (replaced by `JobList`, no longer imported).
-- For current status / known debt see [current_state.md](current_state.md).

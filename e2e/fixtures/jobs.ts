@@ -8,8 +8,8 @@ type HistoryEvent = Database['public']['Enums']['history_event']
 
 /**
  * The department the suite adds jobs to when the department itself is not
- * the point of the test. OTHER has a single product type with two fields and
- * never auto-advances, so a job in it stays in setup while a test builds it.
+ * the point of the test. OTHER has a single product type with two fields, so
+ * a test builds a job in it with the fewest inputs.
  */
 export const TEST_JOB_DEPARTMENT: Department = 'OTHER'
 
@@ -70,12 +70,28 @@ export const OTHER_PRODUCT_ROW: ProductSeed = {
   child: { description: OTHER_PRODUCT.description },
 }
 
-/** A structured CopyShop product; its job auto-advances to pre-press once complete. */
+/** A CopyShop product. */
 export const POSTER_PRODUCT_ROW: ProductSeed = {
   type: 'POSTER',
   quantity: 1,
   childTable: 'poster_products',
   child: { format: 'A2', material: '120G_AFFICHEN', laminate: 'NEIN', width: 420, height: 594 },
+}
+
+/** A large-format product. */
+export const BANNER_PRODUCT_ROW: ProductSeed = {
+  type: 'BANNER',
+  quantity: 1,
+  childTable: 'banner_products',
+  child: { material: 'PVC_FRONTLIT', width: 2000, height: 1000, hem: true, eyelets: false },
+}
+
+/** A laser-engraving product. */
+export const SIGN_PRODUCT_ROW: ProductSeed = {
+  type: 'SIGN',
+  quantity: 1,
+  childTable: 'sign_products',
+  child: { material: 'ABS_SW', width: 100, height: 50, round_corners: false, self_adhesive: true, motif: 'E2E motif' },
 }
 
 /**
@@ -131,17 +147,34 @@ export const EMPTY_JOB: JobSeed = {
   product: null,
 }
 
-/** A free-form job with content: complete once the order supplies deadline and delivery, but never auto-advances. */
-export const FREE_FORM_JOB_WITH_PRODUCT: JobSeed = { ...EMPTY_JOB, product: OTHER_PRODUCT_ROW }
+/**
+ * One job with content per department: complete once the order supplies
+ * deadline and delivery, and then advancing to pre-press on its own — every
+ * department does, OTHER included. The stamp and textile ones sit on catalog
+ * rows the `catalog` fixture keeps in stock.
+ */
+export const OTHER_JOB_WITH_PRODUCT: JobSeed = { ...EMPTY_JOB, product: OTHER_PRODUCT_ROW }
+export const LFP_JOB_WITH_PRODUCT: JobSeed = { ...EMPTY_JOB, department: 'LFP', product: BANNER_PRODUCT_ROW }
+export const COPYSHOP_JOB_WITH_PRODUCT: JobSeed = { ...EMPTY_JOB, department: 'COPYSHOP', product: POSTER_PRODUCT_ROW }
+export const TEXTILE_JOB_WITH_PRODUCT: JobSeed = { ...EMPTY_JOB, department: 'TEXTILE', product: OWN_STOCK_GARMENT_ROW }
+export const STAMP_JOB_WITH_PRODUCT: JobSeed = { ...EMPTY_JOB, department: 'STAMP', product: IN_STOCK_STAMP_PRODUCT_ROW }
+export const LASER_JOB_WITH_PRODUCT: JobSeed = { ...EMPTY_JOB, department: 'LASER_ENGRAVING', product: SIGN_PRODUCT_ROW }
 
-/** A structured job with content: auto-advances to pre-press once complete. */
-export const STRUCTURED_JOB_WITH_PRODUCT: JobSeed = { ...EMPTY_JOB, department: 'COPYSHOP', product: POSTER_PRODUCT_ROW }
+/** All six of the above, for an order that has work in every department at once. */
+export const ONE_JOB_PER_DEPARTMENT: readonly JobSeed[] = [
+  LFP_JOB_WITH_PRODUCT,
+  COPYSHOP_JOB_WITH_PRODUCT,
+  TEXTILE_JOB_WITH_PRODUCT,
+  STAMP_JOB_WITH_PRODUCT,
+  LASER_JOB_WITH_PRODUCT,
+  OTHER_JOB_WITH_PRODUCT,
+]
 
-/** A structured job without content: held in setup whatever the order supplies. */
-export const STRUCTURED_JOB_WITHOUT_PRODUCT: JobSeed = { ...STRUCTURED_JOB_WITH_PRODUCT, product: null }
+/** A job without content: held in setup whatever the order supplies. */
+export const COPYSHOP_JOB_WITHOUT_PRODUCT: JobSeed = { ...COPYSHOP_JOB_WITH_PRODUCT, product: null }
 
-/** A complete free-form job already released to pre-press. */
-export const JOB_IN_PREPRESS: JobSeed = { ...FREE_FORM_JOB_WITH_PRODUCT, status: PREPRESS_STATUS }
+/** A complete job already in pre-press. */
+export const JOB_IN_PREPRESS: JobSeed = { ...OTHER_JOB_WITH_PRODUCT, status: PREPRESS_STATUS }
 
 /** A complete job in pre-press that the customer still has to approve. */
 export const JOB_IN_PREPRESS_AWAITING_APPROVAL: JobSeed = { ...JOB_IN_PREPRESS, customerApprovalRequired: true }
@@ -166,8 +199,8 @@ export const TEXTILE_JOB_IN_PREPRESS_IN_STOCK: JobSeed = {
   product: OWN_STOCK_GARMENT_ROW,
 }
 
-/** A complete free-form job already in production. */
-export const JOB_IN_PRODUCTION: JobSeed = { ...FREE_FORM_JOB_WITH_PRODUCT, status: IN_PRODUCTION_STATUS }
+/** A complete job already in production. */
+export const JOB_IN_PRODUCTION: JobSeed = { ...OTHER_JOB_WITH_PRODUCT, status: IN_PRODUCTION_STATUS }
 
-/** A complete free-form job already done — what an order needs before it can be finished. */
-export const JOB_DONE: JobSeed = { ...FREE_FORM_JOB_WITH_PRODUCT, status: DONE_STATUS }
+/** A complete job already done — what an order needs before it can be finished. */
+export const JOB_DONE: JobSeed = { ...OTHER_JOB_WITH_PRODUCT, status: DONE_STATUS }

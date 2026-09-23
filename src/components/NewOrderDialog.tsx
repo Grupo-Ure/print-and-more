@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { format } from 'date-fns'
 import { Pencil, Plus, Replace } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -50,10 +51,12 @@ export function NewOrderDialog() {
     if (!selectedCustomer) return
     try {
       // order_number and payment_method come from DB defaults; the client omits them.
+      // The deadline defaults to today: most orders are cash and picked up the same day.
+      // Local date on purpose — a DB default would use the server's timezone.
       const payload = {
         customer_id: selectedCustomer.id,
         status: 'QUOTE',
-        deadline: null,
+        deadline: format(new Date(), 'yyyy-MM-dd'),
         delivery: 'PICKUP',
         priority: 'NORMAL',
       } as Parameters<typeof createOrder.mutateAsync>[0]

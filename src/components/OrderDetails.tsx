@@ -3,6 +3,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { fileService } from '../services/fileService'
 import { toDateOnly } from '../lib/formatDate'
 import { formatMinutes } from '../lib/formatMinutes'
+import { areAllJobsDone } from '../lib/jobShared'
+import { formatCustomerAddress } from '../lib/customer'
 import {
   type DeliveryChoice,
   type OrderDetailRow,
@@ -353,10 +355,7 @@ export function OrderDetails() {
       <OrderHeader
         order={order}
         hasJobs={visibleJobs.length > 0}
-        allJobsDone={
-          visibleJobs.length > 0 &&
-          visibleJobs.every(job => job.status === 'DONE')
-        }
+        allJobsDone={areAllJobsDone(visibleJobs)}
         onEditCustomer={() =>
           openCustomerDialog(order?.customers ?? null, {
             onSaved: () => {
@@ -442,6 +441,7 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
   const customerDisplayName = order.customers?.name?.trim() || '—'
   const customerEmail = order.customers?.email?.trim() || ''
   const customerPhone = order.customers?.phone?.trim() || ''
+  const customerAddress = formatCustomerAddress(order.customers)
   const copyToClipboard = useCopyToClipboard()
   const minutesQuery = useTimeLogMinutesByOrderId(order.id)
   const totalMinutes = Object.values(minutesQuery.data ?? {}).reduce((sum, m) => sum + m, 0)
@@ -451,20 +451,72 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
   return (
     <header className="flex flex-col">
       <div className="flex flex-wrap gap-x-4 gap-y-1 items-center justify-between">
-        <div className="flex gap-4 items-center">
-          <h1>Order:</h1>
-          <h2 data-testid={HEADER_IDS.orderNumber} className="text-xl desktop:text-2xl" title="Order number">
-            {order.order_number}
-          </h2>
-          {totalMinutes > 0 && (
-            <span
-              data-testid={HEADER_IDS.totalTime}
-              className="flex items-center gap-1 text-sm text-muted-foreground tabular-nums"
-              title="Total time logged across all jobs"
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <h1 data-testid={HEADER_IDS.customerName} title="Customer">
+              {customerDisplayName}
+            </h1>
+            <Button
+              onClick={onEditCustomer}
+              title="Edit customer"
+              aria-label="Edit customer"
+              data-testid={HEADER_IDS.editCustomer}
+              variant="ghost"
+              size="icon-sm"
             >
-              <Clock size={14} />
-              {formatMinutes(totalMinutes)}
-            </span>
+              <Settings />
+            </Button>
+          </div>
+          {customerEmail && (
+            <div className="flex items-center gap-1">
+              <p data-testid={HEADER_IDS.customerEmail} title="Email">
+                <span className="font-medium">Email:</span> {customerEmail}
+              </p>
+              <Button
+                onClick={() => copyToClipboard(customerEmail, 'Email')}
+                title="Copy email"
+                aria-label="Copy email"
+                data-testid={HEADER_IDS.copyCustomerEmail}
+                variant="ghost"
+                size="icon-sm"
+              >
+                <Copy />
+              </Button>
+            </div>
+          )}
+          {customerPhone && (
+            <div className="flex items-center gap-1">
+              <p data-testid={HEADER_IDS.customerPhone} title="Phone">
+                <span className="font-medium">Phone:</span> {customerPhone}
+              </p>
+              <Button
+                onClick={() => copyToClipboard(customerPhone, 'Phone number')}
+                title="Copy phone number"
+                aria-label="Copy phone number"
+                data-testid={HEADER_IDS.copyCustomerPhone}
+                variant="ghost"
+                size="icon-sm"
+              >
+                <Copy />
+              </Button>
+            </div>
+          )}
+          {customerAddress && (
+            <div className="flex items-center gap-1">
+              <p data-testid={HEADER_IDS.customerAddress} title="Address">
+                <span className="font-medium">Address:</span> {customerAddress}
+              </p>
+              <Button
+                onClick={() => copyToClipboard(customerAddress, 'Address')}
+                title="Copy address"
+                aria-label="Copy address"
+                data-testid={HEADER_IDS.copyCustomerAddress}
+                variant="ghost"
+                size="icon-sm"
+              >
+                <Copy />
+              </Button>
+            </div>
           )}
         </div>
         <div className="flex items-center gap-1">
@@ -501,6 +553,18 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
               Reopen order
             </Button>
           )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            title="Order files"
+            aria-label="Order files"
+            data-testid={HEADER_IDS.files}
+            className="text-blue-500 hover:text-blue-700"
+            onClick={onOpenFiles}
+          >
+            <Paperclip className="size-5" />
+          </Button>
           <OrderLifecycleButton
             status={order.status}
             paymentMethod={order.payment_method}
@@ -510,17 +574,6 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
             onMarkFinished={onMarkFinished}
             onMarkInvoiced={onMarkInvoiced}
           />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            title="Order files"
-            aria-label="Order files"
-            data-testid={HEADER_IDS.files}
-            onClick={onOpenFiles}
-          >
-            <Paperclip />
-          </Button>
           <Button
             type="button"
             variant="ghost"
@@ -563,53 +616,32 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
           )}
         </div>
       </div>
-      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+      <div className="flex items-center gap-3 text-muted-foreground">
+        <span className="text-sm desktop:text-base">Order:</span>
         <div className="flex items-center gap-1">
-          <h1 data-testid={HEADER_IDS.customerName} title="Customer">
-            {customerDisplayName}
-          </h1>
+          <h2 data-testid={HEADER_IDS.orderNumber} className="text-base desktop:text-lg" title="Order number">
+            {order.order_number}
+          </h2>
           <Button
-            onClick={onEditCustomer}
-            title="Edit customer"
-            aria-label="Edit customer"
-            data-testid={HEADER_IDS.editCustomer}
+            onClick={() => copyToClipboard(order.order_number, 'Order number')}
+            title="Copy order number"
+            aria-label="Copy order number"
+            data-testid={HEADER_IDS.copyOrderNumber}
             variant="ghost"
             size="icon-sm"
           >
-            <Settings />
+            <Copy />
           </Button>
         </div>
-        {customerEmail && (
-          <div className="flex items-center gap-1">
-            <p data-testid={HEADER_IDS.customerEmail} title="Email">
-              <span className="font-medium">Email:</span> {customerEmail}
-            </p>
-            <Button
-              onClick={() => copyToClipboard(customerEmail, 'Email')}
-              title="Copy email"
-              aria-label="Copy email"
-              variant="ghost"
-              size="icon-sm"
-            >
-              <Copy />
-            </Button>
-          </div>
-        )}
-        {customerPhone && (
-          <div className="flex items-center gap-1">
-            <p data-testid={HEADER_IDS.customerPhone} title="Phone">
-              <span className="font-medium">Phone:</span> {customerPhone}
-            </p>
-            <Button
-              onClick={() => copyToClipboard(customerPhone, 'Phone number')}
-              title="Copy phone number"
-              aria-label="Copy phone number"
-              variant="ghost"
-              size="icon-sm"
-            >
-              <Copy />
-            </Button>
-          </div>
+        {totalMinutes > 0 && (
+          <span
+            data-testid={HEADER_IDS.totalTime}
+            className="flex items-center gap-1 text-sm tabular-nums"
+            title="Total time logged across all jobs"
+          >
+            <Clock size={14} />
+            {formatMinutes(totalMinutes)}
+          </span>
         )}
       </div>
       <OrderHistoryDialog orderId={order.id} open={historyOpen} onOpenChange={setHistoryOpen} />
@@ -631,6 +663,9 @@ type OrderLifecycleButtonProps = {
  * The single forward action of the order lifecycle: QUOTE → "Start processing",
  * IN_PROGRESS → "Mark finished", FINISHED → "Mark as invoiced". The latter two
  * require every non-cancelled job to be DONE; otherwise no button renders.
+ * An invoice order normally finishes on its own the moment its last job is
+ * done (`useFinishOrderWhenAllJobsDone`), so "Mark finished" is the manual
+ * fallback — after an admin reopened the order, say.
  * Cash orders skip FINISHED: their IN_PROGRESS action is "Finish & close",
  * which goes straight to BILLED (handled inside onMarkFinished).
  */

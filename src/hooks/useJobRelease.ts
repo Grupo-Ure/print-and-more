@@ -2,8 +2,11 @@ import { useConfirm } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
 import { WORKFLOW_STATUSES } from '../const/orderStatus'
 import { isDeadlineMissed, isJobComplete, resolveEffectiveJob } from '../lib/jobShared'
+import { deriveAutomaticOrderStatus } from '../lib/status/automaticStatus'
 import {
+  useFinishOrderWhenAllJobsDone,
   useForceReleaseToProduction,
+  useJobsByOrderId,
   useReleaseToProduction,
   useSetJobStatus,
 } from '../queries/jobQueries'
@@ -51,10 +54,12 @@ export function useJobRelease(job: JobRow, orderNumber: string | null): JobRelea
   const setJobStatus = useSetJobStatus()
   const releaseToProduction = useReleaseToProduction()
   const forceReleaseMutation = useForceReleaseToProduction()
+  const finishOrderWhenAllJobsDone = useFinishOrderWhenAllJobsDone()
   const { showError } = useToast()
   const confirm = useConfirm()
   const { isAdmin } = useIsAdmin()
   const orderQuery = useOrderById(job.order_id)
+  const { data: siblings = [] } = useJobsByOrderId(job.order_id)
   const productsQuery = useProductsByJobId(job.id)
   const { data: shortages = [] } = useStockAvailability(job)
 
@@ -138,8 +143,18 @@ export function useJobRelease(job: JobRow, orderNumber: string | null): JobRelea
   }
 
   const markDone = async (): Promise<void> => {
+    // Say so up front when this is the last open job: the order finishes with it.
+    const finishesOrder =
+      order != null &&
+      deriveAutomaticOrderStatus(
+        order,
+        siblings.map(sibling => (sibling.id === job.id ? { ...sibling, status: 'DONE' } : sibling)),
+      ) === 'FINISHED'
     const confirmed = await confirm({
       title: 'Mark job as done?',
+      description: finishesOrder
+        ? 'This is the last open job — the order will be marked as finished.'
+        : undefined,
       confirmLabel: 'Mark done',
     })
     if (!confirmed) return
@@ -152,6 +167,12 @@ export function useJobRelease(job: JobRow, orderNumber: string | null): JobRelea
       })
     } catch {
       showError('Status could not be updated')
+      return
+    }
+    try {
+      await finishOrderWhenAllJobsDone(job.order_id)
+    } catch {
+      showError('Order could not be marked as finished')
     }
   }
 

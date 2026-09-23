@@ -1,11 +1,11 @@
 import { expect, test, NEW_ORDER_STATUS } from '../../fixtures/orders'
-import { FREE_FORM_JOB_WITH_PRODUCT } from '../../fixtures/jobs'
+import { OTHER_JOB_WITH_PRODUCT } from '../../fixtures/jobs'
 
 // The copy is a second order for the same customer; the `customer` fixture
 // removes it with the original, so no test here needs a cleanup stage.
 
 test.describe('quote with a job that has a product', () => {
-  test.use({ jobSeed: FREE_FORM_JOB_WITH_PRODUCT })
+  test.use({ jobSeed: OTHER_JOB_WITH_PRODUCT })
 
   test('duplicating the order opens the copy as a new quote, selected in the list', async ({ ordersPage, order, job }) => {
     // Setup — the original's row; the `job` fixture put a job with a product in it.

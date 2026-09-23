@@ -1,174 +1,291 @@
-import { RotateCcw } from 'lucide-react'
-import { DEPARTMENTS, ORDER_STATUS_LIST } from '../../types/database'
+import { useState, type ComponentType, type ReactNode } from 'react'
+import { CalendarClock, LayoutGrid, ListFilter, RotateCcw, Users, type LucideProps } from 'lucide-react'
+import { ORDER_STATUS_LIST } from '../../types/database'
 import { JOB_DEPARTMENT_LABELS } from '../../const/departmentAbbreviation'
+import { departmentIcon, DEPARTMENT_ORDER } from '../../const/departmentIcons'
 import { ORDER_STATUS_META } from '../../const/orderStatus'
+import { UNASSIGNED_ASSIGNEE } from '../../lib/orderFilters'
+import { useUsers } from '../../queries/userQueries'
 import { cn } from '@/lib/utils'
 import { Button } from '../ui/button'
 import { Checkbox } from '../ui/checkbox'
-import { PopoverContent } from '../ui/popover'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 import { Separator } from '../ui/separator'
 import { DateInput } from '../DateInput'
+import { UserAvatar } from '../UserAvatar'
 import { TEST_IDS } from '@e2e/support/testIds'
-import type { FilterActions, FilterState } from './useOrderSidebarFilter'
+import { ActiveDot } from './ActiveDot'
+import {
+  isDeadlineFilterActive,
+  isDepartmentFilterActive,
+  isStatusFilterActive,
+  isUsersFilterActive,
+  type FilterActions,
+  type FilterState,
+} from './useOrderSidebarFilter'
 
+const TOGGLE_IDS = TEST_IDS.orders.sidebar
 const IDS = TEST_IDS.orders.sidebar.filters
 
 const DATE_INPUT_CLASSES =
   'h-8 w-full min-w-0 rounded-md border border-input bg-transparent px-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
 
-function FilterSectionLabel({ children }: { children: React.ReactNode }) {
+type Props = {
+  filter: FilterState
+  actions: FilterActions
+}
+
+function FilterSectionLabel({ children }: { children: ReactNode }) {
   return (
     <span className="block text-xs font-medium text-muted-foreground mb-1.5">{children}</span>
   )
 }
 
-type Props = {
-  filter: FilterState
-  actions: FilterActions
-  /** True when any filter differs from the defaults — enables the reset action. */
-  isActive: boolean
-  /** Popover on compact devices, inline card below the search bar on desktop. */
-  variant: 'popover' | 'inline'
+type FilterPopoverButtonProps = {
+  icon: ComponentType<LucideProps>
+  label: string
+  testId: string
+  contentTestId: string
+  /** True when this group differs from its defaults — shows the dot on the closed button. */
+  active: boolean
+  children: ReactNode
 }
 
-export function OrderSidebarFilters({ filter, actions, isActive, variant }: Props) {
-  const body = <FilterPanelBody filter={filter} actions={actions} isActive={isActive} />
-
-  if (variant === 'popover') {
-    return (
-      <PopoverContent align="end" className="w-72 p-3 gap-0 border-gray-200" data-testid={IDS.root}>
-        {body}
-      </PopoverContent>
-    )
-  }
-
+/** One header icon button that opens its filter group in a popover. */
+function FilterPopoverButton({
+  icon: Icon,
+  label,
+  testId,
+  contentTestId,
+  active,
+  children,
+}: FilterPopoverButtonProps) {
+  const [open, setOpen] = useState(false)
   return (
-    <div data-testid={IDS.root} className="mt-2 rounded-lg border border-gray-200 bg-white p-3 shadow-xs">
-      {body}
-    </div>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          title={label}
+          aria-label={label}
+          data-testid={testId}
+          aria-pressed={open}
+          className={cn(
+            'relative',
+            open && 'bg-muted text-blue-600 hover:text-blue-600 aria-expanded:text-blue-600',
+          )}
+        >
+          <Icon className="size-3.5" />
+          {active && !open && <ActiveDot />}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72 p-3 gap-0 border-gray-200" data-testid={contentTestId}>
+        {children}
+      </PopoverContent>
+    </Popover>
   )
 }
 
-function FilterPanelBody({ filter, actions, isActive }: Omit<Props, 'variant'>) {
-  const { statusAll, statusToggles, deadlineFrom, deadlineTo, intakeFrom, intakeTo, department } = filter
-
+function ResetRow({ testId, disabled, onClick }: { testId: string; disabled: boolean; onClick: () => void }) {
   return (
     <>
-      <div className="space-y-3.5">
-        <div>
-          <FilterSectionLabel>Status</FilterSectionLabel>
-          <label className="flex items-center gap-2 text-sm cursor-pointer select-none pb-1.5">
-            <Checkbox
-              data-testid={IDS.allStatuses}
-              checked={statusAll}
-              onCheckedChange={checked => actions.setStatusAll(checked === true)}
-            />
-            All statuses
-          </label>
-          <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
-            {ORDER_STATUS_LIST.map(status => (
-              <label
-                key={status}
-                className={cn(
-                  'flex items-center gap-2 text-sm cursor-pointer select-none',
-                  statusAll && 'opacity-50 cursor-default',
-                )}
-              >
-                <Checkbox
-                  data-testid={IDS.status}
-                  data-status={status}
-                  checked={statusToggles[status]}
-                  disabled={statusAll}
-                  onCheckedChange={checked => actions.toggleStatus(status, checked === true)}
-                />
-                <span className={cn('size-2 shrink-0 rounded-full', ORDER_STATUS_META[status].color)} />
-                {ORDER_STATUS_META[status].label}
-              </label>
-            ))}
-          </div>
-        </div>
+      <Separator className="my-3" />
+      <Button
+        variant="ghost"
+        size="sm"
+        data-testid={testId}
+        disabled={disabled}
+        onClick={onClick}
+        className="w-full text-muted-foreground"
+      >
+        <RotateCcw />
+        Reset
+      </Button>
+    </>
+  )
+}
 
-        <div>
-          <FilterSectionLabel>Department</FilterSectionLabel>
-          <Select
-            value={department}
-            onValueChange={value => actions.setDepartment(value as FilterState['department'])}
+export function StatusFilterButton({ filter, actions }: Props) {
+  const active = isStatusFilterActive(filter)
+  const { statusAll, statusToggles } = filter
+  return (
+    <FilterPopoverButton
+      icon={ListFilter}
+      label="Filter by status"
+      testId={TOGGLE_IDS.statusFilterToggle}
+      contentTestId={IDS.status.root}
+      active={active}
+    >
+      <FilterSectionLabel>Status</FilterSectionLabel>
+      <label className="flex items-center gap-2 text-sm cursor-pointer select-none pb-1.5">
+        <Checkbox
+          data-testid={IDS.status.allStatuses}
+          checked={statusAll}
+          onCheckedChange={checked => actions.setStatusAll(checked === true)}
+        />
+        All statuses
+      </label>
+      <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
+        {ORDER_STATUS_LIST.map(status => (
+          <label
+            key={status}
+            className={cn(
+              'flex items-center gap-2 text-sm cursor-pointer select-none',
+              statusAll && 'opacity-50 cursor-default',
+            )}
           >
-            <SelectTrigger className="h-8 w-full" data-testid={IDS.department}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">All departments</SelectItem>
-              {DEPARTMENTS.map(dep => (
-                <SelectItem key={dep} value={dep}>
-                  {JOB_DEPARTMENT_LABELS[dep]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+            <Checkbox
+              data-testid={IDS.status.status}
+              data-status={status}
+              checked={statusToggles[status]}
+              disabled={statusAll}
+              onCheckedChange={checked => actions.toggleStatus(status, checked === true)}
+            />
+            <span className={cn('size-2 shrink-0 rounded-full', ORDER_STATUS_META[status].color)} />
+            {ORDER_STATUS_META[status].label}
+          </label>
+        ))}
+      </div>
+      <ResetRow testId={IDS.status.reset} disabled={!active} onClick={actions.resetStatus} />
+    </FilterPopoverButton>
+  )
+}
 
+export function DepartmentFilterButton({ filter, actions }: Props) {
+  const active = isDepartmentFilterActive(filter)
+  return (
+    <FilterPopoverButton
+      icon={LayoutGrid}
+      label="Filter by department"
+      testId={TOGGLE_IDS.departmentFilterToggle}
+      contentTestId={IDS.department.root}
+      active={active}
+    >
+      <FilterSectionLabel>Department</FilterSectionLabel>
+      <div className="grid grid-cols-3 gap-1.5">
+        {DEPARTMENT_ORDER.map(department => {
+          const { icon: Icon, colorClassName } = departmentIcon(department)
+          const label = JOB_DEPARTMENT_LABELS[department]
+          const selected = filter.departments.includes(department)
+          return (
+            <button
+              key={department}
+              type="button"
+              title={label}
+              data-testid={IDS.department.option}
+              data-department={department}
+              aria-pressed={selected}
+              onClick={() => actions.toggleDepartment(department, !selected)}
+              className={cn(
+                'flex flex-col items-center gap-1 rounded-md border px-1.5 py-2 text-[11px] leading-tight transition-colors',
+                selected
+                  ? 'border-primary bg-primary/10 text-foreground'
+                  : 'border-transparent text-muted-foreground hover:bg-muted',
+              )}
+            >
+              <Icon className={cn('size-4', colorClassName)} />
+              <span className="w-full truncate text-center">{label}</span>
+            </button>
+          )
+        })}
+      </div>
+      <ResetRow testId={IDS.department.reset} disabled={!active} onClick={actions.resetDepartments} />
+    </FilterPopoverButton>
+  )
+}
+
+export function DeadlineFilterButton({ filter, actions }: Props) {
+  const active = isDeadlineFilterActive(filter)
+  const { deadlineFrom, deadlineTo, intakeFrom, intakeTo } = filter
+  return (
+    <FilterPopoverButton
+      icon={CalendarClock}
+      label="Filter by deadline"
+      testId={TOGGLE_IDS.deadlineFilterToggle}
+      contentTestId={IDS.deadline.root}
+      active={active}
+    >
+      <div className="space-y-3.5">
         <div>
           <FilterSectionLabel>Deadline (from / to)</FilterSectionLabel>
           <div className="grid grid-cols-2 gap-2">
             <DateInput
               className={DATE_INPUT_CLASSES}
               aria-label="Deadline from"
-              data-testid={IDS.deadlineFrom}
+              data-testid={IDS.deadline.deadlineFrom}
               value={deadlineFrom}
               onChange={e => actions.setDeadlineFrom(e.target.value)}
             />
             <DateInput
               className={DATE_INPUT_CLASSES}
               aria-label="Deadline to"
-              data-testid={IDS.deadlineTo}
+              data-testid={IDS.deadline.deadlineTo}
               value={deadlineTo}
               onChange={e => actions.setDeadlineTo(e.target.value)}
             />
           </div>
         </div>
-
         <div>
           <FilterSectionLabel>Intake (from / to)</FilterSectionLabel>
           <div className="grid grid-cols-2 gap-2">
             <DateInput
               className={DATE_INPUT_CLASSES}
               aria-label="Intake from"
-              data-testid={IDS.intakeFrom}
+              data-testid={IDS.deadline.intakeFrom}
               value={intakeFrom}
               onChange={e => actions.setIntakeFrom(e.target.value)}
             />
             <DateInput
               className={DATE_INPUT_CLASSES}
               aria-label="Intake to"
-              data-testid={IDS.intakeTo}
+              data-testid={IDS.deadline.intakeTo}
               value={intakeTo}
               onChange={e => actions.setIntakeTo(e.target.value)}
             />
           </div>
         </div>
       </div>
+      <ResetRow testId={IDS.deadline.reset} disabled={!active} onClick={actions.resetDeadline} />
+    </FilterPopoverButton>
+  )
+}
 
-      <Separator className="my-3" />
-
-      <Button
-        variant="ghost"
-        size="sm"
-        data-testid={IDS.reset}
-        disabled={!isActive}
-        onClick={actions.reset}
-        className="w-full text-muted-foreground"
-      >
-        <RotateCcw />
-        Reset filters
-      </Button>
-    </>
+export function UsersFilterButton({ filter, actions }: Props) {
+  const active = isUsersFilterActive(filter)
+  const { data: users } = useUsers()
+  return (
+    <FilterPopoverButton
+      icon={Users}
+      label="Filter by assignee"
+      testId={TOGGLE_IDS.usersFilterToggle}
+      contentTestId={IDS.users.root}
+      active={active}
+    >
+      <FilterSectionLabel>Assignee</FilterSectionLabel>
+      <div className="max-h-64 space-y-1.5 overflow-y-auto">
+        <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+          <Checkbox
+            data-testid={IDS.users.unassigned}
+            checked={filter.assigneeIds.includes(UNASSIGNED_ASSIGNEE)}
+            onCheckedChange={checked => actions.toggleAssignee(UNASSIGNED_ASSIGNEE, checked === true)}
+          />
+          <span className="text-muted-foreground">Unassigned</span>
+        </label>
+        {(users ?? []).map(user => (
+          <label key={user.id} className="flex items-center gap-2 text-sm cursor-pointer select-none">
+            <Checkbox
+              data-testid={IDS.users.user}
+              data-user-id={user.id}
+              checked={filter.assigneeIds.includes(user.id)}
+              onCheckedChange={checked => actions.toggleAssignee(user.id, checked === true)}
+            />
+            <UserAvatar name={user.name} avatarUrl={user.avatar_url} className="size-5 text-[10px]" />
+            <span className="truncate">{user.name}</span>
+          </label>
+        ))}
+      </div>
+      <ResetRow testId={IDS.users.reset} disabled={!active} onClick={actions.resetAssignees} />
+    </FilterPopoverButton>
   )
 }

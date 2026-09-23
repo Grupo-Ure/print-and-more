@@ -57,21 +57,22 @@ export function AddJobButtons({ className }: { className?: string }) {
 
   return (
     <div role="group" aria-labelledby={labelId} className={cn('flex flex-col gap-1', className)}>
-      <span id={labelId} className="text-[11px] font-medium text-muted-foreground">
+      <span id={labelId} className="text-center text-[11px] font-medium text-muted-foreground">
         Add Job
       </span>
-      <div className="grid grid-cols-2 gap-1">
+      <div className="grid grid-cols-2">
         {DEPARTMENTS.map(department => (
           <Button
             key={department}
             type="button"
-            variant="outline"
+            variant="ghost"
             size="xs"
             data-testid={TEST_IDS.orders.jobList.addJob}
             data-department={department}
+            title={`Add a ${jobDepartmentLabel(department)} Job`}
             // Long labels ("Laser Engraving") wrap onto two lines in the
             // compact list width instead of overflowing the button.
-            className="h-auto min-h-6 whitespace-normal py-0.5 leading-tight"
+            className="h-auto min-h-6 rounded-none whitespace-normal py-0.5 leading-tight"
             disabled={createJob.isPending}
             onClick={() => handleAddJob(department)}
           >

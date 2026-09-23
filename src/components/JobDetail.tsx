@@ -182,15 +182,9 @@ export function JobDetail({
       
       <Separator />
       
-      {shouldValidate &&
-        job.department !== 'OTHER' &&
-        !customerMeetsPrepressRequirements &&
-        (job.department === 'LFP' ||
-          job.department === 'COPYSHOP' ||
-          (job.department === 'STAMP' && job.type !== 'OTHER_STAMP') ||
-          (job.department === 'LASER_ENGRAVING' && job.type !== 'OTHER_LASER')) && (
-          <p className="text-xs italic text-muted-foreground">For auto-PREPRESS: Customer needs name and email or phone.</p>
-        )}
+      {shouldValidate && !customerMeetsPrepressRequirements && (
+        <p className="text-xs italic text-muted-foreground">For auto-PREPRESS: Customer needs name and email or phone.</p>
+      )}
       <section data-testid={IDS.products.root}>
         {job.department === 'LFP' && (
           <LfpProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
