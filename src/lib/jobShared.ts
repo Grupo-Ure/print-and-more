@@ -153,6 +153,16 @@ export function isInProductionMissingInfo(
   return !isJobComplete(resolveEffectiveJob(job, order), false, hasProducts)
 }
 
+/**
+ * True when the order's work is complete: at least one non-cancelled job and
+ * every one of them is DONE. Cancelled jobs do not count either way. This is
+ * the condition for the order's "Mark finished" action and for the automatic
+ * finish (`deriveAutomaticOrderStatus`).
+ */
+export function areAllJobsDone(jobs: readonly Pick<JobRow, 'status' | 'is_cancelled'>[]): boolean {
+  const live = jobs.filter(job => !job.is_cancelled)
+  return live.length > 0 && live.every(job => job.status === 'DONE')
+}
 
 /**
  * Short form of a job number for contexts already scoped to one order:

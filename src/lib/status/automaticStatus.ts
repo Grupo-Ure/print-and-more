@@ -1,5 +1,5 @@
-import type { Customer, JobStatus, OrderStatus, JobRow } from '../../types/database'
-import { isDeadlineMissed, isJobComplete } from '../jobShared'
+import type { Customer, JobStatus, OrderStatus, JobRow, PaymentMethod } from '../../types/database'
+import { areAllJobsDone, isDeadlineMissed, isJobComplete } from '../jobShared'
 import { customerMeetsPrepressContact } from '../customer'
 
 /**
@@ -39,4 +39,29 @@ export function deriveAutomaticStatus(
   if (!customerMeetsPrepressContact(customer)) return 'IN_SETUP'
 
   return orderIsQuote ? 'IN_SETUP' : 'PREPRESS'
+}
+
+/**
+ * The automatic `IN_PROGRESS → FINISHED` decision — a pure function of the
+ * order and its jobs. Returns `FINISHED` when the order's work is complete
+ * (see `areAllJobsDone`), otherwise the order's current status unchanged.
+ *
+ * - Only an `IN_PROGRESS` order moves; quotes cannot have done jobs, and a
+ *   finished order is left where the admin's reopen put it.
+ * - Only invoice orders: `FINISHED` means "produced, invoice pending". A cash
+ *   order skips that state — its close (`BILLED` + archived) records the
+ *   payment at the counter, which the last job being done says nothing about,
+ *   so it stays a manual "Finish & close".
+ *
+ * Applied on the events that can complete the order's work (a job marked
+ * done, cancelled or deleted), never as a standing watcher — otherwise a
+ * reopened order would finish itself again before anything could change.
+ */
+export function deriveAutomaticOrderStatus(
+  order: { status: OrderStatus; payment_method: PaymentMethod },
+  jobs: readonly Pick<JobRow, 'status' | 'is_cancelled'>[],
+): OrderStatus {
+  if (order.status !== 'IN_PROGRESS') return order.status
+  if (order.payment_method !== 'INVOICE') return order.status
+  return areAllJobsDone(jobs) ? 'FINISHED' : order.status
 }

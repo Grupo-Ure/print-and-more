@@ -9,13 +9,17 @@ file states the behaviour they assert. Where the code differs today, the
 ## The four statuses
 
 `order_status`: `QUOTE` → `IN_PROGRESS` → `FINISHED` → `BILLED`. Every step
-is a click on the lifecycle button in the order header. Nothing moves an
-order's status automatically.
+is a click on the lifecycle button in the order header, with one exception:
+an invoice order in progress becomes Finished on its own the moment its last
+non-cancelled job is Done (the job marked done, or the last open job cancelled
+or deleted). Nothing else moves an order's status automatically; in
+particular a reopened order stays In Progress until a job changes again.
 
 | From | Action | To | Condition |
 |---|---|---|---|
 | Quote | Start processing | In Progress | none |
-| In Progress | Mark finished | Finished | every non-cancelled job is Done; invoice orders only |
+| In Progress | *(automatic)* | Finished | every non-cancelled job is Done; invoice orders only |
+| In Progress | Mark finished | Finished | every non-cancelled job is Done; invoice orders only (manual fallback, e.g. after a reopen) |
 | In Progress | Finish & close (cash) | Billed | every non-cancelled job is Done; cash orders skip Finished |
 | Finished | Mark as invoiced | Billed | none |
 | Finished | Reopen (admin) | In Progress | admin only |

@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { fileService } from '../services/fileService'
 import { toDateOnly } from '../lib/formatDate'
 import { formatMinutes } from '../lib/formatMinutes'
+import { areAllJobsDone } from '../lib/jobShared'
 import {
   type DeliveryChoice,
   type OrderDetailRow,
@@ -353,10 +354,7 @@ export function OrderDetails() {
       <OrderHeader
         order={order}
         hasJobs={visibleJobs.length > 0}
-        allJobsDone={
-          visibleJobs.length > 0 &&
-          visibleJobs.every(job => job.status === 'DONE')
-        }
+        allJobsDone={areAllJobsDone(visibleJobs)}
         onEditCustomer={() =>
           openCustomerDialog(order?.customers ?? null, {
             onSaved: () => {
@@ -631,6 +629,9 @@ type OrderLifecycleButtonProps = {
  * The single forward action of the order lifecycle: QUOTE → "Start processing",
  * IN_PROGRESS → "Mark finished", FINISHED → "Mark as invoiced". The latter two
  * require every non-cancelled job to be DONE; otherwise no button renders.
+ * An invoice order normally finishes on its own the moment its last job is
+ * done (`useFinishOrderWhenAllJobsDone`), so "Mark finished" is the manual
+ * fallback — after an admin reopened the order, say.
  * Cash orders skip FINISHED: their IN_PROGRESS action is "Finish & close",
  * which goes straight to BILLED (handled inside onMarkFinished).
  */

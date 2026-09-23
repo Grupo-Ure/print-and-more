@@ -79,9 +79,11 @@ const ORDER_LIST_COLUMNS = 'id, order_number, status, created_at, customers(name
  * `customers(...)` join return it flattened to a single row via
  * {@link flattenCustomerJoin}.
  *
- * Note on status: order status is a manual lifecycle (QUOTE → IN_PROGRESS →
- * FINISHED → BILLED), independent of job statuses — every transition is an
- * explicit user action, written via {@link setOrderStatus} / {@link markOrderBilled}.
+ * Note on status: order status is its own lifecycle (QUOTE → IN_PROGRESS →
+ * FINISHED → BILLED), written via {@link setOrderStatus} / {@link markOrderBilled}.
+ * Every transition is an explicit user action except IN_PROGRESS → FINISHED,
+ * which the client also performs on its own once every job of an invoice
+ * order is done (`useFinishOrderWhenAllJobsDone`).
  */
 class OrderService {
   /** Filtered order list for the sidebar (archived toggle, customer, status, deadline/intake ranges). Newest first. */

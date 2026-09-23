@@ -347,12 +347,24 @@ is that jobs cannot leave setup while the order is still a quote.
 
 **Order lifecycle** (`order_status`): `QUOTE` → `IN_PROGRESS` → `FINISHED` →
 `BILLED`. Every transition is **manual**, through the single lifecycle button
-in the order header ([`OrderDetails`](src/components/OrderDetails.tsx)):
+in the order header ([`OrderDetails`](src/components/OrderDetails.tsx)), with
+one automatic step: an invoice order finishes on its own when its last job
+is done.
 
 - *Start processing* (`QUOTE` → `IN_PROGRESS`).
-- *Mark finished* (`IN_PROGRESS` → `FINISHED`) — offered only once every
-  non-cancelled job is `DONE`. **Cash orders skip `FINISHED`:** their action
-  is *Finish & close*, which goes straight to `BILLED` and archives.
+- **Automatic finish** (`IN_PROGRESS` → `FINISHED`) — the moment every
+  non-cancelled job of an invoice order is `DONE` (a job marked done, or the
+  last open job cancelled or deleted), the order moves to `FINISHED` by itself
+  (`deriveAutomaticOrderStatus` in
+  [src/lib/status/automaticStatus.ts](src/lib/status/automaticStatus.ts),
+  applied by `useFinishOrderWhenAllJobsDone` from the job mutations; history
+  `ORDER_FINISHED` with `meta.automatic`). It fires on those events only, so
+  a reopened order stays open until something changes again.
+- *Mark finished* (`IN_PROGRESS` → `FINISHED`) — the manual fallback, offered
+  only once every non-cancelled job is `DONE` (e.g. after a reopen). **Cash
+  orders skip `FINISHED`** and never auto-finish: their action is *Finish &
+  close*, which goes straight to `BILLED` and archives — that step records the
+  cash payment, which the last job being done says nothing about.
 - *Mark as invoiced* (`FINISHED` → `BILLED`) — archives the order and drops it
   from the list.
 - Admins may *reopen* a finished order (`FINISHED` → `IN_PROGRESS`).

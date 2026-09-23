@@ -26,7 +26,7 @@ export const NEW_ORDER_STATUS: OrderStatus = 'QUOTE'
 /** The status "Start processing" moves an order to. */
 export const IN_PROGRESS_STATUS: OrderStatus = 'IN_PROGRESS'
 
-/** The status "Mark finished" moves an invoice order to. */
+/** The status an invoice order reaches once its last job is done — on its own, or by "Mark finished". */
 export const FINISHED_STATUS: OrderStatus = 'FINISHED'
 
 /**

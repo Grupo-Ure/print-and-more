@@ -40,9 +40,10 @@ candidate spec; details come later.
 ## 5. Production → done → billed — done
 
 - Release to Production → Mark done
-- Mark finished → Mark as invoiced → order archived
+- Marking the last job done finishes an invoice order on its own; a cash order stays in progress
+- Mark finished (manual fallback) → Mark as invoiced → order archived
 - Cash variant: Finish & close
-- Specs: `e2e/orders-page/job/status.spec.ts` (release to production, mark done), `e2e/orders-page/order/status.spec.ts` (mark finished, mark invoiced, cash close); the seeds `JOB_IN_PREPRESS` / `JOB_IN_PRODUCTION` / `JOB_DONE` and `FINISHED_ORDER` / `IN_PROGRESS_CASH_ORDER` put the rows in the state each step starts from
+- Specs: `e2e/orders-page/job/status.spec.ts` (release to production, mark done), `e2e/orders-page/order/status.spec.ts` (automatic finish on the last job done, invoice and cash; mark finished, mark invoiced, cash close); the seeds `JOB_IN_PREPRESS` / `JOB_IN_PRODUCTION` / `JOB_DONE` and `FINISHED_ORDER` / `IN_PROGRESS_CASH_ORDER` put the rows in the state each step starts from
 
 ## 6. Gates — done
 
