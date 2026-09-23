@@ -42,8 +42,9 @@ jobs:
       - name: Typecheck
         run: npx tsc -b
       - name: Lint
-        # Non-blocking until the pre-existing lint errors are cleaned up
-        # (tracked in current_state.md); flip to blocking afterwards.
+        # Non-blocking until the pre-existing lint errors (set-state-in-effect,
+        # react-refresh/only-export-components) are cleaned up; flip to
+        # blocking afterwards.
         run: npm run lint
         continue-on-error: true
 
