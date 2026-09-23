@@ -318,10 +318,9 @@ export function useForceReleaseToProduction() {
 }
 
 /**
- * Assign / unassign a job's responsible user (admin-only — the UI gates on
- * useIsAdmin and a DB trigger enforces it). Always writes an ASSIGNEE_CHANGED
- * history entry; names are snapshotted into meta so the entry stays readable
- * if a user is later deleted.
+ * Assign / unassign a job's responsible user — any role may do this. Always
+ * writes an ASSIGNEE_CHANGED history entry; names are snapshotted into meta
+ * so the entry stays readable if a user is later deleted.
  */
 export function useSetJobAssignee() {
   const queryClient = useQueryClient()

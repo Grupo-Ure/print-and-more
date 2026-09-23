@@ -540,6 +540,32 @@ export type Database = {
           },
         ]
       }
+      department_default_assignees: {
+        Row: {
+          department: Database["public"]["Enums"]["department"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          department: Database["public"]["Enums"]["department"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          department?: Database["public"]["Enums"]["department"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "department_default_assignees_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       department_products: {
         Row: {
           created_at: string

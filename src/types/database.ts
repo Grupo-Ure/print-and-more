@@ -68,3 +68,6 @@ export type DuplicateOrderArgs = Database['public']['Functions']['duplicate_orde
 export type UserRole = Enums<'user_role'>
 
 export type AppUserRow = Tables<'users'>
+
+/** One row per department that has a default assignee for new jobs (Settings → Departments). */
+export type DepartmentDefaultAssigneeRow = Tables<'department_default_assignees'>
