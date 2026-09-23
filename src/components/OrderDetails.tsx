@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { fileService } from '../services/fileService'
 import { toDateOnly } from '../lib/formatDate'
 import { formatMinutes } from '../lib/formatMinutes'
 import { areAllJobsDone } from '../lib/jobShared'
@@ -15,7 +14,7 @@ import {
 } from '../types/database'
 import { useToast } from './Toast'
 import { useConfirm } from './ConfirmDialog'
-import type { FileRow } from '../services/fileService'
+import { useOrderFiles } from '../hooks/useOrderFiles'
 import { OrderFilesDialog } from './OrderFilesDialog'
 import { JobDetail } from './JobDetail'
 import { JobList } from './JobList'
@@ -62,7 +61,7 @@ export function OrderDetails() {
   const { openCustomerDialog } = useOrderWorkspace()
   const { activeOrderId, activeJobId, setActiveJob, clearActive } = useOrderSelection()
   const queryClient = useQueryClient()
-  const [files, setFiles] = useState<FileRow[]>([])
+  const { files, reload: reloadFiles } = useOrderFiles(activeOrderId)
   const [filesOpen, setFilesOpen] = useState(false)
   const { showError } = useToast()
   const copyToClipboard = useCopyToClipboard()
@@ -76,25 +75,6 @@ export function OrderDetails() {
   const jobs = useMemo(() => jobsQuery.data ?? [], [jobsQuery.data])
   const loading = orderQuery.isLoading || jobsQuery.isLoading
   const isError = orderQuery.isError || jobsQuery.isError
-
-  const reloadFiles = useCallback(async () => {
-    if (!activeOrderId) return
-    try {
-      const data = await fileService.getFilesByOrderId(activeOrderId)
-      setFiles(data)
-    } catch {
-      setFiles([])
-      showError('Files could not be loaded')
-    }
-  }, [activeOrderId, showError])
-
-  useEffect(() => {
-    if (!activeOrderId) {
-      setFiles([])
-      return
-    }
-    void reloadFiles()
-  }, [activeOrderId, reloadFiles])
 
   useEffect(() => {
     if (isError) showError('Order could not be loaded')

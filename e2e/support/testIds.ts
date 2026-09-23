@@ -307,6 +307,41 @@ export const TEST_IDS = {
     },
   },
 
+  /** The Production page: the cross-order job feed. */
+  production: {
+    root: 'production-page',
+    /** Main area while no job is selected. */
+    placeholder: 'production-placeholder',
+    /** Main area with a job selected: the order strip plus the job detail (`orders.jobDetail`); `data-order-id`, `data-job-id`. */
+    jobPanel: {
+      root: 'production-job-panel',
+      orderNumber: 'production-job-panel-order-number',
+      customerName: 'production-job-panel-customer-name',
+      openInOrders: 'production-job-panel-open-in-orders',
+    },
+    sidebar: {
+      root: 'production-sidebar',
+      /** The assignee combobox trigger; `data-value` = users.id, absent while every job is shown. */
+      assigneeFilter: 'production-sidebar-assignee-filter',
+      /** The list's "everyone" option (clears the filter). */
+      assigneeFilterEveryone: 'production-sidebar-assignee-filter-everyone',
+      /** One per user in the list; `data-user-id`. */
+      assigneeFilterUser: 'production-sidebar-assignee-filter-user',
+      /** States what the feed shows: every job, or the jobs of the chosen user. */
+      assigneeFilterCaption: 'production-sidebar-assignee-filter-caption',
+      list: 'production-sidebar-list',
+      empty: 'production-sidebar-empty',
+      /** One per job; `data-job-id`, `data-order-id`, `data-status` = JobStatus, `data-department`. */
+      row: 'production-sidebar-row',
+      rowJobNumber: 'production-sidebar-row-job-number',
+      rowCustomer: 'production-sidebar-row-customer',
+      /** `data-status` = JobStatus. */
+      rowStatus: 'production-sidebar-row-status',
+      /** `data-user-id` = assignee, or absent while unassigned. */
+      rowAssignee: 'production-sidebar-row-assignee',
+    },
+  },
+
   /** Shared by the stamp and textile stock pages. */
   stock: {
     root: 'stock-page',

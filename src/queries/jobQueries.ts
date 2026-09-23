@@ -19,6 +19,8 @@ type HistoryParams = { event_type: HistoryEvent; reason?: string; meta?: Record<
 export const jobKeys = {
   all: ['jobs'] as const,
   byOrderId: (orderId: string) => ['jobs', 'by-order-id', orderId] as const,
+  /** The Production page's cross-order feed (pre-press + production). */
+  production: ['jobs', 'production'] as const,
 }
 
 export function useJobsByOrderId(orderId: string | null) {
@@ -26,6 +28,14 @@ export function useJobsByOrderId(orderId: string | null) {
     queryKey: orderId ? jobKeys.byOrderId(orderId) : jobKeys.byOrderId('__none__'),
     queryFn: () => jobService.getJobsByOrderId(orderId as string),
     enabled: !!orderId,
+  })
+}
+
+/** The production feed. Refetched whenever a job changes (see {@link invalidateOrderLists}). */
+export function useProductionJobs() {
+  return useQuery({
+    queryKey: jobKeys.production,
+    queryFn: () => jobService.listProductionJobs(),
   })
 }
 
@@ -42,10 +52,12 @@ export function fetchJobsByOrderId(queryClient: QueryClient, orderId: string) {
  * lifecycle (the one job-driven step, the automatic finish, is a separate
  * write — see {@link useFinishOrderWhenAllJobsDone}), but the sidebar still
  * shows job-derived data (e.g. the in-production-missing-info warning), so the
- * lists are invalidated whenever a job changes.
+ * lists are invalidated whenever a job changes. The production feed lists
+ * jobs across orders and follows the same events.
  */
 function invalidateOrderLists(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
+  void queryClient.invalidateQueries({ queryKey: jobKeys.production })
 }
 
 function patchJobInCache(queryClient: QueryClient, orderId: string, row: JobRow): void {
@@ -352,6 +364,7 @@ export function useSetJobAssignee() {
     onSuccess: (row, { orderId }) => {
       patchJobInCache(queryClient, orderId, row)
       void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
+      void queryClient.invalidateQueries({ queryKey: jobKeys.production })
     },
   })
 }
