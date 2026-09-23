@@ -45,4 +45,13 @@ export class JobListPOM extends BasePOM {
   rowMissingInfo(row: Locator): Locator {
     return row.getByTestId(IDS.rowMissingInfo)
   }
+
+  /** The status every listed job is in, keyed by job id — a read for `expect.poll`. */
+  async rowStatuses(): Promise<Record<string, JobStatus | null>> {
+    return this.rows.evaluateAll(elements =>
+      Object.fromEntries(
+        elements.map(element => [element.getAttribute('data-job-id'), element.getAttribute('data-status')]),
+      ),
+    )
+  }
 }

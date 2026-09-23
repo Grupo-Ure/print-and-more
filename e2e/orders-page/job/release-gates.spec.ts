@@ -6,8 +6,8 @@ import {
   IN_PROGRESS_ORDER_PAST_DEADLINE,
 } from '../../fixtures/orders'
 import {
-  STRUCTURED_JOB_WITH_PRODUCT,
-  STRUCTURED_JOB_WITHOUT_PRODUCT,
+  COPYSHOP_JOB_WITH_PRODUCT,
+  COPYSHOP_JOB_WITHOUT_PRODUCT,
   JOB_IN_PREPRESS_AWAITING_APPROVAL,
   STAMP_JOB_IN_PREPRESS_OUT_OF_STOCK,
   IN_PRODUCTION_STATUS,
@@ -18,8 +18,8 @@ import { TEST_USERS } from '../../fixtures/users'
 
 // ── Completeness: what keeps a job in setup ───────────────────────────────
 
-test.describe('in progress, structured job with a product, no deadline', () => {
-  test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, jobSeed: STRUCTURED_JOB_WITH_PRODUCT })
+test.describe('in progress, job with a product, no deadline', () => {
+  test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, jobSeed: COPYSHOP_JOB_WITH_PRODUCT })
 
   test('the job is held in setup with the release blocked', async ({ ordersPage, job }) => {
     // Setup — the job open.
@@ -31,8 +31,8 @@ test.describe('in progress, structured job with a product, no deadline', () => {
   })
 })
 
-test.describe('in progress, structured job with a product, deadline passed', () => {
-  test.use({ orderSeed: IN_PROGRESS_ORDER_PAST_DEADLINE, jobSeed: STRUCTURED_JOB_WITH_PRODUCT })
+test.describe('in progress, job with a product, deadline passed', () => {
+  test.use({ orderSeed: IN_PROGRESS_ORDER_PAST_DEADLINE, jobSeed: COPYSHOP_JOB_WITH_PRODUCT })
 
   test('the job is held in setup with the release blocked', async ({ ordersPage, job }) => {
     // Setup — the job open.
@@ -44,8 +44,8 @@ test.describe('in progress, structured job with a product, deadline passed', () 
   })
 })
 
-test.describe('in progress, structured job without a product', () => {
-  test.use({ orderSeed: IN_PROGRESS_ORDER, jobSeed: STRUCTURED_JOB_WITHOUT_PRODUCT })
+test.describe('in progress, job without a product', () => {
+  test.use({ orderSeed: IN_PROGRESS_ORDER, jobSeed: COPYSHOP_JOB_WITHOUT_PRODUCT })
 
   test('the job is held in setup with the release blocked', async ({ ordersPage, job }) => {
     // Setup — the job open.
@@ -105,8 +105,8 @@ test.describe('in progress, stamp job in pre-press, model out of stock', () => {
 
 // ── Force release (admin) ─────────────────────────────────────────────────
 
-test.describe('as admin, in progress, structured job with a product, no deadline', () => {
-  test.use({ user: TEST_USERS.admin, orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, jobSeed: STRUCTURED_JOB_WITH_PRODUCT })
+test.describe('as admin, in progress, job with a product, no deadline', () => {
+  test.use({ user: TEST_USERS.admin, orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, jobSeed: COPYSHOP_JOB_WITH_PRODUCT })
 
   test('opening the force release prompt without a reason keeps it unsubmittable', async ({ ordersPage, job }) => {
     // Setup — the job open.

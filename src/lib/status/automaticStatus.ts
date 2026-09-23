@@ -1,5 +1,5 @@
 import type { Customer, JobStatus, OrderStatus, JobRow } from '../../types/database'
-import { autoPrepressAllowed, isDeadlineMissed, isJobComplete } from '../jobShared'
+import { isDeadlineMissed, isJobComplete } from '../jobShared'
 import { customerMeetsPrepressContact } from '../customer'
 
 /**
@@ -8,15 +8,14 @@ import { customerMeetsPrepressContact } from '../customer'
  * whose status is already `IN_SETUP` or `PREPRESS` (the caller gates out
  * committed / cancelled rows), so the return value is always one of those two.
  *
- * Rules:
+ * The same rules apply to every department and product type — a job in the
+ * OTHER department advances exactly like a CopyShop one:
  * - Not complete → `IN_SETUP`.
  * - Missed deadline → an `IN_SETUP` job stays `IN_SETUP` (entry gate only; a job
  *   already in `PREPRESS` is not retracted). This is the one clock dependency —
  *   `isDeadlineMissed` compares against today's date.
- * - Structured (auto-prepress-eligible) type → advance to `PREPRESS` when the
- *   customer-contact requirement is met, else `IN_SETUP` (auto-advance + retract).
- * - Free-form type (OTHER department, OTHER_* types) → never auto-advances, but a
- *   manually-released `PREPRESS` is kept while still complete (retract-only).
+ * - Complete → `PREPRESS` when the customer-contact requirement is met, else
+ *   `IN_SETUP` (auto-advance + retract).
  * - QUOTE cap: while the *order* is still `QUOTE`, `PREPRESS` is capped back to
  *   `IN_SETUP` (you cannot prepress before the order is accepted). This is the
  *   one deliberate place the order lifecycle feeds into the job workflow.
@@ -31,18 +30,13 @@ export function deriveAutomaticStatus(
   orderStatus: OrderStatus,
 ): JobStatus {
   const orderIsQuote = orderStatus === 'QUOTE'
-  const cap = (status: JobStatus): JobStatus =>
-    orderIsQuote && status === 'PREPRESS' ? 'IN_SETUP' : status
 
   if (!isJobComplete(job, orderIsQuote, hasContent)) return 'IN_SETUP'
 
   // A missed deadline blocks the *entry* into pre-press; it never pulls a job back.
   if (job.status === 'IN_SETUP' && isDeadlineMissed(job)) return 'IN_SETUP'
 
-  if (autoPrepressAllowed(job)) {
-    return customerMeetsPrepressContact(customer) ? cap('PREPRESS') : 'IN_SETUP'
-  }
+  if (!customerMeetsPrepressContact(customer)) return 'IN_SETUP'
 
-  // Free-form / manual-only: no auto-advance; keep a manual PREPRESS while complete.
-  return job.status === 'PREPRESS' ? cap('PREPRESS') : 'IN_SETUP'
+  return orderIsQuote ? 'IN_SETUP' : 'PREPRESS'
 }

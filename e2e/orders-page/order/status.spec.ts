@@ -1,13 +1,14 @@
 import {
   expect,
   test,
+  COMPLETE_QUOTE_ORDER,
   IN_PROGRESS_ORDER,
   IN_PROGRESS_CASH_ORDER,
   FINISHED_ORDER,
   IN_PROGRESS_STATUS,
   FINISHED_STATUS,
 } from '../../fixtures/orders'
-import { JOB_DONE } from '../../fixtures/jobs'
+import { JOB_DONE, ONE_JOB_PER_DEPARTMENT, PREPRESS_STATUS } from '../../fixtures/jobs'
 import { TEST_USERS } from '../../fixtures/users'
 
 test('starting processing a quote moves the order to in progress', async ({ ordersPage, order }) => {
@@ -20,6 +21,25 @@ test('starting processing a quote moves the order to in progress', async ({ orde
 
   // Assert — the order is shown in progress.
   await expect(ordersPage.details.forOrder(order.id)).toHaveAttribute('data-status', IN_PROGRESS_STATUS)
+})
+
+test.describe('quote with deadline and delivery, one complete job in every department', () => {
+  // An array option goes in as a `[value, options]` tuple — see `jobSeeds` in fixtures/orders.ts.
+  test.use({ orderSeed: COMPLETE_QUOTE_ORDER, jobSeeds: [ONE_JOB_PER_DEPARTMENT, { scope: 'test' }] })
+
+  test('starting processing promotes every job to pre-press', async ({ ordersPage, order, jobs }) => {
+    // Setup — every job expected in pre-press, with the order open and its last job listed.
+    const allInPrepress = Object.fromEntries(jobs.map(job => [job.id, PREPRESS_STATUS]))
+    await ordersPage.openOrder(order.id)
+    await ordersPage.details.jobList.row(jobs[jobs.length - 1].id).waitFor()
+
+    // Act — start processing and confirm.
+    await ordersPage.details.lifecycle.click()
+    await ordersPage.confirmDialog.confirm.click()
+
+    // Assert — all six advanced on their own, not only the selected one.
+    await expect.poll(() => ordersPage.details.jobList.rowStatuses()).toEqual(allInPrepress)
+  })
 })
 
 test.describe('in progress, every job done', () => {

@@ -342,23 +342,24 @@ in the order header ([`OrderDetails`](src/components/OrderDetails.tsx)):
 - **Completeness** — [src/lib/jobShared.ts](src/lib/jobShared.ts):
   `isJobComplete` (effective deadline present, at least one product; nothing
   is required while the order is a quote), `isDeadlineMissed` (effective
-  deadline strictly before today), `autoPrepressAllowed` (free-form types —
-  `OTHER_STAMP`, `OTHER_LFP`, `OTHER_LASER`, and the whole `OTHER`
-  department — never auto-advance), `isInProductionMissingInfo` (derived
+  deadline strictly before today), `isInProductionMissingInfo` (derived
   warning for a job in production that fails completeness, typically after a
-  force release).
+  force release). The rules are the same for every department and product
+  type — there is no free-form exception.
 - **Automatic `IN_SETUP` ↔ `PREPRESS`** — `deriveAutomaticStatus` in
   [src/lib/status/automaticStatus.ts](src/lib/status/automaticStatus.ts), run
   by [`useStatusManager`](src/queries/useStatusManager.ts) for every
-  non-committed job of the open order. A complete, auto-eligible job whose
-  customer has the required contact data is promoted to `PREPRESS` on its own
-  (`PREPRESS_READY_AUTO`); it is retracted to `IN_SETUP` when it stops being
-  complete or the order drops back to quote. The missed-deadline gate is
-  entry-only: a job already in pre-press is not pulled back. It never touches
-  `IN_PRODUCTION` / `DONE`.
+  non-committed job of the open order. A complete job whose customer has the
+  required contact data is promoted to `PREPRESS` on its own
+  (`PREPRESS_READY_AUTO`), whatever its department — so starting processing
+  on an order promotes every complete job at once; it is retracted to
+  `IN_SETUP` when it stops being complete or the order drops back to quote.
+  The missed-deadline gate is entry-only: a job already in pre-press is not
+  pulled back. It never touches `IN_PRODUCTION` / `DONE`.
 - **Manual advance** — [`useJobRelease`](src/hooks/useJobRelease.ts), shared by
   the header's `JobReleaseButton` and the job list's context menu: *Release to
-  Pre-Press* (the manual path for free-form types), *Release to Production*,
+  Pre-Press* (a manual fallback; complete jobs normally get there on their
+  own), *Release to Production*,
   *Mark job as done*. Each confirms first and writes its history event
   (`PREPRESS_READY_MANUAL`, `PRODUCTION_READY_SET`, `MARKED_DONE`).
 - **Removal** — [`useJobRemoval`](src/hooks/useJobRemoval.ts): a job in setup
@@ -418,7 +419,7 @@ in the order header ([`OrderDetails`](src/components/OrderDetails.tsx)):
 | [`src/pages/OrderWorkspace.tsx`](src/pages/OrderWorkspace.tsx) | Session gate + the two-column orders shell |
 | [`src/components/OrderDetails.tsx`](src/components/OrderDetails.tsx) | Order header, lifecycle actions, settings row, job list + detail host |
 | [`src/hooks/useJobRelease.ts`](src/hooks/useJobRelease.ts) / [`useJobRemoval.ts`](src/hooks/useJobRemoval.ts) | Every job workflow rule, shared by button and context menu |
-| [`src/lib/jobShared.ts`](src/lib/jobShared.ts) | Inheritance + completeness (`resolveEffectiveJob`, `isJobComplete`, `isDeadlineMissed`, `autoPrepressAllowed`) |
+| [`src/lib/jobShared.ts`](src/lib/jobShared.ts) | Inheritance + completeness (`resolveEffectiveJob`, `isJobComplete`, `isDeadlineMissed`) |
 | [`src/lib/status/automaticStatus.ts`](src/lib/status/automaticStatus.ts) / [`src/queries/useStatusManager.ts`](src/queries/useStatusManager.ts) | Automatic setup ↔ pre-press transition |
 | [`src/const/orderStatus.ts`](src/const/orderStatus.ts) | Status labels/colours for orders and jobs |
 | [`src/types/product.ts`](src/types/product.ts) | Typed product model: `LoadedProduct`, `ProductWriteInput`, `ChildTable`, `CHILD_TABLE_BY_TYPE` |

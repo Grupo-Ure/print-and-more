@@ -33,9 +33,9 @@ candidate spec; details come later.
 ## 4. Start processing → pre-press — done
 
 - Start processing → order In Progress
-- Complete job auto-promotes to Prepress
-- Manual release for free-form (OTHER_*) jobs
-- Specs: `e2e/orders-page/order/status.spec.ts` (start processing), `e2e/orders-page/job/status.spec.ts` (auto-promotion, manual release); the order/job state comes from the `orderSeed` / `jobSeed` options
+- Complete job auto-promotes to Prepress, in every one of the six departments (OTHER included)
+- Start processing promotes every complete job of the order, not only the selected one
+- Specs: `e2e/orders-page/order/status.spec.ts` (start processing; an order with one job per department, all promoted), `e2e/orders-page/job/status.spec.ts` (auto-promotion on completing the job; one case per department); the order/job state comes from the `orderSeed` / `jobSeed` / `jobSeeds` options
 
 ## 5. Production → done → billed — done
 

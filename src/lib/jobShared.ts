@@ -12,8 +12,6 @@
  * - {@link resolveEffectiveJob}: resolve inherited common fields against the order.
  * - {@link validateJobCommonFields}: per-field error map for the common header.
  * - {@link isJobComplete}: common-field check + per-department content flag.
- * - {@link autoPrepressAllowed}: per-department auto-prepress eligibility (used by the
- *   status manager's `deriveAutomaticStatus`).
  *
  * String values like `'STAMP'`, `'OTHER_STAMP'`, status enums,
  * etc. mirror the Postgres enums and stay German; only the TypeScript
@@ -50,37 +48,6 @@ export function resolveEffectiveJob<
 }
 
 const UUID_LOOSE = /^[0-9a-fA-F-]{30,40}$/
-
-/**
- * Whether the status manager is allowed to auto-advance this job into
- * PREPRESS without an explicit user action.
- *
- * Default is allowed; explicitly excluded:
- * - Stamp `OTHER_STAMP` (free-form descriptions need manual review).
- * - Anything in the Other (`SONSTIGE`) Bereich.
- * - Laser `OTHER_LASER` and LFP `OTHER_LFP` (same reason).
- *
- * Inside Stamp, only the structured typen are auto-advanced.
- */
-export function autoPrepressAllowed(merged: JobRow): boolean {
-  if (merged.department === 'STAMP') {
-    if (merged.type === 'OTHER_STAMP') return false
-    return (
-      merged.type === 'TRODAT_PRINTY' ||
-      merged.type === 'WOODEN_STAMP' ||
-      merged.type === 'STAND_STAMP' ||
-      merged.type === 'DATE_STAMP' ||
-      merged.type === 'REFILL_INK' ||
-      merged.type === 'INK_PAD' ||
-      merged.type === 'TRODAT_PAD' ||
-      merged.type === 'STAMP_PLATE'
-    )
-  }
-  if (merged.department === 'OTHER') return false
-  if (merged.department === 'LASER_ENGRAVING' && merged.type === 'OTHER_LASER') return false
-  if (merged.department === 'LFP' && merged.type === 'OTHER_LFP') return false
-  return true
-}
 
 /**
  * Validate the common header fields every job carries (delivery,
