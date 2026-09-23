@@ -1,0 +1,59 @@
+# Writes the release notes into every pull request's description.
+#
+# Runs Claude Code on the runner with the repo checked out and asks it to
+# apply the project's `pr-release-notes` skill (.claude/skills/) to this PR.
+# The skill reads the diff against main, splits the changes into user-facing
+# and technical, and edits the PR body between the
+# `<!-- release-notes:start -->` / `<!-- release-notes:end -->` markers, so a
+# rerun after new commits replaces only that block.
+#
+# Auth: CLAUDE_CODE_OAUTH_TOKEN, a repository secret tied to the maintainer's
+# Claude subscription (created once with `/install-github-app` in Claude Code
+# or `claude setup-token`). No Anthropic API key is involved. GitHub access
+# uses the job's own GITHUB_TOKEN, so the job does not depend on the Claude
+# GitHub App being installed.
+name: PR release notes
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+
+# One run per PR at a time; a new push cancels the run for the previous commit.
+concurrency:
+  group: release-notes-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  release-notes:
+    # Draft PRs get their notes once they are marked ready for review.
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The skill diffs against origin/main, so the full history is needed.
+          fetch-depth: 0
+
+      - name: Write the release notes into the PR body
+        uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            Use the pr-release-notes skill on pull request #${{ github.event.pull_request.number }}
+            of this repository. The PR targets `${{ github.event.pull_request.base.ref }}`;
+            the checkout is its head commit. Write the result into the PR body
+            with `gh pr edit` as the skill describes. Do not push commits and do
+            not comment on the PR.
+          claude_args: >-
+            --model claude-sonnet-5
+            --max-turns 25
+            --allowedTools "Read,Grep,Glob,Write,Bash(git:*),Bash(head:*),Bash(gh pr view:*),Bash(gh pr edit:*)"
