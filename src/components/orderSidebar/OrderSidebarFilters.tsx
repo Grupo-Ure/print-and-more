@@ -1,25 +1,21 @@
 import { useState, type ComponentType, type ReactNode } from 'react'
-import { CalendarClock, LayoutGrid, ListFilter, RotateCcw, Users, type LucideProps } from 'lucide-react'
+import { CalendarClock, LayoutGrid, ListFilter, RotateCcw, type LucideProps } from 'lucide-react'
 import { ORDER_STATUS_LIST } from '../../types/database'
 import { JOB_DEPARTMENT_LABELS } from '../../const/departmentAbbreviation'
 import { departmentIcon, DEPARTMENT_ORDER } from '../../const/departmentIcons'
 import { ORDER_STATUS_META } from '../../const/orderStatus'
-import { UNASSIGNED_ASSIGNEE } from '../../lib/orderFilters'
-import { useUsers } from '../../queries/userQueries'
 import { cn } from '@/lib/utils'
 import { Button } from '../ui/button'
 import { Checkbox } from '../ui/checkbox'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 import { Separator } from '../ui/separator'
 import { DateInput } from '../DateInput'
-import { UserAvatar } from '../UserAvatar'
 import { TEST_IDS } from '@e2e/support/testIds'
 import { ActiveDot } from './ActiveDot'
 import {
   isDeadlineFilterActive,
   isDepartmentFilterActive,
   isStatusFilterActive,
-  isUsersFilterActive,
   type FilterActions,
   type FilterState,
 } from './useOrderSidebarFilter'
@@ -247,45 +243,6 @@ export function DeadlineFilterButton({ filter, actions }: Props) {
         </div>
       </div>
       <ResetRow testId={IDS.deadline.reset} disabled={!active} onClick={actions.resetDeadline} />
-    </FilterPopoverButton>
-  )
-}
-
-export function UsersFilterButton({ filter, actions }: Props) {
-  const active = isUsersFilterActive(filter)
-  const { data: users } = useUsers()
-  return (
-    <FilterPopoverButton
-      icon={Users}
-      label="Filter by assignee"
-      testId={TOGGLE_IDS.usersFilterToggle}
-      contentTestId={IDS.users.root}
-      active={active}
-    >
-      <FilterSectionLabel>Assignee</FilterSectionLabel>
-      <div className="max-h-64 space-y-1.5 overflow-y-auto">
-        <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-          <Checkbox
-            data-testid={IDS.users.unassigned}
-            checked={filter.assigneeIds.includes(UNASSIGNED_ASSIGNEE)}
-            onCheckedChange={checked => actions.toggleAssignee(UNASSIGNED_ASSIGNEE, checked === true)}
-          />
-          <span className="text-muted-foreground">Unassigned</span>
-        </label>
-        {(users ?? []).map(user => (
-          <label key={user.id} className="flex items-center gap-2 text-sm cursor-pointer select-none">
-            <Checkbox
-              data-testid={IDS.users.user}
-              data-user-id={user.id}
-              checked={filter.assigneeIds.includes(user.id)}
-              onCheckedChange={checked => actions.toggleAssignee(user.id, checked === true)}
-            />
-            <UserAvatar name={user.name} avatarUrl={user.avatar_url} className="size-5 text-[10px]" />
-            <span className="truncate">{user.name}</span>
-          </label>
-        ))}
-      </div>
-      <ResetRow testId={IDS.users.reset} disabled={!active} onClick={actions.resetAssignees} />
     </FilterPopoverButton>
   )
 }

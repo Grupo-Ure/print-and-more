@@ -67,7 +67,6 @@ export const TEST_IDS = {
       statusFilterToggle: 'orders-sidebar-status-filter-toggle',
       departmentFilterToggle: 'orders-sidebar-department-filter-toggle',
       deadlineFilterToggle: 'orders-sidebar-deadline-filter-toggle',
-      usersFilterToggle: 'orders-sidebar-users-filter-toggle',
       /** Carries `aria-pressed`: on = archived orders listed too. */
       archivedToggle: 'orders-sidebar-archived-toggle',
       searchInput: 'orders-sidebar-search-input',
@@ -94,13 +93,6 @@ export const TEST_IDS = {
           intakeFrom: 'orders-sidebar-filters-intake-from',
           intakeTo: 'orders-sidebar-filters-intake-to',
           reset: 'orders-sidebar-filters-deadline-reset',
-        },
-        users: {
-          root: 'orders-sidebar-filters-users',
-          unassigned: 'orders-sidebar-filters-users-unassigned',
-          /** One per user; `data-user-id` = users.id. */
-          user: 'orders-sidebar-filters-users-option',
-          reset: 'orders-sidebar-filters-users-reset',
         },
       },
       list: 'orders-sidebar-list',

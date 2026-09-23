@@ -30,7 +30,6 @@ import {
   DeadlineFilterButton,
   DepartmentFilterButton,
   StatusFilterButton,
-  UsersFilterButton,
 } from './orderSidebar/OrderSidebarFilters'
 import { OrderSidebarBody } from './orderSidebar/OrderSidebarBody'
 import { useOrderSidebarFilter } from './orderSidebar/useOrderSidebarFilter'
@@ -55,10 +54,9 @@ export function OrderSidebar() {
       intakeFrom: filter.intakeFrom,
       intakeTo: filter.intakeTo,
       departments: filter.departments,
-      assigneeIds: filter.assigneeIds,
       showArchived: filter.showArchived,
     }),
-    [filter.searchDebounced, filter.statusAll, selectedStatuses, filter.deadlineFrom, filter.deadlineTo, filter.intakeFrom, filter.intakeTo, filter.departments, filter.assigneeIds, filter.showArchived],
+    [filter.searchDebounced, filter.statusAll, selectedStatuses, filter.deadlineFrom, filter.deadlineTo, filter.intakeFrom, filter.intakeTo, filter.departments, filter.showArchived],
   )
 
   const ordersQuery = useOrdersList(ordersFilter)
@@ -170,7 +168,6 @@ export function OrderSidebar() {
             <StatusFilterButton filter={filter} actions={actions} />
             <DepartmentFilterButton filter={filter} actions={actions} />
             <DeadlineFilterButton filter={filter} actions={actions} />
-            <UsersFilterButton filter={filter} actions={actions} />
             <Button
               variant="ghost"
               size="icon-sm"
