@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { LucideIcon } from 'lucide-react'
-import { ClipboardList, Shirt, Stamp, Users } from 'lucide-react'
+import { ClipboardList, Factory, Settings, Shirt, Stamp } from 'lucide-react'
 import { authService } from '../services/authService'
-import { useIsAdmin, useIsSuperAdmin } from '../queries/userQueries'
+import { useIsAdmin } from '../queries/userQueries'
 import { NavbarUserMenu } from './NavbarUserMenu'
 import { useNavigation, type AppView } from '../context/navigation.context'
 import { cn } from '@/lib/utils'
@@ -16,14 +16,18 @@ type NavItem = {
   icon: LucideIcon
 }
 
-const ORDERS_ITEM: NavItem = { view: 'orders', label: 'Orders', icon: ClipboardList }
+/** Every role: the desk's orders view and the production feed. */
+const EVERYONE_ITEMS: NavItem[] = [
+  { view: 'orders', label: 'Orders', icon: ClipboardList },
+  { view: 'production', label: 'Production', icon: Factory },
+]
 
+/** Admins (super admins included): stock and the settings page. */
 const ADMIN_ITEMS: NavItem[] = [
   { view: 'stampStock', label: 'Stamp stock', icon: Stamp },
   { view: 'textileStock', label: 'Textile stock', icon: Shirt },
+  { view: 'settings', label: 'Settings', icon: Settings },
 ]
-
-const SUPER_ADMIN_ITEM: NavItem = { view: 'userManagement', label: 'User management', icon: Users }
 
 function NavbarLink({ item }: { item: NavItem }) {
   const { view, navigate } = useNavigation()
@@ -56,13 +60,8 @@ function NavbarLink({ item }: { item: NavItem }) {
 
 function RoleGatedLinks() {
   const { isAdmin } = useIsAdmin()
-  const { isSuperAdmin } = useIsSuperAdmin()
-  return (
-    <>
-      {isAdmin && ADMIN_ITEMS.map(item => <NavbarLink key={item.view} item={item} />)}
-      {isSuperAdmin && <NavbarLink item={SUPER_ADMIN_ITEM} />}
-    </>
-  )
+  if (!isAdmin) return null
+  return ADMIN_ITEMS.map(item => <NavbarLink key={item.view} item={item} />)
 }
 
 export function AppNavbar() {
@@ -90,7 +89,9 @@ export function AppNavbar() {
         <img src={logo} alt="Print And More" draggable={false} className="h-8 w-auto select-none" />
       </div>
       <div className="flex items-center justify-center gap-1">
-        <NavbarLink item={ORDERS_ITEM} />
+        {EVERYONE_ITEMS.map(item => (
+          <NavbarLink key={item.view} item={item} />
+        ))}
         <RoleGatedLinks />
       </div>
       <div className="flex justify-end">
