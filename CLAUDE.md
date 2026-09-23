@@ -23,6 +23,30 @@ reference material. Read it (and the docs it links) before making changes.
 
 ## Working with this project
 
+**The app is in production.** The shop works in it daily against the hosted
+Supabase project, which holds real orders, customers and stock. Treat the
+database as live:
+
+- **Every schema change is a new migration** under `supabase/migrations/`
+  (`supabase migration new <name>`): tables, columns, enum values, check
+  constraints, RLS policies, triggers, functions, and changes to catalog
+  master data alike. Nothing is changed by hand in the Supabase dashboard or
+  SQL editor, and nothing is changed by editing an existing migration file.
+- **Applied migrations are frozen.** The dated base files (types, core,
+  orders, jobs, …) are the schema as it went live; a correction is a new
+  migration on top, never an edit of the file that is already applied.
+- `supabase/seed.sql` only feeds fresh databases (local, CI). A change to
+  master data that production must also see needs a migration as well.
+- A migration is verified against a local Supabase (`supabase db reset`
+  replays every migration plus the seed) and the e2e suite before it is
+  pushed. After it lands, regenerate `src/types/supabase.ts` — the product
+  schemas' drift assertions will not compile until the types match.
+- No destructive change (drop, rename, type change of a populated column)
+  without a data-preserving path in the same migration.
+
+The Supabase CLI workflow and the migration rules are spelled out in
+[docs/coding-standards.md](docs/coding-standards.md) ("Migrations").
+
 **Language — the repo is being Anglicized; English is the target.**
 
 The goal is to remove German from the codebase. German is legacy, not a
@@ -74,7 +98,9 @@ identifiers, names, or strings.
   policies and triggers live in the migrations. The base schema is split into
   domain migration files under `supabase/migrations/` (types, core, orders,
   jobs, catalog, products_core, one file per department's product tables,
-  blueprint, audit, duplicate_order). `supabase/seed.sql` holds catalog
+  blueprint, audit, duplicate_order); everything since went live is a dated
+  migration after them, and that is the only way the schema changes (see
+  "The app is in production" above). `supabase/seed.sql` holds catalog
   master data; `seed.dev.sql` (git-ignored) holds local demo data. One edge
   function, `manage-users`, exists for what the browser cannot do
   (create/delete auth accounts).
@@ -442,6 +468,9 @@ in the order header ([`OrderDetails`](src/components/OrderDetails.tsx)):
   + typed child tables) is fixed; no restructuring intended.
 - The colour system is centralised in `src/index.css` as CSS variables — consume
   the tokens, don't hardcode colours.
+- The database is live. A schema or master-data change is a new migration
+  file, verified locally and by the e2e suite, followed by regenerated types
+  — never a dashboard edit or a change to an applied migration.
 - **Open refactor streams** (see `.plans/`): value-rename of stored enum strings
   to English; the i18next UI-string pass. Don't fold these into unrelated work.
 - Dead code awaiting removal: [`src/components/JobTabs.tsx`](src/components/JobTabs.tsx)
