@@ -553,6 +553,18 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
               Reopen order
             </Button>
           )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            title="Order files"
+            aria-label="Order files"
+            data-testid={HEADER_IDS.files}
+            className="text-blue-500 hover:text-blue-700"
+            onClick={onOpenFiles}
+          >
+            <Paperclip className="size-5" />
+          </Button>
           <OrderLifecycleButton
             status={order.status}
             paymentMethod={order.payment_method}
@@ -562,17 +574,6 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
             onMarkFinished={onMarkFinished}
             onMarkInvoiced={onMarkInvoiced}
           />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            title="Order files"
-            aria-label="Order files"
-            data-testid={HEADER_IDS.files}
-            onClick={onOpenFiles}
-          >
-            <Paperclip />
-          </Button>
           <Button
             type="button"
             variant="ghost"
