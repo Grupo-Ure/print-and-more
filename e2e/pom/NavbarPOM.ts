@@ -4,7 +4,7 @@ import { UserMenuPOM } from './UserMenuPOM'
 import { BasePOM } from './BasePOM'
 
 /** Mirrors `AppView` in src/context/navigation.context.tsx (a .tsx module the e2e tsconfig can't import). */
-export type AppView = 'orders' | 'stampStock' | 'textileStock' | 'userManagement' | 'profile'
+export type AppView = 'orders' | 'production' | 'stampStock' | 'textileStock' | 'settings' | 'profile'
 
 /** The views that have a navbar link; `profile` is reached through the user menu instead. */
 export type NavbarView = Exclude<AppView, 'profile'>

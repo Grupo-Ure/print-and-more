@@ -8,6 +8,7 @@ import { test as base } from './electron'
 import { TEST_USERS, type TestUser } from './users'
 import { LoginPOM } from '../pom/LoginPOM'
 import { NavbarPOM } from '../pom/NavbarPOM'
+import { SettingsPOM } from '../pom/SettingsPOM'
 
 type AuthFixtures = {
   /**
@@ -19,6 +20,8 @@ type AuthFixtures = {
   login: LoginPOM
   /** The top navigation bar (rendered only with a session). */
   navbar: NavbarPOM
+  /** The Settings page (admins), with its user management and department sections. */
+  settingsPage: SettingsPOM
 }
 
 // No `expect` in here: fixtures synchronise with `waitFor()`. A timeout then
@@ -86,6 +89,10 @@ export const test = base.extend<AuthFixtures>({
 
   navbar: async ({ page }, use) => {
     await use(new NavbarPOM(page))
+  },
+
+  settingsPage: async ({ page }, use) => {
+    await use(new SettingsPOM(page))
   },
 })
 
