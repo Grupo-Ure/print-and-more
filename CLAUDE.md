@@ -7,9 +7,8 @@ through the production workflow, inventory, customer approvals, time
 logging, history logging, and ERP export.
 
 This file describes **architecture, domain model, and workflows** — the stable
-properties of the application. For the **current implementation status** (what
-is finished, what is open, known gaps) see [current_state.md](current_state.md).
-The authoritative source for library versions is `package.json`; the
+properties of the application. Open work and known gaps are tracked in Jira,
+not here. The authoritative source for library versions is `package.json`; the
 authoritative source for UI dimensions is the relevant CSS file.
 
 **[DOCS.md](DOCS.md) is the entry point into the [docs/](docs/) folder.** It is
@@ -76,8 +75,7 @@ identifiers, names, or strings.
 
 **Where things go**
 - **CLAUDE.md** (this file) — stable architecture, domain model, workflows. No
-  version pins, no pixel widths, no current-state info.
-- **[current_state.md](current_state.md)** — what's done/pending, known debt.
+  version pins, no pixel widths, no status or to-do lists (those live in Jira).
 - **[DOCS.md](DOCS.md)** — documentation index; entry point to
   [docs/](docs/) (coding standards, skill docs, reference). Consult it for the
   architectural patterns to follow.
@@ -475,4 +473,3 @@ in the order header ([`OrderDetails`](src/components/OrderDetails.tsx)):
   to English; the i18next UI-string pass. Don't fold these into unrelated work.
 - Dead code awaiting removal: [`src/components/JobTabs.tsx`](src/components/JobTabs.tsx)
   (replaced by `JobList`, no longer imported).
-- For current status / known debt see [current_state.md](current_state.md).
