@@ -449,20 +449,53 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
   return (
     <header className="flex flex-col">
       <div className="flex flex-wrap gap-x-4 gap-y-1 items-center justify-between">
-        <div className="flex gap-4 items-center">
-          <h1>Order:</h1>
-          <h2 data-testid={HEADER_IDS.orderNumber} className="text-xl desktop:text-2xl" title="Order number">
-            {order.order_number}
-          </h2>
-          {totalMinutes > 0 && (
-            <span
-              data-testid={HEADER_IDS.totalTime}
-              className="flex items-center gap-1 text-sm text-muted-foreground tabular-nums"
-              title="Total time logged across all jobs"
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <h1 data-testid={HEADER_IDS.customerName} title="Customer">
+              {customerDisplayName}
+            </h1>
+            <Button
+              onClick={onEditCustomer}
+              title="Edit customer"
+              aria-label="Edit customer"
+              data-testid={HEADER_IDS.editCustomer}
+              variant="ghost"
+              size="icon-sm"
             >
-              <Clock size={14} />
-              {formatMinutes(totalMinutes)}
-            </span>
+              <Settings />
+            </Button>
+          </div>
+          {customerEmail && (
+            <div className="flex items-center gap-1">
+              <p data-testid={HEADER_IDS.customerEmail} title="Email">
+                <span className="font-medium">Email:</span> {customerEmail}
+              </p>
+              <Button
+                onClick={() => copyToClipboard(customerEmail, 'Email')}
+                title="Copy email"
+                aria-label="Copy email"
+                variant="ghost"
+                size="icon-sm"
+              >
+                <Copy />
+              </Button>
+            </div>
+          )}
+          {customerPhone && (
+            <div className="flex items-center gap-1">
+              <p data-testid={HEADER_IDS.customerPhone} title="Phone">
+                <span className="font-medium">Phone:</span> {customerPhone}
+              </p>
+              <Button
+                onClick={() => copyToClipboard(customerPhone, 'Phone number')}
+                title="Copy phone number"
+                aria-label="Copy phone number"
+                variant="ghost"
+                size="icon-sm"
+              >
+                <Copy />
+              </Button>
+            </div>
           )}
         </div>
         <div className="flex items-center gap-1">
@@ -561,53 +594,20 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
           )}
         </div>
       </div>
-      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-        <div className="flex items-center gap-1">
-          <h1 data-testid={HEADER_IDS.customerName} title="Customer">
-            {customerDisplayName}
-          </h1>
-          <Button
-            onClick={onEditCustomer}
-            title="Edit customer"
-            aria-label="Edit customer"
-            data-testid={HEADER_IDS.editCustomer}
-            variant="ghost"
-            size="icon-sm"
+      <div className="flex items-center gap-3 text-muted-foreground">
+        <span className="text-sm desktop:text-base">Order:</span>
+        <h2 data-testid={HEADER_IDS.orderNumber} className="text-base desktop:text-lg" title="Order number">
+          {order.order_number}
+        </h2>
+        {totalMinutes > 0 && (
+          <span
+            data-testid={HEADER_IDS.totalTime}
+            className="flex items-center gap-1 text-sm tabular-nums"
+            title="Total time logged across all jobs"
           >
-            <Settings />
-          </Button>
-        </div>
-        {customerEmail && (
-          <div className="flex items-center gap-1">
-            <p data-testid={HEADER_IDS.customerEmail} title="Email">
-              <span className="font-medium">Email:</span> {customerEmail}
-            </p>
-            <Button
-              onClick={() => copyToClipboard(customerEmail, 'Email')}
-              title="Copy email"
-              aria-label="Copy email"
-              variant="ghost"
-              size="icon-sm"
-            >
-              <Copy />
-            </Button>
-          </div>
-        )}
-        {customerPhone && (
-          <div className="flex items-center gap-1">
-            <p data-testid={HEADER_IDS.customerPhone} title="Phone">
-              <span className="font-medium">Phone:</span> {customerPhone}
-            </p>
-            <Button
-              onClick={() => copyToClipboard(customerPhone, 'Phone number')}
-              title="Copy phone number"
-              aria-label="Copy phone number"
-              variant="ghost"
-              size="icon-sm"
-            >
-              <Copy />
-            </Button>
-          </div>
+            <Clock size={14} />
+            {formatMinutes(totalMinutes)}
+          </span>
         )}
       </div>
       <OrderHistoryDialog orderId={order.id} open={historyOpen} onOpenChange={setHistoryOpen} />
