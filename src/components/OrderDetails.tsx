@@ -294,7 +294,7 @@ export function OrderDetails() {
             data-testid={TEST_IDS.orders.releaseHighlights}
             className="flex w-full max-w-sm flex-col gap-2 rounded-md border border-neutral-200 p-4"
           >
-            <ReleaseHighlights release={latestRelease} />
+            <ReleaseHighlights release={latestRelease} maxItems={3} />
             <button
               type="button"
               data-testid={TEST_IDS.orders.releaseNotesLink}

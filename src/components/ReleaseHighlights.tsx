@@ -1,5 +1,5 @@
 import ReactMarkdown from 'react-markdown'
-import { highlightsMarkdown } from '../lib/releaseNotes'
+import { highlightsMarkdown, truncateHighlights } from '../lib/releaseNotes'
 import type { GithubRelease } from '../services/releaseNotesService'
 
 /** A slice of a release body (markdown), styled to this app's Tailwind look. Shared by the highlights below and the "Other changes" block on the release notes page. */
@@ -18,7 +18,11 @@ export function ReleaseMarkdown({ children }: { children: string }) {
   )
 }
 
-/** The user-facing part of a release's notes — everything before "Other changes". */
-export function ReleaseHighlights({ release }: { release: GithubRelease }) {
-  return <ReleaseMarkdown>{highlightsMarkdown(release.body ?? '')}</ReleaseMarkdown>
+/**
+ * The user-facing part of a release's notes — everything before "Other changes".
+ * `maxItems` shows only the first N bullets (e.g. the orders empty-state gadget); omit it for the full list.
+ */
+export function ReleaseHighlights({ release, maxItems }: { release: GithubRelease; maxItems?: number }) {
+  const markdown = highlightsMarkdown(release.body ?? '')
+  return <ReleaseMarkdown>{maxItems != null ? truncateHighlights(markdown, maxItems) : markdown}</ReleaseMarkdown>
 }
