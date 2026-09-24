@@ -145,15 +145,27 @@ if (published) {
   console.error(`${tag} is already published; bump the version instead of re-releasing this tag.`)
   process.exit(1)
 }
-const drafts = releases.filter(r => r.draft).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+const drafts = releases.filter(r => r.draft)
 if (drafts.length === 0) {
   console.error(`No draft release found for ${tag} — has the build step created one yet?`)
   process.exit(1)
 }
+// The CI job creates exactly one draft before electron-builder uploads, so a
+// second one means the uploads split across drafts again; guessing which one
+// is real is how the notes once landed on a blockmap-only draft.
 if (drafts.length > 1) {
-  console.warn(`Warning: ${drafts.length} draft releases exist for ${tag}; using the newest (id ${drafts[0].id}). Delete the others.`)
+  console.error(
+    `${drafts.length} draft releases exist for ${tag} (ids ${drafts.map(d => d.id).join(', ')}). ` +
+      'Keep the one with the Setup installer, delete the others, then rerun.',
+  )
+  process.exit(1)
 }
 const draft = drafts[0]
+const installer = `-Setup-${version}.exe`
+if (!draft.assets.some(asset => asset.name.endsWith(installer))) {
+  console.error(`The draft release for ${tag} (id ${draft.id}) has no *${installer} asset — the build did not upload into it.`)
+  process.exit(1)
+}
 
 if (dryRun) {
   console.log(`\nWould PATCH release id ${draft.id} for ${tag}. Stopping (--dry-run).`)

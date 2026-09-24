@@ -133,6 +133,33 @@ jobs:
             exit 1
           fi
       - run: npm ci
+      - name: Create the draft release
+        # electron-builder uploads the installer set and the .blockmap through
+        # two publishers that each find-or-create the release at the same
+        # moment; with no release yet, both create one and the tag ends up with
+        # two drafts (electron-builder#6676). Creating the one draft here first
+        # leaves both nothing to create. A rerun reuses the existing draft.
+        shell: bash
+        run: |
+          TAG="$GITHUB_REF_NAME"
+          EXISTING=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+            --jq ".[] | select(.tag_name == \"$TAG\") | if .draft then \"draft\" else \"published\" end")
+          if echo "$EXISTING" | grep -qx published; then
+            echo "$TAG is already published; bump the version instead of re-releasing this tag." >&2
+            exit 1
+          fi
+          DRAFTS=$(echo "$EXISTING" | grep -cx draft || true)
+          if [ "$DRAFTS" -gt 1 ]; then
+            echo "$DRAFTS draft releases exist for $TAG; delete all but one, then rerun." >&2
+            exit 1
+          fi
+          if [ "$DRAFTS" -eq 1 ]; then
+            echo "Reusing the existing draft release for $TAG."
+          else
+            gh release create "$TAG" --draft --verify-tag --title "${TAG#v}" --notes ""
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and publish
         run: npm run dist -- --publish always
         env:

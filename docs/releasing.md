@@ -20,17 +20,16 @@ published release exists per tag.
 5. `npm run release:tag` — tags the commit and pushes the tag. Refuses if
    you're not on `main`, `main` isn't in sync with `origin/main`, or the tag
    already exists.
-6. Wait for CI: the `checks` job runs, then `release` builds the Windows
-   installer, publishes it to a **draft** GitHub release, and fills the
-   draft's body from the user-facing sections of the PRs merged since the
-   previous tag.
+6. Wait for CI: the `checks` job runs, then `release` creates one **draft**
+   GitHub release for the tag, uploads the Windows installer set into it,
+   and fills its body from the user-facing sections of the PRs merged since
+   the previous tag.
 7. Open the draft on GitHub: read the notes, fix wording if needed, confirm
-   the installer assets are attached.
+   the assets are attached (setup and portable `.exe`, the setup's
+   `.blockmap`, `latest.yml`).
 8. Click **Publish release**.
-9. Delete any other draft release left over for the same tag (see "Orphan
-   drafts" below).
-10. Optionally, confirm one machine picks up the update through the
-    auto-updater.
+9. Optionally, confirm one machine picks up the update through the
+   auto-updater.
 
 ## Off-script cases
 
@@ -55,9 +54,14 @@ release — there is no separate hotfix path.
 body directly; the auto-updater only reads the installer's own metadata,
 never the release notes, so editing a published release is safe at any time.
 
-**Orphan drafts.** Every version tends to leave one extra draft release next
-to the one that gets published — delete the leftovers once you've published
-the real one, so they don't get mistaken for the current release later.
+**More than one draft for a tag.** electron-builder uploads the installer
+set and the `.blockmap` through two publishers that each create a release
+when none exists, which used to split every version across two drafts
+(electron-builder#6676). The release job now creates the draft before the
+build, so both upload into it. Should a second draft appear anyway, both the
+draft step on a rerun and `release-notes.mjs` refuse rather than guess: keep
+the draft with the Setup installer, move over any asset only the other one
+has, delete the other, and rerun the job.
 
 **The tag script (`npm run release:tag`) refuses.** It's one of three
 guards: not on `main` (check out `main` and merge the bump there first),
@@ -70,8 +74,8 @@ and tag `main` for the corrected release.
 
 ## Where the pieces live
 
-- `.github/workflows/ci.yml` — the `release` job: builds the installer,
-  publishes the draft, then runs `scripts/release-notes.mjs`.
+- `.github/workflows/ci.yml` — the `release` job: creates the draft, builds
+  the installer into it, then runs `scripts/release-notes.mjs`.
 - `scripts/tag-release.mjs` — tags and pushes (`npm run release:tag`);
   enforces the merge-then-tag-on-main order.
 - `scripts/release-notes.mjs` — assembles and writes the draft release body
