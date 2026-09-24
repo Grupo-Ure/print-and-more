@@ -402,6 +402,8 @@ export const TEST_IDS = {
       row: 'user-management-row',
       rowRole: 'user-management-row-role',
       rowRoleBadge: 'user-management-row-role-badge',
+      /** The developer switch; `data-state` = checked | unchecked (Radix). */
+      rowDeveloper: 'user-management-row-developer',
       rowDelete: 'user-management-row-delete',
       createDialog: {
         root: 'create-account-dialog',
