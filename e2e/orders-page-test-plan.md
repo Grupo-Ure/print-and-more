@@ -35,7 +35,8 @@ candidate spec; details come later.
 - Start processing → order In Progress
 - Complete job auto-promotes to Prepress, in every one of the six departments (OTHER included)
 - Start processing promotes every complete job of the order, not only the selected one
-- Specs: `e2e/orders-page/order/status.spec.ts` (start processing; an order with one job per department, all promoted), `e2e/orders-page/job/status.spec.ts` (auto-promotion on completing the job; one case per department); the order/job state comes from the `orderSeed` / `jobSeed` / `jobSeeds` options
+- A past deadline does not hold a job back from auto-promotion — only a missing one does
+- Specs: `e2e/orders-page/order/status.spec.ts` (start processing; an order with one job per department, all promoted), `e2e/orders-page/job/status.spec.ts` (auto-promotion on completing the job; one case per department, plus one for a past deadline); the order/job state comes from the `orderSeed` / `jobSeed` / `jobSeeds` options
 
 ## 5. Production → done → billed — done
 
@@ -47,11 +48,11 @@ candidate spec; details come later.
 
 ## 6. Gates — done
 
-- No deadline / past deadline / no product keeps job in setup
+- No deadline / no product keeps job in setup
 - Customer approval blocks production until granted
 - Insufficient stock blocks release
 - Admin force release (reason required, history entry, warning icon)
-- Specs: `e2e/orders-page/job/release-gates.spec.ts` (the three completeness gates, approval blocked / granted, stock shortage on the out-of-stock stamp model, force release as admin: reason required, status + warning icon, history entry)
+- Specs: `e2e/orders-page/job/release-gates.spec.ts` (the two completeness gates, approval blocked / granted, stock shortage on the out-of-stock stamp model, force release as admin: reason required, status + warning icon, history entry)
 
 ## 7. Stock deduction on release — done
 
