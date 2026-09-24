@@ -19,7 +19,6 @@
  */
 
 import { type DeliveryChoice, type Priority, type JobRow } from '../types/database'
-import { toDateOnly, todayDateOnly } from './formatDate'
 
 /**
  * Resolve a job's inherited common fields against its order. A null
@@ -113,27 +112,6 @@ export function isJobComplete(
     return hasProducts
   }
   return true
-}
-
-/**
- * Whether the job's deadline lies in the past — strictly before `today`, so a
- * job due today is not missed. Judged on the *effective* deadline: resolve
- * inherited fields first (`resolveEffectiveJob`). A missing deadline is not
- * "missed" — that is the required-field check's job.
- *
- * Gate for *entering* pre-press: the manual release (`useJobRelease`) and the
- * automatic advance (`deriveAutomaticStatus`) both refuse IN_SETUP → PREPRESS
- * while this holds. Entry-only — a job already in pre-press is not retracted
- * when its deadline passes.
- */
-export function isDeadlineMissed(
-  job: Pick<JobRow, 'deadline'>,
-  today: string = todayDateOnly(),
-): boolean {
-  const deadline = toDateOnly(job.deadline)
-  if (deadline === null) return false
-  // ISO `YYYY-MM-DD` strings order chronologically under plain string comparison.
-  return deadline < today
 }
 
 /**

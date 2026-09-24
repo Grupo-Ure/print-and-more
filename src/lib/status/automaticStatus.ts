@@ -1,5 +1,5 @@
 import type { Customer, JobStatus, OrderStatus, JobRow, PaymentMethod } from '../../types/database'
-import { areAllJobsDone, isDeadlineMissed, isJobComplete } from '../jobShared'
+import { areAllJobsDone, isJobComplete } from '../jobShared'
 import { customerMeetsPrepressContact } from '../customer'
 
 /**
@@ -10,10 +10,8 @@ import { customerMeetsPrepressContact } from '../customer'
  *
  * The same rules apply to every department and product type — a job in the
  * OTHER department advances exactly like a CopyShop one:
- * - Not complete → `IN_SETUP`.
- * - Missed deadline → an `IN_SETUP` job stays `IN_SETUP` (entry gate only; a job
- *   already in `PREPRESS` is not retracted). This is the one clock dependency —
- *   `isDeadlineMissed` compares against today's date.
+ * - Not complete → `IN_SETUP`. A past deadline does not count against
+ *   completeness — only a missing one does (see `isJobComplete`).
  * - Complete → `PREPRESS` when the customer-contact requirement is met, else
  *   `IN_SETUP` (auto-advance + retract).
  * - QUOTE cap: while the *order* is still `QUOTE`, `PREPRESS` is capped back to
@@ -32,9 +30,6 @@ export function deriveAutomaticStatus(
   const orderIsQuote = orderStatus === 'QUOTE'
 
   if (!isJobComplete(job, orderIsQuote, hasContent)) return 'IN_SETUP'
-
-  // A missed deadline blocks the *entry* into pre-press; it never pulls a job back.
-  if (job.status === 'IN_SETUP' && isDeadlineMissed(job)) return 'IN_SETUP'
 
   if (!customerMeetsPrepressContact(customer)) return 'IN_SETUP'
 

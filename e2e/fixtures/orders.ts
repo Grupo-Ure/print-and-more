@@ -77,7 +77,7 @@ export const IN_PROGRESS_ORDER: OrderSeed = { ...QUOTE_ORDER, status: IN_PROGRES
 /** An accepted order still missing its deadline: a job in it is held in setup until one is set. */
 export const IN_PROGRESS_ORDER_WITHOUT_DEADLINE: OrderSeed = { ...IN_PROGRESS_ORDER, deadline: null }
 
-/** An accepted order whose deadline has passed: a job in it cannot enter pre-press any more. */
+/** An accepted order whose deadline has passed: a past deadline does not block a job in it from entering pre-press. */
 export const IN_PROGRESS_ORDER_PAST_DEADLINE: OrderSeed = { ...IN_PROGRESS_ORDER, deadline: 'yesterday' }
 
 const DEADLINE_BY_NAME: Record<NonNullable<OrderSeed['deadline']>, () => string> = {

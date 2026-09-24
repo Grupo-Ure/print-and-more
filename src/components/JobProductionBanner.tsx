@@ -1,6 +1,5 @@
 import { CalendarX, CheckCircle2, Lock, TriangleAlert } from 'lucide-react'
-import { formatDateDe } from '../lib/formatDate'
-import { isDeadlineMissed, resolveEffectiveJob } from '../lib/jobShared'
+import { resolveEffectiveJob } from '../lib/jobShared'
 import { useSetJobStatus } from '../queries/jobQueries'
 import { useOrderById } from '../queries/orderQueries'
 import { useProductsByJobId } from '../queries/productQueries'
@@ -21,11 +20,12 @@ type PrepressBlocker = { text: string; aboutDeadline: boolean }
 
 /**
  * Why the job is held in setup — the same requirements the release button and
- * the automatic advance enforce (`isJobComplete` plus the missed-deadline gate),
- * spelled out for the user. Delivery and priority always resolve via the order,
- * so the only requirements that can actually be unmet are the deadline and the
- * products. Empty while the order is still a quote (nothing is required yet),
- * while the products are still loading, or once the job qualifies.
+ * the automatic advance enforce (`isJobComplete`), spelled out for the user.
+ * Delivery and priority always resolve via the order, so the only
+ * requirements that can actually be unmet are the deadline and the products.
+ * A past deadline does not block release — only a missing one does. Empty
+ * while the order is still a quote (nothing is required yet), while the
+ * products are still loading, or once the job qualifies.
  */
 function prepressBlockers(
   job: JobRow,
@@ -39,11 +39,6 @@ function prepressBlockers(
   const blockers: PrepressBlocker[] = []
   if (!effectiveJob.deadline) {
     blockers.push({ text: 'no deadline set', aboutDeadline: true })
-  } else if (isDeadlineMissed(effectiveJob)) {
-    blockers.push({
-      text: `deadline ${formatDateDe(effectiveJob.deadline)} has passed`,
-      aboutDeadline: true,
-    })
   }
   // undefined = products still loading; don't flash a false "no products".
   if (productCount === 0) {

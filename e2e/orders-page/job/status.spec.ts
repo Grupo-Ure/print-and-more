@@ -1,4 +1,11 @@
-import { expect, test, nextOrderDeadline, IN_PROGRESS_ORDER, IN_PROGRESS_ORDER_WITHOUT_DEADLINE } from '../../fixtures/orders'
+import {
+  expect,
+  test,
+  nextOrderDeadline,
+  IN_PROGRESS_ORDER,
+  IN_PROGRESS_ORDER_WITHOUT_DEADLINE,
+  IN_PROGRESS_ORDER_PAST_DEADLINE,
+} from '../../fixtures/orders'
 import {
   LFP_JOB_WITH_PRODUCT,
   COPYSHOP_JOB_WITH_PRODUCT,
@@ -110,6 +117,18 @@ test.describe('in progress, complete OTHER job', () => {
     await ordersPage.openJob(job)
 
     // Assert — it advanced without a release.
+    await expect(ordersPage.details.jobList.row(job.id)).toHaveAttribute('data-status', PREPRESS_STATUS)
+  })
+})
+
+test.describe('in progress, complete job, deadline passed', () => {
+  test.use({ orderSeed: IN_PROGRESS_ORDER_PAST_DEADLINE, jobSeed: COPYSHOP_JOB_WITH_PRODUCT })
+
+  test('the job is promoted to pre-press on its own', async ({ ordersPage, job }) => {
+    // Setup — the job open.
+    await ordersPage.openJob(job)
+
+    // Assert — a past deadline does not hold it back.
     await expect(ordersPage.details.jobList.row(job.id)).toHaveAttribute('data-status', PREPRESS_STATUS)
   })
 })
