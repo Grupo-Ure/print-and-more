@@ -1,4 +1,10 @@
-# CI on pushes/PRs to main; release build + publish to GitHub Releases on version tags.
+# Checks on PRs to main and on version tags; release build + publish to
+# GitHub Releases on version tags.
+#
+# The merge to main is deliberately not a trigger: the PR run already
+# covered it, and the tag run re-checks what actually ships. This relies on
+# the branch protection rule for main requiring branches to be up to date
+# before merging, so a PR whose base moved is re-checked before it lands.
 #
 # Release ritual: merge to main, then bump and tag on main — see
 # docs/releasing.md for the full procedure and off-script cases. In short:
@@ -25,7 +31,6 @@ name: CI
 
 on:
   push:
-    branches: [main]
     tags: ['v*']
   pull_request:
     branches: [main]
