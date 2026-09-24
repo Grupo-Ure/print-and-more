@@ -11,6 +11,16 @@ Tags are immutable: never move, delete or re-push one. A botched release is
 fixed by the next patch version, not by rewriting history. Exactly one
 published release exists per tag.
 
+Release notes are per **feature line**. The minor version names a set of
+features (1.10), and a patch (1.10.1, 1.10.2, …) adds fixes on top of it
+rather than starting a new story. So every release's notes cover its whole
+line: 1.10.3's body lists everything since the last 1.9.x release, 1.10.0's
+features included. The in-app release notes page shows one entry per line,
+using the notes of its newest release.
+
+Bump the minor version for new features and the patch version for fixes;
+that choice decides where a change's notes appear.
+
 ## Standard release, step by step
 
 1. On `main`, in sync with `origin` (`git pull`).
@@ -23,7 +33,7 @@ published release exists per tag.
 6. Wait for CI: the `checks` job runs, then `release` creates one **draft**
    GitHub release for the tag, uploads the Windows installer set into it,
    and fills its body from the user-facing sections of the PRs merged since
-   the previous tag.
+   the last release of the previous feature line.
 7. Open the draft on GitHub: read the notes, fix wording if needed, confirm
    the assets are attached (setup and portable `.exe`, the setup's
    `.blockmap`, `latest.yml`).

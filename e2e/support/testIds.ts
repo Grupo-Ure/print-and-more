@@ -435,7 +435,7 @@ export const TEST_IDS = {
 
   releaseNotesPage: {
     root: 'release-notes-page',
-    /** One per release, in the sidebar; `data-tag` = the GitHub tag name (e.g. "v1.9.0"). */
+    /** One per feature line, in the sidebar; `data-line` = the line (e.g. "1.10"). */
     sidebarRow: 'release-notes-sidebar-row',
     /** The selected release's detail pane. */
     detail: 'release-notes-detail',

@@ -1,6 +1,13 @@
 // Assembles a version's draft GitHub release body from the user-facing
-// sections of the PRs merged since the previous tag, and PATCHes it onto
-// the draft release electron-builder just created.
+// sections of the PRs it ships, and PATCHes it onto the tag's draft release.
+//
+// The notes cover the version's whole feature line, not just the step from
+// the previous tag: a minor version (1.10) introduces a set of features and
+// its patches (1.10.1, 1.10.2, …) add fixes on top, so every 1.10.x body
+// lists everything since the last 1.9.x tag. The newest release of a line
+// therefore always carries the full story, which is what the in-app release
+// notes page shows per line — and a patch that was never published loses
+// nothing, since the next one repeats it.
 // Usage: node scripts/release-notes.mjs [--tag v1.9.0] [--repo owner/name] [--dry-run]
 import { execFileSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
@@ -25,6 +32,9 @@ if (!tag) {
   process.exit(1)
 }
 const version = tag.replace(/^v/, '')
+/** "1.10.3" → "1.10": the feature line a version belongs to. */
+const featureLine = v => v.replace(/^v/, '').split('.').slice(0, 2).join('.')
+const line = featureLine(tag)
 
 let repo = flag('repo') || process.env.GITHUB_REPOSITORY
 if (!repo) {
@@ -37,15 +47,17 @@ if (!repo) {
   repo = match[1]
 }
 
-// 1. Window: the tag before TAG in the sorted tag list, if any.
+// 1. Window: from the newest tag of an older feature line (for v1.10.3, the
+// newest v1.9.x) up to TAG — so the earlier patches of TAG's own line fall
+// inside it. No older line → the first release, everything up to TAG.
 const allTags = capture('git', ['tag', '--list', 'v*', '--sort=-v:refname']).split('\n').filter(Boolean)
 const tagIndex = allTags.indexOf(tag)
 if (tagIndex === -1) {
   console.error(`Tag ${tag} not found locally — fetch it first (git fetch --tags).`)
   process.exit(1)
 }
-const prevTag = allTags[tagIndex + 1]
-console.log(prevTag ? `Window: ${prevTag}..${tag}` : `Window: first release, up to ${tag}`)
+const prevTag = allTags.slice(tagIndex + 1).find(t => featureLine(t) !== line)
+console.log(prevTag ? `Window: ${prevTag}..${tag} (feature line ${line})` : `Window: first release, up to ${tag}`)
 
 // 2. PRs merged in the window, matched by merge-commit ancestry against TAG
 // (and, with a previous tag, excluded when already an ancestor of it) —
@@ -118,9 +130,9 @@ const directCommits = directCommitsLog
   .filter(({ sha, subject }) => !prMergeShas.has(sha) && !bumpPattern.test(subject))
 
 // 5. Compose the body.
-let body = `## What's new in ${version}\n\n`
+let body = `## What's new in ${line}\n\n`
 if (prNotes.length === 0) {
-  body += 'No user-facing changes in this version.\n'
+  body += `No user-facing changes in ${line} yet.\n`
 } else {
   body += prNotes.map(({ section }) => section).join('\n') + '\n'
 }

@@ -7,20 +7,20 @@ import { ReleaseHighlights, ReleaseMarkdown } from '../components/ReleaseHighlig
 import { useSupabaseSession } from '../hooks/useSupabaseSession'
 import { useReleaseNotes } from '../queries/releaseNotesQueries'
 import { formatDateDe } from '../lib/formatDate'
-import { OTHER_CHANGES_MARKER } from '../lib/releaseNotes'
-import type { GithubRelease } from '../services/releaseNotesService'
+import { groupReleasesByLine, OTHER_CHANGES_MARKER, type ReleaseLine } from '../lib/releaseNotes'
 import { TEST_IDS } from '@e2e/support/testIds'
 
 const IDS = TEST_IDS.releaseNotesPage
 
-/** One release in the sidebar list: version + date, highlighted when selected. */
-function ReleaseRow({ release, isActive, onSelect }: { release: GithubRelease; isActive: boolean; onSelect: () => void }) {
+/** One feature line in the sidebar list: line + date of its newest release, highlighted when selected. */
+function ReleaseRow({ releaseLine, isActive, onSelect }: { releaseLine: ReleaseLine; isActive: boolean; onSelect: () => void }) {
+  const release = releaseLine.latest
   return (
     <div
       role="button"
       tabIndex={0}
       data-testid={IDS.sidebarRow}
-      data-tag={release.tag_name}
+      data-line={releaseLine.line}
       aria-current={isActive ? 'true' : undefined}
       onClick={onSelect}
       onKeyDown={event => {
@@ -34,14 +34,15 @@ function ReleaseRow({ release, isActive, onSelect }: { release: GithubRelease; i
         isActive && 'border-l-primary bg-primary/8',
       )}
     >
-      <span className="font-semibold">{release.tag_name}</span>
+      <span className="font-semibold">{releaseLine.line}</span>
       <span className="text-[13px] text-neutral-500">{formatDateDe(release.published_at)}</span>
     </div>
   )
 }
 
-/** The selected release's full detail: highlights, "Other changes" (if any), and a link to GitHub. */
-function ReleaseDetail({ release }: { release: GithubRelease }) {
+/** The selected line's full detail, from its newest release: highlights, "Other changes" (if any), and a link to GitHub. */
+function ReleaseDetail({ releaseLine }: { releaseLine: ReleaseLine }) {
+  const release = releaseLine.latest
   const body = release.body ?? ''
   const otherChangesIndex = body.indexOf(OTHER_CHANGES_MARKER)
   const otherChangesMarkdown = otherChangesIndex === -1 ? null : body.slice(otherChangesIndex).trim()
@@ -49,8 +50,10 @@ function ReleaseDetail({ release }: { release: GithubRelease }) {
   return (
     <div data-testid={IDS.detail} className="flex flex-col gap-3 py-4 px-8">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-lg font-semibold">{release.tag_name}</h2>
-        <span className="text-sm text-muted-foreground">{formatDateDe(release.published_at)}</span>
+        <h2 className="text-lg font-semibold">{releaseLine.line}</h2>
+        <span className="text-sm text-muted-foreground">
+          Latest: {release.tag_name}, {formatDateDe(release.published_at)}
+        </span>
       </div>
 
       <ReleaseHighlights release={release} />
@@ -76,14 +79,15 @@ function ReleaseDetail({ release }: { release: GithubRelease }) {
 export function ReleaseNotesPage() {
   const { session, loading: sessionLoading } = useSupabaseSession()
   const { data: releases, isLoading, isError } = useReleaseNotes()
-  const [selectedTag, setSelectedTag] = useState<string | null>(null)
+  const [selectedLine, setSelectedLine] = useState<string | null>(null)
   // Same fixed widths as the orders/production views, per breakpoint.
   const isCompact = useIsMobile()
 
   if (sessionLoading) return null
   if (!session) return <Login />
 
-  const selected = releases?.find(r => r.tag_name === selectedTag) ?? releases?.[0] ?? null
+  const releaseLines = groupReleasesByLine(releases ?? [])
+  const selected = releaseLines.find(l => l.line === selectedLine) ?? releaseLines[0] ?? null
 
   return (
     <SidebarProvider
@@ -100,15 +104,15 @@ export function ReleaseNotesPage() {
           <div className="min-h-0 flex-1 overflow-y-auto">
             {isLoading && <div className="p-4 text-[13px] text-neutral-500">Loading…</div>}
             {isError && <div className="p-4 text-[13px] text-neutral-500">Could not be loaded.</div>}
-            {!isLoading && !isError && releases?.length === 0 && (
+            {!isLoading && !isError && releaseLines.length === 0 && (
               <div className="p-4 text-[13px] text-neutral-500">No releases yet.</div>
             )}
-            {releases?.map(release => (
+            {releaseLines.map(releaseLine => (
               <ReleaseRow
-                key={release.tag_name}
-                release={release}
-                isActive={release.tag_name === selected?.tag_name}
-                onSelect={() => setSelectedTag(release.tag_name)}
+                key={releaseLine.line}
+                releaseLine={releaseLine}
+                isActive={releaseLine.line === selected?.line}
+                onSelect={() => setSelectedLine(releaseLine.line)}
               />
             ))}
           </div>
@@ -116,7 +120,7 @@ export function ReleaseNotesPage() {
       </Sidebar>
 
       <SidebarInset className="flex h-full flex-col overflow-auto">
-        {selected && <ReleaseDetail release={selected} />}
+        {selected && <ReleaseDetail releaseLine={selected} />}
       </SidebarInset>
     </SidebarProvider>
   )

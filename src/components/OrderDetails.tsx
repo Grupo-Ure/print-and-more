@@ -24,7 +24,7 @@ import { useNavigation } from '../context/navigation.context'
 import { useOrderSelection } from '../hooks/useOrderSelection'
 import { ReleaseHighlights } from './ReleaseHighlights'
 import { useReleaseNotes } from '../queries/releaseNotesQueries'
-import { highlightsMarkdown } from '../lib/releaseNotes'
+import { groupReleasesByLine, highlightsMarkdown } from '../lib/releaseNotes'
 import { orderKeys, useArchiveOrder, useArchiveOrderWithCancelledJobs, useMarkOrderBilled, useOrderById, useSetOrderStatus, useUpdateOrder } from '../queries/orderQueries'
 import { jobKeys, useJobsByOrderId } from '../queries/jobQueries'
 import { useTimeLogMinutesByOrderId } from '../queries/timeLogQueries'
@@ -279,7 +279,7 @@ export function OrderDetails() {
   )
 
   if (!activeOrderId) {
-    const latestRelease = releases?.[0]
+    const latestRelease = groupReleasesByLine(releases ?? [])[0]?.latest
     const hasHighlights = latestRelease != null && highlightsMarkdown(latestRelease.body ?? '') !== ''
 
     return (

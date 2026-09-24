@@ -1,4 +1,35 @@
+import type { GithubRelease } from '../services/releaseNotesService'
+
 export const OTHER_CHANGES_MARKER = '\n## Other changes'
+
+/** One feature line (e.g. "1.10") and its newest published release. */
+export interface ReleaseLine {
+  /** "1.10" */
+  line: string
+  /** The line's newest release. Its notes cover the whole line (scripts/release-notes.mjs). */
+  latest: GithubRelease
+}
+
+const VERSION_TAG = /^v(\d+)\.(\d+)\.(\d+)$/
+
+/**
+ * Groups releases by feature line (major.minor), newest line first, each
+ * represented by its newest patch. Tags that aren't `vX.Y.Z` are left out.
+ */
+export function groupReleasesByLine(releases: GithubRelease[]): ReleaseLine[] {
+  const parsed = releases.flatMap(release => {
+    const match = VERSION_TAG.exec(release.tag_name)
+    return match ? [{ release, version: match.slice(1, 4).map(Number) }] : []
+  })
+  parsed.sort((a, b) => b.version[0] - a.version[0] || b.version[1] - a.version[1] || b.version[2] - a.version[2])
+
+  const lines: ReleaseLine[] = []
+  for (const { release, version } of parsed) {
+    const line = `${version[0]}.${version[1]}`
+    if (lines.at(-1)?.line !== line) lines.push({ line, latest: release })
+  }
+  return lines
+}
 
 /** Everything before the "Other changes" section — the shop-appropriate part of the body. */
 export function highlightsMarkdown(body: string): string {
