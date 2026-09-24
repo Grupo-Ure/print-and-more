@@ -1,7 +1,8 @@
 /**
  * Fixture chain: `@playwright/test` → database → electron → auth → **orders**.
  * Adds the orders view's page object (`ordersPage`) and the per-test data of
- * that view (`customer`, `order`, `job`, `newCustomer`, `departmentDefault`).
+ * that view (`customer`, `order`, `job`, `newCustomer`, `departmentDefault`,
+ * `developer`).
  *
  * Fixtures only seed data and reload so the app can see it. They never
  * navigate: getting to the order or job under test is part of the test's own
@@ -17,6 +18,7 @@ import { EMPTY_PREPRESS_DEFAULT, type DepartmentDefaultSeed } from './department
 import { APPROVAL_FILE } from './files'
 import { IN_STOCK_STAMP_MODEL, OUT_OF_STOCK_STAMP_MODEL } from './stamps'
 import { IN_STOCK_TEXTILE_CHAIN } from './textiles'
+import { ADMIN_AS_DEVELOPER, type TestUser } from './users'
 import type { TestCustomerRow, TestFile, TestJob, TestOrder } from '../support/database'
 import { NavbarPOM } from '../pom/NavbarPOM'
 import { OrdersPOM } from '../pom/OrdersPOM'
@@ -153,6 +155,10 @@ type OrdersViewFixtures = {
    * not leak into the next one.
    */
   departmentDefault: TestDepartmentDefault
+  /** Which login `developer` flags; override per describe block with `test.use({ developerSeed })`. */
+  developerSeed: TestUser
+  /** The id of the login `developerSeed` names, flagged as a developer account before the test and unflagged after it. */
+  developer: string
 }
 
 // No `expect` in here: fixtures synchronise with `waitFor()`. A timeout then
@@ -195,6 +201,7 @@ export const test = base.extend<OrdersViewFixtures>({
   jobSeed: [EMPTY_JOB, { option: true }],
   jobSeeds: [[], { option: true }],
   departmentDefaultSeed: [EMPTY_PREPRESS_DEFAULT, { option: true }],
+  developerSeed: [ADMIN_AS_DEVELOPER, { option: true }],
 
   customer: async ({ page, navbar, database, customerSeed }, use) => {
     const customer = await database.createCustomer(customerSeed)
@@ -268,6 +275,15 @@ export const test = base.extend<OrdersViewFixtures>({
 
     await use({ department, status, userId })
     await database.removeDepartmentDefault(department, status)
+  },
+
+  developer: async ({ page, navbar, database, developerSeed }, use) => {
+    const userId = await database.setDeveloper(developerSeed, true)
+    // The app caches the user list; reload so the pickers see the flag.
+    await reloadApp(page, navbar)
+
+    await use(userId)
+    await database.setDeveloper(developerSeed, false)
   },
 })
 

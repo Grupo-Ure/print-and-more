@@ -8,7 +8,7 @@ import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.settings.userManagement
 
-/** Settings → User management (super admins): accounts table, role changes, deletion. */
+/** Settings → User management (super admins): accounts table, role changes, the developer flag, deletion. */
 export class UserManagementPOM extends BasePOM {
   readonly root: Locator
   readonly create: Locator
@@ -44,6 +44,11 @@ export class UserManagementPOM extends BasePOM {
   /** Read-only role badge for the rest; carries `data-value`. */
   rowRoleBadge(row: Locator): Locator {
     return row.getByTestId(IDS.rowRoleBadge)
+  }
+
+  /** The developer switch; carries `data-state` = checked | unchecked. */
+  rowDeveloper(row: Locator): Locator {
+    return row.getByTestId(IDS.rowDeveloper)
   }
 
   rowDelete(row: Locator): Locator {

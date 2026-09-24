@@ -163,6 +163,14 @@ export class TestDatabase {
     return id
   }
 
+  /** Marks or unmarks the login as a developer account (hidden from the assignee pickers). Returns the user's id. */
+  async setDeveloper(user: TestUser, isDeveloper: boolean): Promise<string> {
+    const userId = await this.userId(user)
+    const { error } = await this.client.from('users').update({ is_developer: isDeveloper }).eq('id', userId)
+    if (error) throw error
+    return userId
+  }
+
   // ── Department defaults ──────────────────────────────────────────────────
 
   /** Puts the user into the department's slot for that stage, replacing whoever held it. Returns the user's id. */
