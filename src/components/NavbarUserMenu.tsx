@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, LogOut, Settings } from 'lucide-react'
+import { ChevronDown, LogOut, Settings, Sparkles } from 'lucide-react'
 import { authService } from '../services/authService'
 import { useCurrentUser } from '../queries/userQueries'
 import { ROLE_LABELS } from '../lib/roleLabels'
@@ -80,6 +80,13 @@ export function NavbarUserMenu() {
         <DropdownMenuItem data-testid={TEST_IDS.navbar.userMenu.profile} onSelect={() => navigate('profile')}>
           <Settings className="text-neutral-400" />
           Profile settings
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          data-testid={TEST_IDS.navbar.userMenu.releaseNotes}
+          onSelect={() => navigate('releaseNotes')}
+        >
+          <Sparkles className="text-neutral-400" />
+          Release notes
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />

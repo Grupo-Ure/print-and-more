@@ -4,6 +4,7 @@ import { StampStockPage } from './pages/StampStockPage'
 import { TextileStockPage } from './pages/TextileStockPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { ProfilePage } from './pages/ProfilePage'
+import { ReleaseNotesPage } from './pages/ReleaseNotesPage'
 import { ToastContainer, ToastProvider } from './components/Toast'
 import { ConfirmProvider } from './components/ConfirmDialog'
 import { ForcedPasswordChange } from './components/ChangePasswordDialog'
@@ -24,6 +25,8 @@ function ActiveView({ view }: { view: AppView }) {
       return <SettingsPage />
     case 'profile':
       return <ProfilePage />
+    case 'releaseNotes':
+      return <ReleaseNotesPage />
   }
 }
 

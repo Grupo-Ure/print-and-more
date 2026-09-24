@@ -33,6 +33,7 @@ export const TEST_IDS = {
       email: 'navbar-user-menu-email',
       role: 'navbar-user-menu-role',
       profile: 'navbar-user-menu-profile',
+      releaseNotes: 'navbar-user-menu-release-notes',
       signOut: 'navbar-user-menu-sign-out',
     },
   },
@@ -428,5 +429,13 @@ export const TEST_IDS = {
       /** The "Unassigned" option in either combobox's list. */
       rowAssigneeEmptyOption: 'department-settings-row-assignee-unassigned',
     },
+  },
+
+  releaseNotesPage: {
+    root: 'release-notes-page',
+    /** One per release, in the sidebar; `data-tag` = the GitHub tag name (e.g. "v1.9.0"). */
+    sidebarRow: 'release-notes-sidebar-row',
+    /** The selected release's detail pane. */
+    detail: 'release-notes-detail',
   },
 } as const
