@@ -83,4 +83,17 @@ test.describe('as employee', () => {
     // Assert — the unassigned job the fixture seeded is now listed.
     await expect(productionPage.sidebar.row(job.id)).toBeVisible()
   })
+
+  test('opening the assignee filter leaves a developer account out of the list', async ({ productionPage, database, developer }) => {
+    // Setup — the `developer` fixture flagged the admin; the feed is open.
+    const employeeId = await database.userId(TEST_USERS.employee)
+    await productionPage.open()
+
+    // Act — open the assignee filter and wait for its list (the employee's own entry).
+    await productionPage.sidebar.assigneeFilter.click()
+    await productionPage.sidebar.assigneeFilterUser(employeeId).waitFor()
+
+    // Assert — the flagged admin has no entry.
+    await expect(productionPage.sidebar.assigneeFilterUser(developer)).toHaveCount(0)
+  })
 })
