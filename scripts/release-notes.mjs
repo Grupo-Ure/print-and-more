@@ -173,6 +173,9 @@ if (dryRun) {
 }
 
 const payloadPath = join(tmpdir(), `release-notes-${tag}.json`)
-writeFileSync(payloadPath, JSON.stringify({ body }))
+// tag_name must travel with every update: a PATCH to a draft without it
+// detaches the draft from its tag (GitHub renames it `untagged-<hash>`), and
+// publishing that draft then creates a junk tag instead of using this one.
+writeFileSync(payloadPath, JSON.stringify({ tag_name: tag, body }))
 run('gh', ['api', '-X', 'PATCH', `repos/${repo}/releases/${draft.id}`, '--input', payloadPath])
 console.log(`Updated the draft release body for ${tag} (id ${draft.id}).`)
