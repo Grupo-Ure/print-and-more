@@ -260,6 +260,8 @@ export function useSetJobStatus() {
     onSuccess: (row, { orderId }) => {
       patchJobInCache(queryClient, orderId, row)
       invalidateOrderLists(queryClient)
+      // A stage default may have reassigned the job and logged it (DB trigger).
+      void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
     },
   })
 }
@@ -289,6 +291,8 @@ export function useReleaseToProduction() {
       invalidateOrderLists(queryClient)
       // Stock changed — other pre-press jobs' availability may have too.
       void queryClient.invalidateQueries({ queryKey: stockAvailabilityKeys.root })
+      // A stage default may have reassigned the job and logged it (DB trigger).
+      void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
     },
   })
 }
@@ -325,6 +329,8 @@ export function useForceReleaseToProduction() {
       invalidateOrderLists(queryClient)
       // Stock changed — other pre-press jobs' availability may have too.
       void queryClient.invalidateQueries({ queryKey: stockAvailabilityKeys.root })
+      // A stage default may have reassigned the job and logged it (DB trigger).
+      void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
     },
   })
 }
