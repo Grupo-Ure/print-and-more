@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
 import { BasePOM } from './BasePOM'
 
-const IDS = TEST_IDS.userManagement.createDialog
+const IDS = TEST_IDS.settings.userManagement.createDialog
 
 /** Super-admin: create a login with an initial password and role. */
 export class CreateAccountDialogPOM extends BasePOM {

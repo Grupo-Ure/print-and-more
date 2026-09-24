@@ -1,7 +1,8 @@
 import { OrderWorkspace } from './pages/OrderWorkspace'
+import { ProductionPage } from './pages/ProductionPage'
 import { StampStockPage } from './pages/StampStockPage'
 import { TextileStockPage } from './pages/TextileStockPage'
-import { UserManagementPage } from './pages/UserManagementPage'
+import { SettingsPage } from './pages/SettingsPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { ToastContainer, ToastProvider } from './components/Toast'
 import { ConfirmProvider } from './components/ConfirmDialog'
@@ -13,12 +14,14 @@ function ActiveView({ view }: { view: AppView }) {
   switch (view) {
     case 'orders':
       return <OrderWorkspace />
+    case 'production':
+      return <ProductionPage />
     case 'stampStock':
       return <StampStockPage />
     case 'textileStock':
       return <TextileStockPage />
-    case 'userManagement':
-      return <UserManagementPage />
+    case 'settings':
+      return <SettingsPage />
     case 'profile':
       return <ProfilePage />
   }

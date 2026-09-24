@@ -132,9 +132,10 @@ identifiers, names, or strings.
 change), the top [`AppNavbar`](src/components/AppNavbar.tsx), and the active
 view. There is **no router**: the view and the active order/job selection
 live in [`navigation.context.tsx`](src/context/navigation.context.tsx)
-(`AppView`: `orders`, `stampStock`, `textileStock`, `userManagement`,
-`profile`). The stock views are for everyone; user management is super-admin
-only.
+(`AppView`: `orders`, `production`, `stampStock`, `textileStock`, `settings`,
+`profile`). Orders and production are for everyone; the stock views and
+settings are admin-only, and the user-management section inside settings is
+super-admin only.
 
 ### The orders view
 
@@ -143,7 +144,7 @@ without a session, otherwise a two-column shell:
 
 | Column | Component | Role |
 |--------|-----------|------|
-| Left   | [`OrderSidebar`](src/components/OrderSidebar.tsx) | Search + filters (status, department, deadline/intake ranges), order list with selection, per-order menu (duplicate / delete quote), "+ New Order" ([`NewOrderDialog`](src/components/NewOrderDialog.tsx)). Archived orders are listed only while the header's *Show archived* toggle is on, except billed ones, which appear whenever Billed is ticked; finished/billed are hidden by the default status filter. |
+| Left   | [`OrderSidebar`](src/components/OrderSidebar.tsx) | Search + filters (status, department, deadline/intake ranges), order list with selection, per-order menu (duplicate / delete quote), "+ New Order" ([`NewOrderDialog`](src/components/NewOrderDialog.tsx)). Archived orders are listed only while the header's *Show archived* toggle is on, except billed ones, which appear whenever Billed is ticked; finished/billed are hidden by the default status filter. There is no assignee filter here — finding one's own work is the production view's job. |
 | Centre | [`OrderDetails`](src/components/OrderDetails.tsx) | Order header (number, customer, lifecycle button, files/history/archive/cancel actions), order settings row (deadline, delivery, priority, payment), then [`JobList`](src/components/JobList.tsx) (add-job buttons, one row per job with status track and right-click menu) next to the active job's [`JobDetail`](src/components/JobDetail.tsx). |
 
 `JobDetail` shows the job header (assignee, status badge, settings / time
@@ -158,6 +159,27 @@ former right-hand `ContextPanel` is gone; every workflow action now lives in
 the header of the order or the job (or the job list's context menu). The
 invisible [`StatusManager`](src/components/StatusManager.tsx) mounted in
 `OrderDetails` runs the automatic status logic (see "Status").
+
+### The production view
+
+[`ProductionPage`](src/pages/ProductionPage.tsx) is the back office's view
+of the work: the same two-column shell as the orders view, with
+[`ProductionSidebar`](src/components/production/ProductionSidebar.tsx)
+listing **jobs across all orders** — every non-cancelled job in `PREPRESS`
+or `IN_PRODUCTION` on a non-archived order (`jobService.listProductionJobs`,
+`useProductionJobs`), soonest effective deadline first, then `HIGH`
+priority first. A row shows department, customer, job number, effective
+deadline, status and assignee. The header's assignee filter is the job
+header's `EmployeeCombobox` (one user or *Everyone*) with a caption stating
+what the feed shows; employees start on their own jobs, admins on
+everyone's. Selecting a row (`selectJob` in the navigation context) shows
+the job in [`ProductionJobPanel`](src/components/production/ProductionJobPanel.tsx):
+a read-only strip naming the order (customer, number, deadline, status, an
+*Open in orders* button) above the same `JobDetail` the orders view uses,
+edited in place, with the order's `StatusManager` mounted alongside. The
+selection is the app-wide one, so the order stays selected when switching
+to the orders view. Order-level actions (lifecycle, settings, files dialog)
+remain on the orders view.
 
 ### Responsive layout — one breakpoint, two strategies
 
@@ -215,12 +237,32 @@ gets [`ChangePasswordDialog`](src/components/ChangePasswordDialog.tsx) first.
 
 Roles (`user_role` enum, table `users`): `EMPLOYEE`, `ADMIN`, `SUPER_ADMIN`
 (hierarchical — `useIsAdmin()` in [`userQueries`](src/queries/userQueries.ts)).
-Admin-only actions in the orders view: change a job's assignee, force-release
-a job, reopen a finished order, log time on someone else's behalf or delete a
-time log. Account creation/deletion goes through the `manage-users` edge
-function; role changes are plain updates on `users`, guarded by RLS and a
-trigger. DB triggers backstop every role rule — the UI only hides what the
-DB would reject anyway.
+Admin-only actions in the orders view: force-release a job, reopen a
+finished order, log time on someone else's behalf or delete a time log.
+Anyone may assign or reassign a job. Account creation/deletion goes through
+the `manage-users` edge function; role changes are plain updates on `users`,
+guarded by RLS and a trigger. DB triggers backstop every role rule — the UI
+only hides what the DB would reject anyway.
+
+**Developer accounts.** A super admin who signs in to the shop's database to
+debug should never be handed work. The user-management section has a
+*Developer* switch per account (`users.is_developer`, changeable by super
+admins only, a super admin row only by the account itself); the
+`EmployeeCombobox` leaves flagged accounts out of every picker (job
+assignee, production filter, time logs, department defaults) unless one
+already holds the value shown. The flag is per database, so a local
+database simply leaves it off.
+
+**Job assignment.** A job starts unassigned; whoever intakes the order
+usually does not work its jobs. Each department can name a default assignee
+per stage (`department_default_assignees`, one user for `PREPRESS` and one
+for `IN_PRODUCTION`, set on the settings page). The moment a job enters one
+of those statuses — by automatic promotion, manual release, force release,
+or going back to pre-press — the `fn_assign_stage_default_assignee`
+BEFORE UPDATE trigger hands it to that stage's default, whoever held it
+before, and writes `ASSIGNEE_CHANGED` history with `meta.automatic`;
+without a default the assignee stays. Reassigning by hand writes
+`ASSIGNEE_CHANGED` as well.
 
 ### Full-page views
 
@@ -228,8 +270,14 @@ DB would reject anyway.
 — stamp models, ink colours, stock bookings and movements;
 `TextileStockPage` ([src/pages/TextileStockPage.tsx](src/pages/TextileStockPage.tsx))
 — textile master data (brand → product → variant) and variant stock;
-`UserManagementPage`, `ProfilePage`. Shared stock UI (booking fields, movement
-views, reorder list) lives in [`src/components/stock/`](src/components/stock/).
+`SettingsPage` ([src/pages/SettingsPage.tsx](src/pages/SettingsPage.tsx)) —
+a fixed, always-visible section list on the left and the active section on
+the right: *User management* (super admins;
+[`UserManagementSettings`](src/components/settings/UserManagementSettings.tsx))
+and *Departments* (admins; [`DepartmentSettings`](src/components/settings/DepartmentSettings.tsx),
+the default assignee per department); `ProfilePage`. Shared stock UI
+(booking fields, movement views, reorder list) lives in
+[`src/components/stock/`](src/components/stock/).
 
 ## Production Departments (`department` enum)
 
@@ -305,8 +353,16 @@ per-type form), and the tables in [`ProductTable.tsx`](src/components/products/P
   `textile_motifs`.
 - **Stamp master data** — `stamp_models`, `stamp_ink_colors`,
   `stamp_stock_movements`.
-- **Users** — table `users` (`name`, `email`, `role`, `avatar_url`), mirrored
-  from Supabase Auth.
+- **Users** — table `users` (`name`, `email`, `role`, `avatar_url`,
+  `is_developer`), mirrored from Supabase Auth. `is_developer` marks a
+  developer account (someone debugging against the shop's database): it is
+  left out of every assignee picker and grants nothing.
+- **Department defaults** — table `department_default_assignees`
+  (PK `(department, status)` with `status` limited to `PREPRESS` /
+  `IN_PRODUCTION`, `user_id` → `users`, cascade on delete): the user a job
+  of that department is handed to when it enters that stage. Readable by
+  all, admin-writable; service
+  [`departmentSettingsService`](src/services/departmentSettingsService.ts).
 - **Blueprint** — `blueprint_*` tables exist in the schema (a separate
   blueprint-copying feature) but nothing in the client uses them yet.
 
@@ -453,6 +509,8 @@ is done.
 |------|------|
 | [`src/App.tsx`](src/App.tsx) / [`src/context/navigation.context.tsx`](src/context/navigation.context.tsx) | Providers, navbar, view switch, active order/job selection, deep-link pickup |
 | [`src/pages/OrderWorkspace.tsx`](src/pages/OrderWorkspace.tsx) | Session gate + the two-column orders shell |
+| [`src/pages/ProductionPage.tsx`](src/pages/ProductionPage.tsx) / [`src/components/production/`](src/components/production/) | The cross-order job feed (pre-press + production) with the assignee filter, and the selected job's detail beside it |
+| [`src/pages/SettingsPage.tsx`](src/pages/SettingsPage.tsx) / [`src/components/settings/`](src/components/settings/) | Settings shell with section list; user management and department defaults |
 | [`src/components/OrderDetails.tsx`](src/components/OrderDetails.tsx) | Order header, lifecycle actions, settings row, job list + detail host |
 | [`src/hooks/useJobRelease.ts`](src/hooks/useJobRelease.ts) / [`useJobRemoval.ts`](src/hooks/useJobRemoval.ts) | Every job workflow rule, shared by button and context menu |
 | [`src/lib/jobShared.ts`](src/lib/jobShared.ts) | Inheritance + completeness (`resolveEffectiveJob`, `isJobComplete`, `isDeadlineMissed`) |

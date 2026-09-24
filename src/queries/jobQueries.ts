@@ -19,6 +19,8 @@ type HistoryParams = { event_type: HistoryEvent; reason?: string; meta?: Record<
 export const jobKeys = {
   all: ['jobs'] as const,
   byOrderId: (orderId: string) => ['jobs', 'by-order-id', orderId] as const,
+  /** The Production page's cross-order feed (pre-press + production). */
+  production: ['jobs', 'production'] as const,
 }
 
 export function useJobsByOrderId(orderId: string | null) {
@@ -26,6 +28,14 @@ export function useJobsByOrderId(orderId: string | null) {
     queryKey: orderId ? jobKeys.byOrderId(orderId) : jobKeys.byOrderId('__none__'),
     queryFn: () => jobService.getJobsByOrderId(orderId as string),
     enabled: !!orderId,
+  })
+}
+
+/** The production feed. Refetched whenever a job changes (see {@link invalidateOrderLists}). */
+export function useProductionJobs() {
+  return useQuery({
+    queryKey: jobKeys.production,
+    queryFn: () => jobService.listProductionJobs(),
   })
 }
 
@@ -42,10 +52,12 @@ export function fetchJobsByOrderId(queryClient: QueryClient, orderId: string) {
  * lifecycle (the one job-driven step, the automatic finish, is a separate
  * write — see {@link useFinishOrderWhenAllJobsDone}), but the sidebar still
  * shows job-derived data (e.g. the in-production-missing-info warning), so the
- * lists are invalidated whenever a job changes.
+ * lists are invalidated whenever a job changes. The production feed lists
+ * jobs across orders and follows the same events.
  */
 function invalidateOrderLists(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
+  void queryClient.invalidateQueries({ queryKey: jobKeys.production })
 }
 
 function patchJobInCache(queryClient: QueryClient, orderId: string, row: JobRow): void {
@@ -248,6 +260,8 @@ export function useSetJobStatus() {
     onSuccess: (row, { orderId }) => {
       patchJobInCache(queryClient, orderId, row)
       invalidateOrderLists(queryClient)
+      // A stage default may have reassigned the job and logged it (DB trigger).
+      void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
     },
   })
 }
@@ -277,6 +291,8 @@ export function useReleaseToProduction() {
       invalidateOrderLists(queryClient)
       // Stock changed — other pre-press jobs' availability may have too.
       void queryClient.invalidateQueries({ queryKey: stockAvailabilityKeys.root })
+      // A stage default may have reassigned the job and logged it (DB trigger).
+      void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
     },
   })
 }
@@ -313,15 +329,16 @@ export function useForceReleaseToProduction() {
       invalidateOrderLists(queryClient)
       // Stock changed — other pre-press jobs' availability may have too.
       void queryClient.invalidateQueries({ queryKey: stockAvailabilityKeys.root })
+      // A stage default may have reassigned the job and logged it (DB trigger).
+      void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
     },
   })
 }
 
 /**
- * Assign / unassign a job's responsible user (admin-only — the UI gates on
- * useIsAdmin and a DB trigger enforces it). Always writes an ASSIGNEE_CHANGED
- * history entry; names are snapshotted into meta so the entry stays readable
- * if a user is later deleted.
+ * Assign / unassign a job's responsible user — any role may do this. Always
+ * writes an ASSIGNEE_CHANGED history entry; names are snapshotted into meta
+ * so the entry stays readable if a user is later deleted.
  */
 export function useSetJobAssignee() {
   const queryClient = useQueryClient()
@@ -353,6 +370,7 @@ export function useSetJobAssignee() {
     onSuccess: (row, { orderId }) => {
       patchJobInCache(queryClient, orderId, row)
       void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
+      void queryClient.invalidateQueries({ queryKey: jobKeys.production })
     },
   })
 }

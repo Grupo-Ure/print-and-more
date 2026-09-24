@@ -68,3 +68,12 @@ export type DuplicateOrderArgs = Database['public']['Functions']['duplicate_orde
 export type UserRole = Enums<'user_role'>
 
 export type AppUserRow = Tables<'users'>
+
+/**
+ * One row per department and stage that has a default assignee (Settings →
+ * Departments): the user a job is handed to when it enters that stage.
+ */
+export type DepartmentDefaultAssigneeRow = Tables<'department_default_assignees'>
+
+/** The stages a department may have a default assignee for (the table's CHECK constraint). */
+export type DefaultAssigneeStatus = Extract<JobStatus, 'PREPRESS' | 'IN_PRODUCTION'>

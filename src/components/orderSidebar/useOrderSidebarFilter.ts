@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ORDER_STATUS_LIST, type Department, type OrderStatus } from '../../types/database'
-import type { AssigneeFilterValue } from '../../lib/orderFilters'
 
 const DEFAULT_STATUS_TOGGLES: Record<OrderStatus, boolean> = {
   QUOTE: true,
@@ -20,8 +19,6 @@ export type FilterState = {
   deadlineTo: string
   intakeFrom: string
   intakeTo: string
-  /** Empty = every assignee. */
-  assigneeIds: AssigneeFilterValue[]
   /** Off = non-archived orders plus billed ones; on = archived orders too. */
   showArchived: boolean
 }
@@ -37,7 +34,6 @@ function defaultFilterState(): FilterState {
     deadlineTo: '',
     intakeFrom: '',
     intakeTo: '',
-    assigneeIds: [],
     showArchived: false,
   }
 }
@@ -56,10 +52,6 @@ export function isDeadlineFilterActive(state: FilterState): boolean {
   return !!(state.deadlineFrom || state.deadlineTo || state.intakeFrom || state.intakeTo)
 }
 
-export function isUsersFilterActive(state: FilterState): boolean {
-  return state.assigneeIds.length > 0
-}
-
 export type FilterActions = {
   setSearchInput: (value: string) => void
   clearSearch: () => void
@@ -73,8 +65,6 @@ export type FilterActions = {
   setIntakeFrom: (value: string) => void
   setIntakeTo: (value: string) => void
   resetDeadline: () => void
-  toggleAssignee: (value: AssigneeFilterValue, checked: boolean) => void
-  resetAssignees: () => void
   setShowArchived: (value: boolean) => void
 }
 
@@ -118,9 +108,6 @@ export function useOrderSidebarFilter() {
     setIntakeTo: value => setFilter(f => ({ ...f, intakeTo: value })),
     resetDeadline: () =>
       setFilter(f => ({ ...f, deadlineFrom: '', deadlineTo: '', intakeFrom: '', intakeTo: '' })),
-    toggleAssignee: (value, checked) =>
-      setFilter(f => ({ ...f, assigneeIds: toggled(f.assigneeIds, value, checked) })),
-    resetAssignees: () => setFilter(f => ({ ...f, assigneeIds: [] })),
     setShowArchived: value => setFilter(f => ({ ...f, showArchived: value })),
   }), [])
 

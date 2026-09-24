@@ -1,6 +1,7 @@
 import { supabase } from '../supabase'
 import type { Database } from '../types/supabase'
-import type { JobRow, JobStatus, Department } from '../types/database'
+import type { DeliveryChoice, JobRow, JobStatus, Department, Priority } from '../types/database'
+import { resolveEffectiveJob } from '../lib/jobShared'
 
 /** SELECT for `jobs` — the full row as the app consumes it (`JobRow`). */
 const JOB_COLUMNS =
@@ -8,6 +9,66 @@ const JOB_COLUMNS =
 
 export type JobInsert = Omit<Database['public']['Tables']['jobs']['Insert'], 'job_number'>
 type JobUpdate = Database['public']['Tables']['jobs']['Update']
+
+/** The statuses the production feed lists: work that waits for, or is with, its assignee. */
+export const PRODUCTION_FEED_STATUSES: readonly JobStatus[] = ['PREPRESS', 'IN_PRODUCTION']
+
+/**
+ * One row of the production feed: the job with the order fields its inherited
+ * values resolve against, the customer's name, and a nested product count.
+ */
+export type ProductionJob = Pick<
+  JobRow,
+  | 'id'
+  | 'job_number'
+  | 'order_id'
+  | 'department'
+  | 'status'
+  | 'deadline'
+  | 'delivery'
+  | 'priority'
+  | 'assignee_id'
+  | 'is_cancelled'
+  | 'customer_approval_required'
+  | 'customer_approval_granted'
+> & {
+  orders: {
+    order_number: string
+    deadline: string | null
+    delivery: DeliveryChoice | null
+    priority: Priority
+    customers: { name: string } | null
+  }
+  department_products: { count: number }[]
+}
+
+const PRODUCTION_JOB_SELECT =
+  'id, job_number, order_id, department, status, deadline, delivery, priority, assignee_id, is_cancelled, customer_approval_required, customer_approval_granted, orders!inner(order_number, deadline, delivery, priority, is_archived, customers(name)), department_products(count)'
+
+/**
+ * Feed order: effective deadline ascending with undated jobs last, then
+ * priority HIGH before NORMAL, then job number for a stable list.
+ */
+function compareProductionJobs(left: ProductionJob, right: ProductionJob): number {
+  const leftEffective = resolveEffectiveJob(left, left.orders)
+  const rightEffective = resolveEffectiveJob(right, right.orders)
+  const leftDeadline = leftEffective.deadline ?? '9999-12-31'
+  const rightDeadline = rightEffective.deadline ?? '9999-12-31'
+  if (leftDeadline !== rightDeadline) return leftDeadline < rightDeadline ? -1 : 1
+  if (leftEffective.priority !== rightEffective.priority) {
+    return leftEffective.priority === 'HIGH' ? -1 : 1
+  }
+  return left.job_number.localeCompare(right.job_number)
+}
+
+/** Supabase may emit a to-one join as a one-element array; keep the published shape a single row. */
+function flattenOrderCustomer(job: ProductionJob): ProductionJob {
+  const customers: unknown = job.orders.customers
+  if (Array.isArray(customers)) {
+    return { ...job, orders: { ...job.orders, customers: customers[0] ?? null } }
+  }
+  return job
+}
 
 export type JobSummary = {
   id: string
@@ -119,6 +180,23 @@ class JobService {
       .eq('order_id', orderId)
     if (error) throw error
     return (data ?? []) as unknown as JobSummary[]
+  }
+
+  /**
+   * Every job the Production page lists: in pre-press or production, not
+   * cancelled, on a non-archived order — across all orders, sorted for the feed.
+   */
+  async listProductionJobs(): Promise<ProductionJob[]> {
+    const { data, error } = await supabase
+      .from('jobs')
+      .select(PRODUCTION_JOB_SELECT)
+      .in('status', [...PRODUCTION_FEED_STATUSES])
+      .eq('is_cancelled', false)
+      .eq('orders.is_archived', false)
+    if (error) throw error
+    // Cast: the nested `orders` / `customers` joins come back untyped from the select string.
+    const rows = (data ?? []) as unknown as ProductionJob[]
+    return rows.map(flattenOrderCustomer).sort(compareProductionJobs)
   }
 
   async getActiveJobsByBereich(department: Department): Promise<ActiveJobSlim[]> {

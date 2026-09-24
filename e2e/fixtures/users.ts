@@ -26,3 +26,10 @@ export const TEST_USERS = {
     role: 'ADMIN',
   },
 } as const satisfies Record<string, TestUser>
+
+/**
+ * The admin flagged as a developer account, for the `developer` fixture. The
+ * suite signs in as the employee, so the admin is the other login a picker
+ * would otherwise list.
+ */
+export const ADMIN_AS_DEVELOPER: TestUser = TEST_USERS.admin

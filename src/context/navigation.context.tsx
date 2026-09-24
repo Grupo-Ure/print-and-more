@@ -9,7 +9,7 @@ import {
 } from 'react'
 import { useSupabaseSession } from '../hooks/useSupabaseSession'
 
-export type AppView = 'orders' | 'stampStock' | 'textileStock' | 'userManagement' | 'profile'
+export type AppView = 'orders' | 'production' | 'stampStock' | 'textileStock' | 'settings' | 'profile'
 
 type SetActiveJobOptions = {
   /**
@@ -29,6 +29,10 @@ type NavigationValue = {
   pendingProductAddJobId: string | null
   setActiveOrder: (orderId: string | null) => void
   setActiveJob: (jobId: string | null, options?: SetActiveJobOptions) => void
+  /** Selects an order and one of its jobs in one update, whatever the view (the production feed's row click). */
+  selectJob: (orderId: string, jobId: string) => void
+  /** Switches to the orders view with this order and job selected. */
+  openJobInOrders: (orderId: string, jobId: string) => void
   /** Called by the product editor once it has acted on the pending request. */
   clearPendingProductAdd: () => void
   clearActive: () => void
@@ -74,6 +78,18 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       pendingProductAddJobId: jobId != null && options?.openProductAdd ? jobId : null,
     }))
   }, [])
+
+  const selectJob = useCallback((orderId: string, jobId: string) => {
+    setSelection({ activeOrderId: orderId, activeJobId: jobId, pendingProductAddJobId: null })
+  }, [])
+
+  const openJobInOrders = useCallback(
+    (orderId: string, jobId: string) => {
+      setView('orders')
+      selectJob(orderId, jobId)
+    },
+    [selectJob],
+  )
 
   const clearPendingProductAdd = useCallback(() => {
     setSelection(prev =>
@@ -122,10 +138,12 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       pendingProductAddJobId: selection.pendingProductAddJobId,
       setActiveOrder,
       setActiveJob,
+      selectJob,
+      openJobInOrders,
       clearPendingProductAdd,
       clearActive,
     }),
-    [view, navigate, selection, setActiveOrder, setActiveJob, clearPendingProductAdd, clearActive],
+    [view, navigate, selection, setActiveOrder, setActiveJob, selectJob, openJobInOrders, clearPendingProductAdd, clearActive],
   )
 
   return <NavigationContext.Provider value={value}>{children}</NavigationContext.Provider>

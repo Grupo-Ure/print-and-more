@@ -1,19 +1,17 @@
 import { useState, type FormEvent } from 'react'
 import { Trash2 } from 'lucide-react'
-import { Login } from '../components/Login'
-import { AccessDenied } from '../components/AccessDenied'
-import { useToast } from '../components/Toast'
-import { useConfirm } from '../components/ConfirmDialog'
-import { useSupabaseSession } from '../hooks/useSupabaseSession'
+import { useToast } from '../Toast'
+import { useConfirm } from '../ConfirmDialog'
 import {
   useCreateUser,
   useCurrentUser,
   useDeleteUser,
+  useUpdateUserDeveloperFlag,
   useUpdateUserRole,
   useUsers,
-} from '../queries/userQueries'
-import type { UserRow } from '../services/userService'
-import { ROLE_LABELS } from '../lib/roleLabels'
+} from '../../queries/userQueries'
+import type { UserRow } from '../../services/userService'
+import { ROLE_LABELS } from '../../lib/roleLabels'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -33,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import {
   Table,
   TableBody,
@@ -43,7 +42,7 @@ import {
 } from '@/components/ui/table'
 import { TEST_IDS } from '@e2e/support/testIds'
 
-const IDS = TEST_IDS.userManagement
+const IDS = TEST_IDS.settings.userManagement
 
 type ManagedRole = 'EMPLOYEE' | 'ADMIN'
 
@@ -184,31 +183,35 @@ function CreateAccountForm({ onOpenChange }: { onOpenChange: (open: boolean) => 
   )
 }
 
-export function UserManagementPage() {
+/**
+ * Settings → User management (super admins): the accounts table with role
+ * changes, the developer flag, deletion and account creation. The Settings
+ * page only offers this section to super admins; the DB and the Edge
+ * Function enforce the rules.
+ */
+export function UserManagementSettings() {
   const { showError, showSuccess } = useToast()
   const confirm = useConfirm()
-  const { session, loading: sessionLoading } = useSupabaseSession()
 
   const { data: currentUser, isLoading: currentUserLoading } = useCurrentUser()
   const { data: users, isLoading: usersLoading } = useUsers()
   const updateRole = useUpdateUserRole()
+  const updateDeveloperFlag = useUpdateUserDeveloperFlag()
   const deleteUser = useDeleteUser()
 
   const [createOpen, setCreateOpen] = useState(false)
 
-  if (sessionLoading) return null
-  if (!session) return <Login />
   if (currentUserLoading) return null
 
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN'
 
-  if (!isSuperAdmin) {
-    return <AccessDenied description="User management requires a super admin account." />
-  }
-
   // UX gating only — the DB triggers and the Edge Function enforce the matrix.
   const canChangeRole = (target: UserRow) =>
     isSuperAdmin && target.role !== 'SUPER_ADMIN' && target.id !== currentUser?.id
+  // A super admin row is only ever touched by the account itself — which is
+  // exactly the developer flagging their own account.
+  const canChangeDeveloperFlag = (target: UserRow) =>
+    isSuperAdmin && (target.role !== 'SUPER_ADMIN' || target.id === currentUser?.id)
   const canDelete = (target: UserRow) =>
     target.role !== 'SUPER_ADMIN' &&
     target.id !== currentUser?.id &&
@@ -219,6 +222,21 @@ export function UserManagementPage() {
       { id: target.id, role },
       {
         onSuccess: () => showSuccess(`${target.name} is now ${ROLE_LABELS[role]}`),
+        onError: err => showError(err.message),
+      },
+    )
+  }
+
+  const handleDeveloperFlagChange = (target: UserRow, isDeveloper: boolean) => {
+    updateDeveloperFlag.mutate(
+      { id: target.id, isDeveloper },
+      {
+        onSuccess: () =>
+          showSuccess(
+            isDeveloper
+              ? `${target.name} is hidden from the assignee pickers`
+              : `${target.name} can be assigned again`,
+          ),
         onError: err => showError(err.message),
       },
     )
@@ -239,13 +257,13 @@ export function UserManagementPage() {
   }
 
   return (
-    <main data-testid={IDS.root} className="flex w-full flex-col gap-3 p-3">
+    <div data-testid={IDS.root} className="flex w-full flex-col gap-3">
       <h1>User management</h1>
 
       <section className="rounded-md border border-neutral-200">
         <CardHeader
           title="Accounts"
-          note="Change roles or delete accounts. Super admin accounts and your own account can't be changed here."
+          note="Change roles, hide developer accounts from the assignee pickers or delete accounts. Super admin roles and your own role can't be changed here."
           action={
             <Button type="button" data-testid={IDS.create} onClick={() => setCreateOpen(true)}>
               + Create account
@@ -258,6 +276,7 @@ export function UserManagementPage() {
               <TableHead className="pl-4">Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
+              <TableHead title="A developer account is left out of every assignee picker">Developer</TableHead>
               <TableHead>Created</TableHead>
               <TableHead className="pr-4 text-right">Actions</TableHead>
             </TableRow>
@@ -265,7 +284,7 @@ export function UserManagementPage() {
           <TableBody>
             {usersLoading && (
               <TableRow>
-                <TableCell colSpan={5} className="pl-4 text-neutral-500">
+                <TableCell colSpan={6} className="pl-4 text-neutral-500">
                   Loading…
                 </TableCell>
               </TableRow>
@@ -306,6 +325,15 @@ export function UserManagementPage() {
                     </Badge>
                   )}
                 </TableCell>
+                <TableCell>
+                  <Switch
+                    data-testid={IDS.rowDeveloper}
+                    aria-label="Developer account, hidden from the assignee pickers"
+                    checked={user.is_developer}
+                    disabled={!canChangeDeveloperFlag(user) || updateDeveloperFlag.isPending}
+                    onCheckedChange={checked => handleDeveloperFlagChange(user, checked === true)}
+                  />
+                </TableCell>
                 <TableCell>{new Date(user.created_at).toLocaleDateString('en-GB')}</TableCell>
                 <TableCell className="pr-4 text-right">
                   {canDelete(user) && (
@@ -331,6 +359,6 @@ export function UserManagementPage() {
       </section>
 
       <CreateAccountDialog open={createOpen} onOpenChange={setCreateOpen} />
-    </main>
+    </div>
   )
 }

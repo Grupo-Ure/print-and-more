@@ -205,11 +205,12 @@ function historySegments(
     case 'ASSIGNEE_CHANGED': {
       const previous = metaName(meta, 'previous_assignee_name', 'previous_assignee_id', staffById)
       const next = metaName(meta, 'new_assignee_name', 'new_assignee_id', staffById)
+      const suffix = meta?.automatic === true ? ' (automatic)' : ''
       if (next && previous)
-        return [actor, ' reassigned ', job, ' from ', { kind: 'person', text: previous }, ' to ', { kind: 'person', text: next }]
-      if (next) return [actor, ' assigned ', job, ' to ', { kind: 'person', text: next }]
-      if (previous) return [actor, ' unassigned ', { kind: 'person', text: previous }, ' from ', job]
-      return [actor, ' changed the assignee of ', job]
+        return [actor, ' reassigned ', job, ' from ', { kind: 'person', text: previous }, ' to ', { kind: 'person', text: next }, suffix]
+      if (next) return [actor, ' assigned ', job, ' to ', { kind: 'person', text: next }, suffix]
+      if (previous) return [actor, ' unassigned ', { kind: 'person', text: previous }, ' from ', job, suffix]
+      return [actor, ' changed the assignee of ', job, suffix]
     }
     case 'TIME_LOGGED':
     case 'TIME_LOG_DELETED': {

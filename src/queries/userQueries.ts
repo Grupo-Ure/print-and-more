@@ -18,6 +18,22 @@ export function useUsers() {
   })
 }
 
+/**
+ * The users an assignee picker offers. Developer accounts (super admins
+ * debugging against the shop's database) are left out so the team never
+ * hands them work; one that already holds `currentValue` stays in, so a
+ * picker never shows "Unassigned" for an assigned job. Same query as
+ * `useUsers`, narrowed with `select`.
+ */
+export function useAssignableUsers(currentValue: string | null) {
+  return useQuery({
+    queryKey: userKeys.list,
+    queryFn: () => userService.getUsers(),
+    staleTime: 60_000,
+    select: (users: UserRow[]) => users.filter(user => !user.is_developer || user.id === currentValue),
+  })
+}
+
 export function useCurrentUser() {
   return useQuery({
     queryKey: userKeys.current,
@@ -78,6 +94,16 @@ export function useUpdateUserRole() {
   const queryClient = useQueryClient()
   return useMutation<void, Error, { id: string; role: Extract<UserRole, 'EMPLOYEE' | 'ADMIN'> }>({
     mutationFn: ({ id, role }) => userService.updateUserRole(id, role),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: userKeys.all })
+    },
+  })
+}
+
+export function useUpdateUserDeveloperFlag() {
+  const queryClient = useQueryClient()
+  return useMutation<void, Error, { id: string; isDeveloper: boolean }>({
+    mutationFn: ({ id, isDeveloper }) => userService.updateUserDeveloperFlag(id, isDeveloper),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: userKeys.all })
     },

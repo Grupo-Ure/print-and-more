@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useEffectiveJob, useSetJobAssignee, useJobById } from '../queries/jobQueries'
 import { useJobRemoval } from '../hooks/useJobRemoval'
-import { useIsAdmin, useUsers } from '../queries/userQueries'
+import { useUsers } from '../queries/userQueries'
 import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
 import { useOrderById } from '../queries/orderQueries'
 import { useOrderSelection } from '../hooks/useOrderSelection'
@@ -46,7 +46,6 @@ export function JobDetail({
   const effectiveJob = useEffectiveJob(activeOrderId, activeJobId) // inherited fields resolved
   const setJobAssignee = useSetJobAssignee()
   const removal = useJobRemoval(job ?? null)
-  const { isAdmin } = useIsAdmin()
   const { data: users = [] } = useUsers()
   const { showError } = useToast()
   // Job settings and time logs open as dialogs from the header row so the
@@ -61,8 +60,8 @@ export function JobDetail({
     if (!ok) showError('PDF could not be generated')
   }
 
-  // Admin-only (also enforced by a DB trigger). Writes the ASSIGNEE_CHANGED
-  // history entry alongside the job update.
+  // Any role may reassign a job. Writes the ASSIGNEE_CHANGED history entry
+  // alongside the job update.
   const handleAssigneeChange = (assignee: { id: string; name: string } | null) => {
     if ((assignee?.id ?? null) === (job.assignee_id ?? null)) return
     const previousUser = job.assignee_id ? users.find(u => u.id === job.assignee_id) : null
@@ -107,7 +106,7 @@ export function JobDetail({
               testId={IDS.assignee}
               value={job.assignee_id}
               onChange={handleAssigneeChange}
-              disabled={!isAdmin || isDone || setJobAssignee.isPending}
+              disabled={isDone || setJobAssignee.isPending}
             />
           </div>
         </div>

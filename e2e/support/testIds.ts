@@ -67,7 +67,6 @@ export const TEST_IDS = {
       statusFilterToggle: 'orders-sidebar-status-filter-toggle',
       departmentFilterToggle: 'orders-sidebar-department-filter-toggle',
       deadlineFilterToggle: 'orders-sidebar-deadline-filter-toggle',
-      usersFilterToggle: 'orders-sidebar-users-filter-toggle',
       /** Carries `aria-pressed`: on = archived orders listed too. */
       archivedToggle: 'orders-sidebar-archived-toggle',
       searchInput: 'orders-sidebar-search-input',
@@ -94,13 +93,6 @@ export const TEST_IDS = {
           intakeFrom: 'orders-sidebar-filters-intake-from',
           intakeTo: 'orders-sidebar-filters-intake-to',
           reset: 'orders-sidebar-filters-deadline-reset',
-        },
-        users: {
-          root: 'orders-sidebar-filters-users',
-          unassigned: 'orders-sidebar-filters-users-unassigned',
-          /** One per user; `data-user-id` = users.id. */
-          user: 'orders-sidebar-filters-users-option',
-          reset: 'orders-sidebar-filters-users-reset',
         },
       },
       list: 'orders-sidebar-list',
@@ -315,6 +307,41 @@ export const TEST_IDS = {
     },
   },
 
+  /** The Production page: the cross-order job feed. */
+  production: {
+    root: 'production-page',
+    /** Main area while no job is selected. */
+    placeholder: 'production-placeholder',
+    /** Main area with a job selected: the order strip plus the job detail (`orders.jobDetail`); `data-order-id`, `data-job-id`. */
+    jobPanel: {
+      root: 'production-job-panel',
+      orderNumber: 'production-job-panel-order-number',
+      customerName: 'production-job-panel-customer-name',
+      openInOrders: 'production-job-panel-open-in-orders',
+    },
+    sidebar: {
+      root: 'production-sidebar',
+      /** The assignee combobox trigger; `data-value` = users.id, absent while every job is shown. */
+      assigneeFilter: 'production-sidebar-assignee-filter',
+      /** The list's "everyone" option (clears the filter). */
+      assigneeFilterEveryone: 'production-sidebar-assignee-filter-everyone',
+      /** One per user in the list; `data-user-id`. */
+      assigneeFilterUser: 'production-sidebar-assignee-filter-user',
+      /** States what the feed shows: every job, or the jobs of the chosen user. */
+      assigneeFilterCaption: 'production-sidebar-assignee-filter-caption',
+      list: 'production-sidebar-list',
+      empty: 'production-sidebar-empty',
+      /** One per job; `data-job-id`, `data-order-id`, `data-status` = JobStatus, `data-department`. */
+      row: 'production-sidebar-row',
+      rowJobNumber: 'production-sidebar-row-job-number',
+      rowCustomer: 'production-sidebar-row-customer',
+      /** `data-status` = JobStatus. */
+      rowStatus: 'production-sidebar-row-status',
+      /** `data-user-id` = assignee, or absent while unassigned. */
+      rowAssignee: 'production-sidebar-row-assignee',
+    },
+  },
+
   /** Shared by the stamp and textile stock pages. */
   stock: {
     root: 'stock-page',
@@ -362,23 +389,44 @@ export const TEST_IDS = {
     backToStock: 'textile-stock-back-to-stock',
   },
 
-  userManagement: {
-    root: 'user-management',
-    create: 'user-management-create',
-    table: 'user-management-table',
-    /** One per user; `data-user-id`. */
-    row: 'user-management-row',
-    rowRole: 'user-management-row-role',
-    rowRoleBadge: 'user-management-row-role-badge',
-    rowDelete: 'user-management-row-delete',
-    createDialog: {
-      root: 'create-account-dialog',
-      name: 'create-account-dialog-name',
-      email: 'create-account-dialog-email',
-      password: 'create-account-dialog-password',
-      role: 'create-account-dialog-role',
-      cancel: 'create-account-dialog-cancel',
-      submit: 'create-account-dialog-submit',
+  /** The Settings page (admins): a section sidebar plus the active section. */
+  settings: {
+    root: 'settings-page',
+    /** One per section; `data-section` = SettingsSection, `aria-current="page"` when active. */
+    sectionLink: 'settings-section-link',
+    userManagement: {
+      root: 'user-management',
+      create: 'user-management-create',
+      table: 'user-management-table',
+      /** One per user; `data-user-id`. */
+      row: 'user-management-row',
+      rowRole: 'user-management-row-role',
+      rowRoleBadge: 'user-management-row-role-badge',
+      /** The developer switch; `data-state` = checked | unchecked (Radix). */
+      rowDeveloper: 'user-management-row-developer',
+      rowDelete: 'user-management-row-delete',
+      createDialog: {
+        root: 'create-account-dialog',
+        name: 'create-account-dialog-name',
+        email: 'create-account-dialog-email',
+        password: 'create-account-dialog-password',
+        role: 'create-account-dialog-role',
+        cancel: 'create-account-dialog-cancel',
+        submit: 'create-account-dialog-submit',
+      },
+    },
+    departments: {
+      root: 'department-settings',
+      /** One per department; `data-department` = Department. */
+      row: 'department-settings-row',
+      /** The pre-press default combobox trigger; `data-value` = users.id, absent while unset. */
+      rowPrepressAssignee: 'department-settings-row-prepress-assignee',
+      /** The production default combobox trigger; `data-value` = users.id, absent while unset. */
+      rowProductionAssignee: 'department-settings-row-production-assignee',
+      /** A user option in either combobox's list; carries `data-user-id`. */
+      rowAssigneeUserOption: 'department-settings-row-assignee-user',
+      /** The "Unassigned" option in either combobox's list. */
+      rowAssigneeEmptyOption: 'department-settings-row-assignee-unassigned',
     },
   },
 } as const

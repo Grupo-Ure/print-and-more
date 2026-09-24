@@ -17,7 +17,8 @@ playwright test
 │   ├─ fixtures/database.ts        one database connection for seeding (per worker)
 │   ├─ fixtures/electron.ts        launch one app with a throwaway profile (per worker)
 │   ├─ fixtures/auth.ts            bring the app into the auth state the spec asked for
-│   ├─ fixtures/orders.ts          the orders view's page object + per-test rows + the catalog rows
+│   ├─ fixtures/orders.ts          the orders view's page object + per-test rows + the catalog rows + a department default + a developer flag
+│   ├─ fixtures/production.ts      the production page's page object (lists the rows seeded above)
 │   ├─ fixtures/stock.ts           the stock pages' page objects
 │   └─ <page>/<feature>/*.spec.ts  one folder per page, subfolders per feature: auth/, orders-page/order/status/, …
 └─ e2e/global-teardown.ts          default() → delete the test logins
@@ -34,7 +35,7 @@ per feature, and a file per sub-feature:
 ```
 e2e/
 ├─ auth/                          sign-in, navigation per role
-└─ orders-page/
+├─ orders-page/
    ├─ sidebar.spec.ts             list → select → details
    ├─ order/                      the order feature
    │   ├─ new-order.spec.ts
@@ -48,10 +49,14 @@ e2e/
        ├─ status.spec.ts          the workflow: pre-press, production, done
        ├─ release-gates.spec.ts   what refuses a release, and the admin override
        └─ stock-deduction.spec.ts what a release books against the stock pages
+├─ production-page/
+│  └─ feed.spec.ts                which jobs the feed lists, the assignee filter (and who it leaves out), the job detail beside it
+└─ settings-page/
+   └─ departments.spec.ts         the default assignee per department and stage
 ```
 
 Later pages follow the same shape (`stamp-stock-page/`, `textile-stock-page/`,
-`user-management-page/`, `profile-page/`). A file is never split just because
+`profile-page/`). A file is never split just because
 it has several tests; it is split when it covers two sub-features. Inside a
 file there is no `describe` for the feature — the path already names it — and
 a `describe` block exists only to carry a precondition (`test.use({ … })`)
@@ -71,6 +76,7 @@ lines:
 
 ```
 @playwright/test → fixtures/database.ts → fixtures/electron.ts → fixtures/auth.ts → fixtures/orders.ts → fixtures/stock.ts
+                                                                                                      ↘ fixtures/production.ts
 ```
 
 A spec imports `test` from the link it needs — `./fixtures/auth` for a
@@ -127,11 +133,13 @@ Nothing here is imported by hand; the runner drives it from the config:
 | `<page>/<feature>/*.spec.ts` | The specs: a folder per page, subfolders per feature (see "Where specs live") |
 | `fixtures/database.ts` | Base of the chain: the worker-scoped `database` connection |
 | `fixtures/electron.ts` | Launches the built app; replaces Playwright's browser `page` |
-| `fixtures/auth.ts` | `user` option + signed-in `page`; `login` / `navbar` page objects; `signIn` / `signOut` helpers |
-| `fixtures/users.ts` | The test logins (data fixture) |
-| `fixtures/orders.ts` | `ordersPage` page object + per-test data of the orders view: `customer` (a fresh customer), `order` (a fresh order for it), `job` (a fresh job in that order), `orderFile` (a file linked to it), `newCustomer` (data for a customer the test creates in the app) — each created/cleaned up around the test. The state `order` and `job` are inserted in comes from the `orderSeed` / `jobSeed` options (`test.use({ orderSeed: IN_PROGRESS_ORDER })`); the defaults are an empty quote and an empty job. `catalog` (automatic) keeps the stamp models and the textile chain the product seeds reference in the catalog, reset to their seed stock before every test |
+| `fixtures/auth.ts` | `user` option + signed-in `page`; `login` / `navbar` / `settingsPage` page objects; `signIn` / `signOut` helpers |
+| `fixtures/users.ts` | The test logins, and which of them the `developer` fixture flags (data fixture) |
+| `fixtures/orders.ts` | `ordersPage` page object + per-test data of the orders view: `customer` (a fresh customer), `order` (a fresh order for it), `job` (a fresh job in that order), `orderFile` (a file linked to it), `newCustomer` (data for a customer the test creates in the app), `departmentDefault` (one department's default assignee for one stage, emptied afterwards), `developer` (a login flagged as a developer account, unflagged afterwards) — each created/cleaned up around the test. The state `order` and `job` are inserted in comes from the `orderSeed` / `jobSeed` options (`test.use({ orderSeed: IN_PROGRESS_ORDER })`); the defaults are an empty quote and an empty job. `catalog` (automatic) keeps the stamp models and the textile chain the product seeds reference in the catalog, reset to their seed stock before every test |
 | `fixtures/stock.ts` | `stampStockPage` / `textileStockPage` page objects, for reading stock after a release |
+| `fixtures/production.ts` | `productionPage` page object; the jobs it lists come from the `order` / `job` / `jobs` fixtures of the orders link |
 | `fixtures/customers.ts` | The customers those fixtures use (data fixture) |
+| `fixtures/departments.ts` | The department-default seeds the `departmentDefault` fixture applies: which department and stage, and who holds it (data fixture) |
 | `fixtures/jobs.ts` | Job seeds (department, status, approval flag, optional product rows), product form values, the expected job number, the force-release reason (data fixture) |
 | `fixtures/files.ts` | The file the `orderFile` fixture links for the customer approval (data fixture) |
 | `fixtures/stamps.ts` | The stamp models the `catalog` fixture keeps in the catalog: one out of stock for the gate, one in stock for the deduction (data fixture) |
