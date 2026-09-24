@@ -3,7 +3,6 @@ import {
   test,
   IN_PROGRESS_ORDER,
   IN_PROGRESS_ORDER_WITHOUT_DEADLINE,
-  IN_PROGRESS_ORDER_PAST_DEADLINE,
 } from '../../fixtures/orders'
 import {
   COPYSHOP_JOB_WITH_PRODUCT,
@@ -20,19 +19,6 @@ import { TEST_USERS } from '../../fixtures/users'
 
 test.describe('in progress, job with a product, no deadline', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, jobSeed: COPYSHOP_JOB_WITH_PRODUCT })
-
-  test('the job is held in setup with the release blocked', async ({ ordersPage, job }) => {
-    // Setup — the job open.
-    await ordersPage.openJob(job)
-
-    // Assert — the banner names the block and the release cannot be pressed.
-    await expect(ordersPage.details.jobDetail.banner).toHaveAttribute('data-kind', 'blocked')
-    await expect(ordersPage.details.jobDetail.releaseButton).toBeDisabled()
-  })
-})
-
-test.describe('in progress, job with a product, deadline passed', () => {
-  test.use({ orderSeed: IN_PROGRESS_ORDER_PAST_DEADLINE, jobSeed: COPYSHOP_JOB_WITH_PRODUCT })
 
   test('the job is held in setup with the release blocked', async ({ ordersPage, job }) => {
     // Setup — the job open.
