@@ -47,7 +47,7 @@ function ReleaseDetail({ release }: { release: GithubRelease }) {
   const otherChangesMarkdown = otherChangesIndex === -1 ? null : body.slice(otherChangesIndex).trim()
 
   return (
-    <div data-testid={IDS.detail} className="flex flex-col gap-3 p-4 desktop:max-w-2xl">
+    <div data-testid={IDS.detail} className="flex flex-col gap-3 py-4 px-8">
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-lg font-semibold">{release.tag_name}</h2>
         <span className="text-sm text-muted-foreground">{formatDateDe(release.published_at)}</span>

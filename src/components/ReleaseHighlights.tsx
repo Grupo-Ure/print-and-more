@@ -7,10 +7,10 @@ export function ReleaseMarkdown({ children }: { children: string }) {
   return (
     <ReactMarkdown
       components={{
-        h2: ({ children }) => <h3 className="text-sm font-semibold">{children}</h3>,
-        ul: ({ children }) => <ul className="list-disc space-y-1 pl-4 text-sm">{children}</ul>,
+        h2: ({ children }) => <h3 className="text-base font-semibold">{children}</h3>,
+        ul: ({ children }) => <ul className="list-disc space-y-1 pl-4 text-lg">{children}</ul>,
         li: ({ children }) => <li>{children}</li>,
-        p: ({ children }) => <p className="text-sm">{children}</p>,
+        p: ({ children }) => <p className="text-base">{children}</p>,
       }}
     >
       {children}
