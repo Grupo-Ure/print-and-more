@@ -12,6 +12,11 @@ import {
   IN_PRODUCTION_STATUS,
   DONE_STATUS,
 } from '../../fixtures/jobs'
+import {
+  ADMIN_AS_PREPRESS_DEFAULT,
+  ADMIN_AS_PRODUCTION_DEFAULT,
+  ASSIGNEE_CHANGED_HISTORY_EVENT,
+} from '../../fixtures/departments'
 
 test.describe('in progress, job with a product, deadline missing', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, jobSeed: COPYSHOP_JOB_WITH_PRODUCT })
@@ -140,5 +145,67 @@ test.describe('in progress, job in production', () => {
 
     // Assert — the job is done.
     await expect(ordersPage.details.jobList.row(job.id)).toHaveAttribute('data-status', DONE_STATUS)
+  })
+})
+
+// ── Stage defaults ────────────────────────────────────────────────────────
+// The fixture puts the admin into one stage's slot of the job's department.
+// Seeded jobs carry no assignee and the suite runs as the employee, so the
+// admin can only hold the job through the default.
+
+test.describe('in progress, complete OTHER job, pre-press default set', () => {
+  test.use({ orderSeed: IN_PROGRESS_ORDER, jobSeed: OTHER_JOB_WITH_PRODUCT, departmentDefaultSeed: ADMIN_AS_PREPRESS_DEFAULT })
+
+  test('the job promoted to pre-press is assigned to the pre-press default', async ({ ordersPage, job, departmentDefault }) => {
+    // Setup — the job open; it is promoted on the way.
+    await ordersPage.openJob(job)
+
+    // Assert — the pre-press default holds it.
+    await expect(ordersPage.details.jobDetail.assignee).toHaveAttribute('data-value', departmentDefault.userId ?? '')
+  })
+})
+
+test.describe('in progress, job in pre-press, production default set', () => {
+  test.use({ orderSeed: IN_PROGRESS_ORDER, jobSeed: JOB_IN_PREPRESS, departmentDefaultSeed: ADMIN_AS_PRODUCTION_DEFAULT })
+
+  test('releasing the job to production assigns it to the production default', async ({ ordersPage, job, departmentDefault }) => {
+    // Setup — the job open.
+    await ordersPage.openJob(job)
+
+    // Act — release it and confirm.
+    await ordersPage.details.jobDetail.releaseButton.click()
+    await ordersPage.confirmDialog.confirm.click()
+
+    // Assert — the production default holds it.
+    await expect(ordersPage.details.jobDetail.assignee).toHaveAttribute('data-value', departmentDefault.userId ?? '')
+  })
+
+  // `departmentDefault` is requested for its side effect: without it the slot stays empty and nothing is logged.
+  test('releasing the job to production records the assignee change in the order history', async ({ ordersPage, job, departmentDefault: _productionDefault }) => {
+    // Setup — the job open.
+    await ordersPage.openJob(job)
+
+    // Act — release it and confirm, then open the history.
+    await ordersPage.details.jobDetail.releaseButton.click()
+    await ordersPage.confirmDialog.confirm.click()
+    await ordersPage.details.historyButton.click()
+
+    // Assert — the history holds the assignee change.
+    await expect(ordersPage.details.historyDialog.ofType(ASSIGNEE_CHANGED_HISTORY_EVENT)).toHaveCount(1)
+  })
+})
+
+test.describe('in progress, job in production, pre-press default set', () => {
+  test.use({ orderSeed: IN_PROGRESS_ORDER, jobSeed: JOB_IN_PRODUCTION, departmentDefaultSeed: ADMIN_AS_PREPRESS_DEFAULT })
+
+  test('sending the job back to pre-press assigns it to the pre-press default', async ({ ordersPage, job, departmentDefault }) => {
+    // Setup — the job open.
+    await ordersPage.openJob(job)
+
+    // Act — go back to pre-press from the banner.
+    await ordersPage.details.jobDetail.backToPrepress.click()
+
+    // Assert — the pre-press default holds it.
+    await expect(ordersPage.details.jobDetail.assignee).toHaveAttribute('data-value', departmentDefault.userId ?? '')
   })
 })
