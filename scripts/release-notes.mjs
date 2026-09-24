@@ -125,7 +125,7 @@ if (directCommits.length > 0) {
   body += directCommits.map(({ sha, subject }) => `- ${subject} (${sha.slice(0, 7)})`).join('\n') + '\n'
 }
 if (prNotes.length > 0) {
-  body += `\n<sub>Assembled from pull request${prNotes.length > 1 ? 's' : ''} ${prNotes.map(n => `#${n.number}`).join(', ')}.</sub>\n`
+  body += `\n*Assembled from pull request${prNotes.length > 1 ? 's' : ''} ${prNotes.map(n => `#${n.number}`).join(', ')}.*\n`
 }
 
 if (dryRun) {
