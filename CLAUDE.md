@@ -46,6 +46,9 @@ database as live:
 The Supabase CLI workflow and the migration rules are spelled out in
 [docs/coding-standards.md](docs/coding-standards.md) ("Migrations").
 
+Releases follow [docs/releasing.md](docs/releasing.md); the GitHub release
+body is generated from the user-facing sections of the PRs it ships.
+
 **Language — the repo is being Anglicized; English is the target.**
 
 The goal is to remove German from the codebase. German is legacy, not a
