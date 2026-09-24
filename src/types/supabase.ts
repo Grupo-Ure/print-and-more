@@ -2324,6 +2324,7 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          is_developer: boolean
           name: string
           role: Database["public"]["Enums"]["user_role"]
         }
@@ -2332,6 +2333,7 @@ export type Database = {
           created_at?: string
           email: string
           id: string
+          is_developer?: boolean
           name: string
           role?: Database["public"]["Enums"]["user_role"]
         }
@@ -2340,6 +2342,7 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          is_developer?: boolean
           name?: string
           role?: Database["public"]["Enums"]["user_role"]
         }
