@@ -417,8 +417,14 @@ export const TEST_IDS = {
       root: 'department-settings',
       /** One per department; `data-department` = Department. */
       row: 'department-settings-row',
-      /** The default-assignee combobox trigger; `data-value` = users.id, absent while unset. */
-      rowAssignee: 'department-settings-row-assignee',
+      /** The pre-press default combobox trigger; `data-value` = users.id, absent while unset. */
+      rowPrepressAssignee: 'department-settings-row-prepress-assignee',
+      /** The production default combobox trigger; `data-value` = users.id, absent while unset. */
+      rowProductionAssignee: 'department-settings-row-production-assignee',
+      /** A user option in either combobox's list; carries `data-user-id`. */
+      rowAssigneeUserOption: 'department-settings-row-assignee-user',
+      /** The "Unassigned" option in either combobox's list. */
+      rowAssigneeEmptyOption: 'department-settings-row-assignee-unassigned',
     },
   },
 } as const
