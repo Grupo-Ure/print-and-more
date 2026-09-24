@@ -5,11 +5,8 @@ export interface GithubRelease {
   body: string | null
 }
 
+// Guaranteed non-empty: vite.config.ts refuses to build without it.
 const RELEASES_URL = import.meta.env.VITE_GITHUB_RELEASES_URL
-
-if (!RELEASES_URL) {
-  throw new Error('VITE_GITHUB_RELEASES_URL is not set — release notes could not be configured.')
-}
 
 export const releaseNotesService = {
   async listReleases(): Promise<GithubRelease[]> {

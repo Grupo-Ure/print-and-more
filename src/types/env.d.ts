@@ -6,6 +6,6 @@ interface ImportMetaEnv {
   readonly VITE_SENTRY_DSN?: string
   /** Sentry environment tag; defaults to Vite's MODE. */
   readonly VITE_SENTRY_ENVIRONMENT?: string
-  /** GitHub Releases API URL for the release notes page; no default — must be set. */
+  /** GitHub Releases API URL for the release notes page; no default — the build fails without it. */
   readonly VITE_GITHUB_RELEASES_URL: string
 }

@@ -26,6 +26,14 @@
 #   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY  (baked into the renderer bundle)
 #   VITE_SENTRY_DSN                            (leave unset to disable Sentry)
 #   SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN  (source map upload)
+#
+# Variables (Settings → Secrets and variables → Actions → Variables), both jobs:
+#   VITE_GITHUB_RELEASES_URL  (the app's own GitHub Releases API URL; public,
+#                              so a variable rather than a secret)
+#
+# The build refuses to run without every required VITE_ key (see
+# vite.config.ts). Nothing here has a default: an unset variable expands to
+# an empty string and the Build step fails naming it.
 
 name: CI
 
@@ -34,6 +42,9 @@ on:
     tags: ['v*']
   pull_request:
     branches: [main]
+
+env:
+  VITE_GITHUB_RELEASES_URL: ${{ vars.VITE_GITHUB_RELEASES_URL }}
 
 jobs:
   checks:
