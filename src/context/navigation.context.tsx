@@ -9,7 +9,14 @@ import {
 } from 'react'
 import { useSupabaseSession } from '../hooks/useSupabaseSession'
 
-export type AppView = 'orders' | 'production' | 'stampStock' | 'textileStock' | 'settings' | 'profile'
+export type AppView =
+  | 'orders'
+  | 'production'
+  | 'stampStock'
+  | 'textileStock'
+  | 'settings'
+  | 'profile'
+  | 'releaseNotes'
 
 type SetActiveJobOptions = {
   /**

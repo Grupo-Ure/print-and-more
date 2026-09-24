@@ -66,6 +66,11 @@ repeat the user-facing wording in the technical list.
 When unsure, put it in technical. An empty user-facing section is fine and
 says "None" — never pad it with internals dressed up as features.
 
+The user-facing list is copied verbatim into the GitHub release the shop
+reads (see `docs/releasing.md`), so it must stand on its own without the
+surrounding PR context — no "see above", no assuming the reader has read
+other PRs' notes.
+
 ## Writing the description
 
 Use exactly this shape. Keep the markers: a rerun (for example from CI

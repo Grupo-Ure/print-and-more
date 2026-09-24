@@ -20,7 +20,11 @@ import { JobDetail } from './JobDetail'
 import { JobList } from './JobList'
 import { StatusManager } from './StatusManager'
 import { useOrderWorkspace } from '../context/order.context'
+import { useNavigation } from '../context/navigation.context'
 import { useOrderSelection } from '../hooks/useOrderSelection'
+import { ReleaseHighlights } from './ReleaseHighlights'
+import { useReleaseNotes } from '../queries/releaseNotesQueries'
+import { highlightsMarkdown } from '../lib/releaseNotes'
 import { orderKeys, useArchiveOrder, useArchiveOrderWithCancelledJobs, useMarkOrderBilled, useOrderById, useSetOrderStatus, useUpdateOrder } from '../queries/orderQueries'
 import { jobKeys, useJobsByOrderId } from '../queries/jobQueries'
 import { useTimeLogMinutesByOrderId } from '../queries/timeLogQueries'
@@ -60,6 +64,8 @@ function useCopyToClipboard() {
 export function OrderDetails() {
   const { openCustomerDialog } = useOrderWorkspace()
   const { activeOrderId, activeJobId, setActiveJob, clearActive } = useOrderSelection()
+  const { navigate } = useNavigation()
+  const { data: releases } = useReleaseNotes()
   const queryClient = useQueryClient()
   const { files, reload: reloadFiles } = useOrderFiles(activeOrderId)
   const [filesOpen, setFilesOpen] = useState(false)
@@ -273,10 +279,32 @@ export function OrderDetails() {
   )
 
   if (!activeOrderId) {
+    const latestRelease = releases?.[0]
+    const hasHighlights = latestRelease != null && highlightsMarkdown(latestRelease.body ?? '') !== ''
+
     return (
-      <div data-testid={TEST_IDS.orders.welcome} className="flex flex-col w-full h-full items-center justify-center">
-        <h1 className="tracking-widest">Welcome</h1>
-        <h2>Select an order on the left to view details and jobs.</h2>
+      <div data-testid={TEST_IDS.orders.welcome} className="flex flex-col w-full h-full items-center justify-center gap-6">
+        <div className="flex flex-col items-center gap-1">
+          <h1 className="tracking-widest">Welcome</h1>
+          <h2>Select an order on the left to view details and jobs.</h2>
+        </div>
+
+        {hasHighlights && (
+          <div
+            data-testid={TEST_IDS.orders.releaseHighlights}
+            className="flex w-full max-w-sm flex-col gap-2 rounded-md border border-neutral-200 p-4"
+          >
+            <ReleaseHighlights release={latestRelease} maxItems={3} />
+            <button
+              type="button"
+              data-testid={TEST_IDS.orders.releaseNotesLink}
+              onClick={() => navigate('releaseNotes')}
+              className="self-start text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            >
+              See all release notes
+            </button>
+          </div>
+        )}
       </div>
     )
   }

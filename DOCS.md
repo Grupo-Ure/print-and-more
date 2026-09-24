@@ -45,6 +45,14 @@ Each skill doc defines a role, its responsibilities, what it owns, patterns to f
 
 ---
 
+## Releasing
+
+- [Releasing](docs/releasing.md) — the release SOP: the standard step-by-step
+  procedure and off-script cases (failed release job, orphan drafts, a tag
+  pushed from the wrong branch, and more).
+
+---
+
 ## Tool Reference
 
 Vendor documentation snapshots for the tools these guidelines build on.

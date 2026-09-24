@@ -8,9 +8,28 @@ import path from 'path'
 
 const { version } = JSON.parse(readFileSync('./package.json', 'utf8')) as { version: string }
 
+/**
+ * `VITE_` keys the bundle cannot run without. Checked here, before anything is
+ * bundled, so a missing value stops the build with the key's name instead of
+ * shipping a renderer that throws before it can render the login screen.
+ */
+const REQUIRED_ENV = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'VITE_GITHUB_RELEASES_URL'] as const
+
+function assertRequiredEnv(env: Record<string, string>): void {
+  const missing = REQUIRED_ENV.filter(key => !env[key]?.trim())
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required environment variable(s): ${missing.join(', ')}. ` +
+        'Set them in .env (see .env.example) or export them before building.'
+    )
+  }
+}
+
 export default defineConfig(({ mode }) => {
-  // Build-machine-only Sentry credentials (no VITE_ prefix → never inlined).
-  const env = loadEnv(mode, process.cwd(), 'SENTRY_')
+  // The VITE_ keys the build inlines, plus the build-machine-only Sentry
+  // credentials (no VITE_ prefix → never inlined).
+  const env = loadEnv(mode, process.cwd(), ['VITE_', 'SENTRY_'])
+  assertRequiredEnv(env)
   const sentryOrg = env.SENTRY_ORG?.trim() ?? ''
   const sentryProject = env.SENTRY_PROJECT?.trim() ?? ''
   const sentryAuthToken = env.SENTRY_AUTH_TOKEN?.trim() ?? ''
