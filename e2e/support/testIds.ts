@@ -61,6 +61,8 @@ export const TEST_IDS = {
   orders: {
     /** Centre column while no order is selected. */
     welcome: 'orders-welcome',
+    releaseHighlights: 'orders-welcome-release-highlights',
+    releaseNotesLink: 'orders-welcome-release-notes-link',
 
     sidebar: {
       root: 'orders-sidebar',
