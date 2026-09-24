@@ -2,7 +2,10 @@ import { supabase } from '../supabase'
 import { authService } from './authService'
 import type { AppUserRow, UserRole } from '../types/database'
 
-export type UserRow = Pick<AppUserRow, 'id' | 'name' | 'email' | 'role' | 'avatar_url' | 'created_at'>
+export type UserRow = Pick<
+  AppUserRow,
+  'id' | 'name' | 'email' | 'role' | 'avatar_url' | 'is_developer' | 'created_at'
+>
 
 export type CreateUserInput = {
   email: string
@@ -11,7 +14,17 @@ export type CreateUserInput = {
   role: Extract<UserRole, 'EMPLOYEE' | 'ADMIN'>
 }
 
-const USER_COLUMNS = 'id, name, email, role, avatar_url, created_at'
+const USER_COLUMNS = 'id, name, email, role, avatar_url, is_developer, created_at'
+
+/**
+ * Whether a user belongs in an assignee picker. Developer accounts (super
+ * admins debugging against the shop's database) are hidden so the team never
+ * hands them work; one that already holds the value on offer stays visible,
+ * so a picker never shows "Unassigned" for an assigned job.
+ */
+export function isAssignableUser(user: Pick<UserRow, 'id' | 'is_developer'>, currentValue: string | null): boolean {
+  return !user.is_developer || user.id === currentValue
+}
 
 const AVATAR_BUCKET = 'avatars'
 /** Path prefix public object URLs of the avatars bucket share. */
@@ -144,6 +157,12 @@ class UserService {
   /** Role changes go straight to the table; RLS + the DB trigger enforce the rules. */
   async updateUserRole(id: string, role: Extract<UserRole, 'EMPLOYEE' | 'ADMIN'>): Promise<void> {
     const { error } = await supabase.from('users').update({ role }).eq('id', id)
+    if (error) throw error
+  }
+
+  /** Marks or unmarks a developer account; the DB trigger limits this to super admins. */
+  async updateUserDeveloperFlag(id: string, isDeveloper: boolean): Promise<void> {
+    const { error } = await supabase.from('users').update({ is_developer: isDeveloper }).eq('id', id)
     if (error) throw error
   }
 

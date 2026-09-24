@@ -84,6 +84,16 @@ export function useUpdateUserRole() {
   })
 }
 
+export function useUpdateUserDeveloperFlag() {
+  const queryClient = useQueryClient()
+  return useMutation<void, Error, { id: string; isDeveloper: boolean }>({
+    mutationFn: ({ id, isDeveloper }) => userService.updateUserDeveloperFlag(id, isDeveloper),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: userKeys.all })
+    },
+  })
+}
+
 export function useCreateUser() {
   const queryClient = useQueryClient()
   return useMutation<UserRow, Error, CreateUserInput>({
