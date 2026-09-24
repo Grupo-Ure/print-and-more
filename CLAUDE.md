@@ -244,11 +244,16 @@ the `manage-users` edge function; role changes are plain updates on `users`,
 guarded by RLS and a trigger. DB triggers backstop every role rule — the UI
 only hides what the DB would reject anyway.
 
-**Job assignment.** Every job has an assignee from creation: the
-`fn_default_job_assignee` BEFORE INSERT trigger fills a null `assignee_id`
-with the department's default assignee (`department_default_assignees`, at
-most one user per department, set on the settings page) or, without one,
-the creating user. Reassigning writes `ASSIGNEE_CHANGED` history.
+**Job assignment.** A job starts unassigned; whoever intakes the order
+usually does not work its jobs. Each department can name a default assignee
+per stage (`department_default_assignees`, one user for `PREPRESS` and one
+for `IN_PRODUCTION`, set on the settings page). The moment a job enters one
+of those statuses — by automatic promotion, manual release, force release,
+or going back to pre-press — the `fn_assign_stage_default_assignee`
+BEFORE UPDATE trigger hands it to that stage's default, whoever held it
+before, and writes `ASSIGNEE_CHANGED` history with `meta.automatic`;
+without a default the assignee stays. Reassigning by hand writes
+`ASSIGNEE_CHANGED` as well.
 
 ### Full-page views
 
@@ -342,9 +347,11 @@ per-type form), and the tables in [`ProductTable.tsx`](src/components/products/P
 - **Users** — table `users` (`name`, `email`, `role`, `avatar_url`), mirrored
   from Supabase Auth.
 - **Department defaults** — table `department_default_assignees`
-  (`department` PK, `user_id` → `users`, cascade on delete): the user a new
-  job of that department is assigned to. Readable by all, admin-writable;
-  service [`departmentSettingsService`](src/services/departmentSettingsService.ts).
+  (PK `(department, status)` with `status` limited to `PREPRESS` /
+  `IN_PRODUCTION`, `user_id` → `users`, cascade on delete): the user a job
+  of that department is handed to when it enters that stage. Readable by
+  all, admin-writable; service
+  [`departmentSettingsService`](src/services/departmentSettingsService.ts).
 - **Blueprint** — `blueprint_*` tables exist in the schema (a separate
   blueprint-copying feature) but nothing in the client uses them yet.
 
