@@ -12,6 +12,7 @@
     "start": "electron .",
     "dist": "npm run build && electron-builder --win",
     "release:tag": "node scripts/tag-release.mjs",
+    "release:notes": "node scripts/release-notes.mjs",
     "lint": "eslint .",
     "test:e2e": "npm run build && playwright test",
     "test:e2e:debug": "npm run build && playwright test --debug",

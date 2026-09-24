@@ -1,10 +1,12 @@
 # CI on pushes/PRs to main; release build + publish to GitHub Releases on version tags.
 #
-# Release ritual:
-#   1. Bump "version" in package.json, commit.
-#   2. git tag v<version> && git push && git push --tags
-#   3. The pipeline builds the Windows installer and uploads it to a DRAFT
-#      release — review it on GitHub and click "Publish release" to ship it
+# Release ritual: merge to main, then bump and tag on main — see
+# docs/releasing.md for the full procedure and off-script cases. In short:
+#   1. On main, in sync with origin, bump "version" in package.json, commit.
+#   2. npm run release:tag (guards the order above, pushes the tag).
+#   3. The pipeline builds the Windows installer, uploads it to a DRAFT
+#      release, and fills the draft's body from the merged PRs' user-facing
+#      notes — review it on GitHub and click "Publish release" to ship it
 #      to the auto-updater feed.
 #
 # Test database:
@@ -96,8 +98,11 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: write # create the release and upload artifacts
+      pull-requests: read # release-notes.mjs reads merged PRs via `gh pr list`
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # release-notes.mjs walks tag ranges and merge-base ancestry
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -122,3 +127,8 @@ jobs:
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      - name: Assemble release notes
+        shell: bash
+        run: node scripts/release-notes.mjs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
