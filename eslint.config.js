@@ -26,5 +26,10 @@ export default defineConfig([
     languageOptions: {
       globals: globals.node,
     },
+    rules: {
+      // Same exemption tsc grants: a Playwright fixture requested for its
+      // side effect alone is bound as `_name`.
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
   },
 ])
