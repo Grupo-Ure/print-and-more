@@ -244,6 +244,15 @@ the `manage-users` edge function; role changes are plain updates on `users`,
 guarded by RLS and a trigger. DB triggers backstop every role rule — the UI
 only hides what the DB would reject anyway.
 
+**Developer accounts.** A super admin who signs in to the shop's database to
+debug should never be handed work. The user-management section has a
+*Developer* switch per account (`users.is_developer`, changeable by super
+admins only, a super admin row only by the account itself); the
+`EmployeeCombobox` leaves flagged accounts out of every picker (job
+assignee, production filter, time logs, department defaults) unless one
+already holds the value shown. The flag is per database, so a local
+database simply leaves it off.
+
 **Job assignment.** A job starts unassigned; whoever intakes the order
 usually does not work its jobs. Each department can name a default assignee
 per stage (`department_default_assignees`, one user for `PREPRESS` and one
@@ -344,8 +353,10 @@ per-type form), and the tables in [`ProductTable.tsx`](src/components/products/P
   `textile_motifs`.
 - **Stamp master data** — `stamp_models`, `stamp_ink_colors`,
   `stamp_stock_movements`.
-- **Users** — table `users` (`name`, `email`, `role`, `avatar_url`), mirrored
-  from Supabase Auth.
+- **Users** — table `users` (`name`, `email`, `role`, `avatar_url`,
+  `is_developer`), mirrored from Supabase Auth. `is_developer` marks a
+  developer account (someone debugging against the shop's database): it is
+  left out of every assignee picker and grants nothing.
 - **Department defaults** — table `department_default_assignees`
   (PK `(department, status)` with `status` limited to `PREPRESS` /
   `IN_PRODUCTION`, `user_id` → `users`, cascade on delete): the user a job

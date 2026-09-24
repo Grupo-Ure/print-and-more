@@ -17,7 +17,7 @@ playwright test
 │   ├─ fixtures/database.ts        one database connection for seeding (per worker)
 │   ├─ fixtures/electron.ts        launch one app with a throwaway profile (per worker)
 │   ├─ fixtures/auth.ts            bring the app into the auth state the spec asked for
-│   ├─ fixtures/orders.ts          the orders view's page object + per-test rows + the catalog rows + a department default
+│   ├─ fixtures/orders.ts          the orders view's page object + per-test rows + the catalog rows + a department default + a developer flag
 │   ├─ fixtures/production.ts      the production page's page object (lists the rows seeded above)
 │   ├─ fixtures/stock.ts           the stock pages' page objects
 │   └─ <page>/<feature>/*.spec.ts  one folder per page, subfolders per feature: auth/, orders-page/order/status/, …
@@ -50,7 +50,7 @@ e2e/
        ├─ release-gates.spec.ts   what refuses a release, and the admin override
        └─ stock-deduction.spec.ts what a release books against the stock pages
 ├─ production-page/
-│  └─ feed.spec.ts                which jobs the feed lists, the assignee filter, the job detail beside it
+│  └─ feed.spec.ts                which jobs the feed lists, the assignee filter (and who it leaves out), the job detail beside it
 └─ settings-page/
    └─ departments.spec.ts         the default assignee per department and stage
 ```
@@ -134,8 +134,8 @@ Nothing here is imported by hand; the runner drives it from the config:
 | `fixtures/database.ts` | Base of the chain: the worker-scoped `database` connection |
 | `fixtures/electron.ts` | Launches the built app; replaces Playwright's browser `page` |
 | `fixtures/auth.ts` | `user` option + signed-in `page`; `login` / `navbar` / `settingsPage` page objects; `signIn` / `signOut` helpers |
-| `fixtures/users.ts` | The test logins (data fixture) |
-| `fixtures/orders.ts` | `ordersPage` page object + per-test data of the orders view: `customer` (a fresh customer), `order` (a fresh order for it), `job` (a fresh job in that order), `orderFile` (a file linked to it), `newCustomer` (data for a customer the test creates in the app), `departmentDefault` (one department's default assignee for one stage, emptied afterwards) — each created/cleaned up around the test. The state `order` and `job` are inserted in comes from the `orderSeed` / `jobSeed` options (`test.use({ orderSeed: IN_PROGRESS_ORDER })`); the defaults are an empty quote and an empty job. `catalog` (automatic) keeps the stamp models and the textile chain the product seeds reference in the catalog, reset to their seed stock before every test |
+| `fixtures/users.ts` | The test logins, and which of them the `developer` fixture flags (data fixture) |
+| `fixtures/orders.ts` | `ordersPage` page object + per-test data of the orders view: `customer` (a fresh customer), `order` (a fresh order for it), `job` (a fresh job in that order), `orderFile` (a file linked to it), `newCustomer` (data for a customer the test creates in the app), `departmentDefault` (one department's default assignee for one stage, emptied afterwards), `developer` (a login flagged as a developer account, unflagged afterwards) — each created/cleaned up around the test. The state `order` and `job` are inserted in comes from the `orderSeed` / `jobSeed` options (`test.use({ orderSeed: IN_PROGRESS_ORDER })`); the defaults are an empty quote and an empty job. `catalog` (automatic) keeps the stamp models and the textile chain the product seeds reference in the catalog, reset to their seed stock before every test |
 | `fixtures/stock.ts` | `stampStockPage` / `textileStockPage` page objects, for reading stock after a release |
 | `fixtures/production.ts` | `productionPage` page object; the jobs it lists come from the `order` / `job` / `jobs` fixtures of the orders link |
 | `fixtures/customers.ts` | The customers those fixtures use (data fixture) |
