@@ -1,7 +1,7 @@
 /**
  * Fixture chain: `@playwright/test` → database → electron → auth → **orders**.
  * Adds the orders view's page object (`ordersPage`) and the per-test data of
- * that view (`customer`, `order`, `job`, `newCustomer`).
+ * that view (`customer`, `order`, `job`, `newCustomer`, `departmentDefault`).
  *
  * Fixtures only seed data and reload so the app can see it. They never
  * navigate: getting to the order or job under test is part of the test's own
@@ -9,10 +9,11 @@
  */
 import type { Page } from '@playwright/test'
 import { addDays, format } from 'date-fns'
-import type { DeliveryChoice, OrderStatus, PaymentMethod } from '../../src/types/database'
+import type { DefaultAssigneeStatus, DeliveryChoice, Department, OrderStatus, PaymentMethod } from '../../src/types/database'
 import { test as base } from './auth'
 import { NEW_CUSTOMER, TEST_CUSTOMER, type TestCustomer } from './customers'
 import { EMPTY_JOB, type JobSeed } from './jobs'
+import { EMPTY_PREPRESS_DEFAULT, type DepartmentDefaultSeed } from './departments'
 import { APPROVAL_FILE } from './files'
 import { IN_STOCK_STAMP_MODEL, OUT_OF_STOCK_STAMP_MODEL } from './stamps'
 import { IN_STOCK_TEXTILE_CHAIN } from './textiles'
@@ -88,6 +89,13 @@ export const IN_PROGRESS_CASH_ORDER: OrderSeed = { ...IN_PROGRESS_ORDER, payment
 /** A finished invoice order, awaiting "Mark as invoiced". Seed only `JOB_DONE` jobs into it. */
 export const FINISHED_ORDER: OrderSeed = { ...IN_PROGRESS_ORDER, status: FINISHED_STATUS }
 
+/** The slot the `departmentDefault` fixture owns, and who it holds (`null` while empty). */
+export type TestDepartmentDefault = {
+  department: Department
+  status: DefaultAssigneeStatus
+  userId: string | null
+}
+
 type OrdersViewFixtures = {
   /**
    * The catalog rows the product seeds reference (two stamp models, one
@@ -136,6 +144,15 @@ type OrdersViewFixtures = {
    * removed afterwards, and beforehand in case an aborted run left it behind.
    */
   newCustomer: TestCustomer
+  /** What `departmentDefault` seeds; override per describe block with `test.use({ departmentDefaultSeed })`. */
+  departmentDefaultSeed: DepartmentDefaultSeed
+  /**
+   * One department's default assignee for one stage, as `departmentDefaultSeed`
+   * describes it: filled before the test when the seed names a user, and
+   * emptied after it either way — so a default a test picked in the app does
+   * not leak into the next one.
+   */
+  departmentDefault: TestDepartmentDefault
 }
 
 // No `expect` in here: fixtures synchronise with `waitFor()`. A timeout then
@@ -177,6 +194,7 @@ export const test = base.extend<OrdersViewFixtures>({
   orderSeed: [QUOTE_ORDER, { option: true }],
   jobSeed: [EMPTY_JOB, { option: true }],
   jobSeeds: [[], { option: true }],
+  departmentDefaultSeed: [EMPTY_PREPRESS_DEFAULT, { option: true }],
 
   customer: async ({ page, navbar, database, customerSeed }, use) => {
     const customer = await database.createCustomer(customerSeed)
@@ -239,6 +257,17 @@ export const test = base.extend<OrdersViewFixtures>({
 
     await use(NEW_CUSTOMER)
     await database.removeCustomersByEmail(NEW_CUSTOMER.email)
+  },
+
+  departmentDefault: async ({ page, navbar, database, departmentDefaultSeed }, use) => {
+    const { department, status, user } = departmentDefaultSeed
+    const userId = user ? await database.setDepartmentDefault(department, status, user) : null
+    // Reload even for an empty slot: the previous test may have left the
+    // settings page's list of defaults in the app's cache.
+    await reloadApp(page, navbar)
+
+    await use({ department, status, userId })
+    await database.removeDepartmentDefault(department, status)
   },
 })
 

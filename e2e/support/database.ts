@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Database, TablesInsert } from '../../src/types/supabase'
+import type { DefaultAssigneeStatus } from '../../src/types/database'
 import type { ChildTable } from '../../src/types/product'
 import type { TestCustomer } from '../fixtures/customers'
 import type { TestUser } from '../fixtures/users'
@@ -152,6 +153,35 @@ export class TestDatabase {
     const id = await this.findUserId(user.email)
     if (!id) return
     const { error } = await this.client.auth.admin.deleteUser(id)
+    if (error) throw error
+  }
+
+  /** The id of one of the suite's logins (created by global setup). */
+  async userId(user: TestUser): Promise<string> {
+    const id = await this.findUserId(user.email)
+    if (!id) throw new Error(`Test user ${user.email} does not exist — did global setup run?`)
+    return id
+  }
+
+  // ── Department defaults ──────────────────────────────────────────────────
+
+  /** Puts the user into the department's slot for that stage, replacing whoever held it. Returns the user's id. */
+  async setDepartmentDefault(department: Department, status: DefaultAssigneeStatus, user: TestUser): Promise<string> {
+    const userId = await this.userId(user)
+    const { error } = await this.client
+      .from('department_default_assignees')
+      .upsert({ department, status, user_id: userId }, { onConflict: 'department,status' })
+    if (error) throw error
+    return userId
+  }
+
+  /** Empties the slot; nothing happens when it already is. */
+  async removeDepartmentDefault(department: Department, status: DefaultAssigneeStatus): Promise<void> {
+    const { error } = await this.client
+      .from('department_default_assignees')
+      .delete()
+      .eq('department', department)
+      .eq('status', status)
     if (error) throw error
   }
 
