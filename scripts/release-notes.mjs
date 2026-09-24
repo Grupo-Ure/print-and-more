@@ -2,7 +2,7 @@
 // sections of the PRs merged since the previous tag, and PATCHes it onto
 // the draft release electron-builder just created.
 // Usage: node scripts/release-notes.mjs [--tag v1.9.0] [--repo owner/name] [--dry-run]
-import { execSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -14,8 +14,10 @@ const flag = name => {
 }
 const dryRun = args.includes('--dry-run')
 
-const run = cmd => execSync(cmd, { stdio: 'inherit' })
-const capture = cmd => execSync(cmd, { encoding: 'utf8' }).trim()
+// Argument arrays, never a command string: the release job runs on Windows,
+// where a string would go through cmd.exe and lose its single quotes.
+const run = (file, cmdArgs) => execFileSync(file, cmdArgs, { stdio: 'inherit' })
+const capture = (file, cmdArgs) => execFileSync(file, cmdArgs, { encoding: 'utf8' }).trim()
 
 const tag = flag('tag') || process.env.GITHUB_REF_NAME
 if (!tag) {
@@ -26,7 +28,7 @@ const version = tag.replace(/^v/, '')
 
 let repo = flag('repo') || process.env.GITHUB_REPOSITORY
 if (!repo) {
-  const originUrl = capture('git remote get-url origin')
+  const originUrl = capture('git', ['remote', 'get-url', 'origin'])
   const match = originUrl.match(/[:/]([^/]+\/[^/]+?)(\.git)?$/)
   if (!match) {
     console.error(`Could not derive owner/repo from origin remote: ${originUrl}`)
@@ -36,7 +38,7 @@ if (!repo) {
 }
 
 // 1. Window: the tag before TAG in the sorted tag list, if any.
-const allTags = capture("git tag --list 'v*' --sort=-v:refname").split('\n').filter(Boolean)
+const allTags = capture('git', ['tag', '--list', 'v*', '--sort=-v:refname']).split('\n').filter(Boolean)
 const tagIndex = allTags.indexOf(tag)
 if (tagIndex === -1) {
   console.error(`Tag ${tag} not found locally — fetch it first (git fetch --tags).`)
@@ -49,15 +51,17 @@ console.log(prevTag ? `Window: ${prevTag}..${tag}` : `Window: first release, up 
 // (and, with a previous tag, excluded when already an ancestor of it) —
 // this is correct whether the tag was cut on main after the merge or, as
 // happened once, on the feature branch before it.
-const searchFrom = prevTag ? `merged:>=${capture(`git log -1 --format=%aI ${prevTag}`)}` : ''
-const prListJson = capture(
-  `gh pr list -R ${repo} --state merged --base main ${searchFrom ? `--search "${searchFrom}"` : ''} --limit 100 --json number,title,body,mergeCommit,mergedAt`,
-)
+const searchFrom = prevTag ? `merged:>=${capture('git', ['log', '-1', '--format=%aI', prevTag])}` : ''
+const prListJson = capture('gh', [
+  'pr', 'list', '-R', repo, '--state', 'merged', '--base', 'main',
+  ...(searchFrom ? ['--search', searchFrom] : []),
+  '--limit', '100', '--json', 'number,title,body,mergeCommit,mergedAt',
+])
 const candidatePrs = JSON.parse(prListJson)
 
 const isAncestor = (sha, ref) => {
   try {
-    execSync(`git merge-base --is-ancestor ${sha} ${ref}`, { stdio: 'ignore' })
+    execFileSync('git', ['merge-base', '--is-ancestor', sha, ref], { stdio: 'ignore' })
     return true
   } catch {
     return false
@@ -103,7 +107,7 @@ for (const pr of prs) {
 const bumpPattern = /^chore: release v[\d.]+$/
 const prMergeShas = new Set(prs.map(pr => pr.mergeCommit.oid))
 const revListRange = prevTag ? `${prevTag}..${tag}` : tag
-const directCommitsLog = capture(`git log --first-parent --no-merges --format=%H%x09%s ${revListRange}`)
+const directCommitsLog = capture('git', ['log', '--first-parent', '--no-merges', '--format=%H%x09%s', revListRange])
 const directCommits = directCommitsLog
   .split('\n')
   .filter(Boolean)
@@ -134,7 +138,7 @@ if (dryRun) {
 }
 
 // 6. Find the draft release for this tag and write the body.
-const releasesJson = capture(`gh api repos/${repo}/releases --paginate`)
+const releasesJson = capture('gh', ['api', `repos/${repo}/releases`, '--paginate'])
 const releases = JSON.parse(releasesJson).filter(r => r.tag_name === tag)
 const published = releases.find(r => !r.draft)
 if (published) {
@@ -158,5 +162,5 @@ if (dryRun) {
 
 const payloadPath = join(tmpdir(), `release-notes-${tag}.json`)
 writeFileSync(payloadPath, JSON.stringify({ body }))
-run(`gh api -X PATCH repos/${repo}/releases/${draft.id} --input ${payloadPath}`)
+run('gh', ['api', '-X', 'PATCH', `repos/${repo}/releases/${draft.id}`, '--input', payloadPath])
 console.log(`Updated the draft release body for ${tag} (id ${draft.id}).`)
