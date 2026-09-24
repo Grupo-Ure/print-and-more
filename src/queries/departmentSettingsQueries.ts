@@ -3,7 +3,7 @@ import {
   departmentSettingsService,
   type DepartmentDefaultAssignee,
 } from '../services/departmentSettingsService'
-import type { Department } from '../types/database'
+import type { DefaultAssigneeStatus, Department } from '../types/database'
 
 export const departmentSettingsKeys = {
   all: ['department-settings'] as const,
@@ -19,21 +19,21 @@ export function useDepartmentDefaultAssignees() {
 }
 
 /**
- * Sets or clears (`userId: null`) a department's default assignee. Patches the
- * cached list optimistically so the combobox shows the pick at once; the
- * snapshot is restored on error.
+ * Sets or clears (`userId: null`) a department's default assignee for one
+ * stage. Patches the cached list optimistically so the combobox shows the
+ * pick at once; the snapshot is restored on error.
  */
 export function useSetDepartmentDefaultAssignee() {
   const queryClient = useQueryClient()
   return useMutation<
     void,
     Error,
-    { department: Department; userId: string | null },
+    { department: Department; status: DefaultAssigneeStatus; userId: string | null },
     { previous?: DepartmentDefaultAssignee[] }
   >({
-    mutationFn: ({ department, userId }) =>
-      departmentSettingsService.setDefaultAssignee(department, userId),
-    onMutate: async ({ department, userId }) => {
+    mutationFn: ({ department, status, userId }) =>
+      departmentSettingsService.setDefaultAssignee(department, status, userId),
+    onMutate: async ({ department, status, userId }) => {
       await queryClient.cancelQueries({ queryKey: departmentSettingsKeys.defaultAssignees })
       const previous = queryClient.getQueryData<DepartmentDefaultAssignee[]>(
         departmentSettingsKeys.defaultAssignees,
@@ -41,8 +41,10 @@ export function useSetDepartmentDefaultAssignee() {
       queryClient.setQueryData<DepartmentDefaultAssignee[]>(
         departmentSettingsKeys.defaultAssignees,
         old => {
-          const rest = (old ?? []).filter(row => row.department !== department)
-          return userId === null ? rest : [...rest, { department, user_id: userId }]
+          const rest = (old ?? []).filter(
+            row => row.department !== department || row.status !== status,
+          )
+          return userId === null ? rest : [...rest, { department, status, user_id: userId }]
         },
       )
       return { previous }

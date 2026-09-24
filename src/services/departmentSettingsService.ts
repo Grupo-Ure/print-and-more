@@ -1,35 +1,44 @@
 import { supabase } from '../supabase'
-import type { Department, DepartmentDefaultAssigneeRow } from '../types/database'
+import type { DefaultAssigneeStatus, Department, DepartmentDefaultAssigneeRow } from '../types/database'
 
-export type DepartmentDefaultAssignee = Pick<DepartmentDefaultAssigneeRow, 'department' | 'user_id'>
+export type DepartmentDefaultAssignee = Pick<DepartmentDefaultAssigneeRow, 'department' | 'status' | 'user_id'>
 
 /**
- * Per-department settings. Today that is one thing: the default assignee a
- * new job of that department gets (`department_default_assignees`, read by
- * the `fn_default_job_assignee` trigger). Writes are admin-only by RLS.
+ * Per-department settings. Today that is one thing: the default assignee per
+ * stage (`department_default_assignees`, one row per department and stage).
+ * The `fn_assign_stage_default_assignee` trigger reads it when a job enters
+ * pre-press or production. Writes are admin-only by RLS.
  */
 class DepartmentSettingsService {
   async getDefaultAssignees(): Promise<DepartmentDefaultAssignee[]> {
     const { data, error } = await supabase
       .from('department_default_assignees')
-      .select('department, user_id')
+      .select('department, status, user_id')
     if (error) throw error
     return data ?? []
   }
 
-  /** `null` removes the default: new jobs of that department go to their creator again. */
-  async setDefaultAssignee(department: Department, userId: string | null): Promise<void> {
+  /** `null` removes the default: a job entering that stage keeps whoever holds it. */
+  async setDefaultAssignee(
+    department: Department,
+    status: DefaultAssigneeStatus,
+    userId: string | null,
+  ): Promise<void> {
     if (userId === null) {
       const { error } = await supabase
         .from('department_default_assignees')
         .delete()
         .eq('department', department)
+        .eq('status', status)
       if (error) throw error
       return
     }
     const { error } = await supabase
       .from('department_default_assignees')
-      .upsert({ department, user_id: userId, updated_at: new Date().toISOString() })
+      .upsert(
+        { department, status, user_id: userId, updated_at: new Date().toISOString() },
+        { onConflict: 'department,status' },
+      )
     if (error) throw error
   }
 }
