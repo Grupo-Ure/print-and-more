@@ -16,16 +16,6 @@ export type CreateUserInput = {
 
 const USER_COLUMNS = 'id, name, email, role, avatar_url, is_developer, created_at'
 
-/**
- * Whether a user belongs in an assignee picker. Developer accounts (super
- * admins debugging against the shop's database) are hidden so the team never
- * hands them work; one that already holds the value on offer stays visible,
- * so a picker never shows "Unassigned" for an assigned job.
- */
-export function isAssignableUser(user: Pick<UserRow, 'id' | 'is_developer'>, currentValue: string | null): boolean {
-  return !user.is_developer || user.id === currentValue
-}
-
 const AVATAR_BUCKET = 'avatars'
 /** Path prefix public object URLs of the avatars bucket share. */
 const AVATAR_PUBLIC_PREFIX = `/storage/v1/object/public/${AVATAR_BUCKET}/`

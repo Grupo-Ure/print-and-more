@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Check, ChevronsUpDown, UserX } from 'lucide-react'
-import { useUsers } from '../../queries/userQueries'
+import { useAssignableUsers } from '../../queries/userQueries'
 import { UserAvatar } from '../UserAvatar'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -38,7 +38,8 @@ export function EmployeeCombobox({
   emptyOptionTestId,
   userOptionTestId,
 }: EmployeeComboboxProps) {
-  const { data: users = [] } = useUsers()
+  // Developer accounts are not on offer — unless one already holds the value.
+  const { data: users = [] } = useAssignableUsers(value)
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
 
