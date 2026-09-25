@@ -163,6 +163,18 @@ the header of the order or the job (or the job list's context menu). The
 invisible [`StatusManager`](src/components/StatusManager.tsx) mounted in
 `OrderDetails` runs the automatic status logic (see "Status").
 
+### Row flags and due dates
+
+The order sidebar, the job list and the production feed share their row
+markers. [`Flags.tsx`](src/components/Flags.tsx) holds the red icon flags,
+all the same colour and told apart by shape: *missing information*
+(`isMissingInfo`), *deadline missed* (`isDeadlineMissed`) and *high
+priority* (effective priority for a job). An order row carries a job flag
+when any of its jobs does. [`DueDate`](src/components/DueDate.tsx) renders a
+row's deadline as "Due today" (red), "Due tomorrow" (orange) or "Due Sep
+28th" (`formatDateHuman` in [src/lib/formatDate.ts](src/lib/formatDate.ts)),
+with the exact date in the tooltip.
+
 ### The production view
 
 [`ProductionPage`](src/pages/ProductionPage.tsx) is the back office's view
@@ -172,7 +184,8 @@ listing **jobs across all orders** — every non-cancelled job in `PREPRESS`
 or `IN_PRODUCTION` on a non-archived order (`jobService.listProductionJobs`,
 `useProductionJobs`), `HIGH` priority first regardless of date, then
 soonest effective deadline first. A row shows department, customer, job number, effective
-deadline, status and assignee. The header's assignee filter is the job
+deadline (as a relative due date, see "Row flags and due dates"), status and
+assignee. The header's assignee filter is the job
 header's `EmployeeCombobox` (one user or *Everyone*) with a caption stating
 what the feed shows; employees start on their own jobs, admins on
 everyone's. Selecting a row (`selectJob` in the navigation context) shows
@@ -436,8 +449,9 @@ is done.
 
 - **Completeness** — [src/lib/jobShared.ts](src/lib/jobShared.ts):
   `isJobComplete` (effective deadline present, at least one product; nothing
-  is required while the order is a quote), `isDeadlineMissed` (effective
-  deadline strictly before today), `isMissingInfo` (derived warning, never
+  is required while the order is a quote), `isDeadlineMissed` (derived
+  warning, never a gate: an open job whose effective deadline lies strictly
+  before today, local time), `isMissingInfo` (derived warning, never
   a gate: an open job with no effective deadline once the order is past
   quote — `isMissingDeadline`, which also rings the order's deadline field
   —, a job in pre-press or production with nobody assigned —
@@ -453,8 +467,7 @@ is done.
   (`PREPRESS_READY_AUTO`), whatever its department — so starting processing
   on an order promotes every complete job at once; it is retracted to
   `IN_SETUP` when it stops being complete or the order drops back to quote.
-  The missed-deadline gate is entry-only: a job already in pre-press is not
-  pulled back. It never touches `IN_PRODUCTION` / `DONE`.
+  A past deadline plays no part. It never touches `IN_PRODUCTION` / `DONE`.
 - **Manual advance** — [`useJobRelease`](src/hooks/useJobRelease.ts), shared by
   the header's `JobReleaseButton` and the job list's context menu: *Release to
   Pre-Press* (a manual fallback; complete jobs normally get there on their
@@ -464,7 +477,7 @@ is done.
 - **Removal** — [`useJobRemoval`](src/hooks/useJobRemoval.ts): a job in setup
   is deleted; past setup it is cancelled (kept for history); once in
   production or done it can be neither.
-- **Force release** — admins can push an incomplete, late, or stock-blocked
+- **Force release** — admins can push an incomplete or stock-blocked
   job straight into production from the release button's dropdown; a reason
   is required and recorded as `EMERGENCY_TRIGGERED`. Customer approval is the
   one gate the force release does not bypass.
@@ -486,12 +499,12 @@ is done.
     rejects atomically if a concurrent release consumed the stock first). The
     admin **force release** bypasses the shortage: stock is floored at 0 and
     movements record what was actually deducted.
-- **Release to pre-press** requires a complete job and is refused while the
-  effective deadline lies in the past. While a job is held in setup,
-  `JobProductionBanner` names every unmet requirement (no deadline, missed
-  deadline, no product), and the order's deadline field pulses until a
-  deadline is set (`DeadlinePicker` `attention`). The admin force release
-  bypasses both gates.
+- **Release to pre-press** requires a complete job; a deadline that has
+  passed does not block it (the row shows the deadline-missed flag instead).
+  While a job is held in setup, `JobProductionBanner` names every unmet
+  requirement (no deadline, no product), and the order's deadline field
+  pulses until a deadline is set (`DeadlinePicker` `attention`). The admin
+  force release bypasses both.
 - **Job settings overrides** — a job inherits deadline, delivery and priority
   from the order unless its "separate …" switch is on; setting an override
   equal to the order's value collapses it back to inherit. Deadline and
