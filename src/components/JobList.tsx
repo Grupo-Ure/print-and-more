@@ -1,6 +1,6 @@
 import { AlertTriangle } from 'lucide-react'
 import { formatMinutes } from '../lib/formatMinutes'
-import { isInProductionMissingInfo, shortJobNumber } from '../lib/jobShared'
+import { isMissingInfo, shortJobNumber } from '../lib/jobShared'
 import { type JobStatus } from '../types/database'
 import { useOrderSelection } from '../hooks/useOrderSelection'
 import { useJobsByOrderId } from '../queries/jobQueries'
@@ -76,12 +76,12 @@ export function JobList() {
                 <span className="truncate">{shortJobNumber(job.job_number)}</span>
                 {order &&
                   productCounts &&
-                  isInProductionMissingInfo(job, order, (productCounts[job.id] ?? 0) > 0) && (
-                    <span data-testid={IDS.rowMissingInfo} title="In production with missing information">
+                  isMissingInfo(job, order, (productCounts[job.id] ?? 0) > 0) && (
+                    <span data-testid={IDS.rowMissingInfo} title="Missing information">
                       <AlertTriangle
                         size={14}
                         className="text-red-700 shrink-0"
-                        aria-label="In production with missing information"
+                        aria-label="Missing information"
                       />
                     </span>
                   )}

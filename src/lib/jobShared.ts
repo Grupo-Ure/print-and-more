@@ -18,7 +18,7 @@
  * identifier surface is English here.
  */
 
-import { type DeliveryChoice, type Priority, type JobRow } from '../types/database'
+import { type DeliveryChoice, type Priority, type JobRow, type OrderStatus } from '../types/database'
 
 /**
  * Resolve a job's inherited common fields against its order. A null
@@ -115,17 +115,41 @@ export function isJobComplete(
 }
 
 /**
- * Derived alert: the job sits in production but fails the completeness check —
- * the trace a force release leaves behind (or a required field cleared after a
- * regular release). Purely derived, no stored flag: it appears while the info
- * is missing and disappears once someone back-fills it. Shown as a warning icon
- * on the order (sidebar) and the job (job list).
+ * Whether the job is past setup (pre-press or production) with nobody
+ * assigned. A warning only — it never blocks a release or the order.
  */
-export function isInProductionMissingInfo(
+export function isMissingAssignee(job: Pick<JobRow, 'status' | 'is_cancelled' | 'assignee_id'>): boolean {
+  if (job.is_cancelled) return false
+  return (job.status === 'PREPRESS' || job.status === 'IN_PRODUCTION') && !job.assignee_id
+}
+
+/**
+ * Whether the open job has no effective deadline (neither its own nor the
+ * order's) once the order is past quote. A warning only — the release gates
+ * enforce the deadline through `isJobComplete`, not through this.
+ */
+export function isMissingDeadline(
+  job: Pick<JobRow, 'status' | 'is_cancelled' | 'deadline'>,
+  order: { status: OrderStatus; deadline: string | null },
+): boolean {
+  if (job.is_cancelled || job.status === 'DONE' || order.status === 'QUOTE') return false
+  return !(job.deadline ?? order.deadline)
+}
+
+/**
+ * Derived alert: the job has no deadline, is past setup with nobody assigned,
+ * or sits in production but fails the completeness check — the trace a force
+ * release leaves behind (or a required field cleared after a regular release).
+ * Purely derived, no stored flag: it appears while the info is missing and
+ * disappears once someone back-fills it. Shown as a warning icon on the order
+ * (sidebar) and the job (job list); it never blocks anything.
+ */
+export function isMissingInfo(
   job: JobCompletenessFields,
-  order: { delivery: DeliveryChoice | null; priority: Priority; deadline: string | null },
+  order: { status: OrderStatus; delivery: DeliveryChoice | null; priority: Priority; deadline: string | null },
   hasProducts: boolean,
 ): boolean {
+  if (isMissingAssignee(job) || isMissingDeadline(job, order)) return true
   if (job.status !== 'IN_PRODUCTION' || job.is_cancelled) return false
   // A job in production implies the order is past QUOTE — validate strictly.
   return !isJobComplete(resolveEffectiveJob(job, order), false, hasProducts)

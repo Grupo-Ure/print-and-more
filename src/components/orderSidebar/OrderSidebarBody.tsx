@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDateDe } from '../../lib/formatDate';
-import { isInProductionMissingInfo } from '../../lib/jobShared';
+import { isMissingInfo } from '../../lib/jobShared';
 import type { OrderListEntry } from '../../services/orderService';
 import type { OrderStatus } from '../../types/database';
 import { StatusBadge } from '../StatusBadge';
@@ -98,10 +98,11 @@ function OrderSidebarItem({
   duplicateBusy,
   onDelete,
 }: OrderSidebarItemProps) {
-  // Derived, not stored: any job in production that fails the completeness
-  // check (typically a force-released one) flags the order.
-  const missingInfoInProduction = (order.jobs ?? []).some((job) =>
-    isInProductionMissingInfo(
+  // Derived, not stored: any job past setup without an assignee, or in
+  // production failing the completeness check (typically a force-released
+  // one), flags the order.
+  const missingInfo = (order.jobs ?? []).some((job) =>
+    isMissingInfo(
       job,
       order,
       (job.department_products[0]?.count ?? 0) > 0,
@@ -138,12 +139,12 @@ function OrderSidebarItem({
             >
               {order.customers?.name ?? '-'}
             </h2>
-            {missingInfoInProduction && (
-              <span title="In production with missing information">
+            {missingInfo && (
+              <span title="Missing information">
                 <AlertTriangle
                   size={16}
                   className="text-red-700 shrink-0"
-                  aria-label="In production with missing information"
+                  aria-label="Missing information"
                 />
               </span>
             )}
