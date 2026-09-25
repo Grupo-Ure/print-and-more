@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { jobService } from '../services/jobService'
 import { historyService, type HistoryEvent } from '../services/historyService'
@@ -31,8 +31,20 @@ export function useJobsByOrderId(orderId: string | null) {
   })
 }
 
-/** The production feed. Refetched whenever a job changes (see {@link invalidateOrderLists}). */
+/**
+ * The production feed. Refetched whenever a job changes — the viewer's own
+ * (see {@link invalidateOrderLists}) and anyone else's, through a realtime
+ * subscription on `jobs` and `orders` held while the feed is mounted.
+ */
 export function useProductionJobs() {
+  const queryClient = useQueryClient()
+
+  useEffect(() => {
+    return jobService.subscribeToJobChanges(() => {
+      void queryClient.invalidateQueries({ queryKey: jobKeys.production })
+    })
+  }, [queryClient])
+
   return useQuery({
     queryKey: jobKeys.production,
     queryFn: () => jobService.listProductionJobs(),
