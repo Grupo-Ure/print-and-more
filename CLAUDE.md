@@ -437,9 +437,13 @@ is done.
 - **Completeness** — [src/lib/jobShared.ts](src/lib/jobShared.ts):
   `isJobComplete` (effective deadline present, at least one product; nothing
   is required while the order is a quote), `isDeadlineMissed` (effective
-  deadline strictly before today), `isInProductionMissingInfo` (derived
-  warning for a job in production that fails completeness, typically after a
-  force release). The rules are the same for every department and product
+  deadline strictly before today), `isMissingInfo` (derived warning, never
+  a gate: an open job with no effective deadline once the order is past
+  quote — `isMissingDeadline`, which also rings the order's deadline field
+  —, a job in pre-press or production with nobody assigned —
+  `isMissingAssignee`, which also rings the job header's assignee picker —
+  or a job in production that fails completeness, typically after a force
+  release). The rules are the same for every department and product
   type — there is no free-form exception.
 - **Automatic `IN_SETUP` ↔ `PREPRESS`** — `deriveAutomaticStatus` in
   [src/lib/status/automaticStatus.ts](src/lib/status/automaticStatus.ts), run
