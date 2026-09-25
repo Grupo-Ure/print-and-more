@@ -19,7 +19,11 @@ type EmployeeComboboxProps = {
   emptyOptionTestId?: string
   /** data-testid shared by the user options in the list (each carries `data-user-id`). */
   userOptionTestId?: string
-  /** Pulse a red ring around the trigger (e.g. a job in pre-press or production has nobody assigned). */
+  /**
+   * Pulse a red ring around the trigger (e.g. a job in pre-press or production
+   * has nobody assigned). When it drops back to false the ring turns green once
+   * and fades out.
+   */
   attention?: boolean
 }
 
@@ -46,6 +50,15 @@ export function EmployeeCombobox({
   const { data: users = [] } = useAssignableUsers(value)
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
+
+  // Play the green settle exactly once, on the transition attention → none
+  // ("adjust state during render" — no effect needed), as the deadline does.
+  const [prevAttention, setPrevAttention] = useState(attention)
+  const [settling, setSettling] = useState(false)
+  if (attention !== prevAttention) {
+    setPrevAttention(attention)
+    setSettling(!attention)
+  }
 
   const selected = users.find(user => user.id === value) ?? null
 
@@ -84,7 +97,14 @@ export function EmployeeCombobox({
           data-value={value ?? undefined}
           data-attention={attention || undefined}
           disabled={disabled}
-          className={cn('w-40 justify-between', attention && 'animate-field-required')}
+          className={cn(
+            'w-40 justify-between',
+            attention && 'animate-field-required',
+            settling && 'animate-field-settled',
+          )}
+          onAnimationEnd={event => {
+            if (event.animationName === 'field-settled') setSettling(false)
+          }}
         >
           <span className={`flex min-w-0 items-center gap-1.5 ${selected ? '' : 'text-muted-foreground'}`}>
             {selected && (

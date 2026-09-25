@@ -47,11 +47,11 @@ export function DeadlinePicker({ value, onChange, disabled = false, attention = 
             disabled={disabled}
             className={cn(
               attention && 'animate-field-required',
-              settling && 'animate-deadline-settled',
+              settling && 'animate-field-settled',
               "text-lg"
             )}
             onAnimationEnd={event => {
-              if (event.animationName === 'deadline-settled') setSettling(false)
+              if (event.animationName === 'field-settled') setSettling(false)
             }}
           >
             {triggerLabel}

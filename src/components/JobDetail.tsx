@@ -107,6 +107,9 @@ export function JobDetail({
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-medium text-muted-foreground">Assigned to</span>
             <EmployeeCombobox
+              // A fresh picker per job, so switching to an assigned job does not
+              // play the settle meant for assigning this one.
+              key={job.id}
               testId={IDS.assignee}
               value={job.assignee_id}
               onChange={handleAssigneeChange}
