@@ -113,7 +113,7 @@ function OrderSidebarItem({
   return (
     <div
       className={cn(
-        'group flex box-border p-3 border-l-6 border-neutral-200 cursor-pointer text-left bg-white hover:bg-neutral-100',
+        'group flex box-border px-3 py-2 border-l-6 border-neutral-100 h-32 cursor-pointer text-left bg-white hover:bg-neutral-100 border-t-3',
         isActive && 'bg-primary/8 border-l-primary',
       )}
       onClick={() => onSelect(order.id)}
@@ -130,7 +130,7 @@ function OrderSidebarItem({
       data-status={order.status}
       aria-current={isActive ? 'true' : undefined}
     >
-      <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
+      <div className="flex-1 min-w-0 flex flex-col justify-between gap-0.5">
         <div className="flex items-center justify-between gap-1.5">
           <div className="flex items-center min-w-0 flex-1 gap-1">
             <h2
@@ -154,13 +154,13 @@ function OrderSidebarItem({
             onDelete={() => onDelete(order.id)}
           />
         </div>
+        <JobDepartmentIcons jobs={order.jobs ?? []} className="shrink-0" />
         <div className="flex items-center justify-between gap-1.5">
           <DueDate deadline={order.deadline} testId={IDS.rowDeadline} />
           <span data-testid={IDS.rowStatus} data-status={order.status}>
             <StatusBadge meta={ORDER_STATUS_META[order.status]} />
           </span>
         </div>
-          <JobDepartmentIcons jobs={order.jobs ?? []} className="shrink-0" />
       </div>
     </div>
   );

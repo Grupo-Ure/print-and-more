@@ -225,50 +225,52 @@ function ProductionSidebarItem({ job, assignee, isActive, isNew, onSelect }: Pro
         }
       }}
       className={cn(
-        'flex cursor-pointer border-l-6 border-neutral-200 bg-white p-3 text-left hover:bg-neutral-100',
+        'flex cursor-pointer border-l-6 h-32 border-neutral-100 bg-white px-3 py-2 text-left hover:bg-neutral-100 border-t-3',
         isNew && !isActive && 'bg-blue-100',
         isActive && 'border-l-primary bg-primary/10 hover:bg-primary/10',
       )}
     >
-      <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
-        <div className="flex items-center gap-1.5">
-          <span title={departmentLabel} className="inline-flex shrink-0">
-            <DepartmentIcon
-              size={16}
-              className={colorClassName}
-              aria-label={departmentLabel}
-            />
-          </span>
-          <h2
-            data-testid={IDS.rowCustomer}
-            className="min-w-0 flex-1 truncate font-semibold"
-            title={customerName}
-          >
-            {customerName}
-          </h2>
-          {isNew && (
-            <span
-              data-testid={IDS.rowNew}
-              title="New — not opened yet"
-              className="shrink-0 rounded-full bg-blue-600 px-2 text-[12px] leading-4 text-white"
-            >
-              New
+      <div className="flex min-w-0 flex-1 flex-col justify-between gap-0.5">
+        <div>
+          <div className="flex items-center gap-1.5">
+            <span title={departmentLabel} className="inline-flex shrink-0">
+              <DepartmentIcon
+                size={16}
+                className={colorClassName}
+                aria-label={departmentLabel}
+              />
             </span>
-          )}
-          {isMissingInfo(job, job.orders, (job.department_products[0]?.count ?? 0) > 0) && (
-            <MissingInfoFlag size={20} testId={IDS.rowMissingInfo} />
-          )}
-          {isDeadlineMissed(job, job.orders) && (
-            <DeadlineMissedFlag size={20} testId={IDS.rowDeadlineMissed} />
-          )}
-          {effective.priority === 'HIGH' && <HighPriorityFlag size={20} animate />}
+            <h2
+              data-testid={IDS.rowCustomer}
+              className="min-w-0 flex-1 truncate font-semibold"
+              title={customerName}
+            >
+              {customerName}
+            </h2>
+            {isNew && (
+              <span
+                data-testid={IDS.rowNew}
+                title="New — not opened yet"
+                className="shrink-0 rounded-full bg-blue-600 px-2 text-[12px] leading-4 text-white"
+              >
+                New
+              </span>
+            )}
+            {isMissingInfo(job, job.orders, (job.department_products[0]?.count ?? 0) > 0) && (
+              <MissingInfoFlag size={20} testId={IDS.rowMissingInfo} />
+            )}
+            {isDeadlineMissed(job, job.orders) && (
+              <DeadlineMissedFlag size={20} testId={IDS.rowDeadlineMissed} />
+            )}
+            {effective.priority === 'HIGH' && <HighPriorityFlag size={20} animate />}
+          </div>
+          <span
+            data-testid={IDS.rowJobNumber}
+            className="truncate text-[15px] text-neutral-500"
+          >
+            {job.job_number}
+          </span>
         </div>
-        <span
-          data-testid={IDS.rowJobNumber}
-          className="truncate text-[13px] text-neutral-500"
-        >
-          {job.job_number}
-        </span>
         <div className="flex items-center justify-between gap-1.5">
           <DueDate deadline={effective.deadline} testId={IDS.rowDeadline} />
           <span className="flex shrink-0 items-center gap-1.5">
