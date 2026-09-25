@@ -181,6 +181,7 @@ export const TEST_IDS = {
         deadline: 'order-settings-deadline',
         /** The deadline's calendar popover; day cells inside carry `data-day` = ISO date (react-day-picker). */
         deadlineCalendar: 'order-settings-deadline-calendar',
+        deadlineHint: 'order-settings-deadline-hint',
         delivery: 'order-settings-delivery',
         priority: 'order-settings-priority',
         payment: 'order-settings-payment',

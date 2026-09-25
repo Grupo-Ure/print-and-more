@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toDateOnly } from '../lib/formatDate'
 import { formatMinutes } from '../lib/formatMinutes'
-import { areAllJobsDone } from '../lib/jobShared'
+import { areAllJobsDone, isMissingDeadline } from '../lib/jobShared'
 import { formatCustomerAddress } from '../lib/customer'
 import {
   type DeliveryChoice,
@@ -95,16 +95,9 @@ export function OrderDetails() {
     return visibleJobs.find(job => job.id === activeJobId) ?? null
   }, [visibleJobs, activeJobId])
 
-  // The active job is held in setup for want of a deadline it inherits from the
-  // order (same condition as its "no deadline set" banner) — guide the user to
-  // the order's deadline field.
-  const deadlineRequired =
-    order != null &&
-    order.status !== 'QUOTE' &&
-    order.deadline == null &&
-    activeJob != null &&
-    activeJob.status === 'IN_SETUP' &&
-    activeJob.deadline == null
+  // The active job has no deadline, neither its own nor the order's — guide
+  // the user to the order's deadline field.
+  const deadlineRequired = order != null && activeJob != null && isMissingDeadline(activeJob, order)
 
   // Pick a default job tab when ?sub= is unset or no longer matches a visible row.
   useEffect(() => {
@@ -787,6 +780,14 @@ function OrderSettings({ order, onSave, deadlineRequired }: OrderSettingsProps) 
           }
         }}
       />
+      {deadlineRequired && headerDeadline === '' && (
+        <span
+          data-testid={SETTINGS_IDS.deadlineHint}
+          className="animate-in fade-in zoom-in-75 text-xs font-medium text-destructive"
+        >
+          Set a deadline
+        </span>
+      )}
       <DeliverySelect
         testId={SETTINGS_IDS.delivery}
         value={headerDelivery}
