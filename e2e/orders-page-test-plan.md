@@ -88,9 +88,9 @@ cancelled orders. Billed orders are listed whenever Billed is ticked.
   - No matching customer → empty state
   - Compact layout: the Search toggle reveals the box
 - Status (order status, not job status)
-  - Default: quote and in-progress listed, finished not
-  - Ticking Finished lists a finished order; unticking Quote hides a quote
-  - Ticking Billed lists a billed order
+  - Default: quote, in-progress, finished and billed all listed
+  - Unticking Finished hides a finished order; unticking Quote hides a quote
+  - Unticking Billed hides a billed order
   - All statuses lists quote, in-progress, finished and billed at once; the single boxes are disabled meanwhile
   - Unticking every status → empty state
   - Reset restores the defaults

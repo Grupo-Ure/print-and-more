@@ -141,13 +141,12 @@ export function OrderDetails() {
     if (order.payment_method === 'CASH') {
       const confirmed = await confirm({
         title: 'Finish and close this cash order?',
-        description: 'Paid in cash — no invoice step. The order will be archived and hidden from the order list.',
+        description: 'Paid in cash — no invoice step. The order is closed and becomes read-only.',
         confirmLabel: 'Finish & close',
       })
       if (!confirmed) return
       try {
         await markBilled.mutateAsync({ id: order.id, paidCash: true })
-        clearActive()
       } catch {
         showError('Order could not be closed')
       }
@@ -192,13 +191,12 @@ export function OrderDetails() {
     if (!order || order.status !== 'FINISHED') return
     const confirmed = await confirm({
       title: 'Mark this order as invoiced?',
-      description: 'It will be archived and hidden from the order list.',
+      description: 'The order is closed and becomes read-only.',
       confirmLabel: 'Mark invoiced',
     })
     if (!confirmed) return
     try {
       await markBilled.mutateAsync({ id: order.id })
-      clearActive()
     } catch {
       showError('Order could not be marked as invoiced')
     }

@@ -32,6 +32,9 @@ export const IN_PROGRESS_STATUS: OrderStatus = 'IN_PROGRESS'
 /** The status an invoice order reaches once its last job is done — on its own, or by "Mark finished". */
 export const FINISHED_STATUS: OrderStatus = 'FINISHED'
 
+/** The terminal status "Mark as invoiced" (invoice) or "Finish & close" (cash) moves an order to. */
+export const BILLED_STATUS: OrderStatus = 'BILLED'
+
 /**
  * A deadline the picker accepts that differs from the default a new order gets
  * (today), so a test can see that a pick changed it. Produced at call time,

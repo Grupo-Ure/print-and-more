@@ -71,8 +71,9 @@ export class OrderSidebarPOM extends BasePOM {
   }
 
   /**
-   * Adds a status the default filter hides (finished, billed) to the list,
-   * then closes the status popover again (it floats over the list).
+   * Toggles one status checkbox (every status is ticked by default, so on a
+   * fresh filter this hides it), then closes the status popover again (it
+   * floats over the list).
    * Navigation, for a spec's Setup stage.
    */
   async includeStatus(status: OrderStatus): Promise<void> {

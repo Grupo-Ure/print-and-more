@@ -147,7 +147,7 @@ without a session, otherwise a two-column shell:
 
 | Column | Component | Role |
 |--------|-----------|------|
-| Left   | [`OrderSidebar`](src/components/OrderSidebar.tsx) | Search + filters (status, department, deadline/intake ranges), order list with selection, per-order menu (duplicate / delete quote), "+ New Order" ([`NewOrderDialog`](src/components/NewOrderDialog.tsx)). Archived orders are listed only while the header's *Show archived* toggle is on, except billed ones, which appear whenever Billed is ticked; finished/billed are hidden by the default status filter. There is no assignee filter here — finding one's own work is the production view's job. |
+| Left   | [`OrderSidebar`](src/components/OrderSidebar.tsx) | Search + filters (status, department, deadline/intake ranges), order list with selection, per-order menu (duplicate / delete quote), "+ New Order" ([`NewOrderDialog`](src/components/NewOrderDialog.tsx)). Archived orders are listed only while the header's *Show archived* toggle is on, except billed ones, which appear whenever Billed is ticked; the default status filter ticks every status, so completed orders stay in the feed. There is no assignee filter here — finding one's own work is the production view's job. |
 | Centre | [`OrderDetails`](src/components/OrderDetails.tsx) | Order header (number, customer, lifecycle button, files/history/archive/cancel actions), order settings row (deadline, delivery, priority, payment), then [`JobList`](src/components/JobList.tsx) (add-job buttons, one row per job with status track and right-click menu) next to the active job's [`JobDetail`](src/components/JobDetail.tsx). |
 
 `JobDetail` shows the job header (assignee, status badge, settings / time
@@ -437,8 +437,8 @@ is done.
   orders skip `FINISHED`** and never auto-finish: their action is *Finish &
   close*, which goes straight to `BILLED` and archives — that step records the
   cash payment, which the last job being done says nothing about.
-- *Mark as invoiced* (`FINISHED` → `BILLED`) — archives the order and drops it
-  from the list.
+- *Mark as invoiced* (`FINISHED` → `BILLED`) — archives the order; it stays
+  listed (and selected) as billed.
 - Admins may *reopen* a finished order (`FINISHED` → `IN_PROGRESS`).
 - Finished/billed orders are read-only: no new jobs, no product edits.
 - Archive (hide) and cancel (cancel every job, then hide) are available in

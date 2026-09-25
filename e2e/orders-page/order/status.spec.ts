@@ -7,6 +7,7 @@ import {
   FINISHED_ORDER,
   IN_PROGRESS_STATUS,
   FINISHED_STATUS,
+  BILLED_STATUS,
 } from '../../fixtures/orders'
 import { JOB_DONE, JOB_IN_PRODUCTION, ONE_JOB_PER_DEPARTMENT, DONE_STATUS, PREPRESS_STATUS } from '../../fixtures/jobs'
 import { TEST_USERS } from '../../fixtures/users'
@@ -127,10 +128,8 @@ test.describe('in progress, every job done', () => {
 test.describe('finished, every job done', () => {
   test.use({ orderSeed: FINISHED_ORDER, jobSeed: JOB_DONE })
 
-  test('marking the order as invoiced closes it and removes it from the order list', async ({ ordersPage, order, job }) => {
-    // Setup — finished orders shown in the list (hidden by default), the order open with its done job loaded
-    // (the action is offered only once every job is done).
-    await ordersPage.sidebar.includeStatus(FINISHED_STATUS)
+  test('marking the order as invoiced closes it and keeps it in the order list', async ({ ordersPage, order, job }) => {
+    // Setup — the order open with its done job loaded (the action is offered only once every job is done).
     await ordersPage.openOrder(order.id)
     await ordersPage.details.jobList.row(job.id).waitFor()
 
@@ -138,9 +137,9 @@ test.describe('finished, every job done', () => {
     await ordersPage.details.lifecycle.click()
     await ordersPage.confirmDialog.confirm.click()
 
-    // Assert — the order is gone from the list and nothing is selected.
-    await expect(ordersPage.sidebar.row(order.id)).toHaveCount(0)
-    await expect(ordersPage.welcome).toBeVisible()
+    // Assert — the order stays open and listed, now billed.
+    await expect(ordersPage.details.forOrder(order.id)).toHaveAttribute('data-status', BILLED_STATUS)
+    await expect(ordersPage.sidebar.row(order.id)).toHaveAttribute('data-status', BILLED_STATUS)
   })
 })
 
@@ -148,8 +147,7 @@ test.describe('as admin, finished, every job done', () => {
   test.use({ user: TEST_USERS.admin, orderSeed: FINISHED_ORDER, jobSeed: JOB_DONE })
 
   test('reopening the order moves it back to in progress', async ({ ordersPage, order, job }) => {
-    // Setup — finished orders shown in the list (hidden by default), the order open with its done job loaded.
-    await ordersPage.sidebar.includeStatus(FINISHED_STATUS)
+    // Setup — the order open with its done job loaded.
     await ordersPage.openOrder(order.id)
     await ordersPage.details.jobList.row(job.id).waitFor()
 
@@ -162,8 +160,7 @@ test.describe('as admin, finished, every job done', () => {
   })
 
   test('reopening the order leaves it open, with finishing it again a manual step', async ({ ordersPage, order, job }) => {
-    // Setup — finished orders shown in the list (hidden by default), the order open with its done job loaded.
-    await ordersPage.sidebar.includeStatus(FINISHED_STATUS)
+    // Setup — the order open with its done job loaded.
     await ordersPage.openOrder(order.id)
     await ordersPage.details.jobList.row(job.id).waitFor()
 
@@ -181,7 +178,7 @@ test.describe('as admin, finished, every job done', () => {
 test.describe('in progress cash order, every job done', () => {
   test.use({ orderSeed: IN_PROGRESS_CASH_ORDER, jobSeed: JOB_DONE })
 
-  test('finishing the cash order closes it in one step and removes it from the order list', async ({ ordersPage, order, job }) => {
+  test('finishing the cash order closes it in one step and keeps it in the order list', async ({ ordersPage, order, job }) => {
     // Setup — the order open with its done job loaded (the action is offered only once every job is done).
     await ordersPage.openOrder(order.id)
     await ordersPage.details.jobList.row(job.id).waitFor()
@@ -190,8 +187,8 @@ test.describe('in progress cash order, every job done', () => {
     await ordersPage.details.lifecycle.click()
     await ordersPage.confirmDialog.confirm.click()
 
-    // Assert — the order is gone from the list and nothing is selected.
-    await expect(ordersPage.sidebar.row(order.id)).toHaveCount(0)
-    await expect(ordersPage.welcome).toBeVisible()
+    // Assert — the order stays open and listed, now billed.
+    await expect(ordersPage.details.forOrder(order.id)).toHaveAttribute('data-status', BILLED_STATUS)
+    await expect(ordersPage.sidebar.row(order.id)).toHaveAttribute('data-status', BILLED_STATUS)
   })
 })
