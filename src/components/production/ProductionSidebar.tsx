@@ -8,7 +8,7 @@ import { departmentIcon } from '../../const/departmentIcons'
 import { useNavigation } from '../../context/navigation.context'
 import { isDeadlineMissed, isMissingInfo, resolveEffectiveJob } from '../../lib/jobShared'
 import { useProductionJobs } from '../../queries/jobQueries'
-import { useIsAdmin, useUsers } from '../../queries/userQueries'
+import { useUsers } from '../../queries/userQueries'
 import type { ProductionJob } from '../../services/jobService'
 import type { UserRow } from '../../services/userService'
 import { StatusBadge } from '../StatusBadge'
@@ -24,20 +24,18 @@ const IDS = TEST_IDS.production.sidebar
 /**
  * The production feed: every job in pre-press or production across all
  * orders, high priority first, then soonest effective deadline, narrowed to one assignee through
- * the same combobox the job header uses. Employees start on their own jobs;
- * admins start on everyone's. Selecting a row shows the job beside the feed.
+ * the same combobox the job header uses. Everyone starts on their own jobs.
+ * Selecting a row shows the job beside the feed.
  */
 export function ProductionSidebar({ currentUserId }: { currentUserId: string }) {
   const { activeJobId, selectJob } = useNavigation()
-  const { isAdmin, isLoading: roleLoading } = useIsAdmin()
   const { data: users = [] } = useUsers()
   const jobsQuery = useProductionJobs()
   const { showError } = useToast()
 
-  // The role decides the default; a pick overrides it for this visit.
-  // `undefined` = not picked yet; `null` = everyone.
-  const [pickedAssigneeId, setPickedAssigneeId] = useState<string | null | undefined>(undefined)
-  const assigneeId = pickedAssigneeId === undefined ? (isAdmin ? null : currentUserId) : pickedAssigneeId
+  // The signed-in user is the default; a pick overrides it for this visit.
+  // `null` = everyone.
+  const [assigneeId, setAssigneeId] = useState<string | null>(currentUserId)
   const { newJobIds, clearNew } = useNewJobMarks(jobsQuery.data, assigneeId)
 
   useEffect(() => {
@@ -52,7 +50,7 @@ export function ProductionSidebar({ currentUserId }: { currentUserId: string }) 
     return assigneeId ? all.filter(job => job.assignee_id === assigneeId) : all
   }, [jobsQuery.data, assigneeId])
 
-  const isLoading = jobsQuery.isLoading || roleLoading
+  const isLoading = jobsQuery.isLoading
   const isEmpty = !isLoading && jobs.length === 0
   const hasHighPriority = jobs.some(isHighPriority)
 
@@ -72,8 +70,7 @@ export function ProductionSidebar({ currentUserId }: { currentUserId: string }) 
             userOptionTestId={IDS.assigneeFilterUser}
             value={assigneeId}
             emptyLabel="Everyone"
-            disabled={roleLoading}
-            onChange={user => setPickedAssigneeId(user?.id ?? null)}
+            onChange={user => setAssigneeId(user?.id ?? null)}
           />
         </div>
         <p

@@ -3,8 +3,8 @@ import { IN_PROGRESS_ORDER } from '../fixtures/orders'
 import { JOB_IN_PREPRESS, JOB_IN_PRODUCTION, EMPTY_JOB } from '../fixtures/jobs'
 import { TEST_USERS } from '../fixtures/users'
 
-// Jobs seeded through the runner's connection carry no assignee, so the feed
-// is driven as an admin, whose default is every job rather than their own.
+// Jobs seeded through the runner's connection carry no assignee, so the admin
+// tests widen the feed from the signed-in user's own jobs to everyone's first.
 test.describe('as admin', () => {
   test.use({ user: TEST_USERS.admin, orderSeed: IN_PROGRESS_ORDER })
 
@@ -12,16 +12,16 @@ test.describe('as admin', () => {
     test.use({ jobSeed: JOB_IN_PREPRESS })
 
     test('opening the production page lists the job', async ({ productionPage, job }) => {
-      // Act — switch to the production page.
-      await productionPage.open()
+      // Act — switch to the production page, widened to everyone's jobs.
+      await productionPage.openForEveryone()
 
       // Assert — the feed has a row for that job.
       await expect(productionPage.sidebar.row(job.id)).toBeVisible()
     })
 
     test('selecting a job in the feed shows its detail beside the feed', async ({ productionPage, job }) => {
-      // Setup — the feed is open.
-      await productionPage.open()
+      // Setup — the feed is open, widened to everyone's jobs.
+      await productionPage.openForEveryone()
 
       // Act — select the job's row.
       await productionPage.sidebar.row(job.id).click()
@@ -47,8 +47,8 @@ test.describe('as admin', () => {
     test.use({ jobSeed: JOB_IN_PRODUCTION })
 
     test('opening the production page lists the job', async ({ productionPage, job }) => {
-      // Act — switch to the production page.
-      await productionPage.open()
+      // Act — switch to the production page, widened to everyone's jobs.
+      await productionPage.openForEveryone()
 
       // Assert — the feed has a row for that job.
       await expect(productionPage.sidebar.row(job.id)).toBeVisible()
@@ -59,8 +59,8 @@ test.describe('as admin', () => {
     test.use({ jobSeed: EMPTY_JOB })
 
     test('opening the production page leaves the job out', async ({ productionPage, job }) => {
-      // Act — switch to the production page.
-      await productionPage.open()
+      // Act — switch to the production page, widened to everyone's jobs.
+      await productionPage.openForEveryone()
 
       // Assert — the feed has rendered and holds no row for that job.
       await expect(productionPage.sidebar.list).toBeVisible()
@@ -73,7 +73,7 @@ test.describe('as employee', () => {
   test.use({ user: TEST_USERS.employee, orderSeed: IN_PROGRESS_ORDER, jobSeed: JOB_IN_PREPRESS })
 
   test('widening the assignee filter to everyone lists jobs assigned to nobody', async ({ productionPage, job }) => {
-    // Setup — the feed is open on the role's default, the signed-in user's own jobs.
+    // Setup — the feed is open on its default, the signed-in user's own jobs.
     await productionPage.open()
 
     // Act — pick "everyone" in the assignee filter.

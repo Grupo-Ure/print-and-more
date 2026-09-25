@@ -187,8 +187,8 @@ soonest effective deadline first. A row shows department, customer, job number, 
 deadline (as a relative due date, see "Row flags and due dates"), status and
 assignee. The header's assignee filter is the job
 header's `EmployeeCombobox` (one user or *Everyone*) with a caption stating
-what the feed shows; employees start on their own jobs, admins on
-everyone's. Selecting a row (`selectJob` in the navigation context) shows
+what the feed shows; every user, admins included, starts on their own
+jobs. Selecting a row (`selectJob` in the navigation context) shows
 the job in [`ProductionJobPanel`](src/components/production/ProductionJobPanel.tsx):
 a read-only strip naming the order (customer, number, deadline, status, an
 *Open in orders* button) above the same `JobDetail` the orders view uses,
