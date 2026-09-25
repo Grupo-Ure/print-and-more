@@ -50,18 +50,19 @@ const PRODUCTION_JOB_SELECT =
   'id, job_number, order_id, department, status, deadline, delivery, priority, assignee_id, is_cancelled, customer_approval_required, customer_approval_granted, orders!inner(order_number, deadline, delivery, priority, is_archived, customers(name)), department_products(count)'
 
 /**
- * Feed order: effective deadline ascending with undated jobs last, then
- * priority HIGH before NORMAL, then job number for a stable list.
+ * Feed order: effective priority HIGH before NORMAL regardless of date, then
+ * effective deadline ascending with undated jobs last, then job number for a
+ * stable list.
  */
 function compareProductionJobs(left: ProductionJob, right: ProductionJob): number {
   const leftEffective = resolveEffectiveJob(left, left.orders)
   const rightEffective = resolveEffectiveJob(right, right.orders)
-  const leftDeadline = leftEffective.deadline ?? '9999-12-31'
-  const rightDeadline = rightEffective.deadline ?? '9999-12-31'
-  if (leftDeadline !== rightDeadline) return leftDeadline < rightDeadline ? -1 : 1
   if (leftEffective.priority !== rightEffective.priority) {
     return leftEffective.priority === 'HIGH' ? -1 : 1
   }
+  const leftDeadline = leftEffective.deadline ?? '9999-12-31'
+  const rightDeadline = rightEffective.deadline ?? '9999-12-31'
+  if (leftDeadline !== rightDeadline) return leftDeadline < rightDeadline ? -1 : 1
   return left.job_number.localeCompare(right.job_number)
 }
 
