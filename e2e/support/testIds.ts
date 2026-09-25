@@ -216,6 +216,7 @@ export const TEST_IDS = {
       /** One per job; `data-job-id`, `data-status` = JobStatus. */
       row: 'job-list-row',
       rowMissingInfo: 'job-list-row-missing-info',
+      rowHighPriority: 'job-list-row-high-priority',
       contextMenu: {
         advance: 'job-context-menu-advance',
         delete: 'job-context-menu-delete',

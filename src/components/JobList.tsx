@@ -1,5 +1,5 @@
 import { formatMinutes } from '../lib/formatMinutes'
-import { isMissingInfo, shortJobNumber } from '../lib/jobShared'
+import { isMissingInfo, resolveEffectiveJob, shortJobNumber } from '../lib/jobShared'
 import { type JobStatus } from '../types/database'
 import { useOrderSelection } from '../hooks/useOrderSelection'
 import { useJobsByOrderId } from '../queries/jobQueries'
@@ -8,7 +8,7 @@ import { useProductCountsByOrderId } from '../queries/productQueries'
 import { useTimeLogMinutesByOrderId } from '../queries/timeLogQueries'
 import { AddJobButtons } from './AddJobButtons'
 import { JobContextMenu } from './JobContextMenu'
-import { MissingInfoFlag } from './Flags'
+import { HighPriorityFlag, MissingInfoFlag } from './Flags'
 import { cn } from '@/lib/utils'
 import { JOB_STATUS_META, WORKFLOW_STATUSES } from '../const/orderStatus'
 import { TEST_IDS } from '@e2e/support/testIds'
@@ -79,6 +79,10 @@ export function JobList() {
                   isMissingInfo(job, order, (productCounts[job.id] ?? 0) > 0) && (
                     <MissingInfoFlag size={14} testId={IDS.rowMissingInfo} />
                   )}
+                {/* Effective priority: a job without its own override inherits the order's. */}
+                {order && resolveEffectiveJob(job, order).priority === 'HIGH' && (
+                  <HighPriorityFlag size={14} testId={IDS.rowHighPriority} />
+                )}
               </span>
               {(minutesByJob?.[job.id] ?? 0) > 0 && (
                 <span

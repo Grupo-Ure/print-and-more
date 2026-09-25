@@ -139,7 +139,7 @@ function OrderSidebarItem({
               {order.customers?.name ?? '-'}
             </h2>
             {missingInfo && <MissingInfoFlag size={16} />}
-            {order.priority === 'HIGH' && <HighPriorityFlag size={16} />}
+            {order.priority === 'HIGH' && <HighPriorityFlag size={16} animate />}
           </div>
           <OrderSidebarItemMenu
             isActive={isActive}

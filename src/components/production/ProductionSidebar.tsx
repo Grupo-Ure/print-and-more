@@ -258,7 +258,7 @@ function ProductionSidebarItem({ job, assignee, isActive, isNew, onSelect }: Pro
           {isMissingInfo(job, job.orders, (job.department_products[0]?.count ?? 0) > 0) && (
             <MissingInfoFlag size={20} testId={IDS.rowMissingInfo} />
           )}
-          {effective.priority === 'HIGH' && <HighPriorityFlag size={20} />}
+          {effective.priority === 'HIGH' && <HighPriorityFlag size={20} animate />}
         </div>
         <span
           data-testid={IDS.rowJobNumber}
