@@ -233,7 +233,7 @@ class OrderService {
    */
   subscribeToCustomerChanges(onChanged: (customerId: string) => void): () => void {
     const channel = supabase
-      .channel('orderlist-kunden-refresh')
+      .channel(`order-list-customer-refresh:${crypto.randomUUID()}`) // unique per subscription, see jobService.subscribeToJobChanges
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'customers' }, payload => {
         const customerId = (payload.new as { id?: string } | null)?.id
         if (customerId) onChanged(customerId)
