@@ -1,4 +1,4 @@
-import { AlertTriangle } from 'lucide-react'
+import { CircleAlert } from 'lucide-react'
 import { formatMinutes } from '../lib/formatMinutes'
 import { isMissingInfo, shortJobNumber } from '../lib/jobShared'
 import { type JobStatus } from '../types/database'
@@ -78,9 +78,9 @@ export function JobList() {
                   productCounts &&
                   isMissingInfo(job, order, (productCounts[job.id] ?? 0) > 0) && (
                     <span data-testid={IDS.rowMissingInfo} title="Missing information">
-                      <AlertTriangle
+                      <CircleAlert
                         size={14}
-                        className="text-red-700 shrink-0"
+                        className="shrink-0 text-red-600"
                         aria-label="Missing information"
                       />
                     </span>

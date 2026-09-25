@@ -1,5 +1,5 @@
 import {
-  AlertTriangle,
+  ArrowUp,
   CircleAlert,
   Copy,
   MoreHorizontal,
@@ -141,16 +141,16 @@ function OrderSidebarItem({
             </h2>
             {missingInfo && (
               <span title="Missing information">
-                <AlertTriangle
+                <CircleAlert
                   size={16}
-                  className="text-red-700 shrink-0"
+                  className="shrink-0 text-red-600"
                   aria-label="Missing information"
                 />
               </span>
             )}
             {order.priority === 'HIGH' && (
               <span title="High Priority">
-                <CircleAlert
+                <ArrowUp
                   size={16}
                   className="shrink-0 text-red-600 animate-pulse"
                   aria-label="High priority"
