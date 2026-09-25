@@ -1,16 +1,15 @@
 import {
-  AlertTriangle,
-  ArrowUp,
   Copy,
   MoreHorizontal,
   Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatDateDe } from '../../lib/formatDate';
-import { isInProductionMissingInfo } from '../../lib/jobShared';
+import { ClosedDate, DueDate } from '../DueDate';
+import { isDeadlineMissed, isMissingInfo } from '../../lib/jobShared';
 import type { OrderListEntry } from '../../services/orderService';
 import type { OrderStatus } from '../../types/database';
 import { StatusBadge } from '../StatusBadge';
+import { DeadlineMissedFlag, HighPriorityFlag, MissingInfoFlag } from '../Flags';
 import { ORDER_STATUS_META } from '../../const/orderStatus';
 import { JobDepartmentIcons } from '../JobDepartmentIcons';
 import {
@@ -98,20 +97,23 @@ function OrderSidebarItem({
   duplicateBusy,
   onDelete,
 }: OrderSidebarItemProps) {
-  // Derived, not stored: any job in production that fails the completeness
-  // check (typically a force-released one) flags the order.
-  const missingInfoInProduction = (order.jobs ?? []).some((job) =>
-    isInProductionMissingInfo(
+  // Derived, not stored: any job past setup without an assignee, or in
+  // production failing the completeness check (typically a force-released
+  // one), flags the order.
+  const missingInfo = (order.jobs ?? []).some((job) =>
+    isMissingInfo(
       job,
       order,
       (job.department_products[0]?.count ?? 0) > 0,
     ),
   );
+  // Same for a missed deadline: any open job past its effective deadline.
+  const deadlineMissed = (order.jobs ?? []).some((job) => isDeadlineMissed(job, order));
 
   return (
     <div
       className={cn(
-        'group flex box-border p-3 border-l-6 border-neutral-200 cursor-pointer text-left bg-white hover:bg-neutral-100',
+        'group flex box-border px-3 py-2 border-l-6 border-neutral-100 h-32 cursor-pointer text-left bg-white hover:bg-neutral-100 border-t-3',
         isActive && 'bg-primary/8 border-l-primary',
       )}
       onClick={() => onSelect(order.id)}
@@ -128,33 +130,20 @@ function OrderSidebarItem({
       data-status={order.status}
       aria-current={isActive ? 'true' : undefined}
     >
-      <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
+      <div className="flex-1 min-w-0 flex flex-col justify-between gap-0.5">
         <div className="flex items-center justify-between gap-1.5">
           <div className="flex items-center min-w-0 flex-1 gap-1">
             <h2
-              data-testid={IDS.rowNumber}
+              data-testid={IDS.rowCustomer}
               className="truncate font-semibold"
               title={order.customers?.name ?? undefined}
             >
               {order.customers?.name ?? '-'}
             </h2>
-            {missingInfoInProduction && (
-              <span title="In production with missing information">
-                <AlertTriangle
-                  size={16}
-                  className="text-red-700 shrink-0"
-                  aria-label="In production with missing information"
-                />
-              </span>
-            )}
+            {missingInfo && <MissingInfoFlag size={16} />}
+            {deadlineMissed && <DeadlineMissedFlag size={16} />}
             {order.priority === 'HIGH' && (
-              <span title="High Priority">
-                <ArrowUp
-                  size={16}
-                  className="text-blue-600 shrink-0"
-                  aria-label="High priority"
-                />
-              </span>
+              <HighPriorityFlag size={16} animate />
             )}
           </div>
           <OrderSidebarItemMenu
@@ -165,20 +154,21 @@ function OrderSidebarItem({
             onDelete={() => onDelete(order.id)}
           />
         </div>
+        <JobDepartmentIcons jobs={order.jobs ?? []} className="shrink-0" />
         <div className="flex items-center justify-between gap-1.5">
-        <span
-          data-testid={IDS.rowCustomer}
-          className="truncate min-w-0 text-[13px] text-neutral-500"
-          title={order.deadline ? formatDateDe(order.deadline) : undefined}
-        >
-          {"deadline: "}
-          {order.deadline ? formatDateDe(order.deadline) : 'no deadline'}
-        </span>
+          {order.status === 'FINISHED' || order.status === 'BILLED' ? (
+            <ClosedDate
+              label={order.status === 'FINISHED' ? 'Finished' : 'Billed'}
+              at={closedAt(order)}
+              testId={IDS.rowDeadline}
+            />
+          ) : (
+            <DueDate deadline={order.deadline} testId={IDS.rowDeadline} />
+          )}
           <span data-testid={IDS.rowStatus} data-status={order.status}>
             <StatusBadge meta={ORDER_STATUS_META[order.status]} />
           </span>
         </div>
-          <JobDepartmentIcons jobs={order.jobs ?? []} className="shrink-0" />
       </div>
     </div>
   );
@@ -245,4 +235,18 @@ function OrderSidebarItemMenu({
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+/**
+ * When a finished or billed order reached that status: its newest matching
+ * closing event (the list embeds them newest first). A reopened order keeps
+ * its old ORDER_FINISHED, but the next finish writes a newer one.
+ */
+function closedAt(order: OrderListEntry): string | null {
+  const events = order.closing_events ?? [];
+  const match =
+    order.status === 'FINISHED'
+      ? events.find((e) => e.event_type === 'ORDER_FINISHED')
+      : events.find((e) => e.event_type === 'ORDER_BILLED' || e.event_type === 'ORDER_CLOSED_CASH');
+  return match?.created_at ?? null;
 }

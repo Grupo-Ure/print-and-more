@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { OrderWorkspace } from './pages/OrderWorkspace'
 import { ProductionPage } from './pages/ProductionPage'
 import { StampStockPage } from './pages/StampStockPage'
@@ -10,6 +11,7 @@ import { ConfirmProvider } from './components/ConfirmDialog'
 import { ForcedPasswordChange } from './components/ChangePasswordDialog'
 import { AppNavbar } from './components/AppNavbar'
 import { useNavigation, type AppView } from './context/navigation.context'
+import { authService } from './services/authService'
 
 function ActiveView({ view }: { view: AppView }) {
   switch (view) {
@@ -32,6 +34,11 @@ function ActiveView({ view }: { view: AppView }) {
 
 function App() {
   const { view } = useNavigation()
+
+  useEffect(() => {
+    void authService.discardRevokedSession()
+  }, [])
+
   return (
     <ToastProvider>
       <ConfirmProvider>

@@ -7,6 +7,7 @@ import { useOrderById } from '../queries/orderQueries'
 import { useOrderSelection } from '../hooks/useOrderSelection'
 import { jobDepartmentLabel } from '../const/departmentAbbreviation'
 import { customerMeetsPrepressContact } from '../lib/customer'
+import { isMissingAssignee } from '../lib/jobShared'
 import { type JobRow } from '../types/database'
 import { EmployeeCombobox } from './fields/EmployeeCombobox'
 import { JobSettingsDialog } from './jobDetail/JobSettingsDialog'
@@ -84,6 +85,9 @@ export function JobDetail({
   // Once DONE the job is read-only.
   const isDone = job.status === 'DONE'
 
+  // Past setup somebody has to own the job; flag the picker while nobody does.
+  const needsAssignee = isMissingAssignee(job)
+
   return (
     <div
       data-testid={IDS.root}
@@ -93,7 +97,7 @@ export function JobDetail({
       className="flex flex-col gap-4"
     >
       <JobProductionBanner job={job} />
-      <div aria-label="Job" className="flex flex-col gap-2">
+      <div aria-label="Job" className="flex flex-col gap-2 pt-2">
         <div className="flex items-center gap-6">
           <h1 data-testid={IDS.title} className="flex items-baseline gap-2">
             {jobDepartmentLabel(job.department)}
@@ -103,11 +107,23 @@ export function JobDetail({
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-medium text-muted-foreground">Assigned to</span>
             <EmployeeCombobox
+              // A fresh picker per job, so switching to an assigned job does not
+              // play the settle meant for assigning this one.
+              key={job.id}
               testId={IDS.assignee}
               value={job.assignee_id}
               onChange={handleAssigneeChange}
               disabled={isDone || setJobAssignee.isPending}
+              attention={needsAssignee}
             />
+            {needsAssignee && (
+              <span
+                data-testid={IDS.assigneeHint}
+                className="animate-in fade-in zoom-in-75 text-xs font-medium text-destructive"
+              >
+                Assign this job
+              </span>
+            )}
           </div>
         </div>
         <div className="flex items-center">

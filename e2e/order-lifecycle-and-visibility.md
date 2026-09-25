@@ -56,7 +56,7 @@ the reopened order is back in the default list.
 The list is driven by two controls in the sidebar header.
 
 **Status filter** (popover): one checkbox per status, plus "All statuses".
-Default: Quote and In Progress ticked. A row is listed only if its status is
+Default: every status ticked. A row is listed only if its status is
 ticked. With every box unticked the list is empty. "All statuses" drops the
 status condition entirely.
 
@@ -73,8 +73,8 @@ The two combine as AND, together with the search box and the other filters.
 | Order | Status filter | Toggle off | Toggle on |
 |---|---|---|---|
 | Live quote / in progress | ticked (default) | listed | listed |
-| Live finished | Finished ticked | listed | listed |
-| Billed | Billed ticked | listed | listed |
+| Live finished | Finished ticked (default) | listed | listed |
+| Billed | Billed ticked (default) | listed | listed |
 | Billed | "All statuses" | listed | listed |
 | Cancelled (was in progress) | In Progress ticked | hidden | listed |
 | Archived finished | Finished ticked | hidden | listed |

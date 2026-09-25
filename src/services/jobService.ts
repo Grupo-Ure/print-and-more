@@ -1,6 +1,7 @@
 import { supabase } from '../supabase'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import type { Database } from '../types/supabase'
-import type { DeliveryChoice, JobRow, JobStatus, Department, Priority } from '../types/database'
+import type { DeliveryChoice, JobRow, JobStatus, Department, OrderStatus, Priority } from '../types/database'
 import { resolveEffectiveJob } from '../lib/jobShared'
 
 /** SELECT for `jobs` — the full row as the app consumes it (`JobRow`). */
@@ -9,6 +10,9 @@ const JOB_COLUMNS =
 
 export type JobInsert = Omit<Database['public']['Tables']['jobs']['Insert'], 'job_number'>
 type JobUpdate = Database['public']['Tables']['jobs']['Update']
+
+/** Pause before replacing a realtime channel that was lost. */
+const RESUBSCRIBE_DELAY_MS = 2000
 
 /** The statuses the production feed lists: work that waits for, or is with, its assignee. */
 export const PRODUCTION_FEED_STATUSES: readonly JobStatus[] = ['PREPRESS', 'IN_PRODUCTION']
@@ -34,6 +38,7 @@ export type ProductionJob = Pick<
 > & {
   orders: {
     order_number: string
+    status: OrderStatus
     deadline: string | null
     delivery: DeliveryChoice | null
     priority: Priority
@@ -43,21 +48,22 @@ export type ProductionJob = Pick<
 }
 
 const PRODUCTION_JOB_SELECT =
-  'id, job_number, order_id, department, status, deadline, delivery, priority, assignee_id, is_cancelled, customer_approval_required, customer_approval_granted, orders!inner(order_number, deadline, delivery, priority, is_archived, customers(name)), department_products(count)'
+  'id, job_number, order_id, department, status, deadline, delivery, priority, assignee_id, is_cancelled, customer_approval_required, customer_approval_granted, orders!inner(order_number, status, deadline, delivery, priority, is_archived, customers(name)), department_products(count)'
 
 /**
- * Feed order: effective deadline ascending with undated jobs last, then
- * priority HIGH before NORMAL, then job number for a stable list.
+ * Feed order: effective priority HIGH before NORMAL regardless of date, then
+ * effective deadline ascending with undated jobs last, then job number for a
+ * stable list.
  */
 function compareProductionJobs(left: ProductionJob, right: ProductionJob): number {
   const leftEffective = resolveEffectiveJob(left, left.orders)
   const rightEffective = resolveEffectiveJob(right, right.orders)
-  const leftDeadline = leftEffective.deadline ?? '9999-12-31'
-  const rightDeadline = rightEffective.deadline ?? '9999-12-31'
-  if (leftDeadline !== rightDeadline) return leftDeadline < rightDeadline ? -1 : 1
   if (leftEffective.priority !== rightEffective.priority) {
     return leftEffective.priority === 'HIGH' ? -1 : 1
   }
+  const leftDeadline = leftEffective.deadline ?? '9999-12-31'
+  const rightDeadline = rightEffective.deadline ?? '9999-12-31'
+  if (leftDeadline !== rightDeadline) return leftDeadline < rightDeadline ? -1 : 1
   return left.job_number.localeCompare(right.job_number)
 }
 
@@ -206,6 +212,56 @@ class JobService {
       .eq('department', department)
     if (error) throw error
     return (data ?? []) as unknown as ActiveJobSlim[]
+  }
+
+  /**
+   * Realtime subscription: fires `onChanged` on any INSERT/UPDATE/DELETE of
+   * `jobs` or `orders` (the order carries the inherited deadline, priority,
+   * delivery and the archive flag), so the production feed can refetch.
+   *
+   * Self-healing: a channel that errors, times out or closes without being
+   * asked to (dropped network, laptop sleep, a hot reload in development) is
+   * replaced after a short pause, and `onChanged` fires once the replacement
+   * is subscribed so changes missed in the gap are picked up.
+   * Returns an unsubscribe function.
+   */
+  subscribeToJobChanges(onChanged: () => void): () => void {
+    let channel: RealtimeChannel | null = null
+    let stopped = false
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
+    let reconnecting = false
+
+    const open = () => {
+      // A unique topic per channel: supabase.channel() hands back an existing
+      // channel of the same name, so a remount (StrictMode, page switch) would
+      // reuse the one still being removed and die with it.
+      const current: RealtimeChannel = supabase
+        .channel(`production-feed-refresh:${crypto.randomUUID()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, () => onChanged())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => onChanged())
+        .subscribe(status => {
+          // Ignore channels already replaced or unsubscribed on purpose.
+          if (stopped || current !== channel) return
+          if (status === 'SUBSCRIBED') {
+            if (reconnecting) onChanged()
+            reconnecting = false
+            return
+          }
+          // CHANNEL_ERROR, TIMED_OUT, or CLOSED that we did not ask for.
+          channel = null
+          reconnecting = true
+          void supabase.removeChannel(current)
+          retryTimer = setTimeout(open, RESUBSCRIBE_DELAY_MS)
+        })
+      channel = current
+    }
+
+    open()
+    return () => {
+      stopped = true
+      clearTimeout(retryTimer)
+      if (channel) void supabase.removeChannel(channel)
+    }
   }
 }
 

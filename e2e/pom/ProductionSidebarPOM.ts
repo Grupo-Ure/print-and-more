@@ -38,6 +38,16 @@ export class ProductionSidebarPOM extends BasePOM {
     return this.withAttr(this.page.getByTestId(IDS.assigneeFilterUser), 'data-user-id', userId)
   }
 
+  /**
+   * Widens the feed from the signed-in user's own jobs to everyone's and waits
+   * for the filter to drop its user. Navigation, for a spec's Setup stage.
+   */
+  async showEveryone(): Promise<void> {
+    await this.assigneeFilter.click()
+    await this.assigneeFilterEveryone.click()
+    await this.assigneeFilter.and(this.page.locator(':not([data-value])')).waitFor()
+  }
+
   rowJobNumber(row: Locator): Locator {
     return row.getByTestId(IDS.rowJobNumber)
   }

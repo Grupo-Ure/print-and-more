@@ -104,6 +104,7 @@ export const TEST_IDS = {
       row: 'orders-sidebar-row',
       rowNumber: 'orders-sidebar-row-number',
       rowCustomer: 'orders-sidebar-row-customer',
+      rowDeadline: 'orders-sidebar-row-deadline',
       rowStatus: 'orders-sidebar-row-status',
       rowMenuTrigger: 'orders-sidebar-row-menu-trigger',
       rowMenuDuplicate: 'orders-sidebar-row-menu-duplicate',
@@ -181,6 +182,7 @@ export const TEST_IDS = {
         deadline: 'order-settings-deadline',
         /** The deadline's calendar popover; day cells inside carry `data-day` = ISO date (react-day-picker). */
         deadlineCalendar: 'order-settings-deadline-calendar',
+        deadlineHint: 'order-settings-deadline-hint',
         delivery: 'order-settings-delivery',
         priority: 'order-settings-priority',
         payment: 'order-settings-payment',
@@ -215,6 +217,8 @@ export const TEST_IDS = {
       /** One per job; `data-job-id`, `data-status` = JobStatus. */
       row: 'job-list-row',
       rowMissingInfo: 'job-list-row-missing-info',
+      rowHighPriority: 'job-list-row-high-priority',
+      rowDeadlineMissed: 'job-list-row-deadline-missed',
       contextMenu: {
         advance: 'job-context-menu-advance',
         delete: 'job-context-menu-delete',
@@ -226,6 +230,7 @@ export const TEST_IDS = {
       root: 'job-detail',
       title: 'job-detail-title',
       assignee: 'job-detail-assignee',
+      assigneeHint: 'job-detail-assignee-hint',
       /** `data-status` = JobStatus. */
       status: 'job-detail-status',
       settingsButton: 'job-detail-settings',
@@ -333,11 +338,18 @@ export const TEST_IDS = {
       /** States what the feed shows: every job, or the jobs of the chosen user. */
       assigneeFilterCaption: 'production-sidebar-assignee-filter-caption',
       list: 'production-sidebar-list',
+      /** Header above each priority group, shown only while the list holds high-priority jobs; `data-priority` = HIGH | NORMAL. */
+      priorityGroup: 'production-sidebar-priority-group',
       empty: 'production-sidebar-empty',
-      /** One per job; `data-job-id`, `data-order-id`, `data-status` = JobStatus, `data-department`. */
+      /** One per job; `data-job-id`, `data-order-id`, `data-status` = JobStatus, `data-department`, `data-new` while marked new. */
       row: 'production-sidebar-row',
+      /** The "New" pill on a job that entered the list while the page was open and has not been clicked. */
+      rowNew: 'production-sidebar-row-new',
+      rowMissingInfo: 'production-sidebar-row-missing-info',
+      rowDeadlineMissed: 'production-sidebar-row-deadline-missed',
       rowJobNumber: 'production-sidebar-row-job-number',
       rowCustomer: 'production-sidebar-row-customer',
+      rowDeadline: 'production-sidebar-row-deadline',
       /** `data-status` = JobStatus. */
       rowStatus: 'production-sidebar-row-status',
       /** `data-user-id` = assignee, or absent while unassigned. */

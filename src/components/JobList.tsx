@@ -1,6 +1,5 @@
-import { AlertTriangle } from 'lucide-react'
 import { formatMinutes } from '../lib/formatMinutes'
-import { isInProductionMissingInfo, shortJobNumber } from '../lib/jobShared'
+import { isDeadlineMissed, isMissingInfo, resolveEffectiveJob, shortJobNumber } from '../lib/jobShared'
 import { type JobStatus } from '../types/database'
 import { useOrderSelection } from '../hooks/useOrderSelection'
 import { useJobsByOrderId } from '../queries/jobQueries'
@@ -9,6 +8,7 @@ import { useProductCountsByOrderId } from '../queries/productQueries'
 import { useTimeLogMinutesByOrderId } from '../queries/timeLogQueries'
 import { AddJobButtons } from './AddJobButtons'
 import { JobContextMenu } from './JobContextMenu'
+import { DeadlineMissedFlag, HighPriorityFlag, MissingInfoFlag } from './Flags'
 import { cn } from '@/lib/utils'
 import { JOB_STATUS_META, WORKFLOW_STATUSES } from '../const/orderStatus'
 import { TEST_IDS } from '@e2e/support/testIds'
@@ -76,15 +76,16 @@ export function JobList() {
                 <span className="truncate">{shortJobNumber(job.job_number)}</span>
                 {order &&
                   productCounts &&
-                  isInProductionMissingInfo(job, order, (productCounts[job.id] ?? 0) > 0) && (
-                    <span data-testid={IDS.rowMissingInfo} title="In production with missing information">
-                      <AlertTriangle
-                        size={14}
-                        className="text-red-700 shrink-0"
-                        aria-label="In production with missing information"
-                      />
-                    </span>
+                  isMissingInfo(job, order, (productCounts[job.id] ?? 0) > 0) && (
+                    <MissingInfoFlag size={14} testId={IDS.rowMissingInfo} />
                   )}
+                {order && isDeadlineMissed(job, order) && (
+                  <DeadlineMissedFlag size={14} testId={IDS.rowDeadlineMissed} />
+                )}
+                {/* Effective priority: a job without its own override inherits the order's. */}
+                {order && resolveEffectiveJob(job, order).priority === 'HIGH' && (
+                  <HighPriorityFlag size={14} testId={IDS.rowHighPriority} />
+                )}
               </span>
               {(minutesByJob?.[job.id] ?? 0) > 0 && (
                 <span

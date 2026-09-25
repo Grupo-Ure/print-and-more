@@ -47,9 +47,18 @@ export class ProductionPOM extends BasePOM {
     await this.sidebar.root.waitFor()
   }
 
-  /** Opens the page, selects the job in the feed and waits for its detail. */
-  async openJob(jobId: string): Promise<void> {
+  /** Switches to the Production page and widens the feed to everyone's jobs. */
+  async openForEveryone(): Promise<void> {
     await this.open()
+    await this.sidebar.showEveryone()
+  }
+
+  /**
+   * Opens the page widened to everyone's jobs (a seeded job has no assignee),
+   * selects the job in the feed and waits for its detail.
+   */
+  async openJob(jobId: string): Promise<void> {
+    await this.openForEveryone()
     await this.sidebar.row(jobId).click()
     await this.jobDetail.forJob(jobId).waitFor()
   }

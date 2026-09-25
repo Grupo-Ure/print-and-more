@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toDateOnly } from '../lib/formatDate'
 import { formatMinutes } from '../lib/formatMinutes'
-import { areAllJobsDone } from '../lib/jobShared'
+import { areAllJobsDone, isMissingDeadline } from '../lib/jobShared'
 import { formatCustomerAddress } from '../lib/customer'
 import {
   type DeliveryChoice,
@@ -95,16 +95,9 @@ export function OrderDetails() {
     return visibleJobs.find(job => job.id === activeJobId) ?? null
   }, [visibleJobs, activeJobId])
 
-  // The active job is held in setup for want of a deadline it inherits from the
-  // order (same condition as its "no deadline set" banner) — guide the user to
-  // the order's deadline field.
-  const deadlineRequired =
-    order != null &&
-    order.status !== 'QUOTE' &&
-    order.deadline == null &&
-    activeJob != null &&
-    activeJob.status === 'IN_SETUP' &&
-    activeJob.deadline == null
+  // The active job has no deadline, neither its own nor the order's — guide
+  // the user to the order's deadline field.
+  const deadlineRequired = order != null && activeJob != null && isMissingDeadline(activeJob, order)
 
   // Pick a default job tab when ?sub= is unset or no longer matches a visible row.
   useEffect(() => {
@@ -148,13 +141,12 @@ export function OrderDetails() {
     if (order.payment_method === 'CASH') {
       const confirmed = await confirm({
         title: 'Finish and close this cash order?',
-        description: 'Paid in cash — no invoice step. The order will be archived and hidden from the order list.',
+        description: 'Paid in cash — no invoice step. The order is closed and becomes read-only.',
         confirmLabel: 'Finish & close',
       })
       if (!confirmed) return
       try {
         await markBilled.mutateAsync({ id: order.id, paidCash: true })
-        clearActive()
       } catch {
         showError('Order could not be closed')
       }
@@ -199,13 +191,12 @@ export function OrderDetails() {
     if (!order || order.status !== 'FINISHED') return
     const confirmed = await confirm({
       title: 'Mark this order as invoiced?',
-      description: 'It will be archived and hidden from the order list.',
+      description: 'The order is closed and becomes read-only.',
       confirmLabel: 'Mark invoiced',
     })
     if (!confirmed) return
     try {
       await markBilled.mutateAsync({ id: order.id })
-      clearActive()
     } catch {
       showError('Order could not be marked as invoiced')
     }
@@ -459,8 +450,8 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
   return (
     <header className="flex flex-col">
       <div className="flex flex-wrap gap-x-4 gap-y-1 items-center justify-between">
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-1">
+        <div className="flex flex-col items-start text-sm text-muted-foreground">
+          <div className="flex items-center gap-">
             <h1 data-testid={HEADER_IDS.customerName} title="Customer">
               {customerDisplayName}
             </h1>
@@ -475,57 +466,59 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
               <Settings />
             </Button>
           </div>
-          {customerEmail && (
-            <div className="flex items-center gap-1">
-              <p data-testid={HEADER_IDS.customerEmail} title="Email">
-                <span className="font-medium">Email:</span> {customerEmail}
-              </p>
-              <Button
-                onClick={() => copyToClipboard(customerEmail, 'Email')}
-                title="Copy email"
-                aria-label="Copy email"
-                data-testid={HEADER_IDS.copyCustomerEmail}
-                variant="ghost"
-                size="icon-sm"
-              >
-                <Copy />
-              </Button>
-            </div>
-          )}
-          {customerPhone && (
-            <div className="flex items-center gap-1">
-              <p data-testid={HEADER_IDS.customerPhone} title="Phone">
-                <span className="font-medium">Phone:</span> {customerPhone}
-              </p>
-              <Button
-                onClick={() => copyToClipboard(customerPhone, 'Phone number')}
-                title="Copy phone number"
-                aria-label="Copy phone number"
-                data-testid={HEADER_IDS.copyCustomerPhone}
-                variant="ghost"
-                size="icon-sm"
-              >
-                <Copy />
-              </Button>
-            </div>
-          )}
-          {customerAddress && (
-            <div className="flex items-center gap-1">
-              <p data-testid={HEADER_IDS.customerAddress} title="Address">
-                <span className="font-medium">Address:</span> {customerAddress}
-              </p>
-              <Button
-                onClick={() => copyToClipboard(customerAddress, 'Address')}
-                title="Copy address"
-                aria-label="Copy address"
-                data-testid={HEADER_IDS.copyCustomerAddress}
-                variant="ghost"
-                size="icon-sm"
-              >
-                <Copy />
-              </Button>
-            </div>
-          )}
+          <div className="flex gap-2">
+            {customerEmail && (
+              <div className="flex items-center gap-1">
+                <p data-testid={HEADER_IDS.customerEmail} title="Email">
+                  <span className="font-medium">Email:</span> {customerEmail}
+                </p>
+                <Button
+                  onClick={() => copyToClipboard(customerEmail, 'Email')}
+                  title="Copy email"
+                  aria-label="Copy email"
+                  data-testid={HEADER_IDS.copyCustomerEmail}
+                  variant="ghost"
+                  size="icon-sm"
+                >
+                  <Copy />
+                </Button>
+              </div>
+            )}
+            {customerPhone && (
+              <div className="flex items-center gap-1">
+                <p data-testid={HEADER_IDS.customerPhone} title="Phone">
+                  <span className="font-medium">Phone:</span> {customerPhone}
+                </p>
+                <Button
+                  onClick={() => copyToClipboard(customerPhone, 'Phone number')}
+                  title="Copy phone number"
+                  aria-label="Copy phone number"
+                  data-testid={HEADER_IDS.copyCustomerPhone}
+                  variant="ghost"
+                  size="icon-sm"
+                >
+                  <Copy />
+                </Button>
+              </div>
+            )}
+            {customerAddress && (
+              <div className="flex items-center gap-1">
+                <p data-testid={HEADER_IDS.customerAddress} title="Address">
+                  <span className="font-medium">Address:</span> {customerAddress}
+                </p>
+                <Button
+                  onClick={() => copyToClipboard(customerAddress, 'Address')}
+                  title="Copy address"
+                  aria-label="Copy address"
+                  data-testid={HEADER_IDS.copyCustomerAddress}
+                  variant="ghost"
+                  size="icon-sm"
+                >
+                  <Copy />
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-1">
           {order.status === 'QUOTE' && hasJobs && (
@@ -785,6 +778,14 @@ function OrderSettings({ order, onSave, deadlineRequired }: OrderSettingsProps) 
           }
         }}
       />
+      {deadlineRequired && headerDeadline === '' && (
+        <span
+          data-testid={SETTINGS_IDS.deadlineHint}
+          className="animate-in fade-in zoom-in-75 text-xs font-medium text-destructive"
+        >
+          Set a deadline
+        </span>
+      )}
       <DeliverySelect
         testId={SETTINGS_IDS.delivery}
         value={headerDelivery}

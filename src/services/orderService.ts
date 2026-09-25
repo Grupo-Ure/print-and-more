@@ -39,6 +39,16 @@ export type OrderListEntry = {
   customer_id: string
   customers: { name: string } | null
   jobs: OrderListJob[] | null
+  /** The order's finish/close history events, newest first — the row's "Finished on" / "Billed on" date. */
+  closing_events: OrderClosingEvent[] | null
+}
+
+/** History events that finish or close an order; the list embeds only these. */
+const CLOSING_EVENT_TYPES = ['ORDER_FINISHED', 'ORDER_BILLED', 'ORDER_CLOSED_CASH'] as const
+
+export type OrderClosingEvent = {
+  event_type: (typeof CLOSING_EVENT_TYPES)[number]
+  created_at: string
 }
 
 /**
@@ -54,7 +64,7 @@ function flattenCustomerJoin<T extends { customers: unknown }>(row: T): T {
 }
 
 const ORDER_LIST_SELECT =
-  'id, order_number, status, created_at, deadline, delivery, priority, customer_id, customers(name), jobs(id, department, status, deadline, delivery, priority, assignee_id, is_cancelled, department_products(count))'
+  'id, order_number, status, created_at, deadline, delivery, priority, customer_id, customers(name), jobs(id, department, status, deadline, delivery, priority, assignee_id, is_cancelled, department_products(count)), closing_events:history(event_type, created_at)'
 
 export type OrderListParams = {
   /**
@@ -92,6 +102,8 @@ class OrderService {
       .from('orders')
       .select(ORDER_LIST_SELECT)
       .order('created_at', { ascending: false })
+      .in('closing_events.event_type', CLOSING_EVENT_TYPES)
+      .order('created_at', { referencedTable: 'closing_events', ascending: false })
     if (!params.includeArchived) query = query.or('is_archived.eq.false,status.eq.BILLED')
     if (params.customerIds) query = query.in('customer_id', params.customerIds)
     if (params.statuses) query = query.in('status', params.statuses)
@@ -233,7 +245,7 @@ class OrderService {
    */
   subscribeToCustomerChanges(onChanged: (customerId: string) => void): () => void {
     const channel = supabase
-      .channel('orderlist-kunden-refresh')
+      .channel(`order-list-customer-refresh:${crypto.randomUUID()}`) // unique per subscription, see jobService.subscribeToJobChanges
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'customers' }, payload => {
         const customerId = (payload.new as { id?: string } | null)?.id
         if (customerId) onChanged(customerId)

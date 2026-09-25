@@ -4,8 +4,8 @@ import { ORDER_STATUS_LIST, type Department, type OrderStatus } from '../../type
 const DEFAULT_STATUS_TOGGLES: Record<OrderStatus, boolean> = {
   QUOTE: true,
   IN_PROGRESS: true,
-  FINISHED: false,
-  BILLED: false,
+  FINISHED: true,
+  BILLED: true,
 }
 
 export type FilterState = {

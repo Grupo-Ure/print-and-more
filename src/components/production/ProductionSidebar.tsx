@@ -1,18 +1,19 @@
-import { useEffect, useMemo, useState } from 'react'
-import { ArrowUp, UserRound } from 'lucide-react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import { ArrowUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Sidebar, SidebarContent, SidebarHeader } from '@/components/ui/sidebar'
 import { JOB_STATUS_META } from '../../const/orderStatus'
 import { jobDepartmentLabel } from '../../const/departmentAbbreviation'
 import { departmentIcon } from '../../const/departmentIcons'
 import { useNavigation } from '../../context/navigation.context'
-import { formatDateDe } from '../../lib/formatDate'
-import { resolveEffectiveJob } from '../../lib/jobShared'
+import { isDeadlineMissed, isMissingInfo, resolveEffectiveJob } from '../../lib/jobShared'
 import { useProductionJobs } from '../../queries/jobQueries'
-import { useIsAdmin, useUsers } from '../../queries/userQueries'
+import { useUsers } from '../../queries/userQueries'
 import type { ProductionJob } from '../../services/jobService'
 import type { UserRow } from '../../services/userService'
 import { StatusBadge } from '../StatusBadge'
+import { DueDate } from '../DueDate'
+import { DeadlineMissedFlag, HighPriorityFlag, MissingInfoFlag } from '../Flags'
 import { UserAvatar } from '../UserAvatar'
 import { EmployeeCombobox } from '../fields/EmployeeCombobox'
 import { useToast } from '../Toast'
@@ -22,21 +23,20 @@ const IDS = TEST_IDS.production.sidebar
 
 /**
  * The production feed: every job in pre-press or production across all
- * orders, soonest effective deadline first, narrowed to one assignee through
- * the same combobox the job header uses. Employees start on their own jobs;
- * admins start on everyone's. Selecting a row shows the job beside the feed.
+ * orders, high priority first, then soonest effective deadline, narrowed to one assignee through
+ * the same combobox the job header uses. Everyone starts on their own jobs.
+ * Selecting a row shows the job beside the feed.
  */
 export function ProductionSidebar({ currentUserId }: { currentUserId: string }) {
   const { activeJobId, selectJob } = useNavigation()
-  const { isAdmin, isLoading: roleLoading } = useIsAdmin()
   const { data: users = [] } = useUsers()
   const jobsQuery = useProductionJobs()
   const { showError } = useToast()
 
-  // The role decides the default; a pick overrides it for this visit.
-  // `undefined` = not picked yet; `null` = everyone.
-  const [pickedAssigneeId, setPickedAssigneeId] = useState<string | null | undefined>(undefined)
-  const assigneeId = pickedAssigneeId === undefined ? (isAdmin ? null : currentUserId) : pickedAssigneeId
+  // The signed-in user is the default; a pick overrides it for this visit.
+  // `null` = everyone.
+  const [assigneeId, setAssigneeId] = useState<string | null>(currentUserId)
+  const { newJobIds, clearNew } = useNewJobMarks(jobsQuery.data, assigneeId)
 
   useEffect(() => {
     if (jobsQuery.isError) showError('Production jobs could not be loaded')
@@ -50,8 +50,9 @@ export function ProductionSidebar({ currentUserId }: { currentUserId: string }) 
     return assigneeId ? all.filter(job => job.assignee_id === assigneeId) : all
   }, [jobsQuery.data, assigneeId])
 
-  const isLoading = jobsQuery.isLoading || roleLoading
+  const isLoading = jobsQuery.isLoading
   const isEmpty = !isLoading && jobs.length === 0
+  const hasHighPriority = jobs.some(isHighPriority)
 
   return (
     <Sidebar
@@ -69,8 +70,7 @@ export function ProductionSidebar({ currentUserId }: { currentUserId: string }) 
             userOptionTestId={IDS.assigneeFilterUser}
             value={assigneeId}
             emptyLabel="Everyone"
-            disabled={roleLoading}
-            onChange={user => setPickedAssigneeId(user?.id ?? null)}
+            onChange={user => setAssigneeId(user?.id ?? null)}
           />
         </div>
         <p
@@ -105,18 +105,87 @@ export function ProductionSidebar({ currentUserId }: { currentUserId: string }) 
             </div>
           )}
           {!isLoading &&
-            jobs.map(job => (
-              <ProductionSidebarItem
-                key={job.id}
-                job={job}
-                assignee={job.assignee_id ? usersById.get(job.assignee_id) ?? null : null}
-                isActive={job.id === activeJobId}
-                onSelect={() => selectJob(job.order_id, job.id)}
-              />
-            ))}
+            jobs.map((job, index) => {
+              // The feed lists high priority first; label both groups, but
+              // only when there is a high-priority group to set apart.
+              const isHigh = isHighPriority(job)
+              const startsGroup = hasHighPriority && (index === 0 || isHighPriority(jobs[index - 1]) !== isHigh)
+              return (
+                <Fragment key={job.id}>
+                  {startsGroup && <PriorityGroupHeader high={isHigh} />}
+                  <ProductionSidebarItem
+                    job={job}
+                    assignee={job.assignee_id ? usersById.get(job.assignee_id) ?? null : null}
+                    isActive={job.id === activeJobId}
+                    isNew={newJobIds.has(job.id)}
+                    onSelect={() => {
+                      clearNew(job.id)
+                      selectJob(job.order_id, job.id)
+                    }}
+                  />
+                </Fragment>
+              )
+            })}
         </div>
       </SidebarContent>
     </Sidebar>
+  )
+}
+
+/**
+ * Jobs that a data update adds to the visible list while the page is open
+ * stay marked as new until clicked or the page unmounts: a job entering the
+ * feed, or one reassigned to the filtered user. The first load and filter
+ * changes never mark anything. A job that leaves and comes back counts as
+ * new again.
+ */
+function useNewJobMarks(jobs: ProductionJob[] | undefined, assigneeId: string | null) {
+  const [previousJobs, setPreviousJobs] = useState(jobs)
+  const [newJobIds, setNewJobIds] = useState<ReadonlySet<string>>(() => new Set())
+
+  // Compare against the previous fetch during render (React's "adjust state
+  // on prop change" pattern), so a new row is marked in its first paint.
+  // Both fetches go through the current filter, so only the data can differ.
+  if (jobs !== previousJobs) {
+    setPreviousJobs(jobs)
+    if (previousJobs && jobs) {
+      const isVisible = (job: ProductionJob) => !assigneeId || job.assignee_id === assigneeId
+      const before = new Set(previousJobs.filter(isVisible).map(job => job.id))
+      const arrived = jobs.filter(job => isVisible(job) && !before.has(job.id)).map(job => job.id)
+      if (arrived.length > 0) setNewJobIds(marked => new Set([...marked, ...arrived]))
+    }
+  }
+
+  const clearNew = useCallback((jobId: string) => {
+    setNewJobIds(marked => {
+      if (!marked.has(jobId)) return marked
+      const next = new Set(marked)
+      next.delete(jobId)
+      return next
+    })
+  }, [])
+
+  return { newJobIds, clearNew }
+}
+
+function isHighPriority(job: ProductionJob): boolean {
+  return resolveEffectiveJob(job, job.orders).priority === 'HIGH'
+}
+
+/** Labelled divider above each priority group of the feed. */
+function PriorityGroupHeader({ high }: { high: boolean }) {
+  return (
+    <div
+      data-testid={IDS.priorityGroup}
+      data-priority={high ? 'HIGH' : 'NORMAL'}
+      className={cn(
+        'flex items-center gap-1 border-y px-3 py-1 text-base font-semibold tracking-wide justify-between',
+        high ? 'border-red-200 bg-red-50 text-red-400' : 'border-neutral-200 bg-neutral-100 text-neutral-500',
+      )}
+    >
+      {high ? 'High Priority' : 'Jobs'}
+      {high && <ArrowUp size={18} aria-hidden />}
+    </div>
   )
 }
 
@@ -124,10 +193,11 @@ type ProductionSidebarItemProps = {
   job: ProductionJob
   assignee: UserRow | null
   isActive: boolean
+  isNew: boolean
   onSelect: () => void
 }
 
-function ProductionSidebarItem({ job, assignee, isActive, onSelect }: ProductionSidebarItemProps) {
+function ProductionSidebarItem({ job, assignee, isActive, isNew, onSelect }: ProductionSidebarItemProps) {
   const effective = resolveEffectiveJob(job, job.orders)
   const { icon: DepartmentIcon, colorClassName } = departmentIcon(job.department)
   const departmentLabel = jobDepartmentLabel(job.department)
@@ -142,41 +212,64 @@ function ProductionSidebarItem({ job, assignee, isActive, onSelect }: Production
       data-order-id={job.order_id}
       data-status={job.status}
       data-department={job.department}
+      data-new={isNew ? 'true' : undefined}
       aria-current={isActive ? 'true' : undefined}
       onClick={onSelect}
-      onKeyDown={event => {
+      onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault()
-          onSelect()
+          event.preventDefault();
+          onSelect();
         }
       }}
       className={cn(
-        'flex cursor-pointer border-l-6 border-neutral-200 bg-white p-3 text-left hover:bg-neutral-100',
-        isActive && 'border-l-primary bg-primary/8',
+        'flex cursor-pointer border-l-6 h-32 border-neutral-100 bg-white px-3 py-2 text-left hover:bg-neutral-100 border-t-3',
+        isNew && !isActive && 'bg-blue-100',
+        isActive && 'border-l-primary bg-primary/10 hover:bg-primary/10',
       )}
     >
-      <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
-        <div className="flex items-center gap-1.5">
-          <span title={departmentLabel} className="inline-flex shrink-0">
-            <DepartmentIcon size={16} className={colorClassName} aria-label={departmentLabel} />
-          </span>
-          <h2 data-testid={IDS.rowCustomer} className="min-w-0 flex-1 truncate font-semibold" title={customerName}>
-            {customerName}
-          </h2>
-          {effective.priority === 'HIGH' && (
-            <span title="High priority">
-              <ArrowUp size={16} className="shrink-0 text-blue-600" aria-label="High priority" />
+      <div className="flex min-w-0 flex-1 flex-col justify-between gap-0.5">
+        <div>
+          <div className="flex items-center gap-1.5">
+            <span title={departmentLabel} className="inline-flex shrink-0">
+              <DepartmentIcon
+                size={16}
+                className={colorClassName}
+                aria-label={departmentLabel}
+              />
             </span>
-          )}
-        </div>
-        <span data-testid={IDS.rowJobNumber} className="truncate text-[13px] text-neutral-500">
-          {job.job_number}
-        </span>
-        <div className="flex items-center justify-between gap-1.5">
-          <span className="truncate text-[13px] text-neutral-500">
-            {'deadline: '}
-            {effective.deadline ? formatDateDe(effective.deadline) : 'no deadline'}
+            <h2
+              data-testid={IDS.rowCustomer}
+              className="min-w-0 flex-1 truncate font-semibold"
+              title={customerName}
+            >
+              {customerName}
+            </h2>
+            {isNew && (
+              <span
+                data-testid={IDS.rowNew}
+                title="New — not opened yet"
+                className="shrink-0 rounded-full bg-blue-600 px-2 text-[12px] leading-4 text-white"
+              >
+                New
+              </span>
+            )}
+            {isMissingInfo(job, job.orders, (job.department_products[0]?.count ?? 0) > 0) && (
+              <MissingInfoFlag size={20} testId={IDS.rowMissingInfo} />
+            )}
+            {isDeadlineMissed(job, job.orders) && (
+              <DeadlineMissedFlag size={20} testId={IDS.rowDeadlineMissed} />
+            )}
+            {effective.priority === 'HIGH' && <HighPriorityFlag size={20} animate />}
+          </div>
+          <span
+            data-testid={IDS.rowJobNumber}
+            className="truncate text-[15px] text-neutral-500"
+          >
+            {job.job_number}
           </span>
+        </div>
+        <div className="flex items-center justify-between gap-1.5">
+          <DueDate deadline={effective.deadline} testId={IDS.rowDeadline} />
           <span className="flex shrink-0 items-center gap-1.5">
             <span data-testid={IDS.rowStatus} data-status={job.status}>
               <StatusBadge meta={JOB_STATUS_META[job.status]} />
@@ -187,15 +280,17 @@ function ProductionSidebarItem({ job, assignee, isActive, onSelect }: Production
               title={assignee ? `Assigned to ${assignee.name}` : 'Unassigned'}
               className="inline-flex"
             >
-              {assignee ? (
-                <UserAvatar name={assignee.name} avatarUrl={assignee.avatar_url} className="size-5 text-[10px]" />
-              ) : (
-                <UserRound className="size-5 text-neutral-400" aria-label="Unassigned" />
-              )}
+              {assignee && 
+                <UserAvatar
+                  name={assignee.name}
+                  avatarUrl={assignee.avatar_url}
+                  className="size-8 text-base"
+                />
+              }
             </span>
           </span>
         </div>
       </div>
     </div>
-  )
+  );
 }

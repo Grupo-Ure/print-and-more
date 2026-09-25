@@ -74,7 +74,7 @@ export function NewOrderDialog() {
           <Button
             type="button"
             data-testid={TEST_IDS.orders.sidebar.newOrderButton}
-            className="h-10 text-base px-6 desktop:h-16 desktop:text-2xl desktop:px-12 m-auto"
+            className="h-10 w-full rounded-none text-base desktop:h-16 desktop:text-2xl"
           >
             <Plus strokeWidth={4} />
             New Order

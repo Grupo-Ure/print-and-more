@@ -32,23 +32,24 @@
   animation: attention-ring 2s ease-in-out infinite;
 }
 
-/* Deadline field guidance: a pulsing red ring while a job is held in setup for
-   want of a deadline… */
-@keyframes deadline-required {
+/* Required-field guidance: a pulsing red ring while a field needs filling (a
+   job held in setup for want of a deadline, a job past setup with nobody
+   assigned)… */
+@keyframes field-required {
   0%, 100% { box-shadow: 0 0 0 2px var(--destructive); }
   50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--destructive) 40%, transparent); }
 }
-.animate-deadline-required {
-  animation: deadline-required 1.4s ease-in-out infinite;
+.animate-field-required {
+  animation: field-required 1.4s ease-in-out infinite;
 }
-/* …which turns green and fades away once one is set. */
-@keyframes deadline-settled {
+/* …which turns green and fades away once the field is filled. */
+@keyframes field-settled {
   0% { box-shadow: 0 0 0 2px var(--destructive); }
   30%, 70% { box-shadow: 0 0 0 2px var(--color-green-500); }
   100% { box-shadow: 0 0 0 2px transparent; }
 }
-.animate-deadline-settled {
-  animation: deadline-settled 1.5s ease-out forwards;
+.animate-field-settled {
+  animation: field-settled 1.5s ease-out forwards;
 }
 
 :root {

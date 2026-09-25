@@ -24,7 +24,7 @@ export function ProductionPage() {
   return (
     <SidebarProvider
       defaultOpen
-      style={{ '--sidebar-width': isCompact ? '15rem' : '17.5rem' } as CSSProperties}
+      style={{ '--sidebar-width': isCompact ? '15rem' : '26rem' } as CSSProperties}
       className="h-full min-h-0 font-sans text-sm"
       data-testid={TEST_IDS.production.root}
     >

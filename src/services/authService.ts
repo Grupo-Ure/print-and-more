@@ -1,5 +1,5 @@
 import { supabase } from '../supabase'
-import type { Session, User, AuthChangeEvent, Subscription } from '@supabase/supabase-js'
+import { isAuthApiError, type Session, type User, type AuthChangeEvent, type Subscription } from '@supabase/supabase-js'
 
 class AuthService {
   async getSession(): Promise<Session | null> {
@@ -11,6 +11,22 @@ class AuthService {
   async getUser(): Promise<User | null> {
     const { data } = await supabase.auth.getUser()
     return data.user
+  }
+
+  /**
+   * getSession() only reads local storage, so a session whose user no longer
+   * exists (account deleted, local database reset) still looks signed in and
+   * every query comes back empty. Ask the auth server once; if it rejects the
+   * user, drop the stored session so the pages fall back to the login.
+   * Network failures keep the session — offline is not signed out.
+   */
+  async discardRevokedSession(): Promise<void> {
+    const { data } = await supabase.auth.getSession()
+    if (!data.session) return
+    const { error } = await supabase.auth.getUser()
+    if (error && isAuthApiError(error) && (error.status === 401 || error.status === 403)) {
+      await supabase.auth.signOut({ scope: 'local' })
+    }
   }
 
   async signIn(email: string, password: string): Promise<Session> {
