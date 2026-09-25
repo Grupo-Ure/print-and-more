@@ -333,6 +333,8 @@ export const TEST_IDS = {
       /** States what the feed shows: every job, or the jobs of the chosen user. */
       assigneeFilterCaption: 'production-sidebar-assignee-filter-caption',
       list: 'production-sidebar-list',
+      /** Header above each priority group, shown only while the list holds high-priority jobs; `data-priority` = HIGH | NORMAL. */
+      priorityGroup: 'production-sidebar-priority-group',
       empty: 'production-sidebar-empty',
       /** One per job; `data-job-id`, `data-order-id`, `data-status` = JobStatus, `data-department`. */
       row: 'production-sidebar-row',

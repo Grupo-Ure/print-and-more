@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { CircleAlert, UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Sidebar, SidebarContent, SidebarHeader } from '@/components/ui/sidebar'
@@ -22,7 +22,7 @@ const IDS = TEST_IDS.production.sidebar
 
 /**
  * The production feed: every job in pre-press or production across all
- * orders, soonest effective deadline first, narrowed to one assignee through
+ * orders, high priority first, then soonest effective deadline, narrowed to one assignee through
  * the same combobox the job header uses. Employees start on their own jobs;
  * admins start on everyone's. Selecting a row shows the job beside the feed.
  */
@@ -52,6 +52,7 @@ export function ProductionSidebar({ currentUserId }: { currentUserId: string }) 
 
   const isLoading = jobsQuery.isLoading || roleLoading
   const isEmpty = !isLoading && jobs.length === 0
+  const hasHighPriority = jobs.some(isHighPriority)
 
   return (
     <Sidebar
@@ -105,18 +106,47 @@ export function ProductionSidebar({ currentUserId }: { currentUserId: string }) 
             </div>
           )}
           {!isLoading &&
-            jobs.map(job => (
-              <ProductionSidebarItem
-                key={job.id}
-                job={job}
-                assignee={job.assignee_id ? usersById.get(job.assignee_id) ?? null : null}
-                isActive={job.id === activeJobId}
-                onSelect={() => selectJob(job.order_id, job.id)}
-              />
-            ))}
+            jobs.map((job, index) => {
+              // The feed lists high priority first; label both groups, but
+              // only when there is a high-priority group to set apart.
+              const isHigh = isHighPriority(job)
+              const startsGroup = hasHighPriority && (index === 0 || isHighPriority(jobs[index - 1]) !== isHigh)
+              return (
+                <Fragment key={job.id}>
+                  {startsGroup && <PriorityGroupHeader high={isHigh} />}
+                  <ProductionSidebarItem
+                    job={job}
+                    assignee={job.assignee_id ? usersById.get(job.assignee_id) ?? null : null}
+                    isActive={job.id === activeJobId}
+                    onSelect={() => selectJob(job.order_id, job.id)}
+                  />
+                </Fragment>
+              )
+            })}
         </div>
       </SidebarContent>
     </Sidebar>
+  )
+}
+
+function isHighPriority(job: ProductionJob): boolean {
+  return resolveEffectiveJob(job, job.orders).priority === 'HIGH'
+}
+
+/** Labelled divider above each priority group of the feed. */
+function PriorityGroupHeader({ high }: { high: boolean }) {
+  return (
+    <div
+      data-testid={IDS.priorityGroup}
+      data-priority={high ? 'HIGH' : 'NORMAL'}
+      className={cn(
+        'flex items-center gap-1 border-y px-3 py-1 text-base font-semibold tracking-wide justify-between',
+        high ? 'border-red-200 bg-red-50 text-red-400' : 'border-neutral-200 bg-neutral-100 text-neutral-500',
+      )}
+    >
+      {high ? 'High Priority' : 'Jobs'}
+      {high && <CircleAlert size={18} aria-hidden />}
+    </div>
   )
 }
 
