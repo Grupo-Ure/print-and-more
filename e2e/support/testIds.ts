@@ -336,8 +336,10 @@ export const TEST_IDS = {
       /** Header above each priority group, shown only while the list holds high-priority jobs; `data-priority` = HIGH | NORMAL. */
       priorityGroup: 'production-sidebar-priority-group',
       empty: 'production-sidebar-empty',
-      /** One per job; `data-job-id`, `data-order-id`, `data-status` = JobStatus, `data-department`. */
+      /** One per job; `data-job-id`, `data-order-id`, `data-status` = JobStatus, `data-department`, `data-new` while marked new. */
       row: 'production-sidebar-row',
+      /** The "New" pill on a job that entered the list while the page was open and has not been clicked. */
+      rowNew: 'production-sidebar-row-new',
       rowJobNumber: 'production-sidebar-row-job-number',
       rowCustomer: 'production-sidebar-row-customer',
       /** `data-status` = JobStatus. */

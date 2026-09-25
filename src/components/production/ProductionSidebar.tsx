@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { CircleAlert, UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Sidebar, SidebarContent, SidebarHeader } from '@/components/ui/sidebar'
@@ -37,6 +37,7 @@ export function ProductionSidebar({ currentUserId }: { currentUserId: string }) 
   // `undefined` = not picked yet; `null` = everyone.
   const [pickedAssigneeId, setPickedAssigneeId] = useState<string | null | undefined>(undefined)
   const assigneeId = pickedAssigneeId === undefined ? (isAdmin ? null : currentUserId) : pickedAssigneeId
+  const { newJobIds, clearNew } = useNewJobMarks(jobsQuery.data, assigneeId)
 
   useEffect(() => {
     if (jobsQuery.isError) showError('Production jobs could not be loaded')
@@ -118,7 +119,11 @@ export function ProductionSidebar({ currentUserId }: { currentUserId: string }) 
                     job={job}
                     assignee={job.assignee_id ? usersById.get(job.assignee_id) ?? null : null}
                     isActive={job.id === activeJobId}
-                    onSelect={() => selectJob(job.order_id, job.id)}
+                    isNew={newJobIds.has(job.id)}
+                    onSelect={() => {
+                      clearNew(job.id)
+                      selectJob(job.order_id, job.id)
+                    }}
                   />
                 </Fragment>
               )
@@ -127,6 +132,42 @@ export function ProductionSidebar({ currentUserId }: { currentUserId: string }) 
       </SidebarContent>
     </Sidebar>
   )
+}
+
+/**
+ * Jobs that a data update adds to the visible list while the page is open
+ * stay marked as new until clicked or the page unmounts: a job entering the
+ * feed, or one reassigned to the filtered user. The first load and filter
+ * changes never mark anything. A job that leaves and comes back counts as
+ * new again.
+ */
+function useNewJobMarks(jobs: ProductionJob[] | undefined, assigneeId: string | null) {
+  const [previousJobs, setPreviousJobs] = useState(jobs)
+  const [newJobIds, setNewJobIds] = useState<ReadonlySet<string>>(() => new Set())
+
+  // Compare against the previous fetch during render (React's "adjust state
+  // on prop change" pattern), so a new row is marked in its first paint.
+  // Both fetches go through the current filter, so only the data can differ.
+  if (jobs !== previousJobs) {
+    setPreviousJobs(jobs)
+    if (previousJobs && jobs) {
+      const isVisible = (job: ProductionJob) => !assigneeId || job.assignee_id === assigneeId
+      const before = new Set(previousJobs.filter(isVisible).map(job => job.id))
+      const arrived = jobs.filter(job => isVisible(job) && !before.has(job.id)).map(job => job.id)
+      if (arrived.length > 0) setNewJobIds(marked => new Set([...marked, ...arrived]))
+    }
+  }
+
+  const clearNew = useCallback((jobId: string) => {
+    setNewJobIds(marked => {
+      if (!marked.has(jobId)) return marked
+      const next = new Set(marked)
+      next.delete(jobId)
+      return next
+    })
+  }, [])
+
+  return { newJobIds, clearNew }
 }
 
 function isHighPriority(job: ProductionJob): boolean {
@@ -154,10 +195,11 @@ type ProductionSidebarItemProps = {
   job: ProductionJob
   assignee: UserRow | null
   isActive: boolean
+  isNew: boolean
   onSelect: () => void
 }
 
-function ProductionSidebarItem({ job, assignee, isActive, onSelect }: ProductionSidebarItemProps) {
+function ProductionSidebarItem({ job, assignee, isActive, isNew, onSelect }: ProductionSidebarItemProps) {
   const effective = resolveEffectiveJob(job, job.orders)
   const { icon: DepartmentIcon, colorClassName } = departmentIcon(job.department)
   const departmentLabel = jobDepartmentLabel(job.department)
@@ -172,6 +214,7 @@ function ProductionSidebarItem({ job, assignee, isActive, onSelect }: Production
       data-order-id={job.order_id}
       data-status={job.status}
       data-department={job.department}
+      data-new={isNew ? 'true' : undefined}
       aria-current={isActive ? 'true' : undefined}
       onClick={onSelect}
       onKeyDown={event => {
@@ -182,7 +225,8 @@ function ProductionSidebarItem({ job, assignee, isActive, onSelect }: Production
       }}
       className={cn(
         'flex cursor-pointer border-l-6 border-neutral-200 bg-white p-3 text-left hover:bg-neutral-100',
-        isActive && 'border-l-primary bg-primary/8',
+        isNew && !isActive && 'bg-blue-100',
+        isActive && 'border-l-primary bg-primary/10 hover:bg-primary/10',
       )}
     >
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
@@ -193,6 +237,15 @@ function ProductionSidebarItem({ job, assignee, isActive, onSelect }: Production
           <h2 data-testid={IDS.rowCustomer} className="min-w-0 flex-1 truncate font-semibold" title={customerName}>
             {customerName}
           </h2>
+          {isNew && (
+            <span
+              data-testid={IDS.rowNew}
+              title="New — not opened yet"
+              className="shrink-0 rounded-full bg-blue-600 px-2 text-[12px] leading-4 text-white"
+            >
+              New
+            </span>
+          )}
           {effective.priority === 'HIGH' && (
             <span title="High priority">
               <CircleAlert size={16} className="shrink-0 text-red-600 animate-pulse" aria-label="High priority" />
