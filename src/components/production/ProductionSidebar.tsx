@@ -287,18 +287,13 @@ function ProductionSidebarItem({ job, assignee, isActive, isNew, onSelect }: Pro
               title={assignee ? `Assigned to ${assignee.name}` : 'Unassigned'}
               className="inline-flex"
             >
-              {assignee ? (
+              {assignee && 
                 <UserAvatar
                   name={assignee.name}
                   avatarUrl={assignee.avatar_url}
-                  className="size-5 text-[10px]"
+                  className="size-8 text-base"
                 />
-              ) : (
-                <UserRound
-                  className="size-5 text-neutral-400"
-                  aria-label="Unassigned"
-                />
-              )}
+              }
             </span>
           </span>
         </div>
