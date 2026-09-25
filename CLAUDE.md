@@ -170,8 +170,8 @@ of the work: the same two-column shell as the orders view, with
 [`ProductionSidebar`](src/components/production/ProductionSidebar.tsx)
 listing **jobs across all orders** — every non-cancelled job in `PREPRESS`
 or `IN_PRODUCTION` on a non-archived order (`jobService.listProductionJobs`,
-`useProductionJobs`), soonest effective deadline first, then `HIGH`
-priority first. A row shows department, customer, job number, effective
+`useProductionJobs`), `HIGH` priority first regardless of date, then
+soonest effective deadline first. A row shows department, customer, job number, effective
 deadline, status and assignee. The header's assignee filter is the job
 header's `EmployeeCombobox` (one user or *Everyone*) with a caption stating
 what the feed shows; employees start on their own jobs, admins on
