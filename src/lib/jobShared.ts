@@ -18,7 +18,9 @@
  * identifier surface is English here.
  */
 
+import { format } from 'date-fns'
 import { type DeliveryChoice, type Priority, type JobRow, type OrderStatus } from '../types/database'
+import { toDateOnly } from './formatDate'
 
 /**
  * Resolve a job's inherited common fields against its order. A null
@@ -121,6 +123,21 @@ export function isJobComplete(
 export function isMissingAssignee(job: Pick<JobRow, 'status' | 'is_cancelled' | 'assignee_id'>): boolean {
   if (job.is_cancelled) return false
   return (job.status === 'PREPRESS' || job.status === 'IN_PRODUCTION') && !job.assignee_id
+}
+
+/**
+ * Whether the open job's effective deadline (its own, else the order's) lies
+ * strictly before today, local time. Done and cancelled jobs never count. A
+ * warning only — a past deadline blocks nothing.
+ */
+export function isDeadlineMissed(
+  job: Pick<JobRow, 'status' | 'is_cancelled' | 'deadline'>,
+  order: { deadline: string | null },
+  now: Date = new Date(),
+): boolean {
+  if (job.is_cancelled || job.status === 'DONE') return false
+  const deadline = toDateOnly(job.deadline ?? order.deadline)
+  return deadline != null && deadline < format(now, 'yyyy-MM-dd')
 }
 
 /**
