@@ -97,7 +97,7 @@ export function JobDetail({
       className="flex flex-col gap-4"
     >
       <JobProductionBanner job={job} />
-      <div aria-label="Job" className="flex flex-col gap-2">
+      <div aria-label="Job" className="flex flex-col gap-2 pt-2">
         <div className="flex items-center gap-6">
           <h1 data-testid={IDS.title} className="flex items-baseline gap-2">
             {jobDepartmentLabel(job.department)}

@@ -266,7 +266,7 @@ function ProductionSidebarItem({ job, assignee, isActive, isNew, onSelect }: Pro
           {effective.priority === 'HIGH' && (
             <span title="High priority">
               <CircleAlert
-                size={16}
+                size={20}
                 className="shrink-0 text-red-600 animate-pulse"
                 aria-label="High priority"
               />
