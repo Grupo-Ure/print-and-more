@@ -217,10 +217,10 @@ function ProductionSidebarItem({ job, assignee, isActive, isNew, onSelect }: Pro
       data-new={isNew ? 'true' : undefined}
       aria-current={isActive ? 'true' : undefined}
       onClick={onSelect}
-      onKeyDown={event => {
+      onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault()
-          onSelect()
+          event.preventDefault();
+          onSelect();
         }
       }}
       className={cn(
@@ -232,9 +232,17 @@ function ProductionSidebarItem({ job, assignee, isActive, isNew, onSelect }: Pro
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
         <div className="flex items-center gap-1.5">
           <span title={departmentLabel} className="inline-flex shrink-0">
-            <DepartmentIcon size={16} className={colorClassName} aria-label={departmentLabel} />
+            <DepartmentIcon
+              size={16}
+              className={colorClassName}
+              aria-label={departmentLabel}
+            />
           </span>
-          <h2 data-testid={IDS.rowCustomer} className="min-w-0 flex-1 truncate font-semibold" title={customerName}>
+          <h2
+            data-testid={IDS.rowCustomer}
+            className="min-w-0 flex-1 truncate font-semibold"
+            title={customerName}
+          >
             {customerName}
           </h2>
           {isNew && (
@@ -248,17 +256,26 @@ function ProductionSidebarItem({ job, assignee, isActive, isNew, onSelect }: Pro
           )}
           {effective.priority === 'HIGH' && (
             <span title="High priority">
-              <CircleAlert size={16} className="shrink-0 text-red-600 animate-pulse" aria-label="High priority" />
+              <CircleAlert
+                size={16}
+                className="shrink-0 text-red-600 animate-pulse"
+                aria-label="High priority"
+              />
             </span>
           )}
         </div>
-        <span data-testid={IDS.rowJobNumber} className="truncate text-[13px] text-neutral-500">
+        <span
+          data-testid={IDS.rowJobNumber}
+          className="truncate text-[13px] text-neutral-500"
+        >
           {job.job_number}
         </span>
         <div className="flex items-center justify-between gap-1.5">
           <span className="truncate text-[13px] text-neutral-500">
             {'deadline: '}
-            {effective.deadline ? formatDateDe(effective.deadline) : 'no deadline'}
+            {effective.deadline
+              ? formatDateDe(effective.deadline)
+              : 'no deadline'}
           </span>
           <span className="flex shrink-0 items-center gap-1.5">
             <span data-testid={IDS.rowStatus} data-status={job.status}>
@@ -271,14 +288,21 @@ function ProductionSidebarItem({ job, assignee, isActive, isNew, onSelect }: Pro
               className="inline-flex"
             >
               {assignee ? (
-                <UserAvatar name={assignee.name} avatarUrl={assignee.avatar_url} className="size-5 text-[10px]" />
+                <UserAvatar
+                  name={assignee.name}
+                  avatarUrl={assignee.avatar_url}
+                  className="size-5 text-[10px]"
+                />
               ) : (
-                <UserRound className="size-5 text-neutral-400" aria-label="Unassigned" />
+                <UserRound
+                  className="size-5 text-neutral-400"
+                  aria-label="Unassigned"
+                />
               )}
             </span>
           </span>
         </div>
       </div>
     </div>
-  )
+  );
 }
