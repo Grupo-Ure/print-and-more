@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Check, ChevronsUpDown, UserX } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { useAssignableUsers } from '../../queries/userQueries'
 import { UserAvatar } from '../UserAvatar'
 import { Button } from '../ui/button'
@@ -18,6 +19,8 @@ type EmployeeComboboxProps = {
   emptyOptionTestId?: string
   /** data-testid shared by the user options in the list (each carries `data-user-id`). */
   userOptionTestId?: string
+  /** Pulse a red ring around the trigger (e.g. a job in pre-press or production has nobody assigned). */
+  attention?: boolean
 }
 
 /** Accent-insensitive fold: "Müller" matches "muller", "José" matches "jose". */
@@ -37,6 +40,7 @@ export function EmployeeCombobox({
   emptyLabel = 'Unassigned',
   emptyOptionTestId,
   userOptionTestId,
+  attention = false,
 }: EmployeeComboboxProps) {
   // Developer accounts are not on offer — unless one already holds the value.
   const { data: users = [] } = useAssignableUsers(value)
@@ -78,8 +82,9 @@ export function EmployeeCombobox({
           aria-expanded={open}
           data-testid={testId}
           data-value={value ?? undefined}
+          data-attention={attention || undefined}
           disabled={disabled}
-          className="w-40 justify-between"
+          className={cn('w-40 justify-between', attention && 'animate-field-required')}
         >
           <span className={`flex min-w-0 items-center gap-1.5 ${selected ? '' : 'text-muted-foreground'}`}>
             {selected && (

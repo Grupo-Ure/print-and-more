@@ -226,6 +226,7 @@ export const TEST_IDS = {
       root: 'job-detail',
       title: 'job-detail-title',
       assignee: 'job-detail-assignee',
+      assigneeHint: 'job-detail-assignee-hint',
       /** `data-status` = JobStatus. */
       status: 'job-detail-status',
       settingsButton: 'job-detail-settings',

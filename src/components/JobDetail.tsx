@@ -7,6 +7,7 @@ import { useOrderById } from '../queries/orderQueries'
 import { useOrderSelection } from '../hooks/useOrderSelection'
 import { jobDepartmentLabel } from '../const/departmentAbbreviation'
 import { customerMeetsPrepressContact } from '../lib/customer'
+import { isMissingAssignee } from '../lib/jobShared'
 import { type JobRow } from '../types/database'
 import { EmployeeCombobox } from './fields/EmployeeCombobox'
 import { JobSettingsDialog } from './jobDetail/JobSettingsDialog'
@@ -84,6 +85,9 @@ export function JobDetail({
   // Once DONE the job is read-only.
   const isDone = job.status === 'DONE'
 
+  // Past setup somebody has to own the job; flag the picker while nobody does.
+  const needsAssignee = isMissingAssignee(job)
+
   return (
     <div
       data-testid={IDS.root}
@@ -107,7 +111,16 @@ export function JobDetail({
               value={job.assignee_id}
               onChange={handleAssigneeChange}
               disabled={isDone || setJobAssignee.isPending}
+              attention={needsAssignee}
             />
+            {needsAssignee && (
+              <span
+                data-testid={IDS.assigneeHint}
+                className="animate-in fade-in zoom-in-75 text-xs font-medium text-destructive"
+              >
+                Assign this job
+              </span>
+            )}
           </div>
         </div>
         <div className="flex items-center">
