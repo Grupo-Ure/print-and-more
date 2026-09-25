@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, CircleAlert } from 'lucide-react'
+import { ArrowUp, CircleAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Sidebar, SidebarContent, SidebarHeader } from '@/components/ui/sidebar'
 import { JOB_STATUS_META } from '../../const/orderStatus'
@@ -186,7 +186,7 @@ function PriorityGroupHeader({ high }: { high: boolean }) {
       )}
     >
       {high ? 'High Priority' : 'Jobs'}
-      {high && <CircleAlert size={18} aria-hidden />}
+      {high && <ArrowUp size={18} aria-hidden />}
     </div>
   )
 }
@@ -256,16 +256,16 @@ function ProductionSidebarItem({ job, assignee, isActive, isNew, onSelect }: Pro
           )}
           {isMissingInfo(job, job.orders, (job.department_products[0]?.count ?? 0) > 0) && (
             <span data-testid={IDS.rowMissingInfo} title="Missing information">
-              <AlertTriangle
+              <CircleAlert
                 size={20}
-                className="shrink-0 text-red-700"
+                className="shrink-0 text-red-600"
                 aria-label="Missing information"
               />
             </span>
           )}
           {effective.priority === 'HIGH' && (
             <span title="High priority">
-              <CircleAlert
+              <ArrowUp
                 size={20}
                 className="shrink-0 text-red-600 animate-pulse"
                 aria-label="High priority"
