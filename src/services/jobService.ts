@@ -1,7 +1,7 @@
 import { supabase } from '../supabase'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import type { Database } from '../types/supabase'
-import type { DeliveryChoice, JobRow, JobStatus, Department, Priority } from '../types/database'
+import type { DeliveryChoice, JobRow, JobStatus, Department, OrderStatus, Priority } from '../types/database'
 import { resolveEffectiveJob } from '../lib/jobShared'
 
 /** SELECT for `jobs` — the full row as the app consumes it (`JobRow`). */
@@ -38,6 +38,7 @@ export type ProductionJob = Pick<
 > & {
   orders: {
     order_number: string
+    status: OrderStatus
     deadline: string | null
     delivery: DeliveryChoice | null
     priority: Priority
@@ -47,7 +48,7 @@ export type ProductionJob = Pick<
 }
 
 const PRODUCTION_JOB_SELECT =
-  'id, job_number, order_id, department, status, deadline, delivery, priority, assignee_id, is_cancelled, customer_approval_required, customer_approval_granted, orders!inner(order_number, deadline, delivery, priority, is_archived, customers(name)), department_products(count)'
+  'id, job_number, order_id, department, status, deadline, delivery, priority, assignee_id, is_cancelled, customer_approval_required, customer_approval_granted, orders!inner(order_number, status, deadline, delivery, priority, is_archived, customers(name)), department_products(count)'
 
 /**
  * Feed order: effective priority HIGH before NORMAL regardless of date, then
