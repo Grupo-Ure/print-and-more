@@ -4,7 +4,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DueDate } from '../DueDate';
+import { ClosedDate, DueDate } from '../DueDate';
 import { isDeadlineMissed, isMissingInfo } from '../../lib/jobShared';
 import type { OrderListEntry } from '../../services/orderService';
 import type { OrderStatus } from '../../types/database';
@@ -156,7 +156,15 @@ function OrderSidebarItem({
         </div>
         <JobDepartmentIcons jobs={order.jobs ?? []} className="shrink-0" />
         <div className="flex items-center justify-between gap-1.5">
-          <DueDate deadline={order.deadline} testId={IDS.rowDeadline} />
+          {order.status === 'FINISHED' || order.status === 'BILLED' ? (
+            <ClosedDate
+              label={order.status === 'FINISHED' ? 'Finished' : 'Billed'}
+              at={closedAt(order)}
+              testId={IDS.rowDeadline}
+            />
+          ) : (
+            <DueDate deadline={order.deadline} testId={IDS.rowDeadline} />
+          )}
           <span data-testid={IDS.rowStatus} data-status={order.status}>
             <StatusBadge meta={ORDER_STATUS_META[order.status]} />
           </span>
@@ -227,4 +235,18 @@ function OrderSidebarItemMenu({
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+/**
+ * When a finished or billed order reached that status: its newest matching
+ * closing event (the list embeds them newest first). A reopened order keeps
+ * its old ORDER_FINISHED, but the next finish writes a newer one.
+ */
+function closedAt(order: OrderListEntry): string | null {
+  const events = order.closing_events ?? [];
+  const match =
+    order.status === 'FINISHED'
+      ? events.find((e) => e.event_type === 'ORDER_FINISHED')
+      : events.find((e) => e.event_type === 'ORDER_BILLED' || e.event_type === 'ORDER_CLOSED_CASH');
+  return match?.created_at ?? null;
 }
