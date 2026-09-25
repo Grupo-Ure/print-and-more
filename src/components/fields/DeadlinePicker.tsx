@@ -46,7 +46,7 @@ export function DeadlinePicker({ value, onChange, disabled = false, attention = 
             data-value={value || undefined}
             disabled={disabled}
             className={cn(
-              attention && 'animate-deadline-required',
+              attention && 'animate-field-required',
               settling && 'animate-deadline-settled',
               "text-lg"
             )}
