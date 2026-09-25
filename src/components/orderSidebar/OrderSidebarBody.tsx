@@ -4,7 +4,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatDateDe } from '../../lib/formatDate';
+import { DueDate } from '../DueDate';
 import { isMissingInfo } from '../../lib/jobShared';
 import type { OrderListEntry } from '../../services/orderService';
 import type { OrderStatus } from '../../types/database';
@@ -132,7 +132,7 @@ function OrderSidebarItem({
         <div className="flex items-center justify-between gap-1.5">
           <div className="flex items-center min-w-0 flex-1 gap-1">
             <h2
-              data-testid={IDS.rowNumber}
+              data-testid={IDS.rowCustomer}
               className="truncate font-semibold"
               title={order.customers?.name ?? undefined}
             >
@@ -150,14 +150,7 @@ function OrderSidebarItem({
           />
         </div>
         <div className="flex items-center justify-between gap-1.5">
-        <span
-          data-testid={IDS.rowCustomer}
-          className="truncate min-w-0 text-[13px] text-neutral-500"
-          title={order.deadline ? formatDateDe(order.deadline) : undefined}
-        >
-          {"deadline: "}
-          {order.deadline ? formatDateDe(order.deadline) : 'no deadline'}
-        </span>
+          <DueDate deadline={order.deadline} testId={IDS.rowDeadline} />
           <span data-testid={IDS.rowStatus} data-status={order.status}>
             <StatusBadge meta={ORDER_STATUS_META[order.status]} />
           </span>

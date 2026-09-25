@@ -104,6 +104,7 @@ export const TEST_IDS = {
       row: 'orders-sidebar-row',
       rowNumber: 'orders-sidebar-row-number',
       rowCustomer: 'orders-sidebar-row-customer',
+      rowDeadline: 'orders-sidebar-row-deadline',
       rowStatus: 'orders-sidebar-row-status',
       rowMenuTrigger: 'orders-sidebar-row-menu-trigger',
       rowMenuDuplicate: 'orders-sidebar-row-menu-duplicate',
@@ -346,6 +347,7 @@ export const TEST_IDS = {
       rowMissingInfo: 'production-sidebar-row-missing-info',
       rowJobNumber: 'production-sidebar-row-job-number',
       rowCustomer: 'production-sidebar-row-customer',
+      rowDeadline: 'production-sidebar-row-deadline',
       /** `data-status` = JobStatus. */
       rowStatus: 'production-sidebar-row-status',
       /** `data-user-id` = assignee, or absent while unassigned. */

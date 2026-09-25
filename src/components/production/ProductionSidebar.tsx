@@ -6,13 +6,13 @@ import { JOB_STATUS_META } from '../../const/orderStatus'
 import { jobDepartmentLabel } from '../../const/departmentAbbreviation'
 import { departmentIcon } from '../../const/departmentIcons'
 import { useNavigation } from '../../context/navigation.context'
-import { formatDateDe } from '../../lib/formatDate'
 import { isMissingInfo, resolveEffectiveJob } from '../../lib/jobShared'
 import { useProductionJobs } from '../../queries/jobQueries'
 import { useIsAdmin, useUsers } from '../../queries/userQueries'
 import type { ProductionJob } from '../../services/jobService'
 import type { UserRow } from '../../services/userService'
 import { StatusBadge } from '../StatusBadge'
+import { DueDate } from '../DueDate'
 import { HighPriorityFlag, MissingInfoFlag } from '../Flags'
 import { UserAvatar } from '../UserAvatar'
 import { EmployeeCombobox } from '../fields/EmployeeCombobox'
@@ -267,12 +267,7 @@ function ProductionSidebarItem({ job, assignee, isActive, isNew, onSelect }: Pro
           {job.job_number}
         </span>
         <div className="flex items-center justify-between gap-1.5">
-          <span className="truncate text-[13px] text-neutral-500">
-            {'deadline: '}
-            {effective.deadline
-              ? formatDateDe(effective.deadline)
-              : 'no deadline'}
-          </span>
+          <DueDate deadline={effective.deadline} testId={IDS.rowDeadline} />
           <span className="flex shrink-0 items-center gap-1.5">
             <span data-testid={IDS.rowStatus} data-status={job.status}>
               <StatusBadge meta={JOB_STATUS_META[job.status]} />
