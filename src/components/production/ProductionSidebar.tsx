@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
-import { CircleAlert, UserRound } from 'lucide-react'
+import { CircleAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Sidebar, SidebarContent, SidebarHeader } from '@/components/ui/sidebar'
 import { JOB_STATUS_META } from '../../const/orderStatus'
