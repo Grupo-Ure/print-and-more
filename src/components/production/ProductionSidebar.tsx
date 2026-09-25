@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowUp, UserRound } from 'lucide-react'
+import { CircleAlert, UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Sidebar, SidebarContent, SidebarHeader } from '@/components/ui/sidebar'
 import { JOB_STATUS_META } from '../../const/orderStatus'
@@ -165,7 +165,7 @@ function ProductionSidebarItem({ job, assignee, isActive, onSelect }: Production
           </h2>
           {effective.priority === 'HIGH' && (
             <span title="High priority">
-              <ArrowUp size={16} className="shrink-0 text-blue-600" aria-label="High priority" />
+              <CircleAlert size={16} className="shrink-0 text-red-600 animate-pulse" aria-label="High priority" />
             </span>
           )}
         </div>

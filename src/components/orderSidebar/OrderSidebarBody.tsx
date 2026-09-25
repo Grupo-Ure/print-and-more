@@ -1,6 +1,6 @@
 import {
   AlertTriangle,
-  ArrowUp,
+  CircleAlert,
   Copy,
   MoreHorizontal,
   Trash2,
@@ -149,9 +149,9 @@ function OrderSidebarItem({
             )}
             {order.priority === 'HIGH' && (
               <span title="High Priority">
-                <ArrowUp
+                <CircleAlert
                   size={16}
-                  className="text-blue-600 shrink-0"
+                  className="shrink-0 text-red-600 animate-pulse"
                   aria-label="High priority"
                 />
               </span>
