@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowUp, CircleAlert } from 'lucide-react'
+import { ArrowUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Sidebar, SidebarContent, SidebarHeader } from '@/components/ui/sidebar'
 import { JOB_STATUS_META } from '../../const/orderStatus'
@@ -13,6 +13,7 @@ import { useIsAdmin, useUsers } from '../../queries/userQueries'
 import type { ProductionJob } from '../../services/jobService'
 import type { UserRow } from '../../services/userService'
 import { StatusBadge } from '../StatusBadge'
+import { HighPriorityFlag, MissingInfoFlag } from '../Flags'
 import { UserAvatar } from '../UserAvatar'
 import { EmployeeCombobox } from '../fields/EmployeeCombobox'
 import { useToast } from '../Toast'
@@ -255,23 +256,9 @@ function ProductionSidebarItem({ job, assignee, isActive, isNew, onSelect }: Pro
             </span>
           )}
           {isMissingInfo(job, job.orders, (job.department_products[0]?.count ?? 0) > 0) && (
-            <span data-testid={IDS.rowMissingInfo} title="Missing information">
-              <CircleAlert
-                size={20}
-                className="shrink-0 text-red-600"
-                aria-label="Missing information"
-              />
-            </span>
+            <MissingInfoFlag size={20} testId={IDS.rowMissingInfo} />
           )}
-          {effective.priority === 'HIGH' && (
-            <span title="High priority">
-              <ArrowUp
-                size={20}
-                className="shrink-0 text-red-600 animate-pulse"
-                aria-label="High priority"
-              />
-            </span>
-          )}
+          {effective.priority === 'HIGH' && <HighPriorityFlag size={20} />}
         </div>
         <span
           data-testid={IDS.rowJobNumber}

@@ -1,6 +1,4 @@
 import {
-  ArrowUp,
-  CircleAlert,
   Copy,
   MoreHorizontal,
   Trash2,
@@ -11,6 +9,7 @@ import { isMissingInfo } from '../../lib/jobShared';
 import type { OrderListEntry } from '../../services/orderService';
 import type { OrderStatus } from '../../types/database';
 import { StatusBadge } from '../StatusBadge';
+import { HighPriorityFlag, MissingInfoFlag } from '../Flags';
 import { ORDER_STATUS_META } from '../../const/orderStatus';
 import { JobDepartmentIcons } from '../JobDepartmentIcons';
 import {
@@ -139,24 +138,8 @@ function OrderSidebarItem({
             >
               {order.customers?.name ?? '-'}
             </h2>
-            {missingInfo && (
-              <span title="Missing information">
-                <CircleAlert
-                  size={16}
-                  className="shrink-0 text-red-600"
-                  aria-label="Missing information"
-                />
-              </span>
-            )}
-            {order.priority === 'HIGH' && (
-              <span title="High Priority">
-                <ArrowUp
-                  size={16}
-                  className="shrink-0 text-red-600 animate-pulse"
-                  aria-label="High priority"
-                />
-              </span>
-            )}
+            {missingInfo && <MissingInfoFlag size={16} />}
+            {order.priority === 'HIGH' && <HighPriorityFlag size={16} />}
           </div>
           <OrderSidebarItemMenu
             isActive={isActive}
