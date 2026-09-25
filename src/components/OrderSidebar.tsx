@@ -208,10 +208,10 @@ export function OrderSidebar() {
         />
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-neutral-200 bg-neutral-50 px-3 py-2.5 shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
+      <SidebarFooter className="gap-0 border-t border-neutral-200 bg-neutral-50 p-0 shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
         <NewOrderDialog />
         {duplicateError && (
-          <div className="px-3 pt-1 text-[11px] text-neutral-500">{duplicateError}</div>
+          <div className="px-3 py-1 text-[11px] text-neutral-500">{duplicateError}</div>
         )}
       </SidebarFooter>
 
