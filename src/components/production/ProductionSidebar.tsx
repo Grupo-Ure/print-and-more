@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
-import { CircleAlert } from 'lucide-react'
+import { AlertTriangle, CircleAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Sidebar, SidebarContent, SidebarHeader } from '@/components/ui/sidebar'
 import { JOB_STATUS_META } from '../../const/orderStatus'
@@ -7,7 +7,7 @@ import { jobDepartmentLabel } from '../../const/departmentAbbreviation'
 import { departmentIcon } from '../../const/departmentIcons'
 import { useNavigation } from '../../context/navigation.context'
 import { formatDateDe } from '../../lib/formatDate'
-import { resolveEffectiveJob } from '../../lib/jobShared'
+import { isMissingInfo, resolveEffectiveJob } from '../../lib/jobShared'
 import { useProductionJobs } from '../../queries/jobQueries'
 import { useIsAdmin, useUsers } from '../../queries/userQueries'
 import type { ProductionJob } from '../../services/jobService'
@@ -252,6 +252,15 @@ function ProductionSidebarItem({ job, assignee, isActive, isNew, onSelect }: Pro
               className="shrink-0 rounded-full bg-blue-600 px-2 text-[12px] leading-4 text-white"
             >
               New
+            </span>
+          )}
+          {isMissingInfo(job, job.orders, (job.department_products[0]?.count ?? 0) > 0) && (
+            <span data-testid={IDS.rowMissingInfo} title="Missing information">
+              <AlertTriangle
+                size={20}
+                className="shrink-0 text-red-700"
+                aria-label="Missing information"
+              />
             </span>
           )}
           {effective.priority === 'HIGH' && (

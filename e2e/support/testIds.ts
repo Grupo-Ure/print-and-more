@@ -342,6 +342,7 @@ export const TEST_IDS = {
       row: 'production-sidebar-row',
       /** The "New" pill on a job that entered the list while the page was open and has not been clicked. */
       rowNew: 'production-sidebar-row-new',
+      rowMissingInfo: 'production-sidebar-row-missing-info',
       rowJobNumber: 'production-sidebar-row-job-number',
       rowCustomer: 'production-sidebar-row-customer',
       /** `data-status` = JobStatus. */
