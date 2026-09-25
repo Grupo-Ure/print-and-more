@@ -218,6 +218,7 @@ export const TEST_IDS = {
       row: 'job-list-row',
       rowMissingInfo: 'job-list-row-missing-info',
       rowHighPriority: 'job-list-row-high-priority',
+      rowDeadlineMissed: 'job-list-row-deadline-missed',
       contextMenu: {
         advance: 'job-context-menu-advance',
         delete: 'job-context-menu-delete',
@@ -345,6 +346,7 @@ export const TEST_IDS = {
       /** The "New" pill on a job that entered the list while the page was open and has not been clicked. */
       rowNew: 'production-sidebar-row-new',
       rowMissingInfo: 'production-sidebar-row-missing-info',
+      rowDeadlineMissed: 'production-sidebar-row-deadline-missed',
       rowJobNumber: 'production-sidebar-row-job-number',
       rowCustomer: 'production-sidebar-row-customer',
       rowDeadline: 'production-sidebar-row-deadline',

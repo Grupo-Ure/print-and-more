@@ -6,14 +6,14 @@ import { JOB_STATUS_META } from '../../const/orderStatus'
 import { jobDepartmentLabel } from '../../const/departmentAbbreviation'
 import { departmentIcon } from '../../const/departmentIcons'
 import { useNavigation } from '../../context/navigation.context'
-import { isMissingInfo, resolveEffectiveJob } from '../../lib/jobShared'
+import { isDeadlineMissed, isMissingInfo, resolveEffectiveJob } from '../../lib/jobShared'
 import { useProductionJobs } from '../../queries/jobQueries'
 import { useIsAdmin, useUsers } from '../../queries/userQueries'
 import type { ProductionJob } from '../../services/jobService'
 import type { UserRow } from '../../services/userService'
 import { StatusBadge } from '../StatusBadge'
 import { DueDate } from '../DueDate'
-import { HighPriorityFlag, MissingInfoFlag } from '../Flags'
+import { DeadlineMissedFlag, HighPriorityFlag, MissingInfoFlag } from '../Flags'
 import { UserAvatar } from '../UserAvatar'
 import { EmployeeCombobox } from '../fields/EmployeeCombobox'
 import { useToast } from '../Toast'
@@ -257,6 +257,9 @@ function ProductionSidebarItem({ job, assignee, isActive, isNew, onSelect }: Pro
           )}
           {isMissingInfo(job, job.orders, (job.department_products[0]?.count ?? 0) > 0) && (
             <MissingInfoFlag size={20} testId={IDS.rowMissingInfo} />
+          )}
+          {isDeadlineMissed(job, job.orders) && (
+            <DeadlineMissedFlag size={20} testId={IDS.rowDeadlineMissed} />
           )}
           {effective.priority === 'HIGH' && <HighPriorityFlag size={20} animate />}
         </div>

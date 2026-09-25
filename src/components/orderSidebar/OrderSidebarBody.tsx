@@ -5,11 +5,11 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DueDate } from '../DueDate';
-import { isMissingInfo } from '../../lib/jobShared';
+import { isDeadlineMissed, isMissingInfo } from '../../lib/jobShared';
 import type { OrderListEntry } from '../../services/orderService';
 import type { OrderStatus } from '../../types/database';
 import { StatusBadge } from '../StatusBadge';
-import { HighPriorityFlag, MissingInfoFlag } from '../Flags';
+import { DeadlineMissedFlag, HighPriorityFlag, MissingInfoFlag } from '../Flags';
 import { ORDER_STATUS_META } from '../../const/orderStatus';
 import { JobDepartmentIcons } from '../JobDepartmentIcons';
 import {
@@ -107,6 +107,8 @@ function OrderSidebarItem({
       (job.department_products[0]?.count ?? 0) > 0,
     ),
   );
+  // Same for a missed deadline: any open job past its effective deadline.
+  const deadlineMissed = (order.jobs ?? []).some((job) => isDeadlineMissed(job, order));
 
   return (
     <div
@@ -139,7 +141,10 @@ function OrderSidebarItem({
               {order.customers?.name ?? '-'}
             </h2>
             {missingInfo && <MissingInfoFlag size={16} />}
-            {order.priority === 'HIGH' && <HighPriorityFlag size={16} animate />}
+            {deadlineMissed && <DeadlineMissedFlag size={16} />}
+            {order.priority === 'HIGH' && (
+              <HighPriorityFlag size={16} animate />
+            )}
           </div>
           <OrderSidebarItemMenu
             isActive={isActive}
