@@ -26,8 +26,14 @@ export class OrderFilesPOM extends BasePOM {
     return this.withAttr(this.items, 'data-file-id', fileId)
   }
 
+  /** The display name — a static span, or an input while `itemEditName` is active. */
   itemName(item: Locator): Locator {
     return item.getByTestId(IDS.itemName)
+  }
+
+  /** The pencil button that switches the name to its input. */
+  itemEditName(item: Locator): Locator {
+    return item.getByTestId(IDS.itemEditName)
   }
 
   /** Carries `data-value` = file role. */
