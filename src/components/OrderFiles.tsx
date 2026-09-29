@@ -1,5 +1,5 @@
 import { useCallback, useState, type DragEvent, type KeyboardEvent } from 'react'
-import { FileText, Plus, X } from 'lucide-react'
+import { FileText, Pencil, Plus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { fileService } from '../services/fileService'
 import { historyService } from '../services/historyService'
@@ -10,6 +10,7 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Separator } from './ui/separator'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
 import { TEST_IDS } from '@e2e/support/testIds'
 
 const IDS = TEST_IDS.orders.jobDetail.files
@@ -20,6 +21,11 @@ const ROLES: { value: FileRole; label: string }[] = [
   { value: 'CUSTOMER_APPROVAL', label: 'Customer approval' },
   { value: 'REFERENCE', label: 'Reference / Archive' },
 ]
+
+// Same accent as the product table's edit action, for a consistent look
+// across the job's tabs.
+const EDIT_ACTION_CLASS =
+  'text-blue-700 hover:bg-transparent hover:text-blue-400 dark:text-blue-500 dark:hover:bg-transparent dark:hover:text-blue-600'
 
 type Props = {
   orderId: string
@@ -39,6 +45,8 @@ export function OrderFiles({ orderId, files, onFileChanged }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [removingId, setRemovingId] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  // The one row currently showing its name as an input instead of text.
+  const [editingNameId, setEditingNameId] = useState<string | null>(null)
 
   const revealFile = useCallback(
     async (rawPath: string) => {
@@ -97,8 +105,15 @@ export function OrderFiles({ orderId, files, onFileChanged }: Props) {
     void onFileChanged()
   }
 
-  const commitNameOnEnter = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') e.currentTarget.blur()
+  const commitName = (file: FileRow, rawValue: string) => {
+    const next = rawValue.trim()
+    if (next && next !== file.display_name) void handleUpdate(file.id, { display_name: next })
+    setEditingNameId(null)
+  }
+
+  const handleNameKeyDown = (e: KeyboardEvent<HTMLInputElement>, file: FileRow) => {
+    if (e.key === 'Enter') commitName(file, e.currentTarget.value)
+    if (e.key === 'Escape') setEditingNameId(null)
   }
 
   return (
@@ -146,68 +161,123 @@ export function OrderFiles({ orderId, files, onFileChanged }: Props) {
       {files.length > 0 && (
         <>
           <Separator />
-          <ul data-testid={IDS.list} className="divide-y divide-border">
-            {files.map(file => (
-              <li key={file.id} data-testid={IDS.item} data-file-id={file.id} className="py-1.5">
-                <div className="flex items-center gap-2">
-                  <FileText className="size-4 shrink-0 text-primary" aria-hidden />
-                  <Input
-                    defaultValue={file.display_name}
-                    aria-label="Display name"
-                    data-testid={IDS.itemName}
-                    maxLength={500}
-                    className="h-7 min-w-0 flex-1"
-                    onKeyDown={commitNameOnEnter}
-                    onBlur={e => {
-                      const next = e.target.value.trim()
-                      if (next && next !== file.display_name) {
-                        void handleUpdate(file.id, { display_name: next })
-                      } else {
-                        e.target.value = file.display_name
-                      }
-                    }}
-                  />
-                  <Select
-                  value={file.role}
-                  onValueChange={value => void handleUpdate(file.id, { role: value as FileRole })}
-                >
-                  <SelectTrigger className="w-44" aria-label="Role" data-testid={IDS.itemRole} data-value={file.role}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ROLES.map(roleOption => (
-                      <SelectItem key={roleOption.value} value={roleOption.value}>
-                        {roleOption.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    className="text-muted-foreground hover:text-destructive"
-                    onClick={() => void handleRemove(file.id)}
-                    disabled={removingId === file.id}
-                    title="Remove link"
-                    aria-label={`Remove: ${file.display_name}`}
-                    data-testid={IDS.itemRemove}
-                  >
-                    <X />
-                  </Button>
-                </div>
-                <button
-                  type="button"
-                  data-testid={IDS.itemPath}
-                  onClick={() => void revealFile(file.path)}
-                  title={`Open in file manager\n${file.path}`}
-                  className="mt-0.5 ml-6 block max-w-full cursor-pointer truncate rounded-sm text-xs text-muted-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-                >
-                  {file.path}
-                </button>
-              </li>
-            ))}
-          </ul>
+          {/* Name, path, role — in that order, matching the products and time
+              logs tabs. The name is plain text with a pencil to edit it,
+              rather than an always-open input. */}
+          <div data-testid={IDS.list} className="overflow-hidden rounded-lg border">
+            <Table>
+              <TableHeader className="bg-muted/50">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="h-9 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                    Name
+                  </TableHead>
+                  <TableHead className="h-9 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                    Path
+                  </TableHead>
+                  <TableHead className="h-9 w-48 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                    Role
+                  </TableHead>
+                  <TableHead className="h-9 w-10 px-3" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {files.map(file => {
+                  const isEditingName = editingNameId === file.id
+                  return (
+                    <TableRow key={file.id} data-testid={IDS.item} data-file-id={file.id}>
+                      <TableCell className="max-w-64 px-3 py-2 align-middle">
+                        <div className="flex items-center gap-2">
+                          <FileText className="size-4 shrink-0 text-primary" aria-hidden />
+                          {isEditingName ? (
+                            <Input
+                              autoFocus
+                              defaultValue={file.display_name}
+                              aria-label="Display name"
+                              data-testid={IDS.itemName}
+                              maxLength={500}
+                              className="h-9 min-w-0 flex-1 rounded-sm text-lg"
+                              onKeyDown={e => handleNameKeyDown(e, file)}
+                              onBlur={e => commitName(file, e.target.value)}
+                            />
+                          ) : (
+                            <>
+                              <span
+                                data-testid={IDS.itemName}
+                                title={file.display_name}
+                                className="min-w-0 flex-1 truncate text-lg"
+                              >
+                                {file.display_name}
+                              </span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                className={cn('shrink-0', EDIT_ACTION_CLASS)}
+                                title="Edit name"
+                                aria-label={`Edit name: ${file.display_name}`}
+                                data-testid={IDS.itemEditName}
+                                onClick={() => setEditingNameId(file.id)}
+                              >
+                                <Pencil />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="max-w-64 px-3 py-2 align-middle">
+                        <button
+                          type="button"
+                          data-testid={IDS.itemPath}
+                          onClick={() => void revealFile(file.path)}
+                          title={`Open in file manager\n${file.path}`}
+                          className="block max-w-full cursor-pointer truncate rounded-sm text-left text-base text-muted-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                        >
+                          {file.path}
+                        </button>
+                      </TableCell>
+                      <TableCell className="px-3 py-2 align-middle">
+                        <Select
+                          value={file.role}
+                          onValueChange={value => void handleUpdate(file.id, { role: value as FileRole })}
+                        >
+                          <SelectTrigger
+                            className="w-44"
+                            aria-label="Role"
+                            data-testid={IDS.itemRole}
+                            data-value={file.role}
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ROLES.map(roleOption => (
+                              <SelectItem key={roleOption.value} value={roleOption.value}>
+                                {roleOption.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="px-1 py-2 align-middle">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => void handleRemove(file.id)}
+                          disabled={removingId === file.id}
+                          title="Remove link"
+                          aria-label={`Remove: ${file.display_name}`}
+                          data-testid={IDS.itemRemove}
+                        >
+                          <X />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
         </>
       )}
     </section>

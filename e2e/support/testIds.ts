@@ -325,7 +325,10 @@ export const TEST_IDS = {
         list: 'order-files-list',
         /** One per file; `data-file-id`. */
         item: 'order-files-item',
+        /** The display name — a static span, or the input while editing. */
         itemName: 'order-files-item-name',
+        /** The pencil button that switches the name to its input. */
+        itemEditName: 'order-files-item-edit-name',
         itemRole: 'order-files-item-role',
         itemRemove: 'order-files-item-remove',
         itemPath: 'order-files-item-path',
