@@ -114,22 +114,27 @@ export function JobSettingsSection({
   }
 
   return (
-    <div data-testid={IDS.root} className="grid w-fit grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
-      <label className="flex items-center gap-2 text-[13px] select-none">
-        <Switch
-          data-testid={IDS.separateDeadline}
-          disabled={isLocked}
-          checked={hasSeparateDeadline}
-          onCheckedChange={checked => {
-            if (checked !== true) {
-              handleUpdateJob({ deadline: null })
-            } else {
-              handleUpdateJob({ deadline: effectiveDeadline ?? todayDateOnly() })
-            }
-          }}
-        />
-        <span>Separate delivery date</span>
+    // Three real grid columns — label, switch, field — so every row's switch
+    // and field lands on the same tracks; a flex box per row can't guarantee
+    // that once labels vary in length. htmlFor/id keeps each label clickable
+    // even though it no longer wraps its switch.
+    <div data-testid={IDS.root} className="grid w-fit grid-cols-[auto_auto_1fr] items-center gap-x-10 gap-y-3">
+      <label htmlFor={IDS.separateDeadline} className="text-sm select-none">
+        Separate delivery date
       </label>
+      <Switch
+        id={IDS.separateDeadline}
+        data-testid={IDS.separateDeadline}
+        disabled={isLocked}
+        checked={hasSeparateDeadline}
+        onCheckedChange={checked => {
+          if (checked !== true) {
+            handleUpdateJob({ deadline: null })
+          } else {
+            handleUpdateJob({ deadline: effectiveDeadline ?? todayDateOnly() })
+          }
+        }}
+      />
       <div className="min-w-0">
         <DeadlinePicker
           testId={IDS.deadline}
@@ -147,21 +152,22 @@ export function JobSettingsSection({
         {validationErrors.termin && <p className="text-destructive text-xs mt-1">{validationErrors.termin}</p>}
       </div>
 
-      <label className="flex items-center gap-2 text-[13px] select-none">
-        <Switch
-          data-testid={IDS.separateDelivery}
-          disabled={isDone}
-          checked={hasSeparateDelivery}
-          onCheckedChange={checked => {
-            if (checked !== true) {
-              handleUpdateJob({ delivery: null })
-            } else {
-              handleUpdateJob({ delivery: orderDeliveryMode })
-            }
-          }}
-        />
-        <span>Separate delivery type</span>
+      <label htmlFor={IDS.separateDelivery} className="text-sm select-none">
+        Separate delivery type
       </label>
+      <Switch
+        id={IDS.separateDelivery}
+        data-testid={IDS.separateDelivery}
+        disabled={isDone}
+        checked={hasSeparateDelivery}
+        onCheckedChange={checked => {
+          if (checked !== true) {
+            handleUpdateJob({ delivery: null })
+          } else {
+            handleUpdateJob({ delivery: orderDeliveryMode })
+          }
+        }}
+      />
       <div className="min-w-0">
         <DeliverySelect
           testId={IDS.delivery}
@@ -178,21 +184,22 @@ export function JobSettingsSection({
         {hasSeparateDelivery && validationErrors.lieferung && <p className="text-destructive text-xs mt-1">{validationErrors.lieferung}</p>}
       </div>
 
-      <label className="flex items-center gap-2 text-[13px] select-none">
-        <Switch
-          data-testid={IDS.separatePriority}
-          disabled={isDone}
-          checked={hasSeparatePriority}
-          onCheckedChange={checked => {
-            if (checked !== true) {
-              handleUpdateJob({ priority: null })
-            } else {
-              handleUpdateJob({ priority: orderPriorityMode })
-            }
-          }}
-        />
-        <span>Separate priority</span>
+      <label htmlFor={IDS.separatePriority} className="text-sm select-none">
+        Separate priority
       </label>
+      <Switch
+        id={IDS.separatePriority}
+        data-testid={IDS.separatePriority}
+        disabled={isDone}
+        checked={hasSeparatePriority}
+        onCheckedChange={checked => {
+          if (checked !== true) {
+            handleUpdateJob({ priority: null })
+          } else {
+            handleUpdateJob({ priority: orderPriorityMode })
+          }
+        }}
+      />
       <div className="min-w-0">
         <PrioritySelect
           testId={IDS.priority}
@@ -209,27 +216,28 @@ export function JobSettingsSection({
         {hasSeparatePriority && validationErrors.prioritaet && <p className="text-destructive text-xs mt-1">{validationErrors.prioritaet}</p>}
       </div>
 
-      <div className="col-span-2 flex items-center gap-2">
-        <label className="flex items-center gap-2 text-[13px] select-none">
-          <Switch
-            data-testid={IDS.approvalRequired}
-            disabled={isLocked}
-            checked={job.customer_approval_required}
-            onCheckedChange={checked => {
-              setCustomerApproval.mutate({
-                id: job.id,
-                orderId: job.order_id,
-                patch: checked
-                  ? { customer_approval_required: true }
-                  : { customer_approval_required: false, customer_approval_granted: false, customer_approval_file_id: null },
-                history: {
-                  event_type: checked ? 'CUSTOMER_APPROVAL_ACTIVATED' : 'CUSTOMER_APPROVAL_DEACTIVATED',
-                },
-              })
-            }}
-          />
-          <span>Customer approval required</span>
-        </label>
+      <label htmlFor={IDS.approvalRequired} className="text-sm select-none">
+        Customer approval required
+      </label>
+      <Switch
+        id={IDS.approvalRequired}
+        data-testid={IDS.approvalRequired}
+        disabled={isLocked}
+        checked={job.customer_approval_required}
+        onCheckedChange={checked => {
+          setCustomerApproval.mutate({
+            id: job.id,
+            orderId: job.order_id,
+            patch: checked
+              ? { customer_approval_required: true }
+              : { customer_approval_required: false, customer_approval_granted: false, customer_approval_file_id: null },
+            history: {
+              event_type: checked ? 'CUSTOMER_APPROVAL_ACTIVATED' : 'CUSTOMER_APPROVAL_DEACTIVATED',
+            },
+          })
+        }}
+      />
+      <div className="flex items-center gap-2">
         {job.customer_approval_required && !job.customer_approval_granted && (
           <Button
             type="button"
