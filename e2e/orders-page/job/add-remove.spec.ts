@@ -47,11 +47,11 @@ test('deleting a job in setup removes it from the order and records the deletion
   // Act — delete it and confirm, then open the history.
   await ordersPage.details.jobDetail.deleteButton.click()
   await ordersPage.confirmDialog.confirm.click()
-  await ordersPage.details.historyButton.click()
+  await ordersPage.details.historyTab.click()
 
   // Assert — the job is gone from the list and the history says it was deleted.
   await expect(ordersPage.details.jobList.row(job.id)).toHaveCount(0)
-  await expect(ordersPage.details.historyDialog.ofType(JOB_DELETED_HISTORY_EVENT)).toHaveCount(1)
+  await expect(ordersPage.details.history.ofType(JOB_DELETED_HISTORY_EVENT)).toHaveCount(1)
 })
 
 test.describe('in progress, job in pre-press', () => {
@@ -64,11 +64,11 @@ test.describe('in progress, job in pre-press', () => {
     // Act — cancel it and confirm, then open the history.
     await ordersPage.details.jobDetail.cancelButton.click()
     await ordersPage.confirmDialog.confirm.click()
-    await ordersPage.details.historyButton.click()
+    await ordersPage.details.historyTab.click()
 
     // Assert — the job is gone from the list and the history says it was cancelled.
     await expect(ordersPage.details.jobList.row(job.id)).toHaveCount(0)
-    await expect(ordersPage.details.historyDialog.ofType(JOB_CANCELLED_HISTORY_EVENT)).toHaveCount(1)
+    await expect(ordersPage.details.history.ofType(JOB_CANCELLED_HISTORY_EVENT)).toHaveCount(1)
   })
 
   test('cancelling the only job leaves the order in progress', async ({ ordersPage, order, job }) => {

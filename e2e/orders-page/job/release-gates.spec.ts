@@ -57,16 +57,15 @@ test.describe('in progress, job in pre-press awaiting customer approval', () => 
   })
 
   test('granting the approval against a file unblocks the release to production', async ({ ordersPage, job, orderFile }) => {
-    // Setup — the job's settings dialog open.
-    const settings = ordersPage.details.jobDetail.settingsDialog
+    // Setup — the job open on its Settings tab.
+    const settings = ordersPage.details.jobDetail.settings
     await ordersPage.openJobSettings(job)
 
-    // Act — grant the approval against the linked file, then close the settings.
+    // Act — grant the approval against the linked file.
     await settings.grantApproval.click()
     await settings.grantDialog.file(orderFile.id).click()
     await settings.grantDialog.submit.click()
     await settings.approvalGranted.waitFor()
-    await settings.close.click()
 
     // Assert — the release can be pressed.
     await expect(ordersPage.details.jobDetail.releaseButton).toBeEnabled()
@@ -131,9 +130,9 @@ test.describe('as admin, in progress, job with a product, no deadline', () => {
     await ordersPage.details.jobDetail.forceReleaseItem.click()
     await ordersPage.details.jobDetail.forceReleaseDialog.reason.fill(FORCE_RELEASE_REASON)
     await ordersPage.details.jobDetail.forceReleaseDialog.submit.click()
-    await ordersPage.details.historyButton.click()
+    await ordersPage.details.historyTab.click()
 
     // Assert — the history holds the emergency entry.
-    await expect(ordersPage.details.historyDialog.ofType(FORCE_RELEASE_HISTORY_EVENT)).toHaveCount(1)
+    await expect(ordersPage.details.history.ofType(FORCE_RELEASE_HISTORY_EVENT)).toHaveCount(1)
   })
 })

@@ -207,10 +207,10 @@ test.describe('in progress, job in pre-press, production default set', () => {
     // Act — release it and confirm, then open the history.
     await ordersPage.details.jobDetail.releaseButton.click()
     await ordersPage.confirmDialog.confirm.click()
-    await ordersPage.details.historyButton.click()
+    await ordersPage.details.historyTab.click()
 
     // Assert — the history holds the assignee change.
-    await expect(ordersPage.details.historyDialog.ofType(ASSIGNEE_CHANGED_HISTORY_EVENT)).toHaveCount(1)
+    await expect(ordersPage.details.history.ofType(ASSIGNEE_CHANGED_HISTORY_EVENT)).toHaveCount(1)
   })
 })
 
