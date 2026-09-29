@@ -148,16 +148,19 @@ without a session, otherwise a two-column shell:
 | Column | Component | Role |
 |--------|-----------|------|
 | Left   | [`OrderSidebar`](src/components/OrderSidebar.tsx) | Search + filters (status, department, deadline/intake ranges), order list with selection, per-order menu (duplicate / delete quote), "+ New Order" ([`NewOrderDialog`](src/components/NewOrderDialog.tsx)). Archived orders are listed only while the header's *Show archived* toggle is on, except billed ones, which appear whenever Billed is ticked; the default status filter ticks every status, so completed orders stay in the feed. There is no assignee filter here — finding one's own work is the production view's job. |
-| Centre | [`OrderDetails`](src/components/OrderDetails.tsx) | Order header (number, customer, lifecycle button, files/history/archive/cancel actions), order settings row (deadline, delivery, priority, payment), then [`JobList`](src/components/JobList.tsx) (add-job buttons, one row per job with status track and right-click menu) next to the active job's [`JobDetail`](src/components/JobDetail.tsx). |
+| Centre | [`OrderDetails`](src/components/OrderDetails.tsx) | Order header (number, customer, lifecycle button, archive/cancel actions), order settings row (deadline, delivery, priority, payment), then the order tabs: *Jobs* — [`JobList`](src/components/JobList.tsx) (add-job buttons, one row per job with status track and right-click menu) next to the active job's [`JobDetail`](src/components/JobDetail.tsx) — and *History* ([`OrderHistory`](src/components/OrderHistory.tsx)). |
 
-`JobDetail` shows the job header (assignee, status badge, settings / time
-logs / PDF / delete-or-cancel actions, the
+`JobDetail` shows the job header (assignee, status badge, PDF /
+delete-or-cancel actions, the
 [`JobReleaseButton`](src/components/JobReleaseButton.tsx)), the
 [`JobProductionBanner`](src/components/JobProductionBanner.tsx) naming unmet
-release requirements, and the department's product section. Job settings
-(separate deadline/delivery/priority overrides, customer approval) and time
-logs open as dialogs from that header
-([`src/components/jobDetail/`](src/components/jobDetail/)). The
+release requirements, and the job tabs: *Products* (the department's product
+section), *Time logs*, *Settings* (separate deadline/delivery/priority
+overrides, customer approval;
+[`src/components/jobDetail/`](src/components/jobDetail/)) and *Files*
+([`OrderFiles`](src/components/OrderFiles.tsx)). The files belong to the
+order; the tab sits on the job so the production view, which shows only a
+job, has them too. The
 former right-hand `ContextPanel` is gone; every workflow action now lives in
 the header of the order or the job (or the job list's context menu). The
 invisible [`StatusManager`](src/components/StatusManager.tsx) mounted in
@@ -194,8 +197,9 @@ a read-only strip naming the order (customer, number, deadline, status, an
 *Open in orders* button) above the same `JobDetail` the orders view uses,
 edited in place, with the order's `StatusManager` mounted alongside. The
 selection is the app-wide one, so the order stays selected when switching
-to the orders view. Order-level actions (lifecycle, settings, files dialog)
-remain on the orders view.
+to the orders view. Order-level actions (lifecycle, settings, history)
+remain on the orders view; the job's tabs, *Files* included, work here as
+there.
 
 ### Responsive layout — one breakpoint, two strategies
 
@@ -232,9 +236,7 @@ on one, replace it with utilities.
 [`CustomerDialog`](src/components/CustomerDialog.tsx) (opened through
 `useOrderWorkspace().openCustomerDialog`, mounted once by
 [`order.context.tsx`](src/context/order.context.tsx)),
-[`DuplicateDialog`](src/components/DuplicateDialog.tsx),
-[`OrderFilesDialog`](src/components/OrderFilesDialog.tsx) (order-wide file
-links), [`OrderHistoryDialog`](src/components/OrderHistoryDialog.tsx).
+[`DuplicateDialog`](src/components/DuplicateDialog.tsx).
 Simple confirmations (archive/cancel/delete/mark-done/release prompts) go
 through the promise-based `useConfirm()` hook from
 [`ConfirmDialog`](src/components/ConfirmDialog.tsx) (`ConfirmProvider` is
@@ -346,11 +348,11 @@ per-type form), and the tables in [`ProductTable.tsx`](src/components/products/P
   (RLS-enforced). The job's total time is `SUM(minutes)` over its logs —
   there is no aggregate column. Every create/delete writes a history event
   (`TIME_LOGGED` / `TIME_LOG_DELETED`). UI:
-  [`JobTimeLogs`](src/components/JobTimeLogs.tsx) inside the job's time-logs
-  dialog; service [`timeLogService`](src/services/timeLogService.ts).
+  [`JobTimeLogs`](src/components/JobTimeLogs.tsx) on the job's *Time logs*
+  tab; service [`timeLogService`](src/services/timeLogService.ts).
 - **Files** — table `files` (`order_id`, `display_name`, `path`, `role`
   (`PRODUCTION_FILE` | `PREVIEW` | `CUSTOMER_APPROVAL` | `REFERENCE`)).
-  Attached at the **order** level via `OrderFilesDialog` (drop or pick files;
+  Attached at the **order** level via `OrderFiles` on each job's *Files* tab (drop or pick files;
   the desktop bridge resolves the real path); products link to them through
   `product_files`; a customer approval is granted against one of them.
   UNC-path **linking**, not upload — the files stay on the network share, and
@@ -358,7 +360,7 @@ per-type form), and the tables in [`ProductTable.tsx`](src/components/products/P
 - **History** — table `history` (`order_id`, `job_id`, `event_type`
   (`history_event` enum), `user_id`, `meta`). Written alongside every
   workflow action by [`historyService`](src/services/historyService.ts);
-  shown in `OrderHistoryDialog`.
+  shown on the order's *History* tab (`OrderHistory`).
 - **Products** — see below (the typed per-type model).
 - **Textile master data** — `textile_brands` → `textile_products` →
   `textile_variants` (`color`, `color_hex`, `size`, `stock`, `min_stock`),
