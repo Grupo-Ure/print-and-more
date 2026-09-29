@@ -4,7 +4,7 @@ import { TEST_IDS } from '../support/testIds'
 import { ForceReleaseDialogPOM } from './ForceReleaseDialogPOM'
 import { ProductSectionPOM } from './ProductSectionPOM'
 import { JobSettingsPOM } from './JobSettingsPOM'
-import { TimeLogsPOM } from './TimeLogsPOM'
+import { QuickTimeLogPOM, TimeLogsPOM } from './TimeLogsPOM'
 import { OrderFilesPOM } from './OrderFilesPOM'
 import { BasePOM } from './BasePOM'
 
@@ -12,8 +12,8 @@ const IDS = TEST_IDS.orders.jobDetail
 
 /**
  * The active job: header (assignee, status, actions, release button), the
- * banner naming unmet requirements, and the tabs below it — products, time
- * logs, settings and the order's files. The root
+ * banner naming unmet requirements, and the tabs below it — products (with
+ * the quick-log widget), time logs, settings and the order's files. The root
  * carries `data-job-id`, `data-status` and `data-department`.
  */
 export class JobDetailPOM extends BasePOM {
@@ -43,6 +43,8 @@ export class JobDetailPOM extends BasePOM {
   readonly filesTab: Locator
 
   readonly products: ProductSectionPOM
+  /** The quick-log widget below the products (Products tab only). */
+  readonly quickTimeLog: QuickTimeLogPOM
   readonly timeLogs: TimeLogsPOM
   readonly settings: JobSettingsPOM
   readonly files: OrderFilesPOM
@@ -72,6 +74,7 @@ export class JobDetailPOM extends BasePOM {
     this.filesTab = this.root.getByTestId(IDS.tabs.files)
 
     this.products = new ProductSectionPOM(page)
+    this.quickTimeLog = new QuickTimeLogPOM(page)
     this.timeLogs = new TimeLogsPOM(page)
     this.settings = new JobSettingsPOM(page)
     this.files = new OrderFilesPOM(page)

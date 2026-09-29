@@ -3,6 +3,7 @@ import { TEST_IDS } from '../support/testIds'
 import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.orders.jobDetail.timeLogs
+const QUICK_IDS = TEST_IDS.orders.jobDetail.quickTimeLog
 
 /** Worked time on the active job (the job's Time logs tab). */
 export class TimeLogsPOM extends BasePOM {
@@ -36,5 +37,28 @@ export class TimeLogsPOM extends BasePOM {
 
   itemDelete(item: Locator): Locator {
     return item.getByTestId(IDS.itemDelete)
+  }
+}
+
+/** The quick-log widget at the bottom of the job's Products tab (absent once the job is DONE). */
+export class QuickTimeLogPOM extends BasePOM {
+  readonly root: Locator
+  /** Carries `data-minutes` = the job's total. */
+  readonly total: Locator
+  readonly minutes: Locator
+  /** Admin only: who the time is attributed to; carries `data-value` = user id. */
+  readonly onBehalfOf: Locator
+  readonly submit: Locator
+  /** Switches to the Time logs tab. */
+  readonly showAll: Locator
+
+  constructor(page: Page) {
+    super(page)
+    this.root = page.getByTestId(QUICK_IDS.root)
+    this.total = this.root.getByTestId(QUICK_IDS.total)
+    this.minutes = this.root.getByTestId(QUICK_IDS.minutes)
+    this.onBehalfOf = this.root.getByTestId(QUICK_IDS.onBehalfOf)
+    this.submit = this.root.getByTestId(QUICK_IDS.submit)
+    this.showAll = this.root.getByTestId(QUICK_IDS.showAll)
   }
 }
