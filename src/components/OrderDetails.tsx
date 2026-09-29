@@ -377,9 +377,10 @@ export function OrderDetails() {
         cancelPending={cancelOrder.isPending}
         statusPending={setOrderStatus.isPending || markBilled.isPending}
       />
-      <Separator />
 
       <OrderSettings order={order} onSave={saveOrderHeader} deadlineRequired={deadlineRequired} />
+      {/* Groups the order header + settings visually apart from the job tabs below. */}
+      <Separator />
 
       {/* Kept across order switches, like the job tab: flipping through
           orders on History shows each one's history. */}
