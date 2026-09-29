@@ -402,7 +402,8 @@ export function OrderDetails() {
 
           <Separator orientation="vertical" />
 
-          <div className="flex-1 min-w-0 overflow-y-auto">
+          {/* A flex column so the job detail can stretch to the bottom of the column. */}
+          <div className="flex flex-1 min-w-0 flex-col overflow-y-auto">
             {activeJob ? (
               <JobDetail
                 orderFiles={files}

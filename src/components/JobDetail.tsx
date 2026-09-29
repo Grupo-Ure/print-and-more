@@ -11,7 +11,7 @@ import { isMissingAssignee } from '../lib/jobShared'
 import { type JobRow } from '../types/database'
 import { EmployeeCombobox } from './fields/EmployeeCombobox'
 import { JobSettingsSection } from './jobDetail/JobSettingsSection'
-import { JobTimeLogs } from './JobTimeLogs'
+import { JobTimeLogs, QuickTimeLog } from './JobTimeLogs'
 import { OrderFiles } from './OrderFiles'
 import { useToast } from './Toast'
 import { CopyShopProducts } from './products/departments/CopyShopProducts'
@@ -97,7 +97,9 @@ export function JobDetail({
       data-job-id={job.id}
       data-status={job.status}
       data-department={job.department}
-      className="flex flex-col gap-4"
+      // Fills the hosting column so the products tab can pin its quick-log
+      // widget to the bottom; taller content still scrolls in the host.
+      className="flex flex-1 flex-col gap-4"
     >
       <JobProductionBanner job={job} />
       <div aria-label="Job" className="flex flex-col gap-2 pt-2">
@@ -183,7 +185,7 @@ export function JobDetail({
       {shouldValidate && !customerMeetsPrepressRequirements && (
         <p className="text-xs italic text-muted-foreground">For auto-PREPRESS: Customer needs name and email or phone.</p>
       )}
-      <Tabs value={tab} onValueChange={value => setTab(value as JobTab)} className="gap-3">
+      <Tabs value={tab} onValueChange={value => setTab(value as JobTab)} className="flex-1 gap-3">
         <TabsList aria-label="Job sections">
           <TabsTrigger value="products" data-testid={IDS.tabs.products} className="px-3 text-sm">
             <Package />
@@ -203,7 +205,7 @@ export function JobDetail({
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="products">
+        <TabsContent value="products" className="flex flex-col gap-4">
           <section data-testid={IDS.products.root}>
             {job.department === 'LFP' && (
               <LfpProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
@@ -229,6 +231,17 @@ export function JobDetail({
               <TextileProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
             )}
           </section>
+
+          {/* Quick time entry without leaving the products; the full log is one
+              click away. Pinned to the bottom of the column (mt-auto). */}
+          {!isDone && (
+            <QuickTimeLog
+              orderId={order.id}
+              jobId={job.id}
+              onShowAll={() => setTab('timeLogs')}
+              className="mt-auto"
+            />
+          )}
         </TabsContent>
 
         {/* Inactive tabs unmount, so the per-job log query runs only while this tab is open. */}

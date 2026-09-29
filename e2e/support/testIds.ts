@@ -306,6 +306,17 @@ export const TEST_IDS = {
         onBehalfOf: 'time-logs-on-behalf-of',
         submit: 'time-logs-submit',
       },
+      /** The quick-log widget at the bottom of the Products tab (not shown once the job is DONE). */
+      quickTimeLog: {
+        root: 'quick-time-log',
+        /** Carries `data-minutes` = the job's total. */
+        total: 'quick-time-log-total',
+        minutes: 'quick-time-log-minutes',
+        onBehalfOf: 'quick-time-log-on-behalf-of',
+        submit: 'quick-time-log-submit',
+        /** Switches to the Time logs tab. */
+        showAll: 'quick-time-log-show-all',
+      },
       /** The order's file links, shown from the job so the production view has them too. */
       files: {
         root: 'order-files',
