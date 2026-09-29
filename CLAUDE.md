@@ -349,7 +349,9 @@ per-type form), and the tables in [`ProductTable.tsx`](src/components/products/P
   there is no aggregate column. Every create/delete writes a history event
   (`TIME_LOGGED` / `TIME_LOG_DELETED`). UI:
   [`JobTimeLogs`](src/components/JobTimeLogs.tsx) on the job's *Time logs*
-  tab; service [`timeLogService`](src/services/timeLogService.ts).
+  tab, plus `QuickTimeLog` from the same file at the bottom of the *Products*
+  tab — the same entry form without the list, so time is logged where the
+  work is looked at; service [`timeLogService`](src/services/timeLogService.ts).
 - **Files** — table `files` (`order_id`, `display_name`, `path`, `role`
   (`PRODUCTION_FILE` | `PREVIEW` | `CUSTOMER_APPROVAL` | `REFERENCE`)).
   Attached at the **order** level via `OrderFiles` on each job's *Files* tab (drop or pick files;
