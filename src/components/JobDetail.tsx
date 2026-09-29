@@ -101,7 +101,6 @@ export function JobDetail({
       // widget to the bottom; taller content still scrolls in the host.
       className="flex flex-1 flex-col gap-4"
     >
-      <JobProductionBanner job={job} />
       <div aria-label="Job" className="flex flex-col gap-2 pt-2">
         <div className="flex items-center gap-6">
           <h1 data-testid={IDS.title} className="flex items-baseline gap-2">
@@ -131,7 +130,9 @@ export function JobDetail({
             )}
           </div>
         </div>
-        <div className="flex items-center">
+        {/* min-h-10 = the release button's height, so the row keeps its height
+            for jobs that have no button (done, or the order is a quote). */}
+        <div className="flex min-h-10 items-center">
           <span data-testid={IDS.status} data-status={job.status} className="contents">
             <StatusBadge meta={JOB_STATUS_META[job.status]} />
           </span>
@@ -267,6 +268,10 @@ export function JobDetail({
           <OrderFiles orderId={order.id} files={orderFiles} onFileChanged={onOrderFilesChanged} />
         </TabsContent>
       </Tabs>
+
+      {/* Below the tabs, so its coming and going between jobs does not shift
+          the header and tabs. */}
+      <JobProductionBanner job={job} />
     </div>
   )
 }

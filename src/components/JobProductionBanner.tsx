@@ -64,7 +64,7 @@ export function JobProductionBanner({ job }: Props) {
       <div
         data-testid={IDS.root}
         data-kind="done"
-        className="flex items-center justify-center gap-4 border-b-6 border-green-500 px-4 py-2 text-green-500"
+        className="flex items-center justify-center gap-4 border-t-6 border-green-500 px-4 py-2 text-green-500"
       >
         <CheckCircle2 />
         <p className="text-sm font-medium">
@@ -82,7 +82,7 @@ export function JobProductionBanner({ job }: Props) {
       <div
         data-testid={IDS.root}
         data-kind="shortage"
-        className="flex items-center justify-center gap-4 border-b-6 border-red-500 px-4 py-2 text-red-500"
+        className="flex items-center justify-center gap-4 border-t-6 border-red-500 px-4 py-2 text-red-500"
       >
         <TriangleAlert />
         <p className="text-sm font-medium">
@@ -102,7 +102,7 @@ export function JobProductionBanner({ job }: Props) {
       <div
         data-testid={IDS.root}
         data-kind="blocked"
-        className="flex items-center justify-center gap-4 border-b-6 border-red-500 px-4 py-2 text-red-500"
+        className="flex items-center justify-center gap-4 border-t-6 border-red-500 px-4 py-2 text-red-500"
       >
         {onlyDeadline ? <CalendarX /> : <TriangleAlert />}
         <p className="text-sm font-medium">
@@ -131,7 +131,7 @@ export function JobProductionBanner({ job }: Props) {
     <div
       data-testid={IDS.root}
       data-kind="production"
-      className="flex items-center justify-center gap-4 border-b-6 border-blue-500 px-4 py-2 text-blue-500"
+      className="flex items-center justify-center gap-4 border-t-6 border-blue-500 px-4 py-2 text-blue-500"
     >
       <Lock/>
       <p className="text-sm font-medium">
