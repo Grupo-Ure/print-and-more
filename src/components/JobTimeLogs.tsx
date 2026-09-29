@@ -65,9 +65,9 @@ export function JobTimeLogs({
   return (
     // Rendered as the job's Time logs tab; the job detail's column scrolls.
     <div data-testid={IDS.root} className="flex flex-col gap-2">
-      <div className="text-sm">
+      <div className="text-base">
         Total:{' '}
-        <span data-testid={IDS.total} data-minutes={total} className="font-semibold text-foreground">
+        <span data-testid={IDS.total} data-minutes={total} className="font-semibold text-foreground tabular-nums">
           {formatMinutes(total)}
         </span>
       </div>
@@ -86,31 +86,35 @@ export function JobTimeLogs({
               data-testid={IDS.item}
               data-log-id={log.id}
               data-minutes={log.minutes}
-              className="group grid grid-cols-[1fr_1fr_2fr_auto] items-center gap-2 py-1.5 text-sm"
+              // Roomy rows: little information per entry, so larger type
+              // makes the log readable at a glance.
+              className="group grid grid-cols-[1fr_1fr_2fr_auto] items-center gap-3 py-3 text-base"
             >
-              <span className="shrink-0 font-medium tabular-nums">{formatMinutes(log.minutes)}</span>
+              <span className="shrink-0 font-semibold tabular-nums">{formatMinutes(log.minutes)}</span>
               <span className="shrink-0 text-muted-foreground tabular-nums">
                 {formatDateDe(log.created_at)}
               </span>
               <span
-                className="flex min-w-0 items-center gap-1.5"
+                className="flex min-w-0 items-center gap-2"
                 title={
                   log.created_by && log.created_by.id !== log.user?.id
                     ? `Logged by ${log.created_by.name}`
                     : undefined
                 }
               >
-                {log.user && <UserAvatar name={log.user.name} avatarUrl={log.user.avatar_url} />}
+                {log.user && (
+                  <UserAvatar name={log.user.name} avatarUrl={log.user.avatar_url} className="size-8 text-base" />
+                )}
                 <span className="truncate">{log.user?.name ?? '—'}</span>
                 {log.created_by && log.created_by.id !== log.user?.id && (
-                  <span className="text-[11px] text-muted-foreground shrink-0">(by {log.created_by.name})</span>
+                  <span className="shrink-0 text-sm text-muted-foreground">(by {log.created_by.name})</span>
                 )}
               </span>
               {isAdmin && !disabled && (
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon-sm"
+                  size="icon"
                   title="Delete log"
                   aria-label="Delete log"
                   data-testid={IDS.itemDelete}
