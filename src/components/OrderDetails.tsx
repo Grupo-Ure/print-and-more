@@ -15,7 +15,6 @@ import {
 import { useToast } from './Toast'
 import { useConfirm } from './ConfirmDialog'
 import { useOrderFiles } from '../hooks/useOrderFiles'
-import { OrderFilesDialog } from './OrderFilesDialog'
 import { JobDetail } from './JobDetail'
 import { JobList } from './JobList'
 import { StatusManager } from './StatusManager'
@@ -33,9 +32,10 @@ import './WorkArea.css'
 import { Button } from './ui/button'
 import { cn } from '@/lib/utils'
 import { ORDER_STATUS_META } from '../const/orderStatus'
-import { Archive, Ban, CheckCircle2, Clock, Copy, History, Paperclip, Settings, ShieldCheck, TriangleAlert } from 'lucide-react'
-import { OrderHistoryDialog } from './OrderHistoryDialog'
+import { Archive, Ban, Briefcase, CheckCircle2, Clock, Copy, History, Settings, ShieldCheck, TriangleAlert } from 'lucide-react'
+import { OrderHistory } from './OrderHistory'
 import { Separator } from './ui/separator'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import { DeadlinePicker } from './fields/DeadlinePicker'
 import { DeliverySelect } from './fields/DeliverySelect'
 import { PaymentSelect } from './fields/PaymentSelect'
@@ -44,6 +44,9 @@ import { TEST_IDS } from '@e2e/support/testIds'
 
 const HEADER_IDS = TEST_IDS.orders.details.header
 const SETTINGS_IDS = TEST_IDS.orders.details.settings
+const TAB_IDS = TEST_IDS.orders.details.tabs
+
+type OrderTab = 'jobs' | 'history'
 
 /** Copies a value to the clipboard and reports the outcome as a toast. */
 function useCopyToClipboard() {
@@ -68,7 +71,7 @@ export function OrderDetails() {
   const { data: releases } = useReleaseNotes()
   const queryClient = useQueryClient()
   const { files, reload: reloadFiles } = useOrderFiles(activeOrderId)
-  const [filesOpen, setFilesOpen] = useState(false)
+  const [tab, setTab] = useState<OrderTab>('jobs')
   const { showError } = useToast()
   const copyToClipboard = useCopyToClipboard()
   const confirm = useConfirm()
@@ -370,7 +373,6 @@ export function OrderDetails() {
         onMarkFinished={() => void handleMarkFinished()}
         onMarkInvoiced={() => void handleMarkInvoiced()}
         onReopenOrder={() => void handleReopenOrder()}
-        onOpenFiles={() => setFilesOpen(true)}
         archivePending={archiveOrder.isPending}
         cancelPending={cancelOrder.isPending}
         statusPending={setOrderStatus.isPending || markBilled.isPending}
@@ -379,40 +381,51 @@ export function OrderDetails() {
 
       <OrderSettings order={order} onSave={saveOrderHeader} deadlineRequired={deadlineRequired} />
 
-      <Separator />
+      {/* Kept across order switches, like the job tab: flipping through
+          orders on History shows each one's history. */}
+      <Tabs value={tab} onValueChange={value => setTab(value as OrderTab)} className="flex-1 min-h-0">
+        <TabsList variant="line" aria-label="Order sections">
+          <TabsTrigger value="jobs" data-testid={TAB_IDS.jobs} className="px-3 text-base">
+            <Briefcase />
+            Jobs
+          </TabsTrigger>
+          <TabsTrigger value="history" data-testid={TAB_IDS.history} className="px-3 text-base">
+            <History />
+            History
+          </TabsTrigger>
+        </TabsList>
 
-      <div className="flex gap-2 flex-1 min-h-0">
-        <JobList />
+        <Separator />
 
-        <Separator  orientation='vertical'/>
+        <TabsContent value="jobs" className="flex gap-2 min-h-0">
+          <JobList />
 
-        <div className="flex-1 min-w-0 overflow-y-auto" role="tabpanel">
-          {activeJob ? (
-            <JobDetail
-              orderFiles={files}
-              onOrderFilesChanged={reloadFiles}
-              onUpdated={handleJobUpdated}
-            />
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
-              <p className="text-sm text-muted-foreground">No jobs yet.</p>
-              {/* The department buttons live at the top of the job list; a
-                  finished/billed order has none, so no hint either. */}
-              {order.status !== 'FINISHED' && order.status !== 'BILLED' && (
-                <p className="text-sm text-muted-foreground">Pick a department on the left to add one.</p>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+          <Separator orientation="vertical" />
 
-      <OrderFilesDialog
-        orderId={activeOrderId}
-        files={files}
-        onFileChanged={reloadFiles}
-        open={filesOpen}
-        onOpenChange={setFilesOpen}
-      />
+          <div className="flex-1 min-w-0 overflow-y-auto">
+            {activeJob ? (
+              <JobDetail
+                orderFiles={files}
+                onOrderFilesChanged={reloadFiles}
+                onUpdated={handleJobUpdated}
+              />
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
+                <p className="text-sm text-muted-foreground">No jobs yet.</p>
+                {/* The department buttons live at the top of the job list; a
+                    finished/billed order has none, so no hint either. */}
+                {order.status !== 'FINISHED' && order.status !== 'BILLED' && (
+                  <p className="text-sm text-muted-foreground">Pick a department on the left to add one.</p>
+                )}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="history" className="min-h-0">
+          <OrderHistory orderId={order.id} />
+        </TabsContent>
+      </Tabs>
     </main>
   )
 }
@@ -430,13 +443,12 @@ type OrderHeaderProps = {
   onMarkFinished: () => void
   onMarkInvoiced: () => void
   onReopenOrder: () => void
-  onOpenFiles: () => void
   archivePending: boolean
   cancelPending: boolean
   statusPending: boolean
 }
 
-function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, onCancelOrder, onStartProcessing, onMarkFinished, onMarkInvoiced, onReopenOrder, onOpenFiles, archivePending, cancelPending, statusPending }: OrderHeaderProps) {
+function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, onCancelOrder, onStartProcessing, onMarkFinished, onMarkInvoiced, onReopenOrder, archivePending, cancelPending, statusPending }: OrderHeaderProps) {
   const customerDisplayName = order.customers?.name?.trim() || '—'
   const customerEmail = order.customers?.email?.trim() || ''
   const customerPhone = order.customers?.phone?.trim() || ''
@@ -444,7 +456,6 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
   const copyToClipboard = useCopyToClipboard()
   const minutesQuery = useTimeLogMinutesByOrderId(order.id)
   const totalMinutes = Object.values(minutesQuery.data ?? {}).reduce((sum, m) => sum + m, 0)
-  const [historyOpen, setHistoryOpen] = useState(false)
   const { isAdmin } = useIsAdmin()
 
   return (
@@ -554,18 +565,6 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
               Reopen order
             </Button>
           )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            title="Order files"
-            aria-label="Order files"
-            data-testid={HEADER_IDS.files}
-            className="text-blue-500 hover:text-blue-700"
-            onClick={onOpenFiles}
-          >
-            <Paperclip className="size-5" />
-          </Button>
           <OrderLifecycleButton
             status={order.status}
             paymentMethod={order.payment_method}
@@ -575,17 +574,6 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
             onMarkFinished={onMarkFinished}
             onMarkInvoiced={onMarkInvoiced}
           />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            title="Order history"
-            aria-label="Order history"
-            data-testid={HEADER_IDS.history}
-            onClick={() => setHistoryOpen(true)}
-          >
-            <History />
-          </Button>
           {order.status !== 'BILLED' && (
             <Button
               type="button"
@@ -645,7 +633,6 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
           </span>
         )}
       </div>
-      <OrderHistoryDialog orderId={order.id} open={historyOpen} onOpenChange={setHistoryOpen} />
     </header>
   );
 }

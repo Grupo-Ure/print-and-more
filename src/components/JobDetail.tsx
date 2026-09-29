@@ -10,8 +10,9 @@ import { customerMeetsPrepressContact } from '../lib/customer'
 import { isMissingAssignee } from '../lib/jobShared'
 import { type JobRow } from '../types/database'
 import { EmployeeCombobox } from './fields/EmployeeCombobox'
-import { JobSettingsDialog } from './jobDetail/JobSettingsDialog'
-import { JobTimeLogsDialog } from './jobDetail/JobTimeLogsDialog'
+import { JobSettingsSection } from './jobDetail/JobSettingsSection'
+import { JobTimeLogs } from './JobTimeLogs'
+import { OrderFiles } from './OrderFiles'
 import { useToast } from './Toast'
 import { CopyShopProducts } from './products/departments/CopyShopProducts'
 import { LfpProducts } from './products/departments/LfpProducts'
@@ -25,12 +26,15 @@ import { JOB_STATUS_META } from '../const/orderStatus'
 import { JobReleaseButton } from './JobReleaseButton'
 import { JobProductionBanner } from './JobProductionBanner'
 import { Button } from './ui/button'
-import { Ban, Clock, FileDown, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { Ban, Clock, FileDown, Package, Paperclip, SlidersHorizontal, Trash2 } from 'lucide-react'
 import './WorkArea.css'
 import { Separator } from './ui/separator'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import { TEST_IDS } from '@e2e/support/testIds'
 
 const IDS = TEST_IDS.orders.jobDetail
+
+type JobTab = 'products' | 'timeLogs' | 'settings' | 'files'
 
 export function JobDetail({
   orderFiles,
@@ -49,10 +53,9 @@ export function JobDetail({
   const removal = useJobRemoval(job ?? null)
   const { data: users = [] } = useUsers()
   const { showError } = useToast()
-  // Job settings and time logs open as dialogs from the header row so the
-  // detail view keeps its space for the products.
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [timeLogsOpen, setTimeLogsOpen] = useState(false)
+  // Not reset on a job switch: stepping through the jobs keeps the same tab
+  // open (e.g. checking every job's time logs in turn).
+  const [tab, setTab] = useState<JobTab>('products')
 
   if (!order || !job || !effectiveJob) return null
 
@@ -135,26 +138,6 @@ export function JobDetail({
               type="button"
               variant="ghost"
               size="sm"
-              data-testid={IDS.settingsButton}
-              onClick={() => setSettingsOpen(true)}
-            >
-              <SlidersHorizontal />
-              Job settings
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              data-testid={IDS.timeLogsButton}
-              onClick={() => setTimeLogsOpen(true)}
-            >
-              <Clock />
-              Time logs
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
               data-testid={IDS.pdfButton}
               onClick={() => void handleDownloadPdf()}
             >
@@ -200,49 +183,77 @@ export function JobDetail({
       {shouldValidate && !customerMeetsPrepressRequirements && (
         <p className="text-xs italic text-muted-foreground">For auto-PREPRESS: Customer needs name and email or phone.</p>
       )}
-      <section data-testid={IDS.products.root}>
-        {job.department === 'LFP' && (
-          <LfpProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
-        )}
+      <Tabs value={tab} onValueChange={value => setTab(value as JobTab)} className="gap-3">
+        <TabsList aria-label="Job sections">
+          <TabsTrigger value="products" data-testid={IDS.tabs.products} className="px-3 text-sm">
+            <Package />
+            Products
+          </TabsTrigger>
+          <TabsTrigger value="timeLogs" data-testid={IDS.tabs.timeLogs} className="px-3 text-sm">
+            <Clock />
+            Time logs
+          </TabsTrigger>
+          <TabsTrigger value="settings" data-testid={IDS.tabs.settings} className="px-3 text-sm">
+            <SlidersHorizontal />
+            Settings
+          </TabsTrigger>
+          <TabsTrigger value="files" data-testid={IDS.tabs.files} className="px-3 text-sm">
+            <Paperclip />
+            Files
+          </TabsTrigger>
+        </TabsList>
 
-        {job.department === 'COPYSHOP' && (
-          <CopyShopProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
-        )}
+        <TabsContent value="products">
+          <section data-testid={IDS.products.root}>
+            {job.department === 'LFP' && (
+              <LfpProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
+            )}
 
-        {job.department === 'STAMP' && (
-          <StampProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
-        )}
+            {job.department === 'COPYSHOP' && (
+              <CopyShopProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
+            )}
 
-        {job.department === 'OTHER' && (
-          <OtherProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
-        )}
+            {job.department === 'STAMP' && (
+              <StampProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
+            )}
 
-        {job.department === 'LASER_ENGRAVING' && (
-          <LaserProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
-        )}
+            {job.department === 'OTHER' && (
+              <OtherProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
+            )}
 
-        {job.department === 'TEXTILE' && (
-          <TextileProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
-        )}
-      </section>
+            {job.department === 'LASER_ENGRAVING' && (
+              <LaserProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
+            )}
 
-      <JobSettingsDialog
-        order={order}
-        job={job}
-        effectiveJob={effectiveJob}
-        orderFiles={orderFiles}
-        onOrderFilesChanged={onOrderFilesChanged}
-        onUpdated={onUpdated}
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-      />
-      <JobTimeLogsDialog
-        orderId={order.id}
-        jobId={job.id}
-        disabled={isDone}
-        open={timeLogsOpen}
-        onOpenChange={setTimeLogsOpen}
-      />
+            {job.department === 'TEXTILE' && (
+              <TextileProducts key={job.id} job={job} jobStatus={job.status} orderFiles={orderFiles} />
+            )}
+          </section>
+        </TabsContent>
+
+        {/* Inactive tabs unmount, so the per-job log query runs only while this tab is open. */}
+        <TabsContent value="timeLogs">
+          <JobTimeLogs orderId={order.id} jobId={job.id} disabled={isDone} />
+        </TabsContent>
+
+        <TabsContent value="settings" className="flex flex-col gap-3">
+          <p className="text-xs text-muted-foreground">
+            These settings override the order's settings for this job only.
+          </p>
+          <JobSettingsSection
+            order={order}
+            job={job}
+            effectiveJob={effectiveJob}
+            orderFiles={orderFiles}
+            onOrderFilesChanged={onOrderFilesChanged}
+            onUpdated={onUpdated}
+          />
+        </TabsContent>
+
+        <TabsContent value="files">
+          <OrderFiles orderId={order.id} files={orderFiles} onFileChanged={onOrderFilesChanged} />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

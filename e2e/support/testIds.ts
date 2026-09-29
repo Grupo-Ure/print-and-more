@@ -163,8 +163,6 @@ export const TEST_IDS = {
         reopen: 'order-header-reopen',
         /** The single forward lifecycle action; `data-target` = target OrderStatus. */
         lifecycle: 'order-header-lifecycle',
-        files: 'order-header-files',
-        history: 'order-header-history',
         archive: 'order-header-archive',
         cancel: 'order-header-cancel',
         customerName: 'order-header-customer-name',
@@ -186,6 +184,10 @@ export const TEST_IDS = {
         delivery: 'order-settings-delivery',
         priority: 'order-settings-priority',
         payment: 'order-settings-payment',
+      },
+      tabs: {
+        jobs: 'order-tab-jobs',
+        history: 'order-tab-history',
       },
       history: {
         root: 'order-history',
@@ -221,8 +223,6 @@ export const TEST_IDS = {
       assigneeHint: 'job-detail-assignee-hint',
       /** `data-status` = JobStatus. */
       status: 'job-detail-status',
-      settingsButton: 'job-detail-settings',
-      timeLogsButton: 'job-detail-time-logs',
       pdfButton: 'job-detail-pdf',
       deleteButton: 'job-detail-delete',
       cancelButton: 'job-detail-cancel',
@@ -242,6 +242,12 @@ export const TEST_IDS = {
       banner: {
         root: 'job-banner',
         backToPrepress: 'job-banner-back-to-prepress',
+      },
+      tabs: {
+        products: 'job-tab-products',
+        timeLogs: 'job-tab-time-logs',
+        settings: 'job-tab-settings',
+        files: 'job-tab-files',
       },
       products: {
         root: 'job-products',
