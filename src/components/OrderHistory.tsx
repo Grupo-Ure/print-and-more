@@ -1,4 +1,3 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import type { HistoryRow } from '../services/historyService'
 import { useHistoryForOrder } from '../queries/historyQueries'
 import { useJobsByOrderId } from '../queries/jobQueries'
@@ -11,7 +10,7 @@ import { STAMP_TYPE_LABELS } from '../types/stamp'
 import { cn } from '../lib/utils'
 import { TEST_IDS } from '@e2e/support/testIds'
 
-const IDS = TEST_IDS.orders.details.historyDialog
+const IDS = TEST_IDS.orders.details.history
 
 /** Human labels for every product type, for the PRODUCT_* sentences. */
 const PRODUCT_TYPE_LABELS: Record<string, string> = {
@@ -228,15 +227,14 @@ function historySegments(
   }
 }
 
-type Props = {
-  orderId: string
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}
-
-export function OrderHistoryDialog({ orderId, open, onOpenChange }: Props) {
-  const historyQuery = useHistoryForOrder(open ? orderId : null)
-  const jobsQuery = useJobsByOrderId(open ? orderId : null)
+/**
+ * The order's history log, newest first, one sentence per event. Rendered as
+ * the order's History tab — mounted only while that tab is active, so the
+ * query runs on demand.
+ */
+export function OrderHistory({ orderId }: { orderId: string }) {
+  const historyQuery = useHistoryForOrder(orderId)
+  const jobsQuery = useJobsByOrderId(orderId)
   const { data: users } = useUsers()
 
   const staffById = new Map((users ?? []).map(user => [user.id, user.name ?? user.id]))
@@ -244,7 +242,7 @@ export function OrderHistoryDialog({ orderId, open, onOpenChange }: Props) {
   const entries = historyQuery.data ?? []
 
   // "LFP-01" — the job number without the redundant order-number prefix
-  // (every entry in this dialog belongs to the same order).
+  // (every entry in this log belongs to the same order).
   const jobShortNumber = (jobId: string | null): string | null => {
     if (!jobId) return null
     const jobNumber = jobs.find(job => job.id === jobId)?.job_number
@@ -252,35 +250,27 @@ export function OrderHistoryDialog({ orderId, open, onOpenChange }: Props) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl h-[70vh] flex flex-col" data-testid={IDS.root}>
-        <DialogHeader>
-          <DialogTitle>Order history</DialogTitle>
-        </DialogHeader>
-
-        <div className="flex-1 min-h-0 overflow-y-auto">
-          {historyQuery.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
-          {historyQuery.isError && (
-            <p className="text-sm text-destructive">History could not be loaded</p>
-          )}
-          {historyQuery.isSuccess && entries.length === 0 && (
-            <p data-testid={IDS.empty} className="text-sm text-muted-foreground">No history entries yet</p>
-          )}
-          {entries.length > 0 && (
-            <ul data-testid={IDS.list} className="divide-y divide-border">
-              {entries.map(entry => (
-                <HistoryItem
-                  key={entry.id}
-                  entry={entry}
-                  jobLabel={jobShortNumber(entry.job_id)}
-                  staffById={staffById}
-                />
-              ))}
-            </ul>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+    <section data-testid={IDS.root} aria-label="Order history" className="h-full overflow-y-auto">
+      {historyQuery.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+      {historyQuery.isError && (
+        <p className="text-sm text-destructive">History could not be loaded</p>
+      )}
+      {historyQuery.isSuccess && entries.length === 0 && (
+        <p data-testid={IDS.empty} className="text-sm text-muted-foreground">No history entries yet</p>
+      )}
+      {entries.length > 0 && (
+        <ul data-testid={IDS.list} className="divide-y divide-border">
+          {entries.map(entry => (
+            <HistoryItem
+              key={entry.id}
+              entry={entry}
+              jobLabel={jobShortNumber(entry.job_id)}
+              staffById={staffById}
+            />
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }
 

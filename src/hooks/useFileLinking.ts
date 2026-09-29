@@ -8,7 +8,7 @@ const DEFAULT_ROLE: FileRole = 'PRODUCTION_FILE'
 
 /**
  * Links files to an order by their real disk path (via the Electron bridge):
- * shared by OrderFilesDialog and GrantApprovalDialog. Every link writes a
+ * shared by OrderFiles and GrantApprovalDialog. Every link writes a
  * FILE_ADDED history event; failures surface as error toasts.
  */
 export function useFileLinking(orderId: string) {

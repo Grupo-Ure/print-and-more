@@ -13,7 +13,7 @@ import { useConfirm } from './ConfirmDialog'
 import { useToast } from './Toast'
 import { TEST_IDS } from '@e2e/support/testIds'
 
-const IDS = TEST_IDS.orders.jobDetail.timeLogsDialog
+const IDS = TEST_IDS.orders.jobDetail.timeLogs
 
 /**
  * Worked-time log for one job: total, the individual entries (minutes, date,
@@ -77,9 +77,8 @@ export function JobTimeLogs({
   }
 
   return (
-    // Fills the height its host (the time-logs dialog) grants: the list
-    // scrolls inside while the total and the entry form stay in place.
-    <div className="flex min-h-0 flex-1 flex-col gap-2">
+    // Rendered as the job's Time logs tab; the job detail's column scrolls.
+    <div data-testid={IDS.root} className="flex flex-col gap-2">
       <div className="text-sm">
         Total:{' '}
         <span data-testid={IDS.total} data-minutes={total} className="font-semibold text-foreground">
@@ -87,9 +86,8 @@ export function JobTimeLogs({
         </span>
       </div>
 
-      {/* min-h keeps the empty and loading states from collapsing the dialog;
-          flex-1 + overflow lets a long list scroll within the host's max height. */}
-      <div className="min-h-24 flex-1 overflow-y-auto">
+      {/* min-h keeps the entry form from jumping while the list loads. */}
+      <div className="min-h-24">
         {logsQuery.isLoading ? (
           <p className="text-sm! text-muted-foreground">Loading…</p>
         ) : logs.length === 0 ? (

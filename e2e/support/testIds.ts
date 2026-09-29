@@ -187,24 +187,12 @@ export const TEST_IDS = {
         priority: 'order-settings-priority',
         payment: 'order-settings-payment',
       },
-      filesDialog: {
-        root: 'order-files-dialog',
-        addFiles: 'order-files-dialog-add',
-        error: 'order-files-dialog-error',
-        list: 'order-files-dialog-list',
-        /** One per file; `data-file-id`. */
-        item: 'order-files-dialog-item',
-        itemName: 'order-files-dialog-item-name',
-        itemRole: 'order-files-dialog-item-role',
-        itemRemove: 'order-files-dialog-item-remove',
-        itemPath: 'order-files-dialog-item-path',
-      },
-      historyDialog: {
-        root: 'order-history-dialog',
-        list: 'order-history-dialog-list',
+      history: {
+        root: 'order-history',
+        list: 'order-history-list',
         /** One per entry; `data-event-type` = history_event. */
-        item: 'order-history-dialog-item',
-        empty: 'order-history-dialog-empty',
+        item: 'order-history-item',
+        empty: 'order-history-empty',
       },
     },
 
@@ -280,8 +268,8 @@ export const TEST_IDS = {
           close: 'product-dialog-close',
         },
       },
-      settingsDialog: {
-        root: 'job-settings-dialog',
+      settings: {
+        root: 'job-settings',
         separateDeadline: 'job-settings-separate-deadline',
         deadline: 'job-settings-deadline',
         separateDelivery: 'job-settings-separate-delivery',
@@ -300,17 +288,30 @@ export const TEST_IDS = {
           submit: 'grant-approval-dialog-submit',
         },
       },
-      timeLogsDialog: {
-        root: 'time-logs-dialog',
-        total: 'time-logs-dialog-total',
-        list: 'time-logs-dialog-list',
-        empty: 'time-logs-dialog-empty',
+      timeLogs: {
+        root: 'time-logs',
+        total: 'time-logs-total',
+        list: 'time-logs-list',
+        empty: 'time-logs-empty',
         /** One per log; `data-log-id`. */
-        item: 'time-logs-dialog-item',
-        itemDelete: 'time-logs-dialog-item-delete',
-        minutes: 'time-logs-dialog-minutes',
-        onBehalfOf: 'time-logs-dialog-on-behalf-of',
-        submit: 'time-logs-dialog-submit',
+        item: 'time-logs-item',
+        itemDelete: 'time-logs-item-delete',
+        minutes: 'time-logs-minutes',
+        onBehalfOf: 'time-logs-on-behalf-of',
+        submit: 'time-logs-submit',
+      },
+      /** The order's file links, shown from the job so the production view has them too. */
+      files: {
+        root: 'order-files',
+        addFiles: 'order-files-add',
+        error: 'order-files-error',
+        list: 'order-files-list',
+        /** One per file; `data-file-id`. */
+        item: 'order-files-item',
+        itemName: 'order-files-item-name',
+        itemRole: 'order-files-item-role',
+        itemRemove: 'order-files-item-remove',
+        itemPath: 'order-files-item-path',
       },
     },
   },

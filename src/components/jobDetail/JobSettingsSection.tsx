@@ -20,7 +20,7 @@ import { useToast } from '../Toast'
 import { GrantApprovalDialog } from './GrantApprovalDialog'
 import { TEST_IDS } from '@e2e/support/testIds'
 
-const IDS = TEST_IDS.orders.jobDetail.settingsDialog
+const IDS = TEST_IDS.orders.jobDetail.settings
 
 /**
  * The "Job Settings" section: the separate-value switches (deadline,
@@ -114,7 +114,7 @@ export function JobSettingsSection({
   }
 
   return (
-    <div className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
+    <div data-testid={IDS.root} className="grid w-fit grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
       <label className="flex items-center gap-2 text-[13px] select-none">
         <Switch
           data-testid={IDS.separateDeadline}

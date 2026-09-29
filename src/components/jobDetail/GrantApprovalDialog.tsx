@@ -14,7 +14,7 @@ import {
 } from '../ui/dialog'
 import { TEST_IDS } from '@e2e/support/testIds'
 
-const IDS = TEST_IDS.orders.jobDetail.settingsDialog.grantDialog
+const IDS = TEST_IDS.orders.jobDetail.settings.grantDialog
 
 type Props = {
   orderId: string
