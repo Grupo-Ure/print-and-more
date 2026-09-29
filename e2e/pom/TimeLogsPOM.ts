@@ -2,10 +2,10 @@ import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
 import { BasePOM } from './BasePOM'
 
-const IDS = TEST_IDS.orders.jobDetail.timeLogsDialog
+const IDS = TEST_IDS.orders.jobDetail.timeLogs
 
-/** Worked time on the active job. */
-export class TimeLogsDialogPOM extends BasePOM {
+/** Worked time on the active job (the job's Time logs tab). */
+export class TimeLogsPOM extends BasePOM {
   readonly root: Locator
   /** Carries `data-minutes`. */
   readonly total: Locator

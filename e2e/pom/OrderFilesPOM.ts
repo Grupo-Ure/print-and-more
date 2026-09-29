@@ -2,10 +2,10 @@ import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
 import { BasePOM } from './BasePOM'
 
-const IDS = TEST_IDS.orders.details.filesDialog
+const IDS = TEST_IDS.orders.jobDetail.files
 
-/** Order-level file links (UNC paths; nothing is uploaded). */
-export class OrderFilesDialogPOM extends BasePOM {
+/** Order-level file links (UNC paths; nothing is uploaded), shown as the job's Files tab. */
+export class OrderFilesPOM extends BasePOM {
   readonly root: Locator
   readonly addFiles: Locator
   readonly error: Locator

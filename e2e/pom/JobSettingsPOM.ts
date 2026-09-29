@@ -3,10 +3,10 @@ import { TEST_IDS } from '../support/testIds'
 import { GrantApprovalDialogPOM } from './GrantApprovalDialogPOM'
 import { BasePOM } from './BasePOM'
 
-const IDS = TEST_IDS.orders.jobDetail.settingsDialog
+const IDS = TEST_IDS.orders.jobDetail.settings
 
-/** Per-job overrides (deadline / delivery / priority) and customer approval. */
-export class JobSettingsDialogPOM extends BasePOM {
+/** Per-job overrides (deadline / delivery / priority) and customer approval (the job's Settings tab). */
+export class JobSettingsPOM extends BasePOM {
   readonly root: Locator
   readonly separateDeadline: Locator
   /** Carries `data-value` = ISO date when set. */
@@ -21,13 +21,10 @@ export class JobSettingsDialogPOM extends BasePOM {
   readonly grantApproval: Locator
   readonly approvalGranted: Locator
   readonly grantDialog: GrantApprovalDialogPOM
-  /** The dialog's own close control — the vendored dialog primitive renders it, so it is found by role inside the root. */
-  readonly close: Locator
 
   constructor(page: Page) {
     super(page)
     this.root = page.getByTestId(IDS.root)
-    this.close = this.root.getByRole('button', { name: 'Close' })
     this.separateDeadline = this.root.getByTestId(IDS.separateDeadline)
     this.deadline = this.root.getByTestId(IDS.deadline)
     this.separateDelivery = this.root.getByTestId(IDS.separateDelivery)

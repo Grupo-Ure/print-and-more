@@ -5,10 +5,10 @@ import { BasePOM } from './BasePOM'
 
 type HistoryEvent = Database['public']['Enums']['history_event']
 
-const IDS = TEST_IDS.orders.details.historyDialog
+const IDS = TEST_IDS.orders.details.history
 
-/** The order's history log. */
-export class OrderHistoryDialogPOM extends BasePOM {
+/** The order's history log (the order's History tab). */
+export class OrderHistoryPOM extends BasePOM {
   readonly root: Locator
   readonly list: Locator
   readonly empty: Locator

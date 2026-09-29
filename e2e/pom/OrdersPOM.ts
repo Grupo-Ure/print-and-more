@@ -55,10 +55,10 @@ export class OrdersPOM extends BasePOM {
     await this.details.jobDetail.forJob(job.id).waitFor()
   }
 
-  /** Opens the job and its settings dialog. */
+  /** Opens the job on its Settings tab. */
   async openJobSettings(job: JobRef): Promise<void> {
     await this.openJob(job)
-    await this.details.jobDetail.settingsButton.click()
-    await this.details.jobDetail.settingsDialog.root.waitFor()
+    await this.details.jobDetail.settingsTab.click()
+    await this.details.jobDetail.settings.root.waitFor()
   }
 }
