@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import { customerService } from '../services/customerService'
 import { historyService, type HistoryEvent } from '../services/historyService'
 import { orderService, type OrderListEntry } from '../services/orderService'
+import { productKeys } from './productQueries'
 import type { Auftrag, Department, OrderStatus } from '../types/database'
 import type { Database } from '../types/supabase'
 
@@ -23,10 +24,10 @@ export type OrdersListFilter = {
 }
 
 function matchesDepartmentFilter(order: OrderListEntry, filter: OrdersListFilter): boolean {
-  const jobs = order.jobs ?? []
+  const products = order.products ?? []
   return (
     filter.departments.length === 0 ||
-    jobs.some(job => filter.departments.includes(job.department))
+    products.some(product => filter.departments.includes(product.department))
   )
 }
 
@@ -88,7 +89,7 @@ export function useOrdersList(filter: OrdersListFilter) {
     },
     enabled: hasStatusFilter && searchSettled,
     refetchOnWindowFocus: false,
-    // The department is filtered over the cached rows (jobs are already
+    // The department is filtered over the cached rows (the products are already
     // loaded), so toggling it never triggers a refetch — hence not in the key.
     select:
       filter.departments.length === 0
@@ -210,16 +211,16 @@ export function useArchiveOrder() {
   })
 }
 
-/** Cancel order: cancel all jobs + archive. Writes a CANCELLED history entry. */
-export function useArchiveOrderWithCancelledJobs() {
+/** Cancel order: cancel every product + archive. Writes a CANCELLED history entry. */
+export function useArchiveOrderWithCancelledProducts() {
   const queryClient = useQueryClient()
   return useMutation<void, Error, { id: string }>({
     mutationFn: async ({ id }) => {
-      await orderService.archiveOrderWithCancelledJobs(id)
+      await orderService.archiveOrderWithCancelledProducts(id)
       await historyService.tryWriteHistory({ order_id: id, event_type: 'CANCELLED' })
     },
     onSuccess: (_void, { id }) => {
-      void queryClient.invalidateQueries({ queryKey: ['jobs', 'by-order-id', id] })
+      void queryClient.invalidateQueries({ queryKey: productKeys.byOrderId(id) })
       void queryClient.invalidateQueries({ queryKey: orderKeys.byId(id) })
       void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
     },
