@@ -1,27 +1,25 @@
 /**
- * The bounce-back policy: whether a product/content change is "meaningful" enough to
- * drop a committed (IN_PRODUCTION / DONE) job back to IN_SETUP.
+ * The bounce-back policy: whether a spec change is "meaningful" enough to drop
+ * a committed (IN_PRODUCTION / DONE) product back to IN_SETUP.
  *
  * Per department (spec §5):
  * - Stamp / Other → only the product's `description` changing counts.
  * - Laser → only the product's `motif` changing counts.
  * - LFP / CopyShop / Textile → any product change counts.
  *
- * A product create or delete is always meaningful (content added/removed). For an
- * update, the narrow departments compare the one field; everyone else counts any
- * update. Schedule/meta edits (deadline/delivery/priority/…) are NOT routed here — they
- * never touch product content — so they never bounce, which matches the spec.
+ * Only an *edit* is routed here. Creating or deleting a product used to bounce
+ * its job back, because the job's content had changed; a product is its own
+ * content, so a new one starts in setup and a deleted one is gone — neither can
+ * bounce anything. Schedule/meta edits (deadline/delivery/priority/…) never
+ * touch the spec, so they never bounce either, which matches the spec.
  *
  * Pure, no I/O. `prevChild`/`nextChild` are the typed product child rows (or null).
  */
 export function isMeaningfulChange(
   department: string,
-  kind: 'create' | 'update' | 'delete',
   prevChild: Record<string, unknown> | null,
   nextChild: Record<string, unknown> | null,
 ): boolean {
-  if (kind === 'create' || kind === 'delete') return true
-
   const field = meaningfulField(department)
   if (field === null) return true // LFP / CopyShop / Textile: any update is meaningful
 

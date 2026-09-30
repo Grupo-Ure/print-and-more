@@ -1,4 +1,4 @@
-import type { JobStatus, OrderStatus } from '../types/database'
+import type { OrderStatus, ProductStatus } from '../types/database'
 
 export type StatusMeta = {
   label: string
@@ -19,16 +19,16 @@ export const ORDER_STATUS_META: Record<OrderStatus, StatusMeta> = {
   BILLED:      { label: 'Billed',      color: 'bg-violet-500',  hoverColor: 'hover:bg-violet-600',  softHoverColor: 'focus:bg-violet-500/10 focus:text-violet-700',   textColor: 'text-violet-600 dark:text-violet-400' },
 }
 
-/** Job production workflow (IN_SETUP → PREPRESS → IN_PRODUCTION → DONE). */
-export const JOB_STATUS_META: Record<JobStatus, StatusMeta> = {
+/** Product production workflow (IN_SETUP → PREPRESS → IN_PRODUCTION → DONE). */
+export const PRODUCT_STATUS_META: Record<ProductStatus, StatusMeta> = {
   IN_SETUP:      { label: 'In Setup',      color: 'bg-orange-500',  hoverColor: 'hover:bg-orange-600',  softHoverColor: 'focus:bg-orange-500/10 focus:text-orange-700',   textColor: 'text-orange-600 dark:text-orange-400' },
   PREPRESS:      { label: 'Prepress',      color: 'bg-pink-500',    hoverColor: 'hover:bg-pink-600',    softHoverColor: 'focus:bg-pink-500/10 focus:text-pink-700',       textColor: 'text-pink-600 dark:text-pink-400' },
   IN_PRODUCTION: { label: 'In Production', color: 'bg-blue-500',    hoverColor: 'hover:bg-blue-600',    softHoverColor: 'focus:bg-blue-500/10 focus:text-blue-700',       textColor: 'text-blue-600 dark:text-blue-400' },
   DONE:          { label: 'Done',          color: 'bg-emerald-500', hoverColor: 'hover:bg-emerald-600', softHoverColor: 'focus:bg-emerald-500/10 focus:text-emerald-700', textColor: 'text-emerald-600 dark:text-emerald-400' },
 }
 
-/** Ordered job statuses shown in the job status track. */
-export const WORKFLOW_STATUSES: JobStatus[] = [
+/** Ordered product statuses shown in the product status track. */
+export const WORKFLOW_STATUSES: ProductStatus[] = [
   'IN_SETUP',
   'PREPRESS',
   'IN_PRODUCTION',
