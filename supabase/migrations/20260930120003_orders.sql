@@ -1,5 +1,8 @@
--- 20260508081506_orders.sql — orders, order_number_counter, files, erp_exports (+ order/file fns)
--- Split from baseline 20260508081503_remote_schema.sql (delete that file once verified).
+-- 20260930120003_orders.sql — orders, order_number_counter, files, erp_exports (+ order/file fns)
+--
+-- Folds in 20260922110304_default_payment_method_cash (CASH is the default
+-- from the start) and the `orders` realtime membership from
+-- 20260925101438_realtime_publication.
 
 CREATE TABLE IF NOT EXISTS "public"."orders" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
@@ -9,7 +12,7 @@ CREATE TABLE IF NOT EXISTS "public"."orders" (
     "deadline" "date",
     "delivery" "public"."delivery_type",
     "priority" "public"."priority_type" DEFAULT 'NORMAL'::"public"."priority_type" NOT NULL,
-    "payment_method" "public"."payment_method" DEFAULT 'INVOICE'::"public"."payment_method" NOT NULL,
+    "payment_method" "public"."payment_method" DEFAULT 'CASH'::"public"."payment_method" NOT NULL,
     "is_archived" boolean DEFAULT false NOT NULL,
     "is_erp_exported" boolean DEFAULT false NOT NULL,
     "billing_note" "text",
@@ -223,10 +226,16 @@ GRANT ALL ON TABLE "public"."erp_exports" TO "service_role";
 
 COMMENT ON FUNCTION "public"."fn_generate_order_number"() IS 'Atomic monthly counter using INSERT ... ON CONFLICT DO UPDATE. No race condition on concurrent inserts. Resets counter to 1 each month.';
 
-COMMENT ON TABLE "public"."orders" IS 'Central aggregate. status is a manual order lifecycle (QUOTE → IN_PROGRESS → FINISHED → BILLED) set by explicit user actions in the app — it is independent of job statuses and the DB does not enforce transitions.';
+COMMENT ON TABLE "public"."orders" IS 'Central aggregate. status is a manual order lifecycle (QUOTE → IN_PROGRESS → FINISHED → BILLED) set by explicit user actions in the app — it is independent of product statuses and the DB does not enforce transitions.';
 
-COMMENT ON COLUMN "public"."orders"."deadline" IS 'Overall deadline as a commercial frame. jobs.deadline is operationally leading and may differ — no automatic sync (V1 domain model, intentional decision).';
+COMMENT ON COLUMN "public"."orders"."deadline" IS 'Overall deadline as a commercial frame. A product inherits it unless products.deadline overrides it, and the override is operationally leading — no automatic sync.';
 
 COMMENT ON TABLE "public"."order_number_counter" IS 'Monthly counter for order numbers. One row per year+month. Written exclusively via fn_generate_order_number(). Direct UPDATEs are forbidden — they would corrupt the numbering sequence.';
 
-COMMENT ON TABLE "public"."files" IS 'Always attached to an order, never to a job. No file upload — network path only. replaces_file_id: empty in V1, trigger already enforces same order.';
+COMMENT ON TABLE "public"."files" IS 'Always attached to an order, never to a single product. No file upload — network path only. replaces_file_id: empty in V1, trigger already enforces same order.';
+
+-- ── realtime ─────────────────────────────────────────────────────────────────
+-- The production feed inherits deadline, priority, delivery and the archive
+-- flag from the order, so it refetches when an order changes.
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE "public"."orders";

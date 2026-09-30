@@ -1,5 +1,11 @@
--- 20260508081508_catalog.sql — stamp + textile master data
--- Split from baseline 20260508081503_remote_schema.sql (delete that file once verified).
+-- 20260930120005_catalog.sql — stamp + textile master data
+--
+-- textile_products is renamed textile_models (JOB_ELIMINATION textile
+-- decision 1): it is the garment model — B&C "T-Shirt #E190" — of which a
+-- variant is one colour and size, the same role stamp_models already names.
+-- Its finishing_options column is dropped (decision 3): set on one of seven
+-- models, read by nothing, and at the wrong grain — fabric varies per
+-- variant.
 
 CREATE TABLE IF NOT EXISTS "public"."stamp_stock_movements" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
@@ -85,22 +91,21 @@ CREATE TABLE IF NOT EXISTS "public"."textile_brands" (
 
 ALTER TABLE "public"."textile_brands" OWNER TO "postgres";
 
-CREATE TABLE IF NOT EXISTS "public"."textile_products" (
+CREATE TABLE IF NOT EXISTS "public"."textile_models" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "brand_id" "uuid" NOT NULL,
     "name" "text" NOT NULL,
     "article_number" "text",
     "description" "text",
     "is_active" boolean DEFAULT true NOT NULL,
-    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "finishing_options" "text"[]
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
 );
 
-ALTER TABLE "public"."textile_products" OWNER TO "postgres";
+ALTER TABLE "public"."textile_models" OWNER TO "postgres";
 
 CREATE TABLE IF NOT EXISTS "public"."textile_variants" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "product_id" "uuid" NOT NULL,
+    "model_id" "uuid" NOT NULL,
     "color" "text" NOT NULL,
     "color_hex" "text",
     "size" "text" NOT NULL,
@@ -129,8 +134,8 @@ ALTER TABLE ONLY "public"."textile_stock_movements"
 ALTER TABLE ONLY "public"."textile_brands"
     ADD CONSTRAINT "textile_brands_pkey" PRIMARY KEY ("id");
 
-ALTER TABLE ONLY "public"."textile_products"
-    ADD CONSTRAINT "textile_products_pkey" PRIMARY KEY ("id");
+ALTER TABLE ONLY "public"."textile_models"
+    ADD CONSTRAINT "textile_models_pkey" PRIMARY KEY ("id");
 
 ALTER TABLE ONLY "public"."textile_variants"
     ADD CONSTRAINT "textile_variants_pkey" PRIMARY KEY ("id");
@@ -150,11 +155,13 @@ ALTER TABLE ONLY "public"."textile_stock_movements"
 ALTER TABLE ONLY "public"."textile_stock_movements"
     ADD CONSTRAINT "textile_stock_movements_variant_id_fkey" FOREIGN KEY ("variant_id") REFERENCES "public"."textile_variants"("id");
 
-ALTER TABLE ONLY "public"."textile_products"
-    ADD CONSTRAINT "textile_products_brand_id_fkey" FOREIGN KEY ("brand_id") REFERENCES "public"."textile_brands"("id");
+ALTER TABLE ONLY "public"."textile_models"
+    ADD CONSTRAINT "textile_models_brand_id_fkey" FOREIGN KEY ("brand_id") REFERENCES "public"."textile_brands"("id");
 
 ALTER TABLE ONLY "public"."textile_variants"
-    ADD CONSTRAINT "textile_variants_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "public"."textile_products"("id");
+    ADD CONSTRAINT "textile_variants_model_id_fkey" FOREIGN KEY ("model_id") REFERENCES "public"."textile_models"("id");
+
+CREATE INDEX "idx_textile_variants_model" ON "public"."textile_variants" USING "btree" ("model_id");
 
 CREATE INDEX "idx_stamp_models_color" ON "public"."stamp_models" USING "btree" ("color");
 
@@ -180,7 +187,7 @@ CREATE POLICY "Employees: full access" ON "public"."textile_stock_movements" TO 
 
 CREATE POLICY "Employees: full access" ON "public"."textile_brands" TO "authenticated" USING (true) WITH CHECK (true);
 
-CREATE POLICY "Employees: full access" ON "public"."textile_products" TO "authenticated" USING (true) WITH CHECK (true);
+CREATE POLICY "Employees: full access" ON "public"."textile_models" TO "authenticated" USING (true) WITH CHECK (true);
 
 CREATE POLICY "Employees: full access" ON "public"."textile_variants" TO "authenticated" USING (true) WITH CHECK (true);
 
@@ -194,7 +201,7 @@ ALTER TABLE "public"."textile_stock_movements" ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE "public"."textile_brands" ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE "public"."textile_products" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."textile_models" ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE "public"."textile_variants" ENABLE ROW LEVEL SECURITY;
 
@@ -228,17 +235,21 @@ GRANT ALL ON TABLE "public"."textile_brands" TO "authenticated";
 
 GRANT ALL ON TABLE "public"."textile_brands" TO "service_role";
 
-GRANT ALL ON TABLE "public"."textile_products" TO "anon";
+GRANT ALL ON TABLE "public"."textile_models" TO "anon";
 
-GRANT ALL ON TABLE "public"."textile_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."textile_models" TO "authenticated";
 
-GRANT ALL ON TABLE "public"."textile_products" TO "service_role";
+GRANT ALL ON TABLE "public"."textile_models" TO "service_role";
 
 GRANT ALL ON TABLE "public"."textile_variants" TO "anon";
 
 GRANT ALL ON TABLE "public"."textile_variants" TO "authenticated";
 
 GRANT ALL ON TABLE "public"."textile_variants" TO "service_role";
+
+COMMENT ON TABLE "public"."textile_models" IS 'A garment model of a brand (e.g. B&C "T-Shirt #E190"). A textile_variants row is one colour and size of it, and is the stock ledger.';
+
+COMMENT ON COLUMN "public"."textile_variants"."model_id" IS 'The garment model this colour/size belongs to.';
 
 /**
  * Book the automatic stock deductions of a production release atomically.

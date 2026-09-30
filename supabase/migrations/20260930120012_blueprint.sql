@@ -1,5 +1,4 @@
--- 20260508081516_blueprint.sql — Blueprint feature tables
--- Split from baseline 20260508081503_remote_schema.sql (delete that file once verified).
+-- 20260930120012_blueprint.sql — Blueprint feature tables
 
 CREATE TABLE IF NOT EXISTS "public"."blueprint_customers" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,

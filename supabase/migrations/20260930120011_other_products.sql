@@ -1,11 +1,10 @@
--- 20260508081515_other_products.sql — Other product table
--- Split from baseline 20260508081503_remote_schema.sql (delete that file once verified).
+-- 20260930120011_other_products.sql — Other product table
 
 CREATE TABLE IF NOT EXISTS "public"."other_products" (
-    "department_product_id" "uuid" NOT NULL,
+    "product_id" "uuid" NOT NULL,
     "description" "text",
-    CONSTRAINT "other_products_pkey" PRIMARY KEY ("department_product_id"),
-    CONSTRAINT "other_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+    CONSTRAINT "other_products_pkey" PRIMARY KEY ("product_id"),
+    CONSTRAINT "other_products_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE CASCADE
 );
 
 ALTER TABLE "public"."other_products" OWNER TO "postgres";

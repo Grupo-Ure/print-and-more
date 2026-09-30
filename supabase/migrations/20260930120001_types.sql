@@ -1,5 +1,8 @@
--- 20260508081504_types.sql — extensions, enum types, and global settings/grants
--- Split from baseline 20260508081503_remote_schema.sql (delete that file once verified).
+-- 20260930120001_types.sql — extensions, enum types, and global settings/grants
+--
+-- New baseline after the job elimination (.plans/JOB_ELIMINATION.md): the job
+-- layer never existed here, the product is the unit of work, and the four dated
+-- migrations that patched the old base schema are folded into these files.
 
 SET statement_timeout = 0;
 
@@ -43,7 +46,7 @@ GRANT USAGE ON SCHEMA "public" TO "authenticated";
 
 GRANT USAGE ON SCHEMA "public" TO "service_role";
 
--- Order lifecycle: manual transitions only (no aggregation from jobs).
+-- Order lifecycle: manual transitions only (no aggregation from products).
 CREATE TYPE "public"."order_status" AS ENUM (
     'QUOTE',
     'IN_PROGRESS',
@@ -53,15 +56,15 @@ CREATE TYPE "public"."order_status" AS ENUM (
 
 ALTER TYPE "public"."order_status" OWNER TO "postgres";
 
--- Job production workflow, independent of the order lifecycle.
-CREATE TYPE "public"."job_status" AS ENUM (
+-- Production workflow of a single product, independent of the order lifecycle.
+CREATE TYPE "public"."product_status" AS ENUM (
     'IN_SETUP',
     'PREPRESS',
     'IN_PRODUCTION',
     'DONE'
 );
 
-ALTER TYPE "public"."job_status" OWNER TO "postgres";
+ALTER TYPE "public"."product_status" OWNER TO "postgres";
 
 CREATE TYPE "public"."file_role" AS ENUM (
     'PRODUCTION_FILE',
@@ -72,6 +75,11 @@ CREATE TYPE "public"."file_role" AS ENUM (
 
 ALTER TYPE "public"."file_role" OWNER TO "postgres";
 
+-- PRODUCT_CREATED / _DELETED cover what the old schema split between
+-- JOB_CREATED/JOB_DELETED and PRODUCT_CREATED/PRODUCT_DELETED: with the job
+-- gone, adding a product *is* adding the unit of work, so one event per act.
+-- PRODUCT_CANCELLED is the former JOB_CANCELLED (cancelled past setup, kept
+-- for history); CANCELLED remains the order-level event.
 CREATE TYPE "public"."history_event" AS ENUM (
     'ORDER_CREATED',
     'PROCESSING_STARTED',
@@ -96,12 +104,10 @@ CREATE TYPE "public"."history_event" AS ENUM (
     'ORDER_ARCHIVED',
     'TIME_LOGGED',
     'TIME_LOG_DELETED',
-    'JOB_CREATED',
-    'JOB_CANCELLED',
-    'JOB_DELETED',
     'SETTINGS_CHANGED',
     'PRODUCT_CREATED',
     'PRODUCT_UPDATED',
+    'PRODUCT_CANCELLED',
     'PRODUCT_DELETED',
     'FILE_ADDED',
     'FILE_REMOVED'
@@ -143,19 +149,14 @@ CREATE TYPE "public"."department" AS ENUM (
 
 ALTER TYPE "public"."department" OWNER TO "postgres";
 
-CREATE TYPE "public"."textile_origin" AS ENUM (
-    'CUSTOMER_STOCK',
-    'OWN_STOCK'
-);
-
-ALTER TYPE "public"."textile_origin" OWNER TO "postgres";
-
-CREATE TYPE "public"."textile_motif_type" AS ENUM (
+-- A textile design is either typed-out text or an artwork file from the order.
+-- (Was textile_motif_type; renamed with textile_motifs → textile_designs.)
+CREATE TYPE "public"."textile_design_type" AS ENUM (
     'TEXT',
     'FILE'
 );
 
-ALTER TYPE "public"."textile_motif_type" OWNER TO "postgres";
+ALTER TYPE "public"."textile_design_type" OWNER TO "postgres";
 
 CREATE TYPE "public"."textile_font_class" AS ENUM (
     'SANS_SERIF',
@@ -165,6 +166,12 @@ CREATE TYPE "public"."textile_font_class" AS ENUM (
 );
 
 ALTER TYPE "public"."textile_font_class" OWNER TO "postgres";
+
+-- The former textile_origin enum is not recreated: it was never referenced by
+-- any column (every `origin` column is plain text, validated by the product's
+-- Zod schema) and the app declares the union itself in src/types/textile.ts.
+-- The values are SHOP_SUPPLIED / CUSTOMER_SUPPLIED from here on — who supplies
+-- the garment, not whether stock is tracked (JOB_ELIMINATION textile decision 4).
 
 CREATE TYPE "public"."user_role" AS ENUM (
     'EMPLOYEE',

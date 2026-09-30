@@ -1,4 +1,8 @@
--- 20260508081505_core.sql — customers, users
+-- 20260930120002_core.sql — customers, users
+--
+-- Folds in 20260924131510_users_developer_flag (the column and the update
+-- guard that knows it) and the `customers` realtime membership from
+-- 20260925101438_realtime_publication.
 
 CREATE TABLE IF NOT EXISTS "public"."customers" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
@@ -30,6 +34,9 @@ CREATE TABLE IF NOT EXISTS "public"."users" (
     -- providers set avatar_url there); NULL for password accounts — the UI
     -- falls back to initials.
     "avatar_url" "text",
+    -- A developer account (someone debugging against the shop's database):
+    -- left out of every assignee picker in the UI. Grants nothing.
+    "is_developer" boolean DEFAULT false NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
 );
 
@@ -165,6 +172,12 @@ BEGIN
     END IF;
   END IF;
 
+  IF NEW.is_developer IS DISTINCT FROM OLD.is_developer
+     AND current_user <> 'service_role'
+     AND public.current_user_role() IS DISTINCT FROM 'SUPER_ADMIN' THEN
+    RAISE EXCEPTION 'Only super admins can change the developer flag';
+  END IF;
+
   IF OLD.role = 'SUPER_ADMIN' AND (SELECT auth.uid()) IS DISTINCT FROM OLD.id THEN
     RAISE EXCEPTION 'SUPER_ADMIN accounts can only be modified by the account itself';
   END IF;
@@ -252,6 +265,17 @@ REVOKE ALL ON TABLE "public"."users" FROM "anon";
 COMMENT ON TABLE "public"."customers" IS 'Reusable customer master data. Required: name + at least email or phone.';
 
 COMMENT ON TABLE "public"."users" IS 'App user record, 1:1 with auth.users. role: EMPLOYEE | ADMIN | SUPER_ADMIN. SUPER_ADMIN is granted only via direct SQL by the DB owner.';
+
+COMMENT ON COLUMN "public"."users"."is_developer" IS
+    'A developer account: left out of every assignee picker in the UI (product assignee, production filter, time logs, department defaults). Grants nothing.';
+
+-- ── realtime ─────────────────────────────────────────────────────────────────
+-- The order sidebar subscribes to customer changes. Fresh database, so plain
+-- ADD TABLE — no membership check is needed (RLS applies to Realtime, and every
+-- signed-in user may read customers, so nothing is broadcast that a client
+-- could not select anyway).
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE "public"."customers";
 
 -- ── avatars storage bucket ───────────────────────────────────────────────────
 -- Public bucket for profile pictures. Object path: <user_id>/<random>.jpg —

@@ -1,10 +1,4 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {
   graphql_public: {
@@ -16,12 +10,7 @@ export type Database = {
     }
     Functions: {
       graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
+        Args: { extensions?: Json; operationName?: string; query?: string; variables?: Json }
         Returns: Json
       }
     }
@@ -36,41 +25,41 @@ export type Database = {
     Tables: {
       banner_products: {
         Row: {
-          department_product_id: string
           eyelet_detail: string | null
           eyelets: boolean | null
           height: number | null
           hem: boolean | null
           hem_sides: string | null
           material: string | null
+          product_id: string
           width: number | null
         }
         Insert: {
-          department_product_id: string
           eyelet_detail?: string | null
           eyelets?: boolean | null
           height?: number | null
           hem?: boolean | null
           hem_sides?: string | null
           material?: string | null
+          product_id: string
           width?: number | null
         }
         Update: {
-          department_product_id?: string
           eyelet_detail?: string | null
           eyelets?: boolean | null
           height?: number | null
           hem?: boolean | null
           hem_sides?: string | null
           material?: string | null
+          product_id?: string
           width?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "banner_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "banner_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -80,7 +69,6 @@ export type Database = {
           binding_color: string | null
           binding_type: string | null
           color_mode: string | null
-          department_product_id: string
           format: string | null
           full_bleed: boolean | null
           hardcover_cover: string | null
@@ -89,13 +77,13 @@ export type Database = {
           material: string | null
           material_other: string | null
           orientation: string | null
+          product_id: string
           width: number | null
         }
         Insert: {
           binding_color?: string | null
           binding_type?: string | null
           color_mode?: string | null
-          department_product_id: string
           format?: string | null
           full_bleed?: boolean | null
           hardcover_cover?: string | null
@@ -104,13 +92,13 @@ export type Database = {
           material?: string | null
           material_other?: string | null
           orientation?: string | null
+          product_id: string
           width?: number | null
         }
         Update: {
           binding_color?: string | null
           binding_type?: string | null
           color_mode?: string | null
-          department_product_id?: string
           format?: string | null
           full_bleed?: boolean | null
           hardcover_cover?: string | null
@@ -119,14 +107,15 @@ export type Database = {
           material?: string | null
           material_other?: string | null
           orientation?: string | null
+          product_id?: string
           width?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "binding_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "binding_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -280,7 +269,6 @@ export type Database = {
           cover_material: string | null
           cover_material_other: string | null
           cover_weight: string | null
-          department_product_id: string
           format: string | null
           full_bleed: boolean | null
           height: number | null
@@ -290,6 +278,7 @@ export type Database = {
           inner_weight: string | null
           orientation: string | null
           page_count: number | null
+          product_id: string
           production_path: string | null
           width: number | null
         }
@@ -299,7 +288,6 @@ export type Database = {
           cover_material?: string | null
           cover_material_other?: string | null
           cover_weight?: string | null
-          department_product_id: string
           format?: string | null
           full_bleed?: boolean | null
           height?: number | null
@@ -309,6 +297,7 @@ export type Database = {
           inner_weight?: string | null
           orientation?: string | null
           page_count?: number | null
+          product_id: string
           production_path?: string | null
           width?: number | null
         }
@@ -318,7 +307,6 @@ export type Database = {
           cover_material?: string | null
           cover_material_other?: string | null
           cover_weight?: string | null
-          department_product_id?: string
           format?: string | null
           full_bleed?: boolean | null
           height?: number | null
@@ -328,15 +316,16 @@ export type Database = {
           inner_weight?: string | null
           orientation?: string | null
           page_count?: number | null
+          product_id?: string
           production_path?: string | null
           width?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "brochure_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "brochure_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -344,7 +333,6 @@ export type Database = {
       business_card_products: {
         Row: {
           color_mode: string | null
-          department_product_id: string
           film_laminated: boolean | null
           format: string | null
           full_bleed: boolean | null
@@ -352,11 +340,11 @@ export type Database = {
           material: string | null
           multiloft_color: string | null
           orientation: string | null
+          product_id: string
           width: number | null
         }
         Insert: {
           color_mode?: string | null
-          department_product_id: string
           film_laminated?: boolean | null
           format?: string | null
           full_bleed?: boolean | null
@@ -364,11 +352,11 @@ export type Database = {
           material?: string | null
           multiloft_color?: string | null
           orientation?: string | null
+          product_id: string
           width?: number | null
         }
         Update: {
           color_mode?: string | null
-          department_product_id?: string
           film_laminated?: boolean | null
           format?: string | null
           full_bleed?: boolean | null
@@ -376,14 +364,15 @@ export type Database = {
           material?: string | null
           multiloft_color?: string | null
           orientation?: string | null
+          product_id?: string
           width?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "business_card_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "business_card_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -393,7 +382,6 @@ export type Database = {
           cc_material: string | null
           cc_material_other: string | null
           color_mode: string | null
-          department_product_id: string
           format: string | null
           full_bleed: boolean | null
           height: number | null
@@ -402,6 +390,7 @@ export type Database = {
           offset_finish: string | null
           offset_type: string | null
           offset_weight: string | null
+          product_id: string
           production_path: string | null
           recycling_weight: string | null
           special_paper: string | null
@@ -412,7 +401,6 @@ export type Database = {
           cc_material?: string | null
           cc_material_other?: string | null
           color_mode?: string | null
-          department_product_id: string
           format?: string | null
           full_bleed?: boolean | null
           height?: number | null
@@ -421,6 +409,7 @@ export type Database = {
           offset_finish?: string | null
           offset_type?: string | null
           offset_weight?: string | null
+          product_id: string
           production_path?: string | null
           recycling_weight?: string | null
           special_paper?: string | null
@@ -431,7 +420,6 @@ export type Database = {
           cc_material?: string | null
           cc_material_other?: string | null
           color_mode?: string | null
-          department_product_id?: string
           format?: string | null
           full_bleed?: boolean | null
           height?: number | null
@@ -440,6 +428,7 @@ export type Database = {
           offset_finish?: string | null
           offset_type?: string | null
           offset_weight?: string | null
+          product_id?: string
           production_path?: string | null
           recycling_weight?: string | null
           special_paper?: string | null
@@ -448,10 +437,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "card_flyer_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "card_flyer_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -502,25 +491,25 @@ export type Database = {
         Row: {
           color: string | null
           color_other: string | null
-          department_product_id: string
           description: string | null
           height: number | null
+          product_id: string
           width: number | null
         }
         Insert: {
           color?: string | null
           color_other?: string | null
-          department_product_id: string
           description?: string | null
           height?: number | null
+          product_id: string
           width?: number | null
         }
         Update: {
           color?: string | null
           color_other?: string | null
-          department_product_id?: string
           description?: string | null
           height?: number | null
+          product_id?: string
           width?: number | null
         }
         Relationships: [
@@ -532,10 +521,10 @@ export type Database = {
             referencedColumns: ["code"]
           },
           {
-            foreignKeyName: "date_stamp_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "date_stamp_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -543,19 +532,19 @@ export type Database = {
       department_default_assignees: {
         Row: {
           department: Database["public"]["Enums"]["department"]
-          status: Database["public"]["Enums"]["job_status"]
+          status: Database["public"]["Enums"]["product_status"]
           updated_at: string
           user_id: string
         }
         Insert: {
           department: Database["public"]["Enums"]["department"]
-          status: Database["public"]["Enums"]["job_status"]
+          status: Database["public"]["Enums"]["product_status"]
           updated_at?: string
           user_id: string
         }
         Update: {
           department?: Database["public"]["Enums"]["department"]
-          status?: Database["public"]["Enums"]["job_status"]
+          status?: Database["public"]["Enums"]["product_status"]
           updated_at?: string
           user_id?: string
         }
@@ -569,50 +558,9 @@ export type Database = {
           },
         ]
       }
-      department_products: {
-        Row: {
-          created_at: string
-          department: string
-          id: string
-          job_id: string
-          notes: string | null
-          quantity: number | null
-          sort_order: number
-          type: string
-        }
-        Insert: {
-          created_at?: string
-          department: string
-          id?: string
-          job_id: string
-          notes?: string | null
-          quantity?: number | null
-          sort_order?: number
-          type: string
-        }
-        Update: {
-          created_at?: string
-          department?: string
-          id?: string
-          job_id?: string
-          notes?: string | null
-          quantity?: number | null
-          sort_order?: number
-          type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "department_products_job_id_fkey"
-            columns: ["job_id"]
-            isOneToOne: false
-            referencedRelation: "jobs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       erp_exports: {
         Row: {
-          export_data: Json
+          export_data: NonNullable<Json>
           exported_at: string
           exported_by: string | null
           id: string
@@ -620,7 +568,7 @@ export type Database = {
           order_id: string
         }
         Insert: {
-          export_data: Json
+          export_data: NonNullable<Json>
           exported_at?: string
           exported_by?: string | null
           id?: string
@@ -628,7 +576,7 @@ export type Database = {
           order_id: string
         }
         Update: {
-          export_data?: Json
+          export_data?: NonNullable<Json>
           exported_at?: string
           exported_by?: string | null
           id?: string
@@ -715,32 +663,32 @@ export type Database = {
       }
       foil_plotter_products: {
         Row: {
-          department_product_id: string
           height: number | null
           material: string | null
           output: string | null
+          product_id: string
           width: number | null
         }
         Insert: {
-          department_product_id: string
           height?: number | null
           material?: string | null
           output?: string | null
+          product_id: string
           width?: number | null
         }
         Update: {
-          department_product_id?: string
           height?: number | null
           material?: string | null
           output?: string | null
+          product_id?: string
           width?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "foil_plotter_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "foil_plotter_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -750,7 +698,6 @@ export type Database = {
           cc_material: string | null
           cc_material_other: string | null
           color_mode: string | null
-          department_product_id: string
           fold_type: string | null
           format: string | null
           full_bleed: boolean | null
@@ -761,6 +708,7 @@ export type Database = {
           offset_type: string | null
           offset_weight: string | null
           page_count: number | null
+          product_id: string
           production_path: string | null
           recycling_weight: string | null
           special_paper: string | null
@@ -771,7 +719,6 @@ export type Database = {
           cc_material?: string | null
           cc_material_other?: string | null
           color_mode?: string | null
-          department_product_id: string
           fold_type?: string | null
           format?: string | null
           full_bleed?: boolean | null
@@ -782,6 +729,7 @@ export type Database = {
           offset_type?: string | null
           offset_weight?: string | null
           page_count?: number | null
+          product_id: string
           production_path?: string | null
           recycling_weight?: string | null
           special_paper?: string | null
@@ -792,7 +740,6 @@ export type Database = {
           cc_material?: string | null
           cc_material_other?: string | null
           color_mode?: string | null
-          department_product_id?: string
           fold_type?: string | null
           format?: string | null
           full_bleed?: boolean | null
@@ -803,6 +750,7 @@ export type Database = {
           offset_type?: string | null
           offset_weight?: string | null
           page_count?: number | null
+          product_id?: string
           production_path?: string | null
           recycling_weight?: string | null
           special_paper?: string | null
@@ -811,39 +759,39 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "folded_flyer_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "folded_flyer_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
       }
       gift_item_products: {
         Row: {
-          department_product_id: string
           material_free_text: string | null
           motif: string | null
           origin: string | null
+          product_id: string
         }
         Insert: {
-          department_product_id: string
           material_free_text?: string | null
           motif?: string | null
           origin?: string | null
+          product_id: string
         }
         Update: {
-          department_product_id?: string
           material_free_text?: string | null
           motif?: string | null
           origin?: string | null
+          product_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "gift_item_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "gift_item_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -853,9 +801,9 @@ export type Database = {
           created_at: string
           event_type: Database["public"]["Enums"]["history_event"]
           id: string
-          job_id: string | null
           meta: Json | null
           order_id: string
+          product_id: string | null
           reason: string | null
           user_id: string | null
         }
@@ -863,9 +811,9 @@ export type Database = {
           created_at?: string
           event_type: Database["public"]["Enums"]["history_event"]
           id?: string
-          job_id?: string | null
           meta?: Json | null
           order_id: string
+          product_id?: string | null
           reason?: string | null
           user_id?: string | null
         }
@@ -873,20 +821,13 @@ export type Database = {
           created_at?: string
           event_type?: Database["public"]["Enums"]["history_event"]
           id?: string
-          job_id?: string | null
           meta?: Json | null
           order_id?: string
+          product_id?: string | null
           reason?: string | null
           user_id?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "history_job_id_fkey"
-            columns: ["job_id"]
-            isOneToOne: false
-            referencedRelation: "jobs"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "history_order_id_fkey"
             columns: ["order_id"]
@@ -901,23 +842,30 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "history_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
         ]
       }
       ink_pad_products: {
         Row: {
           color: string | null
-          department_product_id: string
           pad_size: string | null
+          product_id: string
         }
         Insert: {
           color?: string | null
-          department_product_id: string
           pad_size?: string | null
+          product_id: string
         }
         Update: {
           color?: string | null
-          department_product_id?: string
           pad_size?: string | null
+          product_id?: string
         }
         Relationships: [
           {
@@ -928,205 +876,48 @@ export type Database = {
             referencedColumns: ["code"]
           },
           {
-            foreignKeyName: "ink_pad_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "ink_pad_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      job_number_counter: {
-        Row: {
-          department: Database["public"]["Enums"]["department"]
-          last_value: number
-          order_id: string
-        }
-        Insert: {
-          department: Database["public"]["Enums"]["department"]
-          last_value: number
-          order_id: string
-        }
-        Update: {
-          department?: Database["public"]["Enums"]["department"]
-          last_value?: number
-          order_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "job_number_counter_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      job_time_logs: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          id: string
-          job_id: string
-          minutes: number
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          job_id: string
-          minutes: number
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          job_id?: string
-          minutes?: number
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "job_time_logs_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "job_time_logs_job_id_fkey"
-            columns: ["job_id"]
-            isOneToOne: false
-            referencedRelation: "jobs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "job_time_logs_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      jobs: {
-        Row: {
-          assignee_id: string | null
-          created_at: string
-          customer_approval_file_id: string | null
-          customer_approval_granted: boolean
-          customer_approval_required: boolean
-          data_status: string | null
-          deadline: string | null
-          delivery: Database["public"]["Enums"]["delivery_type"] | null
-          department: Database["public"]["Enums"]["department"]
-          id: string
-          is_cancelled: boolean
-          job_number: string
-          order_id: string
-          priority: Database["public"]["Enums"]["priority_type"] | null
-          sort_order: number
-          status: Database["public"]["Enums"]["job_status"]
-          type: string | null
-        }
-        Insert: {
-          assignee_id?: string | null
-          created_at?: string
-          customer_approval_file_id?: string | null
-          customer_approval_granted?: boolean
-          customer_approval_required?: boolean
-          data_status?: string | null
-          deadline?: string | null
-          delivery?: Database["public"]["Enums"]["delivery_type"] | null
-          department: Database["public"]["Enums"]["department"]
-          id?: string
-          is_cancelled?: boolean
-          job_number: string
-          order_id: string
-          priority?: Database["public"]["Enums"]["priority_type"] | null
-          sort_order?: number
-          status?: Database["public"]["Enums"]["job_status"]
-          type?: string | null
-        }
-        Update: {
-          assignee_id?: string | null
-          created_at?: string
-          customer_approval_file_id?: string | null
-          customer_approval_granted?: boolean
-          customer_approval_required?: boolean
-          data_status?: string | null
-          deadline?: string | null
-          delivery?: Database["public"]["Enums"]["delivery_type"] | null
-          department?: Database["public"]["Enums"]["department"]
-          id?: string
-          is_cancelled?: boolean
-          job_number?: string
-          order_id?: string
-          priority?: Database["public"]["Enums"]["priority_type"] | null
-          sort_order?: number
-          status?: Database["public"]["Enums"]["job_status"]
-          type?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_approval_file"
-            columns: ["customer_approval_file_id"]
-            isOneToOne: false
-            referencedRelation: "files"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "jobs_assignee_id_fkey"
-            columns: ["assignee_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "jobs_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
       }
       name_tag_products: {
         Row: {
-          department_product_id: string
           height: number | null
           material: string | null
           material_other: string | null
           motif: string | null
+          product_id: string
           round_corners: boolean | null
           width: number | null
         }
         Insert: {
-          department_product_id: string
           height?: number | null
           material?: string | null
           material_other?: string | null
           motif?: string | null
+          product_id: string
           round_corners?: boolean | null
           width?: number | null
         }
         Update: {
-          department_product_id?: string
           height?: number | null
           material?: string | null
           material_other?: string | null
           motif?: string | null
+          product_id?: string
           round_corners?: boolean | null
           width?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "name_tag_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "name_tag_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -1214,78 +1005,78 @@ export type Database = {
       }
       other_laser_products: {
         Row: {
-          department_product_id: string
           material_free_text: string | null
           motif: string | null
           origin: string | null
+          product_id: string
           self_adhesive: boolean | null
         }
         Insert: {
-          department_product_id: string
           material_free_text?: string | null
           motif?: string | null
           origin?: string | null
+          product_id: string
           self_adhesive?: boolean | null
         }
         Update: {
-          department_product_id?: string
           material_free_text?: string | null
           motif?: string | null
           origin?: string | null
+          product_id?: string
           self_adhesive?: boolean | null
         }
         Relationships: [
           {
-            foreignKeyName: "other_laser_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "other_laser_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
       }
       other_lfp_products: {
         Row: {
-          department_product_id: string
           description: string | null
+          product_id: string
         }
         Insert: {
-          department_product_id: string
           description?: string | null
+          product_id: string
         }
         Update: {
-          department_product_id?: string
           description?: string | null
+          product_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "other_lfp_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "other_lfp_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
       }
       other_products: {
         Row: {
-          department_product_id: string
           description: string | null
+          product_id: string
         }
         Insert: {
-          department_product_id: string
           description?: string | null
+          product_id: string
         }
         Update: {
-          department_product_id?: string
           description?: string | null
+          product_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "other_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "other_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -1294,25 +1085,25 @@ export type Database = {
         Row: {
           color: string | null
           color_other: string | null
-          department_product_id: string
           description: string | null
           height: number | null
+          product_id: string
           width: number | null
         }
         Insert: {
           color?: string | null
           color_other?: string | null
-          department_product_id: string
           description?: string | null
           height?: number | null
+          product_id: string
           width?: number | null
         }
         Update: {
           color?: string | null
           color_other?: string | null
-          department_product_id?: string
           description?: string | null
           height?: number | null
+          product_id?: string
           width?: number | null
         }
         Relationships: [
@@ -1324,45 +1115,45 @@ export type Database = {
             referencedColumns: ["code"]
           },
           {
-            foreignKeyName: "other_stamp_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "other_stamp_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
       }
       poster_products: {
         Row: {
-          department_product_id: string
           format: string | null
           height: number | null
           laminate: string | null
           material: string | null
+          product_id: string
           width: number | null
         }
         Insert: {
-          department_product_id: string
           format?: string | null
           height?: number | null
           laminate?: string | null
           material?: string | null
+          product_id: string
           width?: number | null
         }
         Update: {
-          department_product_id?: string
           format?: string | null
           height?: number | null
           laminate?: string | null
           material?: string | null
+          product_id?: string
           width?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "poster_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "poster_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -1370,40 +1161,40 @@ export type Database = {
       printout_products: {
         Row: {
           color_mode: string | null
-          department_product_id: string
           format: string | null
           laminate: string | null
           material: string | null
           material_other: string | null
+          product_id: string
           punching: string | null
           staple: boolean | null
         }
         Insert: {
           color_mode?: string | null
-          department_product_id: string
           format?: string | null
           laminate?: string | null
           material?: string | null
           material_other?: string | null
+          product_id: string
           punching?: string | null
           staple?: boolean | null
         }
         Update: {
           color_mode?: string | null
-          department_product_id?: string
           format?: string | null
           laminate?: string | null
           material?: string | null
           material_other?: string | null
+          product_id?: string
           punching?: string | null
           staple?: boolean | null
         }
         Relationships: [
           {
-            foreignKeyName: "printout_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "printout_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -1411,30 +1202,23 @@ export type Database = {
       product_files: {
         Row: {
           created_at: string
-          department_product_id: string
           file_id: string
           id: string
+          product_id: string
         }
         Insert: {
           created_at?: string
-          department_product_id: string
           file_id: string
           id?: string
+          product_id: string
         }
         Update: {
           created_at?: string
-          department_product_id?: string
           file_id?: string
           id?: string
+          product_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "product_files_department_product_id_fkey"
-            columns: ["department_product_id"]
-            isOneToOne: false
-            referencedRelation: "department_products"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "product_files_file_id_fkey"
             columns: ["file_id"]
@@ -1442,23 +1226,190 @@ export type Database = {
             referencedRelation: "files"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "product_files_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_number_counter: {
+        Row: {
+          department: Database["public"]["Enums"]["department"]
+          last_value: number
+          order_id: string
+        }
+        Insert: {
+          department: Database["public"]["Enums"]["department"]
+          last_value: number
+          order_id: string
+        }
+        Update: {
+          department?: Database["public"]["Enums"]["department"]
+          last_value?: number
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_number_counter_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_time_logs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          minutes: number
+          product_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          minutes: number
+          product_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          minutes?: number
+          product_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_time_logs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_time_logs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_time_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          assignee_id: string | null
+          created_at: string
+          customer_approval_file_id: string | null
+          customer_approval_granted: boolean
+          customer_approval_required: boolean
+          deadline: string | null
+          delivery: Database["public"]["Enums"]["delivery_type"] | null
+          department: Database["public"]["Enums"]["department"]
+          id: string
+          is_cancelled: boolean
+          notes: string | null
+          order_id: string
+          priority: Database["public"]["Enums"]["priority_type"] | null
+          product_number: string
+          quantity: number | null
+          sort_order: number
+          status: Database["public"]["Enums"]["product_status"]
+          type: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          created_at?: string
+          customer_approval_file_id?: string | null
+          customer_approval_granted?: boolean
+          customer_approval_required?: boolean
+          deadline?: string | null
+          delivery?: Database["public"]["Enums"]["delivery_type"] | null
+          department: Database["public"]["Enums"]["department"]
+          id?: string
+          is_cancelled?: boolean
+          notes?: string | null
+          order_id: string
+          priority?: Database["public"]["Enums"]["priority_type"] | null
+          product_number: string
+          quantity?: number | null
+          sort_order?: number
+          status?: Database["public"]["Enums"]["product_status"]
+          type: string
+        }
+        Update: {
+          assignee_id?: string | null
+          created_at?: string
+          customer_approval_file_id?: string | null
+          customer_approval_granted?: boolean
+          customer_approval_required?: boolean
+          deadline?: string | null
+          delivery?: Database["public"]["Enums"]["delivery_type"] | null
+          department?: Database["public"]["Enums"]["department"]
+          id?: string
+          is_cancelled?: boolean
+          notes?: string | null
+          order_id?: string
+          priority?: Database["public"]["Enums"]["priority_type"] | null
+          product_number?: string
+          quantity?: number | null
+          sort_order?: number
+          status?: Database["public"]["Enums"]["product_status"]
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_approval_file"
+            columns: ["customer_approval_file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
         ]
       }
       refill_ink_products: {
         Row: {
           color: string | null
-          department_product_id: string
           ink_type: string | null
+          product_id: string
         }
         Insert: {
           color?: string | null
-          department_product_id: string
           ink_type?: string | null
+          product_id: string
         }
         Update: {
           color?: string | null
-          department_product_id?: string
           ink_type?: string | null
+          product_id?: string
         }
         Relationships: [
           {
@@ -1469,46 +1420,45 @@ export type Database = {
             referencedColumns: ["code"]
           },
           {
-            foreignKeyName: "refill_ink_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "refill_ink_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
       }
       rollup_products: {
         Row: {
-          department_product_id: string
           material: string | null
+          product_id: string
           rollup_system: string | null
           rollup_width: number | null
         }
         Insert: {
-          department_product_id: string
           material?: string | null
+          product_id: string
           rollup_system?: string | null
           rollup_width?: number | null
         }
         Update: {
-          department_product_id?: string
           material?: string | null
+          product_id?: string
           rollup_system?: string | null
           rollup_width?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "rollup_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "rollup_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
       }
       sign_foil_products: {
         Row: {
-          department_product_id: string
           drill_hole_diameter: number | null
           drill_hole_position: string | null
           drill_holes: boolean | null
@@ -1516,11 +1466,11 @@ export type Database = {
           laminate: string | null
           material: string | null
           print_side: string | null
+          product_id: string
           round_corners: boolean | null
           width: number | null
         }
         Insert: {
-          department_product_id: string
           drill_hole_diameter?: number | null
           drill_hole_position?: string | null
           drill_holes?: boolean | null
@@ -1528,11 +1478,11 @@ export type Database = {
           laminate?: string | null
           material?: string | null
           print_side?: string | null
+          product_id: string
           round_corners?: boolean | null
           width?: number | null
         }
         Update: {
-          department_product_id?: string
           drill_hole_diameter?: number | null
           drill_hole_position?: string | null
           drill_holes?: boolean | null
@@ -1540,56 +1490,57 @@ export type Database = {
           laminate?: string | null
           material?: string | null
           print_side?: string | null
+          product_id?: string
           round_corners?: boolean | null
           width?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "sign_foil_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "sign_foil_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
       }
       sign_products: {
         Row: {
-          department_product_id: string
           height: number | null
           material: string | null
           material_other: string | null
           motif: string | null
+          product_id: string
           round_corners: boolean | null
           self_adhesive: boolean | null
           width: number | null
         }
         Insert: {
-          department_product_id: string
           height?: number | null
           material?: string | null
           material_other?: string | null
           motif?: string | null
+          product_id: string
           round_corners?: boolean | null
           self_adhesive?: boolean | null
           width?: number | null
         }
         Update: {
-          department_product_id?: string
           height?: number | null
           material?: string | null
           material_other?: string | null
           motif?: string | null
+          product_id?: string
           round_corners?: boolean | null
           self_adhesive?: boolean | null
           width?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "sign_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "sign_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -1597,46 +1548,46 @@ export type Database = {
       sign_uv_products: {
         Row: {
           acrylic_print_direction: string | null
-          department_product_id: string
           drill_hole_diameter: number | null
           drill_hole_position: string | null
           drill_holes: boolean | null
           height: number | null
           material: string | null
           print_side: string | null
+          product_id: string
           round_corners: boolean | null
           width: number | null
         }
         Insert: {
           acrylic_print_direction?: string | null
-          department_product_id: string
           drill_hole_diameter?: number | null
           drill_hole_position?: string | null
           drill_holes?: boolean | null
           height?: number | null
           material?: string | null
           print_side?: string | null
+          product_id: string
           round_corners?: boolean | null
           width?: number | null
         }
         Update: {
           acrylic_print_direction?: string | null
-          department_product_id?: string
           drill_hole_diameter?: number | null
           drill_hole_position?: string | null
           drill_holes?: boolean | null
           height?: number | null
           material?: string | null
           print_side?: string | null
+          product_id?: string
           round_corners?: boolean | null
           width?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "sign_uv_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "sign_uv_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -1732,26 +1683,26 @@ export type Database = {
       }
       stamp_plate_products: {
         Row: {
-          department_product_id: string
           height: number | null
+          product_id: string
           width: number | null
         }
         Insert: {
-          department_product_id: string
           height?: number | null
+          product_id: string
           width?: number | null
         }
         Update: {
-          department_product_id?: string
           height?: number | null
+          product_id?: string
           width?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "stamp_plate_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "stamp_plate_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -1805,25 +1756,25 @@ export type Database = {
         Row: {
           color: string | null
           color_other: string | null
-          department_product_id: string
           description: string | null
           height: number | null
+          product_id: string
           width: number | null
         }
         Insert: {
           color?: string | null
           color_other?: string | null
-          department_product_id: string
           description?: string | null
           height?: number | null
+          product_id: string
           width?: number | null
         }
         Update: {
           color?: string | null
           color_other?: string | null
-          department_product_id?: string
           description?: string | null
           height?: number | null
+          product_id?: string
           width?: number | null
         }
         Relationships: [
@@ -1835,10 +1786,10 @@ export type Database = {
             referencedColumns: ["code"]
           },
           {
-            foreignKeyName: "stand_stamp_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "stand_stamp_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -1846,40 +1797,40 @@ export type Database = {
       sticker_products: {
         Row: {
           contour_cut: string | null
-          department_product_id: string
           height: number | null
           laminate: string | null
           material: string | null
           material_variant: string | null
           output: string | null
+          product_id: string
           width: number | null
         }
         Insert: {
           contour_cut?: string | null
-          department_product_id: string
           height?: number | null
           laminate?: string | null
           material?: string | null
           material_variant?: string | null
           output?: string | null
+          product_id: string
           width?: number | null
         }
         Update: {
           contour_cut?: string | null
-          department_product_id?: string
           height?: number | null
           laminate?: string | null
           material?: string | null
           material_variant?: string | null
           output?: string | null
+          product_id?: string
           width?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "sticker_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "sticker_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -1905,100 +1856,7 @@ export type Database = {
         }
         Relationships: []
       }
-      textile_garment_products: {
-        Row: {
-          brand: string | null
-          color: string | null
-          department_product_id: string
-          garment_type: string | null
-          model: string | null
-          origin: string | null
-          size: string | null
-          variant_id: string | null
-        }
-        Insert: {
-          brand?: string | null
-          color?: string | null
-          department_product_id: string
-          garment_type?: string | null
-          model?: string | null
-          origin?: string | null
-          size?: string | null
-          variant_id?: string | null
-        }
-        Update: {
-          brand?: string | null
-          color?: string | null
-          department_product_id?: string
-          garment_type?: string | null
-          model?: string | null
-          origin?: string | null
-          size?: string | null
-          variant_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "textile_garment_products_department_product_id_fkey"
-            columns: ["department_product_id"]
-            isOneToOne: true
-            referencedRelation: "department_products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "textile_garment_products_variant_id_fkey"
-            columns: ["variant_id"]
-            isOneToOne: false
-            referencedRelation: "textile_variants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      textile_motif_links: {
-        Row: {
-          created_at: string
-          department_product_id: string
-          id: string
-          motif_id: string
-          placement: string
-          print_method: string | null
-          size: string
-        }
-        Insert: {
-          created_at?: string
-          department_product_id: string
-          id?: string
-          motif_id: string
-          placement: string
-          print_method?: string | null
-          size: string
-        }
-        Update: {
-          created_at?: string
-          department_product_id?: string
-          id?: string
-          motif_id?: string
-          placement?: string
-          print_method?: string | null
-          size?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "textile_motif_links_department_product_id_fkey"
-            columns: ["department_product_id"]
-            isOneToOne: false
-            referencedRelation: "department_products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "textile_motif_links_motif_id_fkey"
-            columns: ["motif_id"]
-            isOneToOne: false
-            referencedRelation: "textile_motifs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      textile_motifs: {
+      textile_designs: {
         Row: {
           color: string | null
           content: string | null
@@ -2007,8 +1865,11 @@ export type Database = {
           font_class: Database["public"]["Enums"]["textile_font_class"] | null
           font_name: string | null
           id: string
-          job_id: string
-          type: Database["public"]["Enums"]["textile_motif_type"]
+          placement: string
+          print_method: string | null
+          product_id: string
+          size: string
+          type: Database["public"]["Enums"]["textile_design_type"]
         }
         Insert: {
           color?: string | null
@@ -2018,8 +1879,11 @@ export type Database = {
           font_class?: Database["public"]["Enums"]["textile_font_class"] | null
           font_name?: string | null
           id?: string
-          job_id: string
-          type: Database["public"]["Enums"]["textile_motif_type"]
+          placement: string
+          print_method?: string | null
+          product_id: string
+          size: string
+          type: Database["public"]["Enums"]["textile_design_type"]
         }
         Update: {
           color?: string | null
@@ -2029,33 +1893,95 @@ export type Database = {
           font_class?: Database["public"]["Enums"]["textile_font_class"] | null
           font_name?: string | null
           id?: string
-          job_id?: string
-          type?: Database["public"]["Enums"]["textile_motif_type"]
+          placement?: string
+          print_method?: string | null
+          product_id?: string
+          size?: string
+          type?: Database["public"]["Enums"]["textile_design_type"]
         }
         Relationships: [
           {
-            foreignKeyName: "textile_motifs_file_id_fkey"
+            foreignKeyName: "textile_designs_file_id_fkey"
             columns: ["file_id"]
             isOneToOne: false
             referencedRelation: "files"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "textile_motifs_job_id_fkey"
-            columns: ["job_id"]
+            foreignKeyName: "textile_designs_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: false
-            referencedRelation: "jobs"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
       }
-      textile_products: {
+      textile_garments: {
+        Row: {
+          brand: string | null
+          color: string | null
+          created_at: string
+          garment_type: string | null
+          id: string
+          model: string | null
+          origin: string | null
+          product_id: string
+          quantity: number
+          size: string | null
+          sort_order: number
+          variant_id: string | null
+        }
+        Insert: {
+          brand?: string | null
+          color?: string | null
+          created_at?: string
+          garment_type?: string | null
+          id?: string
+          model?: string | null
+          origin?: string | null
+          product_id: string
+          quantity: number
+          size?: string | null
+          sort_order?: number
+          variant_id?: string | null
+        }
+        Update: {
+          brand?: string | null
+          color?: string | null
+          created_at?: string
+          garment_type?: string | null
+          id?: string
+          model?: string | null
+          origin?: string | null
+          product_id?: string
+          quantity?: number
+          size?: string | null
+          sort_order?: number
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "textile_garments_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "textile_garments_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "textile_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      textile_models: {
         Row: {
           article_number: string | null
           brand_id: string
           created_at: string
           description: string | null
-          finishing_options: string[] | null
           id: string
           is_active: boolean
           name: string
@@ -2065,7 +1991,6 @@ export type Database = {
           brand_id: string
           created_at?: string
           description?: string | null
-          finishing_options?: string[] | null
           id?: string
           is_active?: boolean
           name: string
@@ -2075,14 +2000,13 @@ export type Database = {
           brand_id?: string
           created_at?: string
           description?: string | null
-          finishing_options?: string[] | null
           id?: string
           is_active?: boolean
           name?: string
         }
         Relationships: [
           {
-            foreignKeyName: "textile_products_brand_id_fkey"
+            foreignKeyName: "textile_models_brand_id_fkey"
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "textile_brands"
@@ -2144,7 +2068,7 @@ export type Database = {
           is_active: boolean
           material: string | null
           min_stock: number
-          product_id: string
+          model_id: string
           sample_stock: number
           size: string
           sort_order: number
@@ -2158,7 +2082,7 @@ export type Database = {
           is_active?: boolean
           material?: string | null
           min_stock?: number
-          product_id: string
+          model_id: string
           sample_stock?: number
           size: string
           sort_order?: number
@@ -2172,7 +2096,7 @@ export type Database = {
           is_active?: boolean
           material?: string | null
           min_stock?: number
-          product_id?: string
+          model_id?: string
           sample_stock?: number
           size?: string
           sort_order?: number
@@ -2180,10 +2104,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "textile_variants_product_id_fkey"
-            columns: ["product_id"]
+            foreignKeyName: "textile_variants_model_id_fkey"
+            columns: ["model_id"]
             isOneToOne: false
-            referencedRelation: "textile_products"
+            referencedRelation: "textile_models"
             referencedColumns: ["id"]
           },
         ]
@@ -2191,21 +2115,21 @@ export type Database = {
       trodat_pad_products: {
         Row: {
           color: string | null
-          department_product_id: string
           pad_article_number: string | null
           pad_variant_id: string | null
+          product_id: string
         }
         Insert: {
           color?: string | null
-          department_product_id: string
           pad_article_number?: string | null
           pad_variant_id?: string | null
+          product_id: string
         }
         Update: {
           color?: string | null
-          department_product_id?: string
           pad_article_number?: string | null
           pad_variant_id?: string | null
+          product_id?: string
         }
         Relationships: [
           {
@@ -2216,17 +2140,17 @@ export type Database = {
             referencedColumns: ["code"]
           },
           {
-            foreignKeyName: "trodat_pad_products_department_product_id_fkey"
-            columns: ["department_product_id"]
-            isOneToOne: true
-            referencedRelation: "department_products"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "trodat_pad_products_pad_variant_id_fkey"
             columns: ["pad_variant_id"]
             isOneToOne: false
             referencedRelation: "stamp_models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trodat_pad_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -2235,23 +2159,23 @@ export type Database = {
         Row: {
           color: string | null
           color_other: string | null
-          department_product_id: string
           description: string | null
           model_id: string | null
+          product_id: string
         }
         Insert: {
           color?: string | null
           color_other?: string | null
-          department_product_id: string
           description?: string | null
           model_id?: string | null
+          product_id: string
         }
         Update: {
           color?: string | null
           color_other?: string | null
-          department_product_id?: string
           description?: string | null
           model_id?: string | null
+          product_id?: string
         }
         Relationships: [
           {
@@ -2262,58 +2186,58 @@ export type Database = {
             referencedColumns: ["code"]
           },
           {
-            foreignKeyName: "trodat_printy_products_department_product_id_fkey"
-            columns: ["department_product_id"]
-            isOneToOne: true
-            referencedRelation: "department_products"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "trodat_printy_products_model_id_fkey"
             columns: ["model_id"]
             isOneToOne: false
             referencedRelation: "stamp_models"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "trodat_printy_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
         ]
       }
       trophy_plate_products: {
         Row: {
-          department_product_id: string
           height: number | null
           material: string | null
           material_other: string | null
           motif: string | null
+          product_id: string
           round_corners: boolean | null
           self_adhesive: boolean | null
           width: number | null
         }
         Insert: {
-          department_product_id: string
           height?: number | null
           material?: string | null
           material_other?: string | null
           motif?: string | null
+          product_id: string
           round_corners?: boolean | null
           self_adhesive?: boolean | null
           width?: number | null
         }
         Update: {
-          department_product_id?: string
           height?: number | null
           material?: string | null
           material_other?: string | null
           motif?: string | null
+          product_id?: string
           round_corners?: boolean | null
           self_adhesive?: boolean | null
           width?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "trophy_plate_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "trophy_plate_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -2353,10 +2277,10 @@ export type Database = {
           area_front: boolean | null
           area_rear: boolean | null
           area_sides: boolean | null
-          department_product_id: string
           existing_wrap: boolean | null
           installation: string | null
           installation_date: string | null
+          product_id: string
           vehicle_make: string | null
           vehicle_model: string | null
         }
@@ -2364,10 +2288,10 @@ export type Database = {
           area_front?: boolean | null
           area_rear?: boolean | null
           area_sides?: boolean | null
-          department_product_id: string
           existing_wrap?: boolean | null
           installation?: string | null
           installation_date?: string | null
+          product_id: string
           vehicle_make?: string | null
           vehicle_model?: string | null
         }
@@ -2375,19 +2299,19 @@ export type Database = {
           area_front?: boolean | null
           area_rear?: boolean | null
           area_sides?: boolean | null
-          department_product_id?: string
           existing_wrap?: boolean | null
           installation?: string | null
           installation_date?: string | null
+          product_id?: string
           vehicle_make?: string | null
           vehicle_model?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "vehicle_lettering_products_department_product_id_fkey"
-            columns: ["department_product_id"]
+            foreignKeyName: "vehicle_lettering_products_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: true
-            referencedRelation: "department_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -2396,23 +2320,23 @@ export type Database = {
         Row: {
           color: string | null
           color_other: string | null
-          department_product_id: string
           description: string | null
           model_id: string | null
+          product_id: string
         }
         Insert: {
           color?: string | null
           color_other?: string | null
-          department_product_id: string
           description?: string | null
           model_id?: string | null
+          product_id: string
         }
         Update: {
           color?: string | null
           color_other?: string | null
-          department_product_id?: string
           description?: string | null
           model_id?: string | null
+          product_id?: string
         }
         Relationships: [
           {
@@ -2423,17 +2347,17 @@ export type Database = {
             referencedColumns: ["code"]
           },
           {
-            foreignKeyName: "wooden_stamp_products_department_product_id_fkey"
-            columns: ["department_product_id"]
-            isOneToOne: true
-            referencedRelation: "department_products"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "wooden_stamp_products_model_id_fkey"
             columns: ["model_id"]
             isOneToOne: false
             referencedRelation: "stamp_models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wooden_stamp_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -2448,7 +2372,7 @@ export type Database = {
         Returns: Json
       }
       current_user_role: {
-        Args: never
+        Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["user_role"]
       }
       duplicate_order: {
@@ -2457,7 +2381,7 @@ export type Database = {
           new_deadline: string
           new_delivery: Database["public"]["Enums"]["delivery_type"]
           new_priority: Database["public"]["Enums"]["priority_type"]
-          selected_job_ids: string[]
+          selected_product_ids: string[]
           source_order_id: string
         }
         Returns: string
@@ -2469,18 +2393,8 @@ export type Database = {
     }
     Enums: {
       delivery_type: "PICKUP" | "SHIPPING"
-      department:
-        | "LFP"
-        | "COPYSHOP"
-        | "TEXTILE"
-        | "STAMP"
-        | "LASER_ENGRAVING"
-        | "OTHER"
-      file_role:
-        | "PRODUCTION_FILE"
-        | "PREVIEW"
-        | "CUSTOMER_APPROVAL"
-        | "REFERENCE"
+      department: "LFP" | "COPYSHOP" | "TEXTILE" | "STAMP" | "LASER_ENGRAVING" | "OTHER"
+      file_role: "PRODUCTION_FILE" | "PREVIEW" | "CUSTOMER_APPROVAL" | "REFERENCE"
       history_event:
         | "ORDER_CREATED"
         | "PROCESSING_STARTED"
@@ -2505,22 +2419,19 @@ export type Database = {
         | "ORDER_ARCHIVED"
         | "TIME_LOGGED"
         | "TIME_LOG_DELETED"
-        | "JOB_CREATED"
-        | "JOB_CANCELLED"
-        | "JOB_DELETED"
         | "SETTINGS_CHANGED"
         | "PRODUCT_CREATED"
         | "PRODUCT_UPDATED"
+        | "PRODUCT_CANCELLED"
         | "PRODUCT_DELETED"
         | "FILE_ADDED"
         | "FILE_REMOVED"
-      job_status: "IN_SETUP" | "PREPRESS" | "IN_PRODUCTION" | "DONE"
       order_status: "QUOTE" | "IN_PROGRESS" | "FINISHED" | "BILLED"
       payment_method: "INVOICE" | "CASH"
       priority_type: "NORMAL" | "HIGH"
+      product_status: "IN_SETUP" | "PREPRESS" | "IN_PRODUCTION" | "DONE"
+      textile_design_type: "TEXT" | "FILE"
       textile_font_class: "SANS_SERIF" | "SERIF" | "ELEGANT" | "PLAYFUL"
-      textile_motif_type: "TEXT" | "FILE"
-      textile_origin: "CUSTOMER_STOCK" | "OWN_STOCK"
       user_role: "EMPLOYEE" | "ADMIN" | "SUPER_ADMIN"
     }
     CompositeTypes: {
@@ -2543,19 +2454,15 @@ export type Tables<
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never) = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
       DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -2571,9 +2478,7 @@ export type TablesInsert<
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never) = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
@@ -2596,9 +2501,7 @@ export type TablesUpdate<
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never) = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
@@ -2621,9 +2524,7 @@ export type Enums<
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never) = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
@@ -2638,9 +2539,7 @@ export type CompositeTypes<
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never) = never,
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
@@ -2653,20 +2552,8 @@ export const Constants = {
   public: {
     Enums: {
       delivery_type: ["PICKUP", "SHIPPING"],
-      department: [
-        "LFP",
-        "COPYSHOP",
-        "TEXTILE",
-        "STAMP",
-        "LASER_ENGRAVING",
-        "OTHER",
-      ],
-      file_role: [
-        "PRODUCTION_FILE",
-        "PREVIEW",
-        "CUSTOMER_APPROVAL",
-        "REFERENCE",
-      ],
+      department: ["LFP", "COPYSHOP", "TEXTILE", "STAMP", "LASER_ENGRAVING", "OTHER"],
+      file_role: ["PRODUCTION_FILE", "PREVIEW", "CUSTOMER_APPROVAL", "REFERENCE"],
       history_event: [
         "ORDER_CREATED",
         "PROCESSING_STARTED",
@@ -2691,25 +2578,21 @@ export const Constants = {
         "ORDER_ARCHIVED",
         "TIME_LOGGED",
         "TIME_LOG_DELETED",
-        "JOB_CREATED",
-        "JOB_CANCELLED",
-        "JOB_DELETED",
         "SETTINGS_CHANGED",
         "PRODUCT_CREATED",
         "PRODUCT_UPDATED",
+        "PRODUCT_CANCELLED",
         "PRODUCT_DELETED",
         "FILE_ADDED",
         "FILE_REMOVED",
       ],
-      job_status: ["IN_SETUP", "PREPRESS", "IN_PRODUCTION", "DONE"],
       order_status: ["QUOTE", "IN_PROGRESS", "FINISHED", "BILLED"],
       payment_method: ["INVOICE", "CASH"],
       priority_type: ["NORMAL", "HIGH"],
+      product_status: ["IN_SETUP", "PREPRESS", "IN_PRODUCTION", "DONE"],
+      textile_design_type: ["TEXT", "FILE"],
       textile_font_class: ["SANS_SERIF", "SERIF", "ELEGANT", "PLAYFUL"],
-      textile_motif_type: ["TEXT", "FILE"],
-      textile_origin: ["CUSTOMER_STOCK", "OWN_STOCK"],
       user_role: ["EMPLOYEE", "ADMIN", "SUPER_ADMIN"],
     },
   },
 } as const
-

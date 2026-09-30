@@ -1,21 +1,20 @@
--- 20260508081510_copyshop_products.sql — CopyShop product type tables
--- Split from baseline 20260508081503_remote_schema.sql (delete that file once verified).
+-- 20260930120006_copyshop_products.sql — CopyShop product type tables
 
 CREATE TABLE IF NOT EXISTS "public"."poster_products" (
-    "department_product_id" "uuid" NOT NULL,
+    "product_id" "uuid" NOT NULL,
     "format" "text",
     "width" integer,
     "height" integer,
     "material" "text",
     "laminate" "text",
-    CONSTRAINT "poster_products_pkey" PRIMARY KEY ("department_product_id"),
-    CONSTRAINT "poster_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+    CONSTRAINT "poster_products_pkey" PRIMARY KEY ("product_id"),
+    CONSTRAINT "poster_products_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE CASCADE
 );
 
 ALTER TABLE "public"."poster_products" OWNER TO "postgres";
 
 CREATE TABLE IF NOT EXISTS "public"."card_flyer_products" (
-    "department_product_id" "uuid" NOT NULL,
+    "product_id" "uuid" NOT NULL,
     "format" "text",
     "width" integer,
     "height" integer,
@@ -32,14 +31,14 @@ CREATE TABLE IF NOT EXISTS "public"."card_flyer_products" (
     "lamination_finish" "text",
     "lamination_sides" "text",
     "recycling_weight" "text",
-    CONSTRAINT "card_flyer_products_pkey" PRIMARY KEY ("department_product_id"),
-    CONSTRAINT "card_flyer_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+    CONSTRAINT "card_flyer_products_pkey" PRIMARY KEY ("product_id"),
+    CONSTRAINT "card_flyer_products_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE CASCADE
 );
 
 ALTER TABLE "public"."card_flyer_products" OWNER TO "postgres";
 
 CREATE TABLE IF NOT EXISTS "public"."folded_flyer_products" (
-    "department_product_id" "uuid" NOT NULL,
+    "product_id" "uuid" NOT NULL,
     "format" "text",
     "width" integer,
     "height" integer,
@@ -58,14 +57,14 @@ CREATE TABLE IF NOT EXISTS "public"."folded_flyer_products" (
     "recycling_weight" "text",
     "fold_type" "text",
     "page_count" integer,
-    CONSTRAINT "folded_flyer_products_pkey" PRIMARY KEY ("department_product_id"),
-    CONSTRAINT "folded_flyer_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+    CONSTRAINT "folded_flyer_products_pkey" PRIMARY KEY ("product_id"),
+    CONSTRAINT "folded_flyer_products_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE CASCADE
 );
 
 ALTER TABLE "public"."folded_flyer_products" OWNER TO "postgres";
 
 CREATE TABLE IF NOT EXISTS "public"."brochure_products" (
-    "department_product_id" "uuid" NOT NULL,
+    "product_id" "uuid" NOT NULL,
     "format" "text",
     "width" integer,
     "height" integer,
@@ -82,14 +81,14 @@ CREATE TABLE IF NOT EXISTS "public"."brochure_products" (
     "cover_finish" "text",
     "inner_weight" "text",
     "inner_finish" "text",
-    CONSTRAINT "brochure_products_pkey" PRIMARY KEY ("department_product_id"),
-    CONSTRAINT "brochure_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+    CONSTRAINT "brochure_products_pkey" PRIMARY KEY ("product_id"),
+    CONSTRAINT "brochure_products_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE CASCADE
 );
 
 ALTER TABLE "public"."brochure_products" OWNER TO "postgres";
 
 CREATE TABLE IF NOT EXISTS "public"."business_card_products" (
-    "department_product_id" "uuid" NOT NULL,
+    "product_id" "uuid" NOT NULL,
     "format" "text",
     "width" integer,
     "height" integer,
@@ -99,14 +98,14 @@ CREATE TABLE IF NOT EXISTS "public"."business_card_products" (
     "film_laminated" boolean,
     "multiloft_color" "text",
     "full_bleed" boolean,
-    CONSTRAINT "business_card_products_pkey" PRIMARY KEY ("department_product_id"),
-    CONSTRAINT "business_card_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+    CONSTRAINT "business_card_products_pkey" PRIMARY KEY ("product_id"),
+    CONSTRAINT "business_card_products_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE CASCADE
 );
 
 ALTER TABLE "public"."business_card_products" OWNER TO "postgres";
 
 CREATE TABLE IF NOT EXISTS "public"."binding_products" (
-    "department_product_id" "uuid" NOT NULL,
+    "product_id" "uuid" NOT NULL,
     "format" "text",
     "width" integer,
     "height" integer,
@@ -119,14 +118,14 @@ CREATE TABLE IF NOT EXISTS "public"."binding_products" (
     "full_bleed" boolean,
     "hardcover_print" boolean,
     "hardcover_cover" "text",
-    CONSTRAINT "binding_products_pkey" PRIMARY KEY ("department_product_id"),
-    CONSTRAINT "binding_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+    CONSTRAINT "binding_products_pkey" PRIMARY KEY ("product_id"),
+    CONSTRAINT "binding_products_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE CASCADE
 );
 
 ALTER TABLE "public"."binding_products" OWNER TO "postgres";
 
 CREATE TABLE IF NOT EXISTS "public"."printout_products" (
-    "department_product_id" "uuid" NOT NULL,
+    "product_id" "uuid" NOT NULL,
     "format" "text",
     "material" "text",
     "material_other" "text",
@@ -134,8 +133,8 @@ CREATE TABLE IF NOT EXISTS "public"."printout_products" (
     "punching" "text",
     "staple" boolean,
     "laminate" "text",
-    CONSTRAINT "printout_products_pkey" PRIMARY KEY ("department_product_id"),
-    CONSTRAINT "printout_products_department_product_id_fkey" FOREIGN KEY ("department_product_id") REFERENCES "public"."department_products"("id") ON DELETE CASCADE
+    CONSTRAINT "printout_products_pkey" PRIMARY KEY ("product_id"),
+    CONSTRAINT "printout_products_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE CASCADE
 );
 
 ALTER TABLE "public"."printout_products" OWNER TO "postgres";
