@@ -1,6 +1,6 @@
 ---
 name: process-map
-description: Build a human process map in Lucidchart for one Print And More department or process (e.g. "stamp", "copy shop", "the order as a whole") following the house conventions — actor lanes, phase columns, need-focused cards, status only as a small tag. Use when the user asks for a process map, a Lucid chart of how a department works, or to "map the <department> process". One map per run, built by hand from the reference spec, verified by render.
+description: Build a human process map in Lucidchart for one Print And More department or process (e.g. "stamp", "copy shop", "the order as a whole") following the house conventions — actor lanes, phase columns, need-focused cards, status only as a small tag. Use when the user asks for a process map, a Lucid chart of how a department works, or to "map the <department> process". One map per run, built by hand from the geometry in this file, verified by render.
 ---
 
 # Process map (Lucidchart)
@@ -74,10 +74,16 @@ grow this section as departments get mapped)
   text with font and colour) → decide placement and print method → select the
   garments (brand, model, colour, quantity per size) → start processing.
   Pre-press and production are still generic; open questions attached.
-- **Stamp**: model stamps (Trodat Printy, wooden) are chosen from the catalog
-  with an ink colour and the text or logo; stand, date and other stamps are
-  captured by size; plates by size; consumables are refill ink, ink pads and
-  replacement pads. The plate is lasered and mounted in the team.
+- **Stamp** (mapped, see registry): choose the stamp (model from the
+  catalog with ink colour; stand, date and other stamps and plates by size;
+  refill ink, ink pads and replacement pads ride along as lines of the same
+  card) → capture the imprint (text lines or logo file, layout wishes) →
+  start processing. Intake is 4 columns, Done is 2 (finish, pick-up). The
+  team cards are generic (prepare the plate → release, body and pad taken
+  from stock → make the stamp: laser, mount, test imprint → finish); open
+  questions attached: what must be true before the team starts and whether
+  a proof is shown, what happens on a stock shortage and whether
+  consumables-only lines skip the team, and the bench steps per stamp kind.
 - **Copy Shop / LFP / Laser / Other**: the customer brings files or a
   description; intake captures the kind of product, its spec (size, material,
   sides, finishing), quantity and deadline, and collects the files. LFP adds
@@ -87,15 +93,20 @@ grow this section as departments get mapped)
 - Prototype the client co-authored (format reference, content partly wrong):
   https://claude.ai/artifact/NMQ3HEnBjkpqpXLV7QBVpv
 - Textile: order process — https://lucid.app/lucidchart/f59c7cda-2cb5-45ec-9175-bab37396772e/edit
+- Stamp: order process — https://lucid.app/lucidchart/44f44dd5-31ba-4cb1-bf98-045c94f62a18/edit
 - Add each new map here with its edit link when it is delivered.
 
 ## Before building
 
 1. Read `lucid://skills/diagram-specification` (the create tool requires it
    every time) with `ReadMcpResourceTool`, server `claude.ai Lucid`.
-2. Read the reference spec in this folder: `reference/textile.json`. Every
-   new map starts from it — same geometry, same styles, same legend. Only the
-   lanes' names, the steps and the notes change.
+2. Render the Textile map from the registry below with
+   `lucid_export_document_as_PNG` (two halves, `x: 0..2000` and
+   `x: 1800..end`, `h: 1020`) and look at it. Every new map is built from the
+   "Geometry" section of this file and must look like that render — same
+   layout, same styles, same legend. Only the lanes' names, the steps and the
+   notes change. There is no spec file to copy; the JSON is written fresh
+   each time.
 3. If the user did **not** supply the steps, send one short message with the
    proposed step list (one line per card, grouped by phase) and wait for the
    go. If they did, build straight away and iterate on the render.
@@ -139,16 +150,23 @@ intake steps, 2–4 cards) → start processing → team prepares → customer
 approves the proof (dashed) → release to production → team makes it →
 finish → customer picks up or receives.
 
-## Geometry (from the reference; keep it)
+## Geometry and styles (the single source; keep it)
+
+A phase spans as many columns as it has cards in the widest lane (Order
+intake usually 5: the customer's wish plus the intake steps; the others
+1–3). `col` counts columns from 0 across the whole map.
 
 | Element | Value |
 |---|---|
-| Phase headers | `y: 0, h: 80`; x ranges follow the columns they span |
-| Swimlane | `x: 0, y: 120, h: 780` (lanes 220 / 220 / 340); width = `100 + columns * 350 + 50` |
-| Cards | `w: 300, h: 160`; `x = 100 + col * 350`; `y = laneTop + 30` (150 / 370 / 590) |
-| Notes | `w: 300, h: 90`; `y: 780` under the team card, same x |
-| Dividers | `x = 75 + k * 350` at the column boundary, from `y: 80` to `y: 900` |
-| Legend | `y: 950`, three boxes starting at `x: 100` |
+| Phase headers | `rectangle`, `y: 0, h: 80`, `x = 75 + firstCol * 350`, `w = columns * 350`; fill per phase, no stroke emphasis |
+| Swimlane | `swimLanes`, `assistedLayout: false`, `x: 0, y: 120, h: 780` (lanes 220 / 220 / 340); width = `100 + columns * 350 + 50` |
+| Cards | `rectangle`, `w: 300, h: 160`; `x = 100 + col * 350`; `y = laneTop + 30` (150 / 370 / 590); fill `#FFFFFF`, stroke `#000000` width 1 |
+| Optional cards | same, stroke `style: "dashed"` |
+| Notes | `note`, `w: 300, h: 90`; `y: 780` under the team card, same x; fill `#FEF3C7`; text starts "To clarify with the client: ..." |
+| Dividers | `positionEndpoint` lines, `x = 75 + k * 350` at each phase boundary, from `y: 80` to `y: 900`; stroke `#9CA3AF` width 1.5 dashed, no arrowheads |
+| Connectors | stroke `#000000` width 2, `style: "none"` at the source, `"arrow"` at the target; same lane `straight` from `{x:1,y:0.5}` to `{x:0,y:0.5}`; cross-lane `elbow` from `{x:1,y:0.5}` to `{x:0,y:0.5}` |
+| Optional connectors | `elbow`, stroke `#6B7280` width 1.5 dashed, leaving `{x:0.5,y:0}` of the source, entering `{x:0.5,y:1}` of the dashed card |
+| Legend | `y: 950, h: 60`, three `rectangle`s of `w: 300` starting at `x: 100`, 50 px apart: dashed white box, `#FEF3C7` box, white box; text 8pt centred |
 | Card text | `<p style="font-size:8pt;text-align:left"><b>Title</b><br>Body.</p>` |
 | Header text | `<p style="font-size:11pt;text-align:center"><b>Phase</b><br><span style="font-size:8pt;color:#6B7280">status: In setup</span></p>` |
 
