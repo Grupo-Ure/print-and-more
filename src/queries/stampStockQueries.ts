@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { stampService } from '../services/stampService'
-import { jobService } from '../services/jobService'
-import { departmentProductService } from '../services/departmentProductService'
+import { productService } from '../services/productService'
 import { reorderQuantity } from '../components/stock/stockShared'
 import type { OrderListRow } from '../components/stampStock/stampStockShared'
 
@@ -66,16 +65,11 @@ export function useStampMovements() {
   })
 }
 
-/** Open demand per model from active STAMP jobs, joined onto the models. */
+/** Open demand per model from open STAMP products, joined onto the models. */
 async function fetchStampReorderList(): Promise<OrderListRow[]> {
   const activeModels = await stampService.getStampModels()
-  const allJobs = await jobService.getActiveJobsByBereich('STAMP')
-  const activeJobIds = allJobs
-    .filter(job => job.status !== 'DONE' && !job.is_cancelled)
-    .map(job => job.id)
-
   const activeModelIds = new Set(activeModels.map(model => model.id))
-  const modelUsage = await departmentProductService.getStampModelUsageByJobs(activeJobIds)
+  const modelUsage = await productService.getStampModelDemand()
 
   const demandByModelId = new Map<string, number>()
   for (const { modelId, quantity } of modelUsage) {
