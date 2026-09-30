@@ -37,7 +37,7 @@ const STICKER_CONTOUR = ['FREIFORM', 'RECHTECK']
 const STICKER_LAMINATE = ['NEIN', 'MATT', 'GLAENZEND']
 const STICKER_OUTPUT = ['EINZEL', 'BOGEN']
 
-export function stickerToChild(d: Vals): Omit<TablesInsert<'sticker_products'>, 'department_product_id'> {
+export function stickerToChild(d: Vals): Omit<TablesInsert<'sticker_products'>, 'product_id'> {
   return {
     material: strOut(d.material),
     material_variant: strOut(d.material_variant),
@@ -61,7 +61,7 @@ export const stickerSchema = loose([
   return { quantity: qtyOut(d.quantity), ...stickerToChild(d as Vals) }
 })
 export type StickerFields = z.infer<typeof stickerSchema>
-true satisfies StickerFields extends Omit<TablesInsert<'sticker_products'>, 'department_product_id'> ? true : never
+true satisfies StickerFields extends Omit<TablesInsert<'sticker_products'>, 'product_id'> ? true : never
 
 // ---------------------------------------------------------------------------
 // SIGN_UV
@@ -71,7 +71,7 @@ const SIGN_BOARD_MATERIALS = ['ALUVERBUND', 'PVC', 'ACRYLGLAS']
 const PRINT_SIDE = ['EINSEITIG', 'BEIDSEITIG']
 const ACRYLIC_DIR = ['VORDERSEITE', 'RUECKSEITE']
 
-export function signUvToChild(d: Vals): Omit<TablesInsert<'sign_uv_products'>, 'department_product_id'> {
+export function signUvToChild(d: Vals): Omit<TablesInsert<'sign_uv_products'>, 'product_id'> {
   return {
     material: strOut(d.material),
     print_side: strOut(d.print_side),
@@ -104,7 +104,7 @@ export const signUvSchema = loose([
   return { quantity: qtyOut(d.quantity), ...signUvToChild(d as Vals) }
 })
 export type SignUvFields = z.infer<typeof signUvSchema>
-true satisfies SignUvFields extends Omit<TablesInsert<'sign_uv_products'>, 'department_product_id'> ? true : never
+true satisfies SignUvFields extends Omit<TablesInsert<'sign_uv_products'>, 'product_id'> ? true : never
 
 // ---------------------------------------------------------------------------
 // SIGN_FOIL
@@ -112,7 +112,7 @@ true satisfies SignUvFields extends Omit<TablesInsert<'sign_uv_products'>, 'depa
 
 const SIGN_FOIL_LAMINATE = ['NEIN', 'MATT', 'GLAENZEND']
 
-export function signFoilToChild(d: Vals): Omit<TablesInsert<'sign_foil_products'>, 'department_product_id'> {
+export function signFoilToChild(d: Vals): Omit<TablesInsert<'sign_foil_products'>, 'product_id'> {
   return {
     material: strOut(d.material),
     print_side: strOut(d.print_side),
@@ -143,7 +143,7 @@ export const signFoilSchema = loose([
   return { quantity: qtyOut(d.quantity), ...signFoilToChild(d as Vals) }
 })
 export type SignFoilFields = z.infer<typeof signFoilSchema>
-true satisfies SignFoilFields extends Omit<TablesInsert<'sign_foil_products'>, 'department_product_id'> ? true : never
+true satisfies SignFoilFields extends Omit<TablesInsert<'sign_foil_products'>, 'product_id'> ? true : never
 
 // ---------------------------------------------------------------------------
 // FOIL_PLOTTER
@@ -152,7 +152,7 @@ true satisfies SignFoilFields extends Omit<TablesInsert<'sign_foil_products'>, '
 const FOIL_PLOTTER_MATERIALS = ['751C', '631', '8510']
 const FOIL_PLOTTER_OUTPUT = ['EINZEL', 'BOGEN']
 
-export function foilPlotterToChild(d: Vals): Omit<TablesInsert<'foil_plotter_products'>, 'department_product_id'> {
+export function foilPlotterToChild(d: Vals): Omit<TablesInsert<'foil_plotter_products'>, 'product_id'> {
   return {
     material: strOut(d.material),
     output: strOut(d.output),
@@ -170,7 +170,7 @@ export const foilPlotterSchema = loose([
   return { quantity: qtyOut(d.quantity), ...foilPlotterToChild(d as Vals) }
 })
 export type FoilPlotterFields = z.infer<typeof foilPlotterSchema>
-true satisfies FoilPlotterFields extends Omit<TablesInsert<'foil_plotter_products'>, 'department_product_id'> ? true : never
+true satisfies FoilPlotterFields extends Omit<TablesInsert<'foil_plotter_products'>, 'product_id'> ? true : never
 
 // ---------------------------------------------------------------------------
 // BANNER
@@ -178,7 +178,7 @@ true satisfies FoilPlotterFields extends Omit<TablesInsert<'foil_plotter_product
 
 const BANNER_MATERIALS = ['PVC_FRONTLIT', 'MESH', 'BAUZAUNBANNER']
 
-export function bannerToChild(d: Vals): Omit<TablesInsert<'banner_products'>, 'department_product_id'> {
+export function bannerToChild(d: Vals): Omit<TablesInsert<'banner_products'>, 'product_id'> {
   return {
     material: strOut(d.material),
     width: mmOut(d.width),
@@ -204,7 +204,7 @@ export const bannerSchema = loose([
   return { quantity: qtyOut(d.quantity), ...bannerToChild(d as Vals) }
 })
 export type BannerFields = z.infer<typeof bannerSchema>
-true satisfies BannerFields extends Omit<TablesInsert<'banner_products'>, 'department_product_id'> ? true : never
+true satisfies BannerFields extends Omit<TablesInsert<'banner_products'>, 'product_id'> ? true : never
 
 // ---------------------------------------------------------------------------
 // ROLLUP
@@ -213,7 +213,7 @@ true satisfies BannerFields extends Omit<TablesInsert<'banner_products'>, 'depar
 const ROLLUP_MATERIALS = ['PVC_FRONTLIT', 'ROLLUP_FILM']
 const ROLLUP_SYSTEMS = ['NEUE_KASSETTE', 'MOTIVTAUSCH']
 
-export function rollupToChild(d: Vals): Omit<TablesInsert<'rollup_products'>, 'department_product_id'> {
+export function rollupToChild(d: Vals): Omit<TablesInsert<'rollup_products'>, 'product_id'> {
   return {
     material: strOut(d.material),
     rollup_system: strOut(d.rollup_system),
@@ -232,7 +232,7 @@ export const rollupSchema = loose([
   return { quantity: qtyOut(d.quantity), ...rollupToChild(d as Vals) }
 })
 export type RollupFields = z.infer<typeof rollupSchema>
-true satisfies RollupFields extends Omit<TablesInsert<'rollup_products'>, 'department_product_id'> ? true : never
+true satisfies RollupFields extends Omit<TablesInsert<'rollup_products'>, 'product_id'> ? true : never
 
 // ---------------------------------------------------------------------------
 // VEHICLE_LETTERING
@@ -240,7 +240,7 @@ true satisfies RollupFields extends Omit<TablesInsert<'rollup_products'>, 'depar
 
 const INSTALLATION = ['MIT', 'OHNE']
 
-export function vehicleLetteringToChild(d: Vals): Omit<TablesInsert<'vehicle_lettering_products'>, 'department_product_id'> {
+export function vehicleLetteringToChild(d: Vals): Omit<TablesInsert<'vehicle_lettering_products'>, 'product_id'> {
   return {
     vehicle_make: strOut(d.vehicle_make),
     vehicle_model: strOut(d.vehicle_model),
@@ -268,13 +268,13 @@ export const vehicleLetteringSchema = loose([
   return { quantity: qtyOut(d.quantity), ...vehicleLetteringToChild(d as Vals) }
 })
 export type VehicleLetteringFields = z.infer<typeof vehicleLetteringSchema>
-true satisfies VehicleLetteringFields extends Omit<TablesInsert<'vehicle_lettering_products'>, 'department_product_id'> ? true : never
+true satisfies VehicleLetteringFields extends Omit<TablesInsert<'vehicle_lettering_products'>, 'product_id'> ? true : never
 
 // ---------------------------------------------------------------------------
 // OTHER_LFP
 // ---------------------------------------------------------------------------
 
-export function otherLfpToChild(d: Vals): Omit<TablesInsert<'other_lfp_products'>, 'department_product_id'> {
+export function otherLfpToChild(d: Vals): Omit<TablesInsert<'other_lfp_products'>, 'product_id'> {
   return { description: strOut(d.description) }
 }
 
@@ -286,4 +286,4 @@ export const otherLfpSchema = loose([
   return { quantity: qtyOut(d.quantity), ...otherLfpToChild(d as Vals) }
 })
 export type OtherLfpFields = z.infer<typeof otherLfpSchema>
-true satisfies OtherLfpFields extends Omit<TablesInsert<'other_lfp_products'>, 'department_product_id'> ? true : never
+true satisfies OtherLfpFields extends Omit<TablesInsert<'other_lfp_products'>, 'product_id'> ? true : never

@@ -30,7 +30,7 @@ const ORIGINS = ['KUNDENMATERIAL', 'EIGENMATERIAL']
 // SIGN / TROPHY_PLATE — sign block, requires self_adhesive.
 // ---------------------------------------------------------------------------
 
-export function signToChild(d: Vals): Omit<TablesInsert<'sign_products'>, 'department_product_id'> {
+export function signToChild(d: Vals): Omit<TablesInsert<'sign_products'>, 'product_id'> {
   return {
     material: strOut(d.material),
     material_other: strOut(d.material_other),
@@ -60,9 +60,9 @@ export const signSchema = loose([
   return { quantity: qtyOut(d.quantity), ...signToChild(d as Vals) }
 })
 export type SignFields = z.infer<typeof signSchema>
-true satisfies SignFields extends Omit<TablesInsert<'sign_products'>, 'department_product_id'> ? true : never
+true satisfies SignFields extends Omit<TablesInsert<'sign_products'>, 'product_id'> ? true : never
 
-export function trophyPlateToChild(d: Vals): Omit<TablesInsert<'trophy_plate_products'>, 'department_product_id'> {
+export function trophyPlateToChild(d: Vals): Omit<TablesInsert<'trophy_plate_products'>, 'product_id'> {
   return signToChild(d)
 }
 
@@ -73,13 +73,13 @@ export const trophyPlateSchema = loose([
   return { quantity: qtyOut(d.quantity), ...trophyPlateToChild(d as Vals) }
 })
 export type TrophyPlateFields = z.infer<typeof trophyPlateSchema>
-true satisfies TrophyPlateFields extends Omit<TablesInsert<'trophy_plate_products'>, 'department_product_id'> ? true : never
+true satisfies TrophyPlateFields extends Omit<TablesInsert<'trophy_plate_products'>, 'product_id'> ? true : never
 
 // ---------------------------------------------------------------------------
 // NAME_TAG — sign block, no self_adhesive.
 // ---------------------------------------------------------------------------
 
-export function nameTagToChild(d: Vals): Omit<TablesInsert<'name_tag_products'>, 'department_product_id'> {
+export function nameTagToChild(d: Vals): Omit<TablesInsert<'name_tag_products'>, 'product_id'> {
   return {
     material: strOut(d.material),
     material_other: strOut(d.material_other),
@@ -97,13 +97,13 @@ export const nameTagSchema = loose([
   return { quantity: qtyOut(d.quantity), ...nameTagToChild(d as Vals) }
 })
 export type NameTagFields = z.infer<typeof nameTagSchema>
-true satisfies NameTagFields extends Omit<TablesInsert<'name_tag_products'>, 'department_product_id'> ? true : never
+true satisfies NameTagFields extends Omit<TablesInsert<'name_tag_products'>, 'product_id'> ? true : never
 
 // ---------------------------------------------------------------------------
 // GIFT_ITEM
 // ---------------------------------------------------------------------------
 
-export function giftItemToChild(d: Vals): Omit<TablesInsert<'gift_item_products'>, 'department_product_id'> {
+export function giftItemToChild(d: Vals): Omit<TablesInsert<'gift_item_products'>, 'product_id'> {
   return {
     material_free_text: strOut(d.material_free_text),
     origin: strOut(d.origin),
@@ -122,13 +122,13 @@ export const giftItemSchema = loose([
   return { quantity: qtyOut(d.quantity), ...giftItemToChild(d as Vals) }
 })
 export type GiftItemFields = z.infer<typeof giftItemSchema>
-true satisfies GiftItemFields extends Omit<TablesInsert<'gift_item_products'>, 'department_product_id'> ? true : never
+true satisfies GiftItemFields extends Omit<TablesInsert<'gift_item_products'>, 'product_id'> ? true : never
 
 // ---------------------------------------------------------------------------
 // OTHER_LASER
 // ---------------------------------------------------------------------------
 
-export function otherLaserToChild(d: Vals): Omit<TablesInsert<'other_laser_products'>, 'department_product_id'> {
+export function otherLaserToChild(d: Vals): Omit<TablesInsert<'other_laser_products'>, 'product_id'> {
   return {
     self_adhesive: boolOut(d.self_adhesive),
     origin: strOut(d.origin),
@@ -148,4 +148,4 @@ export const otherLaserSchema = loose([
   return { quantity: qtyOut(d.quantity), ...otherLaserToChild(d as Vals) }
 })
 export type OtherLaserFields = z.infer<typeof otherLaserSchema>
-true satisfies OtherLaserFields extends Omit<TablesInsert<'other_laser_products'>, 'department_product_id'> ? true : never
+true satisfies OtherLaserFields extends Omit<TablesInsert<'other_laser_products'>, 'product_id'> ? true : never

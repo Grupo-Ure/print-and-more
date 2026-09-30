@@ -48,23 +48,23 @@ function checkClassicStamp(color: unknown, colorOther: unknown, description: unk
 
 // --- toChild coercers (reused by the form layer) ---------------------------
 type FieldValues = Record<string, unknown>
-export function modelStampToChild(fields: FieldValues): Omit<TablesInsert<'trodat_printy_products'>, 'department_product_id'> {
+export function modelStampToChild(fields: FieldValues): Omit<TablesInsert<'trodat_printy_products'>, 'product_id'> {
   return { model_id: strOut(fields.model_id), color: strOut(fields.color), color_other: strOut(fields.color_other), description: strOut(fields.description) }
 }
 /** stand/date/other stamps share the same child columns. */
-export function classicStampToChild(fields: FieldValues): Omit<TablesInsert<'stand_stamp_products'>, 'department_product_id'> {
+export function classicStampToChild(fields: FieldValues): Omit<TablesInsert<'stand_stamp_products'>, 'product_id'> {
   return { width: intMmOut(fields.width), height: intMmOut(fields.height), color: strOut(fields.color), color_other: strOut(fields.color_other), description: strOut(fields.description) }
 }
-export function stampPlateToChild(fields: FieldValues): Omit<TablesInsert<'stamp_plate_products'>, 'department_product_id'> {
+export function stampPlateToChild(fields: FieldValues): Omit<TablesInsert<'stamp_plate_products'>, 'product_id'> {
   return { width: intMmOut(fields.width), height: intMmOut(fields.height) }
 }
-export function refillInkToChild(fields: FieldValues): Omit<TablesInsert<'refill_ink_products'>, 'department_product_id'> {
+export function refillInkToChild(fields: FieldValues): Omit<TablesInsert<'refill_ink_products'>, 'product_id'> {
   return { color: strOut(fields.color), ink_type: strOut(fields.ink_type) }
 }
-export function inkPadToChild(fields: FieldValues): Omit<TablesInsert<'ink_pad_products'>, 'department_product_id'> {
+export function inkPadToChild(fields: FieldValues): Omit<TablesInsert<'ink_pad_products'>, 'product_id'> {
   return { pad_size: strOut(fields.pad_size), color: strOut(fields.color) }
 }
-export function trodatPadToChild(fields: FieldValues): Omit<TablesInsert<'trodat_pad_products'>, 'department_product_id'> {
+export function trodatPadToChild(fields: FieldValues): Omit<TablesInsert<'trodat_pad_products'>, 'product_id'> {
   return { pad_article_number: strOut(fields.pad_article_number), color: strOut(fields.color), pad_variant_id: strOut(fields.pad_variant_id) }
 }
 
@@ -81,7 +81,7 @@ export const trodatPrintySchema = loose([
   return { quantity: qtyOut(fields.quantity), ...modelStampToChild(fields as FieldValues) }
 })
 export type TrodatPrintyFields = z.infer<typeof trodatPrintySchema>
-true satisfies TrodatPrintyFields extends Omit<TablesInsert<'trodat_printy_products'>, 'department_product_id'> ? true : never
+true satisfies TrodatPrintyFields extends Omit<TablesInsert<'trodat_printy_products'>, 'product_id'> ? true : never
 
 export const woodenStampSchema = loose([
   'quantity', 'model_id', 'color', 'color_other', 'description',
@@ -92,7 +92,7 @@ export const woodenStampSchema = loose([
   return { quantity: qtyOut(fields.quantity), ...modelStampToChild(fields as FieldValues) }
 })
 export type WoodenStampFields = z.infer<typeof woodenStampSchema>
-true satisfies WoodenStampFields extends Omit<TablesInsert<'wooden_stamp_products'>, 'department_product_id'> ? true : never
+true satisfies WoodenStampFields extends Omit<TablesInsert<'wooden_stamp_products'>, 'product_id'> ? true : never
 
 // ---------------------------------------------------------------------------
 // STAND_STAMP / DATE_STAMP / OTHER_STAMP — dimensions + classic color/description.
@@ -107,7 +107,7 @@ export const standStampSchema = loose([
   return { quantity: qtyOut(fields.quantity), ...classicStampToChild(fields as FieldValues) }
 })
 export type StandStampFields = z.infer<typeof standStampSchema>
-true satisfies StandStampFields extends Omit<TablesInsert<'stand_stamp_products'>, 'department_product_id'> ? true : never
+true satisfies StandStampFields extends Omit<TablesInsert<'stand_stamp_products'>, 'product_id'> ? true : never
 
 export const dateStampSchema = loose([
   'quantity', 'width', 'height', 'color', 'color_other', 'description',
@@ -118,7 +118,7 @@ export const dateStampSchema = loose([
   return { quantity: qtyOut(fields.quantity), ...classicStampToChild(fields as FieldValues) }
 })
 export type DateStampFields = z.infer<typeof dateStampSchema>
-true satisfies DateStampFields extends Omit<TablesInsert<'date_stamp_products'>, 'department_product_id'> ? true : never
+true satisfies DateStampFields extends Omit<TablesInsert<'date_stamp_products'>, 'product_id'> ? true : never
 
 export const otherStampSchema = loose([
   'quantity', 'width', 'height', 'color', 'color_other', 'description',
@@ -129,7 +129,7 @@ export const otherStampSchema = loose([
   return { quantity: qtyOut(fields.quantity), ...classicStampToChild(fields as FieldValues) }
 })
 export type OtherStampFields = z.infer<typeof otherStampSchema>
-true satisfies OtherStampFields extends Omit<TablesInsert<'other_stamp_products'>, 'department_product_id'> ? true : never
+true satisfies OtherStampFields extends Omit<TablesInsert<'other_stamp_products'>, 'product_id'> ? true : never
 
 // ---------------------------------------------------------------------------
 // STAMP_PLATE — dimensions only.
@@ -143,7 +143,7 @@ export const stampPlateSchema = loose([
   return { quantity: qtyOut(fields.quantity), ...stampPlateToChild(fields as FieldValues) }
 })
 export type StampPlateFields = z.infer<typeof stampPlateSchema>
-true satisfies StampPlateFields extends Omit<TablesInsert<'stamp_plate_products'>, 'department_product_id'> ? true : never
+true satisfies StampPlateFields extends Omit<TablesInsert<'stamp_plate_products'>, 'product_id'> ? true : never
 
 // ---------------------------------------------------------------------------
 // Consumables — REFILL_INK / INK_PAD / TRODAT_PAD.
@@ -158,7 +158,7 @@ export const refillInkSchema = loose([
   return { quantity: qtyOut(fields.quantity), ...refillInkToChild(fields as FieldValues) }
 })
 export type RefillInkFields = z.infer<typeof refillInkSchema>
-true satisfies RefillInkFields extends Omit<TablesInsert<'refill_ink_products'>, 'department_product_id'> ? true : never
+true satisfies RefillInkFields extends Omit<TablesInsert<'refill_ink_products'>, 'product_id'> ? true : never
 
 export const inkPadSchema = loose([
   'quantity', 'pad_size', 'color',
@@ -169,7 +169,7 @@ export const inkPadSchema = loose([
   return { quantity: qtyOut(fields.quantity), ...inkPadToChild(fields as FieldValues) }
 })
 export type InkPadFields = z.infer<typeof inkPadSchema>
-true satisfies InkPadFields extends Omit<TablesInsert<'ink_pad_products'>, 'department_product_id'> ? true : never
+true satisfies InkPadFields extends Omit<TablesInsert<'ink_pad_products'>, 'product_id'> ? true : never
 
 export const trodatPadSchema = loose([
   'quantity', 'pad_article_number', 'color', 'pad_variant_id',
@@ -181,4 +181,4 @@ export const trodatPadSchema = loose([
   return { quantity: qtyOut(fields.quantity), ...trodatPadToChild(fields as FieldValues) }
 })
 export type TrodatPadFields = z.infer<typeof trodatPadSchema>
-true satisfies TrodatPadFields extends Omit<TablesInsert<'trodat_pad_products'>, 'department_product_id'> ? true : never
+true satisfies TrodatPadFields extends Omit<TablesInsert<'trodat_pad_products'>, 'product_id'> ? true : never

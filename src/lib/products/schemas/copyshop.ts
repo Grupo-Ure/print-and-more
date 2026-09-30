@@ -135,10 +135,10 @@ function isBindingColorValid(bindingType: string | null, color: string | null): 
 // toChild coercers (the transform value-mappings, reused by the form layer).
 // ---------------------------------------------------------------------------
 
-export function posterToChild(d: Fields): Omit<TablesInsert<'poster_products'>, 'department_product_id'> {
+export function posterToChild(d: Fields): Omit<TablesInsert<'poster_products'>, 'product_id'> {
   return { format: strOut(d.format), material: strOut(d.material), laminate: strOut(d.laminate), width: mmOut(d.width), height: mmOut(d.height) }
 }
-export function cardFlyerToChild(d: Fields): Omit<TablesInsert<'card_flyer_products'>, 'department_product_id'> {
+export function cardFlyerToChild(d: Fields): Omit<TablesInsert<'card_flyer_products'>, 'product_id'> {
   return {
     production_path: strOut(d.production_path), color_mode: strOut(d.color_mode), format: strOut(d.format), width: mmOut(d.width), height: mmOut(d.height),
     full_bleed: boolOut(d.full_bleed), cc_material: strOut(d.cc_material), cc_material_other: strOut(d.cc_material_other),
@@ -147,7 +147,7 @@ export function cardFlyerToChild(d: Fields): Omit<TablesInsert<'card_flyer_produ
     lamination_finish: strOut(d.lamination_finish), lamination_sides: strOut(d.lamination_sides),
   }
 }
-export function foldedFlyerToChild(d: Fields): Omit<TablesInsert<'folded_flyer_products'>, 'department_product_id'> {
+export function foldedFlyerToChild(d: Fields): Omit<TablesInsert<'folded_flyer_products'>, 'product_id'> {
   return {
     production_path: strOut(d.production_path), color_mode: strOut(d.color_mode), fold_type: strOut(d.fold_type), format: strOut(d.format), width: mmOut(d.width), height: mmOut(d.height),
     page_count: numOut(d.page_count), full_bleed: boolOut(d.full_bleed), cc_material: strOut(d.cc_material), cc_material_other: strOut(d.cc_material_other),
@@ -156,7 +156,7 @@ export function foldedFlyerToChild(d: Fields): Omit<TablesInsert<'folded_flyer_p
     lamination_finish: strOut(d.lamination_finish), lamination_sides: strOut(d.lamination_sides),
   }
 }
-export function brochureToChild(d: Fields): Omit<TablesInsert<'brochure_products'>, 'department_product_id'> {
+export function brochureToChild(d: Fields): Omit<TablesInsert<'brochure_products'>, 'product_id'> {
   return {
     production_path: strOut(d.production_path), format: strOut(d.format), width: mmOut(d.width), height: mmOut(d.height), orientation: strOut(d.orientation),
     page_count: numOut(d.page_count), full_bleed: boolOut(d.full_bleed), cover_material: strOut(d.cover_material), cover_material_other: strOut(d.cover_material_other),
@@ -164,20 +164,20 @@ export function brochureToChild(d: Fields): Omit<TablesInsert<'brochure_products
     cover_weight: strOut(d.cover_weight), cover_finish: strOut(d.cover_finish), inner_weight: strOut(d.inner_weight), inner_finish: strOut(d.inner_finish),
   }
 }
-export function businessCardToChild(d: Fields): Omit<TablesInsert<'business_card_products'>, 'department_product_id'> {
+export function businessCardToChild(d: Fields): Omit<TablesInsert<'business_card_products'>, 'product_id'> {
   return {
     material: strOut(d.material), color_mode: strOut(d.color_mode), format: strOut(d.format), width: mmOut(d.width), height: mmOut(d.height),
     orientation: strOut(d.orientation), film_laminated: boolOut(d.film_laminated), multiloft_color: strOut(d.multiloft_color), full_bleed: boolOut(d.full_bleed),
   }
 }
-export function bindingToChild(d: Fields): Omit<TablesInsert<'binding_products'>, 'department_product_id'> {
+export function bindingToChild(d: Fields): Omit<TablesInsert<'binding_products'>, 'product_id'> {
   return {
     material: strOut(d.material), material_other: strOut(d.material_other), color_mode: strOut(d.color_mode), binding_type: strOut(d.binding_type), binding_color: strOut(d.binding_color),
     format: strOut(d.format), orientation: strOut(d.orientation), width: mmOut(d.width), height: mmOut(d.height),
     hardcover_print: boolOut(d.hardcover_print), hardcover_cover: strOut(d.hardcover_cover), full_bleed: boolOut(d.full_bleed),
   }
 }
-export function printoutToChild(d: Fields): Omit<TablesInsert<'printout_products'>, 'department_product_id'> {
+export function printoutToChild(d: Fields): Omit<TablesInsert<'printout_products'>, 'product_id'> {
   return {
     format: strOut(d.format), material: strOut(d.material), material_other: strOut(d.material_other), color_mode: strOut(d.color_mode),
     punching: strOut(d.punching), staple: boolOut(d.staple), laminate: strOut(d.laminate),
@@ -205,7 +205,7 @@ export const posterSchema = loose([
   return { quantity: qtyOut(d.quantity), ...posterToChild(d as Fields) }
 })
 export type PosterFields = z.infer<typeof posterSchema>
-true satisfies PosterFields extends Omit<TablesInsert<'poster_products'>, 'department_product_id'> ? true : never
+true satisfies PosterFields extends Omit<TablesInsert<'poster_products'>, 'product_id'> ? true : never
 
 // ---------------------------------------------------------------------------
 // CARD_FLYER
@@ -231,7 +231,7 @@ export const cardFlyerSchema = loose([
   return { quantity: qtyOut(d.quantity), ...cardFlyerToChild(d as Fields) }
 })
 export type CardFlyerFields = z.infer<typeof cardFlyerSchema>
-true satisfies CardFlyerFields extends Omit<TablesInsert<'card_flyer_products'>, 'department_product_id'> ? true : never
+true satisfies CardFlyerFields extends Omit<TablesInsert<'card_flyer_products'>, 'product_id'> ? true : never
 
 // ---------------------------------------------------------------------------
 // FOLDED_FLYER
@@ -260,7 +260,7 @@ export const foldedFlyerSchema = loose([
   return { quantity: qtyOut(d.quantity), ...foldedFlyerToChild(d as Fields) }
 })
 export type FoldedFlyerFields = z.infer<typeof foldedFlyerSchema>
-true satisfies FoldedFlyerFields extends Omit<TablesInsert<'folded_flyer_products'>, 'department_product_id'> ? true : never
+true satisfies FoldedFlyerFields extends Omit<TablesInsert<'folded_flyer_products'>, 'product_id'> ? true : never
 
 // ---------------------------------------------------------------------------
 // BROCHURE
@@ -292,7 +292,7 @@ export const brochureSchema = loose([
   return { quantity: qtyOut(d.quantity), ...brochureToChild(d as Fields) }
 })
 export type BrochureFields = z.infer<typeof brochureSchema>
-true satisfies BrochureFields extends Omit<TablesInsert<'brochure_products'>, 'department_product_id'> ? true : never
+true satisfies BrochureFields extends Omit<TablesInsert<'brochure_products'>, 'product_id'> ? true : never
 
 // ---------------------------------------------------------------------------
 // BUSINESS_CARD
@@ -323,7 +323,7 @@ export const businessCardSchema = loose([
   return { quantity: qtyOut(d.quantity), ...businessCardToChild(d as Fields) }
 })
 export type BusinessCardFields = z.infer<typeof businessCardSchema>
-true satisfies BusinessCardFields extends Omit<TablesInsert<'business_card_products'>, 'department_product_id'> ? true : never
+true satisfies BusinessCardFields extends Omit<TablesInsert<'business_card_products'>, 'product_id'> ? true : never
 
 // ---------------------------------------------------------------------------
 // BINDING
@@ -377,7 +377,7 @@ export const bindingSchema = loose([
   return { quantity: qtyOut(d.quantity), ...bindingToChild(d as Fields) }
 })
 export type BindingFields = z.infer<typeof bindingSchema>
-true satisfies BindingFields extends Omit<TablesInsert<'binding_products'>, 'department_product_id'> ? true : never
+true satisfies BindingFields extends Omit<TablesInsert<'binding_products'>, 'product_id'> ? true : never
 
 // ---------------------------------------------------------------------------
 // PRINTOUT
@@ -404,4 +404,4 @@ export const printoutSchema = loose([
   return { quantity: qtyOut(d.quantity), ...printoutToChild(d as Fields) }
 })
 export type PrintoutFields = z.infer<typeof printoutSchema>
-true satisfies PrintoutFields extends Omit<TablesInsert<'printout_products'>, 'department_product_id'> ? true : never
+true satisfies PrintoutFields extends Omit<TablesInsert<'printout_products'>, 'product_id'> ? true : never
