@@ -3,15 +3,20 @@ import type { Tables, TablesInsert } from './supabase'
 /**
  * Product domain model over the typed per-type schema.
  *
- * A product = one `department_products` parent row (department, type, quantity,
- * notes, sort_order) + one typed child row in the table chosen by `type`. The
- * child carries the English spec columns; its PK `department_product_id` equals
- * the parent `id`.
+ * A product = one `products` parent row (the department, the type, the spec
+ * quantity/notes *and* the production workflow — number, status, assignee,
+ * deadline, approval) + its typed child row in the table chosen by `type`. The
+ * child carries the English spec columns; its PK `product_id` equals the
+ * parent `id`.
+ *
+ * TEXTILE is the one exception: its product is a *batch*, so instead of one
+ * child row it owns many `textile_garments` lines and its `textile_designs`.
+ * See {@link LoadedProduct}.
  */
 
-export type ProductParent = Tables<'department_products'>
+export type ProductParent = Tables<'products'>
 
-/** Every per-type child table. */
+/** Every per-type child table of a 1:1 product type (TEXTILE has none). */
 export type ChildTable =
   // CopyShop
   | 'poster_products'
@@ -48,15 +53,13 @@ export type ChildTable =
   | 'other_laser_products'
   // Other
   | 'other_products'
-  // Textile
-  | 'textile_garment_products'
 
 /** Union of all child Row types (the spec columns, incl. department_product_id). */
 export type ProductChildRow = { [K in ChildTable]: Tables<K> }[ChildTable]
 
 /** Union of all child Insert types, minus the PK (the service fills it). */
 export type ProductChildInsert = {
-  [K in ChildTable]: Omit<TablesInsert<K>, 'department_product_id'>
+  [K in ChildTable]: Omit<TablesInsert<K>, 'product_id'>
 }[ChildTable]
 
 /**
@@ -67,24 +70,47 @@ export type ProductChildInsert = {
  * with no cast. The DB column is plain `text`; the literal type is asserted
  * once, where rows are assembled in `departmentProductService`.
  */
-export type LoadedProduct = {
-  [Type in ProductType]: Omit<ProductParent, 'type'> & {
-    type: Type
-    child: Tables<(typeof CHILD_TABLE_BY_TYPE)[Type]>
-  }
-}[ProductType]
+export type LoadedProduct =
+  | {
+      [Type in SingleChildProductType]: Omit<ProductParent, 'type'> & {
+        type: Type
+        child: Tables<(typeof CHILD_TABLE_BY_TYPE)[Type]>
+      }
+    }[SingleChildProductType]
+  | (Omit<ProductParent, 'type'> & {
+      type: TextileProductType
+      /** One line per model × colour × size; the batch total is their sum. */
+      garments: TextileGarmentLineRow[]
+      /** One row per design applied to the batch, at one placement. */
+      designs: TextileDesignRow[]
+    })
 
-/** Input to create or update a product (id present = update). */
-export type ProductWriteInput = {
+/** A garment line of a textile batch. */
+export type TextileGarmentLineRow = Tables<'textile_garments'>
+
+/** A design applied to a textile batch at one placement. */
+export type TextileDesignRow = Tables<'textile_designs'>
+
+export type TextileGarmentLineInsert = Omit<TablesInsert<'textile_garments'>, 'id' | 'product_id'>
+
+export type TextileDesignInsert = Omit<TablesInsert<'textile_designs'>, 'id' | 'product_id'>
+
+/** The parent columns every write carries (id present = update). */
+export type ProductWriteBase = {
   id?: string
-  job_id: string
+  order_id: string
   department: string
   type: string
   quantity: number | null
   notes: string | null
   sort_order: number
-  child: ProductChildInsert
 }
+
+/** Input to create or update a product. Textile writes its lines and designs
+ *  where every other type writes one typed child row. */
+export type ProductWriteInput =
+  | (ProductWriteBase & { child: ProductChildInsert })
+  | (ProductWriteBase & { garments: TextileGarmentLineInsert[]; designs: TextileDesignInsert[] })
 
 /**
  * The product `type` discriminator → its child table.
@@ -129,19 +155,32 @@ export const CHILD_TABLE_BY_TYPE = {
   OTHER_LASER: 'other_laser_products',
   // Other
   OTHER: 'other_products',
-  // Textile
-  TEXTILE_GARMENT: 'textile_garment_products',
 } as const satisfies Record<string, ChildTable>
 
+/** The product types with exactly one typed child row. */
+export type SingleChildProductType = keyof typeof CHILD_TABLE_BY_TYPE
+
+/** Textile's single type — the batch, whose children are 1:n. */
+export const TEXTILE_PRODUCT_TYPE = 'TEXTILE_GARMENT'
+
+export type TextileProductType = typeof TEXTILE_PRODUCT_TYPE
+
 /** Every valid product `type` discriminator value. */
-export type ProductType = keyof typeof CHILD_TABLE_BY_TYPE
+export type ProductType = SingleChildProductType | TextileProductType
 
 /** Runtime guard: is this DB `type` string one we know? */
 export function isProductType(type: string): type is ProductType {
+  return type === TEXTILE_PRODUCT_TYPE || type in CHILD_TABLE_BY_TYPE
+}
+
+/** Runtime guard: does this type have a single typed child row? */
+export function isSingleChildProductType(type: string): type is SingleChildProductType {
   return type in CHILD_TABLE_BY_TYPE
 }
 
+/** The child table of a 1:1 type. Throws for TEXTILE_GARMENT, which has none —
+ *  guard with {@link isSingleChildProductType} where both are possible. */
 export function childTableForType(type: string): ChildTable {
-  if (!isProductType(type)) throw new Error(`Unknown product type: ${type}`)
+  if (!isSingleChildProductType(type)) throw new Error(`No single child table for product type: ${type}`)
   return CHILD_TABLE_BY_TYPE[type]
 }
