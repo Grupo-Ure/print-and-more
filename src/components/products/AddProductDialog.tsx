@@ -14,7 +14,8 @@ import type { FileRow } from '../../services/fileService'
 import { useOrderById } from '../../queries/orderQueries'
 import { departmentLabel } from '../../const/departmentAbbreviation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
-import { FORM_BY_TYPE, PRODUCT_TYPES_BY_DEPARTMENT } from './productTypes'
+import { PRODUCT_TYPES_BY_DEPARTMENT } from '../../lib/productTypeLabels'
+import { FORM_BY_TYPE } from './productTypes'
 import { TEST_IDS } from '@e2e/support/testIds'
 
 const IDS = TEST_IDS.orders.productList.addDialog
