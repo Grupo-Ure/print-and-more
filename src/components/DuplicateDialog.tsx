@@ -10,12 +10,10 @@ import {
 } from '@/components/ui/dialog'
 import { authService } from '../services/authService'
 import { orderService } from '../services/orderService'
-import { type Auftrag, type JobRow } from '../types/database'
-import { JOB_DEPARTMENT_LABELS, jobDepartmentLabel } from '../const/departmentAbbreviation'
-import { LFP_TYPE_LABELS } from '../types/lfp'
-import { COPY_SHOP_TYPE_LABELS } from '../types/copyshop'
-import { STAMP_TYPE_LABELS } from '../types/stamp'
-import { LASER_TYPE_LABELS } from '../types/laser'
+import { type Auftrag } from '../types/database'
+import type { LoadedProduct } from '../types/product'
+import { shortProductNumber } from '../lib/productShared'
+import { PRODUCT_TYPE_LABELS } from './products/productTypes'
 import { DateInput } from './DateInput'
 import { useToast } from './Toast'
 import { TEST_IDS } from '@e2e/support/testIds'
@@ -24,38 +22,26 @@ const IDS = TEST_IDS.orders.duplicateDialog
 
 type Props = {
   order: Auftrag
-  jobs: JobRow[]
+  products: LoadedProduct[]
   onSuccess: (neuerAuftrag: Auftrag) => void
   onCancel: () => void
 }
 
-function readableJobType(bereich: string, typ: string | null): string {
-  if (!typ) return '—'
-  if (bereich === 'LFP' && typ in LFP_TYPE_LABELS) return LFP_TYPE_LABELS[typ as keyof typeof LFP_TYPE_LABELS]
-  if (bereich === 'COPYSHOP' && typ in COPY_SHOP_TYPE_LABELS)
-    return COPY_SHOP_TYPE_LABELS[typ as keyof typeof COPY_SHOP_TYPE_LABELS]
-  if (bereich === 'STAMP' && typ in STAMP_TYPE_LABELS)
-    return STAMP_TYPE_LABELS[typ as keyof typeof STAMP_TYPE_LABELS]
-  if (bereich === 'LASER_ENGRAVING' && typ in LASER_TYPE_LABELS)
-    return LASER_TYPE_LABELS[typ as keyof typeof LASER_TYPE_LABELS]
-  return typ
+/** "LFP-01 · Banner" — the product's number in this order plus what it is. */
+function productLabel(product: LoadedProduct): string {
+  const type = PRODUCT_TYPE_LABELS[product.type] ?? product.type
+  return `${shortProductNumber(product.product_number)} · ${type}`
 }
 
-function jobLabel(job: JobRow): string {
-  const department =
-    job.department in JOB_DEPARTMENT_LABELS
-      ? JOB_DEPARTMENT_LABELS[job.department as keyof typeof JOB_DEPARTMENT_LABELS]
-      : jobDepartmentLabel(job.department)
-  const type = readableJobType(job.department, job.type)
-  return `${department} · ${type}`
-}
-
-export function DuplicateDialog({ order, jobs, onSuccess, onCancel }: Props) {
-  const activeJobs = useMemo(() => jobs.filter(job => !job.is_cancelled), [jobs])
+export function DuplicateDialog({ order, products, onSuccess, onCancel }: Props) {
+  const activeProducts = useMemo(
+    () => products.filter(product => !product.is_cancelled),
+    [products],
+  )
 
   const [selection, setSelection] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {}
-    for (const job of activeJobs) initial[job.id] = true
+    for (const product of activeProducts) initial[product.id] = true
     return initial
   })
   const [newDeadline, setNewDeadline] = useState<string>('')
@@ -63,15 +49,15 @@ export function DuplicateDialog({ order, jobs, onSuccess, onCancel }: Props) {
   const [error, setError] = useState<string | null>(null)
   const { showError, showSuccess } = useToast()
 
-  const selectedJobs = useMemo(
-    () => activeJobs.filter(job => selection[job.id]),
-    [activeJobs, selection]
+  const selectedProducts = useMemo(
+    () => activeProducts.filter(product => selection[product.id]),
+    [activeProducts, selection]
   )
-  const allSelected = activeJobs.length > 0 && selectedJobs.length === activeJobs.length
-  const noneSelected = selectedJobs.length === 0
+  const allSelected = activeProducts.length > 0 && selectedProducts.length === activeProducts.length
+  const noneSelected = selectedProducts.length === 0
   const masterChecked: boolean | 'indeterminate' = allSelected ? true : noneSelected ? false : 'indeterminate'
 
-  const blocksDuplicate = activeJobs.length > 0 && noneSelected
+  const blocksDuplicate = activeProducts.length > 0 && noneSelected
   const customerLabel = order.customers?.name?.trim() || order.id
 
   const toggle = (id: string) => {
@@ -81,7 +67,7 @@ export function DuplicateDialog({ order, jobs, onSuccess, onCancel }: Props) {
   const toggleAll = (next: boolean | 'indeterminate') => {
     const target = next === true || next === 'indeterminate'
     const updated: Record<string, boolean> = {}
-    for (const job of activeJobs) updated[job.id] = target
+    for (const product of activeProducts) updated[product.id] = target
     setSelection(updated)
   }
 
@@ -95,7 +81,7 @@ export function DuplicateDialog({ order, jobs, onSuccess, onCancel }: Props) {
         new_priority: order.priority ?? null,
         new_delivery: order.delivery ?? null,
         new_deadline: newDeadline ? newDeadline : null,
-        selected_job_ids: selectedJobs.map(job => job.id),
+        selected_product_ids: selectedProducts.map(product => product.id),
         created_by_user_id: (await authService.getUser())?.id ?? null,
       })
 
@@ -133,10 +119,10 @@ export function DuplicateDialog({ order, jobs, onSuccess, onCancel }: Props) {
           Customer: <strong className="text-foreground font-medium">{customerLabel}</strong>
         </p>
 
-        {activeJobs.length > 0 && (
+        {activeProducts.length > 0 && (
           <section className="flex flex-col gap-2">
             <h2 className="uppercase tracking-[0.06em] text-xs text-muted-foreground">
-              Jobs
+              Products
             </h2>
             <label className="flex items-center gap-2.5 rounded-md border bg-muted/40 px-3 py-2 cursor-pointer">
               <Checkbox
@@ -145,23 +131,23 @@ export function DuplicateDialog({ order, jobs, onSuccess, onCancel }: Props) {
                 onCheckedChange={toggleAll}
               />
               <span className="text-sm font-medium">
-                Select all ({selectedJobs.length}/{activeJobs.length})
+                Select all ({selectedProducts.length}/{activeProducts.length})
               </span>
             </label>
             <div className="flex flex-col gap-1 rounded-md border p-1">
-              {activeJobs.map(job => (
+              {activeProducts.map(product => (
                 <label
-                  key={job.id}
+                  key={product.id}
                   className="flex items-start gap-2.5 rounded-sm px-2.5 py-2 hover:bg-muted cursor-pointer"
                 >
                   <Checkbox
                     className="mt-0.5"
-                    data-testid={IDS.job}
-                    data-job-id={job.id}
-                    checked={!!selection[job.id]}
-                    onCheckedChange={() => toggle(job.id)}
+                    data-testid={IDS.product}
+                    data-product-id={product.id}
+                    checked={!!selection[product.id]}
+                    onCheckedChange={() => toggle(product.id)}
                   />
-                  <span className="text-sm">{jobLabel(job)}</span>
+                  <span className="text-sm">{productLabel(product)}</span>
                 </label>
               ))}
             </div>
