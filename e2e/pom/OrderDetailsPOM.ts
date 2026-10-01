@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
-import { JobListPOM } from './JobListPOM'
-import { JobDetailPOM } from './JobDetailPOM'
+import { ProductListPOM } from './ProductListPOM'
+import { ProductDetailPOM } from './ProductDetailPOM'
 import { OrderHistoryPOM } from './OrderHistoryPOM'
 import { DeadlinePickerPOM } from './DeadlinePickerPOM'
 import { BasePOM } from './BasePOM'
@@ -10,7 +10,8 @@ const IDS = TEST_IDS.orders.details
 
 /**
  * Centre column with an order selected: header, settings row, and the order
- * tabs — Jobs (job list and the active job) and History. The root carries `data-order-id`, `data-customer-id` and
+ * tabs — Products (the product list and the selected product's detail) and
+ * History. The root carries `data-order-id`, `data-customer-id` and
  * `data-status`.
  */
 export class OrderDetailsPOM extends BasePOM {
@@ -43,11 +44,11 @@ export class OrderDetailsPOM extends BasePOM {
   readonly payment: Locator
 
   // Tabs
-  readonly jobsTab: Locator
+  readonly productsTab: Locator
   readonly historyTab: Locator
 
-  readonly jobList: JobListPOM
-  readonly jobDetail: JobDetailPOM
+  readonly productList: ProductListPOM
+  readonly productDetail: ProductDetailPOM
   readonly history: OrderHistoryPOM
 
   constructor(page: Page) {
@@ -80,11 +81,11 @@ export class OrderDetailsPOM extends BasePOM {
     this.priority = settings.getByTestId(s.priority)
     this.payment = settings.getByTestId(s.payment)
 
-    this.jobsTab = this.root.getByTestId(IDS.tabs.jobs)
+    this.productsTab = this.root.getByTestId(IDS.tabs.products)
     this.historyTab = this.root.getByTestId(IDS.tabs.history)
 
-    this.jobList = new JobListPOM(page)
-    this.jobDetail = new JobDetailPOM(page)
+    this.productList = new ProductListPOM(page)
+    this.productDetail = new ProductDetailPOM(page)
     this.history = new OrderHistoryPOM(page)
   }
 

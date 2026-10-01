@@ -4,7 +4,7 @@ import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.production.sidebar
 
-/** Left column of the Production page: the assignee filter and the job feed. */
+/** Left column of the Production page: the assignee filter and the product feed. */
 export class ProductionSidebarPOM extends BasePOM {
   readonly root: Locator
   /** The assignee combobox trigger; carries `data-value` = users.id while narrowed to one user. */
@@ -15,7 +15,7 @@ export class ProductionSidebarPOM extends BasePOM {
   readonly assigneeFilterCaption: Locator
   readonly list: Locator
   readonly empty: Locator
-  /** Every job row; each carries `data-job-id`, `data-order-id`, `data-status` and `data-department`. */
+  /** Every product row; each carries `data-product-id`, `data-order-id`, `data-status` and `data-department`. */
   readonly rows: Locator
 
   constructor(page: Page) {
@@ -29,8 +29,8 @@ export class ProductionSidebarPOM extends BasePOM {
     this.rows = this.list.getByTestId(IDS.row)
   }
 
-  row(jobId: string): Locator {
-    return this.withAttr(this.rows, 'data-job-id', jobId)
+  row(productId: string): Locator {
+    return this.withAttr(this.rows, 'data-product-id', productId)
   }
 
   /** One user's option in the open combobox (a portal — not scoped to the sidebar). */
@@ -39,8 +39,8 @@ export class ProductionSidebarPOM extends BasePOM {
   }
 
   /**
-   * Widens the feed from the signed-in user's own jobs to everyone's and waits
-   * for the filter to drop its user. Navigation, for a spec's Setup stage.
+   * Widens the feed from the signed-in user's own products to everyone's and
+   * waits for the filter to drop its user. Navigation, for a spec's Setup stage.
    */
   async showEveryone(): Promise<void> {
     await this.assigneeFilter.click()
@@ -48,8 +48,8 @@ export class ProductionSidebarPOM extends BasePOM {
     await this.assigneeFilter.and(this.page.locator(':not([data-value])')).waitFor()
   }
 
-  rowJobNumber(row: Locator): Locator {
-    return row.getByTestId(IDS.rowJobNumber)
+  rowProductNumber(row: Locator): Locator {
+    return row.getByTestId(IDS.rowProductNumber)
   }
 
   rowCustomer(row: Locator): Locator {
@@ -66,8 +66,8 @@ export class ProductionSidebarPOM extends BasePOM {
     return row.getByTestId(IDS.rowAssignee)
   }
 
-  /** The ids of the jobs currently listed, in feed order. */
-  async listedJobIds(): Promise<string[]> {
-    return this.rows.evaluateAll(els => els.map(el => el.getAttribute('data-job-id') ?? ''))
+  /** The ids of the products currently listed, in feed order. */
+  async listedProductIds(): Promise<string[]> {
+    return this.rows.evaluateAll(els => els.map(el => el.getAttribute('data-product-id') ?? ''))
   }
 }

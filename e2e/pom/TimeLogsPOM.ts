@@ -2,10 +2,10 @@ import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
 import { BasePOM } from './BasePOM'
 
-const IDS = TEST_IDS.orders.jobDetail.timeLogs
-const QUICK_IDS = TEST_IDS.orders.jobDetail.quickTimeLog
+const IDS = TEST_IDS.orders.productDetail.timeLogs
+const QUICK_IDS = TEST_IDS.orders.productDetail.quickTimeLog
 
-/** Worked time on the active job (the job's Time logs tab). */
+/** Worked time on the selected product (its Time logs tab). */
 export class TimeLogsPOM extends BasePOM {
   readonly root: Locator
   /** Carries `data-minutes`. */
@@ -40,10 +40,10 @@ export class TimeLogsPOM extends BasePOM {
   }
 }
 
-/** The quick-log widget at the bottom of the job's Products tab (absent once the job is DONE). */
+/** The quick-log widget at the bottom of the product's Basic info tab (absent once the product is DONE). */
 export class QuickTimeLogPOM extends BasePOM {
   readonly root: Locator
-  /** Carries `data-minutes` = the job's total. */
+  /** Carries `data-minutes` = the product's total. */
   readonly total: Locator
   readonly minutes: Locator
   /** Admin only: who the time is attributed to; carries `data-value` = user id. */

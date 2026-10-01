@@ -2,9 +2,9 @@ import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
 import { BasePOM } from './BasePOM'
 
-const IDS = TEST_IDS.orders.jobDetail.files
+const IDS = TEST_IDS.orders.productDetail.files
 
-/** Order-level file links (UNC paths; nothing is uploaded), shown as the job's Files tab. */
+/** Order-level file links (UNC paths; nothing is uploaded), shown as the product's Files tab. */
 export class OrderFilesPOM extends BasePOM {
   readonly root: Locator
   readonly addFiles: Locator

@@ -3,10 +3,10 @@ import { TEST_IDS } from '../support/testIds'
 import { GrantApprovalDialogPOM } from './GrantApprovalDialogPOM'
 import { BasePOM } from './BasePOM'
 
-const IDS = TEST_IDS.orders.jobDetail.settings
+const IDS = TEST_IDS.orders.productDetail.settings
 
-/** Per-job overrides (deadline / delivery / priority) and customer approval (the job's Settings tab). */
-export class JobSettingsPOM extends BasePOM {
+/** Per-product overrides (deadline / delivery / priority) and customer approval (the product's Settings tab). */
+export class ProductSettingsPOM extends BasePOM {
   readonly root: Locator
   readonly separateDeadline: Locator
   /** Carries `data-value` = ISO date when set. */

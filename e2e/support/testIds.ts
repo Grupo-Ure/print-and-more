@@ -267,7 +267,7 @@ export const TEST_IDS = {
         /** The textile batch editor's size grid. */
         textile: {
           garments: 'product-basic-info-textile-garments',
-          /** One per garment line; `data-line-index`, `data-variant-id` while a catalog variant is picked. */
+          /** One per garment line; the instance is picked by position (the rows carry no stable key). */
           garmentRow: 'product-basic-info-textile-garment-row',
           addGarment: 'product-basic-info-textile-add-garment',
           removeGarment: 'product-basic-info-textile-remove-garment',
@@ -276,7 +276,7 @@ export const TEST_IDS = {
           /** Switches a garment row between the catalog cascade and free text. */
           freeTextToggle: 'product-basic-info-textile-free-text-toggle',
           designs: 'product-basic-info-textile-designs',
-          /** One per design; `data-design-index`. */
+          /** One per design; picked by position, like the garment rows. */
           designRow: 'product-basic-info-textile-design-row',
           addDesign: 'product-basic-info-textile-add-design',
           removeDesign: 'product-basic-info-textile-remove-design',

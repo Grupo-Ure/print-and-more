@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
 import { BasePOM } from './BasePOM'
 
-const IDS = TEST_IDS.orders.jobDetail.release.dialog
+const IDS = TEST_IDS.orders.productDetail.release.dialog
 
 /** Admin-only: reason prompt for the emergency release to production. */
 export class ForceReleaseDialogPOM extends BasePOM {
