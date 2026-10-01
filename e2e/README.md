@@ -18,9 +18,9 @@ playwright test
 │   ├─ fixtures/electron.ts        launch one app with a throwaway profile (per worker)
 │   ├─ fixtures/auth.ts            bring the app into the auth state the spec asked for
 │   ├─ fixtures/orders.ts          the orders view's page object + per-test rows + the catalog rows + a department default + a developer flag
-│   ├─ fixtures/production.ts      the production page's page object (lists the rows seeded above)
+│   ├─ fixtures/production.ts      the production page's page object (lists the products seeded above)
 │   ├─ fixtures/stock.ts           the stock pages' page objects
-│   └─ <page>/<feature>/*.spec.ts  one folder per page, subfolders per feature: auth/, orders-page/order/status/, …
+│   └─ <page>/<feature>/*.spec.ts  one folder per page, subfolders per feature: auth/, orders-page/order/, orders-page/product/, …
 └─ e2e/global-teardown.ts          default() → delete the test logins
 ```
 
@@ -39,18 +39,19 @@ e2e/
    ├─ sidebar.spec.ts             list → select → details
    ├─ order/                      the order feature
    │   ├─ new-order.spec.ts
+   │   ├─ header.spec.ts          what the header shows of the order and its customer, and the copy buttons
    │   ├─ settings.spec.ts
    │   ├─ status.spec.ts          the whole lifecycle: start, finish, invoice, cash close, reopen
    │   ├─ remove.spec.ts          archive, cancel, delete a quote
-   │   └─ duplicate.spec.ts       the copy: a new quote, selected, with the jobs and products
-   └─ job/                        the job feature
-       ├─ add-remove.spec.ts      add, delete in setup, cancel past setup
-       ├─ products.spec.ts
+   │   └─ duplicate.spec.ts       the copy: a new quote, selected, with the products picked
+   └─ product/                    the product feature — the unit of work
+       ├─ add-remove.spec.ts      add through the department's form, delete in setup, cancel past setup
+       ├─ basic-info.spec.ts      the spec read-only, edited in place, locked once released
        ├─ status.spec.ts          the workflow: pre-press, production, done
        ├─ release-gates.spec.ts   what refuses a release, and the admin override
        └─ stock-deduction.spec.ts what a release books against the stock pages
 ├─ production-page/
-│  └─ feed.spec.ts                which jobs the feed lists, the assignee filter (and who it leaves out), the job detail beside it
+│  └─ feed.spec.ts                which products the feed lists, the assignee filter (and who it leaves out), the product detail beside it
 └─ settings-page/
    └─ departments.spec.ts         the default assignee per department and stage
 ```
@@ -63,9 +64,9 @@ a `describe` block exists only to carry a precondition (`test.use({ … })`)
 shared by the tests inside it. Playwright reports by file path, so every
 folder level is a group in the list reporter, the HTML report and UI mode,
 and any path fragment filters a run (`npx playwright test orders-page`,
-`npx playwright test job/status`). The support folders (`fixtures/`, `pom/`,
-`support/`) stay at the `e2e/` root; a spec reaches them with as many `../`
-as it is deep. A new spec goes into the folder of the feature it drives,
+`npx playwright test product/status`). The support folders (`fixtures/`,
+`pom/`, `support/`) stay at the `e2e/` root; a spec reaches them with as many
+`../` as it is deep. A new spec goes into the folder of the feature it drives,
 never at the root.
 
 ## The fixture chain
@@ -106,17 +107,17 @@ Nothing here is imported by hand; the runner drives it from the config:
 - **Run-wide data goes in global setup; per-test data goes in fixtures.**
   Global setup runs once per `playwright test`, in the runner's main process,
   no matter how many specs or workers. Anything a single test creates and
-  cleans up (an order, a job) belongs in a fixture: `create → await use() →
-  delete`, so cleanup runs even when the test fails.
+  cleans up (an order, a product) belongs in a fixture: `create → await use()
+  → delete`, so cleanup runs even when the test fails.
 - **Setup and tests share nothing but the database.** Global setup returns
   nothing; specs find the credentials in `fixtures/users.ts`, which is the
   single source for them.
 - **Fixtures seed data; they do not navigate.** A data fixture inserts rows
-  and reloads the app; the spec gets to the order or job under test in its
-  Setup stage through a page-object navigation helper (`ordersPage.openJob`),
-  and performs the actions it is about inline in Act. The auth state
-  (`fixtures/auth.ts`) is the one fixture that drives the UI, being the
-  prerequisite every test shares.
+  and reloads the app; the spec gets to the order or product under test in its
+  Setup stage through a page-object navigation helper
+  (`ordersPage.openProduct`), and performs the actions it is about inline in
+  Act. The auth state (`fixtures/auth.ts`) is the one fixture that drives the
+  UI, being the prerequisite every test shares.
 - **Setup is idempotent.** `globalTeardown` is skipped when a run is killed
   hard (Ctrl-C), so `ensureTestUser` looks before it creates — a leftover
   login from an aborted run does not break the next one.
@@ -135,19 +136,19 @@ Nothing here is imported by hand; the runner drives it from the config:
 | `fixtures/electron.ts` | Launches the built app; replaces Playwright's browser `page` |
 | `fixtures/auth.ts` | `user` option + signed-in `page`; `login` / `navbar` / `settingsPage` page objects; `signIn` / `signOut` helpers |
 | `fixtures/users.ts` | The test logins, and which of them the `developer` fixture flags (data fixture) |
-| `fixtures/orders.ts` | `ordersPage` page object + per-test data of the orders view: `customer` (a fresh customer), `order` (a fresh order for it), `job` (a fresh job in that order), `orderFile` (a file linked to it), `newCustomer` (data for a customer the test creates in the app), `departmentDefault` (one department's default assignee for one stage, emptied afterwards), `developer` (a login flagged as a developer account, unflagged afterwards) — each created/cleaned up around the test. The state `order` and `job` are inserted in comes from the `orderSeed` / `jobSeed` options (`test.use({ orderSeed: IN_PROGRESS_ORDER })`); the defaults are an empty quote and an empty job. `catalog` (automatic) keeps the stamp models and the textile chain the product seeds reference in the catalog, reset to their seed stock before every test |
+| `fixtures/orders.ts` | `ordersPage` page object + per-test data of the orders view: `customer` (a fresh customer), `order` (a fresh order for it), `product` (a fresh product in that order), `orderFile` (a file linked to it), `newCustomer` (data for a customer the test creates in the app), `departmentDefault` (one department's default assignee for one stage, emptied afterwards), `developer` (a login flagged as a developer account, unflagged afterwards) — each created/cleaned up around the test. The state `order` and `product` are inserted in comes from the `orderSeed` / `productSeed` options (`test.use({ orderSeed: IN_PROGRESS_ORDER })`); the defaults are an empty quote and an OTHER product in setup. `catalog` (automatic) keeps the stamp models and the textile chain the product seeds reference in the catalog, reset to their seed stock before every test |
 | `fixtures/stock.ts` | `stampStockPage` / `textileStockPage` page objects, for reading stock after a release |
-| `fixtures/production.ts` | `productionPage` page object; the jobs it lists come from the `order` / `job` / `jobs` fixtures of the orders link |
+| `fixtures/production.ts` | `productionPage` page object; the products it lists come from the `order` / `product` / `products` fixtures of the orders link |
 | `fixtures/customers.ts` | The customers those fixtures use (data fixture) |
 | `fixtures/departments.ts` | The department-default seeds the `departmentDefault` fixture applies: which department and stage, and who holds it (data fixture) |
-| `fixtures/jobs.ts` | Job seeds (department, status, approval flag, optional product rows), product form values, the expected job number, the force-release reason (data fixture) |
+| `fixtures/products.ts` | Product seeds (department, type, status, approval flag, and the children holding the spec), the form values a spec types, the expected product number, the force-release reason (data fixture) |
 | `fixtures/files.ts` | The file the `orderFile` fixture links for the customer approval (data fixture) |
 | `fixtures/stamps.ts` | The stamp models the `catalog` fixture keeps in the catalog: one out of stock for the gate, one in stock for the deduction (data fixture) |
-| `fixtures/textiles.ts` | The textile brand → product → variant chain the `catalog` fixture keeps in the catalog, in stock for the deduction (data fixture) |
+| `fixtures/textiles.ts` | The textile brand → model → variant chain the `catalog` fixture keeps in the catalog, in stock for the deduction (data fixture) |
 | `pom/*POM.ts` | Page objects — every locator a spec uses, one class per view/dialog, composed parent → child |
 | `pom/BasePOM.ts` | Ancestor of every page object: holds the page and the shared helpers (`withAttr()` picks one instance of a repeated element by data attribute) |
 | `support/testIds.ts` | The `TEST_IDS` registry, imported by components (`data-testid`) and page objects alike |
-| `support/database.ts` | `TestDatabase`: the runner's service-role connection (bypasses RLS, exposes `auth.admin`) with the methods that seed and remove users, customers and orders — raw rows only, no app business logic |
+| `support/database.ts` | `TestDatabase`: the runner's service-role connection (bypasses RLS, exposes `auth.admin`) with the methods that seed and remove users, customers, orders and products — raw rows only, no app business logic |
 | `global-setup.ts`, `global-teardown.ts` | Run-wide data, wired via `playwright.config.ts` |
 
 ## Environment

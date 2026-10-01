@@ -9,7 +9,7 @@ candidate spec; details come later.
 - Fresh order per test, cleaned up afterwards — done: `fixtures/orders.ts`
 - Known stamp/textile stock for the deduction cases
 - A second order for another customer per test (`otherCustomer` / `otherOrder`), so a filter can list one and hide the other — open
-- Job seed with an `assignee_id` (a test user's id, looked up by email) — open
+- Product seed with an `assignee_id` (a test user's id, looked up by email) — open
 - Order seed with `created_at` (intake range) and `is_archived` (archived quote, billed order); a `BILLED_ORDER` seed becomes valid once billed orders can be listed — open
 
 ## 1. Sign in and land — done
@@ -25,51 +25,51 @@ candidate spec; details come later.
 
 ## 3. Build the order — done
 
-- Add job → job number, becomes active
-- Add product
+- Add product → created through its type's own form, gets its product number, becomes active
+- Edit the product's spec in place on the Basic info tab
 - Set order deadline
-- Specs: `e2e/orders-page/job/add-remove.spec.ts`, `e2e/orders-page/job/products.spec.ts`, `e2e/orders-page/order/settings.spec.ts` (one per bullet, on an OTHER job)
+- Specs: `e2e/orders-page/product/add-remove.spec.ts`, `e2e/orders-page/product/basic-info.spec.ts`, `e2e/orders-page/order/settings.spec.ts` (one per bullet, on an OTHER product)
 
 ## 4. Start processing → pre-press — done
 
 - Start processing → order In Progress
-- Complete job auto-promotes to Prepress, in every one of the six departments (OTHER included)
-- Start processing promotes every complete job of the order, not only the selected one
-- A past deadline does not hold a job back from auto-promotion — only a missing one does
-- Specs: `e2e/orders-page/order/status.spec.ts` (start processing; an order with one job per department, all promoted), `e2e/orders-page/job/status.spec.ts` (auto-promotion on completing the job; one case per department, plus one for a past deadline); the order/job state comes from the `orderSeed` / `jobSeed` / `jobSeeds` options
+- Complete product auto-promotes to Prepress, in every one of the six departments (OTHER included)
+- Start processing promotes every complete product of the order, not only the selected one — they share one status watcher per order
+- A past deadline does not hold a product back from auto-promotion — only a missing one does
+- Specs: `e2e/orders-page/order/status.spec.ts` (start processing; an order with one product per department, all promoted), `e2e/orders-page/product/status.spec.ts` (auto-promotion on completing the product; one case per department, plus one for a past deadline); the order/product state comes from the `orderSeed` / `productSeed` / `productSeeds` options
 
 ## 5. Production → done → billed — done
 
 - Release to Production → Mark done
-- Marking the last job done finishes an invoice order on its own; a cash order stays in progress
+- Marking the last product done finishes an invoice order on its own; a cash order stays in progress
 - Mark finished (manual fallback) → Mark as invoiced → order archived
 - Cash variant: Finish & close
-- Specs: `e2e/orders-page/job/status.spec.ts` (release to production, mark done), `e2e/orders-page/order/status.spec.ts` (automatic finish on the last job done, invoice and cash; mark finished, mark invoiced, cash close); the seeds `JOB_IN_PREPRESS` / `JOB_IN_PRODUCTION` / `JOB_DONE` and `FINISHED_ORDER` / `IN_PROGRESS_CASH_ORDER` put the rows in the state each step starts from
+- Specs: `e2e/orders-page/product/status.spec.ts` (release to production, mark done), `e2e/orders-page/order/status.spec.ts` (automatic finish on the last product done, invoice and cash; mark finished, mark invoiced, cash close); the seeds `PRODUCT_IN_PREPRESS` / `PRODUCT_IN_PRODUCTION` / `PRODUCT_DONE` and `FINISHED_ORDER` / `IN_PROGRESS_CASH_ORDER` put the rows in the state each step starts from
 
 ## 6. Gates — done
 
-- No deadline / no product keeps job in setup
+- No deadline keeps the product in setup — the only completeness gate left, since a product cannot lack content of its own
 - Customer approval blocks production until granted
 - Insufficient stock blocks release
 - Admin force release (reason required, history entry, warning icon)
-- Specs: `e2e/orders-page/job/release-gates.spec.ts` (the two completeness gates, approval blocked / granted, stock shortage on the out-of-stock stamp model, force release as admin: reason required, status + warning icon, history entry)
+- Specs: `e2e/orders-page/product/release-gates.spec.ts` (the deadline gate, approval blocked / granted, stock shortage on the out-of-stock stamp model, force release as admin: reason required, status + warning icon, history entry)
 
 ## 7. Stock deduction on release — done
 
-- Stamp and textile stock decremented exactly once
-- Specs: `e2e/orders-page/job/stock-deduction.spec.ts` (per department: release deducts the quantity; release then mark done deducts nothing more — read off the stock pages as admin, against the catalog rows the `catalog` fixture seeds)
+- Stamp and textile stock decremented exactly once — the stamp product by its own quantity, the textile batch by its garment line's
+- Specs: `e2e/orders-page/product/stock-deduction.spec.ts` (per department: release deducts the quantity; release then mark done deducts nothing more — read off the stock pages as admin, against the catalog rows the `catalog` fixture seeds)
 
 ## 8. Remove / undo — done
 
-- Delete job (setup), cancel job (pre-press)
+- Delete product (setup), cancel product (pre-press)
 - Archive order, cancel order, delete quote
 - Admin reopen finished order
-- Specs: `e2e/orders-page/job/add-remove.spec.ts` (delete in setup / cancel in pre-press, each checked against the history), `e2e/orders-page/order/remove.spec.ts` (archive, cancel, delete quote), `e2e/orders-page/order/status.spec.ts` (admin reopen)
+- Specs: `e2e/orders-page/product/add-remove.spec.ts` (delete in setup / cancel in pre-press, each checked against the history), `e2e/orders-page/order/remove.spec.ts` (archive, cancel, delete quote), `e2e/orders-page/order/status.spec.ts` (admin reopen)
 
 ## 9. Duplicate order — done
 
-- Copy appears, selected, carries jobs and products
-- Specs: `e2e/orders-page/order/duplicate.spec.ts` (the copy opens as a new quote and is selected; it carries the job and its product)
+- Copy appears, selected, carries the products that were ticked
+- Specs: `e2e/orders-page/order/duplicate.spec.ts` (the copy opens as a new quote and is selected; it carries the product with its spec; deselecting the product copies the order empty)
 
 ## 10. Sidebar search and filters — open
 
@@ -87,7 +87,7 @@ cancelled orders. Billed orders are listed whenever Billed is ticked.
   - Clear (X) brings the full list back
   - No matching customer → empty state
   - Compact layout: the Search toggle reveals the box
-- Status (order status, not job status)
+- Status (order status, not product status)
   - Default: quote, in-progress, finished and billed all listed
   - Unticking Finished hides a finished order; unticking Quote hides a quote
   - Unticking Billed hides a billed order
@@ -97,16 +97,16 @@ cancelled orders. Billed orders are listed whenever Billed is ticked.
 - Show archived
   - Off: an archived quote is hidden; a billed order is still listed when Billed is ticked
   - On: the archived quote is listed; off again hides it
-- Department (order has at least one job in a selected department)
-  - Two orders, one with a Stamp job and one with a Textile job: selecting Stamp keeps the first listed and hides the second
+- Department (order has at least one product in a selected department)
+  - Two orders, one with a Stamp product and one with a Textile product: selecting Stamp keeps the first listed and hides the second
   - Two departments list either
   - Reset lists everything again
 - Deadline / intake (order deadline, order creation day; bounds inclusive)
   - A deadline range around tomorrow lists the in-progress order; a range past it hides it; an order without a deadline is hidden while any bound is set
   - An intake range on today lists a fresh order, hides the order created on a past day
   - Reset clears all four dates
-- Users (job assignee)
-  - Ticking a user lists the order whose job is assigned to them, hides the unassigned one
+- Users (product assignee)
+  - Ticking a user lists the order whose product is assigned to them, hides the unassigned one
   - Unassigned does the reverse
   - Reset lists everything again
 - Across groups
@@ -115,14 +115,14 @@ cancelled orders. Billed orders are listed whenever Billed is ticked.
   - No persistence: switching to a stock page and back restores the defaults
   - Hiding the selected order by a filter keeps its details open
 - To confirm before writing a spec (visible today; intended or bug?)
-  - An order with no jobs disappears under any department or assignee selection
-  - Cancelled jobs still count for the department and assignee filters
-  - The deadline filter uses the order deadline only; a job's separate deadline is ignored
+  - An order with no products disappears under any department or assignee selection
+  - Cancelled products still count for the department and assignee filters
+  - The deadline filter uses the order deadline only; a product's separate deadline is ignored
 - Specs (proposed): `e2e/orders-page/sidebar/` — `search.spec.ts`, `status-filter.spec.ts`, `archived.spec.ts`, `department-filter.spec.ts`, `deadline-filter.spec.ts`, `assignee-filter.spec.ts`, `filters.spec.ts` (across groups); `sidebar.spec.ts` moves in as `select.spec.ts` with the first of them. Page objects exist: `OrderSidebarPOM` toggles + `includeStatus()`, `OrderSidebar{Status,Department,Deadline,Users}FilterPOM`
 
 ## Later
 
-- Order settings + job overrides
+- Order settings + product overrides
 - Files dialog
 - History dialog
 - Time logs

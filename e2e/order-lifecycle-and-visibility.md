@@ -11,16 +11,17 @@ file states the behaviour they assert. Where the code differs today, the
 `order_status`: `QUOTE` → `IN_PROGRESS` → `FINISHED` → `BILLED`. Every step
 is a click on the lifecycle button in the order header, with one exception:
 an invoice order in progress becomes Finished on its own the moment its last
-non-cancelled job is Done (the job marked done, or the last open job cancelled
-or deleted). Nothing else moves an order's status automatically; in
-particular a reopened order stays In Progress until a job changes again.
+non-cancelled product is Done (the product marked done, or the last open
+product cancelled or deleted). Nothing else moves an order's status
+automatically; in particular a reopened order stays In Progress until a
+product changes again.
 
 | From | Action | To | Condition |
 |---|---|---|---|
 | Quote | Start processing | In Progress | none |
-| In Progress | *(automatic)* | Finished | every non-cancelled job is Done; invoice orders only |
-| In Progress | Mark finished | Finished | every non-cancelled job is Done; invoice orders only (manual fallback, e.g. after a reopen) |
-| In Progress | Finish & close (cash) | Billed | every non-cancelled job is Done; cash orders skip Finished |
+| In Progress | *(automatic)* | Finished | every non-cancelled product is Done; invoice orders only |
+| In Progress | Mark finished | Finished | every non-cancelled product is Done; invoice orders only (manual fallback, e.g. after a reopen) |
+| In Progress | Finish & close (cash) | Billed | every non-cancelled product is Done; cash orders skip Finished |
 | Finished | Mark as invoiced | Billed | none |
 | Finished | Reopen (admin) | In Progress | admin only |
 
@@ -33,8 +34,8 @@ the status and never changes it. Three actions set it:
 
 | Action | Where | Allowed while | Effect |
 |---|---|---|---|
-| Cancel order | order header | Quote, In Progress | every job gets `is_cancelled`, the order is archived, status unchanged, history `CANCELLED` |
-| Archive order | order header | Finished | order archived, jobs untouched, history `ORDER_ARCHIVED` |
+| Cancel order | order header | Quote, In Progress | every product gets `is_cancelled`, the order is archived, status unchanged, history `CANCELLED` |
+| Archive order | order header | Finished | order archived, products untouched, history `ORDER_ARCHIVED` |
 | Mark as invoiced / Finish & close | lifecycle button | see table above | status Billed and archived, history `ORDER_BILLED` / `ORDER_CLOSED_CASH` |
 
 The header shows **either** Cancel **or** Archive, never both:
@@ -81,7 +82,7 @@ The two combine as AND, together with the search box and the other filters.
 
 A cancelled order carries no marker in the list. Its row looks like a live
 order of the same status; the only hints are the missing department icons
-(all jobs cancelled) and the `CANCELLED` entry in its history.
+(all products cancelled) and the `CANCELLED` entry in its history.
 
 ## Selection
 
@@ -100,8 +101,8 @@ out, the details stay open.
   clears the flag.
 - **Cancelled is invisible.** Cancelled and archived orders are the same
   thing in the database once the flag is set. Making `CANCELLED` an order
-  status (as MKS-52 does for jobs) would give it its own filter checkbox and
-  badge; open decision.
-- **Cancelled jobs and the job-based filters.** The department and assignee
-  filters count cancelled jobs, so a cancelled order still matches a
-  department whose only job was cancelled. Open decision.
+  status (as MKS-52 does for products) would give it its own filter checkbox
+  and badge; open decision.
+- **Cancelled products and the product-based filters.** The department and
+  assignee filters count cancelled products, so a cancelled order still
+  matches a department whose only product was cancelled. Open decision.
