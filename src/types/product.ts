@@ -68,7 +68,7 @@ export type ProductChildInsert = {
  * Discriminated on `type`, so narrowing the discriminator narrows the child:
  * `if (product.type === 'TRODAT_PRINTY') product.child.model_id` type-checks
  * with no cast. The DB column is plain `text`; the literal type is asserted
- * once, where rows are assembled in `departmentProductService`.
+ * once, where rows are assembled in `productService`.
  */
 export type LoadedProduct =
   | {

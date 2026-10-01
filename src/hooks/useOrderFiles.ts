@@ -5,7 +5,7 @@ import { useToast } from '../components/Toast'
 /**
  * The files linked to an order, reloaded whenever the order changes and on
  * demand (`reload`) after a dialog linked or removed one. Shared by the
- * orders view and the production page, which both host `JobDetail`.
+ * orders view and the production page, which both host `ProductDetail`.
  */
 export function useOrderFiles(orderId: string | null): {
   files: FileRow[]

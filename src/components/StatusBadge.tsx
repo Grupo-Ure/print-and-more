@@ -3,9 +3,9 @@ import { cn } from '../lib/utils'
 import { Badge } from './ui/badge'
 
 /**
- * Order and job statuses are separate systems with their own label/color maps —
- * callers pass the resolved meta (`ORDER_STATUS_META[order.status]` or
- * `JOB_STATUS_META[job.status]`).
+ * Order and product statuses are separate systems with their own label/color
+ * maps — callers pass the resolved meta (`ORDER_STATUS_META[order.status]` or
+ * `PRODUCT_STATUS_META[product.status]`).
  */
 export function StatusBadge({ meta }: { meta: StatusMeta }) {
   return (
