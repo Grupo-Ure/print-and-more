@@ -1,40 +1,51 @@
 /**
- * Textile garment form (the single TEXTILE_GARMENT type).
+ * Textile batch editor — the basic-info form of the single TEXTILE_GARMENT
+ * type, whose product is a **batch** rather than a single line.
  *
- * The garment spine (origin → catalog variant / free-text / customer stock) is a
- * normal product child. The design applications (`links`) are held in local
- * state like `fileIds` and reconciled by `useSaveProduct`; they're folded into
- * the values passed to `validateProduct` so the schema gates "≥ 1 design".
+ * Two editors in one form, matching the two 1:n children of the batch:
+ *
+ * - **Garment lines** (`textile_garments`): one UI row per model × colour,
+ *   expanded into a *size grid* — one quantity box per size the catalog carries
+ *   for that model and colour. The shop thinks in size runs ("10×S 20×M 20×L"),
+ *   so one row of boxes replaces what used to be one dialog per size. Each box
+ *   with a quantity becomes one garment line; the size option's value *is* the
+ *   variant id, so a phantom SKU is structurally impossible. A row can be
+ *   switched to free text for garments the catalog doesn't carry (and for
+ *   customer-supplied ones) — such a line is not stock-tracked, and the row
+ *   says so.
+ * - **Designs** (`textile_designs`): one row per design applied to the whole
+ *   batch — an order file or typed-out text, plus placement, size and print
+ *   method. Declared once ("logo, chest left, large") and valid for every line.
+ *
+ * Both drafts are local state, folded into the values handed to
+ * `validateProduct` and to the textile arm of `ProductWriteInput`, which the
+ * product write replaces wholesale.
  */
 
-import { useEffect, useRef, useState } from 'react'
-import { useForm } from '@tanstack/react-form'
+import { useContext, useEffect, useRef, useState } from 'react'
+import { Trash2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { validateProduct } from '../../../lib/products/registry'
-import { qtyOut } from '../../../lib/products/schemas/_shared'
-import { textileGarmentToChild } from '../../../lib/products/schemas/textile'
+import { textileDesignToRow, textileGarmentToLine } from '../../../lib/products/schemas/textile'
 import { useSaveProduct } from '../../../queries/productQueries'
-import { textileService } from '../../../services/textileService'
+import { textileService, type SizeOption } from '../../../services/textileService'
 import { textileMasterDataService } from '../../../services/textileMasterDataService'
-import type { TextileMotifRow, TextileMotifLinkInput } from '../../../types/textile'
+import type { ProductWriteInput, TextileDesignRow, TextileGarmentLineRow } from '../../../types/product'
 import { useToast } from '../../Toast'
 import { Button } from '../../ui/button'
+import { Input } from '../../ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select'
-import { buildWriteInput, valuesFromProduct, type FormValues, type ProductFormProps } from './shared'
-import { FieldRow, FormActions, QuantityField, SelectField, TextField, type Option } from './fields'
-import { motifLabel } from './textileTypes'
+import { SectionHeader } from '../../ui/section-title'
+import { FormActions, type Option } from './fields'
+import { ProductViewContext } from './viewContext'
+import type { FormValues, ProductFormProps } from './shared'
+import { TEST_IDS } from '@e2e/support/testIds'
 
-type FieldErrors = Record<string, string>
-
-/** Garment form needs the job's designs (for the link picker) and the
- *  edited product's existing links (for prefill). */
-export type TextileGarmentFormProps = ProductFormProps & {
-  motifs: TextileMotifRow[]
-  initialLinks: TextileMotifLinkInput[]
-}
+const IDS = TEST_IDS.orders.productDetail.basicInfo.textile
 
 const ORIGIN_OPTIONS: Option[] = [
-  { value: 'OWN_STOCK', label: 'In-house stock' },
-  { value: 'CUSTOMER_STOCK', label: 'Customer-supplied' },
+  { value: 'SHOP_SUPPLIED', label: 'Shop-supplied' },
+  { value: 'CUSTOMER_SUPPLIED', label: 'Customer-supplied' },
 ]
 const GARMENT_TYPE_OPTIONS: Option[] = [
   { value: 'T_SHIRT', label: 'T-Shirt' },
@@ -42,310 +53,781 @@ const GARMENT_TYPE_OPTIONS: Option[] = [
   { value: 'SWEATSHIRT', label: 'Sweatshirt' },
   { value: 'HOODIE', label: 'Hoodie' },
   { value: 'ZIP_HOODIE', label: 'Zip Hoodie' },
-  { value: 'JACKE', label: 'Jacket' },
-  { value: 'SONSTIGES', label: 'Other' },
+  { value: 'JACKET', label: 'Jacket' },
+  { value: 'OTHER', label: 'Other' },
 ]
 const PLACEMENT_OPTIONS: Option[] = [
-  { value: 'BRUST_LINKS', label: 'Chest left' },
-  { value: 'BRUST_MITTE', label: 'Chest centre' },
-  { value: 'BRUST_RECHTS', label: 'Chest right' },
-  { value: 'RUECKEN', label: 'Back' },
-  { value: 'ARM_LINKS', label: 'Sleeve left' },
-  { value: 'ARM_RECHTS', label: 'Sleeve right' },
-  { value: 'SONSTIGE', label: 'Other' },
+  { value: 'CHEST_LEFT', label: 'Chest left' },
+  { value: 'CHEST_CENTRE', label: 'Chest centre' },
+  { value: 'CHEST_RIGHT', label: 'Chest right' },
+  { value: 'BACK', label: 'Back' },
+  { value: 'SLEEVE_LEFT', label: 'Sleeve left' },
+  { value: 'SLEEVE_RIGHT', label: 'Sleeve right' },
+  { value: 'OTHER', label: 'Other' },
 ]
 const APPLICATION_SIZE_OPTIONS: Option[] = [
-  { value: 'KLEIN', label: 'Small' },
-  { value: 'MITTEL', label: 'Medium' },
-  { value: 'GROSS', label: 'Large' },
-  { value: 'FREI', label: 'Custom' },
+  { value: 'SMALL', label: 'Small' },
+  { value: 'MEDIUM', label: 'Medium' },
+  { value: 'LARGE', label: 'Large' },
+  { value: 'CUSTOM', label: 'Custom' },
+]
+const FONT_CLASS_OPTIONS: Option[] = [
+  { value: 'SANS_SERIF', label: 'Sans-serif' },
+  { value: 'SERIF', label: 'Serif' },
+  { value: 'ELEGANT', label: 'Elegant' },
+  { value: 'PLAYFUL', label: 'Playful' },
 ]
 
-function FormShell({ children, onSubmit }: { children: React.ReactNode; onSubmit: () => void }) {
-  return (
-    <form onSubmit={event => { event.preventDefault(); event.stopPropagation(); onSubmit() }} className="flex flex-col gap-3">
-      {children}
-    </form>
-  )
+// --- Drafts -----------------------------------------------------------------
+
+/**
+ * One row of the garment editor. A `CATALOG` row is a model × colour whose
+ * sizes are quantity boxes (`quantities`, keyed by `textile_variants.id`); a
+ * `FREE_TEXT` row is a single described garment with one quantity.
+ *
+ * A box keeps its own size label beside the quantity, so a row describes every
+ * line it will emit without the catalog having to be consulted again.
+ */
+type SizeBox = { size: string; quantity: string }
+
+type GarmentRowDraft =
+  | {
+      key: string
+      mode: 'CATALOG'
+      brandId: string
+      modelId: string
+      /** Labels captured from the cascade; every emitted line carries them. */
+      brand: string
+      model: string
+      color: string
+      quantities: Record<string, SizeBox>
+    }
+  | {
+      key: string
+      mode: 'FREE_TEXT'
+      origin: string
+      garment_type: string
+      brand: string
+      model: string
+      color: string
+      size: string
+      quantity: string
+    }
+
+type DesignDraft = {
+  key: string
+  type: 'TEXT' | 'FILE'
+  content: string
+  color: string
+  font_class: string
+  font_name: string
+  file_id: string
+  placement: string
+  size: string
+  print_method: string
 }
 
-// --- Design-link editor -----------------------------------------------------
+const nextKey = (): string => crypto.randomUUID()
 
-function DesignLinksEditor({
-  links,
-  motifs,
-  error,
+const emptyCatalogRow = (): GarmentRowDraft => ({
+  key: nextKey(),
+  mode: 'CATALOG',
+  brandId: '',
+  modelId: '',
+  brand: '',
+  model: '',
+  color: '',
+  quantities: {},
+})
+
+const emptyFreeTextRow = (): GarmentRowDraft => ({
+  key: nextKey(),
+  mode: 'FREE_TEXT',
+  origin: 'SHOP_SUPPLIED',
+  garment_type: '',
+  brand: '',
+  model: '',
+  color: '',
+  size: '',
+  quantity: '',
+})
+
+const emptyDesign = (): DesignDraft => ({
+  key: nextKey(),
+  type: 'FILE',
+  content: '',
+  color: '',
+  font_class: '',
+  font_name: '',
+  file_id: '',
+  placement: '',
+  size: '',
+  print_method: '',
+})
+
+/**
+ * Rebuild the editor's rows from the batch's stored lines. Catalog lines group
+ * by brand/model/colour — one grid row per group, quantities keyed by variant —
+ * and every free-text line is a row of its own. The full size run is fetched
+ * per row (see {@link CatalogGarmentRow}) so sizes the order skipped show as
+ * empty boxes; the stored quantities seed the rest.
+ */
+function garmentRowsFromLines(lines: readonly TextileGarmentLineRow[]): GarmentRowDraft[] {
+  const rows: GarmentRowDraft[] = []
+  const catalogByGroup = new Map<string, GarmentRowDraft & { mode: 'CATALOG' }>()
+
+  for (const line of lines) {
+    if (line.variant_id) {
+      const groupKey = `${line.brand ?? ''}|${line.model ?? ''}|${line.color ?? ''}`
+      let row = catalogByGroup.get(groupKey)
+      if (!row) {
+        row = {
+          key: nextKey(),
+          mode: 'CATALOG',
+          // Resolved from the first variant by the row itself.
+          brandId: '',
+          modelId: '',
+          brand: line.brand ?? '',
+          model: line.model ?? '',
+          color: line.color ?? '',
+          quantities: {},
+        }
+        catalogByGroup.set(groupKey, row)
+        rows.push(row)
+      }
+      row.quantities[line.variant_id] = { size: line.size ?? '', quantity: String(line.quantity) }
+      continue
+    }
+    rows.push({
+      key: nextKey(),
+      mode: 'FREE_TEXT',
+      origin: line.origin ?? 'SHOP_SUPPLIED',
+      garment_type: line.garment_type ?? '',
+      brand: line.brand ?? '',
+      model: line.model ?? '',
+      color: line.color ?? '',
+      size: line.size ?? '',
+      quantity: String(line.quantity),
+    })
+  }
+
+  return rows.length > 0 ? rows : [emptyCatalogRow()]
+}
+
+function designsFromRows(rows: readonly TextileDesignRow[]): DesignDraft[] {
+  return rows.map(row => ({
+    key: nextKey(),
+    type: row.type,
+    content: row.content ?? '',
+    color: row.color ?? '',
+    font_class: row.font_class ?? '',
+    font_name: row.font_name ?? '',
+    file_id: row.file_id ?? '',
+    placement: row.placement,
+    size: row.size,
+    print_method: row.print_method ?? '',
+  }))
+}
+
+/**
+ * Flatten the editor's rows into the flat garment values the schema validates
+ * and maps. A catalog row contributes one line per size box that holds a
+ * quantity — the boxes left empty are sizes the order doesn't want. Each line
+ * stores its size label next to the variant reference, so a production sheet
+ * reads without a catalog lookup.
+ */
+function flattenGarments(rows: readonly GarmentRowDraft[]): FormValues[] {
+  const values: FormValues[] = []
+  for (const row of rows) {
+    if (row.mode === 'FREE_TEXT') {
+      values.push({
+        origin: row.origin,
+        variant_id: '',
+        garment_type: row.garment_type,
+        brand: row.brand,
+        model: row.model,
+        color: row.color,
+        size: row.size,
+        quantity: row.quantity,
+      })
+      continue
+    }
+    for (const [variantId, box] of Object.entries(row.quantities)) {
+      if (box.quantity.trim() === '') continue
+      values.push({
+        origin: 'SHOP_SUPPLIED',
+        variant_id: variantId,
+        garment_type: '',
+        brand: row.brand,
+        model: row.model,
+        color: row.color,
+        size: box.size,
+        quantity: box.quantity,
+      })
+    }
+  }
+  return values
+}
+
+function flattenDesigns(designs: readonly DesignDraft[]): FormValues[] {
+  return designs.map(design => ({
+    type: design.type,
+    content: design.type === 'TEXT' ? design.content : '',
+    color: design.type === 'TEXT' ? design.color : '',
+    font_class: design.type === 'TEXT' ? design.font_class : '',
+    font_name: design.type === 'TEXT' ? design.font_name : '',
+    file_id: design.type === 'FILE' ? design.file_id : '',
+    placement: design.placement,
+    size: design.size,
+    print_method: design.print_method,
+  }))
+}
+
+/** Pieces in the batch — the sum of every line, shown beside the garment header. */
+function batchTotal(garments: readonly FormValues[]): number {
+  return garments.reduce((sum, line) => {
+    const parsed = Number.parseInt(String(line.quantity ?? ''), 10)
+    return sum + (Number.isFinite(parsed) && parsed > 0 ? parsed : 0)
+  }, 0)
+}
+
+// --- Garment rows -----------------------------------------------------------
+
+/**
+ * One catalog row: brand → model → colour from the catalog, then a quantity box
+ * per size that colour is carried in. A stored row arrives with its model and
+ * colour already resolved (see {@link useResolvePrefilledRows}), so the cascade
+ * here only ever fetches the lists those selections need.
+ */
+function CatalogGarmentRow({
+  row,
+  shortVariantIds,
   onChange,
 }: {
-  links: TextileMotifLinkInput[]
-  motifs: TextileMotifRow[]
-  error?: string
-  onChange: (next: TextileMotifLinkInput[]) => void
-}) {
-  const updateLink = (targetIndex: number, patch: Partial<TextileMotifLinkInput>) =>
-    onChange(links.map((link, index) => (index === targetIndex ? { ...link, ...patch } : link)))
-  const removeLink = (targetIndex: number) => onChange(links.filter((_, index) => index !== targetIndex))
-  const addLink = () => onChange([...links, { motif_id: '', placement: '', size: '', print_method: null }])
-
-  return (
-    <FieldRow label="Designs applied" error={error}>
-      <div className="flex flex-col gap-2">
-        {links.length === 0 && <p className="text-xs text-muted-foreground">No designs applied yet.</p>}
-        {links.map((link, index) => (
-          <div key={index} className="flex flex-wrap items-center gap-2 rounded-md border p-2">
-            <Select value={link.motif_id || undefined} onValueChange={motifId => updateLink(index, { motif_id: motifId })}>
-              <SelectTrigger size="sm" className="w-44"><SelectValue placeholder="Design…" /></SelectTrigger>
-              <SelectContent>
-                {motifs.map(motif => <SelectItem key={motif.id} value={motif.id}>{motifLabel(motif)}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={link.placement || undefined} onValueChange={placement => updateLink(index, { placement })}>
-              <SelectTrigger size="sm" className="w-36"><SelectValue placeholder="Placement…" /></SelectTrigger>
-              <SelectContent>
-                {PLACEMENT_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={link.size || undefined} onValueChange={size => updateLink(index, { size })}>
-              <SelectTrigger size="sm" className="w-28"><SelectValue placeholder="Size…" /></SelectTrigger>
-              <SelectContent>
-                {APPLICATION_SIZE_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <button type="button" className="cursor-pointer text-muted-foreground hover:text-destructive" title="Remove" onClick={() => removeLink(index)}>×</button>
-          </div>
-        ))}
-        <div>
-          <Button type="button" size="sm" variant="outline" onClick={addLink} disabled={motifs.length === 0}>
-            + Apply a design
-          </Button>
-          {motifs.length === 0 && <p className="mt-1 text-xs text-muted-foreground">Add a design to the drawer first.</p>}
-        </div>
-      </div>
-    </FieldRow>
-  )
-}
-
-// --- Catalog (in-house) garment picker --------------------------------------
-
-type CatalogSetters = {
-  setVariantId: (variantId: string) => void
-  setBrand: (brandName: string) => void
-  setModel: (modelName: string) => void
-  setColor: (colorName: string) => void
-  setSize: (sizeName: string) => void
-}
-
-function CatalogGarmentPicker({
-  initialVariantId,
-  setters,
-  error,
-}: {
-  initialVariantId: string
-  setters: CatalogSetters
-  error?: string
+  row: GarmentRowDraft & { mode: 'CATALOG' }
+  shortVariantIds: Set<string>
+  onChange: (patch: Partial<GarmentRowDraft & { mode: 'CATALOG' }>) => void
 }) {
   const [brands, setBrands] = useState<{ id: string; name: string }[]>([])
-  const [products, setProducts] = useState<{ id: string; name: string }[]>([])
-  const [colors, setColors] = useState<{ color: string }[]>([])
-  const [sizes, setSizes] = useState<{ id: string; size: string }[]>([])
-  const [brandId, setBrandId] = useState('')
-  const [productId, setProductId] = useState('')
-  const [selectedColor, setSelectedColor] = useState('')
-  const [selectedVariantId, setSelectedVariantId] = useState(initialVariantId)
-  const prefilled = useRef(false)
+  const [models, setModels] = useState<{ id: string; name: string }[]>([])
+  const [colors, setColors] = useState<string[]>([])
+  // The size run is stored under the model+colour it was fetched for, so a
+  // changed selection reads as "no sizes yet" without having to be cleared.
+  const [loadedSizes, setLoadedSizes] = useState<{ key: string; sizes: SizeOption[] }>({
+    key: '',
+    sizes: [],
+  })
+  const sizeRunKey = `${row.modelId}|${row.color}`
+  const sizes = loadedSizes.key === sizeRunKey ? loadedSizes.sizes : []
 
-  // Brands once.
   useEffect(() => {
     let alive = true
-    textileMasterDataService.getBrandNames().then(rows => { if (alive) setBrands(rows) }).catch(() => {})
+    textileMasterDataService
+      .getBrandNames()
+      .then(rows => { if (alive) setBrands(rows) })
+      .catch(() => {})
     return () => { alive = false }
   }, [])
 
-  // Edit prefill: resolve the existing variant back up the cascade once.
-  useEffect(() => {
-    if (prefilled.current || !initialVariantId) return
-    prefilled.current = true
-    let alive = true
-    ;(async () => {
-      const variant = await textileService.getVariantById(initialVariantId)
-      if (!variant || !alive) return
-      const product = await textileService.getProductById(variant.product_id)
-      if (!alive) return
-      setBrandId(product?.brand_id ?? '')
-      setProductId(variant.product_id)
-      setSelectedColor(variant.color)
-    })().catch(() => {})
-    return () => { alive = false }
-  }, [initialVariantId])
-
-  // Cascade fetches. Stale downstream lists are harmless — each child Select is
-  // disabled until its parent is set, and refetches when the parent changes.
-  useEffect(() => {
-    if (!brandId) return
-    let alive = true
-    textileService.getProductsByBrandId(brandId).then(rows => { if (alive) setProducts(rows.map(row => ({ id: row.id, name: row.name }))) }).catch(() => {})
-    return () => { alive = false }
-  }, [brandId])
 
   useEffect(() => {
-    if (!productId) return
+    if (!row.brandId) return
     let alive = true
-    textileService.getVariantColorsByProduct(productId).then(rows => { if (alive) setColors(rows.map(row => ({ color: row.color }))) }).catch(() => {})
+    textileService
+      .getModelsByBrandId(row.brandId)
+      .then(rows => { if (alive) setModels(rows.map(model => ({ id: model.id, name: model.name }))) })
+      .catch(() => {})
     return () => { alive = false }
-  }, [productId])
+  }, [row.brandId])
 
   useEffect(() => {
-    if (!productId || !selectedColor) return
+    if (!row.modelId) return
     let alive = true
-    textileService.getVariantSizesByProductAndColor(productId, selectedColor).then(rows => { if (alive) setSizes(rows.map(row => ({ id: row.id, size: row.size }))) }).catch(() => {})
+    textileService
+      .getVariantColorsByModel(row.modelId)
+      .then(rows => { if (alive) setColors(rows.map(option => option.color)) })
+      .catch(() => {})
     return () => { alive = false }
-  }, [productId, selectedColor])
+  }, [row.modelId])
 
-  const handleBrandChange = (nextBrandId: string) => {
-    setBrandId(nextBrandId)
-    setProductId('')
-    setSelectedColor('')
-    setSelectedVariantId('')
-    setters.setVariantId('')
-    setters.setBrand(brands.find(brand => brand.id === nextBrandId)?.name ?? '')
-  }
-  const handleProductChange = (nextProductId: string) => {
-    setProductId(nextProductId)
-    setSelectedColor('')
-    setSelectedVariantId('')
-    setters.setVariantId('')
-    setters.setModel(products.find(product => product.id === nextProductId)?.name ?? '')
-  }
-  const handleColorChange = (nextColor: string) => {
-    setSelectedColor(nextColor)
-    setSelectedVariantId('')
-    setters.setVariantId('')
-    setters.setColor(nextColor)
-  }
-  const handleSizeChange = (variantRowId: string) => {
-    setSelectedVariantId(variantRowId)
-    setters.setVariantId(variantRowId)
-    setters.setSize(sizes.find(sizeOption => sizeOption.id === variantRowId)?.size ?? '')
-  }
+  useEffect(() => {
+    if (!row.modelId || !row.color) return
+    let alive = true
+    textileService
+      .getVariantSizesByModelAndColor(row.modelId, row.color)
+      .then(rows => { if (alive) setLoadedSizes({ key: `${row.modelId}|${row.color}`, sizes: rows }) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [row.modelId, row.color])
+
+  // Changing brand or model invalidates everything downstream, quantities
+  // included — they are keyed by variants that belong to the old model.
+  const handleBrandChange = (brandId: string) =>
+    onChange({
+      brandId,
+      brand: brands.find(brand => brand.id === brandId)?.name ?? '',
+      modelId: '',
+      model: '',
+      color: '',
+      quantities: {},
+    })
+  const handleModelChange = (modelId: string) =>
+    onChange({
+      modelId,
+      model: models.find(model => model.id === modelId)?.name ?? '',
+      color: '',
+      quantities: {},
+    })
+  const handleColorChange = (color: string) => onChange({ color, quantities: {} })
 
   return (
-    <FieldRow label="Catalog garment" error={error}>
-      <div className="flex flex-col gap-2">
-        <Select value={brandId || undefined} onValueChange={handleBrandChange}>
-          <SelectTrigger className="w-full"><SelectValue placeholder="Brand…" /></SelectTrigger>
-          <SelectContent>{brands.map(brand => <SelectItem key={brand.id} value={brand.id}>{brand.name}</SelectItem>)}</SelectContent>
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap gap-2">
+        <Select value={row.brandId || undefined} onValueChange={handleBrandChange}>
+          <SelectTrigger size="sm" className="w-40"><SelectValue placeholder="Brand…" /></SelectTrigger>
+          <SelectContent>
+            {brands.map(brand => <SelectItem key={brand.id} value={brand.id}>{brand.name}</SelectItem>)}
+          </SelectContent>
         </Select>
-        <Select value={productId || undefined} onValueChange={handleProductChange} disabled={!brandId}>
-          <SelectTrigger className="w-full"><SelectValue placeholder="Product…" /></SelectTrigger>
-          <SelectContent>{products.map(product => <SelectItem key={product.id} value={product.id}>{product.name}</SelectItem>)}</SelectContent>
+        <Select value={row.modelId || undefined} onValueChange={handleModelChange} disabled={!row.brandId}>
+          <SelectTrigger size="sm" className="w-48"><SelectValue placeholder="Model…" /></SelectTrigger>
+          <SelectContent>
+            {models.map(model => <SelectItem key={model.id} value={model.id}>{model.name}</SelectItem>)}
+          </SelectContent>
         </Select>
-        <div className="flex gap-2">
-          <Select value={selectedColor || undefined} onValueChange={handleColorChange} disabled={!productId}>
-            <SelectTrigger className="w-full"><SelectValue placeholder="Colour…" /></SelectTrigger>
-            <SelectContent>{colors.map(colorOption => <SelectItem key={colorOption.color} value={colorOption.color}>{colorOption.color}</SelectItem>)}</SelectContent>
-          </Select>
-          <Select value={selectedVariantId || undefined} onValueChange={handleSizeChange} disabled={!selectedColor}>
-            <SelectTrigger className="w-full"><SelectValue placeholder="Size…" /></SelectTrigger>
-            <SelectContent>{sizes.map(sizeOption => <SelectItem key={sizeOption.id} value={sizeOption.id}>{sizeOption.size}</SelectItem>)}</SelectContent>
-          </Select>
-        </div>
+        <Select value={row.color || undefined} onValueChange={handleColorChange} disabled={!row.modelId}>
+          <SelectTrigger size="sm" className="w-36"><SelectValue placeholder="Colour…" /></SelectTrigger>
+          <SelectContent>
+            {colors.map(color => <SelectItem key={color} value={color}>{color}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
-    </FieldRow>
+
+      {row.color !== '' && (
+        sizes.length === 0 ? (
+          <p className="text-xs text-muted-foreground">This colour is not carried in any size.</p>
+        ) : (
+          // The size run as one row of boxes: how the shop states a textile order.
+          <div className="flex flex-wrap gap-2">
+            {sizes.map(size => (
+              <label key={size.id} className="flex flex-col items-center gap-0.5">
+                <span className="text-[11px] font-medium text-muted-foreground">{size.size}</span>
+                <Input
+                  data-testid={IDS.sizeQuantity}
+                  data-variant-id={size.id}
+                  inputMode="numeric"
+                  aria-label={`Quantity ${size.size}`}
+                  className={cn('h-8 w-14 text-center', shortVariantIds.has(size.id) && 'border-destructive bg-destructive/10')}
+                  value={row.quantities[size.id]?.quantity ?? ''}
+                  onChange={event =>
+                    onChange({
+                      quantities: {
+                        ...row.quantities,
+                        [size.id]: { size: size.size, quantity: event.target.value },
+                      },
+                    })
+                  }
+                />
+              </label>
+            ))}
+          </div>
+        )
+      )}
+    </div>
   )
 }
 
-// --- Main form --------------------------------------------------------------
+/** One free-text row: a garment the catalog doesn't carry, or the customer's own. */
+function FreeTextGarmentRow({
+  row,
+  onChange,
+}: {
+  row: GarmentRowDraft & { mode: 'FREE_TEXT' }
+  onChange: (patch: Partial<GarmentRowDraft & { mode: 'FREE_TEXT' }>) => void
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap gap-2">
+        <Select value={row.origin} onValueChange={origin => onChange({ origin })}>
+          <SelectTrigger size="sm" className="w-44"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {ORIGIN_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
 
-export function TextileGarmentForm(props: TextileGarmentFormProps) {
-  const saveProduct = useSaveProduct()
-  const { showError } = useToast()
-  const [links, setLinks] = useState<TextileMotifLinkInput[]>(props.initialLinks)
-  const initialVariantId = props.product?.type === 'TEXTILE_GARMENT' ? (props.product.child.variant_id ?? '') : ''
-  const [ownStockMode, setOwnStockMode] = useState<'CATALOG' | 'FREETEXT'>(initialVariantId ? 'CATALOG' : 'FREETEXT')
+        {row.origin === 'CUSTOMER_SUPPLIED' ? (
+          <Select value={row.garment_type || undefined} onValueChange={garment_type => onChange({ garment_type })}>
+            <SelectTrigger size="sm" className="w-40"><SelectValue placeholder="Garment…" /></SelectTrigger>
+            <SelectContent>
+              {GARMENT_TYPE_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        ) : (
+          <>
+            <Input className="h-8 w-32" placeholder="Brand" value={row.brand} onChange={event => onChange({ brand: event.target.value })} />
+            <Input className="h-8 w-36" placeholder="Model" value={row.model} onChange={event => onChange({ model: event.target.value })} />
+          </>
+        )}
 
-  const form = useForm({
-    defaultValues: {
-      origin: 'OWN_STOCK', variant_id: '', garment_type: '', brand: '', model: '', color: '', size: '', quantity: '',
-      ...valuesFromProduct(props.product),
-    } as FormValues,
-    onSubmit: ({ value }) => {
-      const valuesWithLinks = { ...value, links }
-      if (Object.keys(validateProduct('TEXTILE_GARMENT', valuesWithLinks, props.orderIsQuote)).length > 0) return
-      saveProduct.mutate(
-        {
-          input: buildWriteInput({
-            product: props.product, job: props.job, type: 'TEXTILE_GARMENT',
-            sortOrder: props.sortOrder, quantity: qtyOut(value.quantity), child: textileGarmentToChild(value),
-          }),
-          fileIds: [],
-          jobId: props.job.id,
-          orderId: props.job.order_id,
-          links,
-        },
-        { onSuccess: ({ products }) => props.onSaved(products), onError: () => showError(props.product ? 'Garment could not be saved' : 'Garment could not be added') },
-      )
-    },
-  })
+        <Input className="h-8 w-28" placeholder="Colour" value={row.color} onChange={event => onChange({ color: event.target.value })} />
+        {row.origin === 'SHOP_SUPPLIED' && (
+          <Input className="h-8 w-20" placeholder="Size" value={row.size} onChange={event => onChange({ size: event.target.value })} />
+        )}
+        <Input
+          className="h-8 w-16 text-center"
+          inputMode="numeric"
+          aria-label="Quantity"
+          placeholder="Qty"
+          value={row.quantity}
+          onChange={event => onChange({ quantity: event.target.value })}
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Described by hand — this line is not stock-tracked: no deduction on release, no shortage check, no reorder demand.
+      </p>
+    </div>
+  )
+}
+
+function GarmentsEditor({
+  rows,
+  shortVariantIds,
+  error,
+  total,
+  onChange,
+}: {
+  rows: GarmentRowDraft[]
+  shortVariantIds: Set<string>
+  error?: string
+  total: number
+  onChange: (next: GarmentRowDraft[]) => void
+}) {
+  // View mode hides the row actions, as `FormActions` hides the footer.
+  const readOnly = useContext(ProductViewContext)
+  const patchRow = (key: string, patch: Partial<GarmentRowDraft>) =>
+    onChange(rows.map(row => (row.key === key ? ({ ...row, ...patch } as GarmentRowDraft) : row)))
 
   return (
-    <FormShell onSubmit={() => void form.handleSubmit()}>
-      <form.Subscribe selector={state => state.values}>
-        {values => {
-          const errors = validateProduct('TEXTILE_GARMENT', { ...values, links }, props.orderIsQuote) as FieldErrors
-          const origin = String(values.origin ?? '')
-          return (
-            <>
-              <form.Field name="origin">{field => <SelectField field={field} label="Origin" options={ORIGIN_OPTIONS} error={errors.origin} />}</form.Field>
+    <section data-testid={IDS.garments} className="flex flex-col gap-2">
+      <SectionHeader title={total > 0 ? `Garments — ${total} pieces` : 'Garments'} />
+      {rows.map(row => (
+        <div key={row.key} data-testid={IDS.garmentRow} className="flex items-start gap-2 rounded-md border p-2">
+          <div className="flex-1 min-w-0">
+            {row.mode === 'CATALOG' ? (
+              <CatalogGarmentRow
+                row={row}
+                shortVariantIds={shortVariantIds}
+                onChange={patch => patchRow(row.key, patch)}
+              />
+            ) : (
+              <FreeTextGarmentRow row={row} onChange={patch => patchRow(row.key, patch)} />
+            )}
+          </div>
+          {!readOnly && (
+            <div className="flex shrink-0 flex-col items-end gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                data-testid={IDS.removeGarment}
+                title="Remove this garment"
+                aria-label="Remove this garment"
+                className="text-muted-foreground hover:text-destructive"
+                onClick={() => onChange(rows.filter(other => other.key !== row.key))}
+              >
+                <Trash2 />
+              </Button>
+              <Button
+                type="button"
+                variant="link"
+                size="xs"
+                data-testid={IDS.freeTextToggle}
+                className="h-auto p-0 text-xs"
+                onClick={() =>
+                  onChange(
+                    rows.map(other =>
+                      other.key !== row.key
+                        ? other
+                        : other.mode === 'CATALOG'
+                          ? { ...emptyFreeTextRow(), key: other.key, brand: other.brand, model: other.model, color: other.color }
+                          : { ...emptyCatalogRow(), key: other.key },
+                    ),
+                  )
+                }
+              >
+                {row.mode === 'CATALOG' ? 'Free text' : 'Catalog'}
+              </Button>
+            </div>
+          )}
+        </div>
+      ))}
+      {error && <p className="text-xs text-destructive">{error}</p>}
+      {!readOnly && (
+        <div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            data-testid={IDS.addGarment}
+            onClick={() => onChange([...rows, emptyCatalogRow()])}
+          >
+            + Add garment
+          </Button>
+        </div>
+      )}
+    </section>
+  )
+}
 
-              {origin === 'OWN_STOCK' && (
-                <>
-                  <div className="flex gap-2">
-                    <Button type="button" size="sm" variant={ownStockMode === 'CATALOG' ? 'default' : 'outline'} onClick={() => setOwnStockMode('CATALOG')}>Catalog</Button>
-                    <Button type="button" size="sm" variant={ownStockMode === 'FREETEXT' ? 'default' : 'outline'} onClick={() => { setOwnStockMode('FREETEXT'); form.setFieldValue('variant_id', '') }}>Free text</Button>
-                  </div>
-                  {ownStockMode === 'CATALOG' ? (
-                    <form.Field name="variant_id">
-                      {variantField => (
-                        <CatalogGarmentPicker
-                          initialVariantId={initialVariantId}
-                          error={errors.brand ?? errors.model ?? errors.color ?? errors.size}
-                          setters={{
-                            setVariantId: variantId => variantField.handleChange(variantId),
-                            setBrand: brandName => form.setFieldValue('brand', brandName),
-                            setModel: modelName => form.setFieldValue('model', modelName),
-                            setColor: colorName => form.setFieldValue('color', colorName),
-                            setSize: sizeName => form.setFieldValue('size', sizeName),
-                          }}
-                        />
-                      )}
-                    </form.Field>
-                  ) : (
-                    <>
-                      <form.Field name="brand">{field => <TextField field={field} label="Brand" error={errors.brand} />}</form.Field>
-                      <form.Field name="model">{field => <TextField field={field} label="Model" error={errors.model} />}</form.Field>
-                      <form.Field name="color">{field => <TextField field={field} label="Colour" error={errors.color} />}</form.Field>
-                      <form.Field name="size">{field => <TextField field={field} label="Size" error={errors.size} />}</form.Field>
-                    </>
-                  )}
-                </>
+// --- Designs ----------------------------------------------------------------
+
+/**
+ * The batch's designs. A design is declared once and holds for every garment
+ * line, so there is no per-line application: one row = one design at one
+ * placement (which the table's UNIQUE (product_id, placement) enforces).
+ */
+function DesignsEditor({
+  designs,
+  orderFiles,
+  error,
+  onChange,
+}: {
+  designs: DesignDraft[]
+  orderFiles: ProductFormProps['orderFiles']
+  error?: string
+  onChange: (next: DesignDraft[]) => void
+}) {
+  const readOnly = useContext(ProductViewContext)
+  const patchDesign = (key: string, patch: Partial<DesignDraft>) =>
+    onChange(designs.map(design => (design.key === key ? { ...design, ...patch } : design)))
+
+  return (
+    <section data-testid={IDS.designs} className="flex flex-col gap-2">
+      <SectionHeader title="Designs" />
+      {designs.length === 0 && (
+        <p className="text-xs text-muted-foreground">No design applied yet.</p>
+      )}
+      {designs.map(design => (
+        <div key={design.key} data-testid={IDS.designRow} className="flex items-start gap-2 rounded-md border p-2">
+          <div className="flex flex-1 min-w-0 flex-col gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Select value={design.type} onValueChange={value => patchDesign(design.key, { type: value as DesignDraft['type'] })}>
+                <SelectTrigger size="sm" className="w-36"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="FILE">Artwork file</SelectItem>
+                  <SelectItem value="TEXT">Text</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {design.type === 'FILE' ? (
+                <Select value={design.file_id || undefined} onValueChange={file_id => patchDesign(design.key, { file_id })}>
+                  <SelectTrigger size="sm" className="w-56"><SelectValue placeholder="Pick an order file…" /></SelectTrigger>
+                  <SelectContent>
+                    {orderFiles.map(file => <SelectItem key={file.id} value={file.id}>{file.display_name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input className="h-8 w-56" placeholder="Text" value={design.content} onChange={event => patchDesign(design.key, { content: event.target.value })} />
               )}
 
-              {origin === 'CUSTOMER_STOCK' && (
-                <>
-                  <form.Field name="garment_type">{field => <SelectField field={field} label="Garment" options={GARMENT_TYPE_OPTIONS} error={errors.garment_type} />}</form.Field>
-                  <form.Field name="color">{field => <TextField field={field} label="Colour" error={errors.color} />}</form.Field>
-                </>
-              )}
+              <Select value={design.placement || undefined} onValueChange={placement => patchDesign(design.key, { placement })}>
+                <SelectTrigger size="sm" className="w-36"><SelectValue placeholder="Placement…" /></SelectTrigger>
+                <SelectContent>
+                  {PLACEMENT_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={design.size || undefined} onValueChange={size => patchDesign(design.key, { size })}>
+                <SelectTrigger size="sm" className="w-28"><SelectValue placeholder="Size…" /></SelectTrigger>
+                <SelectContent>
+                  {APPLICATION_SIZE_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Input
+                className="h-8 w-40"
+                placeholder="Print method (optional)"
+                value={design.print_method}
+                onChange={event => patchDesign(design.key, { print_method: event.target.value })}
+              />
+            </div>
 
-              <form.Field name="quantity">{field => <QuantityField field={field} error={errors.quantity} />}</form.Field>
+            {design.type === 'TEXT' && (
+              <div className="flex flex-wrap gap-2">
+                <Input className="h-8 w-28" placeholder="#FFFFFF" value={design.color} onChange={event => patchDesign(design.key, { color: event.target.value })} />
+                <Select value={design.font_class || undefined} onValueChange={font_class => patchDesign(design.key, { font_class })}>
+                  <SelectTrigger size="sm" className="w-36"><SelectValue placeholder="Font…" /></SelectTrigger>
+                  <SelectContent>
+                    {FONT_CLASS_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Input className="h-8 w-40" placeholder="Font name (optional)" value={design.font_name} onChange={event => patchDesign(design.key, { font_name: event.target.value })} />
+              </div>
+            )}
+          </div>
+          {!readOnly && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              data-testid={IDS.removeDesign}
+              title="Remove this design"
+              aria-label="Remove this design"
+              className="shrink-0 text-muted-foreground hover:text-destructive"
+              onClick={() => onChange(designs.filter(other => other.key !== design.key))}
+            >
+              <Trash2 />
+            </Button>
+          )}
+        </div>
+      ))}
+      {error && <p className="text-xs text-destructive">{error}</p>}
+      {!readOnly && (
+        <div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            data-testid={IDS.addDesign}
+            onClick={() => onChange([...designs, emptyDesign()])}
+          >
+            + Add design
+          </Button>
+          {orderFiles.length === 0 && (
+            <p className="mt-1 text-xs text-muted-foreground">Link the artwork to the order first (Files tab).</p>
+          )}
+        </div>
+      )}
+    </section>
+  )
+}
 
-              <DesignLinksEditor links={links} motifs={props.motifs} error={errors.links} onChange={setLinks} />
+// --- The batch form ---------------------------------------------------------
 
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={saveProduct.isPending} editing={!!props.product} onCancel={props.onCancel} />
-            </>
-          )
-        }}
-      </form.Subscribe>
-    </FormShell>
+/**
+ * Resolve each stored catalog row's model and brand from the variant its
+ * quantities are keyed by — a `textile_garments` line references the variant,
+ * not the model, so the grid's cascade has to be walked back up once before it
+ * can show the full size run. Rows whose variant no longer resolves are
+ * remembered as attempted, so a vanished catalog entry cannot start a refetch
+ * loop; such a row simply stays on its brand picker.
+ */
+function useResolvePrefilledRows(
+  rows: GarmentRowDraft[],
+  setRows: (update: (previous: GarmentRowDraft[]) => GarmentRowDraft[]) => void,
+): void {
+  const attempted = useRef(new Set<string>())
+
+  useEffect(() => {
+    const pending = rows.filter(
+      (row): row is GarmentRowDraft & { mode: 'CATALOG' } =>
+        row.mode === 'CATALOG' &&
+        row.modelId === '' &&
+        Object.keys(row.quantities).length > 0 &&
+        !attempted.current.has(row.key),
+    )
+    if (pending.length === 0) return
+    for (const row of pending) attempted.current.add(row.key)
+
+    let alive = true
+    ;(async () => {
+      const resolutions = await Promise.all(
+        pending.map(async row => {
+          const variantId = Object.keys(row.quantities)[0]
+          const variant = await textileService.getVariantById(variantId)
+          if (!variant) return null
+          const model = await textileService.getModelById(variant.model_id)
+          return {
+            key: row.key,
+            brandId: model?.brand_id ?? '',
+            modelId: variant.model_id,
+            color: variant.color,
+          }
+        }),
+      )
+      if (!alive) return
+      setRows(previous =>
+        previous.map(row => {
+          const hit = resolutions.find(resolution => resolution?.key === row.key)
+          return hit && row.mode === 'CATALOG' ? { ...row, ...hit } : row
+        }),
+      )
+    })().catch(() => {})
+    return () => { alive = false }
+  }, [rows, setRows])
+}
+
+export function TextileBatchForm(props: ProductFormProps) {
+  const saveProduct = useSaveProduct()
+  const { showError } = useToast()
+
+  const batch = props.product && 'garments' in props.product ? props.product : null
+  const [rows, setRows] = useState<GarmentRowDraft[]>(() =>
+    batch ? garmentRowsFromLines(batch.garments) : [emptyCatalogRow()],
+  )
+  const [designs, setDesigns] = useState<DesignDraft[]>(() =>
+    batch ? designsFromRows(batch.designs) : [emptyDesign()],
+  )
+  useResolvePrefilledRows(rows, setRows)
+
+  const garments = flattenGarments(rows)
+  const designValues = flattenDesigns(designs)
+  const errors = validateProduct(
+    'TEXTILE_GARMENT',
+    { garments, designs: designValues },
+    props.orderIsQuote,
+  )
+  const shortVariantIds = new Set((props.shortages ?? []).map(shortage => shortage.targetId))
+
+  const handleSubmit = () => {
+    if (Object.keys(errors).length > 0) return
+    const input: ProductWriteInput = {
+      ...(props.product ? { id: props.product.id } : {}),
+      order_id: props.orderId,
+      department: props.department,
+      type: 'TEXTILE_GARMENT',
+      // The batch total is the sum of its lines, so the parent carries no quantity.
+      quantity: null,
+      notes: null,
+      sort_order: props.sortOrder,
+      garments: garments.map((line, index) => textileGarmentToLine(line, index)),
+      designs: designValues.map(textileDesignToRow),
+    }
+    saveProduct.mutate(
+      { input, fileIds: [], orderId: props.orderId },
+      {
+        onSuccess: ({ products, productId }) => props.onSaved(products, productId),
+        onError: () => showError(props.product ? 'Batch could not be saved' : 'Batch could not be added'),
+      },
+    )
+  }
+
+  return (
+    <form
+      onSubmit={event => {
+        event.preventDefault()
+        event.stopPropagation()
+        handleSubmit()
+      }}
+      className="flex flex-col gap-4"
+    >
+      <GarmentsEditor
+        rows={rows}
+        shortVariantIds={shortVariantIds}
+        error={errors.garments}
+        total={batchTotal(garments)}
+        onChange={setRows}
+      />
+      <DesignsEditor
+        designs={designs}
+        orderFiles={props.orderFiles}
+        error={errors.designs}
+        onChange={setDesigns}
+      />
+      <FormActions
+        canSubmit={Object.keys(errors).length === 0}
+        submitting={saveProduct.isPending}
+        editing={!!props.product}
+        onCancel={props.onCancel}
+      />
+    </form>
   )
 }
