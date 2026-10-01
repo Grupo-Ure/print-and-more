@@ -1,23 +1,19 @@
 import { useNavigation } from '../context/navigation.context'
 
-/** The active order/job selection. */
+/** The active order/product selection. */
 export function useOrderSelection() {
   const {
     activeOrderId,
-    activeJobId,
-    pendingProductAddJobId,
+    activeProductId,
     setActiveOrder,
-    setActiveJob,
-    clearPendingProductAdd,
+    setActiveProduct,
     clearActive,
   } = useNavigation()
   return {
     activeOrderId,
-    activeJobId,
-    pendingProductAddJobId,
+    activeProductId,
     setActiveOrder,
-    setActiveJob,
-    clearPendingProductAdd,
+    setActiveProduct,
     clearActive,
   }
 }
