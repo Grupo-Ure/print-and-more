@@ -25,7 +25,8 @@ worst when the same text is typed in several places, because then a copy
 change breaks several tests at once, for no behavioural reason.
 
 Text is acceptable in a locator only when the text **is** the behaviour under
-test — e.g. checking that a freshly created job displays its job number. Even
+test — e.g. checking that a freshly created product displays its product
+number. Even
 then the value comes from a fixture, never a literal typed into the spec.
 
 Where a `data-testid` cannot be placed directly (a third-party-rendered
@@ -59,7 +60,7 @@ Conventions:
   `TEST_IDS.orders.newOrderDialog.customerInput`.
 - Values are kebab-case and prefixed by their path so they are unique in
   the DOM: `'orders-sidebar-search-input'`.
-- For repeated elements (a row per order, a row per job) the ID marks the
+- For repeated elements (a row per order, a row per product) the ID marks the
   row *kind*; the test picks the instance by scoping or by a data attribute
   the row carries — not by a text match.
 
@@ -146,10 +147,10 @@ Child page objects are never fixtures; the parent composes them.
 
 ### Fixtures seed, specs navigate
 
-A data fixture (`customer`, `order`, `job`) inserts its rows through the
+A data fixture (`customer`, `order`, `product`) inserts its rows through the
 runner's database connection and reloads the app so it can see them. That
 is all it does. It never clicks. Getting from there to the subject of the
-test — the order open, its job selected, a hidden status shown in the list
+test — the order open, its product selected, a hidden status shown in the list
 — is the spec's Setup stage, through a page-object navigation helper, so
 a failure on the way is reported as setup and the path is written once.
 The actions the spec is about then follow inline in Act. The only fixture
@@ -172,7 +173,7 @@ Rules of thumb:
 - **Locators** — the reason the class exists.
 - **Navigation helpers** for the steps that get a spec to its subject and
   are not what it tests: `ordersPage.openOrder(order.id)`,
-  `ordersPage.openJob(job)`, `sidebar.includeStatus(status)`. A spec calls
+  `ordersPage.openProduct(product)`, `sidebar.includeStatus(status)`. A spec calls
   them in its Setup stage. They click and then `waitFor()` the screen they
   lead to; they never assert.
 - **Never a helper for the action under test.** What a spec is about is
@@ -246,13 +247,13 @@ Specs live in `e2e/<page>/<feature>/<sub-feature>.spec.ts`, never at the
 `e2e/` root. The page folder carries a `-page` suffix so a page and a
 feature of the same name stay apart (`orders-page/` is the page,
 `orders-page/order/` the order feature on it). One file holds every test of
-a sub-feature (`orders-page/job/status.spec.ts` covers the whole job
+a sub-feature (`orders-page/product/status.spec.ts` covers the whole product
 workflow); a file is split only when it covers two sub-features, never for
 having several tests. Inside a file, no `describe` names the feature — the
 path does — and a `describe` block exists only to carry a precondition
 (`test.use({ … })`) for the tests in it. Playwright groups by file path, so
 every level is a group in every report, and any path fragment filters a run
-(`npx playwright test orders-page`, `npx playwright test job/status`). The
+(`npx playwright test orders-page`, `npx playwright test product/status`). The
 support folders stay at the root, and a spec reaches them with as many
 `../` as it is deep. The concrete tree is in [`e2e/README.md`](../../e2e/README.md).
 
