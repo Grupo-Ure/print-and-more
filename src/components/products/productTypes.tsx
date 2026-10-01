@@ -6,7 +6,7 @@
  * — the add dialog and the Basic info tab — need the mapping and neither needs a
  * table, so it lives here once. The types each department offers and their
  * labels are display data shared with the PDF sheet, so they sit in
- * `const/productTypes.ts`.
+ * `lib/productTypeLabels.ts`.
  */
 
 import type { ComponentType } from 'react'

@@ -10,7 +10,7 @@ import type { OrderListEntry } from '../../services/orderService';
 import type { OrderStatus } from '../../types/database';
 import { StatusBadge } from '../StatusBadge';
 import { DeadlineMissedFlag, HighPriorityFlag, MissingInfoFlag } from '../Flags';
-import { ORDER_STATUS_META } from '../../const/orderStatus';
+import { ORDER_STATUS_META } from '../../lib/statusLabels';
 import { ProductDepartmentIcons } from '../ProductDepartmentIcons';
 import {
   DropdownMenu,

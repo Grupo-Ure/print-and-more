@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useProductRelease } from '../hooks/useProductRelease'
-import { PRODUCT_STATUS_META } from '../const/orderStatus'
+import { PRODUCT_STATUS_META } from '../lib/statusLabels'
 import type { LoadedProduct } from '../types/product'
 import { Button } from './ui/button'
 import {

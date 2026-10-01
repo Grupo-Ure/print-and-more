@@ -1,4 +1,4 @@
-import type { StatusMeta } from '../const/orderStatus'
+import type { StatusMeta } from '../lib/statusLabels'
 import { cn } from '../lib/utils'
 import { Badge } from './ui/badge'
 

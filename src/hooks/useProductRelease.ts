@@ -1,6 +1,6 @@
 import { useConfirm } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
-import { WORKFLOW_STATUSES } from '../const/orderStatus'
+import { WORKFLOW_STATUSES } from '../lib/statusLabels'
 import { isProductComplete, resolveEffectiveProduct } from '../lib/productShared'
 import { deriveAutomaticOrderStatus } from '../lib/status/automaticStatus'
 import {

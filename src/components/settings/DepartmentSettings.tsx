@@ -1,5 +1,5 @@
-import { departmentLabel } from '../../const/departmentAbbreviation'
-import { departmentIcon, DEPARTMENT_ORDER } from '../../const/departmentIcons'
+import { departmentLabel } from '../../lib/departmentLabels'
+import { departmentIcon, DEPARTMENT_ORDER } from '../../lib/departmentIcons'
 import {
   useDepartmentDefaultAssignees,
   useSetDepartmentDefaultAssignee,

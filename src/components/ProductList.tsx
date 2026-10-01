@@ -8,7 +8,7 @@ import {
   shortProductNumber,
 } from '../lib/productShared'
 import { DEPARTMENTS, type Department, type ProductStatus } from '../types/database'
-import { departmentLabel } from '../const/departmentAbbreviation'
+import { departmentLabel } from '../lib/departmentLabels'
 import type { FileRow } from '../services/fileService'
 import { useOrderSelection } from '../hooks/useOrderSelection'
 import { useOrderById } from '../queries/orderQueries'
@@ -18,7 +18,7 @@ import { AddProductDialog } from './products/AddProductDialog'
 import { ProductContextMenu } from './ProductContextMenu'
 import { DeadlineMissedFlag, HighPriorityFlag, MissingInfoFlag } from './Flags'
 import { Button } from './ui/button'
-import { PRODUCT_STATUS_META, WORKFLOW_STATUSES } from '../const/orderStatus'
+import { PRODUCT_STATUS_META, WORKFLOW_STATUSES } from '../lib/statusLabels'
 import { TEST_IDS } from '@e2e/support/testIds'
 
 const IDS = TEST_IDS.orders.productList

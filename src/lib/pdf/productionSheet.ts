@@ -23,7 +23,7 @@ import { fileService } from '../../services/fileService'
 import { productService } from '../../services/productService'
 import { stampService } from '../../services/stampService'
 import { PRODUCT_TYPE_LABELS } from '../productTypeLabels'
-import { departmentLabel } from '../../const/departmentAbbreviation'
+import { departmentLabel } from '../departmentLabels'
 import {
   TEXTILE_APPLICATION_SIZE_OPTIONS,
   TEXTILE_GARMENT_TYPE_OPTIONS,

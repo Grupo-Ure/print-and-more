@@ -1,7 +1,7 @@
 import { ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { ORDER_STATUS_META } from '../../const/orderStatus'
+import { ORDER_STATUS_META } from '../../lib/statusLabels'
 import { useNavigation } from '../../context/navigation.context'
 import { useOrderFiles } from '../../hooks/useOrderFiles'
 import { formatDateDe } from '../../lib/formatDate'
