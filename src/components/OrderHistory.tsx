@@ -1,25 +1,25 @@
 import type { HistoryRow } from '../services/historyService'
 import { useHistoryForOrder } from '../queries/historyQueries'
-import { useJobsByOrderId } from '../queries/jobQueries'
+import { useProductsByOrderId } from '../queries/productQueries'
 import { useUsers } from '../queries/userQueries'
-import { JOB_STATUS_META, ORDER_STATUS_META, type StatusMeta } from '../const/orderStatus'
-import { COPY_SHOP_TYPE_LABELS } from '../types/copyshop'
-import { LASER_TYPE_LABELS } from '../types/laser'
-import { LFP_TYPE_LABELS } from '../types/lfp'
-import { STAMP_TYPE_LABELS } from '../types/stamp'
+import { PRODUCT_STATUS_META, ORDER_STATUS_META, type StatusMeta } from '../const/orderStatus'
+import { PRODUCT_TYPE_LABELS } from './products/productTypes'
+import { shortProductNumber } from '../lib/productShared'
 import { cn } from '../lib/utils'
 import { TEST_IDS } from '@e2e/support/testIds'
 
 const IDS = TEST_IDS.orders.details.history
 
-/** Human labels for every product type, for the PRODUCT_* sentences. */
-const PRODUCT_TYPE_LABELS: Record<string, string> = {
-  ...COPY_SHOP_TYPE_LABELS,
-  ...LASER_TYPE_LABELS,
-  ...LFP_TYPE_LABELS,
-  ...STAMP_TYPE_LABELS,
-  TEXTILE_GARMENT: 'Garment',
-  OTHER: 'Product',
+/**
+ * What a PRODUCT_* event's product was, from the meta snapshot: "12× Banner".
+ * The sentence names the product by its number; this says what it is, which is
+ * the only record left once the row itself is deleted.
+ */
+function productKind(meta: Record<string, unknown> | null): string {
+  const type = typeof meta?.type === 'string' ? meta.type : null
+  const kind = (type && PRODUCT_TYPE_LABELS[type]) ?? 'product'
+  const quantity = typeof meta?.quantity === 'number' ? `${meta.quantity}× ` : ''
+  return `${quantity}${kind}`
 }
 
 /** SETTINGS_CHANGED meta.field → the word used in the sentence. */
@@ -78,13 +78,13 @@ function metaName(
 
 /**
  * A sentence is a list of segments so each part can carry its own styling:
- * plain strings render as-is, persons/jobs get a colour highlight, statuses
+ * plain strings render as-is, persons/products get a colour highlight, statuses
  * render as a chip in the status' actual colour.
  */
 type Segment =
   | string
   | { kind: 'person'; text: string }
-  | { kind: 'job'; text: string }
+  | { kind: 'product'; text: string }
   | { kind: 'duration'; text: string }
   | { kind: 'status'; meta: StatusMeta }
 
@@ -100,14 +100,14 @@ function segmentText(segment: Segment): string {
  */
 function historySegments(
   entry: HistoryRow,
-  jobLabel: string | null,
+  productLabel: string | null,
   staffById: Map<string, string>,
 ): Segment[] {
   const actor: Segment = {
     kind: 'person',
     text: entry.user_id ? (staffById.get(entry.user_id) ?? 'Someone') : 'The system',
   }
-  const job: Segment = jobLabel ? { kind: 'job', text: jobLabel } : 'a job'
+  const product: Segment = productLabel ? { kind: 'product', text: productLabel } : 'a product'
   const meta = metaRecord(entry)
 
   switch (entry.event_type) {
@@ -116,17 +116,17 @@ function historySegments(
     case 'PROCESSING_STARTED':
       return [actor, ' moved the order to ', { kind: 'status', meta: ORDER_STATUS_META.IN_PROGRESS }]
     case 'PREPRESS_READY_AUTO':
-      return [job, ' became ready for ', { kind: 'status', meta: JOB_STATUS_META.PREPRESS }]
+      return [product, ' became ready for ', { kind: 'status', meta: PRODUCT_STATUS_META.PREPRESS }]
     case 'PREPRESS_READY_MANUAL':
-      return [actor, ' moved ', job, ' to ', { kind: 'status', meta: JOB_STATUS_META.PREPRESS }]
+      return [actor, ' moved ', product, ' to ', { kind: 'status', meta: PRODUCT_STATUS_META.PREPRESS }]
     case 'PRODUCTION_READY_SET':
-      return [actor, ' released ', job, ' to ', { kind: 'status', meta: JOB_STATUS_META.IN_PRODUCTION }]
+      return [actor, ' released ', product, ' to ', { kind: 'status', meta: PRODUCT_STATUS_META.IN_PRODUCTION }]
     case 'MARKED_DONE':
-      return [actor, ' marked ', job, ' as ', { kind: 'status', meta: JOB_STATUS_META.DONE }]
+      return [actor, ' marked ', product, ' as ', { kind: 'status', meta: PRODUCT_STATUS_META.DONE }]
     case 'ORDER_FINISHED':
-      // Written automatically when the last job was done — no one clicked.
+      // Written automatically when the last product was done — no one clicked.
       if (meta?.automatic === true) {
-        return ['Every job is done — the order became ', { kind: 'status', meta: ORDER_STATUS_META.FINISHED }]
+        return ['Every product is done — the order became ', { kind: 'status', meta: ORDER_STATUS_META.FINISHED }]
       }
       return [actor, ' marked the order as ', { kind: 'status', meta: ORDER_STATUS_META.FINISHED }]
     case 'ORDER_REOPENED':
@@ -136,23 +136,23 @@ function historySegments(
     case 'ORDER_CLOSED_CASH':
       return [actor, ' finished and closed the order as ', { kind: 'status', meta: ORDER_STATUS_META.BILLED }, ' (paid in cash)']
     case 'EMERGENCY_TRIGGERED':
-      return [actor, ' force-released ', job, ' to ', { kind: 'status', meta: JOB_STATUS_META.IN_PRODUCTION }]
+      return [actor, ' force-released ', product, ' to ', { kind: 'status', meta: PRODUCT_STATUS_META.IN_PRODUCTION }]
     case 'CUSTOMER_APPROVAL_ACTIVATED':
-      return [actor, ' requested customer approval for ', job]
+      return [actor, ' requested customer approval for ', product]
     case 'CUSTOMER_APPROVAL_DEACTIVATED':
-      return [actor, ' removed the customer-approval requirement for ', job]
+      return [actor, ' removed the customer-approval requirement for ', product]
     case 'CUSTOMER_APPROVAL_GRANTED':
-      return [actor, ' granted customer approval for ', job]
+      return [actor, ' granted customer approval for ', product]
     case 'CUSTOMER_APPROVAL_EXPIRED':
-      return ['Customer approval for ', job, ' expired']
+      return ['Customer approval for ', product, ' expired']
     case 'CUSTOMER_APPROVAL_BYPASSED':
-      return [actor, ' bypassed customer approval for ', job]
+      return [actor, ' bypassed customer approval for ', product]
     case 'ROLLED_BACK':
       return [
         'A content change moved ',
-        jobLabel ? job : 'a job',
+        product,
         ' back to ',
-        { kind: 'status', meta: JOB_STATUS_META.IN_SETUP },
+        { kind: 'status', meta: PRODUCT_STATUS_META.IN_SETUP },
       ]
     case 'ERP_EXPORTED':
       return [actor, ' exported the order to ERP']
@@ -160,24 +160,16 @@ function historySegments(
       return [actor, ' cancelled the order']
     case 'ORDER_ARCHIVED':
       return [actor, ' archived the order']
-    case 'JOB_CREATED':
-      return [actor, ' created ', job]
-    case 'JOB_CANCELLED':
-      return [actor, ' cancelled ', job]
-    case 'JOB_DELETED': {
-      // The job row is gone (job_id is null); its number was snapshotted into meta.
-      const number =
-        typeof meta?.job_number === 'string' ? meta.job_number.split('-').slice(-2).join('-') : null
-      return [actor, ' deleted ', number ? { kind: 'job', text: number } : 'a job']
-    }
+    case 'PRODUCT_CANCELLED':
+      return [actor, ' cancelled ', product]
     case 'SETTINGS_CHANGED': {
       const field = typeof meta?.field === 'string' ? meta.field : null
       const fieldLabel = (field && SETTING_FIELD_LABELS[field]) ?? 'settings'
       const next = field ? settingValueText(field, meta?.next) : null
-      if (jobLabel) {
-        // Job override: next null = the override was cleared back to the order's value.
-        if (!next) return [actor, ` reset the ${fieldLabel} of `, job, " to the order's"]
-        return [actor, ` set the ${fieldLabel} of `, job, ` to ${next}`]
+      if (productLabel) {
+        // Product override: next null = the override was cleared back to the order's value.
+        if (!next) return [actor, ` reset the ${fieldLabel} of `, product, " to the order's"]
+        return [actor, ` set the ${fieldLabel} of `, product, ` to ${next}`]
       }
       if (!next) return [actor, ` cleared the order's ${fieldLabel}`]
       const previous = field ? settingValueText(field, meta?.previous) : null
@@ -185,14 +177,22 @@ function historySegments(
     }
     case 'PRODUCT_CREATED':
     case 'PRODUCT_UPDATED':
+      return [
+        actor,
+        entry.event_type === 'PRODUCT_CREATED' ? ' added ' : ' updated ',
+        product,
+        ` (${productKind(meta)})`,
+      ]
     case 'PRODUCT_DELETED': {
-      const type = typeof meta?.type === 'string' ? meta.type : null
-      const product = (type && PRODUCT_TYPE_LABELS[type]) ?? 'a product'
-      const quantity = typeof meta?.quantity === 'number' ? `${meta.quantity}× ` : ''
-      const named = `${quantity}${product}`
-      if (entry.event_type === 'PRODUCT_CREATED') return [actor, ` added ${named} to `, job]
-      if (entry.event_type === 'PRODUCT_UPDATED') return [actor, ` updated ${named} on `, job]
-      return [actor, ` removed ${named} from `, job]
+      // The product row is gone (product_id is null); its number was
+      // snapshotted into meta, so the sentence names it from there.
+      const number = typeof meta?.product_number === 'string' ? shortProductNumber(meta.product_number) : null
+      return [
+        actor,
+        ' deleted ',
+        number ? { kind: 'product', text: number } : 'a product',
+        ` (${productKind(meta)})`,
+      ]
     }
     case 'FILE_ADDED':
     case 'FILE_REMOVED': {
@@ -206,10 +206,10 @@ function historySegments(
       const next = metaName(meta, 'new_assignee_name', 'new_assignee_id', staffById)
       const suffix = meta?.automatic === true ? ' (automatic)' : ''
       if (next && previous)
-        return [actor, ' reassigned ', job, ' from ', { kind: 'person', text: previous }, ' to ', { kind: 'person', text: next }, suffix]
-      if (next) return [actor, ' assigned ', job, ' to ', { kind: 'person', text: next }, suffix]
-      if (previous) return [actor, ' unassigned ', { kind: 'person', text: previous }, ' from ', job, suffix]
-      return [actor, ' changed the assignee of ', job, suffix]
+        return [actor, ' reassigned ', product, ' from ', { kind: 'person', text: previous }, ' to ', { kind: 'person', text: next }, suffix]
+      if (next) return [actor, ' assigned ', product, ' to ', { kind: 'person', text: next }, suffix]
+      if (previous) return [actor, ' unassigned ', { kind: 'person', text: previous }, ' from ', product, suffix]
+      return [actor, ' changed the assignee of ', product, suffix]
     }
     case 'TIME_LOGGED':
     case 'TIME_LOG_DELETED': {
@@ -219,11 +219,11 @@ function historySegments(
       const forWhom: Segment[] =
         attributed && meta?.user_id !== entry.user_id ? [' for ', { kind: 'person', text: attributed }] : []
       return entry.event_type === 'TIME_LOGGED'
-        ? [actor, ' logged ', minutes, ...forWhom, ' on ', job]
-        : [actor, ' deleted a ', minutes, ' log', ...forWhom, ' on ', job]
+        ? [actor, ' logged ', minutes, ...forWhom, ' on ', product]
+        : [actor, ' deleted a ', minutes, ' log', ...forWhom, ' on ', product]
     }
     default:
-      return [actor, `: ${(entry.event_type as string).replace(/_/g, ' ').toLowerCase()}`, ...(jobLabel ? [' (', job, ')'] : [])]
+      return [actor, `: ${(entry.event_type as string).replace(/_/g, ' ').toLowerCase()}`, ...(productLabel ? [' (', product, ')'] : [])]
   }
 }
 
@@ -234,19 +234,19 @@ function historySegments(
  */
 export function OrderHistory({ orderId }: { orderId: string }) {
   const historyQuery = useHistoryForOrder(orderId)
-  const jobsQuery = useJobsByOrderId(orderId)
+  const productsQuery = useProductsByOrderId(orderId)
   const { data: users } = useUsers()
 
   const staffById = new Map((users ?? []).map(user => [user.id, user.name ?? user.id]))
-  const jobs = jobsQuery.data ?? []
+  const products = productsQuery.data ?? []
   const entries = historyQuery.data ?? []
 
-  // "LFP-01" — the job number without the redundant order-number prefix
+  // "LFP-01" — the product number without the redundant order-number prefix
   // (every entry in this log belongs to the same order).
-  const jobShortNumber = (jobId: string | null): string | null => {
-    if (!jobId) return null
-    const jobNumber = jobs.find(job => job.id === jobId)?.job_number
-    return jobNumber ? jobNumber.split('-').slice(-2).join('-') : 'Job'
+  const productShortNumber = (productId: string | null): string | null => {
+    if (!productId) return null
+    const number = products.find(product => product.id === productId)?.product_number
+    return number ? shortProductNumber(number) : 'Product'
   }
 
   return (
@@ -264,7 +264,7 @@ export function OrderHistory({ orderId }: { orderId: string }) {
             <HistoryItem
               key={entry.id}
               entry={entry}
-              jobLabel={jobShortNumber(entry.job_id)}
+              productLabel={productShortNumber(entry.product_id)}
               staffById={staffById}
             />
           ))}
@@ -276,19 +276,19 @@ export function OrderHistory({ orderId }: { orderId: string }) {
 
 type HistoryItemProps = {
   entry: HistoryRow
-  /** Short job number ("LFP-01") for job-scoped entries; null = order-scoped. */
-  jobLabel: string | null
+  /** Short product number ("LFP-01") for product-scoped entries; null = order-scoped. */
+  productLabel: string | null
   staffById: Map<string, string>
 }
 
 /**
  * One history entry as a single styled sentence line: the date first in muted
- * gray, then the sentence — persons in the brand colour, job numbers in sky,
+ * gray, then the sentence — persons in the brand colour, product numbers in sky,
  * statuses as text in their own status colour. Every item is one line high; overflow truncates
  * with the full plain-text sentence in the title tooltip.
  */
-function HistoryItem({ entry, jobLabel, staffById }: HistoryItemProps) {
-  const segments = historySegments(entry, jobLabel, staffById)
+function HistoryItem({ entry, productLabel, staffById }: HistoryItemProps) {
+  const segments = historySegments(entry, productLabel, staffById)
   const time = formatHistoryTime(entry.created_at)
   const plain = `${time} — ${segments.map(segmentText).join('')}${entry.reason ? ` — ${entry.reason}` : ''}`
 
@@ -305,7 +305,7 @@ function HistoryItem({ entry, jobLabel, staffById }: HistoryItemProps) {
                 {segment.text}
               </span>
             )
-          if (segment.kind === 'job')
+          if (segment.kind === 'product')
             return (
               <span key={i} className="font-medium text-sky-600 dark:text-sky-400">
                 {segment.text}
