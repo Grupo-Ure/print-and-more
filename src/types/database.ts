@@ -50,11 +50,6 @@ export type Auftrag = OrderDetailRow
 /** Patch for the order header fields editable in WorkArea. */
 export type OrderHeaderPatch = Partial<Pick<Tables<'orders'>, 'deadline' | 'delivery' | 'priority' | 'payment_method'>>
 
-/** Shape of order data needed for PDF generation. */
-export type OrderPdfRow = Pick<Tables<'orders'>, 'order_number' | 'deadline' | 'delivery' | 'priority' | 'created_at'> & {
-  customers: Customer | null
-}
-
 export type DeliveryChoice = Enums<'delivery_type'>
 
 export type ProductRow = Tables<'products'>

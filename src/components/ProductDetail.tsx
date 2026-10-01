@@ -9,7 +9,7 @@ import {
 import { useProductRemoval } from '../hooks/useProductRemoval'
 import { useStockAvailability } from '../queries/stockQueries'
 import { useUsers } from '../queries/userQueries'
-import { generateAndDownloadPdf } from '../lib/pdf/orderPdf'
+import { generateAndDownloadProductionSheet } from '../lib/pdf/productionSheet'
 import { useOrderById } from '../queries/orderQueries'
 import { useOrderSelection } from '../hooks/useOrderSelection'
 import { departmentLabel } from '../const/departmentAbbreviation'
@@ -68,7 +68,7 @@ export function ProductDetail({
   if (!order || !product || !effectiveProduct) return null
 
   const handleDownloadPdf = async () => {
-    const ok = await generateAndDownloadPdf(product.id, order.id)
+    const ok = await generateAndDownloadProductionSheet(product.id, order.id)
     if (!ok) showError('PDF could not be generated')
   }
 
