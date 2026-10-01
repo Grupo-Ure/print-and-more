@@ -22,7 +22,7 @@ export function useUsers() {
  * The users an assignee picker offers. Developer accounts (super admins
  * debugging against the shop's database) are left out so the team never
  * hands them work; one that already holds `currentValue` stays in, so a
- * picker never shows "Unassigned" for an assigned job. Same query as
+ * picker never shows "Unassigned" for an assigned product. Same query as
  * `useUsers`, narrowed with `select`.
  */
 export function useAssignableUsers(currentValue: string | null) {

@@ -11,7 +11,7 @@ type PrioritySelectProps = {
   value: Priority
   onChange: (value: Priority) => void
   disabled?: boolean
-  /** data-testid for the trigger — the field is shared by the order row and the job dialog. */
+  /** data-testid for the trigger — the field is shared by the order row and the product's Settings tab. */
   testId?: string
 }
 

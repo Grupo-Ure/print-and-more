@@ -22,8 +22,8 @@ const ROLES: { value: FileRole; label: string }[] = [
   { value: 'REFERENCE', label: 'Reference / Archive' },
 ]
 
-// Same accent as the product table's edit action, for a consistent look
-// across the job's tabs.
+// The blue edit accent the product's other tabs use, so the Files tab reads
+// the same as the rest of the detail view.
 const EDIT_ACTION_CLASS =
   'text-blue-700 hover:bg-transparent hover:text-blue-400 dark:text-blue-500 dark:hover:bg-transparent dark:hover:text-blue-600'
 
@@ -35,10 +35,10 @@ type Props = {
 
 /**
  * Manages the order's file links (UNC-path linking, not upload). The files
- * belong to the order but are shown as a tab of every job, so the production
- * view has them too. File-first flow: drop files (or click the drop area to
- * browse) to link them immediately — display name and role are then edited
- * inline on each row.
+ * belong to the order but are shown as a tab of every product, so the
+ * production view has them too. File-first flow: drop files (or click the
+ * drop area to browse) to link them immediately — display name and role are
+ * then edited inline on each row.
  */
 export function OrderFiles({ orderId, files, onFileChanged }: Props) {
   const { showError } = useToast()

@@ -6,10 +6,12 @@ import { useProductsByOrderId, useSetProductStatus } from './productQueries'
 
 /**
  * The status manager: watches the open order's cached products and persists the
- * automatic `IN_SETUP ↔ PREPRESS` transition for each of them. Mounted once per
- * order via `StatusManager` (a single writer per order), so a transition fires
- * when the underlying data changes — not on selecting a product. It does NOT
- * touch IN_PRODUCTION / DONE rows, and does not do bounce-back.
+ * automatic `IN_SETUP ↔ PREPRESS` transition for each of them. Called once per
+ * open order — by `OrderDetails`, and by `ProductionProductPanel` when the
+ * product is edited from the production view — so there is a single writer per
+ * order and a transition fires when the underlying data changes, not on
+ * selecting a product. It does NOT touch IN_PRODUCTION / DONE rows, and does
+ * not do bounce-back.
  *
  * The job model needed one watcher per job, because each job kept its products
  * in a query of its own; the order's products now share one cache, so one

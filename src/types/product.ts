@@ -54,7 +54,7 @@ export type ChildTable =
   // Other
   | 'other_products'
 
-/** Union of all child Row types (the spec columns, incl. department_product_id). */
+/** Union of all child Row types (the spec columns, incl. `product_id`). */
 export type ProductChildRow = { [K in ChildTable]: Tables<K> }[ChildTable]
 
 /** Union of all child Insert types, minus the PK (the service fills it). */

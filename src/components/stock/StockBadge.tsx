@@ -4,7 +4,7 @@ import { MOVEMENT_TYPE_BADGES, type MovementType, type StockStatus } from './sto
 
 /**
  * Solid colour chips for the stock pages, visually the same family as the
- * order/job `StatusBadge` (solid `bg-*-500`, fixed minimum width).
+ * order/product `StatusBadge` (solid `bg-*-500`, fixed minimum width).
  */
 function StockChip({ badgeClass, label }: { badgeClass: string; label: string }) {
   return <Badge className={cn('min-w-21 justify-center text-sm', badgeClass)}>{label}</Badge>

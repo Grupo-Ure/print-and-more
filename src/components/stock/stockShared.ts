@@ -24,7 +24,7 @@ export function nextSortState<K extends string>(current: SortState<K>, key: K): 
 }
 
 export type StockStatus = {
-  /** Solid chip colour, same family as the order/job status badges. */
+  /** Solid chip colour, same family as the order/product status badges. */
   badgeClass: string
   label: string
   rank: number
