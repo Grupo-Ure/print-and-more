@@ -5,13 +5,13 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ClosedDate, DueDate } from '../DueDate';
-import { isDeadlineMissed, isMissingInfo } from '../../lib/jobShared';
+import { isDeadlineMissed, isMissingInfo } from '../../lib/productShared';
 import type { OrderListEntry } from '../../services/orderService';
 import type { OrderStatus } from '../../types/database';
 import { StatusBadge } from '../StatusBadge';
 import { DeadlineMissedFlag, HighPriorityFlag, MissingInfoFlag } from '../Flags';
 import { ORDER_STATUS_META } from '../../const/orderStatus';
-import { JobDepartmentIcons } from '../JobDepartmentIcons';
+import { ProductDepartmentIcons } from '../ProductDepartmentIcons';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -97,18 +97,13 @@ function OrderSidebarItem({
   duplicateBusy,
   onDelete,
 }: OrderSidebarItemProps) {
-  // Derived, not stored: any job past setup without an assignee, or in
+  // Derived, not stored: any product past setup without an assignee, or in
   // production failing the completeness check (typically a force-released
   // one), flags the order.
-  const missingInfo = (order.jobs ?? []).some((job) =>
-    isMissingInfo(
-      job,
-      order,
-      (job.department_products[0]?.count ?? 0) > 0,
-    ),
-  );
-  // Same for a missed deadline: any open job past its effective deadline.
-  const deadlineMissed = (order.jobs ?? []).some((job) => isDeadlineMissed(job, order));
+  const products = order.products ?? [];
+  const missingInfo = products.some((product) => isMissingInfo(product, order));
+  // Same for a missed deadline: any open product past its effective deadline.
+  const deadlineMissed = products.some((product) => isDeadlineMissed(product, order));
 
   return (
     <div
@@ -154,7 +149,7 @@ function OrderSidebarItem({
             onDelete={() => onDelete(order.id)}
           />
         </div>
-        <JobDepartmentIcons jobs={order.jobs ?? []} className="shrink-0" />
+        <ProductDepartmentIcons products={products} className="shrink-0" />
         <div className="flex items-center justify-between gap-1.5">
           {order.status === 'FINISHED' || order.status === 'BILLED' ? (
             <ClosedDate
