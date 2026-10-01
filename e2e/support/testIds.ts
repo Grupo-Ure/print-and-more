@@ -344,42 +344,42 @@ export const TEST_IDS = {
     },
   },
 
-  /** The Production page: the cross-order job feed. */
+  /** The Production page: the cross-order product feed. */
   production: {
     root: 'production-page',
-    /** Main area while no job is selected. */
+    /** Main area while no product is selected. */
     placeholder: 'production-placeholder',
-    /** Main area with a job selected: the order strip plus the job detail (`orders.jobDetail`); `data-order-id`, `data-job-id`. */
-    jobPanel: {
-      root: 'production-job-panel',
-      orderNumber: 'production-job-panel-order-number',
-      customerName: 'production-job-panel-customer-name',
-      openInOrders: 'production-job-panel-open-in-orders',
+    /** Main area with a product selected: the order strip plus the product detail (`orders.productDetail`); `data-order-id`, `data-product-id`. */
+    productPanel: {
+      root: 'production-product-panel',
+      orderNumber: 'production-product-panel-order-number',
+      customerName: 'production-product-panel-customer-name',
+      openInOrders: 'production-product-panel-open-in-orders',
     },
     sidebar: {
       root: 'production-sidebar',
-      /** The assignee combobox trigger; `data-value` = users.id, absent while every job is shown. */
+      /** The assignee combobox trigger; `data-value` = users.id, absent while every product is shown. */
       assigneeFilter: 'production-sidebar-assignee-filter',
       /** The list's "everyone" option (clears the filter). */
       assigneeFilterEveryone: 'production-sidebar-assignee-filter-everyone',
       /** One per user in the list; `data-user-id`. */
       assigneeFilterUser: 'production-sidebar-assignee-filter-user',
-      /** States what the feed shows: every job, or the jobs of the chosen user. */
+      /** States what the feed shows: every product, or the products of the chosen user. */
       assigneeFilterCaption: 'production-sidebar-assignee-filter-caption',
       list: 'production-sidebar-list',
-      /** Header above each priority group, shown only while the list holds high-priority jobs; `data-priority` = HIGH | NORMAL. */
+      /** Header above each priority group, shown only while the list holds high-priority products; `data-priority` = HIGH | NORMAL. */
       priorityGroup: 'production-sidebar-priority-group',
       empty: 'production-sidebar-empty',
-      /** One per job; `data-job-id`, `data-order-id`, `data-status` = JobStatus, `data-department`, `data-new` while marked new. */
+      /** One per product; `data-product-id`, `data-order-id`, `data-status` = ProductStatus, `data-department`, `data-new` while marked new. */
       row: 'production-sidebar-row',
-      /** The "New" pill on a job that entered the list while the page was open and has not been clicked. */
+      /** The "New" pill on a product that entered the list while the page was open and has not been clicked. */
       rowNew: 'production-sidebar-row-new',
       rowMissingInfo: 'production-sidebar-row-missing-info',
       rowDeadlineMissed: 'production-sidebar-row-deadline-missed',
-      rowJobNumber: 'production-sidebar-row-job-number',
+      rowProductNumber: 'production-sidebar-row-product-number',
       rowCustomer: 'production-sidebar-row-customer',
       rowDeadline: 'production-sidebar-row-deadline',
-      /** `data-status` = JobStatus. */
+      /** `data-status` = ProductStatus. */
       rowStatus: 'production-sidebar-row-status',
       /** `data-user-id` = assignee, or absent while unassigned. */
       rowAssignee: 'production-sidebar-row-assignee',
