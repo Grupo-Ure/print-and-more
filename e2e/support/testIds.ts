@@ -145,8 +145,8 @@ export const TEST_IDS = {
     duplicateDialog: {
       root: 'duplicate-dialog',
       selectAll: 'duplicate-dialog-select-all',
-      /** One per job; `data-job-id`. */
-      job: 'duplicate-dialog-job',
+      /** One per product; `data-product-id`. */
+      product: 'duplicate-dialog-product',
       deadline: 'duplicate-dialog-deadline',
       error: 'duplicate-dialog-error',
       cancel: 'duplicate-dialog-cancel',
@@ -186,7 +186,7 @@ export const TEST_IDS = {
         payment: 'order-settings-payment',
       },
       tabs: {
-        jobs: 'order-tab-jobs',
+        products: 'order-tab-products',
         history: 'order-tab-history',
       },
       history: {
@@ -198,93 +198,101 @@ export const TEST_IDS = {
       },
     },
 
-    jobList: {
-      root: 'job-list',
-      /** One per department; `data-department` = Department. */
-      addJob: 'job-list-add-job',
-      list: 'job-list-rows',
-      empty: 'job-list-empty',
-      /** One per job; `data-job-id`, `data-status` = JobStatus. */
-      row: 'job-list-row',
-      rowMissingInfo: 'job-list-row-missing-info',
-      rowHighPriority: 'job-list-row-high-priority',
-      rowDeadlineMissed: 'job-list-row-deadline-missed',
+    productList: {
+      root: 'product-list',
+      /** One per department; `data-department` = Department. Opens the add-product dialog for it. */
+      addProduct: 'product-list-add-product',
+      list: 'product-list-rows',
+      empty: 'product-list-empty',
+      /** One per product; `data-product-id`, `data-status` = ProductStatus. */
+      row: 'product-list-row',
+      rowMissingInfo: 'product-list-row-missing-info',
+      rowHighPriority: 'product-list-row-high-priority',
+      rowDeadlineMissed: 'product-list-row-deadline-missed',
       contextMenu: {
-        advance: 'job-context-menu-advance',
-        delete: 'job-context-menu-delete',
-        cancel: 'job-context-menu-cancel',
+        advance: 'product-context-menu-advance',
+        delete: 'product-context-menu-delete',
+        cancel: 'product-context-menu-cancel',
+      },
+      /** The department → type → form dialog that creates a product. */
+      addDialog: {
+        root: 'add-product-dialog',
+        /** One per product type of the chosen department; `data-type`. */
+        typeOption: 'add-product-dialog-type-option',
+        back: 'add-product-dialog-back',
       },
     },
 
-    jobDetail: {
-      root: 'job-detail',
-      title: 'job-detail-title',
-      assignee: 'job-detail-assignee',
-      assigneeHint: 'job-detail-assignee-hint',
-      /** `data-status` = JobStatus. */
-      status: 'job-detail-status',
-      pdfButton: 'job-detail-pdf',
-      deleteButton: 'job-detail-delete',
-      cancelButton: 'job-detail-cancel',
+    productDetail: {
+      root: 'product-detail',
+      title: 'product-detail-title',
+      assignee: 'product-detail-assignee',
+      assigneeHint: 'product-detail-assignee-hint',
+      /** `data-status` = ProductStatus. */
+      status: 'product-detail-status',
+      pdfButton: 'product-detail-pdf',
+      deleteButton: 'product-detail-delete',
+      cancelButton: 'product-detail-cancel',
       release: {
-        /** `data-target` = target JobStatus. */
-        button: 'job-release-button',
-        menuTrigger: 'job-release-menu-trigger',
-        forceItem: 'job-release-force-item',
+        /** `data-target` = target ProductStatus. */
+        button: 'product-release-button',
+        menuTrigger: 'product-release-menu-trigger',
+        forceItem: 'product-release-force-item',
         dialog: {
-          root: 'job-force-release-dialog',
-          reason: 'job-force-release-dialog-reason',
-          cancel: 'job-force-release-dialog-cancel',
-          submit: 'job-force-release-dialog-submit',
+          root: 'product-force-release-dialog',
+          reason: 'product-force-release-dialog-reason',
+          cancel: 'product-force-release-dialog-cancel',
+          submit: 'product-force-release-dialog-submit',
         },
       },
       /** `data-kind` = done | shortage | blocked | production. */
       banner: {
-        root: 'job-banner',
-        backToPrepress: 'job-banner-back-to-prepress',
+        root: 'product-banner',
+        backToPrepress: 'product-banner-back-to-prepress',
       },
       tabs: {
-        products: 'job-tab-products',
-        timeLogs: 'job-tab-time-logs',
-        settings: 'job-tab-settings',
-        files: 'job-tab-files',
+        basicInfo: 'product-tab-basic-info',
+        timeLogs: 'product-tab-time-logs',
+        settings: 'product-tab-settings',
+        files: 'product-tab-files',
       },
-      products: {
-        root: 'job-products',
-        /** The section header's add button (always there while editable). */
-        add: 'job-products-add',
-        table: 'job-products-table',
-        empty: 'job-products-empty',
-        /** The add button inside the empty state (only while the job has no product). */
-        emptyAdd: 'job-products-empty-add',
-        /** One per product; `data-product-id`, `data-type`. */
-        row: 'job-products-row',
-        rowEdit: 'job-products-row-edit',
-        rowDelete: 'job-products-row-delete',
-        dialog: {
-          root: 'product-dialog',
-          /** One per product type; `data-type`. */
-          typeOption: 'product-dialog-type-option',
-          /** One per form input, whatever the product type; `data-field` = the form field name. */
-          field: 'product-dialog-field',
-          submit: 'product-dialog-submit',
-          cancel: 'product-dialog-cancel',
-          back: 'product-dialog-back',
-          edit: 'product-dialog-edit',
-          close: 'product-dialog-close',
+      /** The Basic info tab: the product's own per-type form, read-only until edited. */
+      basicInfo: {
+        root: 'product-basic-info',
+        edit: 'product-basic-info-edit',
+        /** One per form input, whatever the product type; `data-field` = the form field name. */
+        field: 'product-basic-info-field',
+        submit: 'product-basic-info-submit',
+        cancel: 'product-basic-info-cancel',
+        /** The textile batch editor's size grid. */
+        textile: {
+          garments: 'product-basic-info-textile-garments',
+          /** One per garment line; `data-line-index`, `data-variant-id` while a catalog variant is picked. */
+          garmentRow: 'product-basic-info-textile-garment-row',
+          addGarment: 'product-basic-info-textile-add-garment',
+          removeGarment: 'product-basic-info-textile-remove-garment',
+          /** One quantity input per size of the row's model/colour; `data-variant-id`. */
+          sizeQuantity: 'product-basic-info-textile-size-quantity',
+          /** Switches a garment row between the catalog cascade and free text. */
+          freeTextToggle: 'product-basic-info-textile-free-text-toggle',
+          designs: 'product-basic-info-textile-designs',
+          /** One per design; `data-design-index`. */
+          designRow: 'product-basic-info-textile-design-row',
+          addDesign: 'product-basic-info-textile-add-design',
+          removeDesign: 'product-basic-info-textile-remove-design',
         },
       },
       settings: {
-        root: 'job-settings',
-        separateDeadline: 'job-settings-separate-deadline',
-        deadline: 'job-settings-deadline',
-        separateDelivery: 'job-settings-separate-delivery',
-        delivery: 'job-settings-delivery',
-        separatePriority: 'job-settings-separate-priority',
-        priority: 'job-settings-priority',
-        approvalRequired: 'job-settings-approval-required',
-        grantApproval: 'job-settings-grant-approval',
-        approvalGranted: 'job-settings-approval-granted',
+        root: 'product-settings',
+        separateDeadline: 'product-settings-separate-deadline',
+        deadline: 'product-settings-deadline',
+        separateDelivery: 'product-settings-separate-delivery',
+        delivery: 'product-settings-delivery',
+        separatePriority: 'product-settings-separate-priority',
+        priority: 'product-settings-priority',
+        approvalRequired: 'product-settings-approval-required',
+        grantApproval: 'product-settings-grant-approval',
+        approvalGranted: 'product-settings-approval-granted',
         grantDialog: {
           root: 'grant-approval-dialog',
           addFiles: 'grant-approval-dialog-add',
@@ -306,10 +314,10 @@ export const TEST_IDS = {
         onBehalfOf: 'time-logs-on-behalf-of',
         submit: 'time-logs-submit',
       },
-      /** The quick-log widget at the bottom of the Products tab (not shown once the job is DONE). */
+      /** The quick-log widget at the bottom of the Basic info tab (not shown once the product is DONE). */
       quickTimeLog: {
         root: 'quick-time-log',
-        /** Carries `data-minutes` = the job's total. */
+        /** Carries `data-minutes` = the product's total. */
         total: 'quick-time-log-total',
         minutes: 'quick-time-log-minutes',
         onBehalfOf: 'quick-time-log-on-behalf-of',
@@ -317,7 +325,7 @@ export const TEST_IDS = {
         /** Switches to the Time logs tab. */
         showAll: 'quick-time-log-show-all',
       },
-      /** The order's file links, shown from the job so the production view has them too. */
+      /** The order's file links, shown from the product so the production view has them too. */
       files: {
         root: 'order-files',
         addFiles: 'order-files-add',
