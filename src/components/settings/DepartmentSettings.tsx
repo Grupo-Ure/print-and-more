@@ -21,7 +21,7 @@ const IDS = TEST_IDS.settings.departments
 
 /**
  * Settings → Departments: the default assignee of each department per stage.
- * A job entering pre-press or production is handed to that stage's user;
+ * A product entering pre-press or production is handed to that stage's user;
  * without a default it keeps whoever holds it.
  */
 export function DepartmentSettings() {
@@ -52,7 +52,7 @@ export function DepartmentSettings() {
         <div className="border-b border-neutral-200 px-4 py-3">
           <h2 className="font-semibold">Default assignees</h2>
           <p className="text-xs text-neutral-500 desktop:text-sm">
-            When a job enters pre-press or production it is assigned to that stage&apos;s user.
+            When a product enters pre-press or production it is assigned to that stage&apos;s user.
             Without a default it keeps its current assignee.
           </p>
         </div>
