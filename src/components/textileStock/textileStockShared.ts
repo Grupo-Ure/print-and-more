@@ -36,12 +36,12 @@ function oneNested<T>(value: T | T[] | null | undefined): T | null {
 }
 
 export function brandFromVariant(variant: VariantWithDetails): string {
-  const product = oneNested(variant.textile_products)
-  return oneNested(product?.textile_brands)?.name ?? ''
+  const model = oneNested(variant.textile_models)
+  return oneNested(model?.textile_brands)?.name ?? ''
 }
 
-export function productNameFromVariant(variant: VariantWithDetails): string {
-  return oneNested(variant.textile_products)?.name ?? '—'
+export function modelNameFromVariant(variant: VariantWithDetails): string {
+  return oneNested(variant.textile_models)?.name ?? '—'
 }
 
 /** available = stock − sample_stock: what bookings and releases may consume. */

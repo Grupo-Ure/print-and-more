@@ -38,7 +38,7 @@ export function TextileStockPage() {
                   <ArrowLeft />
                   Back to stock
                 </Button>
-                <h2 className="m-0 text-base">Manage brands and products</h2>
+                <h2 className="m-0 text-base">Manage brands and models</h2>
               </div>
               <TextileMasterData />
             </div>

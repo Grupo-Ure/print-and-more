@@ -4,13 +4,13 @@ import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import { useToast } from '../Toast'
-import { useTextileVariantsByProduct, useUpdateTextileProduct } from '../../queries/textileStockQueries'
+import { useTextileVariantsByModel, useUpdateTextileModel } from '../../queries/textileStockQueries'
 import { stockInputClass } from '../stock/stockShared'
 import { TextileBreadcrumb, type BreadcrumbSegment } from './TextileBreadcrumb'
 import { TextileCreatorDialog } from './TextileCreatorDialog'
 import { useTextileStockUi } from './useTextileStockUi'
 import { useTextileVariantDelete } from './useTextileVariantDelete'
-import type { ProductRow } from '../../services/textileMasterDataService'
+import type { TextileModelRow } from '../../services/textileMasterDataService'
 
 type EditableFieldProps = {
   label: string
@@ -71,32 +71,32 @@ function EditableField({ label, value, onSave, required = false }: EditableField
   )
 }
 
-type TextileProductViewProps = {
-  product: ProductRow
+type TextileModelViewProps = {
+  model: TextileModelRow
   breadcrumb: BreadcrumbSegment[]
   onBack: () => void
 }
 
 /**
- * Detail view of one product: always-visible master data (per-field in-place
- * editing) with the product's variant table underneath. Master data only —
+ * Detail view of one model: always-visible master data (per-field in-place
+ * editing) with the model's variant table underneath. Master data only —
  * stock operations live on the Stock tab; variant creation is a dialog.
  */
-export function TextileProductView({ product, breadcrumb, onBack }: TextileProductViewProps) {
+export function TextileModelView({ model, breadcrumb, onBack }: TextileModelViewProps) {
   const { showError } = useToast()
   const { setVariantIdForDetail } = useTextileStockUi()
-  const variantsQuery = useTextileVariantsByProduct(product.id)
-  const updateProduct = useUpdateTextileProduct()
+  const variantsQuery = useTextileVariantsByModel(model.id)
+  const updateModel = useUpdateTextileModel()
   const deleteVariantFlow = useTextileVariantDelete()
 
   const [creatorOpen, setCreatorOpen] = useState(false)
 
   const variants = variantsQuery.data ?? []
 
-  const saveField = (patch: Partial<ProductRow>): void => {
-    updateProduct.mutate(
-      { productId: product.id, patch },
-      { onError: () => showError('Product could not be saved') },
+  const saveField = (patch: Partial<TextileModelRow>): void => {
+    updateModel.mutate(
+      { modelId: model.id, patch },
+      { onError: () => showError('Model could not be saved') },
     )
   }
 
@@ -105,7 +105,7 @@ export function TextileProductView({ product, breadcrumb, onBack }: TextileProdu
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <Button type="button" variant="outline" size="sm" onClick={onBack}>
           <ArrowLeft />
-          Products
+          Models
         </Button>
         <TextileBreadcrumb segments={breadcrumb} />
       </div>
@@ -113,24 +113,24 @@ export function TextileProductView({ product, breadcrumb, onBack }: TextileProdu
       <div className="mb-4 grid grid-cols-1 gap-1.5 rounded-lg border border-border p-3 desktop:grid-cols-2">
         <EditableField
           label="Name"
-          value={product.name}
+          value={model.name}
           required
-          onSave={value => saveField({ name: value ?? product.name })}
+          onSave={value => saveField({ name: value ?? model.name })}
         />
         <EditableField
           label="Article number"
-          value={product.article_number}
+          value={model.article_number}
           onSave={value => saveField({ article_number: value })}
         />
         <EditableField
           label="Description"
-          value={product.description}
+          value={model.description}
           onSave={value => saveField({ description: value })}
         />
         <label className="flex items-center gap-1.5 text-sm">
           <input
             type="checkbox"
-            checked={product.is_active}
+            checked={model.is_active}
             onChange={event => saveField({ is_active: event.target.checked })}
           />
           Active
@@ -160,13 +160,13 @@ export function TextileProductView({ product, breadcrumb, onBack }: TextileProdu
               {variants.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="px-3 py-4 text-center text-sm text-muted-foreground">
-                    No variants yet — this product stays invisible to the stock list until colours
+                    No variants yet — this model stays invisible to the stock list until colours
                     and sizes are added.
                   </TableCell>
                 </TableRow>
               )}
               {variants.map(variant => (
-                // Whole row opens the variant (like the orders product tables);
+                // Whole row opens the variant (like the orders model tables);
                 // the action icons stop propagation and take priority.
                 <TableRow
                   key={variant.id}
@@ -241,8 +241,8 @@ export function TextileProductView({ product, breadcrumb, onBack }: TextileProdu
 
       <TextileCreatorDialog
         level="VARIANT"
-        brandId={product.brand_id}
-        productId={product.id}
+        brandId={model.brand_id}
+        modelId={model.id}
         open={creatorOpen}
         onOpenChange={setCreatorOpen}
       />

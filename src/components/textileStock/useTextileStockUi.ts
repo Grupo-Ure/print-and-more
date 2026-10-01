@@ -3,7 +3,7 @@ import type { MovementType, SortState } from '../stock/stockShared'
 
 export type StockSortKey =
   | 'brand'
-  | 'product'
+  | 'model'
   | 'color'
   | 'size'
   | 'sample'
@@ -12,11 +12,11 @@ export type StockSortKey =
   | 'status'
 
 export type TextileStockUi = {
-  // Master-data drill-down (Products tab) — survives tab switches.
-  brandIdForProducts: string
-  setBrandIdForProducts: (value: string) => void
-  productIdForVariants: string
-  setProductIdForVariants: (value: string) => void
+  // Master-data drill-down (Models tab) — survives tab switches.
+  brandIdForModels: string
+  setBrandIdForModels: (value: string) => void
+  modelIdForVariants: string
+  setModelIdForVariants: (value: string) => void
   variantIdForDetail: string
   setVariantIdForDetail: (value: string) => void
   // Stock tab

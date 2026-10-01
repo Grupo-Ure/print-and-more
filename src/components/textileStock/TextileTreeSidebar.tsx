@@ -5,15 +5,15 @@ import { cn } from '@/lib/utils'
 import { useToast } from '../Toast'
 import {
   useTextileBrands,
-  useTextileProductsByBrand,
-  useTextileVariantsByProduct,
+  useTextileModelsByBrand,
+  useTextileVariantsByModel,
   useUpdateTextileBrand,
 } from '../../queries/textileStockQueries'
 import { stockInputClass } from '../stock/stockShared'
 import { TextileCreatorDialog } from './TextileCreatorDialog'
 import { variantStatus } from './textileStockShared'
 import { useTextileStockUi } from './useTextileStockUi'
-import type { BrandRow, ProductRow, VariantRow } from '../../services/textileMasterDataService'
+import type { BrandRow, TextileModelRow, VariantRow } from '../../services/textileMasterDataService'
 
 /** Maps the shared stock status onto a small indicator dot for tree leaf rows. */
 function statusDotClass(variant: VariantRow): string {
@@ -40,9 +40,9 @@ function ExpandChevron({ expanded, onToggle, label }: { expanded: boolean; onTog
   )
 }
 
-function VariantLeafList({ productId, onSelectVariant }: { productId: string; onSelectVariant: (variantId: string) => void }) {
+function VariantLeafList({ modelId, onSelectVariant }: { modelId: string; onSelectVariant: (variantId: string) => void }) {
   const { variantIdForDetail } = useTextileStockUi()
-  const variantsQuery = useTextileVariantsByProduct(productId)
+  const variantsQuery = useTextileVariantsByModel(modelId)
   const variants = variantsQuery.data ?? []
 
   if (variantsQuery.isLoading) return <p className="pl-10 text-xs opacity-70">Loading…</p>
@@ -69,61 +69,61 @@ function VariantLeafList({ productId, onSelectVariant }: { productId: string; on
   )
 }
 
-function ProductTreeNode({ product }: { product: ProductRow }) {
+function ModelTreeNode({ model }: { model: TextileModelRow }) {
   const {
-    productIdForVariants,
+    modelIdForVariants,
     variantIdForDetail,
-    setBrandIdForProducts,
-    setProductIdForVariants,
+    setBrandIdForModels,
+    setModelIdForVariants,
     setVariantIdForDetail,
   } = useTextileStockUi()
-  const [expanded, setExpanded] = useState(product.id === productIdForVariants)
-  const isSelected = productIdForVariants === product.id && !variantIdForDetail
+  const [expanded, setExpanded] = useState(model.id === modelIdForVariants)
+  const isSelected = modelIdForVariants === model.id && !variantIdForDetail
 
   // Clicking the row behaves like a file manager: select AND toggle the folder.
-  const selectProduct = (): void => {
-    setBrandIdForProducts(product.brand_id)
-    setProductIdForVariants(product.id)
+  const selectModel = (): void => {
+    setBrandIdForModels(model.brand_id)
+    setModelIdForVariants(model.id)
     setVariantIdForDetail('')
     setExpanded(open => !open)
   }
 
   const selectVariant = (variantId: string): void => {
-    setBrandIdForProducts(product.brand_id)
-    setProductIdForVariants(product.id)
+    setBrandIdForModels(model.brand_id)
+    setModelIdForVariants(model.id)
     setVariantIdForDetail(variantId)
   }
 
   return (
     <li>
       <div className={cn(treeRowClass, 'pl-5', isSelected && 'bg-muted font-semibold')}>
-        <ExpandChevron expanded={expanded} onToggle={() => setExpanded(open => !open)} label={product.name} />
+        <ExpandChevron expanded={expanded} onToggle={() => setExpanded(open => !open)} label={model.name} />
         <button
           type="button"
-          onClick={selectProduct}
+          onClick={selectModel}
           aria-expanded={expanded}
-          className={cn('min-w-0 flex-1 cursor-pointer truncate text-left', !product.is_active && 'opacity-60')}
-          title={product.is_active ? product.name : `${product.name} (inactive)`}
+          className={cn('min-w-0 flex-1 cursor-pointer truncate text-left', !model.is_active && 'opacity-60')}
+          title={model.is_active ? model.name : `${model.name} (inactive)`}
         >
-          {product.name}
+          {model.name}
         </button>
       </div>
-      {expanded && <VariantLeafList productId={product.id} onSelectVariant={selectVariant} />}
+      {expanded && <VariantLeafList modelId={model.id} onSelectVariant={selectVariant} />}
     </li>
   )
 }
 
-function BrandProductList({ brandId }: { brandId: string }) {
-  const productsQuery = useTextileProductsByBrand(brandId)
-  const products = productsQuery.data ?? []
+function BrandModelList({ brandId }: { brandId: string }) {
+  const modelsQuery = useTextileModelsByBrand(brandId)
+  const models = modelsQuery.data ?? []
 
-  if (productsQuery.isLoading) return <p className="pl-5 text-xs opacity-70">Loading…</p>
-  if (!products.length) return <p className="pl-5 text-xs italic text-muted-foreground">No products yet</p>
+  if (modelsQuery.isLoading) return <p className="pl-5 text-xs opacity-70">Loading…</p>
+  if (!models.length) return <p className="pl-5 text-xs italic text-muted-foreground">No models yet</p>
 
   return (
     <ul className="m-0 list-none p-0">
-      {products.map(product => (
-        <ProductTreeNode key={product.id} product={product} />
+      {models.map(model => (
+        <ModelTreeNode key={model.id} model={model} />
       ))}
     </ul>
   )
@@ -132,25 +132,25 @@ function BrandProductList({ brandId }: { brandId: string }) {
 function BrandTreeNode({ brand }: { brand: BrandRow }) {
   const { showError } = useToast()
   const {
-    brandIdForProducts,
-    productIdForVariants,
+    brandIdForModels,
+    modelIdForVariants,
     variantIdForDetail,
-    setBrandIdForProducts,
-    setProductIdForVariants,
+    setBrandIdForModels,
+    setModelIdForVariants,
     setVariantIdForDetail,
   } = useTextileStockUi()
   const updateBrand = useUpdateTextileBrand()
 
-  const [expanded, setExpanded] = useState(brand.id === brandIdForProducts)
+  const [expanded, setExpanded] = useState(brand.id === brandIdForModels)
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState('')
 
-  const isSelected = brandIdForProducts === brand.id && !productIdForVariants && !variantIdForDetail
+  const isSelected = brandIdForModels === brand.id && !modelIdForVariants && !variantIdForDetail
 
   // Clicking the row behaves like a file manager: select AND toggle the folder.
   const selectBrand = (): void => {
-    setBrandIdForProducts(brand.id)
-    setProductIdForVariants('')
+    setBrandIdForModels(brand.id)
+    setModelIdForVariants('')
     setVariantIdForDetail('')
     setExpanded(open => !open)
   }
@@ -213,15 +213,15 @@ function BrandTreeNode({ brand }: { brand: BrandRow }) {
           </>
         )}
       </div>
-      {expanded && <BrandProductList brandId={brand.id} />}
+      {expanded && <BrandModelList brandId={brand.id} />}
     </li>
   )
 }
 
-/** Brands ▸ products ▸ variants as a file-tree — the Products tab's local sidebar. */
+/** Brands ▸ models ▸ variants as a file-tree — the Models tab's local sidebar. */
 export function TextileTreeSidebar() {
   const brandsQuery = useTextileBrands()
-  const { setBrandIdForProducts, setProductIdForVariants, setVariantIdForDetail } = useTextileStockUi()
+  const { setBrandIdForModels, setModelIdForVariants, setVariantIdForDetail } = useTextileStockUi()
 
   const [creatorOpen, setCreatorOpen] = useState(false)
 
@@ -258,8 +258,8 @@ export function TextileTreeSidebar() {
         onOpenChange={setCreatorOpen}
         onCreated={result => {
           // Land on whatever was created deepest.
-          setBrandIdForProducts(result.brandId)
-          setProductIdForVariants(result.productId ?? '')
+          setBrandIdForModels(result.brandId)
+          setModelIdForVariants(result.modelId ?? '')
           setVariantIdForDetail('')
         }}
       />
