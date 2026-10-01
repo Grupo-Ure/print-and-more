@@ -1,8 +1,8 @@
 import type { ReactElement } from 'react'
 import { ArrowRight, Ban, Trash2 } from 'lucide-react'
-import { useJobRelease } from '../hooks/useJobRelease'
-import { useJobRemoval } from '../hooks/useJobRemoval'
-import type { JobRow } from '../types/database'
+import { useProductRelease } from '../hooks/useProductRelease'
+import { useProductRemoval } from '../hooks/useProductRemoval'
+import type { LoadedProduct } from '../types/product'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -12,34 +12,34 @@ import {
 } from './ui/context-menu'
 import { TEST_IDS } from '@e2e/support/testIds'
 
-const IDS = TEST_IDS.orders.jobList.contextMenu
+const IDS = TEST_IDS.orders.productList.contextMenu
 
 type Props = {
-  job: JobRow
+  product: LoadedProduct
   orderNumber: string | null
   /** The row that opens the menu on right-click. */
   children: ReactElement
 }
 
 /**
- * Right-click menu for a row of the job list: advance the job to its next
- * workflow stage, or delete/cancel it. The items mount only while the menu
- * is open, so their queries (products, stock) run on demand for that job.
+ * Right-click menu for a row of the product list: advance the product to its
+ * next workflow stage, or delete/cancel it. The items mount only while the menu
+ * is open, so their queries (stock) run on demand for that product.
  */
-export function JobContextMenu({ job, orderNumber, children }: Props) {
+export function ProductContextMenu({ product, orderNumber, children }: Props) {
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent>
-        <JobContextMenuItems job={job} orderNumber={orderNumber} />
+        <ProductContextMenuItems product={product} orderNumber={orderNumber} />
       </ContextMenuContent>
     </ContextMenu>
   )
 }
 
-function JobContextMenuItems({ job, orderNumber }: Omit<Props, 'children'>) {
-  const release = useJobRelease(job, orderNumber)
-  const removal = useJobRemoval(job)
+function ProductContextMenuItems({ product, orderNumber }: Omit<Props, 'children'>) {
+  const release = useProductRelease(product, orderNumber)
+  const removal = useProductRemoval(product)
 
   return (
     <>
@@ -65,7 +65,7 @@ function JobContextMenuItems({ job, orderNumber }: Omit<Props, 'children'>) {
           onSelect={() => void removal.requestDelete()}
         >
           <Trash2 />
-          Delete job
+          Delete product
         </ContextMenuItem>
       ) : (
         <ContextMenuItem
@@ -75,7 +75,7 @@ function JobContextMenuItems({ job, orderNumber }: Omit<Props, 'children'>) {
           onSelect={() => void removal.requestCancel()}
         >
           <Ban />
-          Cancel job
+          Cancel product
         </ContextMenuItem>
       )}
     </>
