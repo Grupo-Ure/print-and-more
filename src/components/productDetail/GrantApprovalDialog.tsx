@@ -14,7 +14,7 @@ import {
 } from '../ui/dialog'
 import { TEST_IDS } from '@e2e/support/testIds'
 
-const IDS = TEST_IDS.orders.jobDetail.settings.grantDialog
+const IDS = TEST_IDS.orders.productDetail.settings.grantDialog
 
 type Props = {
   orderId: string
@@ -29,7 +29,7 @@ type Props = {
 }
 
 /**
- * Grants customer approval for a job by picking which of the order's files the
+ * Grants customer approval for a product by picking which of the order's files the
  * customer approved. Files can also be linked right here (click or drop) —
  * a newly linked file becomes the selected one.
  */

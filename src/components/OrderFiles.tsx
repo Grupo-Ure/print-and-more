@@ -13,7 +13,7 @@ import { Separator } from './ui/separator'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
 import { TEST_IDS } from '@e2e/support/testIds'
 
-const IDS = TEST_IDS.orders.jobDetail.files
+const IDS = TEST_IDS.orders.productDetail.files
 
 const ROLES: { value: FileRole; label: string }[] = [
   { value: 'PRODUCTION_FILE', label: 'Production file' },

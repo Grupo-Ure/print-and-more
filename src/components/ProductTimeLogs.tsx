@@ -8,7 +8,7 @@ import {
   useCreateTimeLog,
   useDeleteTimeLog,
   useTimeLogMinutesByOrderId,
-  useTimeLogsByJobId,
+  useTimeLogsByProductId,
 } from '../queries/timeLogQueries'
 import { useCurrentUser, useIsAdmin } from '../queries/userQueries'
 import { EmployeeCombobox } from './fields/EmployeeCombobox'
@@ -19,27 +19,27 @@ import { useConfirm } from './ConfirmDialog'
 import { useToast } from './Toast'
 import { TEST_IDS } from '@e2e/support/testIds'
 
-const IDS = TEST_IDS.orders.jobDetail.timeLogs
-const QUICK_IDS = TEST_IDS.orders.jobDetail.quickTimeLog
+const IDS = TEST_IDS.orders.productDetail.timeLogs
+const QUICK_IDS = TEST_IDS.orders.productDetail.quickTimeLog
 
 /**
- * Worked-time log for one job: total, the individual entries (minutes, date,
- * attributed employee), and a form to log a new entry. Time is attributed to
- * the signed-in user; admins may pick someone else (RLS enforces both).
- * Admins can also delete a mistaken entry — every create/delete is written
- * to history by the service.
+ * Worked-time log for one product: total, the individual entries (minutes,
+ * date, attributed employee), and a form to log a new entry. Time is
+ * attributed to the signed-in user; admins may pick someone else (RLS enforces
+ * both). Admins can also delete a mistaken entry — every create/delete is
+ * written to history by the service.
  */
-export function JobTimeLogs({
+export function ProductTimeLogs({
   orderId,
-  jobId,
+  productId,
   disabled,
 }: {
   orderId: string
-  jobId: string
-  /** True once the job is DONE — the log becomes read-only. */
+  productId: string
+  /** True once the product is DONE — the log becomes read-only. */
   disabled: boolean
 }) {
-  const logsQuery = useTimeLogsByJobId(jobId)
+  const logsQuery = useTimeLogsByProductId(productId)
   const { isAdmin } = useIsAdmin()
   const deleteLog = useDeleteTimeLog()
   const confirm = useConfirm()
@@ -63,7 +63,7 @@ export function JobTimeLogs({
   }
 
   return (
-    // Rendered as the job's Time logs tab; the job detail's column scrolls.
+    // Rendered as the product's Time logs tab; the detail's column scrolls.
     <div data-testid={IDS.root} className="flex flex-col gap-2">
       <div className="text-base">
         Total:{' '}
@@ -133,7 +133,7 @@ export function JobTimeLogs({
 
       {!disabled && (
         <div className="shrink-0 border-t pt-3">
-          <TimeLogEntryForm orderId={orderId} jobId={jobId} ids={IDS} />
+          <TimeLogEntryForm orderId={orderId} productId={productId} ids={IDS} />
         </div>
       )}
     </div>
@@ -141,27 +141,27 @@ export function JobTimeLogs({
 }
 
 /**
- * Quick-log widget for the job's Products tab: log time for the job at hand
- * without opening the Time logs tab. Shows the job's total so the entry is
- * visibly counted, and a shortcut to the full log. Not rendered for a DONE
- * job — the caller decides, as with the tab.
+ * Quick-log widget for the product's Basic info tab: log time for the product
+ * at hand without opening the Time logs tab. Shows the product's total so the
+ * entry is visibly counted, and a shortcut to the full log. Not rendered for a
+ * DONE product — the caller decides, as with the tab.
  */
 export function QuickTimeLog({
   orderId,
-  jobId,
+  productId,
   onShowAll,
   className,
 }: {
   orderId: string
-  jobId: string
-  /** Switches the job detail to the Time logs tab. */
+  productId: string
+  /** Switches the product detail to the Time logs tab. */
   onShowAll: () => void
   className?: string
 }) {
-  // The per-order minute map is already loaded for the job list, so the
+  // The per-order minute map is already loaded for the product list, so the
   // total costs no extra request here (the mutation invalidates it).
   const minutesQuery = useTimeLogMinutesByOrderId(orderId)
-  const total = minutesQuery.data?.[jobId] ?? 0
+  const total = minutesQuery.data?.[productId] ?? 0
 
   return (
     <section
@@ -183,7 +183,7 @@ export function QuickTimeLog({
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <TimeLogEntryForm orderId={orderId} jobId={jobId} ids={QUICK_IDS} announceSuccess />
+        <TimeLogEntryForm orderId={orderId} productId={productId} ids={QUICK_IDS} announceSuccess />
         <Button
           type="button"
           variant="ghost"
@@ -206,12 +206,12 @@ export function QuickTimeLog({
  */
 function TimeLogEntryForm({
   orderId,
-  jobId,
+  productId,
   ids,
   announceSuccess = false,
 }: {
   orderId: string
-  jobId: string
+  productId: string
   ids: { minutes: string; onBehalfOf: string; submit: string }
   /** Toast on success — for the widget, where the new entry is not shown in a list. */
   announceSuccess?: boolean
@@ -232,7 +232,7 @@ function TimeLogEntryForm({
     if (!minutesValid || !currentUser || createLog.isPending) return
     const target = onBehalfOf ?? { id: currentUser.id, name: currentUser.name }
     createLog.mutate(
-      { orderId, jobId, minutes: parsedMinutes, user: target },
+      { orderId, productId, minutes: parsedMinutes, user: target },
       {
         onSuccess: () => {
           setMinutesInput('')

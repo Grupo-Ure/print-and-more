@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useJobRelease } from '../hooks/useJobRelease'
-import { JOB_STATUS_META } from '../const/orderStatus'
-import type { JobRow } from '../types/database'
+import { useProductRelease } from '../hooks/useProductRelease'
+import { PRODUCT_STATUS_META } from '../const/orderStatus'
+import type { LoadedProduct } from '../types/product'
 import { Button } from './ui/button'
 import {
   Dialog,
@@ -22,21 +22,21 @@ import {
 import { Textarea } from './ui/textarea'
 import { TEST_IDS } from '@e2e/support/testIds'
 
-const IDS = TEST_IDS.orders.jobDetail.release
+const IDS = TEST_IDS.orders.productDetail.release
 
 type Props = {
-  job: JobRow
+  product: LoadedProduct
   orderNumber: string | null
 }
 
 /**
- * The job header's forward action: advances the job one workflow step, in the
- * colour of the target status. Admins additionally get a dropdown with the
- * force release while a completeness/stock gate is failing. Every rule lives
- * in useJobRelease; this component is the presentation.
+ * The product header's forward action: advances the product one workflow step,
+ * in the colour of the target status. Admins additionally get a dropdown with
+ * the force release while a completeness/stock gate is failing. Every rule
+ * lives in useProductRelease; this component is the presentation.
  */
-export function JobReleaseButton({ job, orderNumber }: Props) {
-  const release = useJobRelease(job, orderNumber)
+export function ProductReleaseButton({ product, orderNumber }: Props) {
+  const release = useProductRelease(product, orderNumber)
   const [forceDialogOpen, setForceDialogOpen] = useState(false)
   const [forceReason, setForceReason] = useState('')
 
@@ -53,8 +53,8 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
 
   const mainClassName = cn(
     'h-10 px-6 text-lg',
-    JOB_STATUS_META[target].color,
-    JOB_STATUS_META[target].hoverColor,
+    PRODUCT_STATUS_META[target].color,
+    PRODUCT_STATUS_META[target].hoverColor,
     release.canForceRelease ? 'rounded-l-full rounded-r-none' : 'ml-auto rounded-full',
   )
 
@@ -84,8 +84,8 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
             variant="default"
             className={cn(
               'h-10 rounded-r-full rounded-l-none border-l border-white/30 px-2',
-              JOB_STATUS_META[target].color,
-              JOB_STATUS_META[target].hoverColor,
+              PRODUCT_STATUS_META[target].color,
+              PRODUCT_STATUS_META[target].hoverColor,
             )}
             disabled={release.pending}
             aria-label="More release options"
@@ -95,17 +95,18 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-auto min-w-64 p-0 overflow-hidden">
+          {/* Customer approval is the one gate a force release does not bypass. */}
           <DropdownMenuItem
             data-testid={IDS.forceItem}
-            disabled={release.pending || release.approvalBlocked || !release.hasProducts}
+            disabled={release.pending || release.approvalBlocked}
             onSelect={() => setForceDialogOpen(true)}
-            className={cn('rounded-none px-3 py-2.5', JOB_STATUS_META[target].softHoverColor)}
+            className={cn('rounded-none px-3 py-2.5', PRODUCT_STATUS_META[target].softHoverColor)}
           >
             <div className="flex flex-col">
               <span>Force release to Production…</span>
-              {!release.hasProducts && (
+              {release.approvalBlocked && (
                 <span className="text-xs text-muted-foreground">
-                  Requires at least one product
+                  Requires the customer's approval
                 </span>
               )}
             </div>
@@ -124,8 +125,8 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
           <DialogHeader>
             <DialogTitle>Force release to production?</DialogTitle>
             <DialogDescription>
-              The job moves to production even though its requirements are not
-              fulfilled. The override is recorded in the order history with
+              The product moves to production even though its requirements are
+              not fulfilled. The override is recorded in the order history with
               your name and reason.
             </DialogDescription>
           </DialogHeader>
@@ -152,8 +153,8 @@ export function JobReleaseButton({ job, orderNumber }: Props) {
               data-testid={IDS.dialog.submit}
               className={cn(
                 'text-primary-foreground',
-                JOB_STATUS_META.IN_PRODUCTION.color,
-                JOB_STATUS_META.IN_PRODUCTION.hoverColor,
+                PRODUCT_STATUS_META.IN_PRODUCTION.color,
+                PRODUCT_STATUS_META.IN_PRODUCTION.hoverColor,
               )}
               onClick={() => void handleForceRelease()}
               disabled={release.pending || forceReason.trim() === ''}

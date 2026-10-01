@@ -1,15 +1,16 @@
 import { useState } from 'react'
 import { Check } from 'lucide-react'
-import { useUpdateJob, useSetCustomerApproval } from '../../queries/jobQueries'
-import { validateJobCommonFields } from '../../lib/jobShared'
+import { useUpdateProduct, useSetCustomerApproval } from '../../queries/productQueries'
+import { validateProductCommonFields } from '../../lib/productShared'
 import { toDateOnly, todayDateOnly } from '../../lib/formatDate'
 import {
   type DeliveryChoice,
   type OrderDetailRow,
   type Priority,
-  type JobRow,
-  type JobUpdate,
+  type ProductRow,
+  type ProductUpdate,
 } from '../../types/database'
+import type { LoadedProduct } from '../../types/product'
 import type { FileRow } from '../../services/fileService'
 import { DeadlinePicker } from '../fields/DeadlinePicker'
 import { DeliverySelect } from '../fields/DeliverySelect'
@@ -20,30 +21,28 @@ import { useToast } from '../Toast'
 import { GrantApprovalDialog } from './GrantApprovalDialog'
 import { TEST_IDS } from '@e2e/support/testIds'
 
-const IDS = TEST_IDS.orders.jobDetail.settings
+const IDS = TEST_IDS.orders.productDetail.settings
 
 /**
- * The "Job Settings" section: the separate-value switches (deadline,
+ * The "Product Settings" section: the separate-value switches (deadline,
  * delivery, priority — null column = inherit from the order) and the
- * customer-approval toggle. Owns its own mutations; `onUpdated` bubbles the
- * saved row to the workspace like every other job edit.
+ * customer-approval toggle. Owns its own mutations; both patch the product
+ * cache themselves, so nothing is bubbled to the workspace.
  */
-export function JobSettingsSection({
+export function ProductSettingsSection({
   order,
-  job,
-  effectiveJob,
+  product,
+  effectiveProduct,
   orderFiles,
   onOrderFilesChanged,
-  onUpdated,
 }: {
   order: OrderDetailRow
-  job: JobRow
-  effectiveJob: JobRow
+  product: LoadedProduct
+  effectiveProduct: LoadedProduct
   orderFiles: FileRow[]
   onOrderFilesChanged: () => void | Promise<void>
-  onUpdated: (updatedJob: JobRow) => void
 }) {
-  const updateJob = useUpdateJob()
+  const updateProduct = useUpdateProduct()
   const setCustomerApproval = useSetCustomerApproval()
   const { showError } = useToast()
   const [grantOpen, setGrantOpen] = useState(false)
@@ -51,16 +50,13 @@ export function JobSettingsSection({
   const handleGrantApproval = (fileId: string) => {
     setCustomerApproval.mutate(
       {
-        id: job.id,
-        orderId: job.order_id,
+        id: product.id,
+        orderId: product.order_id,
         patch: { customer_approval_granted: true, customer_approval_file_id: fileId },
         history: { event_type: 'CUSTOMER_APPROVAL_GRANTED', meta: { file_id: fileId } },
       },
       {
-        onSuccess: row => {
-          onUpdated(row)
-          setGrantOpen(false)
-        },
+        onSuccess: () => setGrantOpen(false),
         onError: () => showError('Save failed'),
       },
     )
@@ -71,45 +67,45 @@ export function JobSettingsSection({
   const orderPriorityMode: Priority = order.priority
   const orderIsQuote = order.status === 'QUOTE'
 
-  // A field is "separate" purely when the job carries its own value (the
+  // A field is "separate" purely when the product carries its own value (the
   // column is non-null); a null column means the toggle is off and the order's
   // value is inherited. The equality-collapse — a user setting the value equal to the
   // order's clears it back to inherit — lives in each field's onChange, never here, so
   // it can't fire from a toggle or an order change.
-  const hasSeparateDelivery = job.delivery != null
-  const hasSeparatePriority = job.priority != null
-  const hasSeparateDeadline = job.deadline != null
+  const hasSeparateDelivery = product.delivery != null
+  const hasSeparatePriority = product.priority != null
+  const hasSeparateDeadline = product.deadline != null
 
-  // Effective (inherited-resolved) values come from useEffectiveJob.
-  const effectiveDelivery = effectiveJob.delivery as DeliveryChoice
-  const effectivePriority = effectiveJob.priority ?? orderPriorityMode
-  const effectiveDeadline = effectiveJob.deadline
+  // Effective (inherited-resolved) values come from useEffectiveProduct.
+  const effectiveDelivery = effectiveProduct.delivery as DeliveryChoice
+  const effectivePriority = effectiveProduct.priority ?? orderPriorityMode
+  const effectiveDeadline = effectiveProduct.deadline
   const deadlineIso = toDateOnly(effectiveDeadline) ?? ''
 
-  const validationErrors = validateJobCommonFields(effectiveJob, orderIsQuote)
+  const validationErrors = validateProductCommonFields(effectiveProduct, orderIsQuote)
   // In production a subset of fields is locked; once DONE everything is read-only.
-  const isDone = job.status === 'DONE'
-  const isLocked = job.status === 'IN_PRODUCTION' || isDone
+  const isDone = product.status === 'DONE'
+  const isLocked = product.status === 'IN_PRODUCTION' || isDone
 
-  // Persist a field edit straight to the DB (optimistic via useUpdateJob —
+  // Persist a field edit straight to the DB (optimistic via useUpdateProduct —
   // instant UI, rollback on error). No status calculation here: status is driven
   // by the status manager (decoupled — see STATUS_WORKFLOW_SPEC.md).
-  const handleUpdateJob = (patch: JobUpdate) => {
+  const handleUpdateProduct = (patch: ProductUpdate) => {
     // Every patch here is a single override field; null = back to inheriting the order's value.
-    const field = Object.keys(patch)[0] as keyof JobUpdate | undefined
-    updateJob.mutate(
+    const field = Object.keys(patch)[0] as keyof ProductUpdate | undefined
+    updateProduct.mutate(
       {
-        id: job.id,
-        orderId: job.order_id,
+        id: product.id,
+        orderId: product.order_id,
         patch,
         history: field
           ? {
               event_type: 'SETTINGS_CHANGED',
-              meta: { field, previous: job[field as keyof JobRow] ?? null, next: patch[field] ?? null },
+              meta: { field, previous: product[field as keyof ProductRow] ?? null, next: patch[field] ?? null },
             }
           : undefined,
       },
-      { onSuccess: row => onUpdated(row), onError: () => showError('Save failed') },
+      { onError: () => showError('Save failed') },
     )
   }
 
@@ -129,9 +125,9 @@ export function JobSettingsSection({
         checked={hasSeparateDeadline}
         onCheckedChange={checked => {
           if (checked !== true) {
-            handleUpdateJob({ deadline: null })
+            handleUpdateProduct({ deadline: null })
           } else {
-            handleUpdateJob({ deadline: effectiveDeadline ?? todayDateOnly() })
+            handleUpdateProduct({ deadline: effectiveDeadline ?? todayDateOnly() })
           }
         }}
       />
@@ -139,17 +135,17 @@ export function JobSettingsSection({
         <DeadlinePicker
           testId={IDS.deadline}
           disabled={!hasSeparateDeadline || isLocked}
-          value={toDateOnly(job.deadline) ?? deadlineIso}
+          value={toDateOnly(product.deadline) ?? deadlineIso}
           onChange={value => {
             if (toDateOnly(value) === toDateOnly(order.deadline)) {
-              handleUpdateJob({ deadline: null })
-            } else if ((value ?? '') !== (toDateOnly(job.deadline) ?? '')) {
-              handleUpdateJob({ deadline: value })
+              handleUpdateProduct({ deadline: null })
+            } else if ((value ?? '') !== (toDateOnly(product.deadline) ?? '')) {
+              handleUpdateProduct({ deadline: value })
             }
           }}
         />
-        {/* Shown while inheriting too: an order without a deadline leaves the job without one. */}
-        {validationErrors.termin && <p className="text-destructive text-xs mt-1">{validationErrors.termin}</p>}
+        {/* Shown while inheriting too: an order without a deadline leaves the product without one. */}
+        {validationErrors.deadline && <p className="text-destructive text-xs mt-1">{validationErrors.deadline}</p>}
       </div>
 
       <label htmlFor={IDS.separateDelivery} className="text-sm select-none">
@@ -162,9 +158,9 @@ export function JobSettingsSection({
         checked={hasSeparateDelivery}
         onCheckedChange={checked => {
           if (checked !== true) {
-            handleUpdateJob({ delivery: null })
+            handleUpdateProduct({ delivery: null })
           } else {
-            handleUpdateJob({ delivery: orderDeliveryMode })
+            handleUpdateProduct({ delivery: orderDeliveryMode })
           }
         }}
       />
@@ -175,13 +171,13 @@ export function JobSettingsSection({
           value={effectiveDelivery}
           onChange={value => {
             if (value === orderDeliveryMode) {
-              handleUpdateJob({ delivery: null })
-            } else if (value !== job.delivery) {
-              handleUpdateJob({ delivery: value })
+              handleUpdateProduct({ delivery: null })
+            } else if (value !== product.delivery) {
+              handleUpdateProduct({ delivery: value })
             }
           }}
         />
-        {hasSeparateDelivery && validationErrors.lieferung && <p className="text-destructive text-xs mt-1">{validationErrors.lieferung}</p>}
+        {hasSeparateDelivery && validationErrors.delivery && <p className="text-destructive text-xs mt-1">{validationErrors.delivery}</p>}
       </div>
 
       <label htmlFor={IDS.separatePriority} className="text-sm select-none">
@@ -194,9 +190,9 @@ export function JobSettingsSection({
         checked={hasSeparatePriority}
         onCheckedChange={checked => {
           if (checked !== true) {
-            handleUpdateJob({ priority: null })
+            handleUpdateProduct({ priority: null })
           } else {
-            handleUpdateJob({ priority: orderPriorityMode })
+            handleUpdateProduct({ priority: orderPriorityMode })
           }
         }}
       />
@@ -207,13 +203,13 @@ export function JobSettingsSection({
           value={effectivePriority}
           onChange={value => {
             if (value === orderPriorityMode) {
-              handleUpdateJob({ priority: null })
-            } else if (value !== job.priority) {
-              handleUpdateJob({ priority: value })
+              handleUpdateProduct({ priority: null })
+            } else if (value !== product.priority) {
+              handleUpdateProduct({ priority: value })
             }
           }}
         />
-        {hasSeparatePriority && validationErrors.prioritaet && <p className="text-destructive text-xs mt-1">{validationErrors.prioritaet}</p>}
+        {hasSeparatePriority && validationErrors.priority && <p className="text-destructive text-xs mt-1">{validationErrors.priority}</p>}
       </div>
 
       <label htmlFor={IDS.approvalRequired} className="text-sm select-none">
@@ -223,11 +219,11 @@ export function JobSettingsSection({
         id={IDS.approvalRequired}
         data-testid={IDS.approvalRequired}
         disabled={isLocked}
-        checked={job.customer_approval_required}
+        checked={product.customer_approval_required}
         onCheckedChange={checked => {
           setCustomerApproval.mutate({
-            id: job.id,
-            orderId: job.order_id,
+            id: product.id,
+            orderId: product.order_id,
             patch: checked
               ? { customer_approval_required: true }
               : { customer_approval_required: false, customer_approval_granted: false, customer_approval_file_id: null },
@@ -238,7 +234,7 @@ export function JobSettingsSection({
         }}
       />
       <div className="flex items-center gap-2">
-        {job.customer_approval_required && !job.customer_approval_granted && (
+        {product.customer_approval_required && !product.customer_approval_granted && (
           <Button
             type="button"
             variant="outline"
@@ -250,12 +246,12 @@ export function JobSettingsSection({
             Grant approval…
           </Button>
         )}
-        {job.customer_approval_granted && (
+        {product.customer_approval_granted && (
           <span data-testid={IDS.approvalGranted} className="flex items-center gap-1 text-xs text-green-600">
             <Check className="size-3.5" aria-hidden />
             Granted
             {(() => {
-              const approvedFile = orderFiles.find(file => file.id === job.customer_approval_file_id)
+              const approvedFile = orderFiles.find(file => file.id === product.customer_approval_file_id)
               return approvedFile ? ` — ${approvedFile.display_name}` : ''
             })()}
           </span>
@@ -263,7 +259,7 @@ export function JobSettingsSection({
       </div>
 
       <GrantApprovalDialog
-        orderId={job.order_id}
+        orderId={product.order_id}
         files={orderFiles}
         onFilesChanged={onOrderFilesChanged}
         open={grantOpen}
