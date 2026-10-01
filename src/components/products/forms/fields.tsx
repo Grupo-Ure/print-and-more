@@ -24,7 +24,7 @@ import {
 import type { FileRow } from '../../../services/fileService'
 import { TEST_IDS } from '@e2e/support/testIds'
 
-const IDS = TEST_IDS.orders.jobDetail.products.dialog
+const IDS = TEST_IDS.orders.productDetail.basicInfo
 
 /** Marks an input for the e2e suite: one shared test ID, the field name as the instance key. */
 const fieldTestAttrs = (field: AnyFieldApi) => ({ 'data-testid': IDS.field, 'data-field': field.name })

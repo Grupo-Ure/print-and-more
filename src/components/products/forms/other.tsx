@@ -14,7 +14,7 @@ function buildChild(values: FormValues): ProductChildInsert {
   return { description: strOut(values.description) } as ProductChildInsert
 }
 
-export function OtherForm({ job, orderIsQuote, product, orderFiles, initialFileIds, sortOrder, onSaved, onCancel }: ProductFormProps) {
+export function OtherForm({ orderId, department, orderIsQuote, product, orderFiles, initialFileIds, sortOrder, onSaved, onCancel }: ProductFormProps) {
   const saveProduct = useSaveProduct()
   const { showError } = useToast()
   const [fileIds, setFileIds] = useState<string[]>(initialFileIds)
@@ -25,8 +25,8 @@ export function OtherForm({ job, orderIsQuote, product, orderFiles, initialFileI
       if (Object.keys(validateProduct('OTHER', value, orderIsQuote)).length > 0) return
       const input: ProductWriteInput = {
         ...(product ? { id: product.id } : {}),
-        job_id: job.id,
-        department: job.department,
+        order_id: orderId,
+        department,
         type: 'OTHER',
         quantity: qtyOut(value.quantity),
         notes: null,
@@ -34,8 +34,8 @@ export function OtherForm({ job, orderIsQuote, product, orderFiles, initialFileI
         child: buildChild(value),
       }
       saveProduct.mutate(
-        { input, fileIds, jobId: job.id, orderId: job.order_id },
-        { onSuccess: ({ products }) => onSaved(products), onError: () => showError(product ? 'Product could not be saved' : 'Product could not be added') },
+        { input, fileIds, orderId },
+        { onSuccess: ({ products, productId }) => onSaved(products, productId), onError: () => showError(product ? 'Product could not be saved' : 'Product could not be added') },
       )
     },
   })
