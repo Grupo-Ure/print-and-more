@@ -63,10 +63,13 @@ identifiers, names, or strings.
 - **Code is English** — table/column names, enum types, function/RPC names,
   TypeScript identifiers, file names. When you touch code with leftover German,
   translate it; don't preserve it "to match the source."
-- **Authoritative rename maps** (use these; don't invent parallel names):
+- **Rename maps** (use these; don't invent parallel names):
   [.plans/DB_RENAME_MAP.md](.plans/DB_RENAME_MAP.md) (schema identifiers, enum
   types, enum/check values, functions) and [.plans/I18N_MAP.md](.plans/I18N_MAP.md)
-  (UI display strings → i18next).
+  (UI display strings → i18next). Both are *finished plans*: they settle what
+  a German name became, and are frozen at that point — where a later stream
+  renamed something again, its own plan is the newer word (the job elimination
+  is the one that has, see [.plans/JOB_ELIMINATION.md](.plans/JOB_ELIMINATION.md)).
 - **Known remaining German** (deferred, tracked — not "the convention"):
   1. **Stored enum VALUE strings** inside product specs (e.g. binding colour
      `'SCHWARZ'`, fold `'MITTELFALZ'`, the material list in
@@ -86,12 +89,41 @@ identifiers, names, or strings.
 - **[DOCS.md](DOCS.md)** — documentation index; entry point to
   [docs/](docs/) (coding standards, skill docs, reference). Consult it for the
   architectural patterns to follow.
-- **[.plans/electron_porting.md](.plans/electron_porting.md)** /
-  **[.plans/electron_workplan.md](.plans/electron_workplan.md)** — design
-  decisions and work packages of the (completed) Electron port, kept for
-  reference.
+- **[.plans/](.plans/)** — one file per work stream: the decisions it locked,
+  the packages it shipped, and what each one found. It is the project's
+  **history**, not a reference that tracks the current code — see "Plans are
+  a record" below before touching anything in it. Examples:
+  [electron_porting.md](.plans/electron_porting.md) /
+  [electron_workplan.md](.plans/electron_workplan.md) (the Electron port),
+  [JOB_ELIMINATION.md](.plans/JOB_ELIMINATION.md) (the product replacing the
+  job as the unit of work), [DB_RENAME_MAP.md](.plans/DB_RENAME_MAP.md) (the
+  German→English schema rename).
 - **`package.json`** = library versions; CSS files = UI dimensions. Don't
   duplicate those into prose.
+
+**Plans are a record, not a living document.**
+
+Every file in `.plans/` carries, directly under its title, the date it was
+started and the date it was finished:
+
+```
+Created: 2026-09-29
+Finished: 2026-10-01
+```
+
+`Finished: —` while the stream is still running; fill the date in with the
+last package. A plan that is still open is written in as it goes — that is
+what the per-package "done" entries are for.
+
+**Once a plan is finished it is never edited again.** Not to correct it, not
+to fold in a later rename, not to note that something it describes has since
+changed. The point of keeping these files is to be able to read back what was
+decided and done *at that time*; editing one erases the trace. A later change
+writes its own plan, and may link to the older one — a finished plan being
+out of date relative to today's code is expected, not a defect to repair.
+This is why `DB_RENAME_MAP.md` still describes the schema as it stood after
+the German→English rename and says nothing about the job elimination that
+came later.
 
 ## Tech Stack
 
