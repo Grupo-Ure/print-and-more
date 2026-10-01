@@ -5,14 +5,13 @@
  * stickers (Aufkleber), UV-printed rigid signs (Schild UV), foil-laminated
  * signs (Schild Folie), vinyl plotting (Folienplott), banners, rollups,
  * vehicle wraps (Fahrzeugbeschriftung), and miscellaneous large-format
- * jobs (Sonstige LFP).
+ * work (Sonstige LFP).
  *
- * The shape of an LFP job's `detail` JSONB column varies by `typ`.
- * See {@link validateLfpDetail} in `src/lib/lfp/` for the per-typ field
- * requirements.
+ * Each type's spec columns live in its own child table; the per-type field
+ * requirements are the Zod schemas in `src/lib/products/schemas/lfp.ts`.
  */
 
-/** Discriminator for the kind of LFP work, stored in `jobs.type`. */
+/** Discriminator for the kind of LFP work, stored in `products.type`. */
 export type LfpType =
   | 'STICKER'
   | 'SIGN_UV'
@@ -23,7 +22,7 @@ export type LfpType =
   | 'VEHICLE_LETTERING'
   | 'OTHER_LFP'
 
-/** All LFP typen in the order they appear in dropdowns. */
+/** All LFP types in the order they appear in dropdowns. */
 export const LFP_TYPES: LfpType[] = [
   'STICKER',
   'SIGN_UV',
@@ -46,12 +45,3 @@ export const LFP_TYPE_LABELS: Record<LfpType, string> = {
   VEHICLE_LETTERING: 'Vehicle Wrap',
   OTHER_LFP: 'Other (LFP)',
 }
-
-/**
- * Shape of the JSONB `detail` column for an LFP job.
- *
- * The set of keys present depends on the job's `typ` — only set
- * keys relevant to the current typ. See `validateLfpDetail` for the
- * per-typ field set and validation rules.
- */
-export type LfpDetail = Record<string, unknown>

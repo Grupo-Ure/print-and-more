@@ -5,15 +5,13 @@
  * through the wide-format printer: posters, flyers, folded flyers,
  * brochures, business cards, bound documents, and ad-hoc print outs.
  *
- * Most CopyShop typen support both digital ("Copy-Center") and offset
+ * Most CopyShop types support both digital ("Copy-Center") and offset
  * production paths, with different material/format constraints per path.
- *
- * The shape of a CopyShop job's `detail` JSONB column varies by
- * `typ`. See `validateCopyShopDetail` in `src/lib/copyshop/` for the
- * per-typ field requirements.
+ * Each type's spec columns live in its own child table; the per-type field
+ * requirements are the Zod schemas in `src/lib/products/schemas/copyshop.ts`.
  */
 
-/** All CopyShop typen, in dropdown order. */
+/** All CopyShop types, in dropdown order. */
 export const COPY_SHOP_TYPES = [
   'POSTER',
   'CARD_FLYER',
@@ -24,7 +22,7 @@ export const COPY_SHOP_TYPES = [
   'PRINTOUT',
 ] as const
 
-/** Discriminator for the kind of CopyShop work, stored in `jobs.type`. */
+/** Discriminator for the kind of CopyShop work, stored in `products.type`. */
 export type CopyShopType = (typeof COPY_SHOP_TYPES)[number]
 
 /** Display labels for {@link CopyShopType}, rendered in dropdowns and tabs. */
@@ -37,19 +35,3 @@ export const COPY_SHOP_TYPE_LABELS: Record<CopyShopType, string> = {
   BINDING: 'Binding',
   PRINTOUT: 'Print-out',
 }
-
-/**
- * Shape of the JSONB `detail` column for a CopyShop job.
- *
- * Keys vary per `typ` — only set keys relevant to the current typ. Kept
- * with the `Json` suffix to disambiguate from the `CopyShopDetail`
- * React component when both are imported into the same consumer file.
- */
-export type CopyShopDetailJson = Record<string, unknown>
-
-/**
- * Production path for typen that can be done either as digital
- * (Copy-Center) or offset. Currently a declared union; consumers wire
- * the value through the JSONB `detail.produktionsweg` field.
- */
-export type ProductionPath = 'COPYSHOP' | 'OFFSET'
