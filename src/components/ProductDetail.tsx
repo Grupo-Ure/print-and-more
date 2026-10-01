@@ -191,7 +191,7 @@ export function ProductDetail({
           <ProductReleaseButton product={product} orderNumber={order.order_number ?? null} />
         </div>
       </div>
-
+      
       <Separator />
 
       {shouldValidate && !customerMeetsPrepressRequirements && (
@@ -217,7 +217,9 @@ export function ProductDetail({
           </TabsTrigger>
         </TabsList>
 
+
         <TabsContent value="basicInfo" className="flex flex-col gap-4">
+          <ProductProductionBanner product={product} />
           <ProductBasicInfo
             order={order}
             product={product}
@@ -260,10 +262,6 @@ export function ProductDetail({
           <OrderFiles orderId={order.id} files={orderFiles} onFileChanged={onOrderFilesChanged} />
         </TabsContent>
       </Tabs>
-
-      {/* Below the tabs, so its coming and going between products does not
-          shift the header and tabs. */}
-      <ProductProductionBanner product={product} />
     </div>
   )
 }
