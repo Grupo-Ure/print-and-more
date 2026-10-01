@@ -3,7 +3,7 @@ import { ArrowUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Sidebar, SidebarContent, SidebarHeader } from '@/components/ui/sidebar'
 import { JOB_STATUS_META } from '../../const/orderStatus'
-import { jobDepartmentLabel } from '../../const/departmentAbbreviation'
+import { departmentLabel } from '../../const/departmentAbbreviation'
 import { departmentIcon } from '../../const/departmentIcons'
 import { useNavigation } from '../../context/navigation.context'
 import { isDeadlineMissed, isMissingInfo, resolveEffectiveJob } from '../../lib/jobShared'
@@ -200,7 +200,7 @@ type ProductionSidebarItemProps = {
 function ProductionSidebarItem({ job, assignee, isActive, isNew, onSelect }: ProductionSidebarItemProps) {
   const effective = resolveEffectiveJob(job, job.orders)
   const { icon: DepartmentIcon, colorClassName } = departmentIcon(job.department)
-  const departmentLabel = jobDepartmentLabel(job.department)
+  const label = departmentLabel(job.department)
   const customerName = job.orders.customers?.name ?? '-'
 
   return (
@@ -230,11 +230,11 @@ function ProductionSidebarItem({ job, assignee, isActive, isNew, onSelect }: Pro
       <div className="flex min-w-0 flex-1 flex-col justify-between gap-0.5">
         <div>
           <div className="flex items-center gap-1.5">
-            <span title={departmentLabel} className="inline-flex shrink-0">
+            <span title={label} className="inline-flex shrink-0">
               <DepartmentIcon
                 size={16}
                 className={colorClassName}
-                aria-label={departmentLabel}
+                aria-label={label}
               />
             </span>
             <h2

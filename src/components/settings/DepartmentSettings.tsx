@@ -1,4 +1,4 @@
-import { jobDepartmentLabel } from '../../const/departmentAbbreviation'
+import { departmentLabel } from '../../const/departmentAbbreviation'
 import { departmentIcon, DEPARTMENT_ORDER } from '../../const/departmentIcons'
 import {
   useDepartmentDefaultAssignees,
@@ -80,7 +80,7 @@ export function DepartmentSettings() {
                     <TableCell className="pl-4">
                       <span className="flex items-center gap-2">
                         <Icon className={`size-4 ${colorClassName}`} aria-hidden />
-                        {jobDepartmentLabel(department)}
+                        {departmentLabel(department)}
                       </span>
                     </TableCell>
                     <TableCell>

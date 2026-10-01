@@ -1,7 +1,7 @@
 import { useState, type ComponentType, type ReactNode } from 'react'
 import { CalendarClock, LayoutGrid, ListFilter, RotateCcw, type LucideProps } from 'lucide-react'
 import { ORDER_STATUS_LIST } from '../../types/database'
-import { JOB_DEPARTMENT_LABELS } from '../../const/departmentAbbreviation'
+import { DEPARTMENT_LABELS } from '../../const/departmentAbbreviation'
 import { departmentIcon, DEPARTMENT_ORDER } from '../../const/departmentIcons'
 import { ORDER_STATUS_META } from '../../const/orderStatus'
 import { cn } from '@/lib/utils'
@@ -162,7 +162,7 @@ export function DepartmentFilterButton({ filter, actions }: Props) {
       <div className="grid grid-cols-3 gap-1.5">
         {DEPARTMENT_ORDER.map(department => {
           const { icon: Icon, colorClassName } = departmentIcon(department)
-          const label = JOB_DEPARTMENT_LABELS[department]
+          const label = DEPARTMENT_LABELS[department]
           const selected = filter.departments.includes(department)
           return (
             <button

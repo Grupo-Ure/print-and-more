@@ -7,7 +7,7 @@ export const DEPARTMENT_ABBREVIATIONS: Record<string, string> = {
   OTHER: 'OT',
 }
 
-export const JOB_DEPARTMENT_LABELS: Record<string, string> = {
+export const DEPARTMENT_LABELS: Record<string, string> = {
   LFP: 'LFP',
   COPYSHOP: 'Copy Shop',
   TEXTILE: 'Textile',
@@ -20,6 +20,6 @@ export function departmentAbbreviation(department: string): string {
   return DEPARTMENT_ABBREVIATIONS[department] ?? department
 }
 
-export function jobDepartmentLabel(department: string): string {
-  return JOB_DEPARTMENT_LABELS[department] ?? department
+export function departmentLabel(department: string): string {
+  return DEPARTMENT_LABELS[department] ?? department
 }
