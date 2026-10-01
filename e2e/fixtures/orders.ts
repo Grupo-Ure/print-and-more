@@ -1,25 +1,25 @@
 /**
  * Fixture chain: `@playwright/test` → database → electron → auth → **orders**.
  * Adds the orders view's page object (`ordersPage`) and the per-test data of
- * that view (`customer`, `order`, `job`, `newCustomer`, `departmentDefault`,
- * `developer`).
+ * that view (`customer`, `order`, `product`, `newCustomer`,
+ * `departmentDefault`, `developer`).
  *
  * Fixtures only seed data and reload so the app can see it. They never
- * navigate: getting to the order or job under test is part of the test's own
- * Act stage. The one exception is the auth state, handled in fixtures/auth.ts.
+ * navigate: getting to the order or product under test is the test's own Setup
+ * stage. The one exception is the auth state, handled in fixtures/auth.ts.
  */
 import type { Page } from '@playwright/test'
 import { addDays, format } from 'date-fns'
 import type { DefaultAssigneeStatus, DeliveryChoice, Department, OrderStatus, PaymentMethod } from '../../src/types/database'
 import { test as base } from './auth'
 import { NEW_CUSTOMER, TEST_CUSTOMER, type TestCustomer } from './customers'
-import { EMPTY_JOB, type JobSeed } from './jobs'
+import { OTHER_PRODUCT } from './products'
 import { EMPTY_PREPRESS_DEFAULT, type DepartmentDefaultSeed } from './departments'
 import { APPROVAL_FILE } from './files'
 import { IN_STOCK_STAMP_MODEL, OUT_OF_STOCK_STAMP_MODEL } from './stamps'
 import { IN_STOCK_TEXTILE_CHAIN } from './textiles'
 import { ADMIN_AS_DEVELOPER, type TestUser } from './users'
-import type { TestCustomerRow, TestFile, TestJob, TestOrder } from '../support/database'
+import type { ProductSeed, TestCustomerRow, TestFile, TestOrder, TestProduct } from '../support/database'
 import { NavbarPOM } from '../pom/NavbarPOM'
 import { OrdersPOM } from '../pom/OrdersPOM'
 
@@ -29,7 +29,7 @@ export const NEW_ORDER_STATUS: OrderStatus = 'QUOTE'
 /** The status "Start processing" moves an order to. */
 export const IN_PROGRESS_STATUS: OrderStatus = 'IN_PROGRESS'
 
-/** The status an invoice order reaches once its last job is done — on its own, or by "Mark finished". */
+/** The status an invoice order reaches once its last product is done — on its own, or by "Mark finished". */
 export const FINISHED_STATUS: OrderStatus = 'FINISHED'
 
 /** The terminal status "Mark as invoiced" (invoice) or "Finish & close" (cash) moves an order to. */
@@ -56,8 +56,8 @@ export function missedOrderDeadline(): string {
  * A seed must describe a state the app can reach, since nothing in the
  * database enforces the lifecycle:
  * - `QUOTE` and `IN_PROGRESS` have no requirements of their own.
- * - `FINISHED` is only offered once every job is done, so a job seeded into
- *   such an order must be `JOB_DONE`.
+ * - `FINISHED` is only offered once every product is done, so a product seeded
+ *   into such an order must be `PRODUCT_DONE`.
  * - `BILLED` is never seeded: the app archives the order at that moment and
  *   a billed order is never listed, so there is nothing left to drive.
  */
@@ -71,16 +71,16 @@ export type OrderSeed = {
 /** A fresh quote with nothing set — the default. */
 export const QUOTE_ORDER: OrderSeed = { status: NEW_ORDER_STATUS, delivery: null, paymentMethod: 'INVOICE', deadline: null }
 
-/** A quote with deadline and delivery set: a job in it is complete the moment processing starts. */
+/** A quote with deadline and delivery set: a product in it is complete the moment processing starts. */
 export const COMPLETE_QUOTE_ORDER: OrderSeed = { ...QUOTE_ORDER, delivery: 'PICKUP', deadline: 'tomorrow' }
 
-/** An accepted order with deadline and delivery set: a job in it is complete as soon as it has a product. */
+/** An accepted order with deadline and delivery set: a product in it inherits the deadline and is complete at once. */
 export const IN_PROGRESS_ORDER: OrderSeed = { ...QUOTE_ORDER, status: IN_PROGRESS_STATUS, delivery: 'PICKUP', deadline: 'tomorrow' }
 
-/** An accepted order still missing its deadline: a job in it is held in setup until one is set. */
+/** An accepted order still missing its deadline: a product in it is held in setup until one is set. */
 export const IN_PROGRESS_ORDER_WITHOUT_DEADLINE: OrderSeed = { ...IN_PROGRESS_ORDER, deadline: null }
 
-/** An accepted order whose deadline has passed: a past deadline does not block a job in it from entering pre-press. */
+/** An accepted order whose deadline has passed: a past deadline does not block a product in it from entering pre-press. */
 export const IN_PROGRESS_ORDER_PAST_DEADLINE: OrderSeed = { ...IN_PROGRESS_ORDER, deadline: 'yesterday' }
 
 const DEADLINE_BY_NAME: Record<NonNullable<OrderSeed['deadline']>, () => string> = {
@@ -91,7 +91,7 @@ const DEADLINE_BY_NAME: Record<NonNullable<OrderSeed['deadline']>, () => string>
 /** An accepted order paid in cash: it skips FINISHED and closes in one step. */
 export const IN_PROGRESS_CASH_ORDER: OrderSeed = { ...IN_PROGRESS_ORDER, paymentMethod: 'CASH' }
 
-/** A finished invoice order, awaiting "Mark as invoiced". Seed only `JOB_DONE` jobs into it. */
+/** A finished invoice order, awaiting "Mark as invoiced". Seed only `PRODUCT_DONE` products into it. */
 export const FINISHED_ORDER: OrderSeed = { ...IN_PROGRESS_ORDER, status: FINISHED_STATUS }
 
 /** The slot the `departmentDefault` fixture owns, and who it holds (`null` while empty). */
@@ -104,7 +104,7 @@ export type TestDepartmentDefault = {
 type OrdersViewFixtures = {
   /**
    * The catalog rows the product seeds reference (two stamp models, one
-   * textile brand → product → variant). Automatic: before every test the
+   * textile brand → model → variant). Automatic: before every test the
    * rows are inserted, or reset to their seed if already there — so stock a
    * previous test deducted is back to its seed value — and after the test
    * they are removed with the movements booked against them.
@@ -116,15 +116,15 @@ type OrdersViewFixtures = {
   customerSeed: TestCustomer
   /** What `order` inserts; override per describe block with `test.use({ orderSeed })`. */
   orderSeed: OrderSeed
-  /** What `job` inserts; override per describe block with `test.use({ jobSeed })`. */
-  jobSeed: JobSeed
+  /** What `product` inserts; override per describe block with `test.use({ productSeed })`. */
+  productSeed: ProductSeed
   /**
-   * What `jobs` inserts, one job per entry. Override per describe block as
-   * `test.use({ jobSeeds: [SEEDS, { scope: 'test' }] })`: Playwright reads any
-   * array whose second element is an object as a `[value, options]` tuple, so
-   * a bare array of seeds would be taken apart.
+   * What `products` inserts, one product per entry. Override per describe block
+   * as `test.use({ productSeeds: [SEEDS, { scope: 'test' }] })`: Playwright
+   * reads any array whose second element is an object as a `[value, options]`
+   * tuple, so a bare array of seeds would be taken apart.
    */
-  jobSeeds: readonly JobSeed[]
+  productSeeds: readonly ProductSeed[]
   /**
    * A customer that exists only for this test: inserted before it through
    * the runner's database connection, deleted after it — together with any
@@ -133,14 +133,14 @@ type OrdersViewFixtures = {
   customer: TestCustomerRow
   /** A fresh order for `customer` in the state `orderSeed` describes, created before the test and deleted after it. */
   order: TestOrder
-  /** A fresh job in `order` as `jobSeed` describes it, in its initial status. Removed with the order. */
-  job: TestJob
+  /** A fresh product in `order` as `productSeed` describes it, with its spec. Removed with the order. */
+  product: TestProduct
   /**
-   * Several fresh jobs in `order`, one per `jobSeeds` entry in that order — for
-   * what the app does to every job of an order at once. Independent of `job`.
-   * Removed with the order.
+   * Several fresh products in `order`, one per `productSeeds` entry in that
+   * order — for what the app does to every product of an order at once.
+   * Independent of `product`. Removed with the order.
    */
-  jobs: TestJob[]
+  products: TestProduct[]
   /** A file linked to `order`, for the customer approval. Removed with the order. */
   orderFile: TestFile
   /**
@@ -201,8 +201,8 @@ export const test = base.extend<OrdersViewFixtures>({
 
   customerSeed: [TEST_CUSTOMER, { option: true }],
   orderSeed: [QUOTE_ORDER, { option: true }],
-  jobSeed: [EMPTY_JOB, { option: true }],
-  jobSeeds: [[], { option: true }],
+  productSeed: [OTHER_PRODUCT, { option: true }],
+  productSeeds: [[], { option: true }],
   departmentDefaultSeed: [EMPTY_PREPRESS_DEFAULT, { option: true }],
   developerSeed: [ADMIN_AS_DEVELOPER, { option: true }],
 
@@ -227,32 +227,21 @@ export const test = base.extend<OrdersViewFixtures>({
     await database.removeOrder(order.id)
   },
 
-  job: async ({ page, navbar, database, order, jobSeed }, use) => {
-    const created = await database.createJob(order.id, {
-      department: jobSeed.department,
-      status: jobSeed.status,
-      customer_approval_required: jobSeed.customerApprovalRequired,
-    })
-    const productId = jobSeed.product ? await database.createProduct(created, jobSeed.product) : null
+  product: async ({ page, navbar, database, order, productSeed }, use) => {
+    const created = await database.createProduct(order.id, productSeed)
     await reloadApp(page, navbar)
 
-    await use({ ...created, productId })
+    await use(created)
   },
 
-  jobs: async ({ page, navbar, database, order, jobSeeds }, use) => {
-    const jobs: TestJob[] = []
-    for (const seed of jobSeeds) {
-      const created = await database.createJob(order.id, {
-        department: seed.department,
-        status: seed.status,
-        customer_approval_required: seed.customerApprovalRequired,
-      })
-      const productId = seed.product ? await database.createProduct(created, seed.product) : null
-      jobs.push({ ...created, productId })
+  products: async ({ page, navbar, database, order, productSeeds }, use) => {
+    const created: TestProduct[] = []
+    for (const seed of productSeeds) {
+      created.push(await database.createProduct(order.id, seed))
     }
     await reloadApp(page, navbar)
 
-    await use(jobs)
+    await use(created)
   },
 
   orderFile: async ({ page, navbar, database, order }, use) => {
