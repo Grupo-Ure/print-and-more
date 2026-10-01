@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { Login } from '../components/Login'
-import { ProductionJobPanel } from '../components/production/ProductionJobPanel'
+import { ProductionProductPanel } from '../components/production/ProductionProductPanel'
 import { ProductionSidebar } from '../components/production/ProductionSidebar'
 import { useSupabaseSession } from '../hooks/useSupabaseSession'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
@@ -9,8 +9,8 @@ import { TEST_IDS } from '@e2e/support/testIds'
 
 /**
  * The Production page: the back office's view of the work. Same two-column
- * shell as the orders view — a fixed-width sidebar listing every job in
- * pre-press or production across all orders, and the selected job's detail
+ * shell as the orders view — a fixed-width sidebar listing every product in
+ * pre-press or production across all orders, and the selected product's detail
  * beside it, edited in place.
  */
 export function ProductionPage() {
@@ -31,7 +31,7 @@ export function ProductionPage() {
       <ProductionSidebar currentUserId={session.user.id} />
 
       <SidebarInset className="flex h-full flex-col overflow-hidden">
-        <ProductionJobPanel />
+        <ProductionProductPanel />
       </SidebarInset>
     </SidebarProvider>
   )

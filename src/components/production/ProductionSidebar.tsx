@@ -2,14 +2,14 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Sidebar, SidebarContent, SidebarHeader } from '@/components/ui/sidebar'
-import { JOB_STATUS_META } from '../../const/orderStatus'
+import { PRODUCT_STATUS_META } from '../../const/orderStatus'
 import { departmentLabel } from '../../const/departmentAbbreviation'
 import { departmentIcon } from '../../const/departmentIcons'
 import { useNavigation } from '../../context/navigation.context'
-import { isDeadlineMissed, isMissingInfo, resolveEffectiveJob } from '../../lib/jobShared'
-import { useProductionJobs } from '../../queries/jobQueries'
+import { isDeadlineMissed, isMissingInfo, resolveEffectiveProduct } from '../../lib/productShared'
+import { useProductionProducts } from '../../queries/productQueries'
 import { useUsers } from '../../queries/userQueries'
-import type { ProductionJob } from '../../services/jobService'
+import type { ProductionProduct } from '../../services/productService'
 import type { UserRow } from '../../services/userService'
 import { StatusBadge } from '../StatusBadge'
 import { DueDate } from '../DueDate'
@@ -22,37 +22,37 @@ import { TEST_IDS } from '@e2e/support/testIds'
 const IDS = TEST_IDS.production.sidebar
 
 /**
- * The production feed: every job in pre-press or production across all
+ * The production feed: every product in pre-press or production across all
  * orders, high priority first, then soonest effective deadline, narrowed to one assignee through
- * the same combobox the job header uses. Everyone starts on their own jobs.
- * Selecting a row shows the job beside the feed.
+ * the same combobox the product header uses. Everyone starts on their own products.
+ * Selecting a row shows the product beside the feed.
  */
 export function ProductionSidebar({ currentUserId }: { currentUserId: string }) {
-  const { activeJobId, selectJob } = useNavigation()
+  const { activeProductId, selectProduct } = useNavigation()
   const { data: users = [] } = useUsers()
-  const jobsQuery = useProductionJobs()
+  const productsQuery = useProductionProducts()
   const { showError } = useToast()
 
   // The signed-in user is the default; a pick overrides it for this visit.
   // `null` = everyone.
   const [assigneeId, setAssigneeId] = useState<string | null>(currentUserId)
-  const { newJobIds, clearNew } = useNewJobMarks(jobsQuery.data, assigneeId)
+  const { newProductIds, clearNew } = useNewProductMarks(productsQuery.data, assigneeId)
 
   useEffect(() => {
-    if (jobsQuery.isError) showError('Production jobs could not be loaded')
-  }, [jobsQuery.isError, showError])
+    if (productsQuery.isError) showError('Production products could not be loaded')
+  }, [productsQuery.isError, showError])
 
   const usersById = useMemo(() => new Map(users.map(user => [user.id, user])), [users])
   const assignee = assigneeId ? usersById.get(assigneeId) ?? null : null
 
-  const jobs = useMemo(() => {
-    const all = jobsQuery.data ?? []
-    return assigneeId ? all.filter(job => job.assignee_id === assigneeId) : all
-  }, [jobsQuery.data, assigneeId])
+  const products = useMemo(() => {
+    const all = productsQuery.data ?? []
+    return assigneeId ? all.filter(product => product.assignee_id === assigneeId) : all
+  }, [productsQuery.data, assigneeId])
 
-  const isLoading = jobsQuery.isLoading
-  const isEmpty = !isLoading && jobs.length === 0
-  const hasHighPriority = jobs.some(isHighPriority)
+  const isLoading = productsQuery.isLoading
+  const isEmpty = !isLoading && products.length === 0
+  const hasHighPriority = products.some(isHighPriority)
 
   return (
     <Sidebar
@@ -78,10 +78,10 @@ export function ProductionSidebar({ currentUserId }: { currentUserId: string }) 
           className="text-[11px] leading-snug text-neutral-500"
         >
           {assignee
-            ? `Showing jobs assigned to ${assignee.name}.`
+            ? `Showing products assigned to ${assignee.name}.`
             : assigneeId
-              ? 'Showing jobs assigned to a deleted user.'
-              : 'Showing all jobs in pre-press and production.'}
+              ? 'Showing products assigned to a deleted user.'
+              : 'Showing all products in pre-press and production.'}
         </p>
       </SidebarHeader>
 
@@ -90,7 +90,7 @@ export function ProductionSidebar({ currentUserId }: { currentUserId: string }) 
           data-testid={IDS.list}
           className={cn(
             'min-h-0 flex-1 overflow-y-auto transition-opacity duration-150',
-            jobsQuery.isFetching && !jobsQuery.isLoading ? 'opacity-50' : 'opacity-100',
+            productsQuery.isFetching && !productsQuery.isLoading ? 'opacity-50' : 'opacity-100',
           )}
         >
           {isLoading && <div className="p-4 text-[13px] text-neutral-500">Loading...</div>}
@@ -100,27 +100,28 @@ export function ProductionSidebar({ currentUserId }: { currentUserId: string }) 
               className="flex h-full items-center justify-center p-6 text-center text-sm text-neutral-500"
             >
               {assigneeId
-                ? 'No jobs in pre-press or production for this user.'
-                : 'No jobs in pre-press or production.'}
+                ? 'No products in pre-press or production for this user.'
+                : 'No products in pre-press or production.'}
             </div>
           )}
           {!isLoading &&
-            jobs.map((job, index) => {
+            products.map((product, index) => {
               // The feed lists high priority first; label both groups, but
               // only when there is a high-priority group to set apart.
-              const isHigh = isHighPriority(job)
-              const startsGroup = hasHighPriority && (index === 0 || isHighPriority(jobs[index - 1]) !== isHigh)
+              const isHigh = isHighPriority(product)
+              const startsGroup =
+                hasHighPriority && (index === 0 || isHighPriority(products[index - 1]) !== isHigh)
               return (
-                <Fragment key={job.id}>
+                <Fragment key={product.id}>
                   {startsGroup && <PriorityGroupHeader high={isHigh} />}
                   <ProductionSidebarItem
-                    job={job}
-                    assignee={job.assignee_id ? usersById.get(job.assignee_id) ?? null : null}
-                    isActive={job.id === activeJobId}
-                    isNew={newJobIds.has(job.id)}
+                    product={product}
+                    assignee={product.assignee_id ? usersById.get(product.assignee_id) ?? null : null}
+                    isActive={product.id === activeProductId}
+                    isNew={newProductIds.has(product.id)}
                     onSelect={() => {
-                      clearNew(job.id)
-                      selectJob(job.order_id, job.id)
+                      clearNew(product.id)
+                      selectProduct(product.order_id, product.id)
                     }}
                   />
                 </Fragment>
@@ -133,43 +134,46 @@ export function ProductionSidebar({ currentUserId }: { currentUserId: string }) 
 }
 
 /**
- * Jobs that a data update adds to the visible list while the page is open
- * stay marked as new until clicked or the page unmounts: a job entering the
+ * Products that a data update adds to the visible list while the page is open
+ * stay marked as new until clicked or the page unmounts: a product entering the
  * feed, or one reassigned to the filtered user. The first load and filter
- * changes never mark anything. A job that leaves and comes back counts as
+ * changes never mark anything. A product that leaves and comes back counts as
  * new again.
  */
-function useNewJobMarks(jobs: ProductionJob[] | undefined, assigneeId: string | null) {
-  const [previousJobs, setPreviousJobs] = useState(jobs)
-  const [newJobIds, setNewJobIds] = useState<ReadonlySet<string>>(() => new Set())
+function useNewProductMarks(products: ProductionProduct[] | undefined, assigneeId: string | null) {
+  const [previousProducts, setPreviousProducts] = useState(products)
+  const [newProductIds, setNewProductIds] = useState<ReadonlySet<string>>(() => new Set())
 
   // Compare against the previous fetch during render (React's "adjust state
   // on prop change" pattern), so a new row is marked in its first paint.
   // Both fetches go through the current filter, so only the data can differ.
-  if (jobs !== previousJobs) {
-    setPreviousJobs(jobs)
-    if (previousJobs && jobs) {
-      const isVisible = (job: ProductionJob) => !assigneeId || job.assignee_id === assigneeId
-      const before = new Set(previousJobs.filter(isVisible).map(job => job.id))
-      const arrived = jobs.filter(job => isVisible(job) && !before.has(job.id)).map(job => job.id)
-      if (arrived.length > 0) setNewJobIds(marked => new Set([...marked, ...arrived]))
+  if (products !== previousProducts) {
+    setPreviousProducts(products)
+    if (previousProducts && products) {
+      const isVisible = (product: ProductionProduct) =>
+        !assigneeId || product.assignee_id === assigneeId
+      const before = new Set(previousProducts.filter(isVisible).map(product => product.id))
+      const arrived = products
+        .filter(product => isVisible(product) && !before.has(product.id))
+        .map(product => product.id)
+      if (arrived.length > 0) setNewProductIds(marked => new Set([...marked, ...arrived]))
     }
   }
 
-  const clearNew = useCallback((jobId: string) => {
-    setNewJobIds(marked => {
-      if (!marked.has(jobId)) return marked
+  const clearNew = useCallback((productId: string) => {
+    setNewProductIds(marked => {
+      if (!marked.has(productId)) return marked
       const next = new Set(marked)
-      next.delete(jobId)
+      next.delete(productId)
       return next
     })
   }, [])
 
-  return { newJobIds, clearNew }
+  return { newProductIds, clearNew }
 }
 
-function isHighPriority(job: ProductionJob): boolean {
-  return resolveEffectiveJob(job, job.orders).priority === 'HIGH'
+function isHighPriority(product: ProductionProduct): boolean {
+  return resolveEffectiveProduct(product, product.orders).priority === 'HIGH'
 }
 
 /** Labelled divider above each priority group of the feed. */
@@ -183,35 +187,35 @@ function PriorityGroupHeader({ high }: { high: boolean }) {
         high ? 'border-red-200 bg-red-50 text-red-400' : 'border-neutral-200 bg-neutral-100 text-neutral-500',
       )}
     >
-      {high ? 'High Priority' : 'Jobs'}
+      {high ? 'High Priority' : 'Products'}
       {high && <ArrowUp size={18} aria-hidden />}
     </div>
   )
 }
 
 type ProductionSidebarItemProps = {
-  job: ProductionJob
+  product: ProductionProduct
   assignee: UserRow | null
   isActive: boolean
   isNew: boolean
   onSelect: () => void
 }
 
-function ProductionSidebarItem({ job, assignee, isActive, isNew, onSelect }: ProductionSidebarItemProps) {
-  const effective = resolveEffectiveJob(job, job.orders)
-  const { icon: DepartmentIcon, colorClassName } = departmentIcon(job.department)
-  const label = departmentLabel(job.department)
-  const customerName = job.orders.customers?.name ?? '-'
+function ProductionSidebarItem({ product, assignee, isActive, isNew, onSelect }: ProductionSidebarItemProps) {
+  const effective = resolveEffectiveProduct(product, product.orders)
+  const { icon: DepartmentIcon, colorClassName } = departmentIcon(product.department)
+  const label = departmentLabel(product.department)
+  const customerName = product.orders.customers?.name ?? '-'
 
   return (
     <div
       role="button"
       tabIndex={0}
       data-testid={IDS.row}
-      data-job-id={job.id}
-      data-order-id={job.order_id}
-      data-status={job.status}
-      data-department={job.department}
+      data-product-id={product.id}
+      data-order-id={product.order_id}
+      data-status={product.status}
+      data-department={product.department}
       data-new={isNew ? 'true' : undefined}
       aria-current={isActive ? 'true' : undefined}
       onClick={onSelect}
@@ -253,26 +257,26 @@ function ProductionSidebarItem({ job, assignee, isActive, isNew, onSelect }: Pro
                 New
               </span>
             )}
-            {isMissingInfo(job, job.orders, (job.department_products[0]?.count ?? 0) > 0) && (
+            {isMissingInfo(product, product.orders) && (
               <MissingInfoFlag size={20} testId={IDS.rowMissingInfo} />
             )}
-            {isDeadlineMissed(job, job.orders) && (
+            {isDeadlineMissed(product, product.orders) && (
               <DeadlineMissedFlag size={20} testId={IDS.rowDeadlineMissed} />
             )}
             {effective.priority === 'HIGH' && <HighPriorityFlag size={20} animate />}
           </div>
           <span
-            data-testid={IDS.rowJobNumber}
+            data-testid={IDS.rowProductNumber}
             className="truncate text-[15px] text-neutral-500"
           >
-            {job.job_number}
+            {product.product_number}
           </span>
         </div>
         <div className="flex items-center justify-between gap-1.5">
           <DueDate deadline={effective.deadline} testId={IDS.rowDeadline} />
           <span className="flex shrink-0 items-center gap-1.5">
-            <span data-testid={IDS.rowStatus} data-status={job.status}>
-              <StatusBadge meta={JOB_STATUS_META[job.status]} />
+            <span data-testid={IDS.rowStatus} data-status={product.status}>
+              <StatusBadge meta={PRODUCT_STATUS_META[product.status]} />
             </span>
             <span
               data-testid={IDS.rowAssignee}
