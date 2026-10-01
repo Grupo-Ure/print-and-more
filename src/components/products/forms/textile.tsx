@@ -36,47 +36,19 @@ import { Button } from '../../ui/button'
 import { Input } from '../../ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select'
 import { SectionHeader } from '../../ui/section-title'
-import { FormActions, type Option } from './fields'
+import {
+  TEXTILE_APPLICATION_SIZE_OPTIONS,
+  TEXTILE_FONT_CLASS_OPTIONS,
+  TEXTILE_GARMENT_TYPE_OPTIONS,
+  TEXTILE_ORIGIN_OPTIONS,
+  TEXTILE_PLACEMENT_OPTIONS,
+} from '../../../lib/textileOptions'
+import { FormActions } from './fields'
 import { ProductViewContext } from './viewContext'
 import type { FormValues, ProductFormProps } from './shared'
 import { TEST_IDS } from '@e2e/support/testIds'
 
 const IDS = TEST_IDS.orders.productDetail.basicInfo.textile
-
-const ORIGIN_OPTIONS: Option[] = [
-  { value: 'SHOP_SUPPLIED', label: 'Shop-supplied' },
-  { value: 'CUSTOMER_SUPPLIED', label: 'Customer-supplied' },
-]
-const GARMENT_TYPE_OPTIONS: Option[] = [
-  { value: 'T_SHIRT', label: 'T-Shirt' },
-  { value: 'POLO', label: 'Polo' },
-  { value: 'SWEATSHIRT', label: 'Sweatshirt' },
-  { value: 'HOODIE', label: 'Hoodie' },
-  { value: 'ZIP_HOODIE', label: 'Zip Hoodie' },
-  { value: 'JACKET', label: 'Jacket' },
-  { value: 'OTHER', label: 'Other' },
-]
-const PLACEMENT_OPTIONS: Option[] = [
-  { value: 'CHEST_LEFT', label: 'Chest left' },
-  { value: 'CHEST_CENTRE', label: 'Chest centre' },
-  { value: 'CHEST_RIGHT', label: 'Chest right' },
-  { value: 'BACK', label: 'Back' },
-  { value: 'SLEEVE_LEFT', label: 'Sleeve left' },
-  { value: 'SLEEVE_RIGHT', label: 'Sleeve right' },
-  { value: 'OTHER', label: 'Other' },
-]
-const APPLICATION_SIZE_OPTIONS: Option[] = [
-  { value: 'SMALL', label: 'Small' },
-  { value: 'MEDIUM', label: 'Medium' },
-  { value: 'LARGE', label: 'Large' },
-  { value: 'CUSTOM', label: 'Custom' },
-]
-const FONT_CLASS_OPTIONS: Option[] = [
-  { value: 'SANS_SERIF', label: 'Sans-serif' },
-  { value: 'SERIF', label: 'Serif' },
-  { value: 'ELEGANT', label: 'Elegant' },
-  { value: 'PLAYFUL', label: 'Playful' },
-]
 
 // --- Drafts -----------------------------------------------------------------
 
@@ -451,7 +423,7 @@ function FreeTextGarmentRow({
         <Select value={row.origin} onValueChange={origin => onChange({ origin })}>
           <SelectTrigger size="sm" className="w-44"><SelectValue /></SelectTrigger>
           <SelectContent>
-            {ORIGIN_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+            {TEXTILE_ORIGIN_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
           </SelectContent>
         </Select>
 
@@ -459,7 +431,7 @@ function FreeTextGarmentRow({
           <Select value={row.garment_type || undefined} onValueChange={garment_type => onChange({ garment_type })}>
             <SelectTrigger size="sm" className="w-40"><SelectValue placeholder="Garment…" /></SelectTrigger>
             <SelectContent>
-              {GARMENT_TYPE_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+              {TEXTILE_GARMENT_TYPE_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
             </SelectContent>
           </Select>
         ) : (
@@ -633,13 +605,13 @@ function DesignsEditor({
               <Select value={design.placement || undefined} onValueChange={placement => patchDesign(design.key, { placement })}>
                 <SelectTrigger size="sm" className="w-36"><SelectValue placeholder="Placement…" /></SelectTrigger>
                 <SelectContent>
-                  {PLACEMENT_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+                  {TEXTILE_PLACEMENT_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={design.size || undefined} onValueChange={size => patchDesign(design.key, { size })}>
                 <SelectTrigger size="sm" className="w-28"><SelectValue placeholder="Size…" /></SelectTrigger>
                 <SelectContent>
-                  {APPLICATION_SIZE_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+                  {TEXTILE_APPLICATION_SIZE_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Input
@@ -656,7 +628,7 @@ function DesignsEditor({
                 <Select value={design.font_class || undefined} onValueChange={font_class => patchDesign(design.key, { font_class })}>
                   <SelectTrigger size="sm" className="w-36"><SelectValue placeholder="Font…" /></SelectTrigger>
                   <SelectContent>
-                    {FONT_CLASS_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+                    {TEXTILE_FONT_CLASS_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <Input className="h-8 w-40" placeholder="Font name (optional)" value={design.font_name} onChange={event => patchDesign(design.key, { font_name: event.target.value })} />
