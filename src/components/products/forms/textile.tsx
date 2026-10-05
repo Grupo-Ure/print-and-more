@@ -34,6 +34,7 @@ import { cn } from '@/lib/utils'
 import { validateProduct } from '../../../lib/products/registry'
 import { textileDesignToRow, textileGarmentToLine } from '../../../lib/products/schemas/textile'
 import { useSaveProduct } from '../../../queries/productQueries'
+import { useRevealFile } from '../../../hooks/useRevealFile'
 import {
   useTextileBrandNames,
   useTextileColors,
@@ -747,17 +748,18 @@ function TextDesignTab({ onAddText, fold }: { onAddText: (content: string) => vo
  */
 function DesignRow({
   design,
-  fileName,
+  file,
   onChange,
   onRemove,
 }: {
   design: DesignDraft
-  /** The order file's display name, or `null` when the file is gone (or the design is text). */
-  fileName: string | null
+  /** The design's order file, or `null` when the file is gone (or the design is text). */
+  file: FileRow | null
   onChange: (patch: Partial<DesignDraft>) => void
   onRemove: () => void
 }) {
   const readOnly = useContext(ProductViewContext)
+  const revealFile = useRevealFile()
   const step = !design.placement ? 'placement' : !design.size ? 'size' : 'done'
 
   return (
@@ -766,12 +768,18 @@ function DesignRow({
         {design.type === 'FILE' ? (
           <div className="flex items-center gap-2 text-sm">
             <FileText className="size-4 shrink-0 text-primary" aria-hidden />
-            <span
-              className={cn('min-w-0 truncate font-medium', fileName == null && 'text-destructive')}
-              title={fileName ?? undefined}
-            >
-              {fileName ?? 'This file is no longer linked to the order'}
-            </span>
+            {file ? (
+              <button
+                type="button"
+                title={`Open in file manager\n${file.path}`}
+                onClick={() => void revealFile(file.path)}
+                className="min-w-0 cursor-pointer truncate rounded-sm text-left font-medium hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+              >
+                {file.display_name}
+              </button>
+            ) : (
+              <span className="min-w-0 truncate font-medium text-destructive">This file is no longer linked to the order</span>
+            )}
           </div>
         ) : (
           <div className="flex flex-wrap gap-2">
@@ -869,7 +877,7 @@ function DesignsEditor({
   for (const design of designs) {
     if (design.type === 'FILE' && design.file_id) usage.set(design.file_id, (usage.get(design.file_id) ?? 0) + 1)
   }
-  const fileNames = new Map(orderFiles.map(file => [file.id, file.display_name]))
+  const filesById = new Map(orderFiles.map(file => [file.id, file]))
 
   return (
     <section data-testid={IDS.designs} className="flex flex-col gap-2">
@@ -878,7 +886,7 @@ function DesignsEditor({
         <DesignRow
           key={design.key}
           design={design}
-          fileName={design.type === 'FILE' ? (fileNames.get(design.file_id) ?? null) : null}
+          file={design.type === 'FILE' ? (filesById.get(design.file_id) ?? null) : null}
           onChange={patch => patchDesign(design.key, patch)}
           onRemove={() => onChange(designs.filter(other => other.key !== design.key))}
         />
