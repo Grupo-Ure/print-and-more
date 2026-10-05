@@ -22,9 +22,11 @@ import {
   SelectValue,
 } from '../../ui/select'
 import type { FileRow } from '../../../services/fileService'
+import { FilePicker } from '../../FilePicker'
 import { TEST_IDS } from '@e2e/support/testIds'
 
 const IDS = TEST_IDS.orders.productDetail.basicInfo
+const FILE_IDS = IDS.files
 
 /** Marks an input for the e2e suite: one shared test ID, the field name as the instance key. */
 const fieldTestAttrs = (field: AnyFieldApi) => ({ 'data-testid': IDS.field, 'data-field': field.name })
@@ -222,38 +224,45 @@ export function DimensionFields({
   )
 }
 
-/** Per-product file assignment: chips for the selected files + a picker to add more. */
-export function FilePickerField({ value, onChange, orderFiles }: { value: string[]; onChange: (next: string[]) => void; orderFiles: FileRow[] }) {
+/**
+ * Per-product file assignment: a chip per attached file over the shared
+ * `FilePicker`. Artwork can be dropped straight onto the picker, so a product
+ * no longer has to wait for the order's Files tab to hold the file first —
+ * dropping links it to the order and attaches it to the product in one go.
+ * In view mode only the chips remain (a dash while there are none).
+ */
+export function FilePickerField({ orderId, value, onChange, orderFiles }: { orderId: string; value: string[]; onChange: (next: string[]) => void; orderFiles: FileRow[] }) {
   const viewing = useContext(ProductViewContext)
-  if (orderFiles.length === 0) return null
-  const available = orderFiles.filter(f => !value.includes(f.id))
+  const attached = new Set(value)
   return (
     <FieldRow label="Files">
-      <div className="flex flex-wrap items-center gap-2">
-        {viewing && value.length === 0 && <span className="text-sm text-muted-foreground">—</span>}
-        {value.map(fid => (
-          <Badge key={fid} variant="secondary" className="gap-1">
-            <span className="max-w-45 truncate">{orderFiles.find(f => f.id === fid)?.display_name ?? fid}</span>
-            {!viewing && (
-              <button type="button" className="cursor-pointer" title="Remove" onClick={() => onChange(value.filter(id => id !== fid))}>
-                ×
-              </button>
-            )}
-          </Badge>
-        ))}
-        {!viewing && available.length > 0 && (
-          <Select key={value.join('|')} value={undefined} onValueChange={fid => onChange([...value, fid])}>
-            <SelectTrigger size="sm" className="w-40">
-              <SelectValue placeholder="Add file…" />
-            </SelectTrigger>
-            <SelectContent>
-              {available.map(f => (
-                <SelectItem key={f.id} value={f.id}>
-                  {f.display_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <div data-testid={FILE_IDS.root} className="flex flex-col gap-2">
+        {(value.length > 0 || viewing) && (
+          <div className="flex flex-wrap items-center gap-2">
+            {viewing && value.length === 0 && <span className="text-sm text-muted-foreground">—</span>}
+            {value.map(fid => (
+              <Badge key={fid} data-testid={FILE_IDS.chip} data-file-id={fid} variant="secondary" className="gap-1">
+                <span className="max-w-45 truncate">{orderFiles.find(f => f.id === fid)?.display_name ?? fid}</span>
+                {!viewing && (
+                  <button type="button" data-testid={FILE_IDS.chipRemove} className="cursor-pointer" title="Remove" onClick={() => onChange(value.filter(id => id !== fid))}>
+                    ×
+                  </button>
+                )}
+              </Badge>
+            ))}
+          </div>
+        )}
+        {!viewing && (
+          <FilePicker
+            orderId={orderId}
+            orderFiles={orderFiles}
+            hasPicks={value.length > 0}
+            collapsedLabel="Attach another file"
+            // A product holds a file once, so an attached one is listed as taken.
+            isFilePicked={file => attached.has(file.id)}
+            fileBadge={file => (attached.has(file.id) ? <Badge variant="outline">Attached</Badge> : null)}
+            onPick={fileIds => onChange([...value, ...fileIds.filter(fid => !attached.has(fid))])}
+          />
         )}
       </div>
     </FieldRow>

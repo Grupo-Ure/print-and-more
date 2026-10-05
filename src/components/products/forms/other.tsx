@@ -62,7 +62,7 @@ export function OtherForm({ orderId, department, orderIsQuote, product, orderFil
                 {field => <QuantityField field={field} label="Quantity (optional)" error={errors.quantity} hint="If relevant, enter quantity here or in the description" />}
               </form.Field>
 
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={orderFiles} />
+              <FilePickerField orderId={orderId} value={fileIds} onChange={setFileIds} orderFiles={orderFiles} />
 
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={saveProduct.isPending} editing={!!product} onCancel={onCancel} />
             </>

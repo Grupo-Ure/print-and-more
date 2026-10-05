@@ -78,7 +78,7 @@ export function StickerForm(p: ProductFormProps) {
               <form.Field name="output">{f => <SelectField field={f} label="Output" options={OUTPUT_OPTS} error={errors.output} />}</form.Field>
               <form.Field name="width">{wf => <form.Field name="height">{hf => <DimensionFields widthField={wf} heightField={hf} formatError={errors.format} />}</form.Field>}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
+              <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
@@ -120,7 +120,7 @@ export function SignUvForm(p: ProductFormProps) {
               )}
               <form.Field name="width">{wf => <form.Field name="height">{hf => <DimensionFields widthField={wf} heightField={hf} formatError={errors.format} />}</form.Field>}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
+              <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
@@ -160,7 +160,7 @@ export function SignFoilForm(p: ProductFormProps) {
               )}
               <form.Field name="width">{wf => <form.Field name="height">{hf => <DimensionFields widthField={wf} heightField={hf} formatError={errors.format} />}</form.Field>}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
+              <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
@@ -191,7 +191,7 @@ export function FoilPlotterForm(p: ProductFormProps) {
               <form.Field name="output">{f => <SelectField field={f} label="Output" options={OUTPUT_OPTS} error={errors.output} />}</form.Field>
               <form.Field name="width">{wf => <form.Field name="height">{hf => <DimensionFields widthField={wf} heightField={hf} formatError={errors.format} />}</form.Field>}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
+              <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
@@ -243,7 +243,7 @@ export function BannerForm(p: ProductFormProps) {
                 <form.Field name="eyelet_detail">{f => <TextField field={f} label="Eyelet detail" error={errors.eyelet_detail} />}</form.Field>
               )}
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
+              <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
@@ -274,7 +274,7 @@ export function RollupForm(p: ProductFormProps) {
               <form.Field name="rollup_system">{f => <SelectField field={f} label="System" options={ROLLUP_SYSTEM_OPTS} error={errors.rollup_system} />}</form.Field>
               <form.Field name="rollup_width">{f => <SelectField field={f} label="Width" options={ROLLUP_WIDTH_OPTS} error={errors.rollup_width} />}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
+              <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
@@ -314,7 +314,7 @@ export function VehicleLetteringForm(p: ProductFormProps) {
                 </>
               )}
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
+              <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
@@ -343,7 +343,7 @@ export function OtherLfpForm(p: ProductFormProps) {
             <>
               <form.Field name="description">{f => <TextareaField field={f} label="Description" error={errors.description} />}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
+              <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )

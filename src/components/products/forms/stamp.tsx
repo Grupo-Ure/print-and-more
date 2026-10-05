@@ -77,7 +77,7 @@ function ModelStampForm(props: ProductFormProps & { type: 'TRODAT_PRINTY' | 'WOO
               {values.color === 'OTHER' && <form.Field name="color_other">{field => <TextField field={field} label="Colour (other)" error={errors.color_other} />}</form.Field>}
               <form.Field name="description">{field => <TextareaField field={field} label="Description" rows={3} error={errors.description} />}</form.Field>
               <form.Field name="quantity">{field => <QuantityField field={field} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={props.orderFiles} />
+              <FilePickerField orderId={props.orderId} value={fileIds} onChange={setFileIds} orderFiles={props.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!props.product} onCancel={props.onCancel} />
             </>
           )
@@ -112,7 +112,7 @@ function ClassicStampForm(props: ProductFormProps & { type: 'STAND_STAMP' | 'DAT
               {values.color === 'OTHER' && <form.Field name="color_other">{field => <TextField field={field} label="Colour (other)" error={errors.color_other} />}</form.Field>}
               <form.Field name="description">{field => <TextareaField field={field} label="Description" rows={3} error={errors.description} />}</form.Field>
               <form.Field name="quantity">{field => <QuantityField field={field} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={props.orderFiles} />
+              <FilePickerField orderId={props.orderId} value={fileIds} onChange={setFileIds} orderFiles={props.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!props.product} onCancel={props.onCancel} />
             </>
           )
@@ -145,7 +145,7 @@ export function StampPlateForm(props: ProductFormProps) {
             <>
               <form.Field name="width">{widthField => <form.Field name="height">{heightField => <DimensionFields widthField={widthField} heightField={heightField} formatError={errors.format ?? errors.width ?? errors.height} />}</form.Field>}</form.Field>
               <form.Field name="quantity">{field => <QuantityField field={field} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={props.orderFiles} />
+              <FilePickerField orderId={props.orderId} value={fileIds} onChange={setFileIds} orderFiles={props.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!props.product} onCancel={props.onCancel} />
             </>
           )
@@ -175,7 +175,7 @@ export function RefillInkForm(props: ProductFormProps) {
               <form.Field name="color">{field => <SelectField field={field} label="Colour" options={REFILL_COLOR_OPTIONS} error={errors.color} />}</form.Field>
               <form.Field name="ink_type">{field => <SelectField field={field} label="Ink type" options={INK_TYPE_OPTIONS} error={errors.ink_type} />}</form.Field>
               <form.Field name="quantity">{field => <QuantityField field={field} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={props.orderFiles} />
+              <FilePickerField orderId={props.orderId} value={fileIds} onChange={setFileIds} orderFiles={props.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!props.product} onCancel={props.onCancel} />
             </>
           )
@@ -201,7 +201,7 @@ export function InkPadForm(props: ProductFormProps) {
               <form.Field name="pad_size">{field => <SelectField field={field} label="Pad size" options={PAD_SIZE_OPTIONS} error={errors.pad_size} />}</form.Field>
               <form.Field name="color">{field => <SelectField field={field} label="Colour" options={REFILL_COLOR_OPTIONS} error={errors.color} />}</form.Field>
               <form.Field name="quantity">{field => <QuantityField field={field} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={props.orderFiles} />
+              <FilePickerField orderId={props.orderId} value={fileIds} onChange={setFileIds} orderFiles={props.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!props.product} onCancel={props.onCancel} />
             </>
           )
@@ -232,7 +232,7 @@ export function TrodatPadForm(props: ProductFormProps) {
               <form.Field name="pad_variant_id">{field => <CushionVariantSelect field={field} articleNumber={String(values.pad_article_number ?? '')} error={errors.pad_variant_id} />}</form.Field>
               <form.Field name="color">{field => <SelectField field={field} label="Colour" options={REFILL_COLOR_OPTIONS} error={errors.color} />}</form.Field>
               <form.Field name="quantity">{field => <QuantityField field={field} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={props.orderFiles} />
+              <FilePickerField orderId={props.orderId} value={fileIds} onChange={setFileIds} orderFiles={props.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!props.product} onCancel={props.onCancel} />
             </>
           )

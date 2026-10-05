@@ -46,7 +46,7 @@ function SignLikeForm(p: ProductFormProps & { type: string; toChild: (v: FormVal
               )}
               <form.Field name="motif">{f => <TextField field={f} label="Motif" error={errors.motif} />}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
+              <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
@@ -81,7 +81,7 @@ export function GiftItemForm(p: ProductFormProps) {
               <form.Field name="origin">{f => <SelectField field={f} label="Origin" options={ORIGIN_OPTIONS} error={errors.origin} />}</form.Field>
               <form.Field name="motif">{f => <TextField field={f} label="Motif" error={errors.motif} />}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
+              <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
@@ -113,7 +113,7 @@ export function OtherLaserForm(p: ProductFormProps) {
               <form.Field name="origin">{f => <SelectField field={f} label="Origin" options={ORIGIN_OPTIONS} error={errors.origin} />}</form.Field>
               <form.Field name="motif">{f => <TextField field={f} label="Motif" error={errors.motif} />}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
+              <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
