@@ -55,5 +55,5 @@ jobs:
             not comment on the PR.
           claude_args: >-
             --model claude-sonnet-5
-            --max-turns 30
+            --max-turns 40
             --allowedTools "Read,Grep,Glob,Write,Bash(git:*),Bash(head:*),Bash(gh pr view:*),Bash(gh pr edit:*)"
