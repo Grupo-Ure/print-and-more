@@ -9,6 +9,7 @@ import {
 import { reorderQuantity } from '../components/stock/stockShared'
 import { availableStock } from '../components/textileStock/textileStockShared'
 import type { Database } from '../types/supabase'
+import { textileCatalogKeys } from './textileCatalogQueries'
 
 type BrandUpdate = Database['public']['Tables']['textile_brands']['Update']
 type ModelInsert = Database['public']['Tables']['textile_models']['Insert']
@@ -103,7 +104,12 @@ export function useTextileReorderList(enabled = true) {
 
 function useInvalidateTextileStock() {
   const queryClient = useQueryClient()
-  return () => void queryClient.invalidateQueries({ queryKey: textileStockKeys.all })
+  // The batch editor reads the same brands, models and variants through its
+  // own catalog queries, so a master-data edit refreshes those lists too.
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: textileStockKeys.all })
+    void queryClient.invalidateQueries({ queryKey: textileCatalogKeys.all })
+  }
 }
 
 export function useUpdateTextileBrand() {

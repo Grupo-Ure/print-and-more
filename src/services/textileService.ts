@@ -54,6 +54,11 @@ class TextileService {
     return (data ?? []) as { id: string; name: string; article_number: string | null }[]
   }
 
+  /**
+   * The colours a model is carried in, one option per colour. A variant row is
+   * one colour × size, so the query returns a colour once per size; the rows
+   * are collapsed here, keeping the first swatch a colour carries.
+   */
   async getVariantColorsByModel(modelId: string): Promise<ColorOption[]> {
     const { data, error } = await supabase
       .from('textile_variants')
@@ -62,7 +67,13 @@ class TextileService {
       .eq('is_active', true)
       .order('color')
     if (error) throw error
-    return (data ?? []) as ColorOption[]
+    const byColor = new Map<string, ColorOption>()
+    for (const row of (data ?? []) as ColorOption[]) {
+      const seen = byColor.get(row.color)
+      if (!seen) byColor.set(row.color, row)
+      else if (seen.color_hex == null && row.color_hex != null) seen.color_hex = row.color_hex
+    }
+    return [...byColor.values()]
   }
 
   /**
