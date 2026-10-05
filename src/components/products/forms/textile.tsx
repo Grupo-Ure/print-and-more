@@ -17,18 +17,19 @@
  * - **Designs** (`textile_designs`): one row per design applied to the whole
  *   batch — an order file or typed-out text, plus placement, size and print
  *   method. Declared once ("logo, chest left, large") and valid for every line.
- *   Designs arrive through the picker above the rows, one tab per source:
- *   drop files (or click to browse) to link them to the order and apply them
- *   in one go, apply a file the order already has, or type a text. Placement
- *   and size are then picked one step at a time, like the garments.
+ *   Designs arrive through the shared `FilePicker` above the rows — drop files
+ *   (or click to browse) to link them to the order and apply them in one go,
+ *   or apply a file the order already has — plus the editor's own *Text* tab
+ *   for a typed-out design. Placement and size are then picked one step at a
+ *   time, like the garments.
  *
  * Both drafts are local state, folded into the values handed to
  * `validateProduct` and to the textile arm of `ProductWriteInput`, which the
  * product write replaces wholesale.
  */
 
-import { useContext, useEffect, useRef, useState, type DragEvent } from 'react'
-import { ChevronRight, FileText, Plus, Trash2, Upload } from 'lucide-react'
+import { useContext, useEffect, useRef, useState } from 'react'
+import { ChevronRight, FileText, Plus, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { validateProduct } from '../../../lib/products/registry'
 import { textileDesignToRow, textileGarmentToLine } from '../../../lib/products/schemas/textile'
@@ -42,14 +43,13 @@ import {
 import { textileService } from '../../../services/textileService'
 import type { FileRow } from '../../../services/fileService'
 import type { ProductWriteInput, TextileDesignRow, TextileGarmentLineRow } from '../../../types/product'
-import { useFileLinking } from '../../../hooks/useFileLinking'
+import { FilePicker } from '../../FilePicker'
 import { useToast } from '../../Toast'
 import { Badge } from '../../ui/badge'
 import { Button } from '../../ui/button'
 import { Input } from '../../ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select'
 import { SectionHeader } from '../../ui/section-title'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs'
 import {
   TEXTILE_APPLICATION_SIZE_OPTIONS,
   TEXTILE_FONT_CLASS_OPTIONS,
@@ -698,179 +698,45 @@ function GarmentsEditor({
 // --- Designs ----------------------------------------------------------------
 
 /**
- * Where a design comes from: three full-width tabs over one bordered box the
- * size of a design row. *Add artwork* is a drop zone — drop files on it, or
- * click it to browse — and every file is linked to the order (the files belong
- * to the order, as on the Files tab) and applied as a design in one go. *Order
- * files* lists the files the order already has, each a click away from being
- * applied (again — a design may take several placements). *Text* takes the
- * wording of a text design.
- *
- * Open while the batch has no design, so the first one can be added straight
- * away; once it has one, the box folds into a full-width *Add another design*
- * button and opens again on click, folding back after each add. Hidden in
- * view mode, where nothing can be added.
+ * The *Text* tab of the design picker — the one design source that is not a
+ * file, so it is the batch editor's own tab rather than part of the shared
+ * picker. `fold` collapses the picker again, as applying a file does.
  */
-function DesignPicker({
-  orderId,
-  orderFiles,
-  usage,
-  hasDesigns,
-  onApplyFiles,
-  onAddText,
-}: {
-  orderId: string
-  orderFiles: FileRow[]
-  /** How many designs each order file is applied as, by file id. */
-  usage: ReadonlyMap<string, number>
-  hasDesigns: boolean
-  onApplyFiles: (fileIds: string[]) => void
-  onAddText: (content: string) => void
-}) {
-  const readOnly = useContext(ProductViewContext)
-  const { pickAndLink, linkDropped } = useFileLinking(orderId)
-  const [expanded, setExpanded] = useState(false)
-  const [isDragging, setIsDragging] = useState(false)
+function TextDesignTab({ onAddText, fold }: { onAddText: (content: string) => void; fold: () => void }) {
   const [text, setText] = useState('')
 
-  if (readOnly) return null
-
-  if (hasDesigns && !expanded) {
-    return (
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full"
-        data-testid={IDS.pickerExpand}
-        onClick={() => setExpanded(true)}
-      >
-        <Plus /> Add another design
-      </Button>
-    )
-  }
-
-  const applyLinked = (added: FileRow[]) => {
-    if (added.length === 0) return
-    onApplyFiles(added.map(file => file.id))
-    setExpanded(false)
-  }
-  const handleDrop = async (event: DragEvent<HTMLElement>) => {
-    event.preventDefault()
-    setIsDragging(false)
-    applyLinked(await linkDropped(event))
-  }
   const addText = () => {
     const content = text.trim()
     if (content === '') return
     onAddText(content)
     setText('')
-    setExpanded(false)
+    fold()
   }
 
   return (
-    <Tabs defaultValue="drop" data-testid={IDS.picker} className="gap-0 overflow-hidden rounded-md border">
-      <TabsList className="w-full rounded-none border-b">
-        <TabsTrigger value="drop" data-testid={IDS.pickerDropTab} className="text-sm">
-          Add artwork
-        </TabsTrigger>
-        <TabsTrigger value="files" data-testid={IDS.pickerFilesTab} className="text-sm">
-          Order files{orderFiles.length > 0 ? ` (${orderFiles.length})` : ''}
-        </TabsTrigger>
-        <TabsTrigger value="text" data-testid={IDS.pickerTextTab} className="text-sm">
-          Text
-        </TabsTrigger>
-      </TabsList>
-      <TabsContent value="drop">
-        <button
-          type="button"
-          data-testid={IDS.pickerDropZone}
-          title="Click to browse, or drop files here"
-          onClick={() => void pickAndLink().then(applyLinked)}
-          onDragEnter={event => {
+    <div className="flex min-h-28 flex-col justify-center gap-2 px-4 py-3">
+      <p className="text-xs font-medium text-muted-foreground">What should it say?</p>
+      <div className="flex gap-2">
+        <Input
+          className="h-8 flex-1"
+          placeholder="Text"
+          aria-label="Text"
+          data-testid={IDS.pickerText}
+          value={text}
+          onChange={event => setText(event.target.value)}
+          onKeyDown={event => {
+            // Enter adds the design; the form's submit is left alone.
+            if (event.key !== 'Enter') return
             event.preventDefault()
-            setIsDragging(true)
+            addText()
           }}
-          onDragOver={event => {
-            event.preventDefault()
-            event.dataTransfer.dropEffect = 'copy'
-            setIsDragging(true)
-          }}
-          onDragLeave={event => {
-            if (!event.currentTarget.contains(event.relatedTarget as Node)) setIsDragging(false)
-          }}
-          onDrop={event => void handleDrop(event)}
-          className={cn(
-            'flex min-h-28 w-full cursor-pointer flex-col items-center justify-center gap-1 text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset focus-visible:outline-none',
-            isDragging && 'bg-primary/5 text-foreground',
-          )}
-        >
-          <Upload className="size-5" aria-hidden />
-          Drop artwork here or click to browse
-        </button>
-      </TabsContent>
-      <TabsContent value="files">
-        {orderFiles.length === 0 ? (
-          <div className="flex min-h-28 flex-col items-center justify-center gap-1 px-4 text-center text-sm text-muted-foreground">
-            <FileText className="size-5" aria-hidden />
-            <p>No files are linked to this order yet.</p>
-            <p className="text-xs">Drop the artwork on the first tab to link it.</p>
-          </div>
-        ) : (
-          <ul className="min-h-28 divide-y">
-            {orderFiles.map(file => {
-              const applied = usage.get(file.id) ?? 0
-              return (
-                <li key={file.id}>
-                  <button
-                    type="button"
-                    data-testid={IDS.pickerFile}
-                    data-file-id={file.id}
-                    title={`Apply ${file.display_name}`}
-                    onClick={() => {
-                      onApplyFiles([file.id])
-                      setExpanded(false)
-                    }}
-                    className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset focus-visible:outline-none"
-                  >
-                    <FileText className="size-4 shrink-0 text-primary" aria-hidden />
-                    <span className="min-w-0 flex-1 truncate">{file.display_name}</span>
-                    {applied > 0 && (
-                      <Badge variant="secondary">{applied === 1 ? 'Applied once' : `Applied ${applied}×`}</Badge>
-                    )}
-                    <Plus className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </TabsContent>
-      <TabsContent value="text">
-        <div className="flex min-h-28 flex-col justify-center gap-2 px-4 py-3">
-          <p className="text-xs font-medium text-muted-foreground">What should it say?</p>
-          <div className="flex gap-2">
-            <Input
-              className="h-8 flex-1"
-              placeholder="Text"
-              aria-label="Text"
-              data-testid={IDS.pickerText}
-              value={text}
-              onChange={event => setText(event.target.value)}
-              onKeyDown={event => {
-                // Enter adds the design; the form's submit is left alone.
-                if (event.key !== 'Enter') return
-                event.preventDefault()
-                addText()
-              }}
-            />
-            <Button type="button" size="sm" data-testid={IDS.addDesign} disabled={text.trim() === ''} onClick={addText}>
-              <Plus /> Add
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">Colour and font follow on the design once it is added.</p>
-        </div>
-      </TabsContent>
-    </Tabs>
+        />
+        <Button type="button" size="sm" data-testid={IDS.addDesign} disabled={text.trim() === ''} onClick={addText}>
+          <Plus /> Add
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">Colour and font follow on the design once it is added.</p>
+    </div>
   )
 }
 
@@ -995,6 +861,7 @@ function DesignsEditor({
   error?: string
   onChange: (next: DesignDraft[]) => void
 }) {
+  const readOnly = useContext(ProductViewContext)
   const patchDesign = (key: string, patch: Partial<DesignDraft>) =>
     onChange(designs.map(design => (design.key === key ? { ...design, ...patch } : design)))
 
@@ -1016,14 +883,32 @@ function DesignsEditor({
           onRemove={() => onChange(designs.filter(other => other.key !== design.key))}
         />
       ))}
-      <DesignPicker
-        orderId={orderId}
-        orderFiles={orderFiles}
-        usage={usage}
-        hasDesigns={designs.length > 0}
-        onApplyFiles={fileIds => onChange([...designs, ...fileIds.map(file_id => ({ ...emptyDesign('FILE'), file_id }))])}
-        onAddText={content => onChange([...designs, { ...emptyDesign('TEXT'), content }])}
-      />
+      {!readOnly && (
+        <FilePicker
+          orderId={orderId}
+          orderFiles={orderFiles}
+          hasPicks={designs.length > 0}
+          collapsedLabel="Add another design"
+          // A design may take several placements, so an applied file stays
+          // pickable; the badge says how often it is already in.
+          fileBadge={file => {
+            const applied = usage.get(file.id) ?? 0
+            if (applied === 0) return null
+            return <Badge variant="secondary">{applied === 1 ? 'Applied once' : `Applied ${applied}×`}</Badge>
+          }}
+          extraTabs={[
+            {
+              value: 'text',
+              label: 'Text',
+              triggerTestId: IDS.pickerTextTab,
+              render: fold => (
+                <TextDesignTab onAddText={content => onChange([...designs, { ...emptyDesign('TEXT'), content }])} fold={fold} />
+              ),
+            },
+          ]}
+          onPick={fileIds => onChange([...designs, ...fileIds.map(file_id => ({ ...emptyDesign('FILE'), file_id }))])}
+        />
+      )}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </section>
   )
