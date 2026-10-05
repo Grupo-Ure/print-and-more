@@ -405,10 +405,12 @@ a valid spec.
 - **Files** — table `files` (`order_id`, `display_name`, `path`, `role`
   (`PRODUCTION_FILE` | `PREVIEW` | `CUSTOMER_APPROVAL` | `REFERENCE`)).
   Attached at the **order** level via `OrderFiles` on each product's *Files* tab (drop or pick files;
-  the desktop bridge resolves the real path), and also from the textile batch
-  editor's design picker, which links a dropped file and applies it as a
-  design in one go; products link to them through `product_files`; a customer
-  approval is granted against one of them.
+  the desktop bridge resolves the real path), and from the shared
+  [`FilePicker`](src/components/FilePicker.tsx) inside any product form, which
+  links a dropped file to the order and hands it to the product in one go — as
+  an attachment on the other types, as a design on a textile batch; products
+  link to them through `product_files`; a customer approval is granted against
+  one of them.
   UNC-path **linking**, not upload — the files stay on the network share, and
   "open" reveals them through `window.pam.revealPath`.
 - **History** — table `history` (`order_id`, `product_id`, `event_type`
