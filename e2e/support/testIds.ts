@@ -289,19 +289,18 @@ export const TEST_IDS = {
           /** The text tab's add button; artwork is applied through the other two tabs. */
           addDesign: 'product-basic-info-textile-add-design',
           removeDesign: 'product-basic-info-textile-remove-design',
-          /** The design picker below the design rows: a drop zone tab, an order-files tab and a text tab. */
-          picker: 'product-basic-info-textile-picker',
-          /** The full-width *Add another design* button the picker folds into once a design exists. */
-          pickerExpand: 'product-basic-info-textile-picker-expand',
-          pickerDropTab: 'product-basic-info-textile-picker-drop-tab',
-          pickerFilesTab: 'product-basic-info-textile-picker-files-tab',
+          /** The picker's own *Text* tab, the one source that is not a file. */
           pickerTextTab: 'product-basic-info-textile-picker-text-tab',
-          /** Click to browse, or drop files on it; every file linked is applied as a design. */
-          pickerDropZone: 'product-basic-info-textile-picker-drop-zone',
-          /** One per order file on the files tab; `data-file-id`. Clicking applies the file as a design. */
-          pickerFile: 'product-basic-info-textile-picker-file',
           /** The text tab's input; Enter or the add button adds the design. */
           pickerText: 'product-basic-info-textile-picker-text',
+        },
+        /** The Files field of every non-textile form: the picked chips plus the shared picker. */
+        files: {
+          root: 'product-basic-info-files',
+          /** One per picked file; `data-file-id`. */
+          chip: 'product-basic-info-files-chip',
+          /** Unpicks the chip's file. */
+          chipRemove: 'product-basic-info-files-chip-remove',
         },
       },
       settings: {
@@ -406,6 +405,23 @@ export const TEST_IDS = {
       /** `data-user-id` = assignee, or absent while unassigned. */
       rowAssignee: 'production-sidebar-row-assignee',
     },
+  },
+
+  /**
+   * The shared file picker: the textile editor's design picker and the Files
+   * field of every other product form. A host's own tab (textile's *Text*)
+   * carries an ID from that host's group.
+   */
+  filePicker: {
+    root: 'file-picker',
+    /** The full-width button the picker folds into once the host holds a file. */
+    expand: 'file-picker-expand',
+    dropTab: 'file-picker-drop-tab',
+    filesTab: 'file-picker-files-tab',
+    /** Click to browse, or drop files on it; every file linked is picked. */
+    dropZone: 'file-picker-drop-zone',
+    /** One per order file on the files tab; `data-file-id`. Disabled once the host has it. */
+    file: 'file-picker-file',
   },
 
   /** Shared by the stamp and textile stock pages. */
