@@ -5,43 +5,59 @@
  * Two editors in one form, matching the two 1:n children of the batch:
  *
  * - **Garment lines** (`textile_garments`): one UI row per model × colour,
- *   expanded into a *size grid* — one quantity box per size the catalog carries
- *   for that model and colour. The shop thinks in size runs ("10×S 20×M 20×L"),
- *   so one row of boxes replaces what used to be one dialog per size. Each box
- *   with a quantity becomes one garment line; the size option's value *is* the
- *   variant id, so a phantom SKU is structurally impossible. A row can be
- *   switched to free text for garments the catalog doesn't carry (and for
- *   customer-supplied ones) — such a line is not stock-tracked, and the row
- *   says so.
+ *   picked one step at a time — a brand list, then that brand's models, then
+ *   the model's colours — and expanded into a *size grid*: one quantity box
+ *   per size the catalog carries for that model and colour. The shop thinks in
+ *   size runs ("10×S 20×M 20×L"), so one row of boxes replaces what used to be
+ *   one dialog per size. Each box with a quantity becomes one garment line;
+ *   the size option's value *is* the variant id, so a phantom SKU is
+ *   structurally impossible. A row can be switched to free text for garments
+ *   the catalog doesn't carry (and for customer-supplied ones) — such a line
+ *   is not stock-tracked, and the row says so.
  * - **Designs** (`textile_designs`): one row per design applied to the whole
  *   batch — an order file or typed-out text, plus placement, size and print
  *   method. Declared once ("logo, chest left, large") and valid for every line.
+ *   Designs arrive through the picker above the rows, one tab per source:
+ *   drop files (or click to browse) to link them to the order and apply them
+ *   in one go, apply a file the order already has, or type a text. Placement
+ *   and size are then picked one step at a time, like the garments.
  *
  * Both drafts are local state, folded into the values handed to
  * `validateProduct` and to the textile arm of `ProductWriteInput`, which the
  * product write replaces wholesale.
  */
 
-import { useContext, useEffect, useRef, useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { useContext, useEffect, useRef, useState, type DragEvent } from 'react'
+import { ChevronRight, FileText, Plus, Trash2, Upload } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { validateProduct } from '../../../lib/products/registry'
 import { textileDesignToRow, textileGarmentToLine } from '../../../lib/products/schemas/textile'
 import { useSaveProduct } from '../../../queries/productQueries'
-import { textileService, type SizeOption } from '../../../services/textileService'
-import { textileMasterDataService } from '../../../services/textileMasterDataService'
+import {
+  useTextileBrandNames,
+  useTextileColors,
+  useTextileModelNames,
+  useTextileSizes,
+} from '../../../queries/textileCatalogQueries'
+import { textileService } from '../../../services/textileService'
+import type { FileRow } from '../../../services/fileService'
 import type { ProductWriteInput, TextileDesignRow, TextileGarmentLineRow } from '../../../types/product'
+import { useFileLinking } from '../../../hooks/useFileLinking'
 import { useToast } from '../../Toast'
+import { Badge } from '../../ui/badge'
 import { Button } from '../../ui/button'
 import { Input } from '../../ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select'
 import { SectionHeader } from '../../ui/section-title'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs'
 import {
   TEXTILE_APPLICATION_SIZE_OPTIONS,
   TEXTILE_FONT_CLASS_OPTIONS,
   TEXTILE_GARMENT_TYPE_OPTIONS,
   TEXTILE_ORIGIN_OPTIONS,
   TEXTILE_PLACEMENT_OPTIONS,
+  textileOptionLabel,
+  type TextileOption,
 } from '../../../lib/textileOptions'
 import { FormActions } from './fields'
 import { ProductViewContext } from './viewContext'
@@ -124,9 +140,9 @@ const emptyFreeTextRow = (): GarmentRowDraft => ({
   quantity: '',
 })
 
-const emptyDesign = (): DesignDraft => ({
+const emptyDesign = (type: DesignDraft['type']): DesignDraft => ({
   key: nextKey(),
-  type: 'FILE',
+  type,
   content: '',
   color: '',
   font_class: '',
@@ -263,13 +279,143 @@ function batchTotal(garments: readonly FormValues[]): number {
   }, 0)
 }
 
+// --- Guided steps -----------------------------------------------------------
+
+type StepOption = TextileOption & { colorHex?: string | null }
+
+/** Lists longer than this get a filter box above them. */
+const FILTERABLE_FROM = 8
+
+/**
+ * One step of a guided pick: a question and the options answering it, as one
+ * list — the same list the new-order dialog offers its customers in. The
+ * editors show one step at a time, so the user is asked for the brand, then
+ * the model, then the colour, instead of facing every field at once. `step`
+ * names the step for the e2e suite; `loading` and `failed` are the state of
+ * the list's query, where there is one.
+ */
+function OptionStep({
+  step,
+  title,
+  options,
+  loading = false,
+  failed = false,
+  emptyText = 'Nothing to choose from.',
+  onPick,
+}: {
+  step: string
+  title: string
+  options: StepOption[]
+  loading?: boolean
+  failed?: boolean
+  emptyText?: string
+  onPick: (option: StepOption) => void
+}) {
+  const [filter, setFilter] = useState('')
+  const needle = filter.trim().toLowerCase()
+  const shown = needle === '' ? options : options.filter(option => option.label.toLowerCase().includes(needle))
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <p className="text-xs font-medium text-muted-foreground">{title}</p>
+      {options.length > FILTERABLE_FROM && (
+        <Input
+          type="search"
+          placeholder="Filter…"
+          aria-label={`Filter ${title.toLowerCase()}`}
+          className="h-8"
+          value={filter}
+          onChange={event => setFilter(event.target.value)}
+        />
+      )}
+      <div className="max-h-64 overflow-y-auto rounded-md border">
+        {loading ? (
+          <p className="px-3 py-2 text-xs text-muted-foreground">Loading…</p>
+        ) : failed ? (
+          <p className="px-3 py-2 text-xs text-destructive">The catalog could not be loaded.</p>
+        ) : shown.length === 0 ? (
+          <p className="px-3 py-2 text-xs text-muted-foreground">{options.length === 0 ? emptyText : 'No match'}</p>
+        ) : (
+          shown.map(option => (
+            <button
+              key={option.value}
+              type="button"
+              data-testid={IDS.stepOption}
+              data-step={step}
+              data-value={option.value}
+              onClick={() => onPick(option)}
+              className="flex w-full cursor-pointer items-center gap-2 border-b px-3 py-2 text-left text-sm last:border-b-0 hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset focus-visible:outline-none"
+            >
+              {option.colorHex && <ColorSwatch hex={option.colorHex} />}
+              <span className="min-w-0 flex-1 truncate font-medium">{option.label}</span>
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** A catalog colour's swatch; the hex comes from the data, so it cannot be a token. */
+function ColorSwatch({ hex }: { hex: string }) {
+  return <span aria-hidden className="size-3 shrink-0 rounded-full border border-border" style={{ backgroundColor: hex }} />
+}
+
+/**
+ * A pick already made in a guided step, shown in the trail above the current
+ * step. Clicking it reopens that step; without `onChange` (a read-only form,
+ * or a stored row still resolving its ids) it is a plain badge.
+ */
+function StepPick({
+  step,
+  label,
+  colorHex,
+  onChange,
+}: {
+  step: string
+  label: string
+  colorHex?: string | null
+  onChange?: () => void
+}) {
+  const readOnly = useContext(ProductViewContext)
+  if (readOnly || !onChange) {
+    return (
+      <Badge variant="secondary" data-testid={IDS.stepPick} data-step={step}>
+        {colorHex && <ColorSwatch hex={colorHex} />}
+        {label}
+      </Badge>
+    )
+  }
+  return (
+    <Button
+      type="button"
+      variant="secondary"
+      size="xs"
+      data-testid={IDS.stepPick}
+      data-step={step}
+      title="Change"
+      onClick={onChange}
+    >
+      {colorHex && <ColorSwatch hex={colorHex} />}
+      {label}
+    </Button>
+  )
+}
+
+/** The chevron between two picks of a trail. */
+function PickSeparator() {
+  return <ChevronRight aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+}
+
 // --- Garment rows -----------------------------------------------------------
 
 /**
- * One catalog row: brand → model → colour from the catalog, then a quantity box
- * per size that colour is carried in. A stored row arrives with its model and
- * colour already resolved (see {@link useResolvePrefilledRows}), so the cascade
- * here only ever fetches the lists those selections need.
+ * One catalog row, picked one step at a time: brand → model → colour, each a
+ * list of buttons, then a quantity box per size that colour is carried in.
+ * The picks made so far sit above the current step as a trail; clicking one
+ * reopens that step. A stored row arrives with its labels but without its ids
+ * until {@link useResolvePrefilledRows} has walked them back from the variant,
+ * so it shows its trail and waits for the grid rather than asking for a brand.
  */
 function CatalogGarmentRow({
   row,
@@ -280,128 +426,117 @@ function CatalogGarmentRow({
   shortVariantIds: Set<string>
   onChange: (patch: Partial<GarmentRowDraft & { mode: 'CATALOG' }>) => void
 }) {
-  const [brands, setBrands] = useState<{ id: string; name: string }[]>([])
-  const [models, setModels] = useState<{ id: string; name: string }[]>([])
-  const [colors, setColors] = useState<string[]>([])
-  // The size run is stored under the model+colour it was fetched for, so a
-  // changed selection reads as "no sizes yet" without having to be cleared.
-  const [loadedSizes, setLoadedSizes] = useState<{ key: string; sizes: SizeOption[] }>({
-    key: '',
-    sizes: [],
-  })
-  const sizeRunKey = `${row.modelId}|${row.color}`
-  const sizes = loadedSizes.key === sizeRunKey ? loadedSizes.sizes : []
+  const brands = useTextileBrandNames()
+  const models = useTextileModelNames(row.brandId)
+  const colors = useTextileColors(row.modelId)
+  const sizes = useTextileSizes(row.modelId, row.color)
 
-  useEffect(() => {
-    let alive = true
-    textileMasterDataService
-      .getBrandNames()
-      .then(rows => { if (alive) setBrands(rows) })
-      .catch(() => {})
-    return () => { alive = false }
-  }, [])
+  const resolving = row.modelId === '' && Object.keys(row.quantities).length > 0
+  const step = resolving
+    ? 'resolving'
+    : !row.brandId
+      ? 'brand'
+      : !row.modelId
+        ? 'model'
+        : !row.color
+          ? 'color'
+          : 'sizes'
+  const colorHex = colors.data?.find(option => option.color === row.color)?.color_hex ?? null
 
-
-  useEffect(() => {
-    if (!row.brandId) return
-    let alive = true
-    textileService
-      .getModelsByBrandId(row.brandId)
-      .then(rows => { if (alive) setModels(rows.map(model => ({ id: model.id, name: model.name }))) })
-      .catch(() => {})
-    return () => { alive = false }
-  }, [row.brandId])
-
-  useEffect(() => {
-    if (!row.modelId) return
-    let alive = true
-    textileService
-      .getVariantColorsByModel(row.modelId)
-      .then(rows => { if (alive) setColors(rows.map(option => option.color)) })
-      .catch(() => {})
-    return () => { alive = false }
-  }, [row.modelId])
-
-  useEffect(() => {
-    if (!row.modelId || !row.color) return
-    let alive = true
-    textileService
-      .getVariantSizesByModelAndColor(row.modelId, row.color)
-      .then(rows => { if (alive) setLoadedSizes({ key: `${row.modelId}|${row.color}`, sizes: rows }) })
-      .catch(() => {})
-    return () => { alive = false }
-  }, [row.modelId, row.color])
-
-  // Changing brand or model invalidates everything downstream, quantities
-  // included — they are keyed by variants that belong to the old model.
-  const handleBrandChange = (brandId: string) =>
-    onChange({
-      brandId,
-      brand: brands.find(brand => brand.id === brandId)?.name ?? '',
-      modelId: '',
-      model: '',
-      color: '',
-      quantities: {},
-    })
-  const handleModelChange = (modelId: string) =>
-    onChange({
-      modelId,
-      model: models.find(model => model.id === modelId)?.name ?? '',
-      color: '',
-      quantities: {},
-    })
-  const handleColorChange = (color: string) => onChange({ color, quantities: {} })
+  // Reopening a step drops everything picked after it, quantities included —
+  // they are keyed by variants that belong to the old model and colour.
+  const reopenBrand = () => onChange({ brandId: '', brand: '', modelId: '', model: '', color: '', quantities: {} })
+  const reopenModel = () => onChange({ modelId: '', model: '', color: '', quantities: {} })
+  const reopenColor = () => onChange({ color: '', quantities: {} })
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap gap-2">
-        <Select value={row.brandId || undefined} onValueChange={handleBrandChange}>
-          <SelectTrigger size="sm" className="w-40"><SelectValue placeholder="Brand…" /></SelectTrigger>
-          <SelectContent>
-            {brands.map(brand => <SelectItem key={brand.id} value={brand.id}>{brand.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={row.modelId || undefined} onValueChange={handleModelChange} disabled={!row.brandId}>
-          <SelectTrigger size="sm" className="w-48"><SelectValue placeholder="Model…" /></SelectTrigger>
-          <SelectContent>
-            {models.map(model => <SelectItem key={model.id} value={model.id}>{model.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={row.color || undefined} onValueChange={handleColorChange} disabled={!row.modelId}>
-          <SelectTrigger size="sm" className="w-36"><SelectValue placeholder="Colour…" /></SelectTrigger>
-          <SelectContent>
-            {colors.map(color => <SelectItem key={color} value={color}>{color}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
+      {row.brand !== '' && (
+        <div className="flex flex-wrap items-center gap-1">
+          <StepPick step="brand" label={row.brand} onChange={resolving ? undefined : reopenBrand} />
+          {row.model !== '' && (
+            <>
+              <PickSeparator />
+              <StepPick step="model" label={row.model} onChange={resolving ? undefined : reopenModel} />
+            </>
+          )}
+          {row.color !== '' && (
+            <>
+              <PickSeparator />
+              <StepPick step="color" label={row.color} colorHex={colorHex} onChange={resolving ? undefined : reopenColor} />
+            </>
+          )}
+        </div>
+      )}
 
-      {row.color !== '' && (
-        sizes.length === 0 ? (
+      {step === 'resolving' && <p className="text-xs text-muted-foreground">Loading sizes…</p>}
+      {step === 'brand' && (
+        <OptionStep
+          step="brand"
+          title="Choose a brand"
+          loading={brands.isPending}
+          failed={brands.isError}
+          emptyText="The catalog has no brands yet."
+          options={(brands.data ?? []).map(brand => ({ value: brand.id, label: brand.name }))}
+          onPick={option => onChange({ brandId: option.value, brand: option.label, modelId: '', model: '', color: '', quantities: {} })}
+        />
+      )}
+      {step === 'model' && (
+        <OptionStep
+          step="model"
+          title={`Choose a ${row.brand} model`}
+          loading={models.isPending}
+          failed={models.isError}
+          emptyText="This brand has no models yet."
+          options={(models.data ?? []).map(model => ({ value: model.id, label: model.name }))}
+          onPick={option => onChange({ modelId: option.value, model: option.label, color: '', quantities: {} })}
+        />
+      )}
+      {step === 'color' && (
+        <OptionStep
+          step="color"
+          title="Choose a colour"
+          loading={colors.isPending}
+          failed={colors.isError}
+          emptyText="This model is not carried in any colour."
+          options={(colors.data ?? []).map(option => ({ value: option.color, label: option.color, colorHex: option.color_hex }))}
+          onPick={option => onChange({ color: option.value, quantities: {} })}
+        />
+      )}
+      {step === 'sizes' && (
+        sizes.isPending ? (
+          <p className="text-xs text-muted-foreground">Loading sizes…</p>
+        ) : sizes.isError ? (
+          <p className="text-xs text-destructive">The sizes could not be loaded.</p>
+        ) : (sizes.data ?? []).length === 0 ? (
           <p className="text-xs text-muted-foreground">This colour is not carried in any size.</p>
         ) : (
           // The size run as one row of boxes: how the shop states a textile order.
-          <div className="flex flex-wrap gap-2">
-            {sizes.map(size => (
-              <label key={size.id} className="flex flex-col items-center gap-0.5">
-                <span className="text-[11px] font-medium text-muted-foreground">{size.size}</span>
-                <Input
-                  data-testid={IDS.sizeQuantity}
-                  data-variant-id={size.id}
-                  inputMode="numeric"
-                  aria-label={`Quantity ${size.size}`}
-                  className={cn('h-8 w-14 text-center', shortVariantIds.has(size.id) && 'border-destructive bg-destructive/10')}
-                  value={row.quantities[size.id]?.quantity ?? ''}
-                  onChange={event =>
-                    onChange({
-                      quantities: {
-                        ...row.quantities,
-                        [size.id]: { size: size.size, quantity: event.target.value },
-                      },
-                    })
-                  }
-                />
-              </label>
-            ))}
+          <div className="flex flex-col gap-1.5">
+            <p className="text-xs font-medium text-muted-foreground">Pieces per size</p>
+            <div className="flex flex-wrap gap-2">
+              {(sizes.data ?? []).map(size => (
+                <label key={size.id} className="flex flex-col items-center gap-0.5">
+                  <span className="text-[11px] font-medium text-muted-foreground">{size.size}</span>
+                  <Input
+                    data-testid={IDS.sizeQuantity}
+                    data-variant-id={size.id}
+                    inputMode="numeric"
+                    aria-label={`Quantity ${size.size}`}
+                    className={cn('h-8 w-14 text-center', shortVariantIds.has(size.id) && 'border-destructive bg-destructive/10')}
+                    value={row.quantities[size.id]?.quantity ?? ''}
+                    onChange={event =>
+                      onChange({
+                        quantities: {
+                          ...row.quantities,
+                          [size.id]: { size: size.size, quantity: event.target.value },
+                        },
+                      })
+                    }
+                  />
+                </label>
+              ))}
+            </div>
           </div>
         )
       )}
@@ -478,6 +613,17 @@ function GarmentsEditor({
   const readOnly = useContext(ProductViewContext)
   const patchRow = (key: string, patch: Partial<GarmentRowDraft>) =>
     onChange(rows.map(row => (row.key === key ? ({ ...row, ...patch } as GarmentRowDraft) : row)))
+  // The editor never stands empty: removing the last row leaves a fresh one,
+  // so the brand list is right there for the next garment.
+  const removeRow = (key: string) => {
+    const remaining = rows.filter(other => other.key !== key)
+    onChange(remaining.length > 0 ? remaining : [emptyCatalogRow()])
+  }
+  // The next garment is offered once every row has its garment identified —
+  // while one is still being picked, that pick is the thing to finish.
+  const canAddAnother = rows.every(
+    row => row.mode === 'FREE_TEXT' || row.color !== '' || Object.keys(row.quantities).length > 0,
+  )
 
   return (
     <section data-testid={IDS.garments} className="flex flex-col gap-2">
@@ -505,7 +651,7 @@ function GarmentsEditor({
                 title="Remove this garment"
                 aria-label="Remove this garment"
                 className="text-muted-foreground hover:text-destructive"
-                onClick={() => onChange(rows.filter(other => other.key !== row.key))}
+                onClick={() => removeRow(row.key)}
               >
                 <Trash2 />
               </Button>
@@ -534,18 +680,16 @@ function GarmentsEditor({
         </div>
       ))}
       {error && <p className="text-xs text-destructive">{error}</p>}
-      {!readOnly && (
-        <div>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            data-testid={IDS.addGarment}
-            onClick={() => onChange([...rows, emptyCatalogRow()])}
-          >
-            + Add garment
-          </Button>
-        </div>
+      {!readOnly && canAddAnother && (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          data-testid={IDS.addGarment}
+          onClick={() => onChange([...rows, emptyCatalogRow()])}
+        >
+          <Plus /> Add another garment
+        </Button>
       )}
     </section>
   )
@@ -554,120 +698,333 @@ function GarmentsEditor({
 // --- Designs ----------------------------------------------------------------
 
 /**
+ * Where a design comes from: three full-width tabs over one bordered box the
+ * size of a design row. *Add artwork* is a drop zone — drop files on it, or
+ * click it to browse — and every file is linked to the order (the files belong
+ * to the order, as on the Files tab) and applied as a design in one go. *Order
+ * files* lists the files the order already has, each a click away from being
+ * applied (again — a design may take several placements). *Text* takes the
+ * wording of a text design.
+ *
+ * Open while the batch has no design, so the first one can be added straight
+ * away; once it has one, the box folds into a full-width *Add another design*
+ * button and opens again on click, folding back after each add. Hidden in
+ * view mode, where nothing can be added.
+ */
+function DesignPicker({
+  orderId,
+  orderFiles,
+  usage,
+  hasDesigns,
+  onApplyFiles,
+  onAddText,
+}: {
+  orderId: string
+  orderFiles: FileRow[]
+  /** How many designs each order file is applied as, by file id. */
+  usage: ReadonlyMap<string, number>
+  hasDesigns: boolean
+  onApplyFiles: (fileIds: string[]) => void
+  onAddText: (content: string) => void
+}) {
+  const readOnly = useContext(ProductViewContext)
+  const { pickAndLink, linkDropped } = useFileLinking(orderId)
+  const [expanded, setExpanded] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
+  const [text, setText] = useState('')
+
+  if (readOnly) return null
+
+  if (hasDesigns && !expanded) {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full"
+        data-testid={IDS.pickerExpand}
+        onClick={() => setExpanded(true)}
+      >
+        <Plus /> Add another design
+      </Button>
+    )
+  }
+
+  const applyLinked = (added: FileRow[]) => {
+    if (added.length === 0) return
+    onApplyFiles(added.map(file => file.id))
+    setExpanded(false)
+  }
+  const handleDrop = async (event: DragEvent<HTMLElement>) => {
+    event.preventDefault()
+    setIsDragging(false)
+    applyLinked(await linkDropped(event))
+  }
+  const addText = () => {
+    const content = text.trim()
+    if (content === '') return
+    onAddText(content)
+    setText('')
+    setExpanded(false)
+  }
+
+  return (
+    <Tabs defaultValue="drop" data-testid={IDS.picker} className="gap-0 overflow-hidden rounded-md border">
+      <TabsList className="w-full rounded-none border-b">
+        <TabsTrigger value="drop" data-testid={IDS.pickerDropTab} className="text-sm">
+          Add artwork
+        </TabsTrigger>
+        <TabsTrigger value="files" data-testid={IDS.pickerFilesTab} className="text-sm">
+          Order files{orderFiles.length > 0 ? ` (${orderFiles.length})` : ''}
+        </TabsTrigger>
+        <TabsTrigger value="text" data-testid={IDS.pickerTextTab} className="text-sm">
+          Text
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="drop">
+        <button
+          type="button"
+          data-testid={IDS.pickerDropZone}
+          title="Click to browse, or drop files here"
+          onClick={() => void pickAndLink().then(applyLinked)}
+          onDragEnter={event => {
+            event.preventDefault()
+            setIsDragging(true)
+          }}
+          onDragOver={event => {
+            event.preventDefault()
+            event.dataTransfer.dropEffect = 'copy'
+            setIsDragging(true)
+          }}
+          onDragLeave={event => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node)) setIsDragging(false)
+          }}
+          onDrop={event => void handleDrop(event)}
+          className={cn(
+            'flex min-h-28 w-full cursor-pointer flex-col items-center justify-center gap-1 text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset focus-visible:outline-none',
+            isDragging && 'bg-primary/5 text-foreground',
+          )}
+        >
+          <Upload className="size-5" aria-hidden />
+          Drop artwork here or click to browse
+        </button>
+      </TabsContent>
+      <TabsContent value="files">
+        {orderFiles.length === 0 ? (
+          <div className="flex min-h-28 flex-col items-center justify-center gap-1 px-4 text-center text-sm text-muted-foreground">
+            <FileText className="size-5" aria-hidden />
+            <p>No files are linked to this order yet.</p>
+            <p className="text-xs">Drop the artwork on the first tab to link it.</p>
+          </div>
+        ) : (
+          <ul className="min-h-28 divide-y">
+            {orderFiles.map(file => {
+              const applied = usage.get(file.id) ?? 0
+              return (
+                <li key={file.id}>
+                  <button
+                    type="button"
+                    data-testid={IDS.pickerFile}
+                    data-file-id={file.id}
+                    title={`Apply ${file.display_name}`}
+                    onClick={() => {
+                      onApplyFiles([file.id])
+                      setExpanded(false)
+                    }}
+                    className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset focus-visible:outline-none"
+                  >
+                    <FileText className="size-4 shrink-0 text-primary" aria-hidden />
+                    <span className="min-w-0 flex-1 truncate">{file.display_name}</span>
+                    {applied > 0 && (
+                      <Badge variant="secondary">{applied === 1 ? 'Applied once' : `Applied ${applied}×`}</Badge>
+                    )}
+                    <Plus className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </TabsContent>
+      <TabsContent value="text">
+        <div className="flex min-h-28 flex-col justify-center gap-2 px-4 py-3">
+          <p className="text-xs font-medium text-muted-foreground">What should it say?</p>
+          <div className="flex gap-2">
+            <Input
+              className="h-8 flex-1"
+              placeholder="Text"
+              aria-label="Text"
+              data-testid={IDS.pickerText}
+              value={text}
+              onChange={event => setText(event.target.value)}
+              onKeyDown={event => {
+                // Enter adds the design; the form's submit is left alone.
+                if (event.key !== 'Enter') return
+                event.preventDefault()
+                addText()
+              }}
+            />
+            <Button type="button" size="sm" data-testid={IDS.addDesign} disabled={text.trim() === ''} onClick={addText}>
+              <Plus /> Add
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">Colour and font follow on the design once it is added.</p>
+        </div>
+      </TabsContent>
+    </Tabs>
+  )
+}
+
+/**
+ * One design, settled one step at a time: its placement, then its application
+ * size, then the optional print method. A file design is named by its order
+ * file; a text design states its text, colour and font above the steps.
+ */
+function DesignRow({
+  design,
+  fileName,
+  onChange,
+  onRemove,
+}: {
+  design: DesignDraft
+  /** The order file's display name, or `null` when the file is gone (or the design is text). */
+  fileName: string | null
+  onChange: (patch: Partial<DesignDraft>) => void
+  onRemove: () => void
+}) {
+  const readOnly = useContext(ProductViewContext)
+  const step = !design.placement ? 'placement' : !design.size ? 'size' : 'done'
+
+  return (
+    <div data-testid={IDS.designRow} data-design-type={design.type} className="flex items-start gap-2 rounded-md border p-2">
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        {design.type === 'FILE' ? (
+          <div className="flex items-center gap-2 text-sm">
+            <FileText className="size-4 shrink-0 text-primary" aria-hidden />
+            <span
+              className={cn('min-w-0 truncate font-medium', fileName == null && 'text-destructive')}
+              title={fileName ?? undefined}
+            >
+              {fileName ?? 'This file is no longer linked to the order'}
+            </span>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <Input className="h-8 w-56" placeholder="Text" aria-label="Text" value={design.content} onChange={event => onChange({ content: event.target.value })} />
+            <Input className="h-8 w-28" placeholder="#FFFFFF" aria-label="Colour" value={design.color} onChange={event => onChange({ color: event.target.value })} />
+            <Select value={design.font_class || undefined} onValueChange={font_class => onChange({ font_class })}>
+              <SelectTrigger size="sm" className="w-36" aria-label="Font"><SelectValue placeholder="Font…" /></SelectTrigger>
+              <SelectContent>
+                {TEXTILE_FONT_CLASS_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Input className="h-8 w-40" placeholder="Font name (optional)" aria-label="Font name" value={design.font_name} onChange={event => onChange({ font_name: event.target.value })} />
+          </div>
+        )}
+
+        {design.placement !== '' && (
+          <div className="flex flex-wrap items-center gap-1">
+            <StepPick
+              step="placement"
+              label={textileOptionLabel(TEXTILE_PLACEMENT_OPTIONS, design.placement)}
+              onChange={() => onChange({ placement: '' })}
+            />
+            {design.size !== '' && (
+              <>
+                <PickSeparator />
+                <StepPick
+                  step="size"
+                  label={textileOptionLabel(TEXTILE_APPLICATION_SIZE_OPTIONS, design.size)}
+                  onChange={() => onChange({ size: '' })}
+                />
+              </>
+            )}
+          </div>
+        )}
+
+        {step === 'placement' && (
+          <OptionStep step="placement" title="Where does it go?" options={TEXTILE_PLACEMENT_OPTIONS} onPick={option => onChange({ placement: option.value })} />
+        )}
+        {step === 'size' && (
+          <OptionStep step="size" title="How large?" options={TEXTILE_APPLICATION_SIZE_OPTIONS} onPick={option => onChange({ size: option.value })} />
+        )}
+        {step === 'done' && (!readOnly || design.print_method !== '') && (
+          <Input
+            className="h-8 w-56"
+            placeholder="Print method (optional)"
+            aria-label="Print method"
+            value={design.print_method}
+            onChange={event => onChange({ print_method: event.target.value })}
+          />
+        )}
+      </div>
+      {!readOnly && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          data-testid={IDS.removeDesign}
+          title="Remove this design"
+          aria-label="Remove this design"
+          className="shrink-0 text-muted-foreground hover:text-destructive"
+          onClick={onRemove}
+        >
+          <Trash2 />
+        </Button>
+      )}
+    </div>
+  )
+}
+
+/**
  * The batch's designs. A design is declared once and holds for every garment
  * line, so there is no per-line application: one row = one design at one
  * placement (which the table's UNIQUE (product_id, placement) enforces).
+ * Every design comes in through the picker below the rows — artwork dropped,
+ * an order file, or a text.
  */
 function DesignsEditor({
+  orderId,
   designs,
   orderFiles,
   error,
   onChange,
 }: {
+  orderId: string
   designs: DesignDraft[]
-  orderFiles: ProductFormProps['orderFiles']
+  orderFiles: FileRow[]
   error?: string
   onChange: (next: DesignDraft[]) => void
 }) {
-  const readOnly = useContext(ProductViewContext)
   const patchDesign = (key: string, patch: Partial<DesignDraft>) =>
     onChange(designs.map(design => (design.key === key ? { ...design, ...patch } : design)))
+
+  const usage = new Map<string, number>()
+  for (const design of designs) {
+    if (design.type === 'FILE' && design.file_id) usage.set(design.file_id, (usage.get(design.file_id) ?? 0) + 1)
+  }
+  const fileNames = new Map(orderFiles.map(file => [file.id, file.display_name]))
 
   return (
     <section data-testid={IDS.designs} className="flex flex-col gap-2">
       <SectionHeader title="Designs" />
-      {designs.length === 0 && (
-        <p className="text-xs text-muted-foreground">No design applied yet.</p>
-      )}
       {designs.map(design => (
-        <div key={design.key} data-testid={IDS.designRow} className="flex items-start gap-2 rounded-md border p-2">
-          <div className="flex flex-1 min-w-0 flex-col gap-2">
-            <div className="flex flex-wrap gap-2">
-              <Select value={design.type} onValueChange={value => patchDesign(design.key, { type: value as DesignDraft['type'] })}>
-                <SelectTrigger size="sm" className="w-36"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="FILE">Artwork file</SelectItem>
-                  <SelectItem value="TEXT">Text</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {design.type === 'FILE' ? (
-                <Select value={design.file_id || undefined} onValueChange={file_id => patchDesign(design.key, { file_id })}>
-                  <SelectTrigger size="sm" className="w-56"><SelectValue placeholder="Pick an order file…" /></SelectTrigger>
-                  <SelectContent>
-                    {orderFiles.map(file => <SelectItem key={file.id} value={file.id}>{file.display_name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input className="h-8 w-56" placeholder="Text" value={design.content} onChange={event => patchDesign(design.key, { content: event.target.value })} />
-              )}
-
-              <Select value={design.placement || undefined} onValueChange={placement => patchDesign(design.key, { placement })}>
-                <SelectTrigger size="sm" className="w-36"><SelectValue placeholder="Placement…" /></SelectTrigger>
-                <SelectContent>
-                  {TEXTILE_PLACEMENT_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={design.size || undefined} onValueChange={size => patchDesign(design.key, { size })}>
-                <SelectTrigger size="sm" className="w-28"><SelectValue placeholder="Size…" /></SelectTrigger>
-                <SelectContent>
-                  {TEXTILE_APPLICATION_SIZE_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Input
-                className="h-8 w-40"
-                placeholder="Print method (optional)"
-                value={design.print_method}
-                onChange={event => patchDesign(design.key, { print_method: event.target.value })}
-              />
-            </div>
-
-            {design.type === 'TEXT' && (
-              <div className="flex flex-wrap gap-2">
-                <Input className="h-8 w-28" placeholder="#FFFFFF" value={design.color} onChange={event => patchDesign(design.key, { color: event.target.value })} />
-                <Select value={design.font_class || undefined} onValueChange={font_class => patchDesign(design.key, { font_class })}>
-                  <SelectTrigger size="sm" className="w-36"><SelectValue placeholder="Font…" /></SelectTrigger>
-                  <SelectContent>
-                    {TEXTILE_FONT_CLASS_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Input className="h-8 w-40" placeholder="Font name (optional)" value={design.font_name} onChange={event => patchDesign(design.key, { font_name: event.target.value })} />
-              </div>
-            )}
-          </div>
-          {!readOnly && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              data-testid={IDS.removeDesign}
-              title="Remove this design"
-              aria-label="Remove this design"
-              className="shrink-0 text-muted-foreground hover:text-destructive"
-              onClick={() => onChange(designs.filter(other => other.key !== design.key))}
-            >
-              <Trash2 />
-            </Button>
-          )}
-        </div>
+        <DesignRow
+          key={design.key}
+          design={design}
+          fileName={design.type === 'FILE' ? (fileNames.get(design.file_id) ?? null) : null}
+          onChange={patch => patchDesign(design.key, patch)}
+          onRemove={() => onChange(designs.filter(other => other.key !== design.key))}
+        />
       ))}
+      <DesignPicker
+        orderId={orderId}
+        orderFiles={orderFiles}
+        usage={usage}
+        hasDesigns={designs.length > 0}
+        onApplyFiles={fileIds => onChange([...designs, ...fileIds.map(file_id => ({ ...emptyDesign('FILE'), file_id }))])}
+        onAddText={content => onChange([...designs, { ...emptyDesign('TEXT'), content }])}
+      />
       {error && <p className="text-xs text-destructive">{error}</p>}
-      {!readOnly && (
-        <div>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            data-testid={IDS.addDesign}
-            onClick={() => onChange([...designs, emptyDesign()])}
-          >
-            + Add design
-          </Button>
-          {orderFiles.length === 0 && (
-            <p className="mt-1 text-xs text-muted-foreground">Link the artwork to the order first (Files tab).</p>
-          )}
-        </div>
-      )}
     </section>
   )
 }
@@ -735,8 +1092,10 @@ export function TextileBatchForm(props: ProductFormProps) {
   const [rows, setRows] = useState<GarmentRowDraft[]>(() =>
     batch ? garmentRowsFromLines(batch.garments) : [emptyCatalogRow()],
   )
+  // A new batch opens with one garment row (the brand list) and no design —
+  // the design picker is the invitation.
   const [designs, setDesigns] = useState<DesignDraft[]>(() =>
-    batch ? designsFromRows(batch.designs) : [emptyDesign()],
+    batch ? designsFromRows(batch.designs) : [],
   )
   useResolvePrefilledRows(rows, setRows)
 
@@ -789,6 +1148,7 @@ export function TextileBatchForm(props: ProductFormProps) {
         onChange={setRows}
       />
       <DesignsEditor
+        orderId={props.orderId}
         designs={designs}
         orderFiles={props.orderFiles}
         error={errors.designs}

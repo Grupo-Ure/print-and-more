@@ -264,22 +264,44 @@ export const TEST_IDS = {
         field: 'product-basic-info-field',
         submit: 'product-basic-info-submit',
         cancel: 'product-basic-info-cancel',
-        /** The textile batch editor's size grid. */
+        /** The textile batch editor: guided garment rows and designs. */
         textile: {
           garments: 'product-basic-info-textile-garments',
           /** One per garment line; the instance is picked by position (the rows carry no stable key). */
           garmentRow: 'product-basic-info-textile-garment-row',
+          /** The full-width *Add another garment* button; absent while a row is still being picked. */
           addGarment: 'product-basic-info-textile-add-garment',
           removeGarment: 'product-basic-info-textile-remove-garment',
           /** One quantity input per size of the row's model/colour; `data-variant-id`. */
           sizeQuantity: 'product-basic-info-textile-size-quantity',
           /** Switches a garment row between the catalog cascade and free text. */
           freeTextToggle: 'product-basic-info-textile-free-text-toggle',
+          /**
+           * One per option of a guided step (brand, model, colour, placement,
+           * size); `data-step` names the step, `data-value` the option.
+           */
+          stepOption: 'product-basic-info-textile-step-option',
+          /** A pick already made in a guided step, in the row's trail; `data-step`. Clicking it reopens the step. */
+          stepPick: 'product-basic-info-textile-step-pick',
           designs: 'product-basic-info-textile-designs',
-          /** One per design; picked by position, like the garment rows. */
+          /** One per design; picked by position, like the garment rows. `data-design-type` = FILE | TEXT. */
           designRow: 'product-basic-info-textile-design-row',
+          /** The text tab's add button; artwork is applied through the other two tabs. */
           addDesign: 'product-basic-info-textile-add-design',
           removeDesign: 'product-basic-info-textile-remove-design',
+          /** The design picker below the design rows: a drop zone tab, an order-files tab and a text tab. */
+          picker: 'product-basic-info-textile-picker',
+          /** The full-width *Add another design* button the picker folds into once a design exists. */
+          pickerExpand: 'product-basic-info-textile-picker-expand',
+          pickerDropTab: 'product-basic-info-textile-picker-drop-tab',
+          pickerFilesTab: 'product-basic-info-textile-picker-files-tab',
+          pickerTextTab: 'product-basic-info-textile-picker-text-tab',
+          /** Click to browse, or drop files on it; every file linked is applied as a design. */
+          pickerDropZone: 'product-basic-info-textile-picker-drop-zone',
+          /** One per order file on the files tab; `data-file-id`. Clicking applies the file as a design. */
+          pickerFile: 'product-basic-info-textile-picker-file',
+          /** The text tab's input; Enter or the add button adds the design. */
+          pickerText: 'product-basic-info-textile-picker-text',
         },
       },
       settings: {
