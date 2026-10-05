@@ -145,8 +145,8 @@ export const TEST_IDS = {
     duplicateDialog: {
       root: 'duplicate-dialog',
       selectAll: 'duplicate-dialog-select-all',
-      /** One per job; `data-job-id`. */
-      job: 'duplicate-dialog-job',
+      /** One per product; `data-product-id`. */
+      product: 'duplicate-dialog-product',
       deadline: 'duplicate-dialog-deadline',
       error: 'duplicate-dialog-error',
       cancel: 'duplicate-dialog-cancel',
@@ -163,8 +163,6 @@ export const TEST_IDS = {
         reopen: 'order-header-reopen',
         /** The single forward lifecycle action; `data-target` = target OrderStatus. */
         lifecycle: 'order-header-lifecycle',
-        files: 'order-header-files',
-        history: 'order-header-history',
         archive: 'order-header-archive',
         cancel: 'order-header-cancel',
         customerName: 'order-header-customer-name',
@@ -187,110 +185,135 @@ export const TEST_IDS = {
         priority: 'order-settings-priority',
         payment: 'order-settings-payment',
       },
-      filesDialog: {
-        root: 'order-files-dialog',
-        addFiles: 'order-files-dialog-add',
-        error: 'order-files-dialog-error',
-        list: 'order-files-dialog-list',
-        /** One per file; `data-file-id`. */
-        item: 'order-files-dialog-item',
-        itemName: 'order-files-dialog-item-name',
-        itemRole: 'order-files-dialog-item-role',
-        itemRemove: 'order-files-dialog-item-remove',
-        itemPath: 'order-files-dialog-item-path',
+      tabs: {
+        products: 'order-tab-products',
+        history: 'order-tab-history',
       },
-      historyDialog: {
-        root: 'order-history-dialog',
-        list: 'order-history-dialog-list',
+      history: {
+        root: 'order-history',
+        list: 'order-history-list',
         /** One per entry; `data-event-type` = history_event. */
-        item: 'order-history-dialog-item',
-        empty: 'order-history-dialog-empty',
+        item: 'order-history-item',
+        empty: 'order-history-empty',
       },
     },
 
-    jobList: {
-      root: 'job-list',
-      /** One per department; `data-department` = Department. */
-      addJob: 'job-list-add-job',
-      list: 'job-list-rows',
-      empty: 'job-list-empty',
-      /** One per job; `data-job-id`, `data-status` = JobStatus. */
-      row: 'job-list-row',
-      rowMissingInfo: 'job-list-row-missing-info',
-      rowHighPriority: 'job-list-row-high-priority',
-      rowDeadlineMissed: 'job-list-row-deadline-missed',
+    productList: {
+      root: 'product-list',
+      /** One per department; `data-department` = Department. Opens the add-product dialog for it. */
+      addProduct: 'product-list-add-product',
+      list: 'product-list-rows',
+      empty: 'product-list-empty',
+      /** One per product; `data-product-id`, `data-status` = ProductStatus. */
+      row: 'product-list-row',
+      rowMissingInfo: 'product-list-row-missing-info',
+      rowHighPriority: 'product-list-row-high-priority',
+      rowDeadlineMissed: 'product-list-row-deadline-missed',
       contextMenu: {
-        advance: 'job-context-menu-advance',
-        delete: 'job-context-menu-delete',
-        cancel: 'job-context-menu-cancel',
+        advance: 'product-context-menu-advance',
+        delete: 'product-context-menu-delete',
+        cancel: 'product-context-menu-cancel',
+      },
+      /** The department → type → form dialog that creates a product. */
+      addDialog: {
+        root: 'add-product-dialog',
+        /** One per product type of the chosen department; `data-type`. */
+        typeOption: 'add-product-dialog-type-option',
+        back: 'add-product-dialog-back',
       },
     },
 
-    jobDetail: {
-      root: 'job-detail',
-      title: 'job-detail-title',
-      assignee: 'job-detail-assignee',
-      assigneeHint: 'job-detail-assignee-hint',
-      /** `data-status` = JobStatus. */
-      status: 'job-detail-status',
-      settingsButton: 'job-detail-settings',
-      timeLogsButton: 'job-detail-time-logs',
-      pdfButton: 'job-detail-pdf',
-      deleteButton: 'job-detail-delete',
-      cancelButton: 'job-detail-cancel',
+    productDetail: {
+      root: 'product-detail',
+      title: 'product-detail-title',
+      assignee: 'product-detail-assignee',
+      assigneeHint: 'product-detail-assignee-hint',
+      /** `data-status` = ProductStatus. */
+      status: 'product-detail-status',
+      pdfButton: 'product-detail-pdf',
+      deleteButton: 'product-detail-delete',
+      cancelButton: 'product-detail-cancel',
       release: {
-        /** `data-target` = target JobStatus. */
-        button: 'job-release-button',
-        menuTrigger: 'job-release-menu-trigger',
-        forceItem: 'job-release-force-item',
+        /** `data-target` = target ProductStatus. */
+        button: 'product-release-button',
+        menuTrigger: 'product-release-menu-trigger',
+        forceItem: 'product-release-force-item',
         dialog: {
-          root: 'job-force-release-dialog',
-          reason: 'job-force-release-dialog-reason',
-          cancel: 'job-force-release-dialog-cancel',
-          submit: 'job-force-release-dialog-submit',
+          root: 'product-force-release-dialog',
+          reason: 'product-force-release-dialog-reason',
+          cancel: 'product-force-release-dialog-cancel',
+          submit: 'product-force-release-dialog-submit',
         },
       },
       /** `data-kind` = done | shortage | blocked | production. */
       banner: {
-        root: 'job-banner',
-        backToPrepress: 'job-banner-back-to-prepress',
+        root: 'product-banner',
+        backToPrepress: 'product-banner-back-to-prepress',
       },
-      products: {
-        root: 'job-products',
-        /** The section header's add button (always there while editable). */
-        add: 'job-products-add',
-        table: 'job-products-table',
-        empty: 'job-products-empty',
-        /** The add button inside the empty state (only while the job has no product). */
-        emptyAdd: 'job-products-empty-add',
-        /** One per product; `data-product-id`, `data-type`. */
-        row: 'job-products-row',
-        rowEdit: 'job-products-row-edit',
-        rowDelete: 'job-products-row-delete',
-        dialog: {
-          root: 'product-dialog',
-          /** One per product type; `data-type`. */
-          typeOption: 'product-dialog-type-option',
-          /** One per form input, whatever the product type; `data-field` = the form field name. */
-          field: 'product-dialog-field',
-          submit: 'product-dialog-submit',
-          cancel: 'product-dialog-cancel',
-          back: 'product-dialog-back',
-          edit: 'product-dialog-edit',
-          close: 'product-dialog-close',
+      tabs: {
+        basicInfo: 'product-tab-basic-info',
+        timeLogs: 'product-tab-time-logs',
+        settings: 'product-tab-settings',
+        files: 'product-tab-files',
+      },
+      /** The Basic info tab: the product's own per-type form, read-only until edited. */
+      basicInfo: {
+        root: 'product-basic-info',
+        edit: 'product-basic-info-edit',
+        /** One per form input, whatever the product type; `data-field` = the form field name. */
+        field: 'product-basic-info-field',
+        submit: 'product-basic-info-submit',
+        cancel: 'product-basic-info-cancel',
+        /** The textile batch editor: guided garment rows and designs. */
+        textile: {
+          garments: 'product-basic-info-textile-garments',
+          /** One per garment line; the instance is picked by position (the rows carry no stable key). */
+          garmentRow: 'product-basic-info-textile-garment-row',
+          /** The full-width *Add another garment* button; absent while a row is still being picked. */
+          addGarment: 'product-basic-info-textile-add-garment',
+          removeGarment: 'product-basic-info-textile-remove-garment',
+          /** One quantity input per size of the row's model/colour; `data-variant-id`. */
+          sizeQuantity: 'product-basic-info-textile-size-quantity',
+          /** Switches a garment row between the catalog cascade and free text. */
+          freeTextToggle: 'product-basic-info-textile-free-text-toggle',
+          /**
+           * One per option of a guided step (brand, model, colour, placement,
+           * size); `data-step` names the step, `data-value` the option.
+           */
+          stepOption: 'product-basic-info-textile-step-option',
+          /** A pick already made in a guided step, in the row's trail; `data-step`. Clicking it reopens the step. */
+          stepPick: 'product-basic-info-textile-step-pick',
+          designs: 'product-basic-info-textile-designs',
+          /** One per design; picked by position, like the garment rows. `data-design-type` = FILE | TEXT. */
+          designRow: 'product-basic-info-textile-design-row',
+          /** The text tab's add button; artwork is applied through the other two tabs. */
+          addDesign: 'product-basic-info-textile-add-design',
+          removeDesign: 'product-basic-info-textile-remove-design',
+          /** The picker's own *Text* tab, the one source that is not a file. */
+          pickerTextTab: 'product-basic-info-textile-picker-text-tab',
+          /** The text tab's input; Enter or the add button adds the design. */
+          pickerText: 'product-basic-info-textile-picker-text',
+        },
+        /** The Files field of every non-textile form: the picked chips plus the shared picker. */
+        files: {
+          root: 'product-basic-info-files',
+          /** One per picked file; `data-file-id`. */
+          chip: 'product-basic-info-files-chip',
+          /** Unpicks the chip's file. */
+          chipRemove: 'product-basic-info-files-chip-remove',
         },
       },
-      settingsDialog: {
-        root: 'job-settings-dialog',
-        separateDeadline: 'job-settings-separate-deadline',
-        deadline: 'job-settings-deadline',
-        separateDelivery: 'job-settings-separate-delivery',
-        delivery: 'job-settings-delivery',
-        separatePriority: 'job-settings-separate-priority',
-        priority: 'job-settings-priority',
-        approvalRequired: 'job-settings-approval-required',
-        grantApproval: 'job-settings-grant-approval',
-        approvalGranted: 'job-settings-approval-granted',
+      settings: {
+        root: 'product-settings',
+        separateDeadline: 'product-settings-separate-deadline',
+        deadline: 'product-settings-deadline',
+        separateDelivery: 'product-settings-separate-delivery',
+        delivery: 'product-settings-delivery',
+        separatePriority: 'product-settings-separate-priority',
+        priority: 'product-settings-priority',
+        approvalRequired: 'product-settings-approval-required',
+        grantApproval: 'product-settings-grant-approval',
+        approvalGranted: 'product-settings-approval-granted',
         grantDialog: {
           root: 'grant-approval-dialog',
           addFiles: 'grant-approval-dialog-add',
@@ -300,61 +323,105 @@ export const TEST_IDS = {
           submit: 'grant-approval-dialog-submit',
         },
       },
-      timeLogsDialog: {
-        root: 'time-logs-dialog',
-        total: 'time-logs-dialog-total',
-        list: 'time-logs-dialog-list',
-        empty: 'time-logs-dialog-empty',
+      timeLogs: {
+        root: 'time-logs',
+        total: 'time-logs-total',
+        list: 'time-logs-list',
+        empty: 'time-logs-empty',
         /** One per log; `data-log-id`. */
-        item: 'time-logs-dialog-item',
-        itemDelete: 'time-logs-dialog-item-delete',
-        minutes: 'time-logs-dialog-minutes',
-        onBehalfOf: 'time-logs-dialog-on-behalf-of',
-        submit: 'time-logs-dialog-submit',
+        item: 'time-logs-item',
+        itemDelete: 'time-logs-item-delete',
+        minutes: 'time-logs-minutes',
+        onBehalfOf: 'time-logs-on-behalf-of',
+        submit: 'time-logs-submit',
+      },
+      /** The quick-log widget at the bottom of the Basic info tab (not shown once the product is DONE). */
+      quickTimeLog: {
+        root: 'quick-time-log',
+        /** Carries `data-minutes` = the product's total. */
+        total: 'quick-time-log-total',
+        minutes: 'quick-time-log-minutes',
+        onBehalfOf: 'quick-time-log-on-behalf-of',
+        submit: 'quick-time-log-submit',
+        /** Switches to the Time logs tab. */
+        showAll: 'quick-time-log-show-all',
+      },
+      /** The order's file links, shown from the product so the production view has them too. */
+      files: {
+        root: 'order-files',
+        addFiles: 'order-files-add',
+        error: 'order-files-error',
+        list: 'order-files-list',
+        /** One per file; `data-file-id`. */
+        item: 'order-files-item',
+        /** The display name — a static span, or the input while editing. */
+        itemName: 'order-files-item-name',
+        /** The pencil button that switches the name to its input. */
+        itemEditName: 'order-files-item-edit-name',
+        itemRole: 'order-files-item-role',
+        itemRemove: 'order-files-item-remove',
+        itemPath: 'order-files-item-path',
       },
     },
   },
 
-  /** The Production page: the cross-order job feed. */
+  /** The Production page: the cross-order product feed. */
   production: {
     root: 'production-page',
-    /** Main area while no job is selected. */
+    /** Main area while no product is selected. */
     placeholder: 'production-placeholder',
-    /** Main area with a job selected: the order strip plus the job detail (`orders.jobDetail`); `data-order-id`, `data-job-id`. */
-    jobPanel: {
-      root: 'production-job-panel',
-      orderNumber: 'production-job-panel-order-number',
-      customerName: 'production-job-panel-customer-name',
-      openInOrders: 'production-job-panel-open-in-orders',
+    /** Main area with a product selected: the order strip plus the product detail (`orders.productDetail`); `data-order-id`, `data-product-id`. */
+    productPanel: {
+      root: 'production-product-panel',
+      orderNumber: 'production-product-panel-order-number',
+      customerName: 'production-product-panel-customer-name',
+      openInOrders: 'production-product-panel-open-in-orders',
     },
     sidebar: {
       root: 'production-sidebar',
-      /** The assignee combobox trigger; `data-value` = users.id, absent while every job is shown. */
+      /** The assignee combobox trigger; `data-value` = users.id, absent while every product is shown. */
       assigneeFilter: 'production-sidebar-assignee-filter',
       /** The list's "everyone" option (clears the filter). */
       assigneeFilterEveryone: 'production-sidebar-assignee-filter-everyone',
       /** One per user in the list; `data-user-id`. */
       assigneeFilterUser: 'production-sidebar-assignee-filter-user',
-      /** States what the feed shows: every job, or the jobs of the chosen user. */
+      /** States what the feed shows: every product, or the products of the chosen user. */
       assigneeFilterCaption: 'production-sidebar-assignee-filter-caption',
       list: 'production-sidebar-list',
-      /** Header above each priority group, shown only while the list holds high-priority jobs; `data-priority` = HIGH | NORMAL. */
+      /** Header above each priority group, shown only while the list holds high-priority products; `data-priority` = HIGH | NORMAL. */
       priorityGroup: 'production-sidebar-priority-group',
       empty: 'production-sidebar-empty',
-      /** One per job; `data-job-id`, `data-order-id`, `data-status` = JobStatus, `data-department`, `data-new` while marked new. */
+      /** One per product; `data-product-id`, `data-order-id`, `data-status` = ProductStatus, `data-department`, `data-new` while marked new. */
       row: 'production-sidebar-row',
-      /** The "New" pill on a job that entered the list while the page was open and has not been clicked. */
+      /** The "New" pill on a product that entered the list while the page was open and has not been clicked. */
       rowNew: 'production-sidebar-row-new',
       rowMissingInfo: 'production-sidebar-row-missing-info',
       rowDeadlineMissed: 'production-sidebar-row-deadline-missed',
-      rowJobNumber: 'production-sidebar-row-job-number',
+      rowProductNumber: 'production-sidebar-row-product-number',
       rowCustomer: 'production-sidebar-row-customer',
       rowDeadline: 'production-sidebar-row-deadline',
-      /** `data-status` = JobStatus. */
+      /** `data-status` = ProductStatus. */
       rowStatus: 'production-sidebar-row-status',
       /** `data-user-id` = assignee, or absent while unassigned. */
       rowAssignee: 'production-sidebar-row-assignee',
     },
+  },
+
+  /**
+   * The shared file picker: the textile editor's design picker and the Files
+   * field of every other product form. A host's own tab (textile's *Text*)
+   * carries an ID from that host's group.
+   */
+  filePicker: {
+    root: 'file-picker',
+    /** The full-width button the picker folds into once the host holds a file. */
+    expand: 'file-picker-expand',
+    dropTab: 'file-picker-drop-tab',
+    filesTab: 'file-picker-files-tab',
+    /** Click to browse, or drop files on it; every file linked is picked. */
+    dropZone: 'file-picker-drop-zone',
+    /** One per order file on the files tab; `data-file-id`. Disabled once the host has it. */
+    file: 'file-picker-file',
   },
 
   /** Shared by the stamp and textile stock pages. */

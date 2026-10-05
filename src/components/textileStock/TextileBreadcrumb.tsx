@@ -7,7 +7,7 @@ export type BreadcrumbSegment = {
 }
 
 /**
- * Drill-down breadcrumb of the master-data views (brand ▸ product ▸ variant).
+ * Drill-down breadcrumb of the master-data views (brand ▸ model ▸ variant).
  * The current segment is styled like a section title so the path doubles as
  * the view's heading; ancestor segments navigate back up.
  */

@@ -9,8 +9,8 @@ import type { Database } from '../../types/supabase'
 
 type VariantInsert = Database['public']['Tables']['textile_variants']['Insert']
 
-/** A variant row without its parent — the product may not exist yet. */
-export type VariantRowInput = Omit<VariantInsert, 'product_id'>
+/** A variant row without its parent — the model may not exist yet. */
+export type VariantRowInput = Omit<VariantInsert, 'model_id'>
 
 export type VariantFieldsHandle = {
   /** Rows for the current input, or null when invalid — a toast names the problem. */
@@ -31,7 +31,7 @@ function rowKey(color: string, size: string): string {
 }
 
 /**
- * Input block for a product's variants: one row of inputs — a colour with a
+ * Input block for a model's variants: one row of inputs — a colour with a
  * size run plus its options — expands into one pending variant per size in
  * the table below. Collects only — the owning dialog pulls the rows through
  * `ref` and decides where they are written.

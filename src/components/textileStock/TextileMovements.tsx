@@ -18,9 +18,9 @@ export function TextileMovements() {
     () =>
       (movementsQuery.data ?? []).map(movement => {
         const variant = movement.textile_variants
-        const product = variant?.textile_products
+        const model = variant?.textile_models
         const labelParts = [
-          [product?.textile_brands?.name, product?.name].filter(Boolean).join(' '),
+          [model?.textile_brands?.name, model?.name].filter(Boolean).join(' '),
           variant?.color,
           variant?.size,
         ].filter(Boolean)
@@ -44,7 +44,7 @@ export function TextileMovements() {
       error={movementsQuery.isError ? errorToString(movementsQuery.error) : null}
       onRefresh={() => void movementsQuery.refetch()}
       itemColumnHeader="Variant"
-      searchPlaceholder="Search brand, product, colour…"
+      searchPlaceholder="Search brand, model, colour…"
       typeFilter={movementTypeFilter}
       onTypeFilterChange={setMovementTypeFilter}
       search={movementSearch}

@@ -1,6 +1,6 @@
 import { supabase } from '../supabase'
 import type { Database } from '../types/supabase'
-import { type Auftrag, type DuplicateOrderArgs, type JobStatus, type OrderStatus, type OrderSummaryRow } from '../types/database'
+import { type Auftrag, type DuplicateOrderArgs, type OrderStatus, type OrderSummaryRow, type ProductStatus } from '../types/database'
 
 /** SELECT for `orders` incl. customer join (list, detail, status sync). */
 const ORDER_COLUMNS =
@@ -12,20 +12,20 @@ type PriorityEnum = Database['public']['Enums']['priority_type']
 type DeliveryEnum = Database['public']['Enums']['delivery_type']
 
 /**
- * Job fields carried in the order list: enough for the department pills and
- * for the derived "in production, missing info" alert (completeness fields +
- * a nested product count).
+ * Product fields carried in the order list: enough for the department pills and
+ * for the derived "in production, missing info" alert. The old job model also
+ * needed a nested product count here, because a job counted as incomplete
+ * without products; a product cannot lack itself, so that count is gone.
  */
-export type OrderListJob = {
+export type OrderListProduct = {
   id: string
   department: Database['public']['Enums']['department']
-  status: JobStatus
+  status: ProductStatus
   deadline: string | null
   delivery: DeliveryEnum | null
   priority: PriorityEnum | null
   assignee_id: string | null
   is_cancelled: boolean
-  department_products: { count: number }[]
 }
 
 export type OrderListEntry = {
@@ -38,7 +38,7 @@ export type OrderListEntry = {
   priority: 'NORMAL' | 'HIGH'
   customer_id: string
   customers: { name: string } | null
-  jobs: OrderListJob[] | null
+  products: OrderListProduct[] | null
   /** The order's finish/close history events, newest first — the row's "Finished on" / "Billed on" date. */
   closing_events: OrderClosingEvent[] | null
 }
@@ -64,7 +64,7 @@ function flattenCustomerJoin<T extends { customers: unknown }>(row: T): T {
 }
 
 const ORDER_LIST_SELECT =
-  'id, order_number, status, created_at, deadline, delivery, priority, customer_id, customers(name), jobs(id, department, status, deadline, delivery, priority, assignee_id, is_cancelled, department_products(count)), closing_events:history(event_type, created_at)'
+  'id, order_number, status, created_at, deadline, delivery, priority, customer_id, customers(name), products(id, department, status, deadline, delivery, priority, assignee_id, is_cancelled), closing_events:history(event_type, created_at)'
 
 export type OrderListParams = {
   /**
@@ -92,8 +92,8 @@ const ORDER_LIST_COLUMNS = 'id, order_number, status, created_at, customers(name
  * Note on status: order status is its own lifecycle (QUOTE → IN_PROGRESS →
  * FINISHED → BILLED), written via {@link setOrderStatus} / {@link markOrderBilled}.
  * Every transition is an explicit user action except IN_PROGRESS → FINISHED,
- * which the client also performs on its own once every job of an invoice
- * order is done (`useFinishOrderWhenAllJobsDone`).
+ * which the client also performs on its own once every product of an invoice
+ * order is done (`useFinishOrderWhenAllProductsDone`).
  */
 class OrderService {
   /** Filtered order list for the sidebar (archived toggle, customer, status, deadline/intake ranges). Newest first. */
@@ -187,10 +187,10 @@ class OrderService {
     if (error) throw error
   }
 
-  /** Cancel all not-yet-cancelled jobs, then archive the order. Two writes, not transactional. */
-  async archiveOrderWithCancelledJobs(orderId: string): Promise<void> {
+  /** Cancel all not-yet-cancelled products, then archive the order. Two writes, not transactional. */
+  async archiveOrderWithCancelledProducts(orderId: string): Promise<void> {
     const { error: subError } = await supabase
-      .from('jobs')
+      .from('products')
       .update({ is_cancelled: true })
       .eq('order_id', orderId)
       .neq('is_cancelled', true)
@@ -219,7 +219,7 @@ class OrderService {
 
 
   /**
-   * Deep-copy an order via the `duplicate_order` Postgres RPC — jobs, products
+   * Deep-copy an order via the `duplicate_order` Postgres RPC — products
    * (incl. typed child by `type`), `product_files`, and textile rows — in one
    * transaction. This stays server-side *because* it must be atomic; it's the one
    * status/data RPC deliberately kept (unlike the retired `fn_calculate_order_status`).
@@ -230,7 +230,7 @@ class OrderService {
     new_priority: PriorityEnum | null
     new_delivery: DeliveryEnum | null
     new_deadline: string | null
-    selected_job_ids: string[]
+    selected_product_ids: string[]
     created_by_user_id: string | null
   }): Promise<string> {
     const { data, error } = await supabase.rpc('duplicate_order', params as unknown as DuplicateOrderArgs)
@@ -245,7 +245,7 @@ class OrderService {
    */
   subscribeToCustomerChanges(onChanged: (customerId: string) => void): () => void {
     const channel = supabase
-      .channel(`order-list-customer-refresh:${crypto.randomUUID()}`) // unique per subscription, see jobService.subscribeToJobChanges
+      .channel(`order-list-customer-refresh:${crypto.randomUUID()}`) // unique per subscription, see productService.subscribeToProductChanges
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'customers' }, payload => {
         const customerId = (payload.new as { id?: string } | null)?.id
         if (customerId) onChanged(customerId)

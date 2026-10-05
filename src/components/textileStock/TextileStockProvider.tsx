@@ -4,8 +4,8 @@ import { TextileStockUiContext, type StockSortKey, type TextileStockUi } from '.
 
 /** Filter/search/sort/drill-down state — lives at page level so it survives tab switches. */
 export function TextileStockProvider({ children }: { children: ReactNode }) {
-  const [brandIdForProducts, setBrandIdForProducts] = useState('')
-  const [productIdForVariants, setProductIdForVariants] = useState('')
+  const [brandIdForModels, setBrandIdForModels] = useState('')
+  const [modelIdForVariants, setModelIdForVariants] = useState('')
   const [variantIdForDetail, setVariantIdForDetail] = useState('')
   const [stockSearch, setStockSearch] = useState('')
   const [stockBrandFilter, setStockBrandFilter] = useState('ALL')
@@ -20,10 +20,10 @@ export function TextileStockProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<TextileStockUi>(
     () => ({
-      brandIdForProducts,
-      setBrandIdForProducts,
-      productIdForVariants,
-      setProductIdForVariants,
+      brandIdForModels,
+      setBrandIdForModels,
+      modelIdForVariants,
+      setModelIdForVariants,
       variantIdForDetail,
       setVariantIdForDetail,
       stockSearch,
@@ -40,8 +40,8 @@ export function TextileStockProvider({ children }: { children: ReactNode }) {
       setMovementSearch,
     }),
     [
-      brandIdForProducts,
-      productIdForVariants,
+      brandIdForModels,
+      modelIdForVariants,
       variantIdForDetail,
       stockSearch,
       stockBrandFilter,

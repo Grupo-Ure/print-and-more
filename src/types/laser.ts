@@ -1,20 +1,18 @@
 /**
  * Type definitions for the Laser engraving (Lasergravur) department.
  *
- * Laser jobs cover engraved signs (Schild), trophy plates
+ * Laser work covers engraved signs (Schild), trophy plates
  * (Pokalschild), nametags (Namensschild), engraved gift articles
- * (Geschenkartikel), and miscellaneous laser jobs (Sonstige Laser).
+ * (Geschenkartikel), and miscellaneous laser products (Sonstige Laser).
  *
- * For sign-typen, the material comes from a fixed list of ABS color
- * combinations. Gift articles and miscellaneous typen use free-text
+ * For the sign types, the material comes from a fixed list of ABS color
+ * combinations. Gift articles and miscellaneous types use free-text
  * material plus an origin flag (customer-supplied vs in-house material).
- *
- * The shape of a laser job's `detail` JSONB column varies by typ.
- * See `validateLaserDetail` in `src/lib/laser/` for the per-typ field
- * requirements.
+ * Each type's spec columns live in its own child table; the per-type field
+ * requirements are the Zod schemas in `src/lib/products/schemas/laser.ts`.
  */
 
-/** All laser typen, in dropdown order. */
+/** All laser types, in dropdown order. */
 export const LASER_TYPES = [
   'SIGN',
   'TROPHY_PLATE',
@@ -23,7 +21,7 @@ export const LASER_TYPES = [
   'OTHER_LASER',
 ] as const
 
-/** Discriminator for the kind of laser work, stored in `jobs.type`. */
+/** Discriminator for the kind of laser work, stored in `products.type`. */
 export type LaserType = (typeof LASER_TYPES)[number]
 
 /** Display labels for {@link LaserType}, rendered in dropdowns and tabs. */
@@ -35,7 +33,7 @@ export const LASER_TYPE_LABELS: Record<LaserType, string> = {
   OTHER_LASER: 'Other (Laser)',
 }
 
-/** Material options for sign typen (SIGN / TROPHY_PLATE / NAME_TAG). */
+/** Material options for the sign types (SIGN / TROPHY_PLATE / NAME_TAG). */
 export const LASER_SIGN_MATERIALS = [
   'ABS_SW',
   'ABS_WS',
@@ -56,7 +54,7 @@ export const LASER_SIGN_MATERIAL_LABELS: Record<LaserSignMaterial, string> = {
 }
 
 /**
- * Origin of the workpiece for laser jobs that aren't on a stock
+ * Origin of the workpiece for laser products that aren't on a stock
  * sign material: customer-supplied or pulled from in-house stock.
  */
 export const LASER_ORIGINS = ['KUNDENMATERIAL', 'EIGENMATERIAL'] as const
@@ -67,11 +65,3 @@ export const LASER_ORIGIN_LABELS: Record<LaserOrigin, string> = {
   KUNDENMATERIAL: 'Customer material',
   EIGENMATERIAL: 'In-house material',
 }
-
-/**
- * Shape of the JSONB `detail` column for a laser job.
- *
- * Keys vary per `typ` — only set keys relevant to the current typ. See
- * `validateLaserDetail` for the per-typ field set.
- */
-export type LaserDetailJson = Record<string, unknown>

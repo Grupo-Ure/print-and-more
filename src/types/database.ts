@@ -5,15 +5,15 @@ export type OrderStatus = Enums<'order_status'>
 
 export const ORDER_STATUS_LIST: readonly OrderStatus[] = Constants.public.Enums.order_status
 
-export type JobStatus = Enums<'job_status'>
+export type ProductStatus = Enums<'product_status'>
 
-export const JOB_STATUS_LIST: readonly JobStatus[] = Constants.public.Enums.job_status
+export const PRODUCT_STATUS_LIST: readonly ProductStatus[] = Constants.public.Enums.product_status
 
 export type Department = Enums<'department'>
 
 export const DEPARTMENTS: readonly Department[] = Constants.public.Enums.department
 
-/** Matches `priority_type` in the DB (order and job). */
+/** Matches `priority_type` in the DB (order and product). */
 export type Priority = Enums<'priority_type'>
 
 /** How the order is settled — CASH closes directly from IN_PROGRESS, INVOICE goes through FINISHED. */
@@ -50,18 +50,14 @@ export type Auftrag = OrderDetailRow
 /** Patch for the order header fields editable in WorkArea. */
 export type OrderHeaderPatch = Partial<Pick<Tables<'orders'>, 'deadline' | 'delivery' | 'priority' | 'payment_method'>>
 
-/** Shape of order data needed for PDF generation. */
-export type OrderPdfRow = Pick<Tables<'orders'>, 'order_number' | 'deadline' | 'delivery' | 'priority' | 'created_at'> & {
-  customers: Customer | null
-}
-
 export type DeliveryChoice = Enums<'delivery_type'>
 
-export type JobRow = Tables<'jobs'>
+export type ProductRow = Tables<'products'>
 
-export type JobUpdate = TablesUpdate<'jobs'>
+export type ProductUpdate = TablesUpdate<'products'>
 
-export type NewJobEntry = Pick<TablesInsert<'jobs'>, 'order_id' | 'department' | 'status' | 'priority'>
+/** `type` is required: it is the discriminator that selects the typed child table. */
+export type NewProductEntry = Pick<TablesInsert<'products'>, 'order_id' | 'department' | 'type' | 'status' | 'priority'>
 
 export type DuplicateOrderArgs = Database['public']['Functions']['duplicate_order']['Args']
 
@@ -71,9 +67,9 @@ export type AppUserRow = Tables<'users'>
 
 /**
  * One row per department and stage that has a default assignee (Settings →
- * Departments): the user a job is handed to when it enters that stage.
+ * Departments): the user a product is handed to when it enters that stage.
  */
 export type DepartmentDefaultAssigneeRow = Tables<'department_default_assignees'>
 
 /** The stages a department may have a default assignee for (the table's CHECK constraint). */
-export type DefaultAssigneeStatus = Extract<JobStatus, 'PREPRESS' | 'IN_PRODUCTION'>
+export type DefaultAssigneeStatus = Extract<ProductStatus, 'PREPRESS' | 'IN_PRODUCTION'>

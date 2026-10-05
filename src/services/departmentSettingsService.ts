@@ -6,8 +6,8 @@ export type DepartmentDefaultAssignee = Pick<DepartmentDefaultAssigneeRow, 'depa
 /**
  * Per-department settings. Today that is one thing: the default assignee per
  * stage (`department_default_assignees`, one row per department and stage).
- * The `fn_assign_stage_default_assignee` trigger reads it when a job enters
- * pre-press or production. Writes are admin-only by RLS.
+ * The `fn_assign_stage_default_assignee` trigger reads it when a product
+ * enters pre-press or production. Writes are admin-only by RLS.
  */
 class DepartmentSettingsService {
   async getDefaultAssignees(): Promise<DepartmentDefaultAssignee[]> {
@@ -18,7 +18,7 @@ class DepartmentSettingsService {
     return data ?? []
   }
 
-  /** `null` removes the default: a job entering that stage keeps whoever holds it. */
+  /** `null` removes the default: a product entering that stage keeps whoever holds it. */
   async setDefaultAssignee(
     department: Department,
     status: DefaultAssigneeStatus,

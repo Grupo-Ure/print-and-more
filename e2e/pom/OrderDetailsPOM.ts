@@ -1,17 +1,17 @@
 import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
-import { JobListPOM } from './JobListPOM'
-import { JobDetailPOM } from './JobDetailPOM'
-import { OrderFilesDialogPOM } from './OrderFilesDialogPOM'
-import { OrderHistoryDialogPOM } from './OrderHistoryDialogPOM'
+import { ProductListPOM } from './ProductListPOM'
+import { ProductDetailPOM } from './ProductDetailPOM'
+import { OrderHistoryPOM } from './OrderHistoryPOM'
 import { DeadlinePickerPOM } from './DeadlinePickerPOM'
 import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.orders.details
 
 /**
- * Centre column with an order selected: header, settings row, job list and
- * the active job. The root carries `data-order-id`, `data-customer-id` and
+ * Centre column with an order selected: header, settings row, and the order
+ * tabs — Products (the product list and the selected product's detail) and
+ * History. The root carries `data-order-id`, `data-customer-id` and
  * `data-status`.
  */
 export class OrderDetailsPOM extends BasePOM {
@@ -25,8 +25,6 @@ export class OrderDetailsPOM extends BasePOM {
   readonly reopen: Locator
   /** The single forward action; carries `data-target` = target OrderStatus. */
   readonly lifecycle: Locator
-  readonly filesButton: Locator
-  readonly historyButton: Locator
   readonly archive: Locator
   readonly cancel: Locator
   readonly customerName: Locator
@@ -45,10 +43,13 @@ export class OrderDetailsPOM extends BasePOM {
   readonly priority: Locator
   readonly payment: Locator
 
-  readonly jobList: JobListPOM
-  readonly jobDetail: JobDetailPOM
-  readonly filesDialog: OrderFilesDialogPOM
-  readonly historyDialog: OrderHistoryDialogPOM
+  // Tabs
+  readonly productsTab: Locator
+  readonly historyTab: Locator
+
+  readonly productList: ProductListPOM
+  readonly productDetail: ProductDetailPOM
+  readonly history: OrderHistoryPOM
 
   constructor(page: Page) {
     super(page)
@@ -61,8 +62,6 @@ export class OrderDetailsPOM extends BasePOM {
     this.doneNotice = this.root.getByTestId(h.doneNotice)
     this.reopen = this.root.getByTestId(h.reopen)
     this.lifecycle = this.root.getByTestId(h.lifecycle)
-    this.filesButton = this.root.getByTestId(h.files)
-    this.historyButton = this.root.getByTestId(h.history)
     this.archive = this.root.getByTestId(h.archive)
     this.cancel = this.root.getByTestId(h.cancel)
     this.customerName = this.root.getByTestId(h.customerName)
@@ -82,10 +81,12 @@ export class OrderDetailsPOM extends BasePOM {
     this.priority = settings.getByTestId(s.priority)
     this.payment = settings.getByTestId(s.payment)
 
-    this.jobList = new JobListPOM(page)
-    this.jobDetail = new JobDetailPOM(page)
-    this.filesDialog = new OrderFilesDialogPOM(page)
-    this.historyDialog = new OrderHistoryDialogPOM(page)
+    this.productsTab = this.root.getByTestId(IDS.tabs.products)
+    this.historyTab = this.root.getByTestId(IDS.tabs.history)
+
+    this.productList = new ProductListPOM(page)
+    this.productDetail = new ProductDetailPOM(page)
+    this.history = new OrderHistoryPOM(page)
   }
 
   /** The details column only while it shows this order. */

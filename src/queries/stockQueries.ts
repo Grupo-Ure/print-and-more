@@ -1,24 +1,28 @@
 import { useQuery } from '@tanstack/react-query'
 import { productionReleaseService } from '../services/productionReleaseService'
-import type { JobRow } from '../types/database'
+import type { LoadedProduct } from '../types/product'
 
 export const stockAvailabilityKeys = {
   root: ['stock-availability'] as const,
-  byJobId: (id: string) => ['stock-availability', 'by-job-id', id] as const,
+  byProductId: (id: string) => ['stock-availability', 'by-product-id', id] as const,
 }
 
 /**
- * Shortages that would block releasing the job to production (empty array =
- * releasable). Only meaningful — and only fetched — for STAMP/TEXTILE jobs in
- * pre-press; every other job resolves to no shortages. Product edits and
+ * Shortages that would block releasing the product to production (empty array =
+ * releasable). Only meaningful — and only fetched — for STAMP/TEXTILE products
+ * in pre-press; every other product resolves to no shortages. Spec edits and
  * releases invalidate the root key.
  */
-export function useStockAvailability(job: JobRow | null) {
+export function useStockAvailability(product: LoadedProduct | null) {
   const enabled =
-    !!job && job.status === 'PREPRESS' && (job.department === 'STAMP' || job.department === 'TEXTILE')
+    !!product &&
+    product.status === 'PREPRESS' &&
+    (product.department === 'STAMP' || product.department === 'TEXTILE')
   return useQuery({
-    queryKey: job ? stockAvailabilityKeys.byJobId(job.id) : stockAvailabilityKeys.byJobId('__none__'),
-    queryFn: () => productionReleaseService.checkStockAvailability(job as JobRow),
+    queryKey: product
+      ? stockAvailabilityKeys.byProductId(product.id)
+      : stockAvailabilityKeys.byProductId('__none__'),
+    queryFn: () => productionReleaseService.checkStockAvailability(product as LoadedProduct),
     enabled,
   })
 }

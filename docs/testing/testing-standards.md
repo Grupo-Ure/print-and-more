@@ -195,7 +195,7 @@ this order:
    In a UI test, **getting to the subject of the test is setup too**:
    opening the record, selecting the row, showing a hidden list entry.
    Those steps go here, and they go through a page-object navigation
-   method (`ordersPage.openJob(job)`), so the same path is written once
+   method (`ordersPage.openProduct(product)`), so the same path is written once
    and a failure on the way is reported as setup, not as the behaviour
    under test. Never in a fixture — a fixture prepares data only.
 2. **Act** — perform the action being tested: the clicks and inputs that
@@ -239,13 +239,13 @@ to break for the test to fail — before they read a line of its body.
 
 ```
 // Bad — names the action only; what is being checked?
-it("adds a product to the active job")
+it("adds a product to the active order")
 
 // Bad — names the feature only; neither the action nor the outcome
 it("order deadline")
 
 // Good — the action, and the outcome the assertions prove
-it("adding a product to a job lists it in the job's product table")
+it("adding a product to an order lists it in the order's product list")
 it("picking a date in the deadline calendar sets it as the order deadline")
 ```
 
@@ -255,10 +255,10 @@ Rules of thumb:
   then the consequence as a plain verb phrase ("lists it", "shows the
   user", "opens its details").
 - The consequence names the observable result, not the mechanism: "lists
-  it in the product table", not "calls the save mutation".
+  it in the product list", not "calls the save mutation".
 - A test with no action of its own — it only looks at a state the setup
   produced and has no Act stage — names the state and the consequence
-  instead: "the job is held in setup with the release blocked".
+  instead: "the product is held in setup with the release blocked".
 - One consequence per name. If the name needs an "and" between two
   unrelated outcomes, the case is covering two scenarios (see "Test Suite
   Shape").

@@ -10,7 +10,7 @@ const IDS = TEST_IDS.textileStock
 
 /**
  * Textile stock page (admins): variant stock and bookings. The master-data
- * subpage (brands → products → variants) is not modelled yet.
+ * subpage (brands → models → variants) is not modelled yet.
  */
 export class TextileStockPOM extends BasePOM {
   readonly root: Locator

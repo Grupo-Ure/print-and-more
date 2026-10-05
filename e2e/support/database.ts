@@ -6,12 +6,12 @@ import type { TestCustomer } from '../fixtures/customers'
 import type { TestUser } from '../fixtures/users'
 
 type OrderInsert = Database['public']['Tables']['orders']['Insert']
-type JobInsert = Database['public']['Tables']['jobs']['Insert']
+type ProductInsert = Database['public']['Tables']['products']['Insert']
 type Department = Database['public']['Enums']['department']
 type OrderStatus = Database['public']['Enums']['order_status']
 type DeliveryType = Database['public']['Enums']['delivery_type']
 type PaymentMethod = Database['public']['Enums']['payment_method']
-type JobStatus = Database['public']['Enums']['job_status']
+type ProductStatus = Database['public']['Enums']['product_status']
 
 /** The columns a fixture chooses for an order it inserts; everything else takes the table's defaults. */
 export type OrderSeedRow = {
@@ -19,13 +19,6 @@ export type OrderSeedRow = {
   deadline: string | null
   delivery: DeliveryType | null
   payment_method: PaymentMethod
-}
-
-/** The columns a fixture chooses for a job it inserts; everything else takes the table's defaults. */
-export type JobSeedRow = {
-  department: Department
-  status: JobStatus
-  customer_approval_required: boolean
 }
 
 /** The columns a fixture chooses for a file it links to an order. */
@@ -43,29 +36,50 @@ export type StampModelSeedRow = {
   stock: number
 }
 
-/** A brand → product → variant chain in the textile catalog; ids are fixed so products can reference the variant. */
+/** A brand → model → variant chain in the textile catalog; ids are fixed so a garment line can reference the variant. */
 export type TextileChainSeed = {
   brand: { id: string; name: string }
-  product: { id: string; brand_id: string; name: string }
-  variant: { id: string; product_id: string; color: string; size: string; stock: number }
+  model: { id: string; brand_id: string; name: string }
+  variant: { id: string; model_id: string; color: string; size: string; stock: number }
 }
 
 /** What a spec gets to know about the file the fixture linked for it. */
 export type TestFile = FileSeedRow & { id: string; orderId: string }
 
+/** The parent columns a fixture chooses for a product; everything else takes the table's defaults. */
+export type ProductSeedRow = {
+  department: Department
+  /** The discriminator that selects the child table; guarded against the department by trg_product_type_check. */
+  type: string
+  status: ProductStatus
+  /** Null for a textile batch, whose pieces are counted on its garment lines. */
+  quantity: number | null
+  customer_approval_required: boolean
+}
+
 /**
- * A product to insert for a job: the parent's `type` plus the typed child row
- * that type maps to. Distributed over the child tables so `child` is typed by
- * the `childTable` chosen.
+ * The typed child row of a single-child product type, distributed over the
+ * child tables so `child` is typed by the `childTable` chosen.
  */
-export type ProductSeed = {
+export type ProductChildSeed = {
   [T in ChildTable]: {
-    type: string
-    quantity: number
     childTable: T
-    child: Omit<TablesInsert<T>, 'department_product_id'>
+    child: Omit<TablesInsert<T>, 'product_id'>
   }
 }[ChildTable]
+
+/** A textile batch's two 1:n children, in place of one typed child row. */
+export type TextileBatchSeed = {
+  garments: Omit<TablesInsert<'textile_garments'>, 'product_id'>[]
+  designs: Omit<TablesInsert<'textile_designs'>, 'product_id'>[]
+}
+
+/**
+ * What a fixture inserts for one product: the parent columns plus its
+ * children — one typed child row, or a textile batch's garment lines and
+ * designs. The two arms are told apart by `childTable`.
+ */
+export type ProductSeed = ProductSeedRow & (ProductChildSeed | TextileBatchSeed)
 
 /** What a spec gets to know about the customer the fixture inserted for it. */
 export type TestCustomerRow = TestCustomer & { id: string }
@@ -77,14 +91,12 @@ export type TestOrder = {
   customerId: string
 }
 
-/** What a spec gets to know about the job the fixture created for it. */
-export type TestJob = {
+/** What a spec gets to know about the product the fixture created for it. */
+export type TestProduct = {
   id: string
-  jobNumber: string
+  productNumber: string
   orderId: string
   department: Department
-  /** The product the fixture inserted with the job, if its seed had one. */
-  productId: string | null
 }
 
 function requiredEnv(name: string): string {
@@ -230,7 +242,8 @@ export class TestDatabase {
 
   /**
    * Orders reference their customer without a cascade, so their orders go
-   * first (jobs, files and history follow those by cascade), then the customers.
+   * first (products, files and history follow those by cascade), then the
+   * customers.
    */
   private async removeCustomers(ids: string[]): Promise<void> {
     if (ids.length === 0) return
@@ -254,24 +267,10 @@ export class TestDatabase {
     return { id: data.id, orderNumber: data.order_number, customerId }
   }
 
-  /** Deletes the order; jobs, files and history follow by cascade. The customer stays. */
+  /** Deletes the order; products, files and history follow by cascade. The customer stays. */
   async removeOrder(orderId: string): Promise<void> {
     const { error } = await this.client.from('orders').delete().eq('id', orderId)
     if (error) throw error
-  }
-
-  // ── Jobs ─────────────────────────────────────────────────────────────────
-
-  /**
-   * Inserts a job in the given status with no overrides (the table's
-   * defaults). `job_number` is assigned by the trg_job_number trigger, so it
-   * is left out of the payload. Removed with its order — no separate cleanup.
-   */
-  async createJob(orderId: string, seed: JobSeedRow): Promise<TestJob> {
-    const payload = { order_id: orderId, ...seed } as JobInsert
-    const { data, error } = await this.client.from('jobs').insert(payload).select('id, job_number').single()
-    if (error) throw error
-    return { id: data.id, jobNumber: data.job_number, orderId, department: seed.department, productId: null }
   }
 
   // ── Files ────────────────────────────────────────────────────────────────
@@ -307,24 +306,24 @@ export class TestDatabase {
     if (error) throw error
   }
 
-  /** Inserts the brand, product and variant, or resets them to the seed (stock included) if already there. */
+  /** Inserts the brand, model and variant, or resets them to the seed (stock included) if already there. */
   async upsertTextileChain(seed: TextileChainSeed): Promise<void> {
     const { error: brandError } = await this.client.from('textile_brands').upsert(seed.brand)
     if (brandError) throw brandError
-    const { error: productError } = await this.client.from('textile_products').upsert(seed.product)
-    if (productError) throw productError
+    const { error: modelError } = await this.client.from('textile_models').upsert(seed.model)
+    if (modelError) throw modelError
     const { error: variantError } = await this.client.from('textile_variants').upsert(seed.variant)
     if (variantError) throw variantError
   }
 
-  /** Deletes the chain leaf first, with the movements booked against the variant; garments that referenced it lose the reference. */
+  /** Deletes the chain leaf first, with the movements booked against the variant; garment lines that referenced it lose the reference. */
   async removeTextileChain(seed: TextileChainSeed): Promise<void> {
     const { error: movementError } = await this.client.from('textile_stock_movements').delete().eq('variant_id', seed.variant.id)
     if (movementError) throw movementError
     const { error: variantError } = await this.client.from('textile_variants').delete().eq('id', seed.variant.id)
     if (variantError) throw variantError
-    const { error: productError } = await this.client.from('textile_products').delete().eq('id', seed.product.id)
-    if (productError) throw productError
+    const { error: modelError } = await this.client.from('textile_models').delete().eq('id', seed.model.id)
+    if (modelError) throw modelError
     const { error: brandError } = await this.client.from('textile_brands').delete().eq('id', seed.brand.id)
     if (brandError) throw brandError
   }
@@ -332,21 +331,49 @@ export class TestDatabase {
   // ── Products ─────────────────────────────────────────────────────────────
 
   /**
-   * Inserts one product for a job the same way the app does: the parent row in
-   * `department_products`, then the typed child row keyed by the parent's id.
-   * Removed with the job (cascade) — no separate cleanup.
+   * Inserts one product for an order the same way the app does: the parent row
+   * in `products`, then the children keyed by the parent's id — one typed
+   * child row, or a textile batch's garment lines and designs.
+   * `product_number` is assigned by the trg_product_number trigger, so it is
+   * left out of the payload. Removed with its order (cascade) — no separate
+   * cleanup.
    */
-  async createProduct(job: TestJob, seed: ProductSeed): Promise<string> {
+  async createProduct(orderId: string, seed: ProductSeed): Promise<TestProduct> {
+    const payload = {
+      order_id: orderId,
+      department: seed.department,
+      type: seed.type,
+      status: seed.status,
+      quantity: seed.quantity,
+      customer_approval_required: seed.customer_approval_required,
+    } as ProductInsert
     const { data, error } = await this.client
-      .from('department_products')
-      .insert({ job_id: job.id, department: job.department, type: seed.type, quantity: seed.quantity })
-      .select('id')
+      .from('products')
+      .insert(payload)
+      .select('id, product_number')
       .single()
     if (error) throw error
-    const { error: childError } = await this.client
-      .from(seed.childTable)
-      .insert({ department_product_id: data.id, ...seed.child })
-    if (childError) throw childError
-    return data.id
+
+    if ('childTable' in seed) {
+      const { error: childError } = await this.client
+        .from(seed.childTable)
+        .insert({ product_id: data.id, ...seed.child })
+      if (childError) throw childError
+    } else {
+      if (seed.garments.length > 0) {
+        const { error: garmentError } = await this.client
+          .from('textile_garments')
+          .insert(seed.garments.map(garment => ({ product_id: data.id, ...garment })))
+        if (garmentError) throw garmentError
+      }
+      if (seed.designs.length > 0) {
+        const { error: designError } = await this.client
+          .from('textile_designs')
+          .insert(seed.designs.map(design => ({ product_id: data.id, ...design })))
+        if (designError) throw designError
+      }
+    }
+
+    return { id: data.id, productNumber: data.product_number, orderId, department: seed.department }
   }
 }

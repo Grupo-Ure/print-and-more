@@ -9,7 +9,7 @@ import {
   FINISHED_STATUS,
   BILLED_STATUS,
 } from '../../fixtures/orders'
-import { JOB_DONE, JOB_IN_PRODUCTION, ONE_JOB_PER_DEPARTMENT, DONE_STATUS, PREPRESS_STATUS } from '../../fixtures/jobs'
+import { PRODUCT_DONE, PRODUCT_IN_PRODUCTION, ONE_PRODUCT_PER_DEPARTMENT, DONE_STATUS, PREPRESS_STATUS } from '../../fixtures/products'
 import { TEST_USERS } from '../../fixtures/users'
 
 test('starting processing a quote moves the order to in progress', async ({ ordersPage, order }) => {
@@ -24,94 +24,94 @@ test('starting processing a quote moves the order to in progress', async ({ orde
   await expect(ordersPage.details.forOrder(order.id)).toHaveAttribute('data-status', IN_PROGRESS_STATUS)
 })
 
-test.describe('quote with deadline and delivery, one complete job in every department', () => {
-  // An array option goes in as a `[value, options]` tuple — see `jobSeeds` in fixtures/orders.ts.
-  test.use({ orderSeed: COMPLETE_QUOTE_ORDER, jobSeeds: [ONE_JOB_PER_DEPARTMENT, { scope: 'test' }] })
+test.describe('quote with deadline and delivery, one product in every department', () => {
+  // An array option goes in as a `[value, options]` tuple — see `productSeeds` in fixtures/orders.ts.
+  test.use({ orderSeed: COMPLETE_QUOTE_ORDER, productSeeds: [ONE_PRODUCT_PER_DEPARTMENT, { scope: 'test' }] })
 
-  test('starting processing promotes every job to pre-press', async ({ ordersPage, order, jobs }) => {
-    // Setup — every job expected in pre-press, with the order open and its last job listed.
-    const allInPrepress = Object.fromEntries(jobs.map(job => [job.id, PREPRESS_STATUS]))
+  test('starting processing promotes every product to pre-press', async ({ ordersPage, order, products }) => {
+    // Setup — every product expected in pre-press, with the order open and its last product listed.
+    const allInPrepress = Object.fromEntries(products.map(product => [product.id, PREPRESS_STATUS]))
     await ordersPage.openOrder(order.id)
-    await ordersPage.details.jobList.row(jobs[jobs.length - 1].id).waitFor()
+    await ordersPage.details.productList.row(products[products.length - 1].id).waitFor()
 
     // Act — start processing and confirm.
     await ordersPage.details.lifecycle.click()
     await ordersPage.confirmDialog.confirm.click()
 
-    // Assert — all six advanced on their own, not only the selected one.
-    await expect.poll(() => ordersPage.details.jobList.rowStatuses()).toEqual(allInPrepress)
+    // Assert — all six advanced on their own; they share one status watcher per order.
+    await expect.poll(() => ordersPage.details.productList.rowStatuses()).toEqual(allInPrepress)
   })
 })
 
-test.describe('in progress, the only job in production', () => {
-  test.use({ orderSeed: IN_PROGRESS_ORDER, jobSeed: JOB_IN_PRODUCTION })
+test.describe('in progress, the only product in production', () => {
+  test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: PRODUCT_IN_PRODUCTION })
 
-  test('marking the last job done finishes the order on its own', async ({ ordersPage, order, job }) => {
-    // Setup — the job open.
-    await ordersPage.openJob(job)
+  test('marking the last product done finishes the order on its own', async ({ ordersPage, order, product }) => {
+    // Setup — the product open.
+    await ordersPage.openProduct(product)
 
-    // Act — mark the job done and confirm; nothing is clicked on the order itself.
-    await ordersPage.details.jobDetail.releaseButton.click()
+    // Act — mark the product done and confirm; nothing is clicked on the order itself.
+    await ordersPage.details.productDetail.releaseButton.click()
     await ordersPage.confirmDialog.confirm.click()
 
-    // Assert — the job is done and the order followed it to finished.
-    await expect(ordersPage.details.jobList.row(job.id)).toHaveAttribute('data-status', DONE_STATUS)
+    // Assert — the product is done and the order followed it to finished.
+    await expect(ordersPage.details.productList.row(product.id)).toHaveAttribute('data-status', DONE_STATUS)
     await expect(ordersPage.details.forOrder(order.id)).toHaveAttribute('data-status', FINISHED_STATUS)
   })
 })
 
-test.describe('in progress, one job done and one in production', () => {
-  // An array option goes in as a `[value, options]` tuple — see `jobSeeds` in fixtures/orders.ts.
-  test.use({ orderSeed: IN_PROGRESS_ORDER, jobSeeds: [[JOB_DONE, JOB_IN_PRODUCTION], { scope: 'test' }] })
+test.describe('in progress, one product done and one in production', () => {
+  // An array option goes in as a `[value, options]` tuple — see `productSeeds` in fixtures/orders.ts.
+  test.use({ orderSeed: IN_PROGRESS_ORDER, productSeeds: [[PRODUCT_DONE, PRODUCT_IN_PRODUCTION], { scope: 'test' }] })
 
-  test('the order stays in progress with no lifecycle action while a job is still open', async ({ ordersPage, order, jobs }) => {
-    // Setup — the order open with both jobs listed; the fixture seeded one of them done.
+  test('the order stays in progress with no lifecycle action while a product is still open', async ({ ordersPage, order, products }) => {
+    // Setup — the order open with both products listed; the fixture seeded one of them done.
     await ordersPage.openOrder(order.id)
-    await ordersPage.details.jobList.row(jobs[1].id).waitFor()
+    await ordersPage.details.productList.row(products[1].id).waitFor()
 
-    // Assert — one done job is not "every job done": nothing finished the order, nothing offers to.
+    // Assert — one done product is not "every product done": nothing finished the order, nothing offers to.
     await expect(ordersPage.details.forOrder(order.id)).toHaveAttribute('data-status', IN_PROGRESS_STATUS)
     await expect(ordersPage.details.lifecycle).toHaveCount(0)
   })
 
-  test('marking the remaining job done finishes the order on its own', async ({ ordersPage, order, jobs }) => {
-    // Setup — the job still in production open.
-    await ordersPage.openJob(jobs[1])
+  test('marking the remaining product done finishes the order on its own', async ({ ordersPage, order, products }) => {
+    // Setup — the product still in production open.
+    await ordersPage.openProduct(products[1])
 
     // Act — mark it done and confirm.
-    await ordersPage.details.jobDetail.releaseButton.click()
+    await ordersPage.details.productDetail.releaseButton.click()
     await ordersPage.confirmDialog.confirm.click()
 
-    // Assert — with both jobs done the order followed to finished.
-    await expect(ordersPage.details.jobList.row(jobs[1].id)).toHaveAttribute('data-status', DONE_STATUS)
+    // Assert — with both products done the order followed to finished.
+    await expect(ordersPage.details.productList.row(products[1].id)).toHaveAttribute('data-status', DONE_STATUS)
     await expect(ordersPage.details.forOrder(order.id)).toHaveAttribute('data-status', FINISHED_STATUS)
   })
 })
 
-test.describe('in progress cash order, the only job in production', () => {
-  test.use({ orderSeed: IN_PROGRESS_CASH_ORDER, jobSeed: JOB_IN_PRODUCTION })
+test.describe('in progress cash order, the only product in production', () => {
+  test.use({ orderSeed: IN_PROGRESS_CASH_ORDER, productSeed: PRODUCT_IN_PRODUCTION })
 
-  test('marking the last job done leaves the cash order in progress, offering to finish and close it', async ({ ordersPage, order, job }) => {
-    // Setup — the job open.
-    await ordersPage.openJob(job)
+  test('marking the last product done leaves the cash order in progress, offering to finish and close it', async ({ ordersPage, order, product }) => {
+    // Setup — the product open.
+    await ordersPage.openProduct(product)
 
-    // Act — mark the job done and confirm.
-    await ordersPage.details.jobDetail.releaseButton.click()
+    // Act — mark the product done and confirm.
+    await ordersPage.details.productDetail.releaseButton.click()
     await ordersPage.confirmDialog.confirm.click()
 
-    // Assert — the job is done, the order still in progress with the close action offered (never finished by itself).
-    await expect(ordersPage.details.jobList.row(job.id)).toHaveAttribute('data-status', DONE_STATUS)
+    // Assert — the product is done, the order still in progress with the close action offered (never finished by itself).
+    await expect(ordersPage.details.productList.row(product.id)).toHaveAttribute('data-status', DONE_STATUS)
     await expect(ordersPage.details.lifecycle).toHaveAttribute('data-target', 'BILLED')
     await expect(ordersPage.details.forOrder(order.id)).toHaveAttribute('data-status', IN_PROGRESS_STATUS)
   })
 })
 
-test.describe('in progress, every job done', () => {
-  test.use({ orderSeed: IN_PROGRESS_ORDER, jobSeed: JOB_DONE })
+test.describe('in progress, every product done', () => {
+  test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: PRODUCT_DONE })
 
-  // The order was seeded with its job already done, so nothing finished it on
-  // its own: this is the manual fallback the lifecycle button keeps offering.
-  test('marking the order finished moves it to finished', async ({ ordersPage, order, job }) => {
+  // The order was seeded with its product already done, so nothing finished it
+  // on its own: this is the manual fallback the lifecycle button keeps offering.
+  test('marking the order finished moves it to finished', async ({ ordersPage, order, product }) => {
     // Setup — the order open.
     await ordersPage.openOrder(order.id)
 
@@ -119,19 +119,19 @@ test.describe('in progress, every job done', () => {
     await ordersPage.details.lifecycle.click()
     await ordersPage.confirmDialog.confirm.click()
 
-    // Assert — the order is shown finished, its done job still in it.
+    // Assert — the order is shown finished, its done product still in it.
     await expect(ordersPage.details.forOrder(order.id)).toHaveAttribute('data-status', FINISHED_STATUS)
-    await expect(ordersPage.details.jobList.row(job.id)).toBeVisible()
+    await expect(ordersPage.details.productList.row(product.id)).toBeVisible()
   })
 })
 
-test.describe('finished, every job done', () => {
-  test.use({ orderSeed: FINISHED_ORDER, jobSeed: JOB_DONE })
+test.describe('finished, every product done', () => {
+  test.use({ orderSeed: FINISHED_ORDER, productSeed: PRODUCT_DONE })
 
-  test('marking the order as invoiced closes it and keeps it in the order list', async ({ ordersPage, order, job }) => {
-    // Setup — the order open with its done job loaded (the action is offered only once every job is done).
+  test('marking the order as invoiced closes it and keeps it in the order list', async ({ ordersPage, order, product }) => {
+    // Setup — the order open with its done product loaded (the action is offered only once every product is done).
     await ordersPage.openOrder(order.id)
-    await ordersPage.details.jobList.row(job.id).waitFor()
+    await ordersPage.details.productList.row(product.id).waitFor()
 
     // Act — mark it invoiced and confirm.
     await ordersPage.details.lifecycle.click()
@@ -143,13 +143,13 @@ test.describe('finished, every job done', () => {
   })
 })
 
-test.describe('as admin, finished, every job done', () => {
-  test.use({ user: TEST_USERS.admin, orderSeed: FINISHED_ORDER, jobSeed: JOB_DONE })
+test.describe('as admin, finished, every product done', () => {
+  test.use({ user: TEST_USERS.admin, orderSeed: FINISHED_ORDER, productSeed: PRODUCT_DONE })
 
-  test('reopening the order moves it back to in progress', async ({ ordersPage, order, job }) => {
-    // Setup — the order open with its done job loaded.
+  test('reopening the order moves it back to in progress', async ({ ordersPage, order, product }) => {
+    // Setup — the order open with its done product loaded.
     await ordersPage.openOrder(order.id)
-    await ordersPage.details.jobList.row(job.id).waitFor()
+    await ordersPage.details.productList.row(product.id).waitFor()
 
     // Act — reopen it and confirm.
     await ordersPage.details.reopen.click()
@@ -159,29 +159,29 @@ test.describe('as admin, finished, every job done', () => {
     await expect(ordersPage.details.forOrder(order.id)).toHaveAttribute('data-status', IN_PROGRESS_STATUS)
   })
 
-  test('reopening the order leaves it open, with finishing it again a manual step', async ({ ordersPage, order, job }) => {
-    // Setup — the order open with its done job loaded.
+  test('reopening the order leaves it open, with finishing it again a manual step', async ({ ordersPage, order, product }) => {
+    // Setup — the order open with its done product loaded.
     await ordersPage.openOrder(order.id)
-    await ordersPage.details.jobList.row(job.id).waitFor()
+    await ordersPage.details.productList.row(product.id).waitFor()
 
     // Act — reopen it and confirm.
     await ordersPage.details.reopen.click()
     await ordersPage.confirmDialog.confirm.click()
 
-    // Assert — every job is still done, yet the order does not finish itself again: the
-    // automatic finish only follows a job event, so the manual "Mark finished" is offered.
+    // Assert — every product is still done, yet the order does not finish itself again: the
+    // automatic finish only follows a product event, so the manual "Mark finished" is offered.
     await expect(ordersPage.details.lifecycle).toHaveAttribute('data-target', FINISHED_STATUS)
     await expect(ordersPage.details.forOrder(order.id)).toHaveAttribute('data-status', IN_PROGRESS_STATUS)
   })
 })
 
-test.describe('in progress cash order, every job done', () => {
-  test.use({ orderSeed: IN_PROGRESS_CASH_ORDER, jobSeed: JOB_DONE })
+test.describe('in progress cash order, every product done', () => {
+  test.use({ orderSeed: IN_PROGRESS_CASH_ORDER, productSeed: PRODUCT_DONE })
 
-  test('finishing the cash order closes it in one step and keeps it in the order list', async ({ ordersPage, order, job }) => {
-    // Setup — the order open with its done job loaded (the action is offered only once every job is done).
+  test('finishing the cash order closes it in one step and keeps it in the order list', async ({ ordersPage, order, product }) => {
+    // Setup — the order open with its done product loaded (the action is offered only once every product is done).
     await ordersPage.openOrder(order.id)
-    await ordersPage.details.jobList.row(job.id).waitFor()
+    await ordersPage.details.productList.row(product.id).waitFor()
 
     // Act — finish and close it and confirm.
     await ordersPage.details.lifecycle.click()

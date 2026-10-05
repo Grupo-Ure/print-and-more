@@ -33,8 +33,8 @@
 }
 
 /* Required-field guidance: a pulsing red ring while a field needs filling (a
-   job held in setup for want of a deadline, a job past setup with nobody
-   assigned)… */
+   product held in setup for want of a deadline, a product past setup with
+   nobody assigned)… */
 @keyframes field-required {
   0%, 100% { box-shadow: 0 0 0 2px var(--destructive); }
   50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--destructive) 40%, transparent); }

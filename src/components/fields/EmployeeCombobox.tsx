@@ -11,7 +11,7 @@ type EmployeeComboboxProps = {
   value: string | null
   onChange: (user: { id: string; name: string } | null) => void
   disabled?: boolean
-  /** data-testid for the trigger — the field is shared by the job header and the time-log form. */
+  /** data-testid for the trigger — the field is shared by the product header and the time-log form. */
   testId?: string
   /** What the empty choice is called where "nobody" has a meaning of its own (e.g. "Creator", "Everyone"). */
   emptyLabel?: string
@@ -20,7 +20,7 @@ type EmployeeComboboxProps = {
   /** data-testid shared by the user options in the list (each carries `data-user-id`). */
   userOptionTestId?: string
   /**
-   * Pulse a red ring around the trigger (e.g. a job in pre-press or production
+   * Pulse a red ring around the trigger (e.g. a product in pre-press or production
    * has nobody assigned). When it drops back to false the ring turns green once
    * and fades out.
    */

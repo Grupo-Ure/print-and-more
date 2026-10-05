@@ -2,18 +2,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   textileMasterDataService,
   type BrandRow,
-  type ProductRow,
+  type TextileModelRow,
   type VariantRow,
   type VariantWithDetails,
 } from '../services/textileMasterDataService'
-import { jobService } from '../services/jobService'
 import { reorderQuantity } from '../components/stock/stockShared'
 import { availableStock } from '../components/textileStock/textileStockShared'
 import type { Database } from '../types/supabase'
+import { textileCatalogKeys } from './textileCatalogQueries'
 
 type BrandUpdate = Database['public']['Tables']['textile_brands']['Update']
-type ProductInsert = Database['public']['Tables']['textile_products']['Insert']
-type ProductUpdate = Database['public']['Tables']['textile_products']['Update']
+type ModelInsert = Database['public']['Tables']['textile_models']['Insert']
+type ModelUpdate = Database['public']['Tables']['textile_models']['Update']
 type VariantInsert = Database['public']['Tables']['textile_variants']['Insert']
 type VariantUpdate = Database['public']['Tables']['textile_variants']['Update']
 
@@ -25,8 +25,8 @@ export type TextileReorderRow = VariantWithDetails & {
 export const textileStockKeys = {
   all: ['textile-stock'] as const,
   brands: ['textile-stock', 'brands'] as const,
-  productsByBrand: (brandId: string) => ['textile-stock', 'products', brandId] as const,
-  variantsByProduct: (productId: string) => ['textile-stock', 'variants', productId] as const,
+  modelsByBrand: (brandId: string) => ['textile-stock', 'models', brandId] as const,
+  variantsByModel: (modelId: string) => ['textile-stock', 'variants', modelId] as const,
   allVariants: ['textile-stock', 'all-variants'] as const,
   reorderList: ['textile-stock', 'reorder-list'] as const,
   movements: ['textile-stock', 'movements'] as const,
@@ -39,19 +39,19 @@ export function useTextileBrands() {
   })
 }
 
-export function useTextileProductsByBrand(brandId: string) {
+export function useTextileModelsByBrand(brandId: string) {
   return useQuery({
-    queryKey: textileStockKeys.productsByBrand(brandId || '__none__'),
-    queryFn: () => textileMasterDataService.getProductsByBrand(brandId),
+    queryKey: textileStockKeys.modelsByBrand(brandId || '__none__'),
+    queryFn: () => textileMasterDataService.getModelsByBrand(brandId),
     enabled: !!brandId,
   })
 }
 
-export function useTextileVariantsByProduct(productId: string) {
+export function useTextileVariantsByModel(modelId: string) {
   return useQuery({
-    queryKey: textileStockKeys.variantsByProduct(productId || '__none__'),
-    queryFn: () => textileMasterDataService.getVariantsByProduct(productId),
-    enabled: !!productId,
+    queryKey: textileStockKeys.variantsByModel(modelId || '__none__'),
+    queryFn: () => textileMasterDataService.getVariantsByModel(modelId),
+    enabled: !!modelId,
   })
 }
 
@@ -69,24 +69,18 @@ export function useTextileMovements() {
   })
 }
 
-/** Open demand per variant from active TEXTILE jobs, joined onto the variants. */
+/** Open demand per variant from open TEXTILE batches, joined onto the variants. */
 async function fetchTextileReorderList(): Promise<TextileReorderRow[]> {
   const activeVariants = await textileMasterDataService.getVariantsWithDetails()
   const variantIdSet = new Set(activeVariants.map(variant => variant.id))
 
-  const activeJobs = await jobService.getActiveJobsByBereich('TEXTILE')
-  const jobIds = activeJobs.filter(job => !job.is_cancelled && job.status !== 'DONE').map(job => job.id)
-
+  // One round trip: the status filter rides on the product, the quantity on the
+  // garment line — the job model had to walk active jobs first.
   const demandByVariantId = new Map<string, number>()
-  const chunkSize = 200
-  for (let index = 0; index < jobIds.length; index += chunkSize) {
-    const jobSlice = jobIds.slice(index, index + chunkSize)
-    const positions = await textileMasterDataService.getEigenwarePositionsByJobs(jobSlice)
-    for (const position of positions) {
-      if (!position.variant_id || !variantIdSet.has(position.variant_id)) continue
-      const demand = Number(position.quantity ?? 0)
-      demandByVariantId.set(position.variant_id, (demandByVariantId.get(position.variant_id) ?? 0) + demand)
-    }
+  for (const line of await textileMasterDataService.getShopSuppliedDemand()) {
+    if (!line.variant_id || !variantIdSet.has(line.variant_id)) continue
+    const demand = Number(line.quantity ?? 0)
+    demandByVariantId.set(line.variant_id, (demandByVariantId.get(line.variant_id) ?? 0) + demand)
   }
 
   const reorderRows: TextileReorderRow[] = []
@@ -110,7 +104,12 @@ export function useTextileReorderList(enabled = true) {
 
 function useInvalidateTextileStock() {
   const queryClient = useQueryClient()
-  return () => void queryClient.invalidateQueries({ queryKey: textileStockKeys.all })
+  // The batch editor reads the same brands, models and variants through its
+  // own catalog queries, so a master-data edit refreshes those lists too.
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: textileStockKeys.all })
+    void queryClient.invalidateQueries({ queryKey: textileCatalogKeys.all })
+  }
 }
 
 export function useUpdateTextileBrand() {
@@ -121,37 +120,37 @@ export function useUpdateTextileBrand() {
   })
 }
 
-export function useCreateTextileProduct() {
+export function useCreateTextileModel() {
   const invalidate = useInvalidateTextileStock()
-  return useMutation<ProductRow, Error, ProductInsert>({
-    mutationFn: payload => textileMasterDataService.createProduct(payload),
+  return useMutation<TextileModelRow, Error, ModelInsert>({
+    mutationFn: payload => textileMasterDataService.createModel(payload),
     onSettled: invalidate,
   })
 }
 
 /** Either an entity that already exists, or the fields to create it with. */
 export type BrandTarget = { id: string } | { name: string }
-export type ProductTarget =
+export type ModelTarget =
   | { id: string }
   | { name: string; article_number: string | null; description: string | null }
 
 export type CreateTextileEntitiesInput = {
   brand: BrandTarget
   /** Omitted when only a brand is created. */
-  product?: ProductTarget
+  model?: ModelTarget
   /** Empty when no variant is created. */
-  variants: Omit<VariantInsert, 'product_id'>[]
+  variants: Omit<VariantInsert, 'model_id'>[]
 }
 
 export type CreateTextileEntitiesResult = {
   brandId: string
-  productId: string | null
+  modelId: string | null
   /** Rows actually inserted — lower than requested when duplicates were skipped. */
   variantCount: number
 }
 
 /**
- * Creates brand ▸ product ▸ variants in one go, starting at whichever level
+ * Creates brand ▸ model ▸ variants in one go, starting at whichever level
  * the caller doesn't already have. Supabase has no cross-table transaction
  * here, so a failure unwinds what this call created (newest first) — a
  * half-built branch of the catalog is worse than none.
@@ -159,7 +158,7 @@ export type CreateTextileEntitiesResult = {
 export function useCreateTextileEntities() {
   const invalidate = useInvalidateTextileStock()
   return useMutation<CreateTextileEntitiesResult, Error, CreateTextileEntitiesInput>({
-    mutationFn: async ({ brand, product, variants }) => {
+    mutationFn: async ({ brand, model, variants }) => {
       const undo: (() => Promise<void>)[] = []
       try {
         let brandId: string
@@ -171,32 +170,32 @@ export function useCreateTextileEntities() {
           undo.push(() => textileMasterDataService.deleteBrand(createdBrand.id))
         }
 
-        let productId: string | null = null
-        let productExisted = false
-        if (product) {
-          if ('id' in product) {
-            productId = product.id
-            productExisted = true
+        let modelId: string | null = null
+        let modelExisted = false
+        if (model) {
+          if ('id' in model) {
+            modelId = model.id
+            modelExisted = true
           } else {
-            const createdProduct = await textileMasterDataService.createProduct({
+            const createdModel = await textileMasterDataService.createModel({
               brand_id: brandId,
-              name: product.name,
-              article_number: product.article_number,
-              description: product.description,
+              name: model.name,
+              article_number: model.article_number,
+              description: model.description,
               is_active: true,
             })
-            productId = createdProduct.id
-            undo.push(() => textileMasterDataService.deleteProduct(createdProduct.id))
+            modelId = createdModel.id
+            undo.push(() => textileMasterDataService.deleteModel(createdModel.id))
           }
         }
 
         let variantCount = 0
-        if (productId && variants.length > 0) {
+        if (modelId && variants.length > 0) {
           let rows = variants
-          // Only an existing product can already hold colliding rows.
-          if (productExisted) {
+          // Only an existing model can already hold colliding rows.
+          if (modelExisted) {
             const existing = await textileMasterDataService.getExistingVariantCombinations(
-              productId,
+              modelId,
               [...new Set(variants.map(row => row.color))],
               [...new Set(variants.map(row => row.size))],
             )
@@ -204,15 +203,15 @@ export function useCreateTextileEntities() {
             rows = variants.filter(row => !taken.has(`${row.color}|||${row.size}`))
           }
           if (rows.length > 0) {
-            const productIdForRows = productId
+            const modelIdForRows = modelId
             await textileMasterDataService.createVariantsBatch(
-              rows.map(row => ({ ...row, product_id: productIdForRows })),
+              rows.map(row => ({ ...row, model_id: modelIdForRows })),
             )
             variantCount = rows.length
           }
         }
 
-        return { brandId, productId, variantCount }
+        return { brandId, modelId, variantCount }
       } catch (error) {
         for (const step of undo.reverse()) await step().catch(() => {})
         throw error
@@ -222,18 +221,18 @@ export function useCreateTextileEntities() {
   })
 }
 
-export function useUpdateTextileProduct() {
+export function useUpdateTextileModel() {
   const invalidate = useInvalidateTextileStock()
-  return useMutation<ProductRow, Error, { productId: string; patch: ProductUpdate }>({
-    mutationFn: ({ productId, patch }) => textileMasterDataService.updateProduct(productId, patch),
+  return useMutation<TextileModelRow, Error, { modelId: string; patch: ModelUpdate }>({
+    mutationFn: ({ modelId, patch }) => textileMasterDataService.updateModel(modelId, patch),
     onSettled: invalidate,
   })
 }
 
-export function useDeleteTextileProduct() {
+export function useDeleteTextileModel() {
   const invalidate = useInvalidateTextileStock()
   return useMutation<void, Error, string>({
-    mutationFn: productId => textileMasterDataService.deleteProduct(productId),
+    mutationFn: modelId => textileMasterDataService.deleteModel(modelId),
     onSettled: invalidate,
   })
 }

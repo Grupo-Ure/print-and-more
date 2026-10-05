@@ -10,12 +10,12 @@ type DeadlinePickerProps = {
   onChange: (value: string | null) => void
   disabled?: boolean
   /**
-   * Pulse a red ring around the field to guide the user here (a job is blocked
+   * Pulse a red ring around the field to guide the user here (a product is blocked
    * for want of this deadline). When it drops back to false the ring turns
    * green once and fades out.
    */
   attention?: boolean
-  /** data-testid for the trigger — the field is shared by the order row and the job dialog. */
+  /** data-testid for the trigger — the field is shared by the order row and the product's Settings tab. */
   testId?: string
   /** data-testid for the calendar popover (portalled, so it cannot be found through the trigger). */
   calendarTestId?: string

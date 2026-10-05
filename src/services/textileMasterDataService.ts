@@ -3,22 +3,22 @@ import type { Database } from '../types/supabase'
 
 type BrandInsert = Database['public']['Tables']['textile_brands']['Insert']
 type BrandUpdate = Database['public']['Tables']['textile_brands']['Update']
-type ProductInsert = Database['public']['Tables']['textile_products']['Insert']
-type ProductUpdate = Database['public']['Tables']['textile_products']['Update']
+type ModelInsert = Database['public']['Tables']['textile_models']['Insert']
+type ModelUpdate = Database['public']['Tables']['textile_models']['Update']
 type VariantInsert = Database['public']['Tables']['textile_variants']['Insert']
 type VariantUpdate = Database['public']['Tables']['textile_variants']['Update']
 type StockMovementInsert = Database['public']['Tables']['textile_stock_movements']['Insert']
 
 export type BrandRow = Database['public']['Tables']['textile_brands']['Row']
-export type ProductRow = Database['public']['Tables']['textile_products']['Row']
+export type TextileModelRow = Database['public']['Tables']['textile_models']['Row']
 export type VariantRow = Database['public']['Tables']['textile_variants']['Row']
 
-export type ProductWithBrand = ProductRow & {
+export type ModelWithBrand = TextileModelRow & {
   textile_brands: { name: string } | null
 }
 
 export type VariantWithDetails = VariantRow & {
-  textile_products: {
+  textile_models: {
     name: string
     article_number: string | null
     textile_brands: { name: string } | null
@@ -29,18 +29,23 @@ export type TextileStockMovementRow = Database['public']['Tables']['textile_stoc
   textile_variants: {
     color: string
     size: string
-    textile_products: {
+    textile_models: {
       name: string
       textile_brands: { name: string } | null
     } | null
   } | null
 }
 
-/** Flatten a textile_garment_products row embedding its parent into {variant_id, quantity}. */
-function toVariantUsage(row: unknown): { variant_id: string | null; quantity: number } {
-  const r = row as { variant_id: string | null; department_products: { quantity: number | null } | { quantity: number | null }[] | null }
-  const parent = Array.isArray(r.department_products) ? r.department_products[0] : r.department_products
-  return { variant_id: r.variant_id ?? null, quantity: Number(parent?.quantity ?? 0) }
+/**
+ * A garment line's claim on a catalog variant. The quantity lives on the line
+ * itself now — the job model kept it on the parent, which is why every usage
+ * query used to join it.
+ */
+function toVariantUsage(row: { variant_id: string | null; quantity: number | null }): {
+  variant_id: string | null
+  quantity: number
+} {
+  return { variant_id: row.variant_id ?? null, quantity: Number(row.quantity ?? 0) }
 }
 
 class TextileMasterDataService {
@@ -85,42 +90,42 @@ class TextileMasterDataService {
     return data as BrandRow
   }
 
-  async getProductsByBrand(markeId: string): Promise<ProductWithBrand[]> {
+  async getModelsByBrand(brandId: string): Promise<ModelWithBrand[]> {
     const { data, error } = await supabase
-      .from('textile_products')
+      .from('textile_models')
       .select('*, textile_brands(name)')
-      .eq('brand_id', markeId)
+      .eq('brand_id', brandId)
       .order('name')
     if (error) throw error
-    return (data ?? []) as unknown as ProductWithBrand[]
+    return (data ?? []) as unknown as ModelWithBrand[]
   }
 
-  async createProduct(payload: ProductInsert): Promise<ProductRow> {
+  async createModel(payload: ModelInsert): Promise<TextileModelRow> {
     const { data, error } = await supabase
-      .from('textile_products')
+      .from('textile_models')
       .insert(payload)
       .select('*')
       .single()
     if (error) throw error
-    return data as ProductRow
+    return data as TextileModelRow
   }
 
-  async updateProduct(id: string, patch: ProductUpdate): Promise<ProductRow> {
+  async updateModel(id: string, patch: ModelUpdate): Promise<TextileModelRow> {
     const { data, error } = await supabase
-      .from('textile_products')
+      .from('textile_models')
       .update(patch)
       .eq('id', id)
       .select('*')
       .single()
     if (error) throw error
-    return data as ProductRow
+    return data as TextileModelRow
   }
 
-  async getVariantsByProduct(produktId: string): Promise<VariantWithDetails[]> {
+  async getVariantsByModel(modelId: string): Promise<VariantWithDetails[]> {
     const { data, error } = await supabase
       .from('textile_variants')
-      .select('*, textile_products(name, article_number, textile_brands(name))')
-      .eq('product_id', produktId)
+      .select('*, textile_models(name, article_number, textile_brands(name))')
+      .eq('model_id', modelId)
       .order('sort_order')
     if (error) throw error
     return (data ?? []) as unknown as VariantWithDetails[]
@@ -129,7 +134,7 @@ class TextileMasterDataService {
   async getVariantsWithDetails(): Promise<VariantWithDetails[]> {
     const { data, error } = await supabase
       .from('textile_variants')
-      .select('*, textile_products(name, article_number, textile_brands(name))')
+      .select('*, textile_models(name, article_number, textile_brands(name))')
       .eq('is_active', true)
       .order('sort_order')
     if (error) throw error
@@ -137,30 +142,34 @@ class TextileMasterDataService {
   }
 
   async getExistingVariantCombinations(
-    produktId: string,
+    modelId: string,
     colors: string[],
     sizes: string[],
   ): Promise<{ color: string; size: string }[]> {
     const { data, error } = await supabase
       .from('textile_variants')
       .select('color, size')
-      .eq('product_id', produktId)
+      .eq('model_id', modelId)
       .in('color', colors)
       .in('size', sizes)
     if (error) throw error
     return (data ?? []) as { color: string; size: string }[]
   }
 
-  async getEigenwarePositionsByJobs(
-    jobIds: string[],
-  ): Promise<{ variant_id: string | null; quantity: number }[]> {
-    if (jobIds.length === 0) return []
+  /**
+   * Open demand per catalog variant: every shop-supplied garment line of a
+   * TEXTILE product that is neither done nor cancelled. Feeds the reorder
+   * list. One round trip — the status filter rides on the product, and the
+   * quantity on the line.
+   */
+  async getShopSuppliedDemand(): Promise<{ variant_id: string | null; quantity: number }[]> {
     const { data, error } = await supabase
-      .from('textile_garment_products')
-      .select('variant_id, department_products!inner(quantity, job_id)')
-      .eq('origin', 'OWN_STOCK')
+      .from('textile_garments')
+      .select('variant_id, quantity, products!inner(status, is_cancelled)')
+      .eq('origin', 'SHOP_SUPPLIED')
       .not('variant_id', 'is', null)
-      .in('department_products.job_id', jobIds)
+      .eq('products.is_cancelled', false)
+      .neq('products.status', 'DONE')
     if (error) throw error
     return (data ?? []).map(toVariantUsage)
   }
@@ -214,7 +223,7 @@ class TextileMasterDataService {
   async getStockMovements(): Promise<TextileStockMovementRow[]> {
     const { data, error } = await supabase
       .from('textile_stock_movements')
-      .select('*, textile_variants(color, size, textile_products(name, textile_brands(name)))')
+      .select('*, textile_variants(color, size, textile_models(name, textile_brands(name)))')
       .order('created_at', { ascending: false })
       .limit(200)
     if (error) throw error
@@ -236,45 +245,30 @@ class TextileMasterDataService {
     if (error) throw error
   }
 
-  async deleteProduct(id: string): Promise<void> {
+  async deleteModel(id: string): Promise<void> {
     // Variants first — the FK from textile_variants has no cascade.
     const { error: variantsError } = await supabase
       .from('textile_variants')
       .delete()
-      .eq('product_id', id)
+      .eq('model_id', id)
     if (variantsError) throw variantsError
-    const { error } = await supabase.from('textile_products').delete().eq('id', id)
+    const { error } = await supabase.from('textile_models').delete().eq('id', id)
     if (error) throw error
   }
 
-  async getJobsUsingVariant(varianteId: string): Promise<string[]> {
-    return this.getJobsUsingVariants([varianteId])
+  /** The products whose garment lines use this catalog variant. */
+  async getProductsUsingVariant(variantId: string): Promise<string[]> {
+    return this.getProductsUsingVariants([variantId])
   }
 
-  async getJobsUsingVariants(variantIds: string[]): Promise<string[]> {
+  async getProductsUsingVariants(variantIds: string[]): Promise<string[]> {
     if (variantIds.length === 0) return []
     const { data, error } = await supabase
-      .from('textile_garment_products')
-      .select('department_products!inner(job_id)')
+      .from('textile_garments')
+      .select('product_id')
       .in('variant_id', variantIds)
     if (error) throw error
-    const ids = (data ?? []).map(row => {
-      const dp = (row as { department_products: { job_id: string } | { job_id: string }[] | null }).department_products
-      const parent = Array.isArray(dp) ? dp[0] : dp
-      return parent?.job_id ?? ''
-    })
-    return [...new Set(ids.filter(Boolean))]
-  }
-
-  async getVariantUsageByJob(
-    jobId: string,
-  ): Promise<{ variant_id: string | null; quantity: number }[]> {
-    const { data, error } = await supabase
-      .from('textile_garment_products')
-      .select('variant_id, department_products!inner(quantity, job_id)')
-      .eq('department_products.job_id', jobId)
-    if (error) throw error
-    return (data ?? []).map(toVariantUsage)
+    return [...new Set((data ?? []).map(row => row.product_id).filter(Boolean))]
   }
 }
 

@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
 import { BasePOM } from './BasePOM'
 
-const IDS = TEST_IDS.orders.jobDetail.settingsDialog.grantDialog
+const IDS = TEST_IDS.orders.productDetail.settings.grantDialog
 
 /** Pick which of the order's files the customer approved. */
 export class GrantApprovalDialogPOM extends BasePOM {

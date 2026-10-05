@@ -8,12 +8,10 @@ import {
   useOrdersList,
   type OrdersListFilter,
 } from '../queries/orderQueries'
-import { fetchJobsByOrderId } from '../queries/jobQueries'
+import { fetchProductsByOrderId } from '../queries/productQueries'
 import { orderService } from '../services/orderService'
-import {
-  type Auftrag,
-  type JobRow,
-} from '../types/database'
+import { type Auftrag } from '../types/database'
+import type { LoadedProduct } from '../types/product'
 import { Archive, Search } from 'lucide-react'
 import { Sidebar, SidebarHeader, SidebarContent, SidebarFooter } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
@@ -83,7 +81,7 @@ export function OrderSidebar() {
   const [duplicateBusy, setDuplicateBusy] = useState(false)
   const [duplicateError, setDuplicateError] = useState<string | null>(null)
   const [duplicateOrder, setDuplicateOrder] = useState<Auftrag | null>(null)
-  const [duplicateJobs, setDuplicateJobs] = useState<JobRow[]>([])
+  const [duplicateProducts, setDuplicateProducts] = useState<LoadedProduct[]>([])
 
   const openDuplicateDialog = useCallback(
     async (auftragId: string) => {
@@ -93,9 +91,9 @@ export function OrderSidebar() {
       try {
         const orderData = await fetchOrderById(queryClient, auftragId)
         if (!orderData) throw new Error('Order not found')
-        const jobData = await fetchJobsByOrderId(queryClient, auftragId)
+        const productData = await fetchProductsByOrderId(queryClient, auftragId)
         setDuplicateOrder(orderData as Auftrag)
-        setDuplicateJobs(jobData)
+        setDuplicateProducts(productData)
         setDuplicateDialogOpen(true)
       } catch (e) {
         showError('Orders could not be loaded')
@@ -118,8 +116,8 @@ export function OrderSidebar() {
         description: (
           <>
             You are about to permanently delete the quote for{' '}
-            <strong className="text-foreground font-medium">{customerLabel}</strong>. All jobs and
-            linked files will be removed. This cannot be undone.
+            <strong className="text-foreground font-medium">{customerLabel}</strong>. All products
+            and linked files will be removed. This cannot be undone.
           </>
         ),
         confirmLabel: 'Delete order',
@@ -218,7 +216,7 @@ export function OrderSidebar() {
       {duplicateDialogOpen && duplicateOrder && (
         <DuplicateDialog
           order={duplicateOrder}
-          jobs={duplicateJobs}
+          products={duplicateProducts}
           onCancel={() => setDuplicateDialogOpen(false)}
           onSuccess={newOrder => {
             setDuplicateDialogOpen(false)

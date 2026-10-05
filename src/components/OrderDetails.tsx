@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toDateOnly } from '../lib/formatDate'
 import { formatMinutes } from '../lib/formatMinutes'
-import { areAllJobsDone, isMissingDeadline } from '../lib/jobShared'
+import { areAllProductsDone, isMissingDeadline } from '../lib/productShared'
 import { formatCustomerAddress } from '../lib/customer'
 import {
   type DeliveryChoice,
@@ -10,32 +10,31 @@ import {
   type OrderHeaderPatch,
   type PaymentMethod,
   type Priority,
-  type JobRow,
 } from '../types/database'
 import { useToast } from './Toast'
 import { useConfirm } from './ConfirmDialog'
 import { useOrderFiles } from '../hooks/useOrderFiles'
-import { OrderFilesDialog } from './OrderFilesDialog'
-import { JobDetail } from './JobDetail'
-import { JobList } from './JobList'
-import { StatusManager } from './StatusManager'
+import { ProductDetail } from './ProductDetail'
+import { ProductList } from './ProductList'
 import { useOrderWorkspace } from '../context/order.context'
 import { useNavigation } from '../context/navigation.context'
 import { useOrderSelection } from '../hooks/useOrderSelection'
+import { useStatusManager } from '../queries/useStatusManager'
 import { ReleaseHighlights } from './ReleaseHighlights'
 import { useReleaseNotes } from '../queries/releaseNotesQueries'
 import { groupReleasesByLine, highlightsMarkdown } from '../lib/releaseNotes'
-import { orderKeys, useArchiveOrder, useArchiveOrderWithCancelledJobs, useMarkOrderBilled, useOrderById, useSetOrderStatus, useUpdateOrder } from '../queries/orderQueries'
-import { jobKeys, useJobsByOrderId } from '../queries/jobQueries'
+import { orderKeys, useArchiveOrder, useArchiveOrderWithCancelledProducts, useMarkOrderBilled, useOrderById, useSetOrderStatus, useUpdateOrder } from '../queries/orderQueries'
+import { useProductsByOrderId } from '../queries/productQueries'
 import { useTimeLogMinutesByOrderId } from '../queries/timeLogQueries'
 import { useIsAdmin } from '../queries/userQueries'
 import './WorkArea.css'
 import { Button } from './ui/button'
 import { cn } from '@/lib/utils'
-import { ORDER_STATUS_META } from '../const/orderStatus'
-import { Archive, Ban, CheckCircle2, Clock, Copy, History, Paperclip, Settings, ShieldCheck, TriangleAlert } from 'lucide-react'
-import { OrderHistoryDialog } from './OrderHistoryDialog'
+import { ORDER_STATUS_META } from '../lib/statusLabels'
+import { Archive, Ban, CheckCircle2, Clock, Copy, History, Package, Settings, ShieldCheck, TriangleAlert } from 'lucide-react'
+import { OrderHistory } from './OrderHistory'
 import { Separator } from './ui/separator'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import { DeadlinePicker } from './fields/DeadlinePicker'
 import { DeliverySelect } from './fields/DeliverySelect'
 import { PaymentSelect } from './fields/PaymentSelect'
@@ -44,6 +43,9 @@ import { TEST_IDS } from '@e2e/support/testIds'
 
 const HEADER_IDS = TEST_IDS.orders.details.header
 const SETTINGS_IDS = TEST_IDS.orders.details.settings
+const TAB_IDS = TEST_IDS.orders.details.tabs
+
+type OrderTab = 'products' | 'history'
 
 /** Copies a value to the clipboard and reports the outcome as a toast. */
 function useCopyToClipboard() {
@@ -63,55 +65,62 @@ function useCopyToClipboard() {
 
 export function OrderDetails() {
   const { openCustomerDialog } = useOrderWorkspace()
-  const { activeOrderId, activeJobId, setActiveJob, clearActive } = useOrderSelection()
+  const { activeOrderId, activeProductId, setActiveProduct, clearActive } = useOrderSelection()
   const { navigate } = useNavigation()
   const { data: releases } = useReleaseNotes()
   const queryClient = useQueryClient()
   const { files, reload: reloadFiles } = useOrderFiles(activeOrderId)
-  const [filesOpen, setFilesOpen] = useState(false)
+  const [tab, setTab] = useState<OrderTab>('products')
   const { showError } = useToast()
   const copyToClipboard = useCopyToClipboard()
   const confirm = useConfirm()
 
   const orderQuery = useOrderById(activeOrderId)
-  const jobsQuery = useJobsByOrderId(activeOrderId)
+  const productsQuery = useProductsByOrderId(activeOrderId)
   const updateOrder = useUpdateOrder()
 
+  // The single writer of the automatic IN_SETUP ↔ PREPRESS status, for every
+  // auto-band product of the open order — not just the selected one. It lives
+  // here rather than in the product detail so a product that quietly becomes
+  // complete is promoted when its data changes, not when someone clicks it.
+  useStatusManager(activeOrderId)
+
   const order = orderQuery.data ?? null
-  const jobs = useMemo(() => jobsQuery.data ?? [], [jobsQuery.data])
-  const loading = orderQuery.isLoading || jobsQuery.isLoading
-  const isError = orderQuery.isError || jobsQuery.isError
+  const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data])
+  const loading = orderQuery.isLoading || productsQuery.isLoading
+  const isError = orderQuery.isError || productsQuery.isError
 
   useEffect(() => {
     if (isError) showError('Order could not be loaded')
   }, [isError, showError])
 
-  const visibleJobs = useMemo(
-    () => jobs.filter(job => !job.is_cancelled),
-    [jobs]
+  const visibleProducts = useMemo(
+    () => products.filter(product => !product.is_cancelled),
+    [products]
   )
-  const activeJob = useMemo((): JobRow | null => {
-    if (activeJobId == null) return null
-    return visibleJobs.find(job => job.id === activeJobId) ?? null
-  }, [visibleJobs, activeJobId])
+  const activeProduct = useMemo(
+    () => visibleProducts.find(product => product.id === activeProductId) ?? null,
+    [visibleProducts, activeProductId],
+  )
 
-  // The active job has no deadline, neither its own nor the order's — guide
-  // the user to the order's deadline field.
-  const deadlineRequired = order != null && activeJob != null && isMissingDeadline(activeJob, order)
+  // The selected product has no deadline, neither its own nor the order's —
+  // guide the user to the order's deadline field.
+  const deadlineRequired =
+    order != null && activeProduct != null && isMissingDeadline(activeProduct, order)
 
-  // Pick a default job tab when ?sub= is unset or no longer matches a visible row.
+  // Select a product when none is, or the selected one is no longer listed.
   useEffect(() => {
-    if (visibleJobs.length === 0) {
-      if (activeJobId !== null) setActiveJob(null)
+    if (visibleProducts.length === 0) {
+      if (activeProductId !== null) setActiveProduct(null)
       return
     }
-    if (activeJobId == null || !visibleJobs.some(s => s.id === activeJobId)) {
-      setActiveJob(visibleJobs[0].id)
+    if (activeProductId == null || !visibleProducts.some(p => p.id === activeProductId)) {
+      setActiveProduct(visibleProducts[0].id)
     }
-  }, [visibleJobs, activeJobId, setActiveJob])
+  }, [visibleProducts, activeProductId, setActiveProduct])
 
   const archiveOrder = useArchiveOrder()
-  const cancelOrder = useArchiveOrderWithCancelledJobs()
+  const cancelOrder = useArchiveOrderWithCancelledProducts()
   const setOrderStatus = useSetOrderStatus()
   const markBilled = useMarkOrderBilled()
 
@@ -220,7 +229,7 @@ export function OrderDetails() {
   const handleCancelOrder = async () => {
     const confirmed = await confirm({
       title: 'Cancel this order?',
-      description: 'All jobs will be cancelled and the order hidden.',
+      description: 'All products will be cancelled and the order hidden.',
       confirmLabel: 'Cancel order',
       destructive: true,
     })
@@ -257,18 +266,6 @@ export function OrderDetails() {
     [activeOrderId, order, updateOrder, showError]
   )
 
-  const handleJobUpdated = useCallback(
-    (updatedJob: JobRow) => {
-      if (activeOrderId) {
-        queryClient.setQueryData<JobRow[]>(
-          jobKeys.byOrderId(activeOrderId),
-          old => old?.map(job => (job.id === updatedJob.id ? updatedJob : job)) ?? old,
-        )
-      }
-    },
-    [activeOrderId, queryClient]
-  )
-
   if (!activeOrderId) {
     const latestRelease = groupReleasesByLine(releases ?? [])[0]?.latest
     const hasHighlights = latestRelease != null && highlightsMarkdown(latestRelease.body ?? '') !== ''
@@ -277,7 +274,7 @@ export function OrderDetails() {
       <div data-testid={TEST_IDS.orders.welcome} className="flex flex-col w-full h-full items-center justify-center gap-6">
         <div className="flex flex-col items-center gap-1">
           <h1 className="tracking-widest">Welcome</h1>
-          <h2>Select an order on the left to view details and jobs.</h2>
+          <h2>Select an order on the left to view its details and products.</h2>
         </div>
 
         {hasHighlights && (
@@ -348,13 +345,10 @@ export function OrderDetails() {
       data-status={order.status}
       className="flex flex-col gap-2 p-3 flex-1 min-h-0"
     >
-      {/* Watches every auto-band job of the order for the automatic
-          IN_SETUP ↔ PREPRESS transition (renders nothing). */}
-      <StatusManager orderId={activeOrderId} />
       <OrderHeader
         order={order}
-        hasJobs={visibleJobs.length > 0}
-        allJobsDone={areAllJobsDone(visibleJobs)}
+        hasProducts={visibleProducts.length > 0}
+        allProductsDone={areAllProductsDone(visibleProducts)}
         onEditCustomer={() =>
           openCustomerDialog(order?.customers ?? null, {
             onSaved: () => {
@@ -370,59 +364,67 @@ export function OrderDetails() {
         onMarkFinished={() => void handleMarkFinished()}
         onMarkInvoiced={() => void handleMarkInvoiced()}
         onReopenOrder={() => void handleReopenOrder()}
-        onOpenFiles={() => setFilesOpen(true)}
         archivePending={archiveOrder.isPending}
         cancelPending={cancelOrder.isPending}
         statusPending={setOrderStatus.isPending || markBilled.isPending}
       />
-      <Separator />
 
       <OrderSettings order={order} onSave={saveOrderHeader} deadlineRequired={deadlineRequired} />
-
+      {/* Groups the order header + settings visually apart from the product tabs below. */}
       <Separator />
 
-      <div className="flex gap-2 flex-1 min-h-0">
-        <JobList />
+      {/* Kept across order switches, like the product tab: flipping through
+          orders on History shows each one's history. */}
+      <Tabs value={tab} onValueChange={value => setTab(value as OrderTab)} className="flex-1 min-h-0">
+        <TabsList variant="line" aria-label="Order sections">
+          <TabsTrigger value="products" data-testid={TAB_IDS.products} className="px-3 text-base">
+            <Package />
+            Products
+          </TabsTrigger>
+          <TabsTrigger value="history" data-testid={TAB_IDS.history} className="px-3 text-base">
+            <History />
+            History
+          </TabsTrigger>
+        </TabsList>
 
-        <Separator  orientation='vertical'/>
+        <Separator />
 
-        <div className="flex-1 min-w-0 overflow-y-auto" role="tabpanel">
-          {activeJob ? (
-            <JobDetail
-              orderFiles={files}
-              onOrderFilesChanged={reloadFiles}
-              onUpdated={handleJobUpdated}
-            />
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
-              <p className="text-sm text-muted-foreground">No jobs yet.</p>
-              {/* The department buttons live at the top of the job list; a
-                  finished/billed order has none, so no hint either. */}
-              {order.status !== 'FINISHED' && order.status !== 'BILLED' && (
-                <p className="text-sm text-muted-foreground">Pick a department on the left to add one.</p>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+        <TabsContent value="products" className="flex gap-2 min-h-0">
+          <ProductList orderFiles={files} />
 
-      <OrderFilesDialog
-        orderId={activeOrderId}
-        files={files}
-        onFileChanged={reloadFiles}
-        open={filesOpen}
-        onOpenChange={setFilesOpen}
-      />
+          <Separator orientation="vertical" />
+
+          {/* A flex column so the product detail can stretch to the bottom of the column. */}
+          <div className="flex flex-1 min-w-0 flex-col overflow-y-auto">
+            {activeProduct ? (
+              <ProductDetail orderFiles={files} onOrderFilesChanged={reloadFiles} />
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
+                <p className="text-sm text-muted-foreground">No products yet.</p>
+                {/* The department buttons live at the top of the product list; a
+                    finished/billed order has none, so no hint either. */}
+                {order.status !== 'FINISHED' && order.status !== 'BILLED' && (
+                  <p className="text-sm text-muted-foreground">Pick a department on the left to add one.</p>
+                )}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="history" className="min-h-0">
+          <OrderHistory orderId={order.id} />
+        </TabsContent>
+      </Tabs>
     </main>
   )
 }
 
 type OrderHeaderProps = {
   order: OrderDetailRow
-  /** True when the order has ≥1 non-cancelled job. */
-  hasJobs: boolean
-  /** True when the order has ≥1 non-cancelled job and every one of them is DONE. */
-  allJobsDone: boolean
+  /** True when the order has ≥1 non-cancelled product. */
+  hasProducts: boolean
+  /** True when the order has ≥1 non-cancelled product and every one of them is DONE. */
+  allProductsDone: boolean
   onEditCustomer: () => void
   onArchive: () => void
   onCancelOrder: () => void
@@ -430,13 +432,12 @@ type OrderHeaderProps = {
   onMarkFinished: () => void
   onMarkInvoiced: () => void
   onReopenOrder: () => void
-  onOpenFiles: () => void
   archivePending: boolean
   cancelPending: boolean
   statusPending: boolean
 }
 
-function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, onCancelOrder, onStartProcessing, onMarkFinished, onMarkInvoiced, onReopenOrder, onOpenFiles, archivePending, cancelPending, statusPending }: OrderHeaderProps) {
+function OrderHeader({ order, hasProducts, allProductsDone, onEditCustomer, onArchive, onCancelOrder, onStartProcessing, onMarkFinished, onMarkInvoiced, onReopenOrder, archivePending, cancelPending, statusPending }: OrderHeaderProps) {
   const customerDisplayName = order.customers?.name?.trim() || '—'
   const customerEmail = order.customers?.email?.trim() || ''
   const customerPhone = order.customers?.phone?.trim() || ''
@@ -444,7 +445,6 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
   const copyToClipboard = useCopyToClipboard()
   const minutesQuery = useTimeLogMinutesByOrderId(order.id)
   const totalMinutes = Object.values(minutesQuery.data ?? {}).reduce((sum, m) => sum + m, 0)
-  const [historyOpen, setHistoryOpen] = useState(false)
   const { isAdmin } = useIsAdmin()
 
   return (
@@ -521,13 +521,13 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
           </div>
         </div>
         <div className="flex items-center gap-1">
-          {order.status === 'QUOTE' && hasJobs && (
+          {order.status === 'QUOTE' && hasProducts && (
             <span
               data-testid={HEADER_IDS.quoteNotice}
               className="mr-2 flex items-center gap-2 text-lg font-medium text-amber-500"
             >
               <TriangleAlert size={16} className="shrink-0" />
-              Jobs cannot move to pre-press until you start processing the order.
+              Products cannot move to pre-press until you start processing the order.
             </span>
           )}
           {(order.status === 'FINISHED' || order.status === 'BILLED') && (
@@ -554,38 +554,15 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
               Reopen order
             </Button>
           )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            title="Order files"
-            aria-label="Order files"
-            data-testid={HEADER_IDS.files}
-            className="text-blue-500 hover:text-blue-700"
-            onClick={onOpenFiles}
-          >
-            <Paperclip className="size-5" />
-          </Button>
           <OrderLifecycleButton
             status={order.status}
             paymentMethod={order.payment_method}
-            allJobsDone={allJobsDone}
+            allProductsDone={allProductsDone}
             pending={statusPending}
             onStartProcessing={onStartProcessing}
             onMarkFinished={onMarkFinished}
             onMarkInvoiced={onMarkInvoiced}
           />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            title="Order history"
-            aria-label="Order history"
-            data-testid={HEADER_IDS.history}
-            onClick={() => setHistoryOpen(true)}
-          >
-            <History />
-          </Button>
           {order.status !== 'BILLED' && (
             <Button
               type="button"
@@ -638,14 +615,13 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
           <span
             data-testid={HEADER_IDS.totalTime}
             className="flex items-center gap-1 text-sm tabular-nums"
-            title="Total time logged across all jobs"
+            title="Total time logged across all products"
           >
             <Clock size={14} />
             {formatMinutes(totalMinutes)}
           </span>
         )}
       </div>
-      <OrderHistoryDialog orderId={order.id} open={historyOpen} onOpenChange={setHistoryOpen} />
     </header>
   );
 }
@@ -653,7 +629,7 @@ function OrderHeader({ order, hasJobs, allJobsDone, onEditCustomer, onArchive, o
 type OrderLifecycleButtonProps = {
   status: OrderDetailRow['status']
   paymentMethod: OrderDetailRow['payment_method']
-  allJobsDone: boolean
+  allProductsDone: boolean
   pending: boolean
   onStartProcessing: () => void
   onMarkFinished: () => void
@@ -663,9 +639,9 @@ type OrderLifecycleButtonProps = {
 /**
  * The single forward action of the order lifecycle: QUOTE → "Start processing",
  * IN_PROGRESS → "Mark finished", FINISHED → "Mark as invoiced". The latter two
- * require every non-cancelled job to be DONE; otherwise no button renders.
- * An invoice order normally finishes on its own the moment its last job is
- * done (`useFinishOrderWhenAllJobsDone`), so "Mark finished" is the manual
+ * require every non-cancelled product to be DONE; otherwise no button renders.
+ * An invoice order normally finishes on its own the moment its last product is
+ * done (`useFinishOrderWhenAllProductsDone`), so "Mark finished" is the manual
  * fallback — after an admin reopened the order, say.
  * Cash orders skip FINISHED: their IN_PROGRESS action is "Finish & close",
  * which goes straight to BILLED (handled inside onMarkFinished).
@@ -677,14 +653,14 @@ type LifecycleAction = {
   attention: boolean
 }
 
-function OrderLifecycleButton({ status, paymentMethod, allJobsDone, pending, onStartProcessing, onMarkFinished, onMarkInvoiced }: OrderLifecycleButtonProps) {
+function OrderLifecycleButton({ status, paymentMethod, allProductsDone, pending, onStartProcessing, onMarkFinished, onMarkInvoiced }: OrderLifecycleButtonProps) {
   let action: LifecycleAction | null = null
   switch (status) {
     case 'QUOTE':
       action = { label: 'Start processing', target: 'IN_PROGRESS', onClick: onStartProcessing, attention: true }
       break
     case 'IN_PROGRESS':
-      if (allJobsDone) {
+      if (allProductsDone) {
         action =
           paymentMethod === 'CASH'
             ? { label: 'Finish & close (cash)', target: 'BILLED', onClick: onMarkFinished, attention: false }
@@ -692,7 +668,7 @@ function OrderLifecycleButton({ status, paymentMethod, allJobsDone, pending, onS
       }
       break
     case 'FINISHED':
-      if (allJobsDone) {
+      if (allProductsDone) {
         action = { label: 'Mark as invoiced', target: 'BILLED', onClick: onMarkInvoiced, attention: false }
       }
       break
@@ -725,7 +701,7 @@ function OrderLifecycleButton({ status, paymentMethod, allJobsDone, pending, onS
 type OrderSettingsProps = {
   order: OrderDetailRow
   onSave: (patch: OrderHeaderPatch) => void
-  /** A job is blocked for want of the order's deadline — highlight the field. */
+  /** A product is blocked for want of the order's deadline — highlight the field. */
   deadlineRequired: boolean
 }
 

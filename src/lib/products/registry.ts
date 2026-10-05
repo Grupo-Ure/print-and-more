@@ -1,9 +1,10 @@
 /**
  * Per-product-type schema registry + the single validation entry point.
  *
- * `SCHEMA_BY_TYPE` mirrors `CHILD_TABLE_BY_TYPE` (same keys). `validateProduct`
- * replaces the five department `validate*Detail` functions: it returns the same
- * `Record<string, field-key → message>` contract the detail components consume.
+ * `SCHEMA_BY_TYPE` covers every product type — the 30 keys of
+ * `CHILD_TABLE_BY_TYPE` plus `TEXTILE_GARMENT`, whose batch has no single child
+ * table. `validateProduct` returns a `Record<string, field-key → message>`,
+ * the contract the per-type forms consume.
  */
 
 import type { z } from 'zod'
@@ -95,7 +96,7 @@ export const SCHEMA_BY_TYPE: Record<string, z.ZodTypeAny> = {
  * `type`.
  *
  * - while the parent order is a QUOTE → nothing required (empty map);
- *   `orderIsQuote` is the *order's* status, never the job's.
+ *   `orderIsQuote` is the *order's* status, never the product's.
  * - missing / unknown type → `{ type: 'Select type' }`.
  * - otherwise the type's schema runs; issues are mapped to `field-key → message`.
  */

@@ -18,30 +18,17 @@ export type AppView =
   | 'profile'
   | 'releaseNotes'
 
-type SetActiveJobOptions = {
-  /**
-   * Open the job's "add product" dialog as soon as its detail mounts. Used
-   * right after creating a job so the user lands in product entry without a
-   * second click. One-shot: consumed by the product editor of that job.
-   */
-  openProductAdd?: boolean
-}
-
 type NavigationValue = {
   view: AppView
   navigate: (view: AppView) => void
   activeOrderId: string | null
-  activeJobId: string | null
-  /** The job whose product editor should open in "add" mode on mount, if any. */
-  pendingProductAddJobId: string | null
+  activeProductId: string | null
   setActiveOrder: (orderId: string | null) => void
-  setActiveJob: (jobId: string | null, options?: SetActiveJobOptions) => void
-  /** Selects an order and one of its jobs in one update, whatever the view (the production feed's row click). */
-  selectJob: (orderId: string, jobId: string) => void
-  /** Switches to the orders view with this order and job selected. */
-  openJobInOrders: (orderId: string, jobId: string) => void
-  /** Called by the product editor once it has acted on the pending request. */
-  clearPendingProductAdd: () => void
+  setActiveProduct: (productId: string | null) => void
+  /** Selects an order and one of its products in one update, whatever the view (the production feed's row click). */
+  selectProduct: (orderId: string, productId: string) => void
+  /** Switches to the orders view with this order and product selected. */
+  openProductInOrders: (orderId: string, productId: string) => void
   clearActive: () => void
 }
 
@@ -49,14 +36,12 @@ const NavigationContext = createContext<NavigationValue | null>(null)
 
 type Selection = {
   activeOrderId: string | null
-  activeJobId: string | null
-  pendingProductAddJobId: string | null
+  activeProductId: string | null
 }
 
 const INITIAL_SELECTION: Selection = {
   activeOrderId: null,
-  activeJobId: null,
-  pendingProductAddJobId: null,
+  activeProductId: null,
 }
 
 export function NavigationProvider({ children }: { children: ReactNode }) {
@@ -70,39 +55,27 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   const setActiveOrder = useCallback((orderId: string | null) => {
     setSelection(prev => {
       if (orderId == null) return INITIAL_SELECTION
-      // A job selection is only meaningful within its order.
+      // A product selection is only meaningful within its order.
       if (prev.activeOrderId !== orderId) return { ...INITIAL_SELECTION, activeOrderId: orderId }
       return { ...prev, activeOrderId: orderId }
     })
   }, [])
 
-  const setActiveJob = useCallback((jobId: string | null, options?: SetActiveJobOptions) => {
-    setSelection(prev => ({
-      ...prev,
-      activeJobId: jobId,
-      // Selecting a job in the same update as the request means the editor can
-      // never observe the flag for a job other than the one it was meant for.
-      pendingProductAddJobId: jobId != null && options?.openProductAdd ? jobId : null,
-    }))
+  const setActiveProduct = useCallback((productId: string | null) => {
+    setSelection(prev => ({ ...prev, activeProductId: productId }))
   }, [])
 
-  const selectJob = useCallback((orderId: string, jobId: string) => {
-    setSelection({ activeOrderId: orderId, activeJobId: jobId, pendingProductAddJobId: null })
+  const selectProduct = useCallback((orderId: string, productId: string) => {
+    setSelection({ activeOrderId: orderId, activeProductId: productId })
   }, [])
 
-  const openJobInOrders = useCallback(
-    (orderId: string, jobId: string) => {
+  const openProductInOrders = useCallback(
+    (orderId: string, productId: string) => {
       setView('orders')
-      selectJob(orderId, jobId)
+      selectProduct(orderId, productId)
     },
-    [selectJob],
+    [selectProduct],
   )
-
-  const clearPendingProductAdd = useCallback(() => {
-    setSelection(prev =>
-      prev.pendingProductAddJobId == null ? prev : { ...prev, pendingProductAddJobId: null },
-    )
-  }, [])
 
   const clearActive = useCallback(() => {
     setSelection(INITIAL_SELECTION)
@@ -141,16 +114,14 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       view,
       navigate,
       activeOrderId: selection.activeOrderId,
-      activeJobId: selection.activeJobId,
-      pendingProductAddJobId: selection.pendingProductAddJobId,
+      activeProductId: selection.activeProductId,
       setActiveOrder,
-      setActiveJob,
-      selectJob,
-      openJobInOrders,
-      clearPendingProductAdd,
+      setActiveProduct,
+      selectProduct,
+      openProductInOrders,
       clearActive,
     }),
-    [view, navigate, selection, setActiveOrder, setActiveJob, selectJob, openJobInOrders, clearPendingProductAdd, clearActive],
+    [view, navigate, selection, setActiveOrder, setActiveProduct, selectProduct, openProductInOrders, clearActive],
   )
 
   return <NavigationContext.Provider value={value}>{children}</NavigationContext.Provider>

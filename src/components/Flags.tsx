@@ -2,7 +2,7 @@ import { ArrowUp, CalendarX, CircleAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 /**
- * Row flags shared by the order sidebar, the job list and the production feed.
+ * Row flags shared by the order sidebar, the product list and the production feed.
  * All are the same red; the shape tells them apart.
  */
 type FlagProps = {
@@ -11,7 +11,7 @@ type FlagProps = {
   testId?: string
 }
 
-/** Something the job needs is missing (`isMissingInfo`). */
+/** Something the product needs is missing (`isMissingInfo`). */
 export function MissingInfoFlag({ size, testId }: FlagProps) {
   return (
     <span data-testid={testId} title="Missing information" className="inline-flex shrink-0">
@@ -29,7 +29,7 @@ export function DeadlineMissedFlag({ size, testId }: FlagProps) {
   )
 }
 
-/** The order or job has high priority (effective priority for a job). */
+/** The order or product has high priority (effective priority for a product). */
 export function HighPriorityFlag({ size, testId, animate = false }: FlagProps & {
   /** Bounce the arrow — for lists where high priority must catch the eye. */
   animate?: boolean

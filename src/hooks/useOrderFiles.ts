@@ -1,38 +1,34 @@
-import { useCallback, useEffect, useState } from 'react'
-import { fileService, type FileRow } from '../services/fileService'
+import { useCallback, useEffect } from 'react'
+import type { FileRow } from '../services/fileService'
+import { useFilesByOrderId } from '../queries/fileQueries'
 import { useToast } from '../components/Toast'
+
+const NO_FILES: FileRow[] = []
 
 /**
  * The files linked to an order, reloaded whenever the order changes and on
  * demand (`reload`) after a dialog linked or removed one. Shared by the
- * orders view and the production page, which both host `JobDetail`.
+ * orders view and the production page, which both host `ProductDetail`.
+ *
+ * Backed by the order's file query, so a link made anywhere — the Files tab,
+ * the approval dialog, the textile editor's artwork picker — refreshes every
+ * list of the order's files at once through `useFileLinking`'s invalidation.
  */
 export function useOrderFiles(orderId: string | null): {
   files: FileRow[]
   reload: () => Promise<void>
 } {
-  const [files, setFiles] = useState<FileRow[]>([])
+  const query = useFilesByOrderId(orderId)
   const { showError } = useToast()
 
-  const reload = useCallback(async () => {
-    if (!orderId) return
-    try {
-      const data = await fileService.getFilesByOrderId(orderId)
-      setFiles(data)
-    } catch {
-      setFiles([])
-      showError('Files could not be loaded')
-    }
-  }, [orderId, showError])
-
   useEffect(() => {
-    if (!orderId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- clears the previous order's files
-      setFiles([])
-      return
-    }
-    void reload()
-  }, [orderId, reload])
+    if (query.isError) showError('Files could not be loaded')
+  }, [query.isError, showError])
 
-  return { files, reload }
+  const refetch = query.refetch
+  const reload = useCallback(async () => {
+    if (orderId) await refetch()
+  }, [orderId, refetch])
+
+  return { files: query.data ?? NO_FILES, reload }
 }

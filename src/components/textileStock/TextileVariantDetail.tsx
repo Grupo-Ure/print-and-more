@@ -13,7 +13,7 @@ import type { VariantRow } from '../../services/textileMasterDataService'
 
 type TextileVariantDetailProps = {
   variant: VariantRow
-  /** Number of variants the product has (guards deleting the last one). */
+  /** Number of variants the model has (guards deleting the last one). */
   siblingCount: number
   breadcrumb: BreadcrumbSegment[]
   onBack: () => void
@@ -102,7 +102,7 @@ export function TextileVariantDetail({ variant, siblingCount, breadcrumb, onBack
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <Button type="button" variant="outline" size="sm" onClick={onBack}>
           <ArrowLeft />
-          Product
+          Model
         </Button>
         <TextileBreadcrumb segments={breadcrumb} />
       </div>

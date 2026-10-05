@@ -20,7 +20,19 @@ export const STAMP_TYPES = [
   'OTHER_STAMP',
 ] as const
 
-/** Discriminator for the kind of stamp work, stored in `jobs.type`. */
+/**
+ * Every stamp product type the department offers, in picker order: the core
+ * stamps above plus the consumable line that shares the department.
+ */
+export const STAMP_ALL_TYPES = [
+  ...STAMP_TYPES,
+  'STAMP_PLATE',
+  'REFILL_INK',
+  'INK_PAD',
+  'TRODAT_PAD',
+] as const
+
+/** Discriminator for the kind of stamp work, stored in `products.type`. */
 export type StampType = (typeof STAMP_TYPES)[number]
 
 /** Display labels for {@link StampType}, rendered in dropdowns and tabs. */
@@ -30,6 +42,15 @@ export const STAMP_TYPE_LABELS: Record<StampType, string> = {
   STAND_STAMP: 'Tripod Stamp',
   DATE_STAMP: 'Date Stamp',
   OTHER_STAMP: 'Other Stamps',
+}
+
+/** Display labels for every type in {@link STAMP_ALL_TYPES}. */
+export const STAMP_ALL_LABELS: Record<string, string> = {
+  ...STAMP_TYPE_LABELS,
+  STAMP_PLATE: 'Stamp Plate',
+  REFILL_INK: 'Refill Ink',
+  INK_PAD: 'Ink Pad',
+  TRODAT_PAD: 'Trodat Pad',
 }
 
 /**

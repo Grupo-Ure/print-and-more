@@ -16,4 +16,4 @@ export const otherSchema = loose([
 })
 
 export type OtherFields = z.infer<typeof otherSchema>
-true satisfies OtherFields extends Omit<TablesInsert<'other_products'>, 'department_product_id'> ? true : never
+true satisfies OtherFields extends Omit<TablesInsert<'other_products'>, 'product_id'> ? true : never

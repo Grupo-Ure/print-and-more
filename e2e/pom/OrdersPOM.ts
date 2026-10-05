@@ -9,13 +9,13 @@ import { ConfirmDialogPOM } from './ConfirmDialogPOM'
 import { ToastPOM } from './ToastPOM'
 import { BasePOM } from './BasePOM'
 
-/** What the navigation helpers need to know about a job: which order it is in. */
-type JobRef = { id: string; orderId: string }
+/** What the navigation helpers need to know about a product: which order it is in. */
+type ProductRef = { id: string; orderId: string }
 
 /**
  * The orders view — the app's main screen. Everything a spec needs is reachable
- * from here: the sidebar, the selected order's details (with job list and
- * active job), and every dialog the view can open.
+ * from here: the sidebar, the selected order's details (with the product list
+ * and the selected product), and every dialog the view can open.
  */
 export class OrdersPOM extends BasePOM {
   /** Centre column while no order is selected. */
@@ -48,17 +48,17 @@ export class OrdersPOM extends BasePOM {
     await this.details.forOrder(orderId).waitFor()
   }
 
-  /** Opens the job's order, selects the job and waits for its detail. */
-  async openJob(job: JobRef): Promise<void> {
-    await this.openOrder(job.orderId)
-    await this.details.jobList.row(job.id).click()
-    await this.details.jobDetail.forJob(job.id).waitFor()
+  /** Opens the product's order, selects the product and waits for its detail. */
+  async openProduct(product: ProductRef): Promise<void> {
+    await this.openOrder(product.orderId)
+    await this.details.productList.row(product.id).click()
+    await this.details.productDetail.forProduct(product.id).waitFor()
   }
 
-  /** Opens the job and its settings dialog. */
-  async openJobSettings(job: JobRef): Promise<void> {
-    await this.openJob(job)
-    await this.details.jobDetail.settingsButton.click()
-    await this.details.jobDetail.settingsDialog.root.waitFor()
+  /** Opens the product on its Settings tab. */
+  async openProductSettings(product: ProductRef): Promise<void> {
+    await this.openProduct(product)
+    await this.details.productDetail.settingsTab.click()
+    await this.details.productDetail.settings.root.waitFor()
   }
 }

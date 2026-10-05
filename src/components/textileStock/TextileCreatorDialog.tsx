@@ -9,7 +9,7 @@ import {
   useCreateTextileEntities,
   type BrandTarget,
   type CreateTextileEntitiesResult,
-  type ProductTarget,
+  type ModelTarget,
 } from '../../queries/textileStockQueries'
 import { stockInputClass } from '../stock/stockShared'
 import { VariantFields, type VariantFieldsHandle } from './VariantFields'
@@ -19,13 +19,13 @@ export type CreatorLevel = 'BRAND' | 'PRODUCT' | 'VARIANT'
 
 const TITLES: Record<CreatorLevel, string> = {
   BRAND: 'New brand',
-  PRODUCT: 'New product',
+  PRODUCT: 'New model',
   VARIANT: 'New variants',
 }
 
 const SUBMIT_LABELS: Record<CreatorLevel, string> = {
   BRAND: 'Create brand',
-  PRODUCT: 'Create product',
+  PRODUCT: 'Create model',
   VARIANT: 'Create variants',
 }
 
@@ -35,15 +35,15 @@ type TextileCreatorDialogProps = {
   onOpenChange: (open: boolean) => void
   /** Parent brand — required from PRODUCT down. */
   brandId?: string
-  /** Parent product — required at VARIANT level. */
-  productId?: string
+  /** Parent model — required at VARIANT level. */
+  modelId?: string
   onCreated?: (result: CreateTextileEntitiesResult) => void
 }
 
 /**
  * The one creation dialog of the textile catalog. It always creates the level
  * it was opened at and offers each level below it behind a switch that is on
- * by default: brands are made to hold products, products to hold variants,
+ * by default: brands are made to hold models, models to hold variants,
  * and only variants carry stock — so the whole branch is normally filled in
  * one pass. Turning a switch off stops the chain there.
  */
@@ -52,7 +52,7 @@ export function TextileCreatorDialog({
   open,
   onOpenChange,
   brandId,
-  productId,
+  modelId,
   onCreated,
 }: TextileCreatorDialogProps) {
   return (
@@ -66,7 +66,7 @@ export function TextileCreatorDialog({
           <CreatorBody
             level={level}
             brandId={brandId}
-            productId={productId}
+            modelId={modelId}
             onOpenChange={onOpenChange}
             onCreated={onCreated}
           />
@@ -79,7 +79,7 @@ export function TextileCreatorDialog({
 function CreatorBody({
   level,
   brandId,
-  productId,
+  modelId,
   onOpenChange,
   onCreated,
 }: Omit<TextileCreatorDialogProps, 'open'>) {
@@ -88,19 +88,19 @@ function CreatorBody({
   const variantFieldsRef = useRef<VariantFieldsHandle>(null)
 
   const [brandName, setBrandName] = useState('')
-  const [productName, setProductName] = useState('')
+  const [modelName, setModelName] = useState('')
   const [articleNumber, setArticleNumber] = useState('')
   const [description, setDescription] = useState('')
   // Each level below the starting one is opt-out, never opt-in.
-  const [withProduct, setWithProduct] = useState(true)
+  const [withModel, setWithModel] = useState(true)
   const [withVariant, setWithVariant] = useState(true)
 
   // Levels above the opening one don't exist here (rendered out); levels
   // below it stay visible and are only disabled when switched off.
   const showsBrand = level === 'BRAND'
-  const productEnabled = level !== 'BRAND' || withProduct
-  // A variant needs a product to hang on: dropping the product drops it too.
-  const variantEnabled = level === 'VARIANT' || (productEnabled && withVariant)
+  const modelEnabled = level !== 'BRAND' || withModel
+  // A variant needs a model to hang on: dropping the model drops it too.
+  const variantEnabled = level === 'VARIANT' || (modelEnabled && withVariant)
 
   const submit = async (): Promise<void> => {
     let brand: BrandTarget
@@ -119,20 +119,20 @@ function CreatorBody({
       brand = { id: brandId }
     }
 
-    let product: ProductTarget | undefined
+    let model: ModelTarget | undefined
     if (level === 'VARIANT') {
-      if (!productId) {
-        showError('No product selected')
+      if (!modelId) {
+        showError('No model selected')
         return
       }
-      product = { id: productId }
-    } else if (productEnabled) {
-      const trimmed = productName.trim()
+      model = { id: modelId }
+    } else if (modelEnabled) {
+      const trimmed = modelName.trim()
       if (!trimmed) {
-        showError('Product name is required')
+        showError('Model name is required')
         return
       }
-      product = {
+      model = {
         name: trimmed,
         article_number: articleNumber.trim() || null,
         description: description.trim() || null,
@@ -148,7 +148,7 @@ function CreatorBody({
     }
 
     try {
-      const result = await createEntities.mutateAsync({ brand, product, variants: variants ?? [] })
+      const result = await createEntities.mutateAsync({ brand, model, variants: variants ?? [] })
       showSuccess(successMessage(level, result))
       onOpenChange(false)
       onCreated?.(result)
@@ -175,9 +175,9 @@ function CreatorBody({
 
       {showsBrand && (
         <SectionSwitch
-          label="Create the first product"
-          checked={withProduct}
-          onCheckedChange={setWithProduct}
+          label="Create the first model"
+          checked={withModel}
+          onCheckedChange={setWithModel}
         />
       )}
 
@@ -185,20 +185,20 @@ function CreatorBody({
         <div
           className={cn(
             'mb-3 rounded-xl border border-border bg-background p-3 transition-opacity',
-            !productEnabled && 'opacity-50',
+            !modelEnabled && 'opacity-50',
           )}
-          aria-disabled={!productEnabled || undefined}
+          aria-disabled={!modelEnabled || undefined}
         >
-          <div className="mb-1.5 text-sm font-bold">Product</div>
+          <div className="mb-1.5 text-sm font-bold">Model</div>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2">
             <input
               className={stockInputClass}
               placeholder="Name (required)"
-              value={productName}
-              onChange={event => setProductName(event.target.value)}
-              aria-label="Product name"
+              value={modelName}
+              onChange={event => setModelName(event.target.value)}
+              aria-label="Model name"
               autoFocus={level === 'PRODUCT'}
-              disabled={!productEnabled}
+              disabled={!modelEnabled}
             />
             <input
               className={stockInputClass}
@@ -206,7 +206,7 @@ function CreatorBody({
               value={articleNumber}
               onChange={event => setArticleNumber(event.target.value)}
               aria-label="Article number"
-              disabled={!productEnabled}
+              disabled={!modelEnabled}
             />
             <input
               className={cn(stockInputClass, 'col-span-full')}
@@ -214,7 +214,7 @@ function CreatorBody({
               value={description}
               onChange={event => setDescription(event.target.value)}
               aria-label="Description"
-              disabled={!productEnabled}
+              disabled={!modelEnabled}
             />
           </div>
         </div>
@@ -225,7 +225,7 @@ function CreatorBody({
           label="Create variants"
           checked={withVariant}
           onCheckedChange={setWithVariant}
-          disabled={!productEnabled}
+          disabled={!modelEnabled}
         />
       )}
 
@@ -268,7 +268,7 @@ function successMessage(level: CreatorLevel, result: CreateTextileEntitiesResult
   if (level === 'VARIANT') {
     return result.variantCount === 0 ? 'No new variants — all already exist' : `${variantPart} created`
   }
-  const created = level === 'BRAND' ? 'Brand' : 'Product'
-  if (level === 'BRAND' && !result.productId) return 'Brand created — no product yet'
+  const created = level === 'BRAND' ? 'Brand' : 'Model'
+  if (level === 'BRAND' && !result.modelId) return 'Brand created — no model yet'
   return `${created} created with ${variantPart}`
 }

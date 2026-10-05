@@ -3,14 +3,14 @@ import { authService } from './authService'
 import { historyService } from './historyService'
 
 /**
- * Worked-time entries per job (`job_time_logs`). The job's total time is
- * always the sum over its logs — there is no aggregate column on `jobs`.
+ * Worked-time entries per product (`product_time_logs`). A product's total
+ * time is always the sum over its logs — no aggregate column on `products`.
  * `user` is whom the time is attributed to; `created_by` is who wrote the
  * row (they differ when an admin logs on someone's behalf — enforced by RLS).
  */
 export type TimeLogRow = {
   id: string
-  job_id: string
+  product_id: string
   minutes: number
   created_at: string
   user: { id: string; name: string; avatar_url: string | null } | null
@@ -18,36 +18,36 @@ export type TimeLogRow = {
 }
 
 const TIME_LOG_COLUMNS =
-  'id, job_id, minutes, created_at, ' +
-  'user:users!job_time_logs_user_id_fkey(id, name, avatar_url), ' +
-  'created_by:users!job_time_logs_created_by_fkey(id, name)'
+  'id, product_id, minutes, created_at, ' +
+  'user:users!product_time_logs_user_id_fkey(id, name, avatar_url), ' +
+  'created_by:users!product_time_logs_created_by_fkey(id, name)'
 
 class TimeLogService {
-  async getByJobId(jobId: string): Promise<TimeLogRow[]> {
+  async getByProductId(productId: string): Promise<TimeLogRow[]> {
     const { data, error } = await supabase
-      .from('job_time_logs')
+      .from('product_time_logs')
       .select(TIME_LOG_COLUMNS)
-      .eq('job_id', jobId)
+      .eq('product_id', productId)
       .order('created_at', { ascending: false })
     if (error) throw error
     return (data ?? []) as unknown as TimeLogRow[]
   }
 
   /**
-   * Total logged minutes per job for an order (job id → minutes; jobs without
-   * logs map to 0). Feeds the job-list and order-header time displays without
-   * loading full log rows per job.
+   * Total logged minutes per product for an order (product id → minutes;
+   * products without logs map to 0). Feeds the product-list and order-header
+   * time displays without loading full log rows per product.
    */
   async getMinutesByOrderId(orderId: string): Promise<Record<string, number>> {
     const { data, error } = await supabase
-      .from('jobs')
-      .select('id, job_time_logs(minutes)')
+      .from('products')
+      .select('id, product_time_logs(minutes)')
       .eq('order_id', orderId)
     if (error) throw error
     return Object.fromEntries(
       (data ?? []).map(row => [
         row.id,
-        (row.job_time_logs ?? []).reduce((sum, log) => sum + log.minutes, 0),
+        (row.product_time_logs ?? []).reduce((sum, log) => sum + log.minutes, 0),
       ]),
     )
   }
@@ -59,15 +59,15 @@ class TimeLogService {
    */
   async create(params: {
     orderId: string
-    jobId: string
+    productId: string
     minutes: number
     user: { id: string; name: string }
   }): Promise<TimeLogRow> {
     const actor = await authService.getUser()
     const { data, error } = await supabase
-      .from('job_time_logs')
+      .from('product_time_logs')
       .insert({
-        job_id: params.jobId,
+        product_id: params.productId,
         user_id: params.user.id,
         created_by: actor?.id ?? null,
         minutes: params.minutes,
@@ -77,7 +77,7 @@ class TimeLogService {
     if (error) throw error
     await historyService.tryWriteHistory({
       order_id: params.orderId,
-      job_id: params.jobId,
+      product_id: params.productId,
       event_type: 'TIME_LOGGED',
       meta: {
         minutes: params.minutes,
@@ -91,11 +91,11 @@ class TimeLogService {
   /** Admin-only (enforced by RLS). Records the removed log in history. */
   async remove(params: { orderId: string; log: TimeLogRow }): Promise<void> {
     const { log } = params
-    const { error } = await supabase.from('job_time_logs').delete().eq('id', log.id)
+    const { error } = await supabase.from('product_time_logs').delete().eq('id', log.id)
     if (error) throw error
     await historyService.tryWriteHistory({
       order_id: params.orderId,
-      job_id: log.job_id,
+      product_id: log.product_id,
       event_type: 'TIME_LOG_DELETED',
       meta: {
         minutes: log.minutes,

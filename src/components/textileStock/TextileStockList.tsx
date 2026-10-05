@@ -25,7 +25,7 @@ import { StockToolbar } from '../stock/StockToolbar'
 import { useStockBooking } from '../stock/useStockBooking'
 import { TextileMovements } from './TextileMovements'
 import { useTextileStockUi, type StockSortKey } from './useTextileStockUi'
-import { availableStock, brandFromVariant, productNameFromVariant, variantStatus } from './textileStockShared'
+import { availableStock, brandFromVariant, modelNameFromVariant, variantStatus } from './textileStockShared'
 import type { VariantWithDetails } from '../../services/textileMasterDataService'
 import { TEST_IDS } from '@e2e/support/testIds'
 
@@ -34,9 +34,9 @@ const IDS = TEST_IDS.textileStock
 const REORDER_COLUMNS: StockColumn<TextileReorderRow>[] = [
   { key: 'brand', header: 'Brand', render: row => brandFromVariant(row) || '—' },
   {
-    key: 'product',
-    header: 'Product',
-    render: row => productNameFromVariant(row),
+    key: 'model',
+    header: 'Model',
+    render: row => modelNameFromVariant(row),
     cellClassName: 'font-semibold',
   },
   { key: 'color', header: 'Colour', render: row => row.color || '—' },
@@ -56,7 +56,7 @@ const REORDER_COLUMNS: StockColumn<TextileReorderRow>[] = [
 type TextileStockListProps = {
   /** Booked movements are attributed to this user. */
   userId: string
-  /** Opens the master-data subpage ("Manage brands and products"). */
+  /** Opens the master-data subpage ("Manage brands and models"). */
   onOpenMasterData: () => void
 }
 
@@ -115,24 +115,24 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
     if (searchQuery) {
       list = list.filter(variant => {
         const brandName = brandFromVariant(variant).toLowerCase()
-        const productName = productNameFromVariant(variant).toLowerCase()
+        const modelName = modelNameFromVariant(variant).toLowerCase()
         const colorValue = String(variant.color ?? '').toLowerCase()
         const sizeValue = String(variant.size ?? '').toLowerCase()
         return (
           brandName.includes(searchQuery) ||
-          productName.includes(searchQuery) ||
+          modelName.includes(searchQuery) ||
           colorValue.includes(searchQuery) ||
           sizeValue.includes(searchQuery)
         )
       })
     }
-    // Base order: alphabetical brand › product › colour › size — a lookup
+    // Base order: alphabetical brand › model › colour › size — a lookup
     // table, consistent with the stamp page. Shortages are surfaced by the
     // red row tint and the reorder list, not by ranking rows.
     list.sort(
       (first, second) =>
         brandFromVariant(first).localeCompare(brandFromVariant(second)) ||
-        productNameFromVariant(first).localeCompare(productNameFromVariant(second)) ||
+        modelNameFromVariant(first).localeCompare(modelNameFromVariant(second)) ||
         String(first.color ?? '').localeCompare(String(second.color ?? '')) ||
         String(first.size ?? '').localeCompare(String(second.size ?? '')),
     )
@@ -142,12 +142,12 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
   const reorderRows = useMemo(() => reorderQuery.data ?? [], [reorderQuery.data])
 
   const clipboardText = useMemo(() => {
-    const header = 'Brand | Product | Colour | Size | Stock | Open | Min. Stock | Order qty'
+    const header = 'Brand | Model | Colour | Size | Stock | Open | Min. Stock | Order qty'
     const body = reorderRows
       .map(row =>
         [
           brandFromVariant(row),
-          productNameFromVariant(row),
+          modelNameFromVariant(row),
           row.color ?? '',
           row.size ?? '',
           availableStock(row),
@@ -168,10 +168,10 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
       render: brandFromVariant,
     },
     {
-      key: 'product',
-      header: 'Product',
-      sortValue: productNameFromVariant,
-      render: productNameFromVariant,
+      key: 'model',
+      header: 'Model',
+      sortValue: modelNameFromVariant,
+      render: modelNameFromVariant,
       cellClassName: 'font-semibold',
     },
     {
@@ -251,7 +251,7 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
       <StockToolbar>
         <input
           type="search"
-          placeholder="Brand, product, colour, size…"
+          placeholder="Brand, model, colour, size…"
           data-testid={IDS.search}
           value={stockSearch}
           onChange={event => setStockSearch(event.target.value)}
@@ -290,7 +290,7 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
           </StockHistoryDialog>
           <Button type="button" variant="outline" data-testid={IDS.masterData} onClick={onOpenMasterData}>
             <Settings />
-            Manage brands and products
+            Manage brands and models
           </Button>
         </div>
       </StockToolbar>

@@ -4,7 +4,7 @@ import { BasePOM } from './BasePOM'
 /**
  * A deadline field: a trigger button (carries `data-value` = the ISO date, or
  * nothing while unset) that opens a calendar popover. Shared by the order
- * settings row and the job settings dialog, so the test IDs come in.
+ * settings row and the product's Settings tab, so the test IDs come in.
  *
  * The calendar is third-party (react-day-picker) and portalled, so its parts
  * are located by role and data attribute inside the test-ID'd popover — the

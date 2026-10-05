@@ -4,19 +4,19 @@ import { historyKeys } from './historyQueries'
 
 export const timeLogKeys = {
   all: ['timeLogs'] as const,
-  byJobId: (jobId: string) => ['timeLogs', 'byJob', jobId] as const,
+  byProductId: (productId: string) => ['timeLogs', 'byProduct', productId] as const,
   minutesByOrderId: (orderId: string) => ['timeLogs', 'minutesByOrder', orderId] as const,
 }
 
-export function useTimeLogsByJobId(jobId: string | null) {
+export function useTimeLogsByProductId(productId: string | null) {
   return useQuery({
-    queryKey: timeLogKeys.byJobId(jobId ?? '__none__'),
-    queryFn: () => timeLogService.getByJobId(jobId!),
-    enabled: jobId != null,
+    queryKey: timeLogKeys.byProductId(productId ?? '__none__'),
+    queryFn: () => timeLogService.getByProductId(productId!),
+    enabled: productId != null,
   })
 }
 
-/** Total logged minutes per job (job id → minutes) — job-list and order-header displays. */
+/** Total logged minutes per product (product id → minutes) — product-list and order-header displays. */
 export function useTimeLogMinutesByOrderId(orderId: string | null) {
   return useQuery({
     queryKey: timeLogKeys.minutesByOrderId(orderId ?? '__none__'),
@@ -30,11 +30,11 @@ export function useCreateTimeLog() {
   return useMutation<
     TimeLogRow,
     Error,
-    { orderId: string; jobId: string; minutes: number; user: { id: string; name: string } }
+    { orderId: string; productId: string; minutes: number; user: { id: string; name: string } }
   >({
     mutationFn: params => timeLogService.create(params),
-    onSuccess: (_row, { orderId, jobId }) => {
-      void queryClient.invalidateQueries({ queryKey: timeLogKeys.byJobId(jobId) })
+    onSuccess: (_row, { orderId, productId }) => {
+      void queryClient.invalidateQueries({ queryKey: timeLogKeys.byProductId(productId) })
       void queryClient.invalidateQueries({ queryKey: timeLogKeys.minutesByOrderId(orderId) })
       void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
     },
@@ -47,7 +47,7 @@ export function useDeleteTimeLog() {
   return useMutation<void, Error, { orderId: string; log: TimeLogRow }>({
     mutationFn: params => timeLogService.remove(params),
     onSuccess: (_void, { orderId, log }) => {
-      void queryClient.invalidateQueries({ queryKey: timeLogKeys.byJobId(log.job_id) })
+      void queryClient.invalidateQueries({ queryKey: timeLogKeys.byProductId(log.product_id) })
       void queryClient.invalidateQueries({ queryKey: timeLogKeys.minutesByOrderId(orderId) })
     },
     onSettled: (_void, _err, { orderId }) => {

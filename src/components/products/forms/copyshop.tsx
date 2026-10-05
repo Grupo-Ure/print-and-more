@@ -94,7 +94,7 @@ export function PosterForm(p: ProductFormProps) {
               <form.Field name="laminate">{f => <SelectField field={f} label="Laminate" options={LAMINATE_OPTS} error={errors.laminate} />}</form.Field>
               <form.Field name="width">{wf => <form.Field name="height">{hf => <DimensionFields widthField={wf} heightField={hf} formatError={errors.format_masse} />}</form.Field>}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
+              <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
@@ -171,7 +171,7 @@ function CardFoldForm(p: ProductFormProps & { type: 'CARD_FLYER' | 'FOLDED_FLYER
               {pp === 'CC' && cc('cc_material', 'cc_material_other', 'CC material')}
               {pp === 'OFFSET' && offset}
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
+              <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
@@ -234,7 +234,7 @@ export function BrochureForm(p: ProductFormProps) {
                 </>
               )}
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
+              <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
@@ -270,7 +270,7 @@ export function BusinessCardForm(p: ProductFormProps) {
               {values.material === 'MULTILOFT' && <form.Field name="multiloft_color">{f => <SelectField field={f} label="Multiloft core" options={opts(MULTILOFT_FARBKERNE)} error={errors.multiloft_color} />}</form.Field>}
               <form.Field name="full_bleed">{f => <BooleanField field={f} label="Full bleed" error={errors.full_bleed} />}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
+              <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
@@ -330,7 +330,7 @@ export function BindingForm(p: ProductFormProps) {
               )}
               <form.Field name="full_bleed">{f => <BooleanField field={f} label="Full bleed" error={errors.full_bleed} />}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
+              <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
@@ -365,7 +365,7 @@ export function PrintoutForm(p: ProductFormProps) {
               <form.Field name="staple">{f => <BooleanField field={f} label="Staple" error={errors.staple} />}</form.Field>
               <form.Field name="laminate">{f => <SelectField field={f} label="Laminate" options={LAMINATE_OPTS} error={errors.laminate} />}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
-              <FilePickerField value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
+              <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
               <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
