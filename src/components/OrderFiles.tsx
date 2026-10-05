@@ -1,11 +1,11 @@
-import { useCallback, useState, type DragEvent, type KeyboardEvent } from 'react'
+import { useState, type DragEvent, type KeyboardEvent } from 'react'
 import { FileText, Pencil, Plus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { fileService } from '../services/fileService'
 import { historyService } from '../services/historyService'
 import type { FileRow, FileRole } from '../services/fileService'
 import { useFileLinking } from '../hooks/useFileLinking'
-import { useToast } from './Toast'
+import { useRevealFile } from '../hooks/useRevealFile'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
@@ -41,24 +41,13 @@ type Props = {
  * then edited inline on each row.
  */
 export function OrderFiles({ orderId, files, onFileChanged }: Props) {
-  const { showError } = useToast()
   const [error, setError] = useState<string | null>(null)
   const [removingId, setRemovingId] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   // The one row currently showing its name as an input instead of text.
   const [editingNameId, setEditingNameId] = useState<string | null>(null)
 
-  const revealFile = useCallback(
-    async (rawPath: string) => {
-      if (!window.pam) {
-        showError('Opening files requires the desktop app.')
-        return
-      }
-      const result = await window.pam.revealPath(rawPath)
-      if (!result.ok) showError(result.error)
-    },
-    [showError],
-  )
+  const revealFile = useRevealFile()
 
   const { pickAndLink, linkDropped } = useFileLinking(orderId)
 

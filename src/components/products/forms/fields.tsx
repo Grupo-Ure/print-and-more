@@ -23,6 +23,7 @@ import {
 } from '../../ui/select'
 import type { FileRow } from '../../../services/fileService'
 import { FilePicker } from '../../FilePicker'
+import { useRevealFile } from '../../../hooks/useRevealFile'
 import { TEST_IDS } from '@e2e/support/testIds'
 
 const IDS = TEST_IDS.orders.productDetail.basicInfo
@@ -234,22 +235,37 @@ export function DimensionFields({
 export function FilePickerField({ orderId, value, onChange, orderFiles }: { orderId: string; value: string[]; onChange: (next: string[]) => void; orderFiles: FileRow[] }) {
   const viewing = useContext(ProductViewContext)
   const attached = new Set(value)
+  const revealFile = useRevealFile()
   return (
     <FieldRow label="Files">
       <div data-testid={FILE_IDS.root} className="flex flex-col gap-2">
         {(value.length > 0 || viewing) && (
           <div className="flex flex-wrap items-center gap-2">
             {viewing && value.length === 0 && <span className="text-sm text-muted-foreground">—</span>}
-            {value.map(fid => (
+            {value.map(fid => {
+              const file = orderFiles.find(f => f.id === fid)
+              return (
               <Badge key={fid} data-testid={FILE_IDS.chip} data-file-id={fid} variant="secondary" className="gap-1">
-                <span className="max-w-45 truncate">{orderFiles.find(f => f.id === fid)?.display_name ?? fid}</span>
+                {file ? (
+                  <button
+                    type="button"
+                    title={`Open in file manager\n${file.path}`}
+                    onClick={() => void revealFile(file.path)}
+                    className="max-w-45 cursor-pointer truncate rounded-sm hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                  >
+                    {file.display_name}
+                  </button>
+                ) : (
+                  <span className="max-w-45 truncate">{fid}</span>
+                )}
                 {!viewing && (
                   <button type="button" data-testid={FILE_IDS.chipRemove} className="cursor-pointer" title="Remove" onClick={() => onChange(value.filter(id => id !== fid))}>
                     ×
                   </button>
                 )}
               </Badge>
-            ))}
+              )
+            })}
           </div>
         )}
         {!viewing && (
