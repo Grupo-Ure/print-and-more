@@ -20,6 +20,7 @@ import {
   DimensionFields,
   FilePickerField,
   FormActions,
+  FormShell,
   QuantityField,
   SelectField,
   TextareaField,
@@ -44,13 +45,6 @@ const ROLLUP_SYSTEM_OPTS: Option[] = [{ value: 'NEUE_KASSETTE', label: 'New cass
 const ROLLUP_WIDTH_OPTS: Option[] = [{ value: '85', label: '85 cm' }, { value: '100', label: '100 cm' }]
 const INSTALLATION_OPTS: Option[] = [{ value: 'MIT', label: 'With installation' }, { value: 'OHNE', label: 'Without' }]
 
-function FormShell({ children, onSubmit }: { children: React.ReactNode; onSubmit: () => void }) {
-  return (
-    <form onSubmit={e => { e.preventDefault(); e.stopPropagation(); onSubmit() }} className="flex flex-col gap-3">
-      {children}
-    </form>
-  )
-}
 
 // ---------------------------------------------------------------------------
 // STICKER
@@ -66,7 +60,7 @@ export function StickerForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('STICKER', values, p.orderIsQuote)
+          const errors = validateProduct('STICKER', values)
           return (
             <>
               <form.Field name="material">{f => <SelectField field={f} label="Material" options={STICKER_MATERIAL_OPTS} error={errors.material} />}</form.Field>
@@ -79,7 +73,7 @@ export function StickerForm(p: ProductFormProps) {
               <form.Field name="width">{wf => <form.Field name="height">{hf => <DimensionFields widthField={wf} heightField={hf} formatError={errors.format} />}</form.Field>}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
+              <FormActions submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
         }}
@@ -102,7 +96,7 @@ export function SignUvForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('SIGN_UV', values, p.orderIsQuote)
+          const errors = validateProduct('SIGN_UV', values)
           return (
             <>
               <form.Field name="material">{f => <SelectField field={f} label="Material" options={BOARD_MATERIAL_OPTS} error={errors.material} />}</form.Field>
@@ -121,7 +115,7 @@ export function SignUvForm(p: ProductFormProps) {
               <form.Field name="width">{wf => <form.Field name="height">{hf => <DimensionFields widthField={wf} heightField={hf} formatError={errors.format} />}</form.Field>}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
+              <FormActions submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
         }}
@@ -144,7 +138,7 @@ export function SignFoilForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('SIGN_FOIL', values, p.orderIsQuote)
+          const errors = validateProduct('SIGN_FOIL', values)
           return (
             <>
               <form.Field name="material">{f => <SelectField field={f} label="Material" options={BOARD_MATERIAL_OPTS} error={errors.material} />}</form.Field>
@@ -161,7 +155,7 @@ export function SignFoilForm(p: ProductFormProps) {
               <form.Field name="width">{wf => <form.Field name="height">{hf => <DimensionFields widthField={wf} heightField={hf} formatError={errors.format} />}</form.Field>}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
+              <FormActions submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
         }}
@@ -184,7 +178,7 @@ export function FoilPlotterForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('FOIL_PLOTTER', values, p.orderIsQuote)
+          const errors = validateProduct('FOIL_PLOTTER', values)
           return (
             <>
               <form.Field name="material">{f => <SelectField field={f} label="Material" options={FOIL_PLOTTER_MATERIAL_OPTS} error={errors.material} />}</form.Field>
@@ -192,7 +186,7 @@ export function FoilPlotterForm(p: ProductFormProps) {
               <form.Field name="width">{wf => <form.Field name="height">{hf => <DimensionFields widthField={wf} heightField={hf} formatError={errors.format} />}</form.Field>}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
+              <FormActions submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
         }}
@@ -215,7 +209,7 @@ export function BannerForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('BANNER', values, p.orderIsQuote)
+          const errors = validateProduct('BANNER', values)
           return (
             <>
               <form.Field
@@ -244,7 +238,7 @@ export function BannerForm(p: ProductFormProps) {
               )}
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
+              <FormActions submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
         }}
@@ -267,7 +261,7 @@ export function RollupForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('ROLLUP', values, p.orderIsQuote)
+          const errors = validateProduct('ROLLUP', values)
           return (
             <>
               <form.Field name="material">{f => <SelectField field={f} label="Material" options={ROLLUP_MATERIAL_OPTS} error={errors.material} />}</form.Field>
@@ -275,7 +269,7 @@ export function RollupForm(p: ProductFormProps) {
               <form.Field name="rollup_width">{f => <SelectField field={f} label="Width" options={ROLLUP_WIDTH_OPTS} error={errors.rollup_width} />}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
+              <FormActions submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
         }}
@@ -298,7 +292,7 @@ export function VehicleLetteringForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('VEHICLE_LETTERING', values, p.orderIsQuote)
+          const errors = validateProduct('VEHICLE_LETTERING', values)
           return (
             <>
               <form.Field name="vehicle_make">{f => <TextField field={f} label="Vehicle make" error={errors.vehicle_make} />}</form.Field>
@@ -315,7 +309,7 @@ export function VehicleLetteringForm(p: ProductFormProps) {
               )}
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
+              <FormActions submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
         }}
@@ -338,13 +332,13 @@ export function OtherLfpForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('OTHER_LFP', values, p.orderIsQuote)
+          const errors = validateProduct('OTHER_LFP', values)
           return (
             <>
               <form.Field name="description">{f => <TextareaField field={f} label="Description" error={errors.description} />}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
+              <FormActions submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
         }}

@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { TextileOption } from '@/lib/textileOptions'
 import { TEST_IDS } from '@e2e/support/testIds'
-import { ProductViewContext } from './viewContext'
+import { ProductViewContext } from './formContexts'
 
 const IDS = TEST_IDS.orders.productDetail.basicInfo.textile
 

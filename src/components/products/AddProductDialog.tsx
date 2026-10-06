@@ -11,7 +11,6 @@
 import { useState } from 'react'
 import type { Department } from '../../types/database'
 import type { FileRow } from '../../services/fileService'
-import { useOrderById } from '../../queries/orderQueries'
 import { departmentLabel } from '../../lib/departmentLabels'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { PRODUCT_TYPES_BY_DEPARTMENT } from '../../lib/productTypeLabels'
@@ -43,7 +42,6 @@ export function AddProductDialog({
   const [pickedType, setPickedType] = useState<string | null>(null)
   const type = pickedType ?? onlyType
   const ActiveForm = type ? FORM_BY_TYPE[type] : null
-  const orderIsQuote = useOrderById(orderId).data?.status === 'QUOTE'
 
   const close = () => {
     setPickedType(null)
@@ -96,7 +94,6 @@ export function AddProductDialog({
               key={type ?? 'new'}
               orderId={orderId}
               department={department}
-              orderIsQuote={orderIsQuote}
               product={null}
               orderFiles={orderFiles}
               initialFileIds={[]}

@@ -21,7 +21,7 @@ import {
 } from '@/queries/textileCatalogQueries'
 import { TEST_IDS } from '@e2e/support/testIds'
 import { OptionStep, PickSeparator, StepPick } from './guidedSteps'
-import { ProductViewContext } from './viewContext'
+import { ProductViewContext, useSubmitAttempted } from './formContexts'
 
 const IDS = TEST_IDS.orders.productDetail.basicInfo.textile
 
@@ -228,6 +228,8 @@ export function GarmentsEditor({
 }) {
   // View mode hides the row actions, as `FormActions` hides the footer.
   const readOnly = useContext(ProductViewContext)
+  // The batch error waits for a save attempt, like every field error does.
+  const shownError = useSubmitAttempted() ? error : undefined
   const patchRow = (key: string, patch: Partial<GarmentRowDraft>) =>
     onChange(rows.map(row => (row.key === key ? ({ ...row, ...patch } as GarmentRowDraft) : row)))
   // The editor never stands empty: removing the last row leaves a fresh one,
@@ -296,7 +298,7 @@ export function GarmentsEditor({
           )}
         </div>
       ))}
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {shownError && <p className="text-xs text-destructive">{shownError}</p>}
       {!readOnly && canAddAnother && (
         <Button
           type="button"

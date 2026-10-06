@@ -53,7 +53,7 @@ import { useSaveProduct } from '../../../queries/productQueries'
 import { textileService } from '../../../services/textileService'
 import type { ProductWriteInput } from '../../../types/product'
 import { useToast } from '../../Toast'
-import { FormActions } from './fields'
+import { FormActions, FormShell } from './fields'
 import type { ProductFormProps } from './shared'
 import { DesignsEditor } from './textileDesigns'
 import { GarmentsEditor } from './textileGarments'
@@ -128,11 +128,7 @@ export function TextileBatchForm(props: ProductFormProps) {
 
   const garments = flattenGarments(rows)
   const designValues = flattenDesigns(designs)
-  const errors = validateProduct(
-    'TEXTILE_GARMENT',
-    { garments, designs: designValues },
-    props.orderIsQuote,
-  )
+  const errors = validateProduct('TEXTILE_GARMENT', { garments, designs: designValues })
   const shortVariantIds = new Set((props.shortages ?? []).map(shortage => shortage.targetId))
 
   const handleSubmit = () => {
@@ -159,14 +155,7 @@ export function TextileBatchForm(props: ProductFormProps) {
   }
 
   return (
-    <form
-      onSubmit={event => {
-        event.preventDefault()
-        event.stopPropagation()
-        handleSubmit()
-      }}
-      className="flex flex-col gap-4"
-    >
+    <FormShell onSubmit={handleSubmit} className="flex flex-col gap-4">
       <GarmentsEditor
         rows={rows}
         shortVariantIds={shortVariantIds}
@@ -182,11 +171,10 @@ export function TextileBatchForm(props: ProductFormProps) {
         onChange={setDesigns}
       />
       <FormActions
-        canSubmit={Object.keys(errors).length === 0}
         submitting={saveProduct.isPending}
         editing={!!props.product}
         onCancel={props.onCancel}
       />
-    </form>
+    </FormShell>
   )
 }

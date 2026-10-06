@@ -12,7 +12,7 @@ import {
 import { LASER_SIGN_MATERIALS, LASER_SIGN_MATERIAL_LABELS, LASER_ORIGINS, LASER_ORIGIN_LABELS } from '../../../types/laser'
 import type { ProductChildInsert } from '../../../types/product'
 import { useProductSubmit, valuesFromProduct, type FormValues, type ProductFormProps } from './shared'
-import { BooleanField, DimensionFields, FilePickerField, FormActions, QuantityField, SelectField, TextField, type Option } from './fields'
+import { BooleanField, DimensionFields, FilePickerField, FormActions, FormShell, QuantityField, SelectField, TextField, type Option } from './fields'
 
 const MATERIAL_OPTIONS: Option[] = LASER_SIGN_MATERIALS.map(m => ({ value: m, label: LASER_SIGN_MATERIAL_LABELS[m] }))
 const ORIGIN_OPTIONS: Option[] = LASER_ORIGINS.map(o => ({ value: o, label: LASER_ORIGIN_LABELS[o] }))
@@ -29,10 +29,10 @@ function SignLikeForm(p: ProductFormProps & { type: string; toChild: (v: FormVal
   })
 
   return (
-    <form onSubmit={e => { e.preventDefault(); e.stopPropagation(); void form.handleSubmit() }} className="flex flex-col gap-3">
+    <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct(p.type, values, p.orderIsQuote)
+          const errors = validateProduct(p.type, values)
           return (
             <>
               <form.Field name="material">{f => <SelectField field={f} label="Material" options={MATERIAL_OPTIONS} error={errors.material} />}</form.Field>
@@ -47,12 +47,12 @@ function SignLikeForm(p: ProductFormProps & { type: string; toChild: (v: FormVal
               <form.Field name="motif">{f => <TextField field={f} label="Motif" error={errors.motif} />}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
+              <FormActions submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
         }}
       </form.Subscribe>
-    </form>
+    </FormShell>
   )
 }
 
@@ -71,10 +71,10 @@ export function GiftItemForm(p: ProductFormProps) {
     onSubmit: ({ value }) => submit(value),
   })
   return (
-    <form onSubmit={e => { e.preventDefault(); e.stopPropagation(); void form.handleSubmit() }} className="flex flex-col gap-3">
+    <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('GIFT_ITEM', values, p.orderIsQuote)
+          const errors = validateProduct('GIFT_ITEM', values)
           return (
             <>
               <form.Field name="material_free_text">{f => <TextField field={f} label="Material" error={errors.material_free_text} />}</form.Field>
@@ -82,12 +82,12 @@ export function GiftItemForm(p: ProductFormProps) {
               <form.Field name="motif">{f => <TextField field={f} label="Motif" error={errors.motif} />}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
+              <FormActions submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
         }}
       </form.Subscribe>
-    </form>
+    </FormShell>
   )
 }
 
@@ -102,10 +102,10 @@ export function OtherLaserForm(p: ProductFormProps) {
     onSubmit: ({ value }) => submit(value),
   })
   return (
-    <form onSubmit={e => { e.preventDefault(); e.stopPropagation(); void form.handleSubmit() }} className="flex flex-col gap-3">
+    <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('OTHER_LASER', values, p.orderIsQuote)
+          const errors = validateProduct('OTHER_LASER', values)
           return (
             <>
               <form.Field name="material_free_text">{f => <TextField field={f} label="Material (optional)" error={errors.material_free_text} />}</form.Field>
@@ -114,11 +114,11 @@ export function OtherLaserForm(p: ProductFormProps) {
               <form.Field name="motif">{f => <TextField field={f} label="Motif" error={errors.motif} />}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
+              <FormActions submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
         }}
       </form.Subscribe>
-    </form>
+    </FormShell>
   )
 }

@@ -23,8 +23,6 @@ export type ProductFormProps = {
   orderId: string
   /** The department of the product being written (fixed: a product never changes department). */
   department: Department
-  /** True while the parent order is a QUOTE — nothing is required yet. */
-  orderIsQuote: boolean
   /** The product being edited, or `null` when adding a new one. */
   product: LoadedProduct | null
   /** Order-level files available for assignment. */
@@ -81,7 +79,7 @@ export function useProductSubmit(p: ProductFormProps, type: string, toChild: (v:
   const { showError } = useToast()
   const [fileIds, setFileIds] = useState<string[]>(p.initialFileIds)
   const submit = (value: FormValues) => {
-    if (Object.keys(validateProduct(type, value, p.orderIsQuote)).length > 0) return
+    if (Object.keys(validateProduct(type, value)).length > 0) return
     saveProduct.mutate(
       {
         input: buildWriteInput({ product: p.product, orderId: p.orderId, department: p.department, type, sortOrder: p.sortOrder, quantity: qtyOut(value.quantity), child: toChild(value) }),

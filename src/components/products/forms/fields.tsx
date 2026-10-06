@@ -7,8 +7,8 @@
  */
 
 import { type AnyFieldApi } from '@tanstack/react-form'
-import { useContext, type ReactNode } from 'react'
-import { ProductViewContext } from './viewContext'
+import { useContext, useState, type ReactNode } from 'react'
+import { ProductViewContext, SubmitAttemptedContext, useSubmitAttempted } from './formContexts'
 import { Input } from '../../ui/input'
 import { Textarea } from '../../ui/textarea'
 import { Label } from '../../ui/label'
@@ -58,17 +58,43 @@ export function FieldRow({
 const asString = (v: unknown): string => (v == null ? '' : String(v))
 
 /**
- * An error is only surfaced once the user has blurred out of the field, so a
- * freshly-opened (empty) form doesn't render every required-field error up
- * front. The raw error map still gates the Save button, so nothing invalid can
- * be submitted regardless.
+ * The `<form>` every per-type form is wrapped in. It owns the submit-attempt
+ * flag, so a freshly-opened form stays quiet and pressing Save is what asks it
+ * to point at what is missing.
  */
-const blurredError = (field: AnyFieldApi, error?: string): string | undefined =>
-  field.state.meta.isBlurred ? error : undefined
+export function FormShell({ children, onSubmit, className = 'flex flex-col gap-3' }: { children: ReactNode; onSubmit: () => void; className?: string }) {
+  const [attempted, setAttempted] = useState(false)
+  return (
+    <SubmitAttemptedContext.Provider value={attempted}>
+      <form
+        onSubmit={event => {
+          event.preventDefault()
+          event.stopPropagation()
+          setAttempted(true)
+          onSubmit()
+        }}
+        className={className}
+      >
+        {children}
+      </form>
+    </SubmitAttemptedContext.Provider>
+  )
+}
+
+/**
+ * An error is surfaced once the user has blurred out of the field, or as soon as
+ * Save has been pressed, so a freshly-opened (empty) form doesn't render every
+ * required-field error up front. The raw error map still blocks the save, so
+ * nothing invalid is written regardless.
+ */
+function useShownError(field: AnyFieldApi, error?: string): string | undefined {
+  const attempted = useSubmitAttempted()
+  return field.state.meta.isBlurred || attempted ? error : undefined
+}
 
 /** Single-line text (or numeric-as-text, to allow comma decimals). */
 export function TextField({ field, label, error, hint, autoFocus }: { field: AnyFieldApi; label: string; error?: string; hint?: string; autoFocus?: boolean }) {
-  const shown = blurredError(field, error)
+  const shown = useShownError(field, error)
   return (
     <FieldRow label={label} htmlFor={field.name} error={shown} hint={hint}>
       <Input
@@ -86,7 +112,7 @@ export function TextField({ field, label, error, hint, autoFocus }: { field: Any
 }
 
 export function TextareaField({ field, label, error, rows = 6, hint }: { field: AnyFieldApi; label: string; error?: string; rows?: number; hint?: string }) {
-  const shown = blurredError(field, error)
+  const shown = useShownError(field, error)
   return (
     <FieldRow label={label} htmlFor={field.name} error={shown} hint={hint}>
       <Textarea
@@ -105,7 +131,7 @@ export function TextareaField({ field, label, error, rows = 6, hint }: { field: 
 
 /** Optional integer input (e.g. quantity). Stores the raw string; the schema coerces. */
 export function QuantityField({ field, label = 'Quantity', error, hint }: { field: AnyFieldApi; label?: string; error?: string; hint?: string }) {
-  const shown = blurredError(field, error)
+  const shown = useShownError(field, error)
   return (
     <FieldRow label={label} htmlFor={field.name} error={shown} hint={hint}>
       <Input
@@ -125,7 +151,7 @@ export function QuantityField({ field, label = 'Quantity', error, hint }: { fiel
 }
 
 export function DateField({ field, label, error }: { field: AnyFieldApi; label: string; error?: string }) {
-  const shown = blurredError(field, error)
+  const shown = useShownError(field, error)
   return (
     <FieldRow label={label} htmlFor={field.name} error={shown}>
       <Input
@@ -147,7 +173,7 @@ export type Option = { value: string; label: string }
 /** Shadcn Select bound to a string field. */
 export function SelectField({ field, label, options, error, placeholder = '—' }: { field: AnyFieldApi; label: string; options: Option[]; error?: string; placeholder?: string }) {
   const current = asString(field.state.value)
-  const shown = blurredError(field, error)
+  const shown = useShownError(field, error)
   return (
     <FieldRow label={label} htmlFor={field.name} error={shown}>
       <Select value={current || undefined} onValueChange={v => field.handleChange(v)}>
@@ -170,7 +196,7 @@ export function SelectField({ field, label, options, error, placeholder = '—' 
 export function BooleanField({ field, label, error }: { field: AnyFieldApi; label: string; error?: string }) {
   const v = field.state.value
   const current = v === true ? 'true' : v === false ? 'false' : undefined
-  const shown = blurredError(field, error)
+  const shown = useShownError(field, error)
   return (
     <FieldRow label={label} htmlFor={field.name} error={shown}>
       <Select value={current} onValueChange={s => field.handleChange(s === 'true')}>
@@ -200,8 +226,9 @@ export function DimensionFields({
   unit?: string
 }) {
   // The dimension error is a synthetic OR-required message spanning both inputs;
-  // reveal it once either has been blurred.
-  const shown = widthField.state.meta.isBlurred || heightField.state.meta.isBlurred ? formatError : undefined
+  // reveal it once either has been blurred, or once Save has been pressed.
+  const attempted = useSubmitAttempted()
+  const shown = attempted || widthField.state.meta.isBlurred || heightField.state.meta.isBlurred ? formatError : undefined
   return (
     <FieldRow label={`Dimensions (${unit})`} error={shown}>
       <div className="flex items-center gap-2">
@@ -285,13 +312,16 @@ export function FilePickerField({ orderId, value, onChange, orderFiles }: { orde
   )
 }
 
-/** Cancel + Save (Save gated on form validity + the submitting flag). */
-export function FormActions({ canSubmit, submitting, editing, onCancel }: { canSubmit: boolean; submitting: boolean; editing: boolean; onCancel: () => void }) {
+/**
+ * Cancel + Save. Save stays pressable while the form is incomplete: pressing it
+ * is how the user asks which fields are missing (`FormShell` then reveals them).
+ */
+export function FormActions({ submitting, editing, onCancel }: { submitting: boolean; editing: boolean; onCancel: () => void }) {
   const viewing = useContext(ProductViewContext)
   if (viewing) return null
   return (
     <div className="flex gap-2 pt-1">
-      <Button type="submit" data-testid={IDS.submit} disabled={!canSubmit || submitting}>
+      <Button type="submit" data-testid={IDS.submit} disabled={submitting}>
         {submitting ? 'Saving…' : editing ? 'Save' : 'Add product'}
       </Button>
       <Button type="button" variant="outline" data-testid={IDS.cancel} onClick={onCancel} disabled={submitting}>

@@ -24,7 +24,7 @@ import {
 import type { FileRow } from '@/services/fileService'
 import { TEST_IDS } from '@e2e/support/testIds'
 import { OptionStep, PickSeparator, StepPick } from './guidedSteps'
-import { ProductViewContext } from './viewContext'
+import { ProductViewContext, useSubmitAttempted } from './formContexts'
 
 const IDS = TEST_IDS.orders.productDetail.basicInfo.textile
 
@@ -200,6 +200,8 @@ export function DesignsEditor({
   onChange: (next: DesignDraft[]) => void
 }) {
   const readOnly = useContext(ProductViewContext)
+  // The batch error waits for a save attempt, like every field error does.
+  const shownError = useSubmitAttempted() ? error : undefined
   const patchDesign = (key: string, patch: Partial<DesignDraft>) =>
     onChange(designs.map(design => (design.key === key ? { ...design, ...patch } : design)))
 
@@ -247,7 +249,7 @@ export function DesignsEditor({
           onPick={fileIds => onChange([...designs, ...fileIds.map(file_id => ({ ...emptyDesign('FILE'), file_id }))])}
         />
       )}
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {shownError && <p className="text-xs text-destructive">{shownError}</p>}
     </section>
   )
 }
