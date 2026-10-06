@@ -7,7 +7,7 @@ import { isMeaningfulChange } from '../lib/status/meaningfulChange'
 import { resolveEffectiveProduct } from '../lib/productShared'
 import { deriveAutomaticOrderStatus } from '../lib/status/automaticStatus'
 import type { LoadedProduct, ProductWriteInput } from '../types/product'
-import type { Auftrag, ProductRow, ProductStatus, ProductUpdate } from '../types/database'
+import type { OrderDetailRow, ProductRow, ProductStatus, ProductUpdate } from '../types/database'
 import { orderKeys, useOrderById, useSetOrderStatus } from './orderQueries'
 import { historyKeys } from './historyQueries'
 import { stockAvailabilityKeys } from './stockQueries'
@@ -176,7 +176,7 @@ export function useFinishOrderWhenAllProductsDone(): (orderId: string) => Promis
   const { mutateAsync: setOrderStatus } = useSetOrderStatus()
   return useCallback(
     async (orderId: string) => {
-      const order = queryClient.getQueryData<Auftrag | null>(orderKeys.byId(orderId))
+      const order = queryClient.getQueryData<OrderDetailRow | null>(orderKeys.byId(orderId))
       const products = queryClient.getQueryData<LoadedProduct[]>(productKeys.byOrderId(orderId))
       if (!order || !products) return
       if (deriveAutomaticOrderStatus(order, products) !== 'FINISHED') return

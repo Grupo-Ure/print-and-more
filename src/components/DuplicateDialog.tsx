@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog'
 import { authService } from '../services/authService'
 import { orderService } from '../services/orderService'
-import { type Auftrag } from '../types/database'
+import { type OrderDetailRow } from '../types/database'
 import type { LoadedProduct } from '../types/product'
 import { shortProductNumber } from '../lib/productShared'
 import { PRODUCT_TYPE_LABELS } from '../lib/productTypeLabels'
@@ -21,9 +21,9 @@ import { TEST_IDS } from '@e2e/support/testIds'
 const IDS = TEST_IDS.orders.duplicateDialog
 
 type Props = {
-  order: Auftrag
+  order: OrderDetailRow
   products: LoadedProduct[]
-  onSuccess: (neuerAuftrag: Auftrag) => void
+  onSuccess: (newOrder: OrderDetailRow) => void
   onCancel: () => void
 }
 

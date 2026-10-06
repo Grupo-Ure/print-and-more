@@ -44,9 +44,6 @@ export type OrderDetailRow = Tables<'orders'> & {
   customers: Customer | null
 }
 
-/** Alias used by the context panel and other workspace consumers. */
-export type Auftrag = OrderDetailRow
-
 /** Patch for the order header fields editable in WorkArea. */
 export type OrderHeaderPatch = Partial<Pick<Tables<'orders'>, 'deadline' | 'delivery' | 'priority' | 'payment_method'>>
 

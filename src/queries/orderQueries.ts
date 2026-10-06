@@ -3,7 +3,7 @@ import { customerService } from '../services/customerService'
 import { historyService, type HistoryEvent } from '../services/historyService'
 import { orderService, type OrderListEntry } from '../services/orderService'
 import { productKeys } from './productQueries'
-import type { Auftrag, Department, OrderStatus } from '../types/database'
+import type { Department, OrderDetailRow, OrderStatus } from '../types/database'
 import type { Database } from '../types/supabase'
 
 type OrderInsert = Database['public']['Tables']['orders']['Insert']
@@ -142,7 +142,7 @@ export function invalidateOrderListsIfCustomerReferenced(
  */
 export function useCreateOrder() {
   const queryClient = useQueryClient()
-  return useMutation<Auftrag, Error, OrderInsert>({
+  return useMutation<OrderDetailRow, Error, OrderInsert>({
     mutationFn: async payload => {
       const order = await orderService.createOrder(payload)
       await historyService.tryWriteHistory({ order_id: order.id, event_type: 'ORDER_CREATED' })
@@ -164,7 +164,7 @@ export function useOrderById(orderId: string | null) {
 
 export function useUpdateOrder() {
   const queryClient = useQueryClient()
-  return useMutation<Auftrag, Error, { id: string; patch: OrderUpdate; history?: OrderHistoryParams }>({
+  return useMutation<OrderDetailRow, Error, { id: string; patch: OrderUpdate; history?: OrderHistoryParams }>({
     mutationFn: async ({ id, patch, history }) => {
       const updated = await orderService.updateOrder(id, patch)
       if (history) await historyService.tryWriteHistory({ order_id: id, ...history })
@@ -182,7 +182,7 @@ type OrderHistoryParams = { event_type: HistoryEvent; reason?: string; meta?: Re
 /** Direct order-status set (e.g. start-processing QUOTE → IN_PROGRESS). Optionally writes history. */
 export function useSetOrderStatus() {
   const queryClient = useQueryClient()
-  return useMutation<Auftrag, Error, { id: string; status: OrderStatus; history?: OrderHistoryParams }>({
+  return useMutation<OrderDetailRow, Error, { id: string; status: OrderStatus; history?: OrderHistoryParams }>({
     mutationFn: async ({ id, status, history }) => {
       const updated = await orderService.setOrderStatus(id, status)
       if (history) await historyService.tryWriteHistory({ order_id: id, ...history })
