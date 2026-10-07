@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useId } from 'react'
 import { cn } from '@/lib/utils'
 import { formatMinutes } from '../lib/formatMinutes'
 import {
@@ -9,15 +9,21 @@ import {
 } from '../lib/productShared'
 import { DEPARTMENTS, type Department, type ProductStatus } from '../types/database'
 import { departmentLabel } from '../lib/departmentLabels'
-import type { FileRow } from '../services/fileService'
 import { useOrderSelection } from '../hooks/useOrderSelection'
 import { useOrderById } from '../queries/orderQueries'
 import { useProductsByOrderId } from '../queries/productQueries'
 import { useTimeLogMinutesByOrderId } from '../queries/timeLogQueries'
-import { AddProductDialog } from './products/AddProductDialog'
 import { ProductContextMenu } from './ProductContextMenu'
 import { DeadlineMissedFlag, HighPriorityFlag, MissingInfoFlag } from './Flags'
 import { Button } from './ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu'
+import { PRODUCT_TYPES_BY_DEPARTMENT, PRODUCT_TYPE_LABELS } from '../lib/productTypeLabels'
 import { PRODUCT_STATUS_META, WORKFLOW_STATUSES } from '../lib/statusLabels'
 import { TEST_IDS } from '@e2e/support/testIds'
 
@@ -38,8 +44,8 @@ function ProductStatusTrack({ status }: { status: ProductStatus }) {
 }
 
 /** The order's products, one row each, with the add-product buttons above them. */
-export function ProductList({ orderFiles }: { orderFiles: FileRow[] }) {
-  const { activeOrderId, activeProductId, setActiveProduct } = useOrderSelection()
+export function ProductList() {
+  const { activeOrderId, activeProductId, productDraft, setActiveProduct } = useOrderSelection()
   const productsQuery = useProductsByOrderId(activeOrderId)
   const orderQuery = useOrderById(activeOrderId)
   const minutesQuery = useTimeLogMinutesByOrderId(activeOrderId)
@@ -48,14 +54,17 @@ export function ProductList({ orderFiles }: { orderFiles: FileRow[] }) {
   const order = orderQuery.data
   const minutesByProduct = minutesQuery.data
 
+  // The listed rows are the saved products plus — last, since its sort_order is
+  // the append index — the one being added. The draft is derived here and only
+  // here: it must never reach the products query, whose data also drives the
+  // automatic status logic and "are all products done".
+  const hasRows = visibleProducts.length > 0 || productDraft != null
+
   return (
     <nav data-testid={IDS.root} className="flex flex-col gap-1 w-48 desktop:w-60 shrink-0">
         <h1>Products in this order</h1>
-        <AddProductButtons
-          orderFiles={orderFiles}
-          sortOrder={(productsQuery.data ?? []).length}
-        />
-        {visibleProducts.length === 0 && !productsQuery.isLoading ? (
+        <AddProductButtons />
+        {!hasRows && !productsQuery.isLoading ? (
           // Takes the list's space so the hint sits in the middle of the column.
           <p
             data-testid={IDS.empty}
@@ -107,6 +116,22 @@ export function ProductList({ orderFiles }: { orderFiles: FileRow[] }) {
             </li>
             </ProductContextMenu>
           ))}
+          {productDraft && (
+            <li
+              data-testid={IDS.draftRow}
+              data-department={productDraft.department}
+              data-type={productDraft.type}
+              aria-current="true"
+              // No status track, flags, time or context menu: there is nothing to
+              // release, cancel or print until the product exists.
+              className="flex items-center gap-1.5 w-full min-w-0 border border-dashed border-primary/50 bg-primary/10 p-2 italic text-muted-foreground"
+              title={`New ${PRODUCT_TYPE_LABELS[productDraft.type] ?? productDraft.type}`}
+            >
+              <span className="truncate">
+                New {PRODUCT_TYPE_LABELS[productDraft.type] ?? productDraft.type}
+              </span>
+            </li>
+          )}
         </ul>
         )}
     </nav>
@@ -115,15 +140,15 @@ export function ProductList({ orderFiles }: { orderFiles: FileRow[] }) {
 
 /**
  * "Add product" group for the active order: one button per department, each
- * opening the add dialog on that department's type picker. The product is
- * created by its type's own form (a product without a spec would be a product
- * without content), and the new row is selected straight away.
+ * offering that department's product types in a menu. Picking a type starts an
+ * unsaved draft product, which the detail pane shows as its type's own form —
+ * created through that form because a product without a spec would be a product
+ * without content.
  * Renders nothing while the order is finished/billed — closed for new work.
  */
-function AddProductButtons({ orderFiles, sortOrder }: { orderFiles: FileRow[]; sortOrder: number }) {
-  const { activeOrderId, setActiveProduct } = useOrderSelection()
+function AddProductButtons() {
+  const { activeOrderId, startProductDraft } = useOrderSelection()
   const orderQuery = useOrderById(activeOrderId)
-  const [department, setDepartment] = useState<Department | null>(null)
   const labelId = useId()
 
   const order = orderQuery.data
@@ -137,35 +162,70 @@ function AddProductButtons({ orderFiles, sortOrder }: { orderFiles: FileRow[]; s
       </span>
       <div className="grid grid-cols-2">
         {DEPARTMENTS.map(option => (
-          <Button
+          <AddProductButton
             key={option}
-            type="button"
-            variant="ghost"
-            size="xs"
-            data-testid={IDS.addProduct}
-            data-department={option}
-            title={`Add a ${departmentLabel(option)} product`}
-            // Long labels ("Laser Engraving") wrap onto two lines in the
-            // compact list width instead of overflowing the button.
-            className="h-auto min-h-6 rounded-none whitespace-normal py-0.5 leading-tight"
-            onClick={() => setDepartment(option)}
-          >
-            {departmentLabel(option)}
-          </Button>
+            department={option}
+            onPick={type => startProductDraft(option, type)}
+          />
         ))}
       </div>
-
-      <AddProductDialog
-        orderId={activeOrderId}
-        department={department}
-        orderFiles={orderFiles}
-        sortOrder={sortOrder}
-        onCreated={productId => {
-          setDepartment(null)
-          setActiveProduct(productId)
-        }}
-        onClose={() => setDepartment(null)}
-      />
     </div>
+  )
+}
+
+/**
+ * One department's add button. A department offering several types drops a menu
+ * of them (dismissing it is how one backs out, so there is no "back" step);
+ * Textile and Other offer one type, so their button starts the draft on the
+ * spot rather than opening a menu of one.
+ */
+function AddProductButton({
+  department,
+  onPick,
+}: {
+  department: Department
+  onPick: (type: string) => void
+}) {
+  const types = PRODUCT_TYPES_BY_DEPARTMENT[department]
+  const onlyType = types.length === 1 ? types[0].value : null
+
+  const trigger = (
+    <Button
+      type="button"
+      variant="ghost"
+      size="xs"
+      data-testid={IDS.addProduct}
+      data-department={department}
+      title={`Add a ${departmentLabel(department)} product`}
+      // Long labels ("Laser Engraving") wrap onto two lines in the
+      // compact list width instead of overflowing the button.
+      className="h-auto min-h-6 rounded-none whitespace-normal py-0.5 leading-tight"
+      onClick={onlyType ? () => onPick(onlyType) : undefined}
+    >
+      {departmentLabel(department)}
+    </Button>
+  )
+
+  if (onlyType) return trigger
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+      {/* Portalled, so the menu is as wide as its labels need, not as the
+          narrow button it hangs off. */}
+      <DropdownMenuContent align="start" className="w-auto min-w-56">
+        <DropdownMenuLabel>What kind of {departmentLabel(department)} product?</DropdownMenuLabel>
+        {types.map(option => (
+          <DropdownMenuItem
+            key={option.value}
+            data-testid={IDS.addProductType}
+            data-type={option.value}
+            onSelect={() => onPick(option.value)}
+          >
+            {option.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

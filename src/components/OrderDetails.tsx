@@ -15,6 +15,7 @@ import { useToast } from './Toast'
 import { useConfirm } from './ConfirmDialog'
 import { useOrderFiles } from '../hooks/useOrderFiles'
 import { ProductDetail } from './ProductDetail'
+import { ProductDraftPanel } from './products/ProductDraftPanel'
 import { ProductList } from './ProductList'
 import { useOrderWorkspace } from '../context/order.context'
 import { useNavigation } from '../context/navigation.context'
@@ -65,7 +66,8 @@ function useCopyToClipboard() {
 
 export function OrderDetails() {
   const { openCustomerDialog } = useOrderWorkspace()
-  const { activeOrderId, activeProductId, setActiveProduct, clearActive } = useOrderSelection()
+  const { activeOrderId, activeProductId, productDraft, setActiveProduct, clearProductDraft, clearActive } =
+    useOrderSelection()
   const { navigate } = useNavigation()
   const { data: releases } = useReleaseNotes()
   const queryClient = useQueryClient()
@@ -108,8 +110,20 @@ export function OrderDetails() {
   const deadlineRequired =
     order != null && activeProduct != null && isMissingDeadline(activeProduct, order)
 
-  // Select a product when none is, or the selected one is no longer listed.
+  // A finished or billed order takes no new products, and it can close under an
+  // open draft (marking the last product done finishes an invoice order by
+  // itself), so the draft goes with it rather than offering a save the order
+  // would no longer accept.
+  const orderClosed = order?.status === 'FINISHED' || order?.status === 'BILLED'
   useEffect(() => {
+    if (productDraft != null && orderClosed) clearProductDraft()
+  }, [productDraft, orderClosed, clearProductDraft])
+
+  // Select a product when none is, or the selected one is no longer listed. A
+  // draft holds the pane deliberately with no product selected, so it is left
+  // alone — cancelling it drops back into this effect and reselects.
+  useEffect(() => {
+    if (productDraft != null) return
     if (visibleProducts.length === 0) {
       if (activeProductId !== null) setActiveProduct(null)
       return
@@ -117,7 +131,7 @@ export function OrderDetails() {
     if (activeProductId == null || !visibleProducts.some(p => p.id === activeProductId)) {
       setActiveProduct(visibleProducts[0].id)
     }
-  }, [visibleProducts, activeProductId, setActiveProduct])
+  }, [visibleProducts, activeProductId, productDraft, setActiveProduct])
 
   const archiveOrder = useArchiveOrder()
   const cancelOrder = useArchiveOrderWithCancelledProducts()
@@ -390,13 +404,25 @@ export function OrderDetails() {
         <Separator />
 
         <TabsContent value="products" className="flex gap-2 min-h-0">
-          <ProductList orderFiles={files} />
+          <ProductList />
 
           <Separator orientation="vertical" />
 
           {/* A flex column so the product detail can stretch to the bottom of the column. */}
           <div className="flex flex-1 min-w-0 flex-col overflow-y-auto">
-            {activeProduct ? (
+            {productDraft ? (
+              <ProductDraftPanel
+                // A fresh form per type, so nothing typed into one type's form
+                // survives into another's.
+                key={productDraft.type}
+                orderId={order.id}
+                draft={productDraft}
+                orderFiles={files}
+                // Append index — cancelled products hold their place, as they do
+                // for every other product of the order.
+                sortOrder={products.length}
+              />
+            ) : activeProduct ? (
               <ProductDetail orderFiles={files} onOrderFilesChanged={reloadFiles} />
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
