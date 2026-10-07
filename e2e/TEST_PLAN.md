@@ -1,0 +1,163 @@
+# Test Plan
+
+The end-to-end suite, one bullet per page, feature, test pack and test. A
+test pack is one spec file under [e2e/](e2e/) covering one sub-feature; a
+bullet in italics is a `describe` block, which states the precondition the
+tests inside it share. Every test links to its line in the spec. How a run
+works is in [e2e/README.md](e2e/README.md); the conventions are in
+[docs/testing/](docs/testing/). The detailed plan behind the orders page is
+[e2e/orders-page-test-plan.md](e2e/orders-page-test-plan.md), and the
+behaviour the lifecycle packs assert is written out in
+[e2e/order-lifecycle-and-visibility.md](e2e/order-lifecycle-and-visibility.md).
+
+- **Auth**
+  - [auth.spec.ts](e2e/auth/auth.spec.ts)
+    - *signed out*
+      - [signing in with email and password shows the user in the navbar](e2e/auth/auth.spec.ts#L11)
+    - *as employee*
+      - [signing in renders exactly the navigation links of the role](e2e/auth/auth.spec.ts#L28)
+    - *as admin*
+      - [signing in renders exactly the navigation links of the role](e2e/auth/auth.spec.ts#L40)
+- **Orders page**
+  - [sidebar.spec.ts](e2e/orders-page/sidebar.spec.ts)
+    - [selecting a listed order in the sidebar opens its details](e2e/orders-page/sidebar.spec.ts#L3)
+  - **Order**
+    - [new-order.spec.ts](e2e/orders-page/order/new-order.spec.ts)
+      - [creating an order for an existing customer opens it as a quote for that customer](e2e/orders-page/order/new-order.spec.ts#L6)
+      - [creating an order with a customer created in the dialog opens it as a quote for that customer](e2e/orders-page/order/new-order.spec.ts#L21)
+    - [header.spec.ts](e2e/orders-page/order/header.spec.ts)
+      - *customer with every contact and address field set*
+        - [the header shows the order number and the customer's name, email, phone and address](e2e/orders-page/order/header.spec.ts#L7)
+        - [the copy button next to the order number puts it on the clipboard](e2e/orders-page/order/header.spec.ts#L22)
+        - [the copy button next to the email puts it on the clipboard](e2e/orders-page/order/header.spec.ts#L34)
+        - [the copy button next to the phone number puts it on the clipboard](e2e/orders-page/order/header.spec.ts#L46)
+        - [the copy button next to the address puts it on the clipboard](e2e/orders-page/order/header.spec.ts#L58)
+    - [settings.spec.ts](e2e/orders-page/order/settings.spec.ts)
+      - [picking a date in the deadline calendar sets it as the order deadline](e2e/orders-page/order/settings.spec.ts#L3)
+    - [status.spec.ts](e2e/orders-page/order/status.spec.ts)
+      - [starting processing a quote moves the order to in progress](e2e/orders-page/order/status.spec.ts#L15)
+      - *quote with deadline and delivery, one product in every department*
+        - [starting processing promotes every product to pre-press](e2e/orders-page/order/status.spec.ts#L31)
+      - *in progress, the only product in production*
+        - [marking the last product done finishes the order on its own](e2e/orders-page/order/status.spec.ts#L49)
+      - *in progress, one product done and one in production*
+        - [the order stays in progress with no lifecycle action while a product is still open](e2e/orders-page/order/status.spec.ts#L67)
+        - [marking the remaining product done finishes the order on its own](e2e/orders-page/order/status.spec.ts#L77)
+      - *in progress cash order, the only product in production*
+        - [marking the last product done leaves the cash order in progress, offering to finish and close it](e2e/orders-page/order/status.spec.ts#L94)
+      - *in progress, every product done*
+        - [marking the order finished moves it to finished](e2e/orders-page/order/status.spec.ts#L114)
+      - *finished, every product done*
+        - [marking the order as invoiced closes it and keeps it in the order list](e2e/orders-page/order/status.spec.ts#L131)
+      - *as admin, finished, every product done*
+        - [reopening the order moves it back to in progress](e2e/orders-page/order/status.spec.ts#L149)
+        - [reopening the order leaves it open, with finishing it again a manual step](e2e/orders-page/order/status.spec.ts#L162)
+      - *in progress cash order, every product done*
+        - [finishing the cash order closes it in one step and keeps it in the order list](e2e/orders-page/order/status.spec.ts#L181)
+    - [remove.spec.ts](e2e/orders-page/order/remove.spec.ts)
+      - [archiving an order removes it from the order list](e2e/orders-page/order/remove.spec.ts#L3)
+      - [cancelling an order removes it from the order list](e2e/orders-page/order/remove.spec.ts#L16)
+      - [deleting a quote from its row menu removes it from the order list](e2e/orders-page/order/remove.spec.ts#L29)
+    - [duplicate.spec.ts](e2e/orders-page/order/duplicate.spec.ts)
+      - [duplicating the order opens the copy as a new quote, selected in the list](e2e/orders-page/order/duplicate.spec.ts#L7)
+      - [duplicating the order carries its product and spec into the copy](e2e/orders-page/order/duplicate.spec.ts#L21)
+      - [deselecting every product leaves the duplicate unsubmittable](e2e/orders-page/order/duplicate.spec.ts#L38)
+  - **Product**
+    - [add-remove.spec.ts](e2e/orders-page/product/add-remove.spec.ts)
+      - [adding a product through its department form selects it in the list](e2e/orders-page/product/add-remove.spec.ts#L17)
+      - [cancelling the add-product dialog adds no product to the order](e2e/orders-page/product/add-remove.spec.ts#L34)
+      - [deleting a product in setup removes it from the order and records the deletion](e2e/orders-page/product/add-remove.spec.ts#L48)
+      - *in progress, product in pre-press*
+        - [cancelling a product past setup removes it from the order and records the cancellation](e2e/orders-page/product/add-remove.spec.ts#L65)
+        - [cancelling the only product leaves the order in progress](e2e/orders-page/product/add-remove.spec.ts#L79)
+      - *in progress, one product done and one in pre-press*
+        - [cancelling the pre-press product finishes the order on its own](e2e/orders-page/product/add-remove.spec.ts#L104)
+      - *in progress without a deadline, one product done and one in setup*
+        - [deleting the setup product finishes the order on its own](e2e/orders-page/product/add-remove.spec.ts#L126)
+    - [basic-info.spec.ts](e2e/orders-page/product/basic-info.spec.ts)
+      - [the product's saved spec is shown read-only, with no way to submit it](e2e/orders-page/product/basic-info.spec.ts#L11)
+      - [editing the description and saving it shows the new value on the closed form](e2e/orders-page/product/basic-info.spec.ts#L22)
+      - [cancelling an edit leaves the saved description in place](e2e/orders-page/product/basic-info.spec.ts#L37)
+      - *in progress, product in production*
+        - [the released product offers no way to edit its spec](e2e/orders-page/product/basic-info.spec.ts#L54)
+    - [status.spec.ts](e2e/orders-page/product/status.spec.ts)
+      - *in progress, product without a deadline*
+        - [setting the order deadline completes the product and promotes it to pre-press](e2e/orders-page/product/status.spec.ts#L31)
+      - *in progress, LFP product*
+        - [the product is promoted to pre-press on its own](e2e/orders-page/product/status.spec.ts#L55)
+      - *in progress, CopyShop product*
+        - [the product is promoted to pre-press on its own](e2e/orders-page/product/status.spec.ts#L67)
+      - *in progress, textile batch*
+        - [the product is promoted to pre-press on its own](e2e/orders-page/product/status.spec.ts#L79)
+      - *in progress, stamp product*
+        - [the product is promoted to pre-press on its own](e2e/orders-page/product/status.spec.ts#L91)
+      - *in progress, laser-engraving product*
+        - [the product is promoted to pre-press on its own](e2e/orders-page/product/status.spec.ts#L103)
+      - *in progress, OTHER product*
+        - [the product is promoted to pre-press on its own](e2e/orders-page/product/status.spec.ts#L115)
+      - *in progress, product whose deadline has passed*
+        - [the product is promoted to pre-press on its own](e2e/orders-page/product/status.spec.ts#L127)
+      - *in progress, product in pre-press*
+        - [releasing the product to production moves it to in production](e2e/orders-page/product/status.spec.ts#L141)
+      - *in progress, product in production*
+        - [marking the product as done moves it to done](e2e/orders-page/product/status.spec.ts#L157)
+      - *in progress, OTHER product, pre-press default set*
+        - [the product promoted to pre-press is assigned to the pre-press default](e2e/orders-page/product/status.spec.ts#L178)
+      - *in progress, product in pre-press, production default set*
+        - [releasing the product to production assigns it to the production default](e2e/orders-page/product/status.spec.ts#L190)
+        - [releasing the product to production records the assignee change in the order history](e2e/orders-page/product/status.spec.ts#L203)
+      - *in progress, product in production, pre-press default set*
+        - [sending the product back to pre-press assigns it to the pre-press default](e2e/orders-page/product/status.spec.ts#L220)
+    - [release-gates.spec.ts](e2e/orders-page/product/release-gates.spec.ts)
+      - *in progress, product with no deadline*
+        - [the product is held in setup with the release blocked](e2e/orders-page/product/release-gates.spec.ts#L24)
+      - *in progress, product in pre-press awaiting customer approval*
+        - [the release to production is blocked](e2e/orders-page/product/release-gates.spec.ts#L39)
+        - [granting the approval against a file unblocks the release to production](e2e/orders-page/product/release-gates.spec.ts#L47)
+      - *in progress, stamp product in pre-press, model out of stock*
+        - [the shortage is shown and the release to production is blocked](e2e/orders-page/product/release-gates.spec.ts#L68)
+      - *as admin, in progress, product with no deadline*
+        - [opening the force release prompt without a reason keeps it unsubmittable](e2e/orders-page/product/release-gates.spec.ts#L83)
+        - [force releasing the product with a reason moves it to production flagged as missing information](e2e/orders-page/product/release-gates.spec.ts#L95)
+        - [force releasing the product records an emergency entry in the order history](e2e/orders-page/product/release-gates.spec.ts#L111)
+    - [stock-deduction.spec.ts](e2e/orders-page/product/stock-deduction.spec.ts)
+      - *in progress, stamp product in pre-press, model in stock*
+        - [releasing the product to production deducts its quantity from the model stock](e2e/orders-page/product/stock-deduction.spec.ts#L19)
+        - [marking the product done after the release deducts nothing more](e2e/orders-page/product/stock-deduction.spec.ts#L36)
+      - *in progress, textile batch in pre-press, variant in stock*
+        - [releasing the batch to production deducts its garment line's quantity from the variant stock](e2e/orders-page/product/stock-deduction.spec.ts#L59)
+        - [marking the batch done after the release deducts nothing more](e2e/orders-page/product/stock-deduction.spec.ts#L76)
+  - **Sidebar search and filters** — planned, no spec yet; cases in [the plan, section 10](e2e/orders-page-test-plan.md)
+    - search (customer name, substring, case-insensitive; clear; empty state; compact layout toggle)
+    - status filter (defaults; untick one status; all statuses; none ticked; reset)
+    - show archived (archived quote hidden / listed; billed order listed regardless)
+    - department filter (one department, two departments, reset)
+    - deadline and intake filter (inclusive bounds; no deadline hidden while a bound is set; reset)
+    - assignee filter (one user, unassigned, reset)
+    - filters across groups (combine as AND; changed-dot on the toggle; no persistence; selection survives filtering)
+- **Production page**
+  - [feed.spec.ts](e2e/production-page/feed.spec.ts)
+    - *as admin*
+      - *with a product in pre-press*
+        - [opening the production page lists the product](e2e/production-page/feed.spec.ts#L15)
+        - [selecting a product in the feed shows its detail beside the feed](e2e/production-page/feed.spec.ts#L23)
+        - [the panel above the detail names the product's order](e2e/production-page/feed.spec.ts#L35)
+        - [opening a product in the orders view from its panel switches to that view](e2e/production-page/feed.spec.ts#L43)
+        - [releasing the product to production from the feed keeps it listed, now in production](e2e/production-page/feed.spec.ts#L54)
+      - *with a product in production*
+        - [opening the production page lists the product](e2e/production-page/feed.spec.ts#L70)
+    - *as admin, order without a deadline*
+      - [opening the production page leaves a product still in setup out](e2e/production-page/feed.spec.ts#L85)
+    - *as employee*
+      - [widening the assignee filter to everyone lists products assigned to nobody](e2e/production-page/feed.spec.ts#L98)
+      - [opening the assignee filter leaves a developer account out of the list](e2e/production-page/feed.spec.ts#L110)
+- **Settings page**
+  - [departments.spec.ts](e2e/settings-page/departments.spec.ts)
+    - *pre-press slot empty*
+      - [picking a user as the pre-press default stores it on the row](e2e/settings-page/departments.spec.ts#L16)
+    - *production slot empty*
+      - [picking a user as the production default stores it on the row](e2e/settings-page/departments.spec.ts#L35)
+    - *pre-press slot held by the admin*
+      - [choosing unassigned clears the pre-press default from the row](e2e/settings-page/departments.spec.ts#L54)
+- **Later** (from [the plan](e2e/orders-page-test-plan.md))
+  - order settings and product overrides, files, history, time logs, role differences, compact layout, stock pages, profile page
