@@ -8,13 +8,13 @@ import { strOut, qtyOut } from '../../../lib/products/schemas/_shared'
 import { validateProduct } from '../../../lib/products/registry'
 import { useToast } from '../../Toast'
 import { valuesFromProduct, type FormValues, type ProductFormProps } from './shared'
-import { FilePickerField, FormActions, QuantityField, TextareaField } from './fields'
+import { FilePickerField, FormActions, FormShell, QuantityField, TextareaField } from './fields'
 
 function buildChild(values: FormValues): ProductChildInsert {
   return { description: strOut(values.description) } as ProductChildInsert
 }
 
-export function OtherForm({ orderId, department, orderIsQuote, product, orderFiles, initialFileIds, sortOrder, onSaved, onCancel }: ProductFormProps) {
+export function OtherForm({ orderId, department, product, orderFiles, initialFileIds, sortOrder, onSaved, onCancel }: ProductFormProps) {
   const saveProduct = useSaveProduct()
   const { showError } = useToast()
   const [fileIds, setFileIds] = useState<string[]>(initialFileIds)
@@ -22,7 +22,7 @@ export function OtherForm({ orderId, department, orderIsQuote, product, orderFil
   const form = useForm({
     defaultValues: { description: '', quantity: '', ...valuesFromProduct(product) } as FormValues,
     onSubmit: ({ value }) => {
-      if (Object.keys(validateProduct('OTHER', value, orderIsQuote)).length > 0) return
+      if (Object.keys(validateProduct('OTHER', value)).length > 0) return
       const input: ProductWriteInput = {
         ...(product ? { id: product.id } : {}),
         order_id: orderId,
@@ -41,17 +41,10 @@ export function OtherForm({ orderId, department, orderIsQuote, product, orderFil
   })
 
   return (
-    <form
-      onSubmit={e => {
-        e.preventDefault()
-        e.stopPropagation()
-        void form.handleSubmit()
-      }}
-      className="flex flex-col gap-3"
-    >
+    <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('OTHER', values, orderIsQuote)
+          const errors = validateProduct('OTHER', values)
           return (
             <>
               <form.Field name="description">
@@ -64,11 +57,11 @@ export function OtherForm({ orderId, department, orderIsQuote, product, orderFil
 
               <FilePickerField orderId={orderId} value={fileIds} onChange={setFileIds} orderFiles={orderFiles} />
 
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={saveProduct.isPending} editing={!!product} onCancel={onCancel} />
+              <FormActions submitting={saveProduct.isPending} editing={!!product} onCancel={onCancel} />
             </>
           )
         }}
       </form.Subscribe>
-    </form>
+    </FormShell>
   )
 }

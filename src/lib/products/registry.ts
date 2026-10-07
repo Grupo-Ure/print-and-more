@@ -95,17 +95,16 @@ export const SCHEMA_BY_TYPE: Record<string, z.ZodTypeAny> = {
  * Validate a product's flat fields (child columns + parent `quantity`) for its
  * `type`.
  *
- * - while the parent order is a QUOTE → nothing required (empty map);
- *   `orderIsQuote` is the *order's* status, never the product's.
  * - missing / unknown type → `{ type: 'Select type' }`.
  * - otherwise the type's schema runs; issues are mapped to `field-key → message`.
+ *
+ * The order's status plays no part: a product of a chosen type carries that
+ * type's required fields whether or not the order is still a quote.
  */
 export function validateProduct(
   type: string | null,
   fields: unknown,
-  orderIsQuote: boolean,
 ): Record<string, string> {
-  if (orderIsQuote) return {}
   if (!type || !(type in SCHEMA_BY_TYPE)) return { type: 'Select type' }
   const result = SCHEMA_BY_TYPE[type].safeParse(fields)
   return result.success ? {} : zodIssuesToFieldMap(result.error)

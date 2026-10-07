@@ -200,8 +200,16 @@ export const TEST_IDS = {
 
     productList: {
       root: 'product-list',
-      /** One per department; `data-department` = Department. Opens the add-product dialog for it. */
+      /**
+       * One per department; `data-department` = Department. Opens that
+       * department's type menu, or starts the draft straight away when it
+       * offers a single type.
+       */
       addProduct: 'product-list-add-product',
+      /** One per product type of the clicked department; `data-type`. Portalled, so not under the list root. */
+      addProductType: 'product-list-add-product-type',
+      /** The unsaved product's row; `data-department`, `data-type`. */
+      draftRow: 'product-list-draft-row',
       list: 'product-list-rows',
       empty: 'product-list-empty',
       /** One per product; `data-product-id`, `data-status` = ProductStatus. */
@@ -214,13 +222,16 @@ export const TEST_IDS = {
         delete: 'product-context-menu-delete',
         cancel: 'product-context-menu-cancel',
       },
-      /** The department → type → form dialog that creates a product. */
-      addDialog: {
-        root: 'add-product-dialog',
-        /** One per product type of the chosen department; `data-type`. */
-        typeOption: 'add-product-dialog-type-option',
-        back: 'add-product-dialog-back',
-      },
+    },
+
+    /**
+     * The unsaved product in the detail pane: the chosen type's own form, no
+     * workflow header and no tabs. Carries `data-department` and `data-type`;
+     * the form inside carries the Basic info tab's field/submit/cancel ids.
+     */
+    productDraft: {
+      root: 'product-draft',
+      title: 'product-draft-title',
     },
 
     productDetail: {

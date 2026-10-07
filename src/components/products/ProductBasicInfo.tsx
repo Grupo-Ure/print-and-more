@@ -19,7 +19,7 @@ import type { StockShortage } from '../../services/productionReleaseService'
 import type { LoadedProduct } from '../../types/product'
 import type { OrderDetailRow } from '../../types/database'
 import { Button } from '../ui/button'
-import { ProductViewContext } from './forms/viewContext'
+import { ProductViewContext } from './forms/formContexts'
 import { FORM_BY_TYPE } from './productTypes'
 import { TEST_IDS } from '@e2e/support/testIds'
 
@@ -72,7 +72,6 @@ export function ProductBasicInfo({
             key={`${product.id}:${viewing ? 'view' : 'edit'}`}
             orderId={order.id}
             department={product.department}
-            orderIsQuote={order.status === 'QUOTE'}
             product={product}
             orderFiles={orderFiles}
             initialFileIds={fileIds}

@@ -183,7 +183,7 @@ without a session, otherwise a two-column shell:
 | Column | Component | Role |
 |--------|-----------|------|
 | Left   | [`OrderSidebar`](src/components/OrderSidebar.tsx) | Search + filters (status, department, deadline/intake ranges), order list with selection, per-order menu (duplicate / delete quote), "+ New Order" ([`NewOrderDialog`](src/components/NewOrderDialog.tsx)). Archived orders are listed only while the header's *Show archived* toggle is on, except billed ones, which appear whenever Billed is ticked; the default status filter ticks every status, so completed orders stay in the feed. There is no assignee filter here — finding one's own work is what the production view is for. |
-| Centre | [`OrderDetails`](src/components/OrderDetails.tsx) | Order header (number, customer, lifecycle button, archive/cancel actions), order settings row (deadline, delivery, priority, payment), then the order tabs: *Products* — [`ProductList`](src/components/ProductList.tsx) (one add-product button per department, one row per product with status track and right-click menu) next to the active product's [`ProductDetail`](src/components/ProductDetail.tsx) — and *History* ([`OrderHistory`](src/components/OrderHistory.tsx)). |
+| Centre | [`OrderDetails`](src/components/OrderDetails.tsx) | Order header (number, customer, lifecycle button, archive/cancel actions), order settings row (deadline, delivery, priority, payment), then the order tabs: *Products* — [`ProductList`](src/components/ProductList.tsx) (one add-product button per department, one row per product with status track and right-click menu, plus the row of a product being added) next to the active product's [`ProductDetail`](src/components/ProductDetail.tsx) or the [`ProductDraftPanel`](src/components/products/ProductDraftPanel.tsx) of a product being added — and *History* ([`OrderHistory`](src/components/OrderHistory.tsx)). |
 
 `ProductDetail` shows the product header (assignee, status badge, PDF /
 delete-or-cancel actions, the
@@ -359,12 +359,26 @@ its form (`FORM_BY_TYPE`), and
 [`productTypeLabels.ts`](src/lib/productTypeLabels.ts) holds the types each
 department offers and their labels (`PRODUCT_TYPES_BY_DEPARTMENT`,
 `PRODUCT_TYPE_LABELS`, shared with the PDF sheet). The two hosts are
-[`AddProductDialog`](src/components/products/AddProductDialog.tsx) (department
-→ type → form, on create) and
+[`ProductDraftPanel`](src/components/products/ProductDraftPanel.tsx) (the form
+of the type being added, on create) and
 [`ProductBasicInfo`](src/components/products/ProductBasicInfo.tsx) (the same
-form inline, on the detail view's first tab). Creating through the type's own
+form, on the detail view's first tab). Creating through the type's own
 validated form is deliberate: it keeps the invariant that a stored product has
 a valid spec.
+
+**Adding a product starts a draft.** An add button names a department and
+offers its product types in a menu (a single-type department skips it);
+picking one starts a **draft product** — `productDraft` (department + type) in
+[`navigation.context.tsx`](src/context/navigation.context.tsx), mutually
+exclusive with `activeProductId`. The draft shows as a dashed row in
+`ProductList` and as its type's form where `ProductDetail` would be. It has no
+workflow header and no tabs, since assignee, status, release, PDF, time logs,
+settings and files all act on a persisted row. Save validates the type's Zod
+schema, writes parent + child, and selects the new product; Cancel drops the
+draft and the previous product is reselected. **The draft is derived for the
+list and nothing else** — it never enters `useProductsByOrderId`, whose data
+also drives `useStatusManager` and `areAllProductsDone`, so an unsaved product
+cannot hold an order open.
 
 ## Domain Model
 
@@ -616,7 +630,7 @@ product is done.
 | [`src/pages/ProductionPage.tsx`](src/pages/ProductionPage.tsx) / [`src/components/production/`](src/components/production/) | The cross-order product feed (pre-press + production) with the assignee filter, and the selected product's detail beside it |
 | [`src/pages/SettingsPage.tsx`](src/pages/SettingsPage.tsx) / [`src/components/settings/`](src/components/settings/) | Settings shell with section list; user management and department defaults |
 | [`src/components/OrderDetails.tsx`](src/components/OrderDetails.tsx) | Order header, lifecycle actions, settings row, product list + detail host |
-| [`src/components/ProductDetail.tsx`](src/components/ProductDetail.tsx) / [`src/components/products/`](src/components/products/) | The product's header and tabs; the per-type forms, the add dialog and the Basic info tab |
+| [`src/components/ProductDetail.tsx`](src/components/ProductDetail.tsx) / [`src/components/products/`](src/components/products/) | The product's header and tabs; the per-type forms, the draft panel of a product being added and the Basic info tab |
 | [`src/hooks/useProductRelease.ts`](src/hooks/useProductRelease.ts) / [`useProductRemoval.ts`](src/hooks/useProductRemoval.ts) | Every product workflow rule, shared by button and context menu |
 | [`src/lib/productShared.ts`](src/lib/productShared.ts) | Inheritance + completeness (`resolveEffectiveProduct`, `isProductComplete`, `isDeadlineMissed`, `areAllProductsDone`) |
 | [`src/lib/status/automaticStatus.ts`](src/lib/status/automaticStatus.ts) / [`src/queries/useStatusManager.ts`](src/queries/useStatusManager.ts) | Automatic setup ↔ pre-press transition |

@@ -15,6 +15,7 @@ export const textileCatalogKeys = {
   colorsByModel: (modelId: string) => ['textile-catalog', 'colors', modelId] as const,
   sizesByModelAndColor: (modelId: string, color: string) =>
     ['textile-catalog', 'sizes', modelId, color] as const,
+  variantCascades: (variantKey: string) => ['textile-catalog', 'variant-cascades', variantKey] as const,
 }
 
 export function useTextileBrandNames() {
@@ -45,5 +46,21 @@ export function useTextileSizes(modelId: string, color: string) {
     queryKey: textileCatalogKeys.sizesByModelAndColor(modelId || '__none__', color || '__none__'),
     queryFn: () => textileService.getVariantSizesByModelAndColor(modelId, color),
     enabled: !!modelId && !!color,
+  })
+}
+
+/**
+ * The same cascade walked back up, for the variants a stored batch is keyed by:
+ * one query for every grid row that still has to find its model. The result
+ * lives in the cache, so it survives the render that asked for it — a row can
+ * never be left waiting for a walk that an abandoned effect started.
+ */
+export function useTextileVariantCascades(variantIds: readonly string[]) {
+  // Sorted, so the same set of rows is the same cache entry whatever their order.
+  const ids = [...variantIds].sort()
+  return useQuery({
+    queryKey: textileCatalogKeys.variantCascades(ids.join(',') || '__none__'),
+    queryFn: () => textileService.getVariantCascades(ids),
+    enabled: ids.length > 0,
   })
 }

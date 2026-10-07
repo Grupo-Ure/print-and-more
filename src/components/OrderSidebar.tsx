@@ -10,7 +10,7 @@ import {
 } from '../queries/orderQueries'
 import { fetchProductsByOrderId } from '../queries/productQueries'
 import { orderService } from '../services/orderService'
-import { type Auftrag } from '../types/database'
+import { type OrderDetailRow } from '../types/database'
 import type { LoadedProduct } from '../types/product'
 import { Archive, Search } from 'lucide-react'
 import { Sidebar, SidebarHeader, SidebarContent, SidebarFooter } from '@/components/ui/sidebar'
@@ -80,19 +80,19 @@ export function OrderSidebar() {
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false)
   const [duplicateBusy, setDuplicateBusy] = useState(false)
   const [duplicateError, setDuplicateError] = useState<string | null>(null)
-  const [duplicateOrder, setDuplicateOrder] = useState<Auftrag | null>(null)
+  const [duplicateOrder, setDuplicateOrder] = useState<OrderDetailRow | null>(null)
   const [duplicateProducts, setDuplicateProducts] = useState<LoadedProduct[]>([])
 
   const openDuplicateDialog = useCallback(
-    async (auftragId: string) => {
+    async (orderId: string) => {
       if (duplicateBusy) return
       setDuplicateBusy(true)
       setDuplicateError(null)
       try {
-        const orderData = await fetchOrderById(queryClient, auftragId)
+        const orderData = await fetchOrderById(queryClient, orderId)
         if (!orderData) throw new Error('Order not found')
-        const productData = await fetchProductsByOrderId(queryClient, auftragId)
-        setDuplicateOrder(orderData as Auftrag)
+        const productData = await fetchProductsByOrderId(queryClient, orderId)
+        setDuplicateOrder(orderData as OrderDetailRow)
         setDuplicateProducts(productData)
         setDuplicateDialogOpen(true)
       } catch (e) {

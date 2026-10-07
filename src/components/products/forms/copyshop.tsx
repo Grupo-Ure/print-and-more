@@ -28,7 +28,7 @@ import {
 } from '../../../config/materialien'
 import { CARD_DIN, FOLD_DIN, BROCHURE_DIN } from '../../../lib/copyshop/dinCfbFormats'
 import { useProductSubmit, valuesFromProduct, type FormValues, type ProductFormProps } from './shared'
-import { BooleanField, DimensionFields, FilePickerField, FormActions, QuantityField, SelectField, TextField, type Option } from './fields'
+import { BooleanField, DimensionFields, FilePickerField, FormActions, FormShell, QuantityField, SelectField, TextField, type Option } from './fields'
 
 type Errs = Record<string, string>
 type DinTable = Record<string, { b: number; h: number }>
@@ -50,14 +50,6 @@ const cmOpts = (vals: string[]): Option[] => vals.map(v => ({ value: v, label: C
 // Material fields reset when the production path changes.
 const CARD_FOLD_RESET = ['cc_material', 'cc_material_other', 'offset_type', 'offset_weight', 'offset_finish', 'special_paper', 'special_paper_other', 'lamination_finish', 'lamination_sides', 'recycling_weight']
 const BROCHURE_RESET = [...CARD_FOLD_RESET, 'cover_material', 'cover_material_other', 'inner_material', 'inner_material_other', 'binding', 'cover_weight', 'cover_finish', 'inner_weight', 'inner_finish']
-
-function FormShell({ children, onSubmit }: { children: React.ReactNode; onSubmit: () => void }) {
-  return (
-    <form onSubmit={e => { e.preventDefault(); e.stopPropagation(); onSubmit() }} className="flex flex-col gap-3">
-      {children}
-    </form>
-  )
-}
 
 /** Auto-fill width/height from a DIN table when a non-FREI format is picked. */
 function dinFill(form: AnyFormApi, table: DinTable) {
@@ -86,7 +78,7 @@ export function PosterForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('POSTER', values, p.orderIsQuote) as Errs
+          const errors = validateProduct('POSTER', values) as Errs
           return (
             <>
               <form.Field name="format" listeners={{ onChange: dinFill(form, POSTER_DIN) }}>{f => <SelectField field={f} label="Format" options={enumOpts([['A4', 'A4'], ['A3', 'A3'], ['A2', 'A2'], ['A1', 'A1'], ['A0', 'A0'], ['FREI', 'Free']])} error={errors.format} />}</form.Field>
@@ -95,7 +87,7 @@ export function PosterForm(p: ProductFormProps) {
               <form.Field name="width">{wf => <form.Field name="height">{hf => <DimensionFields widthField={wf} heightField={hf} formatError={errors.format_masse} />}</form.Field>}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
+              <FormActions submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
         }}
@@ -124,7 +116,7 @@ function CardFoldForm(p: ProductFormProps & { type: 'CARD_FLYER' | 'FOLDED_FLYER
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct(p.type, values, p.orderIsQuote) as Errs
+          const errors = validateProduct(p.type, values) as Errs
           const pp = values.production_path
           const cc = (matKey: string, otherKey: string, label: string) => (
             <>
@@ -172,7 +164,7 @@ function CardFoldForm(p: ProductFormProps & { type: 'CARD_FLYER' | 'FOLDED_FLYER
               {pp === 'OFFSET' && offset}
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
+              <FormActions submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
         }}
@@ -202,7 +194,7 @@ export function BrochureForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('BROCHURE', values, p.orderIsQuote) as Errs
+          const errors = validateProduct('BROCHURE', values) as Errs
           const pp = values.production_path
           const cc = (matKey: string, otherKey: string, label: string) => (
             <>
@@ -235,7 +227,7 @@ export function BrochureForm(p: ProductFormProps) {
               )}
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
+              <FormActions submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
         }}
@@ -258,7 +250,7 @@ export function BusinessCardForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('BUSINESS_CARD', values, p.orderIsQuote) as Errs
+          const errors = validateProduct('BUSINESS_CARD', values) as Errs
           return (
             <>
               <form.Field name="material">{f => <SelectField field={f} label="Material" options={opts(VISITENKARTE_MATERIALIEN)} error={errors.material} />}</form.Field>
@@ -271,7 +263,7 @@ export function BusinessCardForm(p: ProductFormProps) {
               <form.Field name="full_bleed">{f => <BooleanField field={f} label="Full bleed" error={errors.full_bleed} />}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
+              <FormActions submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
         }}
@@ -301,7 +293,7 @@ export function BindingForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('BINDING', values, p.orderIsQuote) as Errs
+          const errors = validateProduct('BINDING', values) as Errs
           const bt = String(values.binding_type ?? '')
           const isWire = bt === 'WIRE_O' || bt === 'KUNSTSTOFFSPIRALE'
           const isCover = bt === 'SOFTCOVER' || bt === 'HARDCOVER'
@@ -331,7 +323,7 @@ export function BindingForm(p: ProductFormProps) {
               <form.Field name="full_bleed">{f => <BooleanField field={f} label="Full bleed" error={errors.full_bleed} />}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
+              <FormActions submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
         }}
@@ -354,7 +346,7 @@ export function PrintoutForm(p: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={s => s.values}>
         {values => {
-          const errors = validateProduct('PRINTOUT', values, p.orderIsQuote) as Errs
+          const errors = validateProduct('PRINTOUT', values) as Errs
           return (
             <>
               <form.Field name="format">{f => <SelectField field={f} label="Format" options={enumOpts([['A5', 'A5'], ['A4', 'A4'], ['A3', 'A3']])} error={errors.format} />}</form.Field>
@@ -366,7 +358,7 @@ export function PrintoutForm(p: ProductFormProps) {
               <form.Field name="laminate">{f => <SelectField field={f} label="Laminate" options={LAMINATE_OPTS} error={errors.laminate} />}</form.Field>
               <form.Field name="quantity">{f => <QuantityField field={f} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={p.orderId} value={fileIds} onChange={setFileIds} orderFiles={p.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
+              <FormActions submitting={submitting} editing={!!p.product} onCancel={p.onCancel} />
             </>
           )
         }}

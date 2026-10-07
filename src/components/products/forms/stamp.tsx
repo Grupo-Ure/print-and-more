@@ -14,7 +14,7 @@ import {
 import { STAMP_COLORS, REFILL_INK_COLORS, STAMP_COLOR_LABELS } from '../../../types/stamp'
 import { stampService } from '../../../services/stampService'
 import { useProductSubmit, valuesFromProduct, type FormValues, type ProductFormProps } from './shared'
-import { DimensionFields, FilePickerField, FormActions, QuantityField, SelectField, TextareaField, TextField, type Option } from './fields'
+import { DimensionFields, FilePickerField, FormActions, FormShell, QuantityField, SelectField, TextareaField, TextField, type Option } from './fields'
 
 type FieldErrors = Record<string, string>
 
@@ -22,14 +22,6 @@ const CLASSIC_COLOR_OPTIONS: Option[] = STAMP_COLORS.map(colorCode => ({ value: 
 const REFILL_COLOR_OPTIONS: Option[] = REFILL_INK_COLORS.map(colorCode => ({ value: colorCode, label: STAMP_COLOR_LABELS[colorCode] }))
 const INK_TYPE_OPTIONS: Option[] = [{ value: 'NORMAL', label: 'Normal' }, { value: 'HAUTVERTRAEGLICH', label: 'Skin-friendly' }, { value: 'TEXTIL', label: 'Textile' }]
 const PAD_SIZE_OPTIONS: Option[] = [{ value: 'SMALL', label: 'Small' }, { value: 'MEDIUM', label: 'Medium' }, { value: 'LARGE', label: 'Large' }]
-
-function FormShell({ children, onSubmit }: { children: React.ReactNode; onSubmit: () => void }) {
-  return (
-    <form onSubmit={event => { event.preventDefault(); event.stopPropagation(); onSubmit() }} className="flex flex-col gap-3">
-      {children}
-    </form>
-  )
-}
 
 /** Async model picker for TRODAT_PRINTY / WOODEN_STAMP (binds `model_id`). */
 function ModelSelect({ field, type, error }: { field: AnyFieldApi; type: string; error?: string }) {
@@ -69,7 +61,7 @@ function ModelStampForm(props: ProductFormProps & { type: 'TRODAT_PRINTY' | 'WOO
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={state => state.values}>
         {values => {
-          const errors = validateProduct(props.type, values, props.orderIsQuote) as FieldErrors
+          const errors = validateProduct(props.type, values) as FieldErrors
           return (
             <>
               <form.Field name="model_id">{field => <ModelSelect field={field} type={props.type} error={errors.model_id} />}</form.Field>
@@ -78,7 +70,7 @@ function ModelStampForm(props: ProductFormProps & { type: 'TRODAT_PRINTY' | 'WOO
               <form.Field name="description">{field => <TextareaField field={field} label="Description" rows={3} error={errors.description} />}</form.Field>
               <form.Field name="quantity">{field => <QuantityField field={field} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={props.orderId} value={fileIds} onChange={setFileIds} orderFiles={props.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!props.product} onCancel={props.onCancel} />
+              <FormActions submitting={submitting} editing={!!props.product} onCancel={props.onCancel} />
             </>
           )
         }}
@@ -104,7 +96,7 @@ function ClassicStampForm(props: ProductFormProps & { type: 'STAND_STAMP' | 'DAT
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={state => state.values}>
         {values => {
-          const errors = validateProduct(props.type, values, props.orderIsQuote) as FieldErrors
+          const errors = validateProduct(props.type, values) as FieldErrors
           return (
             <>
               <form.Field name="width">{widthField => <form.Field name="height">{heightField => <DimensionFields widthField={widthField} heightField={heightField} formatError={errors.format ?? errors.width ?? errors.height} />}</form.Field>}</form.Field>
@@ -113,7 +105,7 @@ function ClassicStampForm(props: ProductFormProps & { type: 'STAND_STAMP' | 'DAT
               <form.Field name="description">{field => <TextareaField field={field} label="Description" rows={3} error={errors.description} />}</form.Field>
               <form.Field name="quantity">{field => <QuantityField field={field} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={props.orderId} value={fileIds} onChange={setFileIds} orderFiles={props.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!props.product} onCancel={props.onCancel} />
+              <FormActions submitting={submitting} editing={!!props.product} onCancel={props.onCancel} />
             </>
           )
         }}
@@ -140,13 +132,13 @@ export function StampPlateForm(props: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={state => state.values}>
         {values => {
-          const errors = validateProduct('STAMP_PLATE', values, props.orderIsQuote) as FieldErrors
+          const errors = validateProduct('STAMP_PLATE', values) as FieldErrors
           return (
             <>
               <form.Field name="width">{widthField => <form.Field name="height">{heightField => <DimensionFields widthField={widthField} heightField={heightField} formatError={errors.format ?? errors.width ?? errors.height} />}</form.Field>}</form.Field>
               <form.Field name="quantity">{field => <QuantityField field={field} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={props.orderId} value={fileIds} onChange={setFileIds} orderFiles={props.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!props.product} onCancel={props.onCancel} />
+              <FormActions submitting={submitting} editing={!!props.product} onCancel={props.onCancel} />
             </>
           )
         }}
@@ -169,14 +161,14 @@ export function RefillInkForm(props: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={state => state.values}>
         {values => {
-          const errors = validateProduct('REFILL_INK', values, props.orderIsQuote) as FieldErrors
+          const errors = validateProduct('REFILL_INK', values) as FieldErrors
           return (
             <>
               <form.Field name="color">{field => <SelectField field={field} label="Colour" options={REFILL_COLOR_OPTIONS} error={errors.color} />}</form.Field>
               <form.Field name="ink_type">{field => <SelectField field={field} label="Ink type" options={INK_TYPE_OPTIONS} error={errors.ink_type} />}</form.Field>
               <form.Field name="quantity">{field => <QuantityField field={field} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={props.orderId} value={fileIds} onChange={setFileIds} orderFiles={props.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!props.product} onCancel={props.onCancel} />
+              <FormActions submitting={submitting} editing={!!props.product} onCancel={props.onCancel} />
             </>
           )
         }}
@@ -195,14 +187,14 @@ export function InkPadForm(props: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={state => state.values}>
         {values => {
-          const errors = validateProduct('INK_PAD', values, props.orderIsQuote) as FieldErrors
+          const errors = validateProduct('INK_PAD', values) as FieldErrors
           return (
             <>
               <form.Field name="pad_size">{field => <SelectField field={field} label="Pad size" options={PAD_SIZE_OPTIONS} error={errors.pad_size} />}</form.Field>
               <form.Field name="color">{field => <SelectField field={field} label="Colour" options={REFILL_COLOR_OPTIONS} error={errors.color} />}</form.Field>
               <form.Field name="quantity">{field => <QuantityField field={field} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={props.orderId} value={fileIds} onChange={setFileIds} orderFiles={props.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!props.product} onCancel={props.onCancel} />
+              <FormActions submitting={submitting} editing={!!props.product} onCancel={props.onCancel} />
             </>
           )
         }}
@@ -225,7 +217,7 @@ export function TrodatPadForm(props: ProductFormProps) {
     <FormShell onSubmit={() => void form.handleSubmit()}>
       <form.Subscribe selector={state => state.values}>
         {values => {
-          const errors = validateProduct('TRODAT_PAD', values, props.orderIsQuote) as FieldErrors
+          const errors = validateProduct('TRODAT_PAD', values) as FieldErrors
           return (
             <>
               <form.Field name="pad_article_number">{field => <TextField field={field} label="Article number" error={errors.pad_article_number} />}</form.Field>
@@ -233,7 +225,7 @@ export function TrodatPadForm(props: ProductFormProps) {
               <form.Field name="color">{field => <SelectField field={field} label="Colour" options={REFILL_COLOR_OPTIONS} error={errors.color} />}</form.Field>
               <form.Field name="quantity">{field => <QuantityField field={field} error={errors.quantity} />}</form.Field>
               <FilePickerField orderId={props.orderId} value={fileIds} onChange={setFileIds} orderFiles={props.orderFiles} />
-              <FormActions canSubmit={Object.keys(errors).length === 0} submitting={submitting} editing={!!props.product} onCancel={props.onCancel} />
+              <FormActions submitting={submitting} editing={!!props.product} onCancel={props.onCancel} />
             </>
           )
         }}

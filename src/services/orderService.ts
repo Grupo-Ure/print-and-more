@@ -1,6 +1,6 @@
 import { supabase } from '../supabase'
 import type { Database } from '../types/supabase'
-import { type Auftrag, type DuplicateOrderArgs, type OrderStatus, type OrderSummaryRow, type ProductStatus } from '../types/database'
+import { type DuplicateOrderArgs, type OrderDetailRow, type OrderStatus, type OrderSummaryRow, type ProductStatus } from '../types/database'
 
 /** SELECT for `orders` incl. customer join (list, detail, status sync). */
 const ORDER_COLUMNS =
@@ -132,7 +132,7 @@ class OrderService {
    * stale id (e.g. a bookmarked `?order=` of a deleted order) resolves to
    * `null` instead of throwing.
    */
-  async getOrderById(id: string): Promise<Auftrag | null> {
+  async getOrderById(id: string): Promise<OrderDetailRow | null> {
     const { data, error } = await supabase
       .from('orders')
       .select(ORDER_COLUMNS)
@@ -140,22 +140,22 @@ class OrderService {
       .maybeSingle()
     if (error) throw error
     if (data == null) return null
-    return flattenCustomerJoin(data as unknown as Auftrag)
+    return flattenCustomerJoin(data as unknown as OrderDetailRow)
   }
 
   /** Insert a new order and return the created row. */
-  async createOrder(payload: OrderInsert): Promise<Auftrag> {
+  async createOrder(payload: OrderInsert): Promise<OrderDetailRow> {
     const { data, error } = await supabase
       .from('orders')
       .insert(payload)
       .select(ORDER_COLUMNS)
       .single()
     if (error) throw error
-    return flattenCustomerJoin(data as unknown as Auftrag)
+    return flattenCustomerJoin(data as unknown as OrderDetailRow)
   }
 
   /** Patch arbitrary order fields and return the updated row. */
-  async updateOrder(id: string, patch: OrderUpdate): Promise<Auftrag> {
+  async updateOrder(id: string, patch: OrderUpdate): Promise<OrderDetailRow> {
     const { data, error } = await supabase
       .from('orders')
       .update(patch)
@@ -163,11 +163,11 @@ class OrderService {
       .select(ORDER_COLUMNS)
       .single()
     if (error) throw error
-    return flattenCustomerJoin(data as unknown as Auftrag)
+    return flattenCustomerJoin(data as unknown as OrderDetailRow)
   }
 
   /** Write an explicit status to the order — every order transition is a deliberate manual set. */
-  async setOrderStatus(id: string, status: OrderStatus): Promise<Auftrag> {
+  async setOrderStatus(id: string, status: OrderStatus): Promise<OrderDetailRow> {
     const { data, error } = await supabase
       .from('orders')
       .update({ status })
@@ -175,7 +175,7 @@ class OrderService {
       .select(ORDER_COLUMNS)
       .single()
     if (error) throw error
-    return flattenCustomerJoin(data as unknown as Auftrag)
+    return flattenCustomerJoin(data as unknown as OrderDetailRow)
   }
 
   /** Soft-archive an order (`is_archived = true`); hidden from the sidebar list unless "Show archived" is on. */

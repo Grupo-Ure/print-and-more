@@ -8,9 +8,9 @@ type HistoryEvent = Database['public']['Enums']['history_event']
 
 /**
  * The department the suite adds products to when the department itself is not
- * the point of the test. OTHER has a single product type with two fields, so
- * a test builds a product in it with the fewest inputs — and its type picker
- * is skipped, the dialog opening straight on the form.
+ * the point of the test. OTHER has a single product type with two fields, so a
+ * test builds a product in it with the fewest inputs — and with nothing to pick,
+ * its add button starts the draft straight away instead of offering a type menu.
  */
 export const TEST_PRODUCT_DEPARTMENT: Department = 'OTHER'
 
@@ -37,9 +37,8 @@ export function firstTestProductNumber(orderNumber: string): string {
 }
 
 /**
- * An OTHER product keyed by form field name — the shape a spec fills the
- * add-product dialog and the Basic info tab with (both render the same
- * per-type form).
+ * An OTHER product keyed by form field name — the shape a spec fills the draft
+ * panel and the Basic info tab with (both render the same per-type form).
  */
 export const OTHER_PRODUCT_FORM = {
   description: 'E2E product',
