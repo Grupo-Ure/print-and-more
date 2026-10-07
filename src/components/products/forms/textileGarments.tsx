@@ -32,8 +32,8 @@ const IDS = TEST_IDS.orders.productDetail.basicInfo.textile
  * reopens that step. A stored row arrives with its labels but without its ids
  * until the form (`useResolvePrefilledRows`) has walked them back from the
  * variant, so it shows its trail and waits for the grid rather than asking for
- * a brand — and says as much when that walk comes back empty (`unresolved`),
- * rather than waiting on it for good.
+ * a brand — and says the sizes could not be loaded when that walk fails
+ * (`unresolved`), rather than waiting on it for good.
  */
 function CatalogGarmentRow({
   row,
@@ -91,11 +91,9 @@ function CatalogGarmentRow({
 
       {step === 'resolving' && (
         unresolved ? (
-          // The lines themselves are intact — they keep their labels, their
-          // sizes and their quantities, and are saved as they stand.
-          <p className="text-xs text-destructive">
-            This garment could not be looked up in the catalog; its sizes cannot be changed here.
-          </p>
+          // The same wording as a failed size step below: the row's own lines
+          // are intact — labels, sizes and quantities — and save as they stand.
+          <p className="text-xs text-destructive">The sizes could not be loaded.</p>
         ) : (
           <p className="text-xs text-muted-foreground">Loading sizes…</p>
         )
@@ -235,7 +233,7 @@ export function GarmentsEditor({
   onChange,
 }: {
   rows: GarmentRowDraft[]
-  /** Stored rows whose variant did not come back from the catalog. */
+  /** Stored rows whose variant could not be read back from the catalog. */
   unresolvedRowKeys: Set<string>
   shortVariantIds: Set<string>
   error?: string

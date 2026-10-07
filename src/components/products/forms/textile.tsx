@@ -81,9 +81,10 @@ const isUnresolved = (row: GarmentRowDraft): row is GarmentRowDraft & { mode: 'C
  * row that holds its model is no longer unresolved, so it drops out of the
  * query.
  *
- * Returns the keys of the rows whose variant did not come back (a catalog entry
- * deleted since the batch was ordered, or a failed read), so such a row can say
- * so instead of waiting for a size run that will never arrive.
+ * Returns the keys of the rows whose variant did not come back — in practice a
+ * failed read, since deleting a variant nulls the line's `variant_id` and the
+ * line is read back as free text — so such a row can say the sizes could not be
+ * loaded instead of waiting for a size run that will never arrive.
  */
 function useResolvePrefilledRows(
   rows: GarmentRowDraft[],

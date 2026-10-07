@@ -107,6 +107,11 @@ class TextileService {
    * variant alone, so the batch editor resolves its grid rows through this
    * before it can offer the model's full size run. Variants that no longer
    * exist are simply absent from the result.
+   *
+   * Mapped straight off the row the client infers, with no assertion in
+   * between: a column that leaves the schema turns `data` into a
+   * `SelectQueryError` and stops this mapping from compiling. The model is
+   * embedded through a NOT NULL key, so it is always there.
    */
   async getVariantCascades(ids: string[]): Promise<VariantCascade[]> {
     const { data, error } = await supabase
@@ -114,16 +119,10 @@ class TextileService {
       .select('id, color, model_id, textile_models(brand_id)')
       .in('id', ids)
     if (error) throw error
-    const rows = (data ?? []) as unknown as {
-      id: string
-      color: string
-      model_id: string
-      textile_models: { brand_id: string } | null
-    }[]
-    return rows.map(row => ({
+    return (data ?? []).map(row => ({
       variantId: row.id,
       modelId: row.model_id,
-      brandId: row.textile_models?.brand_id ?? '',
+      brandId: row.textile_models.brand_id,
       color: row.color,
     }))
   }
