@@ -32,14 +32,17 @@ const IDS = TEST_IDS.orders.productDetail.basicInfo.textile
  * reopens that step. A stored row arrives with its labels but without its ids
  * until the form (`useResolvePrefilledRows`) has walked them back from the
  * variant, so it shows its trail and waits for the grid rather than asking for
- * a brand.
+ * a brand — and says as much when that walk comes back empty (`unresolved`),
+ * rather than waiting on it for good.
  */
 function CatalogGarmentRow({
   row,
+  unresolved,
   shortVariantIds,
   onChange,
 }: {
   row: GarmentRowDraft & { mode: 'CATALOG' }
+  unresolved: boolean
   shortVariantIds: Set<string>
   onChange: (patch: Partial<GarmentRowDraft & { mode: 'CATALOG' }>) => void
 }) {
@@ -86,7 +89,17 @@ function CatalogGarmentRow({
         </div>
       )}
 
-      {step === 'resolving' && <p className="text-xs text-muted-foreground">Loading sizes…</p>}
+      {step === 'resolving' && (
+        unresolved ? (
+          // The lines themselves are intact — they keep their labels, their
+          // sizes and their quantities, and are saved as they stand.
+          <p className="text-xs text-destructive">
+            This garment could not be looked up in the catalog; its sizes cannot be changed here.
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">Loading sizes…</p>
+        )
+      )}
       {step === 'brand' && (
         <OptionStep
           step="brand"
@@ -215,12 +228,15 @@ function FreeTextGarmentRow({
 
 export function GarmentsEditor({
   rows,
+  unresolvedRowKeys,
   shortVariantIds,
   error,
   total,
   onChange,
 }: {
   rows: GarmentRowDraft[]
+  /** Stored rows whose variant did not come back from the catalog. */
+  unresolvedRowKeys: Set<string>
   shortVariantIds: Set<string>
   error?: string
   total: number
@@ -253,6 +269,7 @@ export function GarmentsEditor({
             {row.mode === 'CATALOG' ? (
               <CatalogGarmentRow
                 row={row}
+                unresolved={unresolvedRowKeys.has(row.key)}
                 shortVariantIds={shortVariantIds}
                 onChange={patch => patchRow(row.key, patch)}
               />

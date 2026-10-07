@@ -21,6 +21,14 @@ export type SizeOption = {
   sample_stock: number
 }
 
+/** Where one variant sits in the catalog cascade — its colour, model and brand. */
+export type VariantCascade = {
+  variantId: string
+  brandId: string
+  modelId: string
+  color: string
+}
+
 /**
  * Textile per-order reads: the catalog lookups that feed the batch editor's
  * model/colour/size cascade, plus the variant rows the release's shortage check
@@ -93,24 +101,31 @@ class TextileService {
     return (data ?? []) as SizeOption[]
   }
 
-  async getVariantById(id: string): Promise<{ id: string; model_id: string; color: string; size: string } | null> {
+  /**
+   * The cascade walked back *up*: for each variant, the colour it is and the
+   * model and brand it belongs to. A stored garment line references the
+   * variant alone, so the batch editor resolves its grid rows through this
+   * before it can offer the model's full size run. Variants that no longer
+   * exist are simply absent from the result.
+   */
+  async getVariantCascades(ids: string[]): Promise<VariantCascade[]> {
     const { data, error } = await supabase
       .from('textile_variants')
-      .select('id, model_id, color, size')
-      .eq('id', id)
-      .maybeSingle()
+      .select('id, color, model_id, textile_models(brand_id)')
+      .in('id', ids)
     if (error) throw error
-    return data as { id: string; model_id: string; color: string; size: string } | null
-  }
-
-  async getModelById(id: string): Promise<{ id: string; brand_id: string } | null> {
-    const { data, error } = await supabase
-      .from('textile_models')
-      .select('id, brand_id')
-      .eq('id', id)
-      .maybeSingle()
-    if (error) throw error
-    return data as { id: string; brand_id: string } | null
+    const rows = (data ?? []) as unknown as {
+      id: string
+      color: string
+      model_id: string
+      textile_models: { brand_id: string } | null
+    }[]
+    return rows.map(row => ({
+      variantId: row.id,
+      modelId: row.model_id,
+      brandId: row.textile_models?.brand_id ?? '',
+      color: row.color,
+    }))
   }
 }
 

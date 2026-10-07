@@ -36,7 +36,7 @@
  * draft, with this form as its one caller.
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { validateProduct } from '../../../lib/products/registry'
 import { textileDesignToRow, textileGarmentToLine } from '../../../lib/products/schemas/textile'
 import {
@@ -50,7 +50,7 @@ import {
   type GarmentRowDraft,
 } from '../../../lib/products/textileBatchDraft'
 import { useSaveProduct } from '../../../queries/productQueries'
-import { textileService } from '../../../services/textileService'
+import { useTextileVariantCascades } from '../../../queries/textileCatalogQueries'
 import type { ProductWriteInput } from '../../../types/product'
 import { useToast } from '../../Toast'
 import { FormActions, FormShell } from './fields'
@@ -58,57 +58,58 @@ import type { ProductFormProps } from './shared'
 import { DesignsEditor } from './textileDesigns'
 import { GarmentsEditor } from './textileGarments'
 
+/** Nothing to report while the walk is still out. */
+const NO_UNRESOLVED_ROWS: Set<string> = new Set()
+
+/** The variant a stored row's size grid is resolved from: the first it is keyed by. */
+const resolveFrom = (row: GarmentRowDraft & { mode: 'CATALOG' }): string => Object.keys(row.quantities)[0]
+
+/** A stored catalog row that still has to find the model its grid belongs to. */
+const isUnresolved = (row: GarmentRowDraft): row is GarmentRowDraft & { mode: 'CATALOG' } =>
+  row.mode === 'CATALOG' && row.modelId === '' && Object.keys(row.quantities).length > 0
+
 /**
  * Resolve each stored catalog row's model and brand from the variant its
  * quantities are keyed by — a `textile_garments` line references the variant,
  * not the model, so the grid's cascade has to be walked back up once before it
- * can show the full size run. Rows whose variant no longer resolves are
- * remembered as attempted, so a vanished catalog entry cannot start a refetch
- * loop; such a row simply stays on its brand picker.
+ * can show the full size run.
+ *
+ * The walk is a cached query over those rows' variants rather than a one-shot
+ * fetch of its own: the result belongs to the cache, so it is applied by
+ * whichever render has it, and no row can be left waiting for a fetch that an
+ * earlier render abandoned. Writing the ids back ends the walk by itself — a
+ * row that holds its model is no longer unresolved, so it drops out of the
+ * query.
+ *
+ * Returns the keys of the rows whose variant did not come back (a catalog entry
+ * deleted since the batch was ordered, or a failed read), so such a row can say
+ * so instead of waiting for a size run that will never arrive.
  */
 function useResolvePrefilledRows(
   rows: GarmentRowDraft[],
   setRows: (update: (previous: GarmentRowDraft[]) => GarmentRowDraft[]) => void,
-): void {
-  const attempted = useRef(new Set<string>())
+): Set<string> {
+  const unresolved = rows.filter(isUnresolved)
+  const cascades = useTextileVariantCascades(unresolved.map(resolveFrom))
+  const resolutions = cascades.data
 
   useEffect(() => {
-    const pending = rows.filter(
-      (row): row is GarmentRowDraft & { mode: 'CATALOG' } =>
-        row.mode === 'CATALOG' &&
-        row.modelId === '' &&
-        Object.keys(row.quantities).length > 0 &&
-        !attempted.current.has(row.key),
+    if (!resolutions || resolutions.length === 0) return
+    setRows(previous =>
+      previous.map(row => {
+        if (!isUnresolved(row)) return row
+        const hit = resolutions.find(resolution => resolution.variantId === resolveFrom(row))
+        return hit ? { ...row, brandId: hit.brandId, modelId: hit.modelId, color: hit.color } : row
+      }),
     )
-    if (pending.length === 0) return
-    for (const row of pending) attempted.current.add(row.key)
+  }, [resolutions, setRows])
 
-    let alive = true
-    ;(async () => {
-      const resolutions = await Promise.all(
-        pending.map(async row => {
-          const variantId = Object.keys(row.quantities)[0]
-          const variant = await textileService.getVariantById(variantId)
-          if (!variant) return null
-          const model = await textileService.getModelById(variant.model_id)
-          return {
-            key: row.key,
-            brandId: model?.brand_id ?? '',
-            modelId: variant.model_id,
-            color: variant.color,
-          }
-        }),
-      )
-      if (!alive) return
-      setRows(previous =>
-        previous.map(row => {
-          const hit = resolutions.find(resolution => resolution?.key === row.key)
-          return hit && row.mode === 'CATALOG' ? { ...row, ...hit } : row
-        }),
-      )
-    })().catch(() => {})
-    return () => { alive = false }
-  }, [rows, setRows])
+  if (cascades.isPending) return NO_UNRESOLVED_ROWS
+  return new Set(
+    unresolved
+      .filter(row => !(resolutions ?? []).some(resolution => resolution.variantId === resolveFrom(row)))
+      .map(row => row.key),
+  )
 }
 
 export function TextileBatchForm(props: ProductFormProps) {
@@ -124,7 +125,7 @@ export function TextileBatchForm(props: ProductFormProps) {
   const [designs, setDesigns] = useState<DesignDraft[]>(() =>
     batch ? designsFromRows(batch.designs) : [],
   )
-  useResolvePrefilledRows(rows, setRows)
+  const unresolvedRowKeys = useResolvePrefilledRows(rows, setRows)
 
   const garments = flattenGarments(rows)
   const designValues = flattenDesigns(designs)
@@ -158,6 +159,7 @@ export function TextileBatchForm(props: ProductFormProps) {
     <FormShell onSubmit={handleSubmit} className="flex flex-col gap-4">
       <GarmentsEditor
         rows={rows}
+        unresolvedRowKeys={unresolvedRowKeys}
         shortVariantIds={shortVariantIds}
         error={errors.garments}
         total={batchTotal(garments)}
