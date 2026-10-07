@@ -2,6 +2,7 @@ import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
 import { ProductListPOM } from './ProductListPOM'
 import { ProductDetailPOM } from './ProductDetailPOM'
+import { ProductDraftPOM } from './ProductDraftPOM'
 import { OrderHistoryPOM } from './OrderHistoryPOM'
 import { DeadlinePickerPOM } from './DeadlinePickerPOM'
 import { BasePOM } from './BasePOM'
@@ -49,6 +50,8 @@ export class OrderDetailsPOM extends BasePOM {
 
   readonly productList: ProductListPOM
   readonly productDetail: ProductDetailPOM
+  /** The product being added, in the detail pane's place. */
+  readonly productDraft: ProductDraftPOM
   readonly history: OrderHistoryPOM
 
   constructor(page: Page) {
@@ -86,6 +89,7 @@ export class OrderDetailsPOM extends BasePOM {
 
     this.productList = new ProductListPOM(page)
     this.productDetail = new ProductDetailPOM(page)
+    this.productDraft = new ProductDraftPOM(page)
     this.history = new OrderHistoryPOM(page)
   }
 
