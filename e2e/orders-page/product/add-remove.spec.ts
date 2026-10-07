@@ -3,6 +3,7 @@ import {
   TEST_PRODUCT_DEPARTMENT,
   OTHER_PRODUCT,
   OTHER_PRODUCT_FORM,
+  POSTER_PRODUCT,
   PRODUCT_IN_PREPRESS,
   PRODUCT_DONE,
   PRODUCT_DELETED_HISTORY_EVENT,
@@ -10,39 +11,86 @@ import {
   firstTestProductNumber,
 } from '../../fixtures/products'
 
-// Adding a product is a dialog, not an empty row: a stored product always has
-// a valid spec, so the department button opens its type's own form and the
-// save creates the row. OTHER has one product type, so the picker is skipped.
+// Adding a product is an unsaved draft in the detail pane, not an empty row in
+// the database: a stored product always has a valid spec, so the department
+// button leads to its type's own form and only the save creates the row. OTHER
+// has one product type, so its button starts the draft without a type menu.
 
 test('adding a product through its department form selects it in the list', async ({ ordersPage, order }) => {
   // Setup — the number the database assigns to the order's first product of this department, with the order open.
   const productNumber = firstTestProductNumber(order.orderNumber)
-  const { productList, productDetail } = ordersPage.details
+  const { productList, productDraft, productDetail } = ordersPage.details
   await ordersPage.openOrder(order.id)
 
-  // Act — open the department's add dialog and save the product its form describes.
+  // Act — start the department's draft and save the product its form describes.
   await productList.addProduct(TEST_PRODUCT_DEPARTMENT).click()
-  await productList.addDialog.field('description').fill(OTHER_PRODUCT_FORM.description)
-  await productList.addDialog.field('quantity').fill(OTHER_PRODUCT_FORM.quantity)
-  await productList.addDialog.submit.click()
+  await productDraft.field('description').fill(OTHER_PRODUCT_FORM.description)
+  await productDraft.field('quantity').fill(OTHER_PRODUCT_FORM.quantity)
+  await productDraft.submit.click()
 
-  // Assert — the list marks a row active and the detail shows the new product's number.
+  // Assert — the draft is gone, the list marks a row active and the detail shows the new product's number.
+  await expect(productDraft.root).toHaveCount(0)
   await expect(productList.selectedRow).toBeVisible()
   await expect(productDetail.title).toContainText(productNumber)
 })
 
-test('cancelling the add-product dialog adds no product to the order', async ({ ordersPage, order }) => {
-  // Setup — the add dialog open on the department's only product type.
+test('the draft product is listed while it is being filled in', async ({ ordersPage, order }) => {
+  // Setup — the order open, with no product in it yet.
   const { productList } = ordersPage.details
+  await ordersPage.openOrder(order.id)
+
+  // Act — start the department's draft.
+  await productList.addProduct(TEST_PRODUCT_DEPARTMENT).click()
+
+  // Assert — the list shows the unsaved product as a row of its department.
+  await expect(productList.draftRow).toHaveAttribute('data-department', TEST_PRODUCT_DEPARTMENT)
+})
+
+test('cancelling the draft product adds nothing to the order', async ({ ordersPage, order }) => {
+  // Setup — the draft open on the department's only product type.
+  const { productList, productDraft } = ordersPage.details
   await ordersPage.openOrder(order.id)
   await productList.addProduct(TEST_PRODUCT_DEPARTMENT).click()
 
-  // Act — cancel without filling the form in (the click waits for the dialog).
-  await productList.addDialog.cancel.click()
+  // Act — cancel without filling the form in (the click waits for the form).
+  await productDraft.cancel.click()
 
-  // Assert — the dialog is gone and the order has no product.
-  await expect(productList.addDialog.root).toHaveCount(0)
+  // Assert — the draft is gone and the order has no product.
+  await expect(productDraft.root).toHaveCount(0)
   await expect(productList.empty).toBeVisible()
+})
+
+test('a department of several product types offers them before the draft starts', async ({ ordersPage, order }) => {
+  // Setup — the order open; CopyShop offers several types, so its button opens a menu.
+  const { productList, productDraft } = ordersPage.details
+  await ordersPage.openOrder(order.id)
+
+  // Act — open the department's type menu and pick one of its types.
+  await productList.addProduct(POSTER_PRODUCT.department).click()
+  await productList.addProductType(POSTER_PRODUCT.type).click()
+
+  // Assert — the draft opens on the picked type's form.
+  await expect(productDraft.root).toHaveAttribute('data-type', POSTER_PRODUCT.type)
+})
+
+test.describe('in progress, its only product done', () => {
+  test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: PRODUCT_DONE })
+
+  test('a draft product does not count as work still open on the order', async ({ ordersPage, order, product }) => {
+    // Setup — the order open with its done product loaded, so it offers to be marked finished.
+    const { productList, productDraft } = ordersPage.details
+    await ordersPage.openOrder(order.id)
+    await productList.row(product.id).waitFor()
+
+    // Act — start a draft product.
+    await productList.addProduct(TEST_PRODUCT_DEPARTMENT).click()
+
+    // Assert — the unsaved product is no product of the order: it neither withdraws
+    // the lifecycle action nor moves the order off in progress.
+    await productDraft.root.waitFor()
+    await expect(ordersPage.details.lifecycle).toHaveAttribute('data-target', FINISHED_STATUS)
+    await expect(ordersPage.details.forOrder(order.id)).toHaveAttribute('data-status', IN_PROGRESS_STATUS)
+  })
 })
 
 test('deleting a product in setup removes it from the order and records the deletion', async ({ ordersPage, product }) => {
