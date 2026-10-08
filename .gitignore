@@ -33,3 +33,5 @@ playwright-report
 .env.*.local
 
 .plans
+# Production database backups (contain PII and password hashes)
+db-backup/
