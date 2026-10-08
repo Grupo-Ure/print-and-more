@@ -154,8 +154,6 @@ function historySegments(
         ' back to ',
         { kind: 'status', meta: PRODUCT_STATUS_META.IN_SETUP },
       ]
-    case 'ERP_EXPORTED':
-      return [actor, ' exported the order to ERP']
     case 'CANCELLED':
       return [actor, ' cancelled the order']
     case 'ORDER_ARCHIVED':
