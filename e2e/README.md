@@ -148,15 +148,17 @@ Nothing here is imported by hand; the runner drives it from the config:
 | `pom/*POM.ts` | Page objects — every locator a spec uses, one class per view/dialog, composed parent → child |
 | `pom/BasePOM.ts` | Ancestor of every page object: holds the page and the shared helpers (`withAttr()` picks one instance of a repeated element by data attribute) |
 | `support/testIds.ts` | The `TEST_IDS` registry, imported by components (`data-testid`) and page objects alike |
-| `support/database.ts` | `TestDatabase`: the runner's service-role connection (bypasses RLS, exposes `auth.admin`) with the methods that seed and remove users, customers, orders and products — raw rows only, no app business logic |
+| `support/database.ts` | `TestDatabase`: the runner's service-role connection (bypasses RLS, exposes `auth.admin`) with the methods that seed and remove users, customers, orders and products — raw rows only, no app business logic. `asUser(login)` hands out a second connection signed in as one of the suite's logins, for the rules the database enforces on the app but not on the runner |
 | `global-setup.ts`, `global-teardown.ts` | Run-wide data, wired via `playwright.config.ts` |
 
 ## Environment
 
-The runner reads `VITE_SUPABASE_URL` (the same one the build inlines) and
-`SUPABASE_SERVICE_ROLE_KEY` (runner only, never `VITE_`-prefixed). Locally both
-come from `.env`; for a local Supabase the key is in `supabase status`. In CI
-the job exports them from its own instance and has no `.env`.
+The runner reads `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (the same
+ones the build inlines; the anon key is for `TestDatabase.asUser`, which writes
+as a signed-in login) and `SUPABASE_SERVICE_ROLE_KEY` (runner only, never
+`VITE_`-prefixed). Locally all three come from `.env`; for a local Supabase the
+keys are in `supabase status`. In CI the job exports them from its own instance
+and has no `.env`.
 
 Test conventions (fixtures files, minimal assertions, setup/act/assert/cleanup
 stages) are in [`docs/testing/testing-standards.md`](../docs/testing/testing-standards.md);

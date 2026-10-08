@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import { productService, type ProductFileAssignment } from '../services/productService'
 import { historyService, type HistoryEvent } from '../services/historyService'
 import { productionReleaseService } from '../services/productionReleaseService'
-import { isMeaningfulChange } from '../lib/status/meaningfulChange'
 import { resolveEffectiveProduct } from '../lib/productShared'
 import { deriveAutomaticOrderStatus } from '../lib/status/automaticStatus'
 import type { LoadedProduct, ProductWriteInput } from '../types/product'
@@ -117,51 +116,6 @@ function patchProductInCache(queryClient: QueryClient, orderId: string, row: Pro
 }
 
 /**
- * Persist a product status directly (no hook), patching the product cache.
- * Used by the status helpers that run outside a component — notably
- * {@link bounceBackIfCommitted}.
- */
-export async function persistProductStatus(
-  queryClient: QueryClient,
-  id: string,
-  orderId: string,
-  status: ProductStatus,
-): Promise<void> {
-  const row = await productService.setStatus(id, status)
-  patchProductInCache(queryClient, orderId, row)
-  invalidateOrderLists(queryClient)
-}
-
-/** Locate a product by id across the cached per-order lists (gives status + order_id). */
-function findCachedProduct(queryClient: QueryClient, productId: string): LoadedProduct | null {
-  const entries = queryClient.getQueriesData<LoadedProduct[]>({ queryKey: productKeys.byOrderIdRoot })
-  for (const [, list] of entries) {
-    const found = list?.find(product => product.id === productId)
-    if (found) return found
-  }
-  return null
-}
-
-/**
- * Bounce-back: if the product is committed (IN_PRODUCTION / DONE), drop it to
- * IN_SETUP. Called from the save mutation's `onSuccess` *only when the spec
- * change was meaningful* (see `isMeaningfulChange`). No-op for non-committed
- * products, so the caller doesn't need to know the current status.
- */
-export async function bounceBackIfCommitted(queryClient: QueryClient, productId: string): Promise<void> {
-  const product = findCachedProduct(queryClient, productId)
-  if (!product) return
-  if (product.status !== 'IN_PRODUCTION' && product.status !== 'DONE') return
-  await persistProductStatus(queryClient, product.id, product.order_id, 'IN_SETUP')
-  await historyService.tryWriteHistory({
-    order_id: product.order_id,
-    product_id: product.id,
-    event_type: 'ROLLED_BACK',
-    meta: { previous_status: product.status },
-  })
-}
-
-/**
  * The automatic order finish: once every non-cancelled product of an invoice
  * order is DONE, the order moves to FINISHED on its own (ORDER_FINISHED with
  * `meta.automatic`). The returned function is called right after a mutation
@@ -265,31 +219,12 @@ export function useSaveProduct() {
       return { productId, products, files }
     },
     onSuccess: ({ productId, products, files }, { input, orderId }) => {
-      // Read the pre-save child before overwriting the cache, to detect a meaningful edit.
-      const previous = input.id
-        ? queryClient
-            .getQueryData<LoadedProduct[]>(productKeys.byOrderId(orderId))
-            ?.find(product => product.id === input.id)
-        : undefined
-      const previousChild = previous && 'child' in previous ? previous.child : null
-
+      // A released product's spec is locked by the database (MKS-88), so an
+      // edit that reaches here was on an open product — nothing to bounce.
       queryClient.setQueryData(productKeys.byOrderId(orderId), products)
       queryClient.setQueryData(productKeys.filesByOrderId(orderId), files)
       invalidateOrderLists(queryClient)
       void queryClient.invalidateQueries({ queryKey: stockAvailabilityKeys.byProductId(productId) })
-
-      // Bounce-back: a meaningful spec edit drops a committed product to IN_SETUP.
-      // Only an edit can — a new product starts in setup (see isMeaningfulChange).
-      if (
-        input.id &&
-        isMeaningfulChange(
-          input.department,
-          previousChild as Record<string, unknown> | null,
-          'child' in input ? (input.child as unknown as Record<string, unknown>) : null,
-        )
-      ) {
-        void bounceBackIfCommitted(queryClient, productId)
-      }
 
       const saved = products.find(product => product.id === productId)
       void historyService.tryWriteHistory({

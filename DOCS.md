@@ -4,6 +4,25 @@
 
 ---
 
+## Business & Client Documentation (Obsidian)
+
+This repository holds the **engineering** documentation. The documentation of
+the business — process maps, the written plan for a feature before it is
+built, what was agreed with the client, system, catalog and settings
+documentation, test plans meant for the shop — lives in the **Obsidian vault,
+folder `Print And More`**
+(`/mnt/c/Users/brian/Documents/Obsidian Vault/Print And More/`), whose index
+note is `Print And More.md`.
+
+Treat it as **a source of truth on expectations, to be read alongside this
+repository**: the vault is written first and the implementation follows it, so
+a question of the form "what is this supposed to do?" is answered there, not
+by the code. Documents in that category are created in the vault — not under
+`.plans/`, not in `docs/`. The rule and the exact split are in
+[CLAUDE.md](CLAUDE.md), "Project documentation lives in Obsidian".
+
+---
+
 ## Coding Standards
 
 The rules that apply to every file written or modified in any project that adopts these guidelines.
@@ -69,12 +88,15 @@ Vendor documentation snapshots for the tools these guidelines build on.
 
 ## How to Use This Documentation
 
-1. **Starting any work?** Read [Coding Standards](docs/coding-standards.md) first.
-2. **Building a component?** Read [Frontend Designer](docs/skills/skill-frontend-designer.md).
-3. **Adding business logic, types, or Server Actions?** Read [Business Logic Engineer](docs/skills/skill-business-logic.md).
-4. **Working on Edge Functions or webhooks?** Read [Edge Functions Expert](docs/skills/skill-edge-functions.md).
-5. **Writing any kind of test?** Read [Testing Standards](docs/testing/testing-standards.md) (and [Backend Unit Testing](docs/testing/backend-unit-testing.md) if you're in a NestJS backend).
-6. **Reviewing or finishing work?** Read [Reviewer](docs/skills/skill-reviewer.md) and run the checklist.
+1. **Planning a feature, or judging whether current behaviour is right?** Read
+   the workflow's note in the Obsidian vault first (see above) — that is where
+   the intent and the client's agreement are recorded.
+2. **Starting any work?** Read [Coding Standards](docs/coding-standards.md) first.
+3. **Building a component?** Read [Frontend Designer](docs/skills/skill-frontend-designer.md).
+4. **Adding business logic, types, or Server Actions?** Read [Business Logic Engineer](docs/skills/skill-business-logic.md).
+5. **Working on Edge Functions or webhooks?** Read [Edge Functions Expert](docs/skills/skill-edge-functions.md).
+6. **Writing any kind of test?** Read [Testing Standards](docs/testing/testing-standards.md) (and [Backend Unit Testing](docs/testing/backend-unit-testing.md) if you're in a NestJS backend).
+7. **Reviewing or finishing work?** Read [Reviewer](docs/skills/skill-reviewer.md) and run the checklist.
 
 ---
 

@@ -83,12 +83,50 @@ identifiers, names, or strings.
 **Issue tracking** — work is tracked in **Jira**, project **Print And More**
 (issue key prefix `MKS`). When asked about tasks/tickets, look there first.
 
+**Project documentation lives in Obsidian.**
+
+The documentation that describes the *business* — how the shop works, what a
+feature is meant to do, what was agreed with the client — is written in the
+**Obsidian vault, folder `Print And More`** (on this machine
+`/mnt/c/Users/brian/Documents/Obsidian Vault/Print And More/`; index note
+`Print And More.md`). It is deliberately **not** kept in this repository, and
+it is **a source of truth to consult when assessing or planning work**,
+alongside the code and Jira.
+
+- **Written there:** process maps (`.bpmn` plus the note that embeds it — see
+  the `process-map` skill), the written plan for a workflow or feature, the
+  client-facing documents (what we sent the client, what came back), test
+  plans and system documentation meant to be walked through with the shop,
+  settings and catalog documentation, diagrams. The test: if the audience is
+  the client or the business rather than someone editing this codebase, it is
+  a vault note.
+- **Stays in the repo:** documentation that only makes sense next to the code
+  — [DOCS.md](DOCS.md) and [docs/](docs/) (coding standards, skill docs, tool
+  reference), the e2e suite's own README and its test registry, the rename
+  maps, and the stream records in [.plans/](.plans/).
+- **Conventions:** one note per subject, named in sentence case with spaces
+  (`Shipping plan.md`, `Shipping client review.md`); notes reference each
+  other with `[[wikilinks]]`, not with repo paths, and are listed on the index
+  note. A map note describes the **target state** and is kept current; a plan
+  note carries the same `Created:` / `Finished:` header as a repo plan and is
+  a record once finished.
+- **Vault first, code second.** A feature is thought through, written up and
+  agreed in Obsidian before it is built, so the vault is where expectations
+  are settled and the place to read before proposing work. When the code and
+  the vault note disagree, that is a discrepancy to raise — don't silently
+  change the code to match the note, or the note to match the code.
+
 **Where things go**
 - **CLAUDE.md** (this file) — stable architecture, domain model, workflows. No
   version pins, no pixel widths, no status or to-do lists (those live in Jira).
 - **[DOCS.md](DOCS.md)** — documentation index; entry point to
   [docs/](docs/) (coding standards, skill docs, reference). Consult it for the
   architectural patterns to follow.
+- **Obsidian vault `Print And More/`** — the business and client-facing
+  documentation: process maps, workflow plans, client reviews, system and
+  settings documentation. Outside the repo; see "Project documentation lives
+  in Obsidian" above. New documents of that kind are created there, not under
+  `.plans/`.
 - **[.plans/](.plans/)** — one file per work stream: the decisions it locked,
   the packages it shipped, and what each one found. It is the project's
   **history**, not a reference that tracks the current code — see "Plans are
@@ -97,7 +135,9 @@ identifiers, names, or strings.
   [electron_workplan.md](.plans/electron_workplan.md) (the Electron port),
   [JOB_ELIMINATION.md](.plans/JOB_ELIMINATION.md) (the product replacing the
   job as the unit of work), [DB_RENAME_MAP.md](.plans/DB_RENAME_MAP.md) (the
-  German→English schema rename).
+  German→English schema rename). It keeps the engineering record of the
+  streams already in it; a new workflow plan or client document belongs in the
+  vault instead.
 - **`package.json`** = library versions; CSS files = UI dimensions. Don't
   duplicate those into prose.
 
@@ -124,6 +164,11 @@ out of date relative to today's code is expected, not a defect to repair.
 This is why `DB_RENAME_MAP.md` still describes the schema as it stood after
 the German→English rename and says nothing about the job elimination that
 came later.
+
+The same holds for a **plan note in the Obsidian vault**: it carries the same
+header and is equally a record once finished. The **process maps and their
+notes are the exception** — they describe the target state of the business
+process, so they are edited as that process changes.
 
 ## Tech Stack
 
@@ -661,3 +706,7 @@ product is done.
   — never a dashboard edit or a change to an applied migration.
 - **Open refactor streams** (see `.plans/`): value-rename of stored enum strings
   to English; the i18next UI-string pass. Don't fold these into unrelated work.
+- Business-process and client-facing documentation is in the Obsidian vault
+  `Print And More/`, not in this repo. Read the relevant note before planning
+  a feature or judging whether current behaviour is correct — it is what the
+  client agreed to.
