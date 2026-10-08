@@ -134,6 +134,23 @@ export class TestDatabase {
     )
   }
 
+  /**
+   * A connection that writes as one of the suite's logins would — the anon
+   * key plus that user's session, so RLS and the `authenticated` guards apply.
+   * For the rules the database enforces on the app but not on the runner,
+   * which the service-role connection above is exempt from.
+   */
+  async asUser(user: TestUser): Promise<SupabaseClient<Database>> {
+    const client = createClient<Database>(
+      requiredEnv('VITE_SUPABASE_URL'),
+      requiredEnv('VITE_SUPABASE_ANON_KEY'),
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    )
+    const { error } = await client.auth.signInWithPassword({ email: user.email, password: user.password })
+    if (error) throw error
+    return client
+  }
+
   // ── Users ────────────────────────────────────────────────────────────────
 
   private async findUserId(email: string): Promise<string | null> {

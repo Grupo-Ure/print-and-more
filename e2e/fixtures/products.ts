@@ -1,5 +1,6 @@
 import type { Department, ProductStatus } from '../../src/types/database'
 import type { Database } from '../../src/types/supabase'
+import type { ChildTable } from '../../src/types/product'
 import type { ProductSeed } from '../support/database'
 import { IN_STOCK_STAMP_MODEL, OUT_OF_STOCK_STAMP_MODEL } from './stamps'
 import { IN_STOCK_TEXTILE_CHAIN } from './textiles'
@@ -13,6 +14,9 @@ type HistoryEvent = Database['public']['Enums']['history_event']
  * its add button starts the draft straight away instead of offering a type menu.
  */
 export const TEST_PRODUCT_DEPARTMENT: Department = 'OTHER'
+
+/** The typed child table of the one product type in `TEST_PRODUCT_DEPARTMENT`. */
+export const TEST_PRODUCT_CHILD_TABLE = 'other_products' as const satisfies ChildTable
 
 // ── Statuses ──────────────────────────────────────────────────────────────
 
@@ -48,6 +52,16 @@ export const OTHER_PRODUCT_FORM = {
 /** A second description, for an edit that has to differ from what was saved. */
 export const EDITED_OTHER_DESCRIPTION = 'E2E product, revised'
 
+/** A second quantity, for an edit of the parent's spec columns that has to differ from what was saved. */
+export const EDITED_OTHER_QUANTITY = Number(OTHER_PRODUCT_FORM.quantity) + 1
+
+/**
+ * The SQLSTATE a trigger's RAISE EXCEPTION arrives as (`raise_exception`) —
+ * what the database answers when a released product's spec is written to
+ * (trg_refuse_released_product_spec_change and its child-table twin).
+ */
+export const RELEASED_SPEC_LOCKED_ERROR_CODE = 'P0001'
+
 // ── Force release ─────────────────────────────────────────────────────────
 
 /** What an admin types into the force-release prompt. */
@@ -76,6 +90,9 @@ export const PRODUCT_CANCELLED_HISTORY_EVENT: HistoryEvent = 'PRODUCT_CANCELLED'
 // - `IN_PRODUCTION` and `DONE` in the STAMP or TEXTILE departments would also
 //   have booked stock deductions on release; the general-purpose seeds stay in
 //   OTHER, which books none.
+// - A released product's spec is locked by the database for the app, not for
+//   the runner: its service-role connection is exempt, so a seed in
+//   `IN_PRODUCTION` or `DONE` still inserts its child rows.
 
 /** The same OTHER product as `OTHER_PRODUCT_FORM`, as the row the fixture inserts. */
 export const OTHER_PRODUCT: ProductSeed = {
@@ -84,7 +101,7 @@ export const OTHER_PRODUCT: ProductSeed = {
   status: NEW_PRODUCT_STATUS,
   quantity: Number(OTHER_PRODUCT_FORM.quantity),
   customer_approval_required: false,
-  childTable: 'other_products',
+  childTable: TEST_PRODUCT_CHILD_TABLE,
   child: { description: OTHER_PRODUCT_FORM.description },
 }
 
