@@ -55,13 +55,6 @@ export const EDITED_OTHER_DESCRIPTION = 'E2E product, revised'
 /** A second quantity, for an edit of the parent's spec columns that has to differ from what was saved. */
 export const EDITED_OTHER_QUANTITY = Number(OTHER_PRODUCT_FORM.quantity) + 1
 
-/**
- * The SQLSTATE a trigger's RAISE EXCEPTION arrives as (`raise_exception`) —
- * what the database answers when a released product's spec is written to
- * (trg_refuse_released_product_spec_change and its child-table twin).
- */
-export const RELEASED_SPEC_LOCKED_ERROR_CODE = 'P0001'
-
 // ── Force release ─────────────────────────────────────────────────────────
 
 /** What an admin types into the force-release prompt. */
