@@ -4,7 +4,7 @@ Internal desktop tool for a print and advertising shop (product name in the
 app: **Print And More**). Used by a small team to manage customer orders
 across multiple production departments: order intake, status tracking
 through the production workflow, inventory, customer approvals, time
-logging, history logging, and ERP export.
+logging, and history logging.
 
 This file describes **architecture, domain model, and workflows** — the stable
 properties of the application. Open work and known gaps are tracked in Jira,
@@ -435,9 +435,11 @@ cannot hold an order open.
 - **Order** — table `orders` (`order_number` from a DB counter, `customer_id`,
   `status`, `deadline`, `delivery` (`PICKUP`|`SHIPPING`), `priority`
   (`NORMAL`|`HIGH`), `payment_method` (`INVOICE`|`CASH`), `billing_note`,
-  `is_erp_exported`, `is_archived`, `created_by`, `created_at`). The header
-  fields save on change, one field per save, each logged as a
-  `SETTINGS_CHANGED` history entry.
+  `is_archived`, `created_by`, `created_at`). A new order is created as a
+  quote with its deadline pre-filled to one week from today (a local date,
+  set by `NewOrderDialog`, not a DB default). The header fields save on
+  change, one field per save, each logged as a `SETTINGS_CHANGED` history
+  entry.
 - **Product** — table `products`, the unit of work: one object carrying both
   the production workflow and the specification (the typed child tables
   below). Workflow half: `product_number` (`<order_number>-<DEPT>-<NN>`,
@@ -499,6 +501,10 @@ cannot hold an order open.
   [`departmentSettingsService`](src/services/departmentSettingsService.ts).
 - **Blueprint** — `blueprint_*` tables exist in the schema (a separate
   blueprint-copying feature) but nothing in the client uses them yet.
+- **Retired ERP export** — the `erp_exports` table, `orders.is_erp_exported`
+  and the `ERP_EXPORTED` history event are left over from an export feature
+  the shop retired. Nothing in the client reads, writes or renders them;
+  dropping them is a migration of its own. Don't build on them.
 
 ### Products — typed per-type tables
 
@@ -649,9 +655,6 @@ product is done.
 - **Customer approval** — toggled per product in its settings; when required,
   the release to production stays blocked until an approval is granted against
   one of the order's files (`CUSTOMER_APPROVAL_GRANTED`, file id in `meta`).
-- **ERP export** — table `erp_exports` (`order_id`, `mode` (`SINGLE`|`BULK`),
-  `export_data`) and [`erpService`](src/services/erpService.ts) exist; no UI
-  currently triggers an export.
 - **Duplicate order** — RPC `duplicate_order` deep-copies an order (the
   selected products incl. their typed child by `type`, their `product_files`,
   and a textile batch's garment lines and designs) in one transaction; called

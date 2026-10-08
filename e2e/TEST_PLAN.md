@@ -25,6 +25,7 @@ behaviour the lifecycle packs assert is written out in
     - [new-order.spec.ts](e2e/orders-page/order/new-order.spec.ts)
       - [creating an order for an existing customer opens it as a quote for that customer](e2e/orders-page/order/new-order.spec.ts#L6)
       - [creating an order with a customer created in the dialog opens it as a quote for that customer](e2e/orders-page/order/new-order.spec.ts#L21)
+      - [creating an order pre-fills its deadline one week out](e2e/orders-page/order/new-order.spec.ts#L35)
     - [header.spec.ts](e2e/orders-page/order/header.spec.ts)
       - *customer with every contact and address field set*
         - [the header shows the order number and the customer's name, email, phone and address](e2e/orders-page/order/header.spec.ts#L7)

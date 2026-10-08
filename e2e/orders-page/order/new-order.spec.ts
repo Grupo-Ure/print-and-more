@@ -1,7 +1,7 @@
-import { expect, test, NEW_ORDER_STATUS } from '../../fixtures/orders'
+import { expect, test, NEW_ORDER_STATUS, defaultOrderDeadline } from '../../fixtures/orders'
 
-// Both tests leave an order behind; the `customer` / `newCustomer` fixtures
-// remove it with its customer, so neither test needs a cleanup stage.
+// Every test leaves an order behind; the `customer` / `newCustomer` fixtures
+// remove it with its customer, so none of them needs a cleanup stage.
 
 test('creating an order for an existing customer opens it as a quote for that customer', async ({ ordersPage, customer }) => {
   // Setup — the `customer` fixture inserted the customer row.
@@ -30,4 +30,19 @@ test('creating an order with a customer created in the dialog opens it as a quot
   // Assert — the created order opens as a quote for the customer just saved.
   await expect(ordersPage.details.root).toHaveAttribute('data-status', NEW_ORDER_STATUS)
   await expect(ordersPage.details.customerName).toHaveText(newCustomer.name)
+})
+
+test('creating an order pre-fills its deadline one week out', async ({ ordersPage, customer }) => {
+  // Setup — the `customer` fixture inserted the customer row; the deadline a new order is expected to carry.
+  const dialog = ordersPage.newOrderDialog
+  const deadline = defaultOrderDeadline()
+
+  // Act — create an order for that customer without touching any setting.
+  await ordersPage.sidebar.newOrderButton.click()
+  await dialog.customerSearch.fill(customer.name)
+  await dialog.customerOption(customer.id).click()
+  await dialog.submit.click()
+
+  // Assert — the settings row of the created order shows the deadline a week from today.
+  await expect(ordersPage.details.deadline.trigger).toHaveAttribute('data-value', deadline)
 })

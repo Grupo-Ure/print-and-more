@@ -36,15 +36,22 @@ export const FINISHED_STATUS: OrderStatus = 'FINISHED'
 export const BILLED_STATUS: OrderStatus = 'BILLED'
 
 /**
+ * The deadline a new order is created with — one week from today. Produced at
+ * call time, never stored, like the two below.
+ */
+export function defaultOrderDeadline(): string {
+  return format(addDays(new Date(), 7), 'yyyy-MM-dd')
+}
+
+/**
  * A deadline the picker accepts that differs from the default a new order gets
- * (today), so a test can see that a pick changed it. Produced at call time,
- * never stored.
+ * (a week out), so a test can see that a pick changed it.
  */
 export function nextOrderDeadline(): string {
   return format(addDays(new Date(), 1), 'yyyy-MM-dd')
 }
 
-/** A deadline that has already passed (yesterday), produced at call time like the one above. */
+/** A deadline that has already passed (yesterday). */
 export function missedOrderDeadline(): string {
   return format(addDays(new Date(), -1), 'yyyy-MM-dd')
 }
