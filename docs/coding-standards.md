@@ -29,6 +29,7 @@ These are the global coding standards for any project that adopts these guidelin
 - [Module Organization](#module-organization)
 - [Architecture Principles](#architecture-principles)
 - [Database](#database)
+- [Edge Functions](#edge-functions)
 - [Environment Variables](#environment-variables)
 
 ### Quality & Production
@@ -440,6 +441,47 @@ Bulletproof React adapted for Next.js App Router + Supabase.
 - **Parameterized queries always** — Supabase client SDK handles this
 - **Service role key** only used server-side (Edge Functions, Server Actions) — never exposed to the client
 - **`anon` key** is safe for the browser — RLS enforces access
+
+---
+
+## Edge Functions
+
+Functions live in `supabase/functions/<name>/`; their npm and jsr dependencies
+are pinned to exact versions in the shared `supabase/functions/deno.json`.
+Function variables for local runs go in `supabase/functions/.env`
+(git-ignored, copied from `.env.example` beside it), which both
+`supabase start` and `supabase functions serve` read.
+
+### Email templates
+
+Every mail the `send-email` function sends is a template under
+`supabase/functions/send-email/templates/`. The system behind them is
+documented in the vault note *Email runtime*; this is the repo-side half of
+its "Adding a mail".
+
+- **One folder per template**, named after it: `subject.hbs`, `html.hbs`,
+  `text.hbs` and an `index.ts` whose default export satisfies `EmailTemplate`
+  (`templates/registry.ts`) — `resolve` (recipient and data from the
+  message's ids, looked up at send time) and, for a delayed mail,
+  `stillNeeded` (absent means always needed).
+- **Register it** in `TEMPLATES` in `templates/registry.ts`. An unregistered
+  folder is never loaded.
+- **The html body is a fragment**, rendered inside the shared `layout.hbs`
+  (shop header and footer). Mail clients need inline styles and table
+  layout; no `<style>` blocks, no external CSS.
+- **Escaping:** values in `html.hbs` are HTML-escaped; `subject.hbs` and
+  `text.hbs` are plain text and are not. The subject is collapsed onto one
+  line.
+- **The wording lives in the `.hbs` files.** No subject or body text in
+  TypeScript.
+- **Templates ship as static files.** `config.toml` lists
+  `./functions/send-email/templates/**/*.hbs` under `[functions.send-email]`
+  `static_files`, so a new folder needs no config change. `render.ts` reads
+  and parses every registered template when the function starts: a missing
+  file or a syntax error stops the function from booting, so it shows on the
+  first call after deploy, before any mail is claimed.
+- **`node:fs` is the first import** of `send-email/index.ts`, as Supabase
+  prescribes for functions that read static files.
 
 ---
 
