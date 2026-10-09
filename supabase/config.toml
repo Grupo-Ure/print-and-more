@@ -379,6 +379,11 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# The email sender. Its templates are read from disk at start-up, so they are
+# bundled with the function as static files (paths relative to supabase/).
+[functions.send-email]
+static_files = ["./functions/send-email/templates/**/*.hbs"]
+
 [analytics]
 enabled = true
 port = 55327
