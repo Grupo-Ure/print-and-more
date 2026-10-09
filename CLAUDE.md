@@ -42,7 +42,8 @@ database as live:
   master data that production must also see needs a migration as well.
 - A migration is verified against a local Supabase (`supabase db reset`
   replays every migration plus the seed) and the e2e suite before it is
-  pushed. After it lands, regenerate `src/types/supabase.ts` — the product
+  merged; the release's `deploy` CI job applies it to production, nobody
+  pushes it by hand. After it lands, regenerate `src/types/supabase.ts` — the product
   schemas' drift assertions will not compile until the types match.
 - No destructive change (drop, rename, type change of a populated column)
   without a data-preserving path in the same migration.

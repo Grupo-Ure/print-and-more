@@ -432,7 +432,12 @@ Bulletproof React adapted for Next.js App Router + Supabase.
 | Unique constraints | `table_columns_unique` | `users_email_unique` |
 
 ### Migrations
-- Managed via **Supabase CLI** (`supabase migration new`, `supabase db push`)
+- Managed via **Supabase CLI** (`supabase migration new`; verified locally
+  with `supabase db reset`)
+- **Production receives them from CI**: the `deploy` job in `ci.yml` runs
+  `supabase db push` and `supabase functions deploy` on a release tag (see
+  [releasing.md](releasing.md)). Never `supabase db push` or
+  `supabase functions deploy` against the hosted project by hand.
 - **Commit migrations to source control** — always
 - **Never edit applied migrations** — create a new one instead
 
