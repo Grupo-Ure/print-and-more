@@ -457,6 +457,15 @@ Function variables for local runs go in `supabase/functions/.env`
 (git-ignored, copied from `.env.example` beside it), which both
 `supabase start` and `supabase functions serve` read.
 
+Every function keeps the gateway's JWT verification and checks the caller
+itself (`manage-users` the user's role, `send-email` that the bearer token is
+the service-role key), with one exception: `email-webhook` is called by the
+mail provider with no Supabase session, so it has `verify_jwt = false` in
+`config.toml` and verifies the report's Svix signature against
+`RESEND_WEBHOOK_SECRET` instead. A new function without a session behind it
+follows that pattern — a signature or a shared secret checked inside the
+function, never an open endpoint.
+
 ### Email templates
 
 Every mail the `send-email` function sends is a template under
