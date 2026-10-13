@@ -3,7 +3,7 @@ import type { Database, Json, TablesInsert } from '../../src/types/supabase'
 import type { DefaultAssigneeStatus } from '../../src/types/database'
 import type { ChildTable } from '../../src/types/product'
 import type { TestCustomer } from '../fixtures/customers'
-import type { EmailSettingPatch, EmailSettingSeed, QueuedEmailSeed } from '../fixtures/emailMessages'
+import type { EmailSettingPatch, EmailSettingSeed, QueuedEmailSeed, SentEmailSeed } from '../fixtures/emailMessages'
 import type { TestUser } from '../fixtures/users'
 
 type OrderInsert = Database['public']['Tables']['orders']['Insert']
@@ -30,6 +30,20 @@ export function queuedDelayDays(row: QueuedEmailRow): number {
 
 /** One sent record, as much of it as a spec looks at. */
 export type SentEmailRow = Pick<Database['public']['Tables']['sent_emails']['Row'], 'id' | 'provider_id' | 'recipient' | 'subject'>
+
+/** What the provider has reported of a sent mail, as the record holds it. */
+export type SentEmailDelivery = Pick<
+  Database['public']['Tables']['sent_emails']['Row'],
+  'delivered_at' | 'bounced_at' | 'bounce_reason' | 'complained_at'
+>
+
+/** What a spec gets to know about the sent record the fixture inserted for it. */
+export type TestSentEmail = {
+  id: string
+  /** The id the provider would have assigned the mail — what a delivery report names it by. */
+  providerId: string
+  orderId: string
+}
 
 /** The columns a fixture chooses for an order it inserts; everything else takes the table's defaults. */
 export type OrderSeedRow = {
@@ -260,6 +274,19 @@ export class TestDatabase {
     return { ...customer, id: data.id }
   }
 
+  /** When a mail to the customer's current address last bounced; null while none has. */
+  async customerEmailBouncedAt(customerId: string): Promise<string | null> {
+    const { data, error } = await this.client.from('customers').select('email_bounced_at').eq('id', customerId).single()
+    if (error) throw error
+    return data.email_bounced_at
+  }
+
+  /** Changes the customer's email address, as saving the customer dialog with another one would. */
+  async updateCustomerEmail(customerId: string, email: string): Promise<void> {
+    const { error } = await this.client.from('customers').update({ email }).eq('id', customerId)
+    if (error) throw error
+  }
+
   /** Deletes the customer with every order it has (see `removeCustomers`). */
   async removeCustomer(customerId: string): Promise<void> {
     await this.removeCustomers([customerId])
@@ -483,6 +510,40 @@ export class TestDatabase {
   async removeEmailSetting(template: string): Promise<void> {
     const { error } = await this.client.from('email_settings').delete().eq('template', template)
     if (error) throw error
+  }
+
+  /**
+   * Inserts a sent record for the order as the sender writes one after the
+   * provider accepted the mail — with a fresh provider id in place of
+   * Resend's, and a queue message id below zero, outside pgmq's range, so it
+   * cannot collide with a message the sender records. Removed with the order
+   * by cascade.
+   */
+  async createSentEmail(orderId: string, seed: SentEmailSeed): Promise<TestSentEmail> {
+    const providerId = crypto.randomUUID()
+    const { data, error } = await this.client
+      .from('sent_emails')
+      .insert({
+        order_id: orderId,
+        queue_msg_id: -(Date.now() * 1000 + Math.floor(Math.random() * 1000)),
+        provider_id: providerId,
+        ...seed,
+      })
+      .select('id')
+      .single()
+    if (error) throw error
+    return { id: data.id, providerId, orderId }
+  }
+
+  /** What the provider has reported of the sent mail so far. */
+  async sentEmailDelivery(sentEmailId: string): Promise<SentEmailDelivery> {
+    const { data, error } = await this.client
+      .from('sent_emails')
+      .select('delivered_at, bounced_at, bounce_reason, complained_at')
+      .eq('id', sentEmailId)
+      .single()
+    if (error) throw error
+    return data
   }
 
   /** The sent records of the order. */
