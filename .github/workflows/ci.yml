@@ -86,13 +86,17 @@ jobs:
       - name: Write the edge function variables
         # supabase/functions/.env is git-ignored, and the edge runtime reads it
         # when it starts. Dry run and placeholder addresses: no secret is
-        # needed, and no mail can leave the runner.
+        # needed, and no mail can leave the runner. The webhook secret is a
+        # throwaway of the right shape (`whsec_` + base64): email-webhook
+        # verifies against it, and the e2e runner, which loads this file
+        # too, signs its test reports with it.
         run: |
           cat > supabase/functions/.env <<'EOF'
           EMAIL_DRY_RUN=true
           EMAIL_FROM=ci@example.test
           EMAIL_REPLY_TO=ci@example.test
           EMAIL_SHOP_TO=ci@example.test
+          RESEND_WEBHOOK_SECRET=whsec_Y2ktd2ViaG9vay1zZWNyZXQ=
           EOF
       - name: Start local Supabase
         # Only the services the app talks to (postgres, kong, gotrue,
@@ -117,12 +121,17 @@ jobs:
         # parses every registered template when it boots, so a missing or
         # broken template fails the PR here rather than the first send after
         # deploy. The drain finds an empty queue and sends nothing.
+        # email-webhook reads its secret when it boots; an unsigned report
+        # is refused with 401, which is what proves it is up.
         run: |
           curl -sS --fail-with-body -X POST "$VITE_SUPABASE_URL/functions/v1/send-email" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H 'Content-Type: application/json' -d '{"action":"drain"}'
           curl -sS --fail-with-body -X OPTIONS "$VITE_SUPABASE_URL/functions/v1/manage-users" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY"
+          status=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$VITE_SUPABASE_URL/functions/v1/email-webhook" \
+            -H 'Content-Type: application/json' -d '{}')
+          test "$status" = 401 || { echo "email-webhook answered $status instead of 401"; exit 1; }
 
       - name: Build
         run: npm run build
