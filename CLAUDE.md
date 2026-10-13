@@ -184,9 +184,13 @@ process, so they are edited as that process changes.
   audit, duplicate_order); everything after that baseline is a dated
   migration on top of it, and that is the only way the schema changes (see
   "The app is in production" above). `supabase/seed.sql` holds catalog
-  master data; `seed.dev.sql` (git-ignored) holds local demo data. One edge
-  function, `manage-users`, exists for what the browser cannot do
-  (create/delete auth accounts).
+  master data; `seed.dev.sql` (git-ignored) holds local demo data. Three edge
+  functions, for what the browser cannot do: `manage-users` (create/delete
+  auth accounts), `send-email` (drains the email queue; called by the
+  database's cron job with the service-role key only) and `email-webhook`
+  (receives the mail provider's delivery reports; the one function without
+  JWT verification, the report's signature is checked instead). The email
+  system is documented in the vault note *Email runtime*.
 - **Client:** [src/supabase.ts](src/supabase.ts) (`createClient`); generated
   types in [src/types/supabase.ts](src/types/supabase.ts), app-facing aliases
   in [src/types/database.ts](src/types/database.ts).
@@ -229,7 +233,7 @@ without a session, otherwise a two-column shell:
 | Column | Component | Role |
 |--------|-----------|------|
 | Left   | [`OrderSidebar`](src/components/OrderSidebar.tsx) | Search + filters (status, department, deadline/intake ranges), order list with selection, per-order menu (duplicate / delete quote), "+ New Order" ([`NewOrderDialog`](src/components/NewOrderDialog.tsx)). Archived orders are listed only while the header's *Show archived* toggle is on, except billed ones, which appear whenever Billed is ticked; the default status filter ticks every status, so completed orders stay in the feed. There is no assignee filter here — finding one's own work is what the production view is for. |
-| Centre | [`OrderDetails`](src/components/OrderDetails.tsx) | Order header (number, customer, lifecycle button, archive/cancel actions), order settings row (deadline, delivery, priority, payment), then the order tabs: *Products* — [`ProductList`](src/components/ProductList.tsx) (one add-product button per department, one row per product with status track and right-click menu, plus the row of a product being added) next to the active product's [`ProductDetail`](src/components/ProductDetail.tsx) or the [`ProductDraftPanel`](src/components/products/ProductDraftPanel.tsx) of a product being added — and *History* ([`OrderHistory`](src/components/OrderHistory.tsx)). |
+| Centre | [`OrderDetails`](src/components/OrderDetails.tsx) | Order header (number, customer, lifecycle button, archive/cancel actions), order settings row (deadline, delivery, priority, payment), then the order tabs: *Products* — [`ProductList`](src/components/ProductList.tsx) (one add-product button per department, one row per product with status track and right-click menu, plus the row of a product being added) next to the active product's [`ProductDetail`](src/components/ProductDetail.tsx) or the [`ProductDraftPanel`](src/components/products/ProductDraftPanel.tsx) of a product being added —, *History* ([`OrderHistory`](src/components/OrderHistory.tsx)) and *Emails* ([`OrderEmails`](src/components/OrderEmails.tsx): the order's mails waiting, sent — with what the provider reported of them — and failed; read-only). A customer whose address bounced is flagged beside the email in the header. |
 
 `ProductDetail` shows the product header (assignee, status badge, PDF /
 delete-or-cancel actions, the
@@ -433,10 +437,14 @@ cannot hold an order open.
 ## Domain Model
 
 - **Customer** — table `customers` (`name`, `email`, `phone`, `note`, address
-  fields, `is_archived`). Created/edited via `CustomerDialog`; searched by
+  fields, `is_archived`, `email_bounced_at`). Created/edited via `CustomerDialog`; searched by
   `ilike` on `name` (only `is_archived = false`). A customer needs a name plus
   email or phone before a product may auto-advance to pre-press
   (`customerMeetsPrepressContact` in [src/lib/customer.ts](src/lib/customer.ts)).
+  `email_bounced_at` is set by the `email-webhook` function when a mail to the
+  current address bounces and cleared by a trigger when the address changes;
+  it is a flag in the order header and in `CustomerDialog`, not a gate —
+  `isMissingInfo` does not read it.
 - **Order** — table `orders` (`order_number` from a DB counter, `customer_id`,
   `status`, `deadline`, `delivery` (`PICKUP`|`SHIPPING`), `priority`
   (`NORMAL`|`HIGH`), `payment_method` (`INVOICE`|`CASH`), `billing_note`,
