@@ -4,6 +4,7 @@ import { ProductListPOM } from './ProductListPOM'
 import { ProductDetailPOM } from './ProductDetailPOM'
 import { ProductDraftPOM } from './ProductDraftPOM'
 import { OrderHistoryPOM } from './OrderHistoryPOM'
+import { OrderEmailsPOM } from './OrderEmailsPOM'
 import { DeadlinePickerPOM } from './DeadlinePickerPOM'
 import { BasePOM } from './BasePOM'
 
@@ -11,8 +12,8 @@ const IDS = TEST_IDS.orders.details
 
 /**
  * Centre column with an order selected: header, settings row, and the order
- * tabs — Products (the product list and the selected product's detail) and
- * History. The root carries `data-order-id`, `data-customer-id` and
+ * tabs — Products (the product list and the selected product's detail),
+ * History and Emails. The root carries `data-order-id`, `data-customer-id` and
  * `data-status`.
  */
 export class OrderDetailsPOM extends BasePOM {
@@ -47,12 +48,14 @@ export class OrderDetailsPOM extends BasePOM {
   // Tabs
   readonly productsTab: Locator
   readonly historyTab: Locator
+  readonly emailsTab: Locator
 
   readonly productList: ProductListPOM
   readonly productDetail: ProductDetailPOM
   /** The product being added, in the detail pane's place. */
   readonly productDraft: ProductDraftPOM
   readonly history: OrderHistoryPOM
+  readonly emails: OrderEmailsPOM
 
   constructor(page: Page) {
     super(page)
@@ -86,11 +89,13 @@ export class OrderDetailsPOM extends BasePOM {
 
     this.productsTab = this.root.getByTestId(IDS.tabs.products)
     this.historyTab = this.root.getByTestId(IDS.tabs.history)
+    this.emailsTab = this.root.getByTestId(IDS.tabs.emails)
 
     this.productList = new ProductListPOM(page)
     this.productDetail = new ProductDetailPOM(page)
     this.productDraft = new ProductDraftPOM(page)
     this.history = new OrderHistoryPOM(page)
+    this.emails = new OrderEmailsPOM(page)
   }
 
   /** The details column only while it shows this order. */
