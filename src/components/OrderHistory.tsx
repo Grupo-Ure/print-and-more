@@ -222,14 +222,19 @@ function historySegments(
         : [actor, ' deleted a ', minutes, ' log', ...forWhom, ' on ', product]
     }
     case 'EMAIL_SENT':
-    case 'EMAIL_FAILED': {
-      // Written by the sender, never by a person; the details are the meta snapshot.
+    case 'EMAIL_FAILED':
+    case 'EMAIL_BOUNCED': {
+      // Written by the sender or the webhook, never by a person; the details are the meta snapshot.
       const template = typeof meta?.template === 'string' ? emailTemplateLabel(meta.template) : 'An email'
       const recipient = typeof meta?.recipient === 'string' ? ` to ${meta.recipient}` : ''
       const about: Segment[] = productLabel ? [' about ', product] : []
       if (entry.event_type === 'EMAIL_SENT') {
         const subject = typeof meta?.subject === 'string' ? ` “${meta.subject}”` : ''
         return [`${template}${subject} was sent${recipient}`, ...about]
+      }
+      if (entry.event_type === 'EMAIL_BOUNCED') {
+        const reason = typeof meta?.reason === 'string' ? `: ${meta.reason}` : ''
+        return [`${template}${recipient}`, ...about, ` bounced${reason}`]
       }
       const unknown = meta?.reason === 'unknown_template' ? ' (unknown template)' : ''
       return [`${template}${recipient}`, ...about, ` could not be sent${unknown}`]
