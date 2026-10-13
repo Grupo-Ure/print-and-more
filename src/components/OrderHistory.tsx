@@ -4,6 +4,7 @@ import { useProductsByOrderId } from '../queries/productQueries'
 import { useUsers } from '../queries/userQueries'
 import { PRODUCT_STATUS_META, ORDER_STATUS_META, type StatusMeta } from '../lib/statusLabels'
 import { PRODUCT_TYPE_LABELS } from '../lib/productTypeLabels'
+import { emailTemplateLabel } from '../lib/emailTemplateLabels'
 import { shortProductNumber } from '../lib/productShared'
 import { cn } from '../lib/utils'
 import { TEST_IDS } from '@e2e/support/testIds'
@@ -219,6 +220,19 @@ function historySegments(
       return entry.event_type === 'TIME_LOGGED'
         ? [actor, ' logged ', minutes, ...forWhom, ' on ', product]
         : [actor, ' deleted a ', minutes, ' log', ...forWhom, ' on ', product]
+    }
+    case 'EMAIL_SENT':
+    case 'EMAIL_FAILED': {
+      // Written by the sender, never by a person; the details are the meta snapshot.
+      const template = typeof meta?.template === 'string' ? emailTemplateLabel(meta.template) : 'An email'
+      const recipient = typeof meta?.recipient === 'string' ? ` to ${meta.recipient}` : ''
+      const about: Segment[] = productLabel ? [' about ', product] : []
+      if (entry.event_type === 'EMAIL_SENT') {
+        const subject = typeof meta?.subject === 'string' ? ` “${meta.subject}”` : ''
+        return [`${template}${subject} was sent${recipient}`, ...about]
+      }
+      const unknown = meta?.reason === 'unknown_template' ? ' (unknown template)' : ''
+      return [`${template}${recipient}`, ...about, ` could not be sent${unknown}`]
     }
     default:
       return [actor, `: ${(entry.event_type as string).replace(/_/g, ' ').toLowerCase()}`, ...(productLabel ? [' (', product, ')'] : [])]
