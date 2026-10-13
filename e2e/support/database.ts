@@ -1,8 +1,9 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import type { Database, TablesInsert } from '../../src/types/supabase'
+import type { Database, Json, TablesInsert } from '../../src/types/supabase'
 import type { DefaultAssigneeStatus } from '../../src/types/database'
 import type { ChildTable } from '../../src/types/product'
 import type { TestCustomer } from '../fixtures/customers'
+import type { QueuedEmailSeed } from '../fixtures/emailMessages'
 import type { TestUser } from '../fixtures/users'
 
 type OrderInsert = Database['public']['Tables']['orders']['Insert']
@@ -12,6 +13,13 @@ type OrderStatus = Database['public']['Enums']['order_status']
 type DeliveryType = Database['public']['Enums']['delivery_type']
 type PaymentMethod = Database['public']['Enums']['payment_method']
 type ProductStatus = Database['public']['Enums']['product_status']
+type HistoryEvent = Database['public']['Enums']['history_event']
+
+/** One row of list_queued_emails: a message still on the queue for an order. */
+export type QueuedEmailRow = Database['public']['Functions']['list_queued_emails']['Returns'][number]
+
+/** One sent record, as much of it as a spec looks at. */
+export type SentEmailRow = Pick<Database['public']['Tables']['sent_emails']['Row'], 'id' | 'provider_id' | 'recipient' | 'subject'>
 
 /** The columns a fixture chooses for an order it inserts; everything else takes the table's defaults. */
 export type OrderSeedRow = {
@@ -99,7 +107,7 @@ export type TestProduct = {
   department: Department
 }
 
-function requiredEnv(name: string): string {
+export function requiredEnv(name: string): string {
   const value = process.env[name]
   if (!value) {
     throw new Error(
@@ -392,5 +400,71 @@ export class TestDatabase {
     }
 
     return { id: data.id, productNumber: data.product_number, orderId, department: seed.department }
+  }
+
+  // ── Emails ───────────────────────────────────────────────────────────────
+
+  /** Queues a message for the order through queue_email, as a trigger would. Returns the queue message id. */
+  async queueEmail(orderId: string, seed: QueuedEmailSeed): Promise<number> {
+    const { data, error } = await this.client.rpc('queue_email', {
+      template: seed.template,
+      order_id: orderId,
+      product_id: undefined,
+      // A seed's context is plain JSON data; the generated type wants it spelled as Json.
+      context: seed.context as Json,
+      delay_seconds: seed.delaySeconds,
+    })
+    if (error) throw error
+    if (data === null) throw new Error(`queue_email queued nothing for ${seed.template} — is the template disabled?`)
+    return data
+  }
+
+  /** The messages still on the queue for the order — waiting, or claimed and due to come back. */
+  async queuedEmails(orderId: string): Promise<QueuedEmailRow[]> {
+    const { data, error } = await this.client.rpc('list_queued_emails', { order_id: orderId })
+    if (error) throw error
+    return data
+  }
+
+  /** Makes the message due now, in place of waiting out its delay or its visibility timeout. */
+  async makeEmailDue(msgId: number): Promise<void> {
+    const { error } = await this.client.rpc('reschedule_email', { msg_id: msgId, delay_seconds: 0 })
+    if (error) throw error
+  }
+
+  /** Takes the message off the queue whether or not it was sent; nothing happens when it is gone already. */
+  async archiveEmail(msgId: number): Promise<void> {
+    const { error } = await this.client.rpc('archive_email', { msg_id: msgId })
+    if (error) throw error
+  }
+
+  /** The sent records of the order. */
+  async sentEmails(orderId: string): Promise<SentEmailRow[]> {
+    const { data, error } = await this.client
+      .from('sent_emails')
+      .select('id, provider_id, recipient, subject')
+      .eq('order_id', orderId)
+    if (error) throw error
+    return data
+  }
+
+  /** How many history entries of that event the order has. */
+  async historyCount(orderId: string, eventType: HistoryEvent): Promise<number> {
+    const { count, error } = await this.client
+      .from('history')
+      .select('id', { count: 'exact', head: true })
+      .eq('order_id', orderId)
+      .eq('event_type', eventType)
+    if (error) throw error
+    return count ?? 0
+  }
+
+  /** The access token of one of the suite's logins — a user's session, as the app would present it. */
+  async accessTokenOf(user: TestUser): Promise<string> {
+    const client = await this.asUser(user)
+    const { data, error } = await client.auth.getSession()
+    if (error) throw error
+    if (!data.session) throw new Error(`No session for ${user.email} after signing in`)
+    return data.session.access_token
   }
 }
