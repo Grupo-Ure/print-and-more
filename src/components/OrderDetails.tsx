@@ -35,6 +35,7 @@ import { ORDER_STATUS_META } from '../lib/statusLabels'
 import { Archive, Ban, CheckCircle2, Clock, Copy, History, Mail, Package, Settings, ShieldCheck, TriangleAlert } from 'lucide-react'
 import { OrderHistory } from './OrderHistory'
 import { OrderEmails } from './OrderEmails'
+import { EmailBouncedFlag } from './Flags'
 import { Separator } from './ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import { DeadlinePicker } from './fields/DeadlinePicker'
@@ -475,6 +476,7 @@ type OrderHeaderProps = {
 function OrderHeader({ order, hasProducts, allProductsDone, onEditCustomer, onArchive, onCancelOrder, onStartProcessing, onMarkFinished, onMarkInvoiced, onReopenOrder, archivePending, cancelPending, statusPending }: OrderHeaderProps) {
   const customerDisplayName = order.customers?.name?.trim() || '—'
   const customerEmail = order.customers?.email?.trim() || ''
+  const customerEmailBouncedAt = order.customers?.email_bounced_at ?? null
   const customerPhone = order.customers?.phone?.trim() || ''
   const customerAddress = formatCustomerAddress(order.customers)
   const copyToClipboard = useCopyToClipboard()
@@ -507,6 +509,9 @@ function OrderHeader({ order, hasProducts, allProductsDone, onEditCustomer, onAr
                 <p data-testid={HEADER_IDS.customerEmail} title="Email">
                   <span className="font-medium">Email:</span> {customerEmail}
                 </p>
+                {customerEmailBouncedAt && (
+                  <EmailBouncedFlag size={14} testId={HEADER_IDS.emailBounced} bouncedAt={customerEmailBouncedAt} />
+                )}
                 <Button
                   onClick={() => copyToClipboard(customerEmail, 'Email')}
                   title="Copy email"

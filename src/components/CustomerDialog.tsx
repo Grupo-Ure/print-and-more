@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { TEST_IDS } from '@e2e/support/testIds'
 import { useUpsertCustomer } from '../queries/customerQueries'
+import { formatDateTimeDe } from '../lib/formatDate'
 import type { Customer } from '../types/database'
 
 const IDS = TEST_IDS.orders.customerDialog
@@ -173,6 +174,12 @@ function CustomerForm({ customer, submitting, serverError, onCancel, onSubmit }:
               onChange={e => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
             />
+            {/* The flag belongs to the stored address: it is shown while that address is still in the field, and the database clears it when a changed one is saved. */}
+            {customer?.email_bounced_at && field.state.value.trim() === (customer.email ?? '') && (
+              <p data-testid={IDS.emailBounced} className="text-xs text-destructive">
+                Mail to this address bounced on {formatDateTimeDe(customer.email_bounced_at)}. Saving a corrected address clears this.
+              </p>
+            )}
           </FieldRow>
         )}
       </form.Field>

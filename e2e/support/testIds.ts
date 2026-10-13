@@ -138,6 +138,8 @@ export const TEST_IDS = {
       houseNumber: 'customer-dialog-house-number',
       postalCode: 'customer-dialog-postal-code',
       city: 'customer-dialog-city',
+      /** The notice under the email field while the stored address, which bounced, is still in it. */
+      emailBounced: 'customer-dialog-email-bounced',
       cancel: 'customer-dialog-cancel',
       submit: 'customer-dialog-submit',
     },
@@ -168,6 +170,8 @@ export const TEST_IDS = {
         customerName: 'order-header-customer-name',
         editCustomer: 'order-header-edit-customer',
         customerEmail: 'order-header-customer-email',
+        /** The flag beside the email while a mail to it has bounced (`customers.email_bounced_at`). */
+        emailBounced: 'order-header-email-bounced',
         customerPhone: 'order-header-customer-phone',
         customerAddress: 'order-header-customer-address',
         copyOrderNumber: 'order-header-copy-order-number',
