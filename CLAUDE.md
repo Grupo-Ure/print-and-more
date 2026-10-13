@@ -374,9 +374,13 @@ without a default the assignee stays. Reassigning by hand writes
 `SettingsPage` ([src/pages/SettingsPage.tsx](src/pages/SettingsPage.tsx)) —
 a fixed, always-visible section list on the left and the active section on
 the right: *User management* (super admins;
-[`UserManagementSettings`](src/components/settings/UserManagementSettings.tsx))
-and *Departments* (admins; [`DepartmentSettings`](src/components/settings/DepartmentSettings.tsx),
-the default assignee per department); `ProfilePage`. Shared stock UI
+[`UserManagementSettings`](src/components/settings/UserManagementSettings.tsx)),
+*Departments* (admins; [`DepartmentSettings`](src/components/settings/DepartmentSettings.tsx),
+the default assignee per department) and *Emails* (admins;
+[`EmailSettings`](src/components/settings/EmailSettings.tsx), one row per
+delayed or repeating mail in `email_settings` — on/off, delay, repeat
+interval, most sends; a row is added by the migration of the feature that
+owns the mail); `ProfilePage`. Shared stock UI
 (booking fields, movement views, reorder list) lives in
 [`src/components/stock/`](src/components/stock/).
 
