@@ -20,6 +20,7 @@ playwright test
 │   ├─ fixtures/orders.ts          the orders view's page object + per-test rows + the catalog rows + a department default + a developer flag
 │   ├─ fixtures/production.ts      the production page's page object (lists the products seeded above)
 │   ├─ fixtures/stock.ts           the stock pages' page objects
+│   ├─ fixtures/emails.ts          the sender's handle + a message queued for the order seeded above
 │   └─ <page>/<feature>/*.spec.ts  one folder per page, subfolders per feature: auth/, orders-page/order/, orders-page/product/, …
 └─ e2e/global-teardown.ts          default() → delete the test logins
 ```
@@ -52,12 +53,16 @@ e2e/
        └─ stock-deduction.spec.ts what a release books against the stock pages
 ├─ production-page/
 │  └─ feed.spec.ts                which products the feed lists, the assignee filter (and who it leaves out), the product detail beside it
-└─ settings-page/
-   └─ departments.spec.ts         the default assignee per department and stage
+├─ settings-page/
+│  └─ departments.spec.ts         the default assignee per department and stage
+└─ email-runtime/
+   └─ transport.spec.ts           what one drain of the email queue does: send and record, wait, refuse, give up
 ```
 
 Later pages follow the same shape (`stamp-stock-page/`, `textile-stock-page/`,
-`profile-page/`). A file is never split just because
+`profile-page/`). `email-runtime/` is the one folder that is not a page: the
+email system has no screen of its own yet, and its specs drive the `send-email`
+function directly and read the outcome from the database. A file is never split just because
 it has several tests; it is split when it covers two sub-features. Inside a
 file there is no `describe` for the feature — the path already names it — and
 a `describe` block exists only to carry a precondition (`test.use({ … })`)
@@ -78,6 +83,7 @@ lines:
 ```
 @playwright/test → fixtures/database.ts → fixtures/electron.ts → fixtures/auth.ts → fixtures/orders.ts → fixtures/stock.ts
                                                                                                       ↘ fixtures/production.ts
+                                                                                                      ↘ fixtures/emails.ts
 ```
 
 A spec imports `test` from the link it needs — `./fixtures/auth` for a
@@ -139,6 +145,8 @@ Nothing here is imported by hand; the runner drives it from the config:
 | `fixtures/orders.ts` | `ordersPage` page object + per-test data of the orders view: `customer` (a fresh customer), `order` (a fresh order for it), `product` (a fresh product in that order), `orderFile` (a file linked to it), `newCustomer` (data for a customer the test creates in the app), `departmentDefault` (one department's default assignee for one stage, emptied afterwards), `developer` (a login flagged as a developer account, unflagged afterwards) — each created/cleaned up around the test. The state `order` and `product` are inserted in comes from the `orderSeed` / `productSeed` options (`test.use({ orderSeed: IN_PROGRESS_ORDER })`); the defaults are an empty quote and an OTHER product in setup. `catalog` (automatic) keeps the stamp models and the textile chain the product seeds reference in the catalog, reset to their seed stock before every test |
 | `fixtures/stock.ts` | `stampStockPage` / `textileStockPage` page objects, for reading stock after a release |
 | `fixtures/production.ts` | `productionPage` page object; the products it lists come from the `order` / `product` / `products` fixtures of the orders link |
+| `fixtures/emails.ts` | `sendEmail` (the runner's handle on the `send-email` function, one drain per call) and `queuedEmail` (a message queued for `order` through `queue_email` as `queuedEmailSeed` describes it, archived afterwards whether or not a drain got to it) |
+| `fixtures/emailMessages.ts` | The messages the `queuedEmail` fixture queues (immediate, delayed, unknown template, no longer needed, refused by the dry-run transport) and the sender's constants a spec asserts against (data fixture) |
 | `fixtures/customers.ts` | The customers those fixtures use (data fixture) |
 | `fixtures/departments.ts` | The department-default seeds the `departmentDefault` fixture applies: which department and stage, and who holds it (data fixture) |
 | `fixtures/products.ts` | Product seeds (department, type, status, approval flag, and the children holding the spec), the form values a spec types, the expected product number, the force-release reason (data fixture) |
@@ -148,7 +156,8 @@ Nothing here is imported by hand; the runner drives it from the config:
 | `pom/*POM.ts` | Page objects — every locator a spec uses, one class per view/dialog, composed parent → child |
 | `pom/BasePOM.ts` | Ancestor of every page object: holds the page and the shared helpers (`withAttr()` picks one instance of a repeated element by data attribute) |
 | `support/testIds.ts` | The `TEST_IDS` registry, imported by components (`data-testid`) and page objects alike |
-| `support/database.ts` | `TestDatabase`: the runner's service-role connection (bypasses RLS, exposes `auth.admin`) with the methods that seed and remove users, customers, orders and products — raw rows only, no app business logic. `asUser(login)` hands out a second connection signed in as one of the suite's logins, for the rules the database enforces on the app but not on the runner |
+| `support/database.ts` | `TestDatabase`: the runner's service-role connection (bypasses RLS, exposes `auth.admin`) with the methods that seed and remove users, customers, orders and products, and that queue, reschedule, archive and read back emails — raw rows only, no app business logic. `asUser(login)` hands out a second connection signed in as one of the suite's logins, for the rules the database enforces on the app but not on the runner |
+| `support/sendEmail.ts` | `SendEmailFunction`: one drain of the email queue per call, the way the cron makes it (`drain()` with the service-role key, `drainAs(token)` with any other bearer token for the caller check) |
 | `global-setup.ts`, `global-teardown.ts` | Run-wide data, wired via `playwright.config.ts` |
 
 ## Environment
