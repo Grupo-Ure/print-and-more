@@ -188,6 +188,7 @@ export const TEST_IDS = {
       tabs: {
         products: 'order-tab-products',
         history: 'order-tab-history',
+        emails: 'order-tab-emails',
       },
       history: {
         root: 'order-history',
@@ -195,6 +196,20 @@ export const TEST_IDS = {
         /** One per entry; `data-event-type` = history_event. */
         item: 'order-history-item',
         empty: 'order-history-empty',
+      },
+      emails: {
+        root: 'order-emails',
+        empty: 'order-emails-empty',
+        /** One per mail waiting on the queue; `data-msg-id` = queue message id. */
+        queuedItem: 'order-emails-queued-item',
+        /** One per mail that went out; `data-sent-email-id` = sent_emails.id. */
+        sentItem: 'order-emails-sent-item',
+        /** Opens the sent mail's body; inside a sent item. */
+        viewSent: 'order-emails-view-sent',
+        /** One per mail given up on; `data-history-id` = the EMAIL_FAILED entry's id. */
+        failedItem: 'order-emails-failed-item',
+        /** The dialog showing a sent mail as it went out. */
+        sentDialog: 'order-emails-sent-dialog',
       },
     },
 
