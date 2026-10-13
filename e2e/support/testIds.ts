@@ -536,6 +536,21 @@ export const TEST_IDS = {
       /** The "Unassigned" option in either combobox's list. */
       rowAssigneeEmptyOption: 'department-settings-row-assignee-unassigned',
     },
+    emails: {
+      root: 'email-settings',
+      /** Shown instead of the rows while no template has settings. */
+      empty: 'email-settings-empty',
+      /** One per email_settings row; `data-template` = the template's folder name. */
+      row: 'email-settings-row',
+      /** The on/off switch; `data-state` = checked | unchecked (Radix), the stored value. */
+      rowEnabled: 'email-settings-row-enabled',
+      /** Days before the first send; `data-value` = the stored delay_days. */
+      rowDelay: 'email-settings-row-delay',
+      /** Days between repeats; `data-value` = the stored repeat_days, empty while it does not repeat. */
+      rowRepeat: 'email-settings-row-repeat',
+      /** Most sends of one mail; `data-value` = the stored max_sends. */
+      rowMaxSends: 'email-settings-row-max-sends',
+    },
   },
 
   releaseNotesPage: {

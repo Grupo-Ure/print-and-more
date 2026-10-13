@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { LayoutGrid, Users } from 'lucide-react'
+import { LayoutGrid, Mail, Users } from 'lucide-react'
 import { Login } from '../components/Login'
 import { AccessDenied } from '../components/AccessDenied'
 import { DepartmentSettings } from '../components/settings/DepartmentSettings'
+import { EmailSettings } from '../components/settings/EmailSettings'
 import { UserManagementSettings } from '../components/settings/UserManagementSettings'
 import { useSupabaseSession } from '../hooks/useSupabaseSession'
 import { useIsAdmin, useIsSuperAdmin } from '../queries/userQueries'
@@ -12,7 +13,7 @@ import { TEST_IDS } from '@e2e/support/testIds'
 
 const IDS = TEST_IDS.settings
 
-export type SettingsSection = 'userManagement' | 'departments'
+export type SettingsSection = 'userManagement' | 'departments' | 'emails'
 
 type SectionItem = {
   section: SettingsSection
@@ -23,6 +24,7 @@ type SectionItem = {
 const SECTION_ITEMS: SectionItem[] = [
   { section: 'userManagement', label: 'User management', icon: Users },
   { section: 'departments', label: 'Departments', icon: LayoutGrid },
+  { section: 'emails', label: 'Emails', icon: Mail },
 ]
 
 /**
@@ -64,6 +66,7 @@ export function SettingsPage() {
       <main className="flex min-w-0 flex-1 flex-col gap-3 overflow-auto p-3">
         {section === 'userManagement' && <UserManagementSettings />}
         {section === 'departments' && <DepartmentSettings />}
+        {section === 'emails' && <EmailSettings />}
       </main>
     </div>
   )
