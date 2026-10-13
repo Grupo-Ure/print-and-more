@@ -185,6 +185,24 @@ async function recordSent(
   })
 }
 
+/** A template's row in email_settings (Settings → Emails), as far as the sender reads it. */
+interface TemplateSettings {
+  is_enabled: boolean
+  repeat_days: number | null
+  max_sends: number
+}
+
+/** The template's settings, or null when it has no row: enabled, sent once. */
+async function loadSettings(db: SupabaseClient, template: string): Promise<TemplateSettings | null> {
+  const { data, error } = await db
+    .from('email_settings')
+    .select('is_enabled, repeat_days, max_sends')
+    .eq('template', template)
+    .maybeSingle()
+  if (error) throw new Error(`email_settings lookup failed: ${error.message}`)
+  return data
+}
+
 /**
  * A repeating template (email_settings.repeat_days set) gets its next message
  * queued now, due in repeat_days, as long as this one's sequence number is
@@ -192,24 +210,18 @@ async function recordSent(
  * as 1. Whether the next one is still wanted when it comes due is for the
  * template's stillNeeded to say.
  */
-async function queueRepeat(db: SupabaseClient, message: EmailMessage): Promise<void> {
-  const { data, error } = await db
-    .from('email_settings')
-    .select('repeat_days, max_sends')
-    .eq('template', message.template)
-    .maybeSingle()
-  if (error) throw new Error(`email_settings lookup failed: ${error.message}`)
-  if (!data || data.repeat_days === null) return
+async function queueRepeat(db: SupabaseClient, message: EmailMessage, settings: TemplateSettings | null): Promise<void> {
+  if (!settings || settings.repeat_days === null) return
 
   const sequence = typeof message.context.sequence === 'number' ? message.context.sequence : 1
-  if (sequence >= data.max_sends) return
+  if (sequence >= settings.max_sends) return
 
   const { error: queueError } = await db.rpc('queue_email', {
     template: message.template,
     order_id: message.order_id,
     product_id: message.product_id,
     context: { ...message.context, sequence: sequence + 1 },
-    delay_seconds: data.repeat_days * SECONDS_PER_DAY,
+    delay_seconds: settings.repeat_days * SECONDS_PER_DAY,
   })
   if (queueError) throw new Error(`queue_email (repeat) failed: ${queueError.message}`)
 }
@@ -258,6 +270,15 @@ async function processMessage(db: SupabaseClient, claimed: ClaimedMessage): Prom
   const template = TEMPLATES[templateName]
   const deps: TemplateDeps = { db }
 
+  // Switched off in Settings since it was queued: a mail that is off is not
+  // sent, whether it was waiting already or not (queue_email stops new ones).
+  const settings = await loadSettings(db, message.template)
+  if (settings && !settings.is_enabled) {
+    console.info('send-email: template switched off, message archived', { msgId: claimed.msg_id, template: message.template })
+    await archive(db, claimed.msg_id)
+    return 'skipped'
+  }
+
   // The order was deleted between queuing and sending: nothing to send about,
   // and nothing to record against.
   if (!(await orderExists(db, message.order_id))) {
@@ -297,7 +318,7 @@ async function processMessage(db: SupabaseClient, claimed: ClaimedMessage): Prom
   }
 
   await recordSent(db, claimed.msg_id, message, recipient, rendered, outcome.providerId)
-  await queueRepeat(db, message)
+  await queueRepeat(db, message, settings)
   await archive(db, claimed.msg_id)
   return 'sent'
 }
