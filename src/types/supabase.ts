@@ -10,7 +10,12 @@ export type Database = {
     }
     Functions: {
       graphql: {
-        Args: { extensions?: Json; operationName?: string; query?: string; variables?: Json }
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
         Returns: Json
       }
     }
@@ -558,9 +563,33 @@ export type Database = {
           },
         ]
       }
+      email_settings: {
+        Row: {
+          delay_days: number
+          is_enabled: boolean
+          max_sends: number
+          repeat_days: number | null
+          template: string
+        }
+        Insert: {
+          delay_days?: number
+          is_enabled?: boolean
+          max_sends?: number
+          repeat_days?: number | null
+          template: string
+        }
+        Update: {
+          delay_days?: number
+          is_enabled?: boolean
+          max_sends?: number
+          repeat_days?: number | null
+          template?: string
+        }
+        Relationships: []
+      }
       erp_exports: {
         Row: {
-          export_data: NonNullable<Json>
+          export_data: Json
           exported_at: string
           exported_by: string | null
           id: string
@@ -568,7 +597,7 @@ export type Database = {
           order_id: string
         }
         Insert: {
-          export_data: NonNullable<Json>
+          export_data: Json
           exported_at?: string
           exported_by?: string | null
           id?: string
@@ -576,7 +605,7 @@ export type Database = {
           order_id: string
         }
         Update: {
-          export_data?: NonNullable<Json>
+          export_data?: Json
           exported_at?: string
           exported_by?: string | null
           id?: string
@@ -1452,6 +1481,63 @@ export type Database = {
             foreignKeyName: "rollup_products_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sent_emails: {
+        Row: {
+          body_html: string
+          body_text: string
+          id: string
+          order_id: string
+          product_id: string | null
+          provider_id: string
+          queue_msg_id: number
+          recipient: string
+          sent_at: string
+          subject: string
+          template: string
+        }
+        Insert: {
+          body_html: string
+          body_text: string
+          id?: string
+          order_id: string
+          product_id?: string | null
+          provider_id: string
+          queue_msg_id: number
+          recipient: string
+          sent_at?: string
+          subject: string
+          template: string
+        }
+        Update: {
+          body_html?: string
+          body_text?: string
+          id?: string
+          order_id?: string
+          product_id?: string | null
+          provider_id?: string
+          queue_msg_id?: number
+          recipient?: string
+          sent_at?: string
+          subject?: string
+          template?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sent_emails_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sent_emails_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -2367,14 +2453,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      archive_email: { Args: { msg_id: number }; Returns: boolean }
       book_production_deductions: {
         Args: { allow_shortage?: boolean; deductions: Json; note: string }
         Returns: Json
       }
+      claim_emails: {
+        Args: { batch_size: number; visibility_seconds: number }
+        Returns: {
+          enqueued_at: string
+          message: Json
+          msg_id: number
+          read_ct: number
+          vt: string
+        }[]
+      }
       current_user_role: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      drain_emails: { Args: never; Returns: undefined }
       duplicate_order: {
         Args: {
           created_by_user_id: string
@@ -2389,6 +2487,31 @@ export type Database = {
       fn_department_abbreviation: {
         Args: { dept: Database["public"]["Enums"]["department"] }
         Returns: string
+      }
+      list_queued_emails: {
+        Args: { order_id: string }
+        Returns: {
+          attempts: number
+          due_at: string
+          msg_id: number
+          product_id: string
+          queued_at: string
+          template: string
+        }[]
+      }
+      queue_email: {
+        Args: {
+          context?: Json
+          delay_seconds?: number
+          order_id: string
+          product_id?: string
+          template: string
+        }
+        Returns: number
+      }
+      reschedule_email: {
+        Args: { delay_seconds: number; msg_id: number }
+        Returns: boolean
       }
     }
     Enums: {
@@ -2426,6 +2549,8 @@ export type Database = {
         | "PRODUCT_DELETED"
         | "FILE_ADDED"
         | "FILE_REMOVED"
+        | "EMAIL_SENT"
+        | "EMAIL_FAILED"
       order_status: "QUOTE" | "IN_PROGRESS" | "FINISHED" | "BILLED"
       payment_method: "INVOICE" | "CASH"
       priority_type: "NORMAL" | "HIGH"
@@ -2446,15 +2571,16 @@ type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
+    keyof (DefaultSchema["Tables"] & DefaultSchema["Views"]) | { schema: keyof DatabaseWithoutInternals },
   TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never) = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
       DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
@@ -2470,15 +2596,15 @@ export type Tables<
     : never
 
 export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
+  DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
   TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never) = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
@@ -2493,15 +2619,15 @@ export type TablesInsert<
     : never
 
 export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
+  DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
   TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never) = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
@@ -2516,15 +2642,15 @@ export type TablesUpdate<
     : never
 
 export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
+  DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
   EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never) = never,
-> = DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
@@ -2532,14 +2658,15 @@ export type Enums<
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
+    keyof DefaultSchema["CompositeTypes"] | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never) = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
@@ -2585,6 +2712,8 @@ export const Constants = {
         "PRODUCT_DELETED",
         "FILE_ADDED",
         "FILE_REMOVED",
+        "EMAIL_SENT",
+        "EMAIL_FAILED",
       ],
       order_status: ["QUOTE", "IN_PROGRESS", "FINISHED", "BILLED"],
       payment_method: ["INVOICE", "CASH"],
