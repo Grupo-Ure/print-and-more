@@ -20,7 +20,7 @@ playwright test
 │   ├─ fixtures/orders.ts          the orders view's page object + per-test rows + the catalog rows + a department default + a developer flag
 │   ├─ fixtures/production.ts      the production page's page object (lists the products seeded above)
 │   ├─ fixtures/stock.ts           the stock pages' page objects
-│   ├─ fixtures/emails.ts          the sender's handle + a message queued for the order seeded above
+│   ├─ fixtures/emails.ts          the sender's and the webhook's handles + a message queued and a sent record for the order seeded above
 │   └─ <page>/<feature>/*.spec.ts  one folder per page, subfolders per feature: auth/, orders-page/order/, orders-page/product/, …
 └─ e2e/global-teardown.ts          default() → delete the test logins
 ```
@@ -58,13 +58,14 @@ e2e/
 │  └─ emails.spec.ts              a mail's delay and on/off switch, as the next queued mail sees them
 └─ email-runtime/
    ├─ transport.spec.ts           what one drain of the email queue does: send and record, wait, refuse, give up
-   └─ settings.spec.ts            what a template's settings change about a drain: the repeat, its maximum, a mail switched off
+   ├─ settings.spec.ts            what a template's settings change about a drain: the repeat, its maximum, a mail switched off
+   └─ webhook.spec.ts             what the provider's delivery reports do: delivered, bounced (the record, the history, the customer's address), a forged one refused
 ```
 
 Later pages follow the same shape (`stamp-stock-page/`, `textile-stock-page/`,
 `profile-page/`). `email-runtime/` is the one folder that is not a page: the
 email system has no screen of its own yet, and its specs drive the `send-email`
-function directly and read the outcome from the database. A file is never split just because
+and `email-webhook` functions directly and read the outcome from the database. A file is never split just because
 it has several tests; it is split when it covers two sub-features. Inside a
 file there is no `describe` for the feature — the path already names it — and
 a `describe` block exists only to carry a precondition (`test.use({ … })`)
@@ -147,8 +148,8 @@ Nothing here is imported by hand; the runner drives it from the config:
 | `fixtures/orders.ts` | `ordersPage` page object + per-test data of the orders view: `customer` (a fresh customer), `order` (a fresh order for it), `product` (a fresh product in that order), `orderFile` (a file linked to it), `newCustomer` (data for a customer the test creates in the app), `departmentDefault` (one department's default assignee for one stage, emptied afterwards), `developer` (a login flagged as a developer account, unflagged afterwards) — each created/cleaned up around the test. The state `order` and `product` are inserted in comes from the `orderSeed` / `productSeed` options (`test.use({ orderSeed: IN_PROGRESS_ORDER })`); the defaults are an empty quote and an OTHER product in setup. `catalog` (automatic) keeps the stamp models and the textile chain the product seeds reference in the catalog, reset to their seed stock before every test |
 | `fixtures/stock.ts` | `stampStockPage` / `textileStockPage` page objects, for reading stock after a release |
 | `fixtures/production.ts` | `productionPage` page object; the products it lists come from the `order` / `product` / `products` fixtures of the orders link |
-| `fixtures/emails.ts` | `sendEmail` (the runner's handle on the `send-email` function, one drain per call), `queuedEmail` (a message queued for `order` through `queue_email` as `queuedEmailSeed` describes it; afterwards everything still queued for the order is archived, repeats included) and `emailSetting` (a template's row in Settings → Emails as `emailSettingSeed` describes it, deleted afterwards) |
-| `fixtures/emailMessages.ts` | The messages the `queuedEmail` fixture queues (immediate, delayed, delayed by Settings, unknown template, no longer needed, refused by the dry-run transport), the Settings rows the `emailSetting` fixture writes (immediate, repeating) and the sender's constants a spec asserts against (data fixture) |
+| `fixtures/emails.ts` | `sendEmail` (the runner's handle on the `send-email` function, one drain per call), `emailWebhook` (its handle on the `email-webhook` function, one signed delivery report per call), `queuedEmail` (a message queued for `order` through `queue_email` as `queuedEmailSeed` describes it; afterwards everything still queued for the order is archived, repeats included), `sentEmail` (a sent record for `order` as `sentEmailSeed` describes it, with a provider id of its own; removed with the order) and `emailSetting` (a template's row in Settings → Emails as `emailSettingSeed` describes it, deleted afterwards) |
+| `fixtures/emailMessages.ts` | The messages the `queuedEmail` fixture queues (immediate, delayed, delayed by Settings, unknown template, no longer needed, refused by the dry-run transport), the sent record the `sentEmail` fixture inserts, the delivery reports a spec posts (delivered, bounced) and the secret a forged one is signed with, the Settings rows the `emailSetting` fixture writes (immediate, repeating) and the sender's and the webhook's constants a spec asserts against (data fixture) |
 | `fixtures/customers.ts` | The customers those fixtures use (data fixture) |
 | `fixtures/departments.ts` | The department-default seeds the `departmentDefault` fixture applies: which department and stage, and who holds it (data fixture) |
 | `fixtures/products.ts` | Product seeds (department, type, status, approval flag, and the children holding the spec), the form values a spec types, the expected product number, the force-release reason (data fixture) |
@@ -158,8 +159,9 @@ Nothing here is imported by hand; the runner drives it from the config:
 | `pom/*POM.ts` | Page objects — every locator a spec uses, one class per view/dialog, composed parent → child |
 | `pom/BasePOM.ts` | Ancestor of every page object: holds the page and the shared helpers (`withAttr()` picks one instance of a repeated element by data attribute) |
 | `support/testIds.ts` | The `TEST_IDS` registry, imported by components (`data-testid`) and page objects alike |
-| `support/database.ts` | `TestDatabase`: the runner's service-role connection (bypasses RLS, exposes `auth.admin`) with the methods that seed and remove users, customers, orders and products, and that queue, reschedule, archive and read back emails and write a template's email settings — raw rows only, no app business logic. `asUser(login)` hands out a second connection signed in as one of the suite's logins, for the rules the database enforces on the app but not on the runner |
+| `support/database.ts` | `TestDatabase`: the runner's service-role connection (bypasses RLS, exposes `auth.admin`) with the methods that seed and remove users, customers, orders and products, and that queue, reschedule, archive and read back emails, insert a sent record and read what the provider reported of it, and write a template's email settings — raw rows only, no app business logic. `asUser(login)` hands out a second connection signed in as one of the suite's logins, for the rules the database enforces on the app but not on the runner |
 | `support/sendEmail.ts` | `SendEmailFunction`: one drain of the email queue per call, the way the cron makes it (`drain()` with the service-role key, `drainAs(token)` with any other bearer token for the caller check) |
+| `support/emailWebhook.ts` | `EmailWebhookFunction`: one delivery report per call, posted the way Resend posts it — signed with the function's secret (`report()`), or with another one for the signature check (`reportSignedWith(secret, report)`) |
 | `global-setup.ts`, `global-teardown.ts` | Run-wide data, wired via `playwright.config.ts` |
 
 ## Environment
@@ -169,7 +171,12 @@ ones the build inlines; the anon key is for `TestDatabase.asUser`, which writes
 as a signed-in login) and `SUPABASE_SERVICE_ROLE_KEY` (runner only, never
 `VITE_`-prefixed). Locally all three come from `.env`; for a local Supabase the
 keys are in `supabase status`. In CI the job exports them from its own instance
-and has no `.env`.
+and has no `.env`. The one variable the runner shares with an edge function,
+`RESEND_WEBHOOK_SECRET`, is read from `supabase/functions/.env` — the file the
+local `email-webhook` reads it from — so the reports the suite signs verify
+against the function without the value being kept twice. The local
+`send-email` and `email-webhook` do not boot without that file (copy
+`supabase/functions/.env.example`), and neither do the `email-runtime/` specs.
 
 Test conventions (fixtures files, minimal assertions, setup/act/assert/cleanup
 stages) are in [`docs/testing/testing-standards.md`](../docs/testing/testing-standards.md);
