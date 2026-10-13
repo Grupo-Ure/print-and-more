@@ -7,6 +7,7 @@ import { useProductsByOrderId } from '../queries/productQueries'
 import { emailTemplateLabel } from '../lib/emailTemplateLabels'
 import { formatDateTimeDe } from '../lib/formatDate'
 import { shortProductNumber } from '../lib/productShared'
+import { cn } from '../lib/utils'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog'
 import { SectionTitle } from './ui/section-title'
@@ -137,10 +138,27 @@ type SentEmailItemProps = {
   onView: () => void
 }
 
+/**
+ * What the provider has reported of the mail since it went out, if anything:
+ * a bounce outranks a delivery (a mail can be delivered first and bounce from
+ * a forward later), a spam complaint likewise.
+ */
+function deliveryState(email: SentEmailRow): string | null {
+  if (email.bounced_at) return `bounced: ${email.bounce_reason ?? 'no reason given'}`
+  if (email.complained_at) return 'marked as spam'
+  if (email.delivered_at) return 'delivered'
+  return null
+}
+
 function SentEmailItem({ email, productLabel, onView }: SentEmailItemProps) {
-  const detail = `“${email.subject}” to ${email.recipient}, ${formatDateTimeDe(email.sent_at)}`
+  const state = deliveryState(email)
+  const detail = `“${email.subject}” to ${email.recipient}, ${formatDateTimeDe(email.sent_at)}${state ? `, ${state}` : ''}`
   return (
-    <li data-testid={IDS.sentItem} data-sent-email-id={email.id} className="flex items-center gap-2 py-1 text-sm">
+    <li
+      data-testid={IDS.sentItem}
+      data-sent-email-id={email.id}
+      className={cn('flex items-center gap-2 py-1 text-sm', email.bounced_at && 'text-destructive')}
+    >
       <EmailLine template={email.template} productLabel={productLabel} detail={detail} />
       <Button data-testid={IDS.viewSent} variant="ghost" size="sm" onClick={onView}>
         <Eye />
