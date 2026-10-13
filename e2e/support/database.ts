@@ -3,7 +3,7 @@ import type { Database, Json, TablesInsert } from '../../src/types/supabase'
 import type { DefaultAssigneeStatus } from '../../src/types/database'
 import type { ChildTable } from '../../src/types/product'
 import type { TestCustomer } from '../fixtures/customers'
-import type { QueuedEmailSeed } from '../fixtures/emailMessages'
+import type { EmailSettingPatch, EmailSettingSeed, QueuedEmailSeed } from '../fixtures/emailMessages'
 import type { TestUser } from '../fixtures/users'
 
 type OrderInsert = Database['public']['Tables']['orders']['Insert']
@@ -17,6 +17,16 @@ type HistoryEvent = Database['public']['Enums']['history_event']
 
 /** One row of list_queued_emails: a message still on the queue for an order. */
 export type QueuedEmailRow = Database['public']['Functions']['list_queued_emails']['Returns'][number]
+
+const MS_PER_DAY = 86_400_000
+
+/**
+ * How many whole days the message was queued to wait: from when it was queued
+ * to when it is due. Rounded, as pgmq stamps the two a moment apart.
+ */
+export function queuedDelayDays(row: QueuedEmailRow): number {
+  return Math.round((Date.parse(row.due_at) - Date.parse(row.queued_at)) / MS_PER_DAY)
+}
 
 /** One sent record, as much of it as a spec looks at. */
 export type SentEmailRow = Pick<Database['public']['Tables']['sent_emails']['Row'], 'id' | 'provider_id' | 'recipient' | 'subject'>
@@ -406,16 +416,23 @@ export class TestDatabase {
 
   /** Queues a message for the order through queue_email, as a trigger would. Returns the queue message id. */
   async queueEmail(orderId: string, seed: QueuedEmailSeed): Promise<number> {
+    const msgId = await this.tryQueueEmail(orderId, seed)
+    if (msgId === null) throw new Error(`queue_email queued nothing for ${seed.template} — is the template disabled?`)
+    return msgId
+  }
+
+  /** The same call, returning null where queue_email queued nothing (the template is switched off). */
+  async tryQueueEmail(orderId: string, seed: QueuedEmailSeed): Promise<number | null> {
     const { data, error } = await this.client.rpc('queue_email', {
       template: seed.template,
       order_id: orderId,
       product_id: undefined,
       // A seed's context is plain JSON data; the generated type wants it spelled as Json.
       context: seed.context as Json,
-      delay_seconds: seed.delaySeconds,
+      // Left out when null, so queue_email takes the template's delay from Settings.
+      delay_seconds: seed.delaySeconds ?? undefined,
     })
     if (error) throw error
-    if (data === null) throw new Error(`queue_email queued nothing for ${seed.template} — is the template disabled?`)
     return data
   }
 
@@ -432,9 +449,39 @@ export class TestDatabase {
     if (error) throw error
   }
 
+  /** Makes every message still on the queue for the order due now — a repeat the sender queued, for one. */
+  async makeQueuedEmailsDue(orderId: string): Promise<void> {
+    const queued = await this.queuedEmails(orderId)
+    await Promise.all(queued.map(row => this.makeEmailDue(row.msg_id)))
+  }
+
   /** Takes the message off the queue whether or not it was sent; nothing happens when it is gone already. */
   async archiveEmail(msgId: number): Promise<void> {
     const { error } = await this.client.rpc('archive_email', { msg_id: msgId })
+    if (error) throw error
+  }
+
+  /** Takes every message still on the queue for the order off it — the one a test queued and any repeat the sender added. */
+  async archiveQueuedEmails(orderId: string): Promise<void> {
+    const queued = await this.queuedEmails(orderId)
+    await Promise.all(queued.map(row => this.archiveEmail(row.msg_id)))
+  }
+
+  /** Writes the template's row in Settings → Emails, replacing whatever it held. */
+  async upsertEmailSetting(seed: EmailSettingSeed): Promise<void> {
+    const { error } = await this.client.from('email_settings').upsert(seed)
+    if (error) throw error
+  }
+
+  /** Changes switches on the template's row. */
+  async updateEmailSetting(template: string, patch: EmailSettingPatch): Promise<void> {
+    const { error } = await this.client.from('email_settings').update(patch).eq('template', template)
+    if (error) throw error
+  }
+
+  /** Deletes the template's row: the template is enabled and immediate again. Nothing happens when there is none. */
+  async removeEmailSetting(template: string): Promise<void> {
+    const { error } = await this.client.from('email_settings').delete().eq('template', template)
     if (error) throw error
   }
 

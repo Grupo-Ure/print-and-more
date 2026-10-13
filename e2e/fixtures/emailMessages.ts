@@ -5,13 +5,20 @@ type HistoryEvent = Database['public']['Enums']['history_event']
 /**
  * What the `queuedEmail` fixture queues for the test's order: the template,
  * what cannot be looked up again at send time, and how long the message waits
- * before a drain may claim it.
+ * before a drain may claim it — `null` leaves the wait to the template's
+ * delay in Settings, as a trigger queuing a delayed mail does.
  */
 export type QueuedEmailSeed = {
   template: string
   context: Record<string, unknown>
-  delaySeconds: number
+  delaySeconds: number | null
 }
+
+/** One template's row in Settings → Emails (`email_settings`), as the `emailSetting` fixture writes it. */
+export type EmailSettingSeed = Database['public']['Tables']['email_settings']['Row']
+
+/** The switches a spec changes on a seeded row. */
+export type EmailSettingPatch = Partial<Omit<EmailSettingSeed, 'template'>>
 
 /** The email system's own template; it exists to drive the whole path without a feature's mail. */
 export const TEST_MESSAGE_TEMPLATE = 'test-message'
@@ -66,3 +73,36 @@ export const REFUSED_TEST_MESSAGE: QueuedEmailSeed = {
   ...IMMEDIATE_TEST_MESSAGE,
   context: { ...IMMEDIATE_TEST_MESSAGE.context, dry_run_refuse: true },
 }
+
+/** A test-message queued with no delay of its own, so the one in Settings applies. */
+export const SETTINGS_DELAYED_TEST_MESSAGE: QueuedEmailSeed = { ...IMMEDIATE_TEST_MESSAGE, delaySeconds: null }
+
+// ── Settings rows ─────────────────────────────────────────────────────────
+
+/** The delay a spec types into Settings → Emails. */
+export const EDITED_DELAY_DAYS = 3
+
+/** The repeat interval of the repeating row. */
+export const REPEAT_INTERVAL_DAYS = 1
+
+/** How often the repeating row's mail goes out at most: the first send and one repeat. */
+export const REPEATING_MAX_SENDS = 2
+
+/** test-message switched on, sent at once, never repeated — the default row. */
+export const IMMEDIATE_TEST_MESSAGE_SETTING: EmailSettingSeed = {
+  template: TEST_MESSAGE_TEMPLATE,
+  is_enabled: true,
+  delay_days: 0,
+  repeat_days: null,
+  max_sends: 1,
+}
+
+/** test-message repeated once a day, sent twice at most. */
+export const REPEATING_TEST_MESSAGE_SETTING: EmailSettingSeed = {
+  ...IMMEDIATE_TEST_MESSAGE_SETTING,
+  repeat_days: REPEAT_INTERVAL_DAYS,
+  max_sends: REPEATING_MAX_SENDS,
+}
+
+/** What switching a mail off in Settings writes to its row. */
+export const SWITCHED_OFF: EmailSettingPatch = { is_enabled: false }
