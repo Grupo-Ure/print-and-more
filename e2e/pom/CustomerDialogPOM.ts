@@ -17,6 +17,8 @@ export class CustomerDialogPOM extends BasePOM {
   readonly houseNumber: Locator
   readonly postalCode: Locator
   readonly city: Locator
+  /** The notice under the email field while the stored address, which bounced, is still in it. */
+  readonly emailBounced: Locator
   readonly cancel: Locator
   readonly submit: Locator
 
@@ -33,6 +35,7 @@ export class CustomerDialogPOM extends BasePOM {
     this.houseNumber = this.root.getByTestId(IDS.houseNumber)
     this.postalCode = this.root.getByTestId(IDS.postalCode)
     this.city = this.root.getByTestId(IDS.city)
+    this.emailBounced = this.root.getByTestId(IDS.emailBounced)
     this.cancel = this.root.getByTestId(IDS.cancel)
     this.submit = this.root.getByTestId(IDS.submit)
   }

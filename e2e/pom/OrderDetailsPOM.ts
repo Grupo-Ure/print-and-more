@@ -32,6 +32,8 @@ export class OrderDetailsPOM extends BasePOM {
   readonly customerName: Locator
   readonly editCustomer: Locator
   readonly customerEmail: Locator
+  /** Shown beside the email while a mail to it has bounced. */
+  readonly emailBounced: Locator
   readonly customerPhone: Locator
   readonly customerAddress: Locator
   readonly copyOrderNumber: Locator
@@ -73,6 +75,7 @@ export class OrderDetailsPOM extends BasePOM {
     this.customerName = this.root.getByTestId(h.customerName)
     this.editCustomer = this.root.getByTestId(h.editCustomer)
     this.customerEmail = this.root.getByTestId(h.customerEmail)
+    this.emailBounced = this.root.getByTestId(h.emailBounced)
     this.customerPhone = this.root.getByTestId(h.customerPhone)
     this.customerAddress = this.root.getByTestId(h.customerAddress)
     this.copyOrderNumber = this.root.getByTestId(h.copyOrderNumber)
