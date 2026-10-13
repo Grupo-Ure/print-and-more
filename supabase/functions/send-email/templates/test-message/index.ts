@@ -4,10 +4,18 @@
 //
 // The recipient is `context.to` when the message carries one, otherwise the
 // shop's own inbox (EMAIL_SHOP_TO).
+//
+// Two context switches exist for the suite, so every fork of the sender can
+// be driven without a feature's template: `still_needed: false` answers the
+// sender's "still needed?" with no, and `dry_run_refuse: true` makes the
+// dry-run transport refuse the mail (see transport.ts).
 
 import type { EmailTemplate } from '../registry.ts'
 
 const testMessage: EmailTemplate = {
+  stillNeeded(message) {
+    return Promise.resolve(message.context.still_needed !== false)
+  },
   resolve(message) {
     const to = message.context.to
     const recipient = typeof to === 'string' && to !== '' ? to : Deno.env.get('EMAIL_SHOP_TO')
