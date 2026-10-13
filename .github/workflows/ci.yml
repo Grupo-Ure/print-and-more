@@ -116,11 +116,11 @@ jobs:
         # A function only boots on its first request. send-email reads and
         # parses every registered template when it boots, so a missing or
         # broken template fails the PR here rather than the first send after
-        # deploy.
+        # deploy. The drain finds an empty queue and sends nothing.
         run: |
           curl -sS --fail-with-body -X POST "$VITE_SUPABASE_URL/functions/v1/send-email" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-            -H 'Content-Type: application/json' -d '{}'
+            -H 'Content-Type: application/json' -d '{"action":"drain"}'
           curl -sS --fail-with-body -X OPTIONS "$VITE_SUPABASE_URL/functions/v1/manage-users" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY"
 
