@@ -455,6 +455,7 @@ export type Database = {
           city: string | null
           created_at: string
           email: string | null
+          email_bounced_at: string | null
           house_number: string | null
           id: string
           is_archived: boolean
@@ -468,6 +469,7 @@ export type Database = {
           city?: string | null
           created_at?: string
           email?: string | null
+          email_bounced_at?: string | null
           house_number?: string | null
           id?: string
           is_archived?: boolean
@@ -481,6 +483,7 @@ export type Database = {
           city?: string | null
           created_at?: string
           email?: string | null
+          email_bounced_at?: string | null
           house_number?: string | null
           id?: string
           is_archived?: boolean
@@ -1490,6 +1493,10 @@ export type Database = {
         Row: {
           body_html: string
           body_text: string
+          bounce_reason: string | null
+          bounced_at: string | null
+          complained_at: string | null
+          delivered_at: string | null
           id: string
           order_id: string
           product_id: string | null
@@ -1503,6 +1510,10 @@ export type Database = {
         Insert: {
           body_html: string
           body_text: string
+          bounce_reason?: string | null
+          bounced_at?: string | null
+          complained_at?: string | null
+          delivered_at?: string | null
           id?: string
           order_id: string
           product_id?: string | null
@@ -1516,6 +1527,10 @@ export type Database = {
         Update: {
           body_html?: string
           body_text?: string
+          bounce_reason?: string | null
+          bounced_at?: string | null
+          complained_at?: string | null
+          delivered_at?: string | null
           id?: string
           order_id?: string
           product_id?: string | null
@@ -2551,6 +2566,7 @@ export type Database = {
         | "FILE_REMOVED"
         | "EMAIL_SENT"
         | "EMAIL_FAILED"
+        | "EMAIL_BOUNCED"
       order_status: "QUOTE" | "IN_PROGRESS" | "FINISHED" | "BILLED"
       payment_method: "INVOICE" | "CASH"
       priority_type: "NORMAL" | "HIGH"
@@ -2714,6 +2730,7 @@ export const Constants = {
         "FILE_REMOVED",
         "EMAIL_SENT",
         "EMAIL_FAILED",
+        "EMAIL_BOUNCED",
       ],
       order_status: ["QUOTE", "IN_PROGRESS", "FINISHED", "BILLED"],
       payment_method: ["INVOICE", "CASH"],
