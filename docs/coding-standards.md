@@ -487,6 +487,12 @@ its "Adding a mail".
   first call after deploy, before any mail is claimed.
 - **`node:fs` is the first import** of `send-email/index.ts`, as Supabase
   prescribes for functions that read static files.
+- **A delayed or repeating mail gets an `email_settings` row** in the
+  migration of the feature that owns it, so the shop can switch it off or
+  change its timing in Settings → Emails. Its trigger calls `queue_email`
+  without `delay_seconds`: the delay then comes from that row, and a changed
+  delay reaches every mail queued afterwards. Pass a delay only where it must
+  not follow Settings.
 
 ---
 
