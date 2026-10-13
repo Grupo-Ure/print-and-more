@@ -13,13 +13,14 @@ export type QueuedEmailRow = Omit<Database['public']['Functions']['list_queued_e
   product_id: string | null
 }
 
-/** A mail that went out, as it went out. */
+/** A mail that went out, as it went out, with what the provider has reported of it since. */
 export type SentEmailRow = Pick<
   Tables<'sent_emails'>,
-  'id' | 'template' | 'product_id' | 'recipient' | 'subject' | 'body_html' | 'sent_at'
+  'id' | 'template' | 'product_id' | 'recipient' | 'subject' | 'body_html' | 'sent_at' | 'delivered_at' | 'bounced_at' | 'bounce_reason' | 'complained_at'
 >
 
-const SENT_EMAIL_COLUMNS = 'id, template, product_id, recipient, subject, body_html, sent_at'
+const SENT_EMAIL_COLUMNS =
+  'id, template, product_id, recipient, subject, body_html, sent_at, delivered_at, bounced_at, bounce_reason, complained_at'
 
 /**
  * The order's mails, read-only: every mail is automatic, so the app only looks.
