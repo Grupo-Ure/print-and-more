@@ -28,7 +28,7 @@ import {
 test.describe('in progress, product without a deadline', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, productSeed: POSTER_PRODUCT })
 
-  test('setting the order deadline completes the product and promotes it to pre-press', async ({ ordersPage, order, product }) => {
+  test('PRD-STA-001 setting the order deadline completes the product and promotes it to pre-press', async ({ ordersPage, order, product }) => {
     // Setup — a date the picker accepts, with the order open.
     const deadline = nextOrderDeadline()
     const picker = ordersPage.details.deadline
@@ -52,7 +52,7 @@ test.describe('in progress, product without a deadline', () => {
 test.describe('in progress, LFP product', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: BANNER_PRODUCT })
 
-  test('the product is promoted to pre-press on its own', async ({ ordersPage, product }) => {
+  test('PRD-STA-002 the product is promoted to pre-press on its own', async ({ ordersPage, product }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
@@ -64,7 +64,7 @@ test.describe('in progress, LFP product', () => {
 test.describe('in progress, CopyShop product', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: POSTER_PRODUCT })
 
-  test('the product is promoted to pre-press on its own', async ({ ordersPage, product }) => {
+  test('PRD-STA-003 the product is promoted to pre-press on its own', async ({ ordersPage, product }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
@@ -76,7 +76,7 @@ test.describe('in progress, CopyShop product', () => {
 test.describe('in progress, textile batch', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: SHOP_SUPPLIED_TEXTILE_BATCH })
 
-  test('the product is promoted to pre-press on its own', async ({ ordersPage, product }) => {
+  test('PRD-STA-004 the product is promoted to pre-press on its own', async ({ ordersPage, product }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
@@ -88,7 +88,7 @@ test.describe('in progress, textile batch', () => {
 test.describe('in progress, stamp product', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: IN_STOCK_STAMP_PRODUCT })
 
-  test('the product is promoted to pre-press on its own', async ({ ordersPage, product }) => {
+  test('PRD-STA-005 the product is promoted to pre-press on its own', async ({ ordersPage, product }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
@@ -100,7 +100,7 @@ test.describe('in progress, stamp product', () => {
 test.describe('in progress, laser-engraving product', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: SIGN_PRODUCT })
 
-  test('the product is promoted to pre-press on its own', async ({ ordersPage, product }) => {
+  test('PRD-STA-006 the product is promoted to pre-press on its own', async ({ ordersPage, product }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
@@ -112,7 +112,7 @@ test.describe('in progress, laser-engraving product', () => {
 test.describe('in progress, OTHER product', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: OTHER_PRODUCT })
 
-  test('the product is promoted to pre-press on its own', async ({ ordersPage, product }) => {
+  test('PRD-STA-007 the product is promoted to pre-press on its own', async ({ ordersPage, product }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
@@ -124,7 +124,7 @@ test.describe('in progress, OTHER product', () => {
 test.describe('in progress, product whose deadline has passed', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER_PAST_DEADLINE, productSeed: POSTER_PRODUCT })
 
-  test('the product is promoted to pre-press on its own', async ({ ordersPage, product }) => {
+  test('PRD-STA-008 the product is promoted to pre-press on its own', async ({ ordersPage, product }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
@@ -138,7 +138,7 @@ test.describe('in progress, product whose deadline has passed', () => {
 test.describe('in progress, product in pre-press', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: PRODUCT_IN_PREPRESS })
 
-  test('releasing the product to production moves it to in production', async ({ ordersPage, product }) => {
+  test('PRD-STA-009 releasing the product to production moves it to in production', async ({ ordersPage, product }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
@@ -154,7 +154,7 @@ test.describe('in progress, product in pre-press', () => {
 test.describe('in progress, product in production', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: PRODUCT_IN_PRODUCTION })
 
-  test('marking the product as done moves it to done', async ({ ordersPage, product }) => {
+  test('PRD-STA-010 marking the product as done moves it to done', async ({ ordersPage, product }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
@@ -175,7 +175,7 @@ test.describe('in progress, product in production', () => {
 test.describe('in progress, OTHER product, pre-press default set', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: OTHER_PRODUCT, departmentDefaultSeed: ADMIN_AS_PREPRESS_DEFAULT })
 
-  test('the product promoted to pre-press is assigned to the pre-press default', async ({ ordersPage, product, departmentDefault }) => {
+  test('PRD-STA-011 the product promoted to pre-press is assigned to the pre-press default', async ({ ordersPage, product, departmentDefault }) => {
     // Setup — the product open; it is promoted on the way.
     await ordersPage.openProduct(product)
 
@@ -187,7 +187,7 @@ test.describe('in progress, OTHER product, pre-press default set', () => {
 test.describe('in progress, product in pre-press, production default set', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: PRODUCT_IN_PREPRESS, departmentDefaultSeed: ADMIN_AS_PRODUCTION_DEFAULT })
 
-  test('releasing the product to production assigns it to the production default', async ({ ordersPage, product, departmentDefault }) => {
+  test('PRD-STA-012 releasing the product to production assigns it to the production default', async ({ ordersPage, product, departmentDefault }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
@@ -200,7 +200,7 @@ test.describe('in progress, product in pre-press, production default set', () =>
   })
 
   // `departmentDefault` is requested for its side effect: without it the slot stays empty and nothing is logged.
-  test('releasing the product to production records the assignee change in the order history', async ({ ordersPage, product, departmentDefault: _productionDefault }) => {
+  test('PRD-STA-013 releasing the product to production records the assignee change in the order history', async ({ ordersPage, product, departmentDefault: _productionDefault }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
@@ -217,7 +217,7 @@ test.describe('in progress, product in pre-press, production default set', () =>
 test.describe('in progress, product in production, pre-press default set', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: PRODUCT_IN_PRODUCTION, departmentDefaultSeed: ADMIN_AS_PREPRESS_DEFAULT })
 
-  test('sending the product back to pre-press assigns it to the pre-press default', async ({ ordersPage, product, departmentDefault }) => {
+  test('PRD-STA-014 sending the product back to pre-press assigns it to the pre-press default', async ({ ordersPage, product, departmentDefault }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 

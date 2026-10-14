@@ -8,7 +8,7 @@ import { DELAYED_TEST_MESSAGE, UNKNOWN_TEMPLATE_MESSAGE } from '../../fixtures/e
 test.describe('mail not due for an hour', () => {
   test.use({ queuedEmailSeed: DELAYED_TEST_MESSAGE })
 
-  test('opening the emails tab lists the mail as waiting to go', async ({ ordersPage, queuedEmail }) => {
+  test('ORD-EML-001 opening the emails tab lists the mail as waiting to go', async ({ ordersPage, queuedEmail }) => {
     // Setup — the order open.
     await ordersPage.openOrder(queuedEmail.orderId)
 
@@ -20,7 +20,7 @@ test.describe('mail not due for an hour', () => {
   })
 })
 
-test('opening the emails tab lists a drained mail as sent', async ({ ordersPage, sendEmail, queuedEmail }) => {
+test('ORD-EML-002 opening the emails tab lists a drained mail as sent', async ({ ordersPage, sendEmail, queuedEmail }) => {
   // Setup — the message sent, then the order open.
   await sendEmail.drain()
   await ordersPage.openOrder(queuedEmail.orderId)
@@ -32,7 +32,7 @@ test('opening the emails tab lists a drained mail as sent', async ({ ordersPage,
   await expect(ordersPage.details.emails.sentItems).toHaveCount(1)
 })
 
-test('viewing a sent mail opens it as it went out', async ({ ordersPage, sendEmail, queuedEmail }) => {
+test('ORD-EML-003 viewing a sent mail opens it as it went out', async ({ ordersPage, sendEmail, queuedEmail }) => {
   // Setup — the message sent, the order open on its emails tab.
   await sendEmail.drain()
   await ordersPage.openOrder(queuedEmail.orderId)
@@ -48,7 +48,7 @@ test('viewing a sent mail opens it as it went out', async ({ ordersPage, sendEma
 test.describe('message naming an unknown template', () => {
   test.use({ queuedEmailSeed: UNKNOWN_TEMPLATE_MESSAGE })
 
-  test('opening the emails tab lists the given-up mail as failed', async ({ ordersPage, sendEmail, queuedEmail }) => {
+  test('ORD-EML-004 opening the emails tab lists the given-up mail as failed', async ({ ordersPage, sendEmail, queuedEmail }) => {
     // Setup — the sender gives the message up, then the order open.
     await sendEmail.drain()
     await ordersPage.openOrder(queuedEmail.orderId)

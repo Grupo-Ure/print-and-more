@@ -72,6 +72,8 @@ jobs:
       - run: npm ci
       - name: Typecheck
         run: npx tsc -b
+      - name: Test IDs and plan
+        run: npm run test:plan:check
       - name: Lint
         # Non-blocking until the pre-existing lint errors (set-state-in-effect,
         # react-refresh/only-export-components) are cleaned up; flip to

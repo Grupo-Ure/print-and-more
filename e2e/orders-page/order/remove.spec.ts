@@ -1,6 +1,6 @@
 import { expect, test } from '../../fixtures/orders'
 
-test('archiving an order removes it from the order list', async ({ ordersPage, order }) => {
+test('ORD-REM-001 archiving an order removes it from the order list', async ({ ordersPage, order }) => {
   // Setup — the order open.
   await ordersPage.openOrder(order.id)
 
@@ -13,7 +13,7 @@ test('archiving an order removes it from the order list', async ({ ordersPage, o
   await expect(ordersPage.welcome).toBeVisible()
 })
 
-test('cancelling an order removes it from the order list', async ({ ordersPage, order }) => {
+test('ORD-REM-002 cancelling an order removes it from the order list', async ({ ordersPage, order }) => {
   // Setup — the order open.
   await ordersPage.openOrder(order.id)
 
@@ -26,7 +26,7 @@ test('cancelling an order removes it from the order list', async ({ ordersPage, 
   await expect(ordersPage.welcome).toBeVisible()
 })
 
-test('deleting a quote from its row menu removes it from the order list', async ({ ordersPage, order }) => {
+test('ORD-REM-003 deleting a quote from its row menu removes it from the order list', async ({ ordersPage, order }) => {
   // Setup — the quote's row in the sidebar.
   const row = ordersPage.sidebar.row(order.id)
 

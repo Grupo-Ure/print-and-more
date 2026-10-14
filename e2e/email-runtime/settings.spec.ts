@@ -10,7 +10,7 @@ import { queuedDelayDays } from '../support/database'
 test.describe('test-message repeated once a day, sent twice at most', () => {
   test.use({ emailSettingSeed: REPEATING_TEST_MESSAGE_SETTING })
 
-  test('sending the mail queues its repeat one repeat interval out', async ({ database, sendEmail, queuedEmail, emailSetting }) => {
+  test('EML-SET-001 sending the mail queues its repeat one repeat interval out', async ({ database, sendEmail, queuedEmail, emailSetting }) => {
     // Act — the first send.
     await sendEmail.drain()
 
@@ -18,7 +18,7 @@ test.describe('test-message repeated once a day, sent twice at most', () => {
     expect((await database.queuedEmails(queuedEmail.orderId)).map(queuedDelayDays)).toEqual([emailSetting.repeat_days])
   })
 
-  test('draining each send as it comes due stops the mail at its maximum', async ({ database, sendEmail, queuedEmail, emailSetting }) => {
+  test('EML-SET-002 draining each send as it comes due stops the mail at its maximum', async ({ database, sendEmail, queuedEmail, emailSetting }) => {
     // Act — the first send, then its repeat made due and sent.
     await sendEmail.drain()
     await database.makeQueuedEmailsDue(queuedEmail.orderId)
@@ -30,7 +30,7 @@ test.describe('test-message repeated once a day, sent twice at most', () => {
   })
 })
 
-test('draining the queue archives unsent a waiting mail switched off since it was queued', async ({ database, sendEmail, queuedEmail, emailSetting }) => {
+test('EML-SET-003 draining the queue archives unsent a waiting mail switched off since it was queued', async ({ database, sendEmail, queuedEmail, emailSetting }) => {
   // Setup — the mail is already waiting (queuedEmail); now it is switched off.
   await database.updateEmailSetting(emailSetting.template, SWITCHED_OFF)
 

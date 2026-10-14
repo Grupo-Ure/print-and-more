@@ -15,7 +15,7 @@ import { TEST_USERS } from '../fixtures/users'
 
 // ── The main path ─────────────────────────────────────────────────────────
 
-test('draining the queue turns the queued message into a sent record and takes it off the queue', async ({ database, sendEmail, queuedEmail }) => {
+test('EML-TRN-001 draining the queue turns the queued message into a sent record and takes it off the queue', async ({ database, sendEmail, queuedEmail }) => {
   // Act — one drain, as the cron would make it.
   await sendEmail.drain()
 
@@ -24,7 +24,7 @@ test('draining the queue turns the queued message into a sent record and takes i
   expect(await database.queuedEmails(queuedEmail.orderId)).toHaveLength(0)
 })
 
-test('draining the queue a second time sends nothing twice', async ({ database, sendEmail, queuedEmail }) => {
+test('EML-TRN-002 draining the queue a second time sends nothing twice', async ({ database, sendEmail, queuedEmail }) => {
   // Act — two drains in a row.
   await sendEmail.drain()
   await sendEmail.drain()
@@ -38,7 +38,7 @@ test('draining the queue a second time sends nothing twice', async ({ database, 
 test.describe('message not due for an hour', () => {
   test.use({ queuedEmailSeed: DELAYED_TEST_MESSAGE })
 
-  test('draining the queue leaves the message waiting unsent', async ({ database, sendEmail, queuedEmail }) => {
+  test('EML-TRN-003 draining the queue leaves the message waiting unsent', async ({ database, sendEmail, queuedEmail }) => {
     // Act
     await sendEmail.drain()
 
@@ -47,7 +47,7 @@ test.describe('message not due for an hour', () => {
     expect(await database.queuedEmails(queuedEmail.orderId)).toHaveLength(1)
   })
 
-  test('making the message due and draining the queue sends it', async ({ database, sendEmail, queuedEmail }) => {
+  test('EML-TRN-004 making the message due and draining the queue sends it', async ({ database, sendEmail, queuedEmail }) => {
     // Act — bring the due time forward, then drain.
     await database.makeEmailDue(queuedEmail.msgId)
     await sendEmail.drain()
@@ -59,7 +59,7 @@ test.describe('message not due for an hour', () => {
 
 // ── The caller check ──────────────────────────────────────────────────────
 
-test('calling the drain with a user session instead of the service-role key is refused', async ({ database, sendEmail, queuedEmail }) => {
+test('EML-TRN-005 calling the drain with a user session instead of the service-role key is refused', async ({ database, sendEmail, queuedEmail }) => {
   // Setup — a signed-in user's access token.
   const accessToken = await database.accessTokenOf(TEST_USERS.employee)
 
@@ -76,7 +76,7 @@ test('calling the drain with a user session instead of the service-role key is r
 test.describe('message naming an unknown template', () => {
   test.use({ queuedEmailSeed: UNKNOWN_TEMPLATE_MESSAGE })
 
-  test('draining the queue archives the message with a failure entry on the order', async ({ database, sendEmail, queuedEmail }) => {
+  test('EML-TRN-006 draining the queue archives the message with a failure entry on the order', async ({ database, sendEmail, queuedEmail }) => {
     // Act
     await sendEmail.drain()
 
@@ -89,7 +89,7 @@ test.describe('message naming an unknown template', () => {
 test.describe('message whose template says it is no longer needed', () => {
   test.use({ queuedEmailSeed: UNNEEDED_TEST_MESSAGE })
 
-  test('draining the queue archives the message unsent', async ({ database, sendEmail, queuedEmail }) => {
+  test('EML-TRN-007 draining the queue archives the message unsent', async ({ database, sendEmail, queuedEmail }) => {
     // Act
     await sendEmail.drain()
 
@@ -104,7 +104,7 @@ test.describe('message whose template says it is no longer needed', () => {
 test.describe('message the provider refuses', () => {
   test.use({ queuedEmailSeed: REFUSED_TEST_MESSAGE })
 
-  test('a refused send leaves the message on the queue with nothing recorded', async ({ database, sendEmail, queuedEmail }) => {
+  test('EML-TRN-008 a refused send leaves the message on the queue with nothing recorded', async ({ database, sendEmail, queuedEmail }) => {
     // Act
     await sendEmail.drain()
 
@@ -113,7 +113,7 @@ test.describe('message the provider refuses', () => {
     expect(await database.historyCount(queuedEmail.orderId, EMAIL_FAILED_HISTORY_EVENT)).toBe(0)
   })
 
-  test('the last allowed refusal archives the message with a failure entry on the order', async ({ database, sendEmail, queuedEmail }) => {
+  test('EML-TRN-009 the last allowed refusal archives the message with a failure entry on the order', async ({ database, sendEmail, queuedEmail }) => {
     // Act — every allowed attempt, making the message due again between drains
     // in place of waiting out its visibility timeout.
     for (let attempt = 1; attempt <= MAX_SEND_ATTEMPTS; attempt += 1) {

@@ -8,7 +8,7 @@ import { TEST_USERS } from '../fixtures/users'
 // mail is queued straight through queue_email, as a feature's trigger would.
 test.use({ user: TEST_USERS.admin })
 
-test('setting a delay makes the next mail queued for it wait that many days', async ({ settingsPage, database, order, emailSetting }) => {
+test('SET-EML-001 setting a delay makes the next mail queued for it wait that many days', async ({ settingsPage, database, order, emailSetting }) => {
   // Setup — the Emails section open on test-message's row.
   await settingsPage.openSection('emails')
   const { emails } = settingsPage
@@ -27,7 +27,7 @@ test('setting a delay makes the next mail queued for it wait that many days', as
   await database.archiveQueuedEmails(order.id)
 })
 
-test('switching a mail off makes queuing it queue nothing', async ({ settingsPage, database, order, emailSetting }) => {
+test('SET-EML-002 switching a mail off makes queuing it queue nothing', async ({ settingsPage, database, order, emailSetting }) => {
   // Setup — the Emails section open on test-message's row.
   await settingsPage.openSection('emails')
   const { emails } = settingsPage

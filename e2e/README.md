@@ -162,6 +162,7 @@ Nothing here is imported by hand; the runner drives it from the config:
 | `support/database.ts` | `TestDatabase`: the runner's service-role connection (bypasses RLS, exposes `auth.admin`) with the methods that seed and remove users, customers, orders and products, and that queue, reschedule, archive and read back emails, insert a sent record and read what the provider reported of it, and write a template's email settings — raw rows only, no app business logic. `asUser(login)` hands out a second connection signed in as one of the suite's logins, for the rules the database enforces on the app but not on the runner |
 | `support/sendEmail.ts` | `SendEmailFunction`: one drain of the email queue per call, the way the cron makes it (`drain()` with the service-role key, `drainAs(token)` with any other bearer token for the caller check) |
 | `support/emailWebhook.ts` | `EmailWebhookFunction`: one delivery report per call, posted the way Resend posts it — signed with the function's secret (`report()`), or with another one for the signature check (`reportSignedWith(secret, report)`) |
+| `TEST_PLAN.md` | The hand-written plan: which tests exist, by pack, precondition and ID. The source of truth the specs are held to by `scripts/test-plan.mjs` |
 | `global-setup.ts`, `global-teardown.ts` | Run-wide data, wired via `playwright.config.ts` |
 
 ## Environment
@@ -177,6 +178,8 @@ local `email-webhook` reads it from — so the reports the suite signs verify
 against the function without the value being kept twice. The local
 `send-email` and `email-webhook` do not boot without that file (copy
 `supabase/functions/.env.example`), and neither do the `email-runtime/` specs.
+
+[`TEST_PLAN.md`](TEST_PLAN.md) comes first: a test is planned there, numbered with `npm run test:plan:assign`, and then written with that ID in its title. `npm run test:plan:status` lists what is still to write; `npm run test:plan:check` (run in CI) fails on a spec test the plan does not name or that differs from it. The rules are in the testing standards under "The plan comes first".
 
 Test conventions (fixtures files, minimal assertions, setup/act/assert/cleanup
 stages) are in [`docs/testing/testing-standards.md`](../docs/testing/testing-standards.md);

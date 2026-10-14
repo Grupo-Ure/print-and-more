@@ -21,7 +21,7 @@ import { TEST_USERS } from '../../fixtures/users'
 test.describe('in progress, product with no deadline', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, productSeed: POSTER_PRODUCT })
 
-  test('the product is held in setup with the release blocked', async ({ ordersPage, product }) => {
+  test('PRD-GAT-001 the product is held in setup with the release blocked', async ({ ordersPage, product }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
@@ -36,7 +36,7 @@ test.describe('in progress, product with no deadline', () => {
 test.describe('in progress, product in pre-press awaiting customer approval', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: PRODUCT_IN_PREPRESS_AWAITING_APPROVAL })
 
-  test('the release to production is blocked', async ({ ordersPage, product }) => {
+  test('PRD-GAT-002 the release to production is blocked', async ({ ordersPage, product }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
@@ -44,7 +44,7 @@ test.describe('in progress, product in pre-press awaiting customer approval', ()
     await expect(ordersPage.details.productDetail.releaseButton).toBeDisabled()
   })
 
-  test('granting the approval against a file unblocks the release to production', async ({ ordersPage, product, orderFile }) => {
+  test('PRD-GAT-003 granting the approval against a file unblocks the release to production', async ({ ordersPage, product, orderFile }) => {
     // Setup — the product open on its Settings tab.
     const settings = ordersPage.details.productDetail.settings
     await ordersPage.openProductSettings(product)
@@ -65,7 +65,7 @@ test.describe('in progress, product in pre-press awaiting customer approval', ()
 test.describe('in progress, stamp product in pre-press, model out of stock', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: STAMP_PRODUCT_IN_PREPRESS_OUT_OF_STOCK })
 
-  test('the shortage is shown and the release to production is blocked', async ({ ordersPage, product }) => {
+  test('PRD-GAT-004 the shortage is shown and the release to production is blocked', async ({ ordersPage, product }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
@@ -80,7 +80,7 @@ test.describe('in progress, stamp product in pre-press, model out of stock', () 
 test.describe('as admin, in progress, product with no deadline', () => {
   test.use({ user: TEST_USERS.admin, orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, productSeed: POSTER_PRODUCT })
 
-  test('opening the force release prompt without a reason keeps it unsubmittable', async ({ ordersPage, product }) => {
+  test('PRD-GAT-005 opening the force release prompt without a reason keeps it unsubmittable', async ({ ordersPage, product }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
@@ -92,7 +92,7 @@ test.describe('as admin, in progress, product with no deadline', () => {
     await expect(ordersPage.details.productDetail.forceReleaseDialog.submit).toBeDisabled()
   })
 
-  test('force releasing the product with a reason moves it to production flagged as missing information', async ({ ordersPage, product }) => {
+  test('PRD-GAT-006 force releasing the product with a reason moves it to production flagged as missing information', async ({ ordersPage, product }) => {
     // Setup — the product's row in the list, with the product open.
     const row = ordersPage.details.productList.row(product.id)
     await ordersPage.openProduct(product)
@@ -108,7 +108,7 @@ test.describe('as admin, in progress, product with no deadline', () => {
     await expect(ordersPage.details.productList.rowMissingInfo(row)).toBeVisible()
   })
 
-  test('force releasing the product records an emergency entry in the order history', async ({ ordersPage, product }) => {
+  test('PRD-GAT-007 force releasing the product records an emergency entry in the order history', async ({ ordersPage, product }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 

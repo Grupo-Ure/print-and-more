@@ -13,7 +13,7 @@ test.use({ user: TEST_USERS.admin })
 test.describe('pre-press slot empty', () => {
   test.use({ departmentDefaultSeed: EMPTY_PREPRESS_DEFAULT })
 
-  test('picking a user as the pre-press default stores it on the row', async ({ settingsPage, database, departmentDefault }) => {
+  test('SET-DEP-001 picking a user as the pre-press default stores it on the row', async ({ settingsPage, database, departmentDefault }) => {
     // Setup — the user to pick, and the Departments section open.
     const userId = await database.userId(TEST_USERS.employee)
     await settingsPage.openSection('departments')
@@ -32,7 +32,7 @@ test.describe('pre-press slot empty', () => {
 test.describe('production slot empty', () => {
   test.use({ departmentDefaultSeed: EMPTY_PRODUCTION_DEFAULT })
 
-  test('picking a user as the production default stores it on the row', async ({ settingsPage, database, departmentDefault }) => {
+  test('SET-DEP-002 picking a user as the production default stores it on the row', async ({ settingsPage, database, departmentDefault }) => {
     // Setup — the user to pick, and the Departments section open.
     const userId = await database.userId(TEST_USERS.employee)
     await settingsPage.openSection('departments')
@@ -51,7 +51,7 @@ test.describe('production slot empty', () => {
 test.describe('pre-press slot held by the admin', () => {
   test.use({ departmentDefaultSeed: ADMIN_AS_PREPRESS_DEFAULT })
 
-  test('choosing unassigned clears the pre-press default from the row', async ({ settingsPage, departmentDefault }) => {
+  test('SET-DEP-003 choosing unassigned clears the pre-press default from the row', async ({ settingsPage, departmentDefault }) => {
     // Setup — the Departments section open, the seeded default on the row.
     await settingsPage.openSection('departments')
     const { departments } = settingsPage
