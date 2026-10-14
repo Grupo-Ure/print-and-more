@@ -8,6 +8,7 @@ export type CustomerRow = {
   id: string
   name: string
   email: string | null
+  email_bounced_at: string | null
   phone: string | null
   note: string | null
   street: string | null
@@ -16,7 +17,7 @@ export type CustomerRow = {
   city: string | null
 }
 
-const CUSTOMER_COLUMNS = 'id, name, email, phone, note, street, house_number, postal_code, city'
+const CUSTOMER_COLUMNS = 'id, name, email, email_bounced_at, phone, note, street, house_number, postal_code, city'
 
 export const CUSTOMER_PAGE_SIZE = 25
 

@@ -265,6 +265,34 @@ Rules of thumb:
 - When a precondition matters to the scenario, it goes in the `describe`
   block name ("signed out", "as ADMIN"), not in the test name.
 
+### The plan comes first, and every test has an ID
+
+`e2e/TEST_PLAN.md` is the source of truth for what the suite tests. A test is
+planned there — as a bullet under its pack (spec file) and under the italic
+`describe` bullets that state its precondition — before it is written, and a
+spec test that the plan does not name fails `npm run test:plan:check` (run in
+CI). Working on a feature means adding its tests to the plan first, then
+writing specs that match it; a test is never added to a spec on the author's
+own judgement.
+
+Every test case carries the plan's ID as the first word of its title:
+`<AREA>-<FEATURE>-<NNN>`, e.g. `ORD-STA-012 starting processing a quote moves
+the order to in progress`. The ID is for tracking — in the plan, in Jira, in a
+report, in `--grep` — and is not part of the sentence the naming rules above
+describe.
+
+- The prefix (`<AREA>-<FEATURE>`) belongs to the pack; the plan names it on
+  the pack's bullet. A new spec file is a new pack bullet in the plan first.
+- The number counts up per prefix and is **never reused**: a deleted test
+  leaves its number retired, and a test whose title is reworded keeps its ID.
+- Don't number by hand. Add the bullet without an ID and run
+  `npm run test:plan:assign`; the spec then uses that ID, the title word for
+  word, and the same describe chain.
+- `npm run test:plan:status` lists what is planned and not yet written;
+  `npm run test:plan:check` fails on a spec test without an ID, one the plan
+  does not list, one in another file or under other describes than planned,
+  or a title that differs from the plan.
+
 **Fixtures prepare data, not state in the interface.** A fixture inserts,
 generates or removes data; it never drives the UI to a place. A fixture that
 navigated would assume every step on the way works, and two such fixtures in

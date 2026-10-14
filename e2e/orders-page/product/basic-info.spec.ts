@@ -13,7 +13,7 @@ import { TEST_USERS } from '../../fixtures/users'
 // The release lock is the database's rule, not the form's: the form only hides
 // what a write as the signed-in user would be refused.
 
-test("the product's saved spec is shown read-only, with no way to submit it", async ({ ordersPage, product }) => {
+test("PRD-INF-001 the product's saved spec is shown read-only, with no way to submit it", async ({ ordersPage, product }) => {
   // Setup — the product open on its Basic info tab (the default); the `product` fixture inserted its spec.
   const { basicInfo } = ordersPage.details.productDetail
   await ordersPage.openProduct(product)
@@ -24,7 +24,7 @@ test("the product's saved spec is shown read-only, with no way to submit it", as
   await expect(basicInfo.edit).toBeVisible()
 })
 
-test('editing the description and saving it shows the new value on the closed form', async ({ ordersPage, product }) => {
+test('PRD-INF-002 editing the description and saving it shows the new value on the closed form', async ({ ordersPage, product }) => {
   // Setup — the product open on its Basic info tab.
   const { basicInfo } = ordersPage.details.productDetail
   await ordersPage.openProduct(product)
@@ -39,7 +39,7 @@ test('editing the description and saving it shows the new value on the closed fo
   await expect(basicInfo.field('description')).toHaveValue(EDITED_OTHER_DESCRIPTION)
 })
 
-test('cancelling an edit leaves the saved description in place', async ({ ordersPage, product }) => {
+test('PRD-INF-003 cancelling an edit leaves the saved description in place', async ({ ordersPage, product }) => {
   // Setup — the product open on its Basic info tab.
   const { basicInfo } = ordersPage.details.productDetail
   await ordersPage.openProduct(product)
@@ -56,7 +56,7 @@ test('cancelling an edit leaves the saved description in place', async ({ orders
 test.describe('in progress, product in production', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: PRODUCT_IN_PRODUCTION })
 
-  test('the released product offers no way to edit its spec', async ({ ordersPage, product }) => {
+  test('PRD-INF-004 the released product offers no way to edit its spec', async ({ ordersPage, product }) => {
     // Setup — the product open on its Basic info tab.
     const { basicInfo } = ordersPage.details.productDetail
     await ordersPage.openProduct(product)
@@ -66,7 +66,7 @@ test.describe('in progress, product in production', () => {
     await expect(basicInfo.edit).toHaveCount(0)
   })
 
-  test("writing the released product's typed spec row as the signed-in user is refused", async ({
+  test("PRD-INF-005 writing the released product's typed spec row as the signed-in user is refused", async ({
     database,
     product,
   }) => {
@@ -89,7 +89,7 @@ test.describe('in progress, product in production', () => {
     expect(row?.description).toBe(OTHER_PRODUCT_FORM.description)
   })
 
-  test("writing the released product's quantity as the signed-in user is refused", async ({
+  test("PRD-INF-006 writing the released product's quantity as the signed-in user is refused", async ({
     database,
     product,
   }) => {

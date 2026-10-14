@@ -42,7 +42,8 @@ database as live:
   master data that production must also see needs a migration as well.
 - A migration is verified against a local Supabase (`supabase db reset`
   replays every migration plus the seed) and the e2e suite before it is
-  pushed. After it lands, regenerate `src/types/supabase.ts` — the product
+  merged; the release's `deploy` CI job applies it to production, nobody
+  pushes it by hand. After it lands, regenerate `src/types/supabase.ts` — the product
   schemas' drift assertions will not compile until the types match.
 - No destructive change (drop, rename, type change of a populated column)
   without a data-preserving path in the same migration.
@@ -183,9 +184,13 @@ process, so they are edited as that process changes.
   audit, duplicate_order); everything after that baseline is a dated
   migration on top of it, and that is the only way the schema changes (see
   "The app is in production" above). `supabase/seed.sql` holds catalog
-  master data; `seed.dev.sql` (git-ignored) holds local demo data. One edge
-  function, `manage-users`, exists for what the browser cannot do
-  (create/delete auth accounts).
+  master data; `seed.dev.sql` (git-ignored) holds local demo data. Three edge
+  functions, for what the browser cannot do: `manage-users` (create/delete
+  auth accounts), `send-email` (drains the email queue; called by the
+  database's cron job with the service-role key only) and `email-webhook`
+  (receives the mail provider's delivery reports; the one function without
+  JWT verification, the report's signature is checked instead). The email
+  system is documented in the vault note *Email runtime*.
 - **Client:** [src/supabase.ts](src/supabase.ts) (`createClient`); generated
   types in [src/types/supabase.ts](src/types/supabase.ts), app-facing aliases
   in [src/types/database.ts](src/types/database.ts).
@@ -228,7 +233,7 @@ without a session, otherwise a two-column shell:
 | Column | Component | Role |
 |--------|-----------|------|
 | Left   | [`OrderSidebar`](src/components/OrderSidebar.tsx) | Search + filters (status, department, deadline/intake ranges), order list with selection, per-order menu (duplicate / delete quote), "+ New Order" ([`NewOrderDialog`](src/components/NewOrderDialog.tsx)). Archived orders are listed only while the header's *Show archived* toggle is on, except billed ones, which appear whenever Billed is ticked; the default status filter ticks every status, so completed orders stay in the feed. There is no assignee filter here — finding one's own work is what the production view is for. |
-| Centre | [`OrderDetails`](src/components/OrderDetails.tsx) | Order header (number, customer, lifecycle button, archive/cancel actions), order settings row (deadline, delivery, priority, payment), then the order tabs: *Products* — [`ProductList`](src/components/ProductList.tsx) (one add-product button per department, one row per product with status track and right-click menu, plus the row of a product being added) next to the active product's [`ProductDetail`](src/components/ProductDetail.tsx) or the [`ProductDraftPanel`](src/components/products/ProductDraftPanel.tsx) of a product being added — and *History* ([`OrderHistory`](src/components/OrderHistory.tsx)). |
+| Centre | [`OrderDetails`](src/components/OrderDetails.tsx) | Order header (number, customer, lifecycle button, archive/cancel actions), order settings row (deadline, delivery, priority, payment), then the order tabs: *Products* — [`ProductList`](src/components/ProductList.tsx) (one add-product button per department, one row per product with status track and right-click menu, plus the row of a product being added) next to the active product's [`ProductDetail`](src/components/ProductDetail.tsx) or the [`ProductDraftPanel`](src/components/products/ProductDraftPanel.tsx) of a product being added —, *History* ([`OrderHistory`](src/components/OrderHistory.tsx)) and *Emails* ([`OrderEmails`](src/components/OrderEmails.tsx): the order's mails waiting, sent — with what the provider reported of them — and failed; read-only). A customer whose address bounced is flagged beside the email in the header. |
 
 `ProductDetail` shows the product header (assignee, status badge, PDF /
 delete-or-cancel actions, the
@@ -373,9 +378,13 @@ without a default the assignee stays. Reassigning by hand writes
 `SettingsPage` ([src/pages/SettingsPage.tsx](src/pages/SettingsPage.tsx)) —
 a fixed, always-visible section list on the left and the active section on
 the right: *User management* (super admins;
-[`UserManagementSettings`](src/components/settings/UserManagementSettings.tsx))
-and *Departments* (admins; [`DepartmentSettings`](src/components/settings/DepartmentSettings.tsx),
-the default assignee per department); `ProfilePage`. Shared stock UI
+[`UserManagementSettings`](src/components/settings/UserManagementSettings.tsx)),
+*Departments* (admins; [`DepartmentSettings`](src/components/settings/DepartmentSettings.tsx),
+the default assignee per department) and *Emails* (admins;
+[`EmailSettings`](src/components/settings/EmailSettings.tsx), one row per
+delayed or repeating mail in `email_settings` — on/off, delay, repeat
+interval, most sends; a row is added by the migration of the feature that
+owns the mail); `ProfilePage`. Shared stock UI
 (booking fields, movement views, reorder list) lives in
 [`src/components/stock/`](src/components/stock/).
 
@@ -428,10 +437,14 @@ cannot hold an order open.
 ## Domain Model
 
 - **Customer** — table `customers` (`name`, `email`, `phone`, `note`, address
-  fields, `is_archived`). Created/edited via `CustomerDialog`; searched by
+  fields, `is_archived`, `email_bounced_at`). Created/edited via `CustomerDialog`; searched by
   `ilike` on `name` (only `is_archived = false`). A customer needs a name plus
   email or phone before a product may auto-advance to pre-press
   (`customerMeetsPrepressContact` in [src/lib/customer.ts](src/lib/customer.ts)).
+  `email_bounced_at` is set by the `email-webhook` function when a mail to the
+  current address bounces and cleared by a trigger when the address changes;
+  it is a flag in the order header and in `CustomerDialog`, not a gate —
+  `isMissingInfo` does not read it.
 - **Order** — table `orders` (`order_number` from a DB counter, `customer_id`,
   `status`, `deadline`, `delivery` (`PICKUP`|`SHIPPING`), `priority`
   (`NORMAL`|`HIGH`), `payment_method` (`INVOICE`|`CASH`), `billing_note`,

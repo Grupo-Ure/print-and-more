@@ -16,7 +16,7 @@ test.use({ user: TEST_USERS.admin })
 test.describe('in progress, stamp product in pre-press, model in stock', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: STAMP_PRODUCT_IN_PREPRESS_IN_STOCK })
 
-  test('releasing the product to production deducts its quantity from the model stock', async ({ ordersPage, navbar, stampStockPage, product }) => {
+  test('PRD-STK-001 releasing the product to production deducts its quantity from the model stock', async ({ ordersPage, navbar, stampStockPage, product }) => {
     // Setup — the stock the model is left with and its row on the stock page, with the product open.
     const remaining = IN_STOCK_STAMP_MODEL.stock - (IN_STOCK_STAMP_PRODUCT.quantity ?? 0)
     const modelRow = stampStockPage.table.row(IN_STOCK_STAMP_MODEL.id)
@@ -33,7 +33,7 @@ test.describe('in progress, stamp product in pre-press, model in stock', () => {
     await expect(stampStockPage.table.rowStock(modelRow)).toHaveAttribute('data-stock', String(remaining))
   })
 
-  test('marking the product done after the release deducts nothing more', async ({ ordersPage, navbar, stampStockPage, product }) => {
+  test('PRD-STK-002 marking the product done after the release deducts nothing more', async ({ ordersPage, navbar, stampStockPage, product }) => {
     // Setup — the stock the model is left with and its row on the stock page, with the product open.
     const remaining = IN_STOCK_STAMP_MODEL.stock - (IN_STOCK_STAMP_PRODUCT.quantity ?? 0)
     const modelRow = stampStockPage.table.row(IN_STOCK_STAMP_MODEL.id)
@@ -56,7 +56,7 @@ test.describe('in progress, stamp product in pre-press, model in stock', () => {
 test.describe('in progress, textile batch in pre-press, variant in stock', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: TEXTILE_BATCH_IN_PREPRESS_IN_STOCK })
 
-  test("releasing the batch to production deducts its garment line's quantity from the variant stock", async ({ ordersPage, navbar, textileStockPage, product }) => {
+  test("PRD-STK-003 releasing the batch to production deducts its garment line's quantity from the variant stock", async ({ ordersPage, navbar, textileStockPage, product }) => {
     // Setup — the stock the variant is left with and its row on the stock page, with the product open.
     const remaining = IN_STOCK_TEXTILE_CHAIN.variant.stock - TEXTILE_GARMENT_QUANTITY
     const variantRow = textileStockPage.table.row(IN_STOCK_TEXTILE_CHAIN.variant.id)
@@ -73,7 +73,7 @@ test.describe('in progress, textile batch in pre-press, variant in stock', () =>
     await expect(textileStockPage.table.rowStock(variantRow)).toHaveAttribute('data-stock', String(remaining))
   })
 
-  test('marking the batch done after the release deducts nothing more', async ({ ordersPage, navbar, textileStockPage, product }) => {
+  test('PRD-STK-004 marking the batch done after the release deducts nothing more', async ({ ordersPage, navbar, textileStockPage, product }) => {
     // Setup — the stock the variant is left with and its row on the stock page, with the product open.
     const remaining = IN_STOCK_TEXTILE_CHAIN.variant.stock - TEXTILE_GARMENT_QUANTITY
     const variantRow = textileStockPage.table.row(IN_STOCK_TEXTILE_CHAIN.variant.id)

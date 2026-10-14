@@ -1,8 +1,9 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import type { Database, TablesInsert } from '../../src/types/supabase'
+import type { Database, Json, TablesInsert } from '../../src/types/supabase'
 import type { DefaultAssigneeStatus } from '../../src/types/database'
 import type { ChildTable } from '../../src/types/product'
 import type { TestCustomer } from '../fixtures/customers'
+import type { EmailSettingPatch, EmailSettingSeed, QueuedEmailSeed, SentEmailSeed } from '../fixtures/emailMessages'
 import type { TestUser } from '../fixtures/users'
 
 type OrderInsert = Database['public']['Tables']['orders']['Insert']
@@ -12,6 +13,37 @@ type OrderStatus = Database['public']['Enums']['order_status']
 type DeliveryType = Database['public']['Enums']['delivery_type']
 type PaymentMethod = Database['public']['Enums']['payment_method']
 type ProductStatus = Database['public']['Enums']['product_status']
+type HistoryEvent = Database['public']['Enums']['history_event']
+
+/** One row of list_queued_emails: a message still on the queue for an order. */
+export type QueuedEmailRow = Database['public']['Functions']['list_queued_emails']['Returns'][number]
+
+const MS_PER_DAY = 86_400_000
+
+/**
+ * How many whole days the message was queued to wait: from when it was queued
+ * to when it is due. Rounded, as pgmq stamps the two a moment apart.
+ */
+export function queuedDelayDays(row: QueuedEmailRow): number {
+  return Math.round((Date.parse(row.due_at) - Date.parse(row.queued_at)) / MS_PER_DAY)
+}
+
+/** One sent record, as much of it as a spec looks at. */
+export type SentEmailRow = Pick<Database['public']['Tables']['sent_emails']['Row'], 'id' | 'provider_id' | 'recipient' | 'subject'>
+
+/** What the provider has reported of a sent mail, as the record holds it. */
+export type SentEmailDelivery = Pick<
+  Database['public']['Tables']['sent_emails']['Row'],
+  'delivered_at' | 'bounced_at' | 'bounce_reason' | 'complained_at'
+>
+
+/** What a spec gets to know about the sent record the fixture inserted for it. */
+export type TestSentEmail = {
+  id: string
+  /** The id the provider would have assigned the mail — what a delivery report names it by. */
+  providerId: string
+  orderId: string
+}
 
 /** The columns a fixture chooses for an order it inserts; everything else takes the table's defaults. */
 export type OrderSeedRow = {
@@ -99,7 +131,7 @@ export type TestProduct = {
   department: Department
 }
 
-function requiredEnv(name: string): string {
+export function requiredEnv(name: string): string {
   const value = process.env[name]
   if (!value) {
     throw new Error(
@@ -240,6 +272,19 @@ export class TestDatabase {
       .single()
     if (error) throw error
     return { ...customer, id: data.id }
+  }
+
+  /** When a mail to the customer's current address last bounced; null while none has. */
+  async customerEmailBouncedAt(customerId: string): Promise<string | null> {
+    const { data, error } = await this.client.from('customers').select('email_bounced_at').eq('id', customerId).single()
+    if (error) throw error
+    return data.email_bounced_at
+  }
+
+  /** Changes the customer's email address, as saving the customer dialog with another one would. */
+  async updateCustomerEmail(customerId: string, email: string): Promise<void> {
+    const { error } = await this.client.from('customers').update({ email }).eq('id', customerId)
+    if (error) throw error
   }
 
   /** Deletes the customer with every order it has (see `removeCustomers`). */
@@ -392,5 +437,142 @@ export class TestDatabase {
     }
 
     return { id: data.id, productNumber: data.product_number, orderId, department: seed.department }
+  }
+
+  // ── Emails ───────────────────────────────────────────────────────────────
+
+  /** Queues a message for the order through queue_email, as a trigger would. Returns the queue message id. */
+  async queueEmail(orderId: string, seed: QueuedEmailSeed): Promise<number> {
+    const msgId = await this.tryQueueEmail(orderId, seed)
+    if (msgId === null) throw new Error(`queue_email queued nothing for ${seed.template} — is the template disabled?`)
+    return msgId
+  }
+
+  /** The same call, returning null where queue_email queued nothing (the template is switched off). */
+  async tryQueueEmail(orderId: string, seed: QueuedEmailSeed): Promise<number | null> {
+    const { data, error } = await this.client.rpc('queue_email', {
+      template: seed.template,
+      order_id: orderId,
+      product_id: undefined,
+      // A seed's context is plain JSON data; the generated type wants it spelled as Json.
+      context: seed.context as Json,
+      // Left out when null, so queue_email takes the template's delay from Settings.
+      delay_seconds: seed.delaySeconds ?? undefined,
+    })
+    if (error) throw error
+    return data
+  }
+
+  /** The messages still on the queue for the order — waiting, or claimed and due to come back. */
+  async queuedEmails(orderId: string): Promise<QueuedEmailRow[]> {
+    const { data, error } = await this.client.rpc('list_queued_emails', { order_id: orderId })
+    if (error) throw error
+    return data
+  }
+
+  /** Makes the message due now, in place of waiting out its delay or its visibility timeout. */
+  async makeEmailDue(msgId: number): Promise<void> {
+    const { error } = await this.client.rpc('reschedule_email', { msg_id: msgId, delay_seconds: 0 })
+    if (error) throw error
+  }
+
+  /** Makes every message still on the queue for the order due now — a repeat the sender queued, for one. */
+  async makeQueuedEmailsDue(orderId: string): Promise<void> {
+    const queued = await this.queuedEmails(orderId)
+    await Promise.all(queued.map(row => this.makeEmailDue(row.msg_id)))
+  }
+
+  /** Takes the message off the queue whether or not it was sent; nothing happens when it is gone already. */
+  async archiveEmail(msgId: number): Promise<void> {
+    const { error } = await this.client.rpc('archive_email', { msg_id: msgId })
+    if (error) throw error
+  }
+
+  /** Takes every message still on the queue for the order off it — the one a test queued and any repeat the sender added. */
+  async archiveQueuedEmails(orderId: string): Promise<void> {
+    const queued = await this.queuedEmails(orderId)
+    await Promise.all(queued.map(row => this.archiveEmail(row.msg_id)))
+  }
+
+  /** Writes the template's row in Settings → Emails, replacing whatever it held. */
+  async upsertEmailSetting(seed: EmailSettingSeed): Promise<void> {
+    const { error } = await this.client.from('email_settings').upsert(seed)
+    if (error) throw error
+  }
+
+  /** Changes switches on the template's row. */
+  async updateEmailSetting(template: string, patch: EmailSettingPatch): Promise<void> {
+    const { error } = await this.client.from('email_settings').update(patch).eq('template', template)
+    if (error) throw error
+  }
+
+  /** Deletes the template's row: the template is enabled and immediate again. Nothing happens when there is none. */
+  async removeEmailSetting(template: string): Promise<void> {
+    const { error } = await this.client.from('email_settings').delete().eq('template', template)
+    if (error) throw error
+  }
+
+  /**
+   * Inserts a sent record for the order as the sender writes one after the
+   * provider accepted the mail — with a fresh provider id in place of
+   * Resend's, and a queue message id below zero, outside pgmq's range, so it
+   * cannot collide with a message the sender records. Removed with the order
+   * by cascade.
+   */
+  async createSentEmail(orderId: string, seed: SentEmailSeed): Promise<TestSentEmail> {
+    const providerId = crypto.randomUUID()
+    const { data, error } = await this.client
+      .from('sent_emails')
+      .insert({
+        order_id: orderId,
+        queue_msg_id: -(Date.now() * 1000 + Math.floor(Math.random() * 1000)),
+        provider_id: providerId,
+        ...seed,
+      })
+      .select('id')
+      .single()
+    if (error) throw error
+    return { id: data.id, providerId, orderId }
+  }
+
+  /** What the provider has reported of the sent mail so far. */
+  async sentEmailDelivery(sentEmailId: string): Promise<SentEmailDelivery> {
+    const { data, error } = await this.client
+      .from('sent_emails')
+      .select('delivered_at, bounced_at, bounce_reason, complained_at')
+      .eq('id', sentEmailId)
+      .single()
+    if (error) throw error
+    return data
+  }
+
+  /** The sent records of the order. */
+  async sentEmails(orderId: string): Promise<SentEmailRow[]> {
+    const { data, error } = await this.client
+      .from('sent_emails')
+      .select('id, provider_id, recipient, subject')
+      .eq('order_id', orderId)
+    if (error) throw error
+    return data
+  }
+
+  /** How many history entries of that event the order has. */
+  async historyCount(orderId: string, eventType: HistoryEvent): Promise<number> {
+    const { count, error } = await this.client
+      .from('history')
+      .select('id', { count: 'exact', head: true })
+      .eq('order_id', orderId)
+      .eq('event_type', eventType)
+    if (error) throw error
+    return count ?? 0
+  }
+
+  /** The access token of one of the suite's logins — a user's session, as the app would present it. */
+  async accessTokenOf(user: TestUser): Promise<string> {
+    const client = await this.asUser(user)
+    const { data, error } = await client.auth.getSession()
+    if (error) throw error
+    if (!data.session) throw new Error(`No session for ${user.email} after signing in`)
+    return data.session.access_token
   }
 }

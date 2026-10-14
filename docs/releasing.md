@@ -30,10 +30,15 @@ that choice decides where a change's notes appear.
 5. `npm run release:tag` — tags the commit and pushes the tag. Refuses if
    you're not on `main`, `main` isn't in sync with `origin/main`, or the tag
    already exists.
-6. Wait for CI: the `checks` job runs, then `release` creates one **draft**
-   GitHub release for the tag, uploads the Windows installer set into it,
-   and fills its body from the user-facing sections of the PRs merged since
-   the last release of the previous feature line.
+6. Wait for CI: the `checks` job runs; then `deploy` applies the new
+   migrations to the hosted Supabase project (`supabase db push`) and
+   deploys every edge function (`supabase functions deploy`); then `release`
+   creates one **draft** GitHub release for the tag, uploads the Windows
+   installer set into it, and fills its body from the user-facing sections
+   of the PRs merged since the last release of the previous feature line.
+   The schema and the functions are live from this step on, before anyone
+   installs the new version — so a migration must keep the version still
+   installed working.
 7. Open the draft on GitHub: read the notes, fix wording if needed, confirm
    the assets are attached (setup and portable `.exe`, the setup's
    `.blockmap`, `latest.yml`).
@@ -47,6 +52,14 @@ that choice decides where a change's notes appear.
 delete or move it. Fix the problem via a normal PR, bump the patch version,
 and tag again with the new version. Delete the dead draft release the failed
 run may have created.
+
+**The deploy job failed.** No release is drafted. `supabase db push` applies
+the tag's migrations one after another, so a failure can leave the hosted
+project holding some of them and not the rest; `supabase migration list`
+(linked) shows which. Fix the migration via a normal PR, bump the patch
+version and tag again — the next run pushes only what is missing. Never edit
+a migration the hosted project already holds, and never push by hand to
+finish the run.
 
 **The notes are wrong or incomplete.** Edit the draft release body by hand
 on GitHub before publishing — the draft is the place to fix wording, not the
@@ -84,8 +97,11 @@ and tag `main` for the corrected release.
 
 ## Where the pieces live
 
-- `.github/workflows/ci.yml` — the `release` job: creates the draft, builds
-  the installer into it, then runs `scripts/release-notes.mjs`.
+- `.github/workflows/ci.yml` — the `deploy` job: pushes the migrations and
+  deploys the edge functions to the hosted Supabase project (secrets
+  `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_ID`, `SUPABASE_DB_PASSWORD`);
+  the `release` job: creates the draft, builds the installer into it, then
+  runs `scripts/release-notes.mjs`.
 - `scripts/tag-release.mjs` — tags and pushes (`npm run release:tag`);
   enforces the merge-then-tag-on-main order.
 - `scripts/release-notes.mjs` — assembles and writes the draft release body

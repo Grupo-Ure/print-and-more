@@ -4,7 +4,7 @@ import { OTHER_PRODUCT_FORM } from '../../fixtures/products'
 // The copy is a second order for the same customer; the `customer` fixture
 // removes it with the original, so no test here needs a cleanup stage.
 
-test('duplicating the order opens the copy as a new quote, selected in the list', async ({ ordersPage, order, product }) => {
+test('ORD-DUP-001 duplicating the order opens the copy as a new quote, selected in the list', async ({ ordersPage, order, product }) => {
   // Setup — the original's row; the `product` fixture put one product in it.
   const row = ordersPage.sidebar.row(product.orderId)
 
@@ -18,7 +18,7 @@ test('duplicating the order opens the copy as a new quote, selected in the list'
   await expect(ordersPage.sidebar.selectedRow).not.toHaveAttribute('data-order-id', order.id)
 })
 
-test('duplicating the order carries its product and spec into the copy', async ({ ordersPage, order, product }) => {
+test('ORD-DUP-002 duplicating the order carries its product and spec into the copy', async ({ ordersPage, order, product }) => {
   // Setup — the original's row and the copy's product list.
   const row = ordersPage.sidebar.row(product.orderId)
   const { productList, productDetail } = ordersPage.details
@@ -35,7 +35,7 @@ test('duplicating the order carries its product and spec into the copy', async (
   await expect(productDetail.basicInfo.field('description')).toHaveValue(OTHER_PRODUCT_FORM.description)
 })
 
-test('deselecting every product leaves the duplicate unsubmittable', async ({ ordersPage, product }) => {
+test('ORD-DUP-003 deselecting every product leaves the duplicate unsubmittable', async ({ ordersPage, product }) => {
   // Setup — the original's row; it holds the one product the `product` fixture inserted.
   const row = ordersPage.sidebar.row(product.orderId)
 

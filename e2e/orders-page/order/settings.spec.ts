@@ -1,6 +1,6 @@
 import { expect, test, nextOrderDeadline } from '../../fixtures/orders'
 
-test('picking a date in the deadline calendar sets it as the order deadline', async ({ ordersPage, order }) => {
+test('ORD-SET-001 picking a date in the deadline calendar sets it as the order deadline', async ({ ordersPage, order }) => {
   // Setup — a date the picker accepts, with the order open.
   const deadline = nextOrderDeadline()
   const picker = ordersPage.details.deadline

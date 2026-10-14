@@ -12,7 +12,7 @@ test.describe('as admin', () => {
   test.describe('with a product in pre-press', () => {
     test.use({ productSeed: PRODUCT_IN_PREPRESS })
 
-    test('opening the production page lists the product', async ({ productionPage, product }) => {
+    test('PRN-FEED-001 opening the production page lists the product', async ({ productionPage, product }) => {
       // Act — switch to the production page, widened to everyone's products.
       await productionPage.openForEveryone()
 
@@ -20,7 +20,7 @@ test.describe('as admin', () => {
       await expect(productionPage.sidebar.row(product.id)).toBeVisible()
     })
 
-    test('selecting a product in the feed shows its detail beside the feed', async ({ productionPage, product }) => {
+    test('PRN-FEED-002 selecting a product in the feed shows its detail beside the feed', async ({ productionPage, product }) => {
       // Setup — the feed is open, widened to everyone's products.
       await productionPage.openForEveryone()
 
@@ -32,7 +32,7 @@ test.describe('as admin', () => {
       await expect(productionPage.productDetail.forProduct(product.id)).toBeVisible()
     })
 
-    test("the panel above the detail names the product's order", async ({ productionPage, order, product }) => {
+    test("PRN-FEED-003 the panel above the detail names the product's order", async ({ productionPage, order, product }) => {
       // Setup — the product is selected on the production page.
       await productionPage.openProduct(product.id)
 
@@ -40,7 +40,7 @@ test.describe('as admin', () => {
       await expect(productionPage.orderNumber).toHaveText(order.orderNumber)
     })
 
-    test('opening a product in the orders view from its panel switches to that view', async ({ productionPage, ordersPage, product }) => {
+    test('PRN-FEED-004 opening a product in the orders view from its panel switches to that view', async ({ productionPage, ordersPage, product }) => {
       // Setup — the product is selected on the production page.
       await productionPage.openProduct(product.id)
 
@@ -51,7 +51,7 @@ test.describe('as admin', () => {
       await expect(ordersPage.details.productDetail.forProduct(product.id)).toBeVisible()
     })
 
-    test('releasing the product to production from the feed keeps it listed, now in production', async ({ productionPage, product }) => {
+    test('PRN-FEED-005 releasing the product to production from the feed keeps it listed, now in production', async ({ productionPage, product }) => {
       // Setup — the product is selected on the production page.
       await productionPage.openProduct(product.id)
 
@@ -67,7 +67,7 @@ test.describe('as admin', () => {
   test.describe('with a product in production', () => {
     test.use({ productSeed: PRODUCT_IN_PRODUCTION })
 
-    test('opening the production page lists the product', async ({ productionPage, product }) => {
+    test('PRN-FEED-006 opening the production page lists the product', async ({ productionPage, product }) => {
       // Act — switch to the production page, widened to everyone's products.
       await productionPage.openForEveryone()
 
@@ -82,7 +82,7 @@ test.describe('as admin, order without a deadline', () => {
   // it in setup — before the two stages the feed covers.
   test.use({ user: TEST_USERS.admin, orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, productSeed: OTHER_PRODUCT })
 
-  test('opening the production page leaves a product still in setup out', async ({ productionPage, product }) => {
+  test('PRN-FEED-007 opening the production page leaves a product still in setup out', async ({ productionPage, product }) => {
     // Act — switch to the production page, widened to everyone's products.
     await productionPage.openForEveryone()
 
@@ -95,7 +95,7 @@ test.describe('as admin, order without a deadline', () => {
 test.describe('as employee', () => {
   test.use({ user: TEST_USERS.employee, orderSeed: IN_PROGRESS_ORDER, productSeed: PRODUCT_IN_PREPRESS })
 
-  test('widening the assignee filter to everyone lists products assigned to nobody', async ({ productionPage, product }) => {
+  test('PRN-FEED-008 widening the assignee filter to everyone lists products assigned to nobody', async ({ productionPage, product }) => {
     // Setup — the feed is open on its default, the signed-in user's own products.
     await productionPage.open()
 
@@ -107,7 +107,7 @@ test.describe('as employee', () => {
     await expect(productionPage.sidebar.row(product.id)).toBeVisible()
   })
 
-  test('opening the assignee filter leaves a developer account out of the list', async ({ productionPage, database, developer }) => {
+  test('PRN-FEED-009 opening the assignee filter leaves a developer account out of the list', async ({ productionPage, database, developer }) => {
     // Setup — the `developer` fixture flagged the admin; the feed is open.
     const employeeId = await database.userId(TEST_USERS.employee)
     await productionPage.open()

@@ -4,8 +4,12 @@ import { defineConfig } from '@playwright/test'
 // The runner provisions test data against the same Supabase the build was
 // made for, so it reads the same .env (VITE_SUPABASE_URL plus the runner-only
 // SUPABASE_SERVICE_ROLE_KEY). Variables already in the environment win — CI
-// exports them from its local instance and has no .env.
+// exports them from its local instance and has no .env. The edge functions'
+// own variables are read as well, for the one the suite shares with a
+// function: RESEND_WEBHOOK_SECRET, which email-webhook verifies against and
+// the runner signs its test reports with.
 if (fs.existsSync('.env')) process.loadEnvFile('.env')
+if (fs.existsSync('supabase/functions/.env')) process.loadEnvFile('supabase/functions/.env')
 
 // E2E tests drive the built Electron app (dist/ + dist-electron/), never the
 // Vite dev server — `npm run test:e2e` builds first. The browser projects

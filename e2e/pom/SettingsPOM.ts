@@ -1,13 +1,14 @@
 import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
 import { DepartmentSettingsPOM } from './DepartmentSettingsPOM'
+import { EmailSettingsPOM } from './EmailSettingsPOM'
 import { UserManagementPOM } from './UserManagementPOM'
 import { AccessDeniedPOM } from './AccessDeniedPOM'
 import { NavbarPOM } from './NavbarPOM'
 import { BasePOM } from './BasePOM'
 
 /** Mirrors `SettingsSection` in src/pages/SettingsPage.tsx (a .tsx module the e2e tsconfig can't import). */
-export type SettingsSection = 'userManagement' | 'departments'
+export type SettingsSection = 'userManagement' | 'departments' | 'emails'
 
 const IDS = TEST_IDS.settings
 
@@ -19,6 +20,7 @@ export class SettingsPOM extends BasePOM {
   readonly root: Locator
   readonly userManagement: UserManagementPOM
   readonly departments: DepartmentSettingsPOM
+  readonly emails: EmailSettingsPOM
   readonly accessDenied: AccessDeniedPOM
   private readonly sectionLinks: Locator
   private readonly navbar: NavbarPOM
@@ -29,6 +31,7 @@ export class SettingsPOM extends BasePOM {
     this.sectionLinks = this.root.getByTestId(IDS.sectionLink)
     this.userManagement = new UserManagementPOM(page)
     this.departments = new DepartmentSettingsPOM(page)
+    this.emails = new EmailSettingsPOM(page)
     this.accessDenied = new AccessDeniedPOM(page)
     this.navbar = new NavbarPOM(page)
   }
@@ -57,7 +60,17 @@ export class SettingsPOM extends BasePOM {
   async openSection(section: SettingsSection): Promise<void> {
     await this.open()
     await this.sectionLink(section).click()
-    const sectionRoot = section === 'userManagement' ? this.userManagement.root : this.departments.root
-    await sectionRoot.waitFor()
+    await this.sectionRoot(section).waitFor()
+  }
+
+  private sectionRoot(section: SettingsSection): Locator {
+    switch (section) {
+      case 'userManagement':
+        return this.userManagement.root
+      case 'departments':
+        return this.departments.root
+      case 'emails':
+        return this.emails.root
+    }
   }
 }

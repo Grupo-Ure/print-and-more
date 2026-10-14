@@ -8,7 +8,7 @@ test.describe('signed out', () => {
   // The login itself is the behaviour under test here, so this test spells
   // out the steps instead of using the sign-in helper every other test
   // relies on through the `page` fixture.
-  test('signing in with email and password shows the user in the navbar', async ({ login, navbar }) => {
+  test('AUTH-LOGIN-001 signing in with email and password shows the user in the navbar', async ({ login, navbar }) => {
     // Setup — the account to sign in with.
     const user = TEST_USERS.employee
 
@@ -25,7 +25,7 @@ test.describe('signed out', () => {
 test.describe('as employee', () => {
   test.use({ user: TEST_USERS.employee })
 
-  test('signing in renders exactly the navigation links of the role', async ({ navbar }) => {
+  test('AUTH-LOGIN-002 signing in renders exactly the navigation links of the role', async ({ navbar }) => {
     // Setup — the views this role is allowed to see; the fixture has already signed in as this user.
     const allowed = new Set(NAVBAR_VIEWS_BY_ROLE[TEST_USERS.employee.role])
 
@@ -37,7 +37,7 @@ test.describe('as employee', () => {
 test.describe('as admin', () => {
   test.use({ user: TEST_USERS.admin })
 
-  test('signing in renders exactly the navigation links of the role', async ({ navbar }) => {
+  test('AUTH-LOGIN-003 signing in renders exactly the navigation links of the role', async ({ navbar }) => {
     // Setup — the views this role is allowed to see; the fixture has already signed in as this user.
     const allowed = new Set(NAVBAR_VIEWS_BY_ROLE[TEST_USERS.admin.role])
 

@@ -32,8 +32,10 @@ import './WorkArea.css'
 import { Button } from './ui/button'
 import { cn } from '@/lib/utils'
 import { ORDER_STATUS_META } from '../lib/statusLabels'
-import { Archive, Ban, CheckCircle2, Clock, Copy, History, Package, Settings, ShieldCheck, TriangleAlert } from 'lucide-react'
+import { Archive, Ban, CheckCircle2, Clock, Copy, History, Mail, Package, Settings, ShieldCheck, TriangleAlert } from 'lucide-react'
 import { OrderHistory } from './OrderHistory'
+import { OrderEmails } from './OrderEmails'
+import { EmailBouncedFlag } from './Flags'
 import { Separator } from './ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import { DeadlinePicker } from './fields/DeadlinePicker'
@@ -46,7 +48,7 @@ const HEADER_IDS = TEST_IDS.orders.details.header
 const SETTINGS_IDS = TEST_IDS.orders.details.settings
 const TAB_IDS = TEST_IDS.orders.details.tabs
 
-type OrderTab = 'products' | 'history'
+type OrderTab = 'products' | 'history' | 'emails'
 
 /** Copies a value to the clipboard and reports the outcome as a toast. */
 function useCopyToClipboard() {
@@ -399,6 +401,10 @@ export function OrderDetails() {
             <History />
             History
           </TabsTrigger>
+          <TabsTrigger value="emails" data-testid={TAB_IDS.emails} className="px-3 text-base">
+            <Mail />
+            Emails
+          </TabsTrigger>
         </TabsList>
 
         <Separator />
@@ -440,6 +446,10 @@ export function OrderDetails() {
         <TabsContent value="history" className="min-h-0">
           <OrderHistory orderId={order.id} />
         </TabsContent>
+
+        <TabsContent value="emails" className="min-h-0">
+          <OrderEmails orderId={order.id} />
+        </TabsContent>
       </Tabs>
     </main>
   )
@@ -466,6 +476,7 @@ type OrderHeaderProps = {
 function OrderHeader({ order, hasProducts, allProductsDone, onEditCustomer, onArchive, onCancelOrder, onStartProcessing, onMarkFinished, onMarkInvoiced, onReopenOrder, archivePending, cancelPending, statusPending }: OrderHeaderProps) {
   const customerDisplayName = order.customers?.name?.trim() || '—'
   const customerEmail = order.customers?.email?.trim() || ''
+  const customerEmailBouncedAt = order.customers?.email_bounced_at ?? null
   const customerPhone = order.customers?.phone?.trim() || ''
   const customerAddress = formatCustomerAddress(order.customers)
   const copyToClipboard = useCopyToClipboard()
@@ -498,6 +509,9 @@ function OrderHeader({ order, hasProducts, allProductsDone, onEditCustomer, onAr
                 <p data-testid={HEADER_IDS.customerEmail} title="Email">
                   <span className="font-medium">Email:</span> {customerEmail}
                 </p>
+                {customerEmailBouncedAt && (
+                  <EmailBouncedFlag size={14} testId={HEADER_IDS.emailBounced} bouncedAt={customerEmailBouncedAt} />
+                )}
                 <Button
                   onClick={() => copyToClipboard(customerEmail, 'Email')}
                   title="Copy email"

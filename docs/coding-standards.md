@@ -29,6 +29,7 @@ These are the global coding standards for any project that adopts these guidelin
 - [Module Organization](#module-organization)
 - [Architecture Principles](#architecture-principles)
 - [Database](#database)
+- [Edge Functions](#edge-functions)
 - [Environment Variables](#environment-variables)
 
 ### Quality & Production
@@ -431,7 +432,12 @@ Bulletproof React adapted for Next.js App Router + Supabase.
 | Unique constraints | `table_columns_unique` | `users_email_unique` |
 
 ### Migrations
-- Managed via **Supabase CLI** (`supabase migration new`, `supabase db push`)
+- Managed via **Supabase CLI** (`supabase migration new`; verified locally
+  with `supabase db reset`)
+- **Production receives them from CI**: the `deploy` job in `ci.yml` runs
+  `supabase db push` and `supabase functions deploy` on a release tag (see
+  [releasing.md](releasing.md)). Never `supabase db push` or
+  `supabase functions deploy` against the hosted project by hand.
 - **Commit migrations to source control** — always
 - **Never edit applied migrations** — create a new one instead
 
@@ -440,6 +446,62 @@ Bulletproof React adapted for Next.js App Router + Supabase.
 - **Parameterized queries always** — Supabase client SDK handles this
 - **Service role key** only used server-side (Edge Functions, Server Actions) — never exposed to the client
 - **`anon` key** is safe for the browser — RLS enforces access
+
+---
+
+## Edge Functions
+
+Functions live in `supabase/functions/<name>/`; their npm and jsr dependencies
+are pinned to exact versions in the shared `supabase/functions/deno.json`.
+Function variables for local runs go in `supabase/functions/.env`
+(git-ignored, copied from `.env.example` beside it), which both
+`supabase start` and `supabase functions serve` read.
+
+Every function keeps the gateway's JWT verification and checks the caller
+itself (`manage-users` the user's role, `send-email` that the bearer token is
+the service-role key), with one exception: `email-webhook` is called by the
+mail provider with no Supabase session, so it has `verify_jwt = false` in
+`config.toml` and verifies the report's Svix signature against
+`RESEND_WEBHOOK_SECRET` instead. A new function without a session behind it
+follows that pattern — a signature or a shared secret checked inside the
+function, never an open endpoint.
+
+### Email templates
+
+Every mail the `send-email` function sends is a template under
+`supabase/functions/send-email/templates/`. The system behind them is
+documented in the vault note *Email runtime*; this is the repo-side half of
+its "Adding a mail".
+
+- **One folder per template**, named after it: `subject.hbs`, `html.hbs`,
+  `text.hbs` and an `index.ts` whose default export satisfies `EmailTemplate`
+  (`templates/registry.ts`) — `resolve` (recipient and data from the
+  message's ids, looked up at send time) and, for a delayed mail,
+  `stillNeeded` (absent means always needed).
+- **Register it** in `TEMPLATES` in `templates/registry.ts`. An unregistered
+  folder is never loaded.
+- **The html body is a fragment**, rendered inside the shared `layout.hbs`
+  (shop header and footer). Mail clients need inline styles and table
+  layout; no `<style>` blocks, no external CSS.
+- **Escaping:** values in `html.hbs` are HTML-escaped; `subject.hbs` and
+  `text.hbs` are plain text and are not. The subject is collapsed onto one
+  line.
+- **The wording lives in the `.hbs` files.** No subject or body text in
+  TypeScript.
+- **Templates ship as static files.** `config.toml` lists
+  `./functions/send-email/templates/**/*.hbs` under `[functions.send-email]`
+  `static_files`, so a new folder needs no config change. `render.ts` reads
+  and parses every registered template when the function starts: a missing
+  file or a syntax error stops the function from booting, so it shows on the
+  first call after deploy, before any mail is claimed.
+- **`node:fs` is the first import** of `send-email/index.ts`, as Supabase
+  prescribes for functions that read static files.
+- **A delayed or repeating mail gets an `email_settings` row** in the
+  migration of the feature that owns it, so the shop can switch it off or
+  change its timing in Settings → Emails. Its trigger calls `queue_email`
+  without `delay_seconds`: the delay then comes from that row, and a changed
+  delay reaches every mail queued afterwards. Pass a delay only where it must
+  not follow Settings.
 
 ---
 

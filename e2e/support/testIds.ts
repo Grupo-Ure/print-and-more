@@ -138,6 +138,8 @@ export const TEST_IDS = {
       houseNumber: 'customer-dialog-house-number',
       postalCode: 'customer-dialog-postal-code',
       city: 'customer-dialog-city',
+      /** The notice under the email field while the stored address, which bounced, is still in it. */
+      emailBounced: 'customer-dialog-email-bounced',
       cancel: 'customer-dialog-cancel',
       submit: 'customer-dialog-submit',
     },
@@ -168,6 +170,8 @@ export const TEST_IDS = {
         customerName: 'order-header-customer-name',
         editCustomer: 'order-header-edit-customer',
         customerEmail: 'order-header-customer-email',
+        /** The flag beside the email while a mail to it has bounced (`customers.email_bounced_at`). */
+        emailBounced: 'order-header-email-bounced',
         customerPhone: 'order-header-customer-phone',
         customerAddress: 'order-header-customer-address',
         copyOrderNumber: 'order-header-copy-order-number',
@@ -188,6 +192,7 @@ export const TEST_IDS = {
       tabs: {
         products: 'order-tab-products',
         history: 'order-tab-history',
+        emails: 'order-tab-emails',
       },
       history: {
         root: 'order-history',
@@ -195,6 +200,20 @@ export const TEST_IDS = {
         /** One per entry; `data-event-type` = history_event. */
         item: 'order-history-item',
         empty: 'order-history-empty',
+      },
+      emails: {
+        root: 'order-emails',
+        empty: 'order-emails-empty',
+        /** One per mail waiting on the queue; `data-msg-id` = queue message id. */
+        queuedItem: 'order-emails-queued-item',
+        /** One per mail that went out; `data-sent-email-id` = sent_emails.id. */
+        sentItem: 'order-emails-sent-item',
+        /** Opens the sent mail's body; inside a sent item. */
+        viewSent: 'order-emails-view-sent',
+        /** One per mail given up on; `data-history-id` = the EMAIL_FAILED entry's id. */
+        failedItem: 'order-emails-failed-item',
+        /** The dialog showing a sent mail as it went out. */
+        sentDialog: 'order-emails-sent-dialog',
       },
     },
 
@@ -520,6 +539,21 @@ export const TEST_IDS = {
       rowAssigneeUserOption: 'department-settings-row-assignee-user',
       /** The "Unassigned" option in either combobox's list. */
       rowAssigneeEmptyOption: 'department-settings-row-assignee-unassigned',
+    },
+    emails: {
+      root: 'email-settings',
+      /** Shown instead of the rows while no template has settings. */
+      empty: 'email-settings-empty',
+      /** One per email_settings row; `data-template` = the template's folder name. */
+      row: 'email-settings-row',
+      /** The on/off switch; `data-state` = checked | unchecked (Radix), the stored value. */
+      rowEnabled: 'email-settings-row-enabled',
+      /** Days before the first send; `data-value` = the stored delay_days. */
+      rowDelay: 'email-settings-row-delay',
+      /** Days between repeats; `data-value` = the stored repeat_days, empty while it does not repeat. */
+      rowRepeat: 'email-settings-row-repeat',
+      /** Most sends of one mail; `data-value` = the stored max_sends. */
+      rowMaxSends: 'email-settings-row-max-sends',
     },
   },
 

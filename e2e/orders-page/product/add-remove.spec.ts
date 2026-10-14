@@ -16,7 +16,7 @@ import {
 // button leads to its type's own form and only the save creates the row. OTHER
 // has one product type, so its button starts the draft without a type menu.
 
-test('adding a product through its department form selects it in the list', async ({ ordersPage, order }) => {
+test('PRD-ADD-001 adding a product through its department form selects it in the list', async ({ ordersPage, order }) => {
   // Setup — the number the database assigns to the order's first product of this department, with the order open.
   const productNumber = firstTestProductNumber(order.orderNumber)
   const { productList, productDraft, productDetail } = ordersPage.details
@@ -34,7 +34,7 @@ test('adding a product through its department form selects it in the list', asyn
   await expect(productDetail.title).toContainText(productNumber)
 })
 
-test('the draft product is listed while it is being filled in', async ({ ordersPage, order }) => {
+test('PRD-ADD-002 the draft product is listed while it is being filled in', async ({ ordersPage, order }) => {
   // Setup — the order open, with no product in it yet.
   const { productList } = ordersPage.details
   await ordersPage.openOrder(order.id)
@@ -46,7 +46,7 @@ test('the draft product is listed while it is being filled in', async ({ ordersP
   await expect(productList.draftRow).toHaveAttribute('data-department', TEST_PRODUCT_DEPARTMENT)
 })
 
-test('cancelling the draft product adds nothing to the order', async ({ ordersPage, order }) => {
+test('PRD-ADD-003 cancelling the draft product adds nothing to the order', async ({ ordersPage, order }) => {
   // Setup — the draft open on the department's only product type.
   const { productList, productDraft } = ordersPage.details
   await ordersPage.openOrder(order.id)
@@ -60,7 +60,7 @@ test('cancelling the draft product adds nothing to the order', async ({ ordersPa
   await expect(productList.empty).toBeVisible()
 })
 
-test('a department of several product types offers them before the draft starts', async ({ ordersPage, order }) => {
+test('PRD-ADD-004 a department of several product types offers them before the draft starts', async ({ ordersPage, order }) => {
   // Setup — the order open; CopyShop offers several types, so its button opens a menu.
   const { productList, productDraft } = ordersPage.details
   await ordersPage.openOrder(order.id)
@@ -76,7 +76,7 @@ test('a department of several product types offers them before the draft starts'
 test.describe('in progress, its only product done', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: PRODUCT_DONE })
 
-  test('a draft product does not count as work still open on the order', async ({ ordersPage, order, product }) => {
+  test('PRD-ADD-005 a draft product does not count as work still open on the order', async ({ ordersPage, order, product }) => {
     // Setup — the order open with its done product loaded, so it offers to be marked finished.
     const { productList, productDraft } = ordersPage.details
     await ordersPage.openOrder(order.id)
@@ -93,7 +93,7 @@ test.describe('in progress, its only product done', () => {
   })
 })
 
-test('deleting a product in setup removes it from the order and records the deletion', async ({ ordersPage, product }) => {
+test('PRD-ADD-006 deleting a product in setup removes it from the order and records the deletion', async ({ ordersPage, product }) => {
   // Setup — the product open; the default quote seed holds it in setup.
   await ordersPage.openProduct(product)
 
@@ -110,7 +110,7 @@ test('deleting a product in setup removes it from the order and records the dele
 test.describe('in progress, product in pre-press', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: PRODUCT_IN_PREPRESS })
 
-  test('cancelling a product past setup removes it from the order and records the cancellation', async ({ ordersPage, product }) => {
+  test('PRD-ADD-007 cancelling a product past setup removes it from the order and records the cancellation', async ({ ordersPage, product }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
@@ -124,7 +124,7 @@ test.describe('in progress, product in pre-press', () => {
     await expect(ordersPage.details.history.ofType(PRODUCT_CANCELLED_HISTORY_EVENT)).toHaveCount(1)
   })
 
-  test('cancelling the only product leaves the order in progress', async ({ ordersPage, order, product }) => {
+  test('PRD-ADD-008 cancelling the only product leaves the order in progress', async ({ ordersPage, order, product }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
@@ -149,7 +149,7 @@ test.describe('in progress, one product done and one in pre-press', () => {
   // An array option goes in as a `[value, options]` tuple — see `productSeeds` in fixtures/orders.ts.
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeeds: [[PRODUCT_DONE, PRODUCT_IN_PREPRESS], { scope: 'test' }] })
 
-  test('cancelling the pre-press product finishes the order on its own', async ({ ordersPage, order, products }) => {
+  test('PRD-ADD-009 cancelling the pre-press product finishes the order on its own', async ({ ordersPage, order, products }) => {
     // Setup — the pre-press product open.
     await ordersPage.openProduct(products[1])
 
@@ -171,7 +171,7 @@ test.describe('in progress without a deadline, one product done and one in setup
     productSeeds: [[PRODUCT_DONE, OTHER_PRODUCT], { scope: 'test' }],
   })
 
-  test('deleting the setup product finishes the order on its own', async ({ ordersPage, order, products }) => {
+  test('PRD-ADD-010 deleting the setup product finishes the order on its own', async ({ ordersPage, order, products }) => {
     // Setup — the setup product open.
     await ordersPage.openProduct(products[1])
 

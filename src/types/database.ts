@@ -26,6 +26,8 @@ export type Customer = {
   id: string
   name: string
   email: string | null
+  /** When a mail to the current address last bounced; cleared by the database when the address changes. */
+  email_bounced_at: string | null
   phone: string | null
   note: string | null
   street: string | null

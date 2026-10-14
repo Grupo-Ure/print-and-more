@@ -179,7 +179,7 @@ type OrdersViewFixtures = {
  * needs a reload to show up (in the order list, in the customer search). The
  * session lives in web storage and survives it; wait until the navbar is back.
  */
-async function reloadApp(page: Page, navbar: NavbarPOM): Promise<void> {
+export async function reloadApp(page: Page, navbar: NavbarPOM): Promise<void> {
   await page.reload()
   await navbar.userMenu.trigger.waitFor()
 }

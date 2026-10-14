@@ -12,7 +12,7 @@ import {
 import { PRODUCT_DONE, PRODUCT_IN_PRODUCTION, ONE_PRODUCT_PER_DEPARTMENT, DONE_STATUS, PREPRESS_STATUS } from '../../fixtures/products'
 import { TEST_USERS } from '../../fixtures/users'
 
-test('starting processing a quote moves the order to in progress', async ({ ordersPage, order }) => {
+test('ORD-STA-001 starting processing a quote moves the order to in progress', async ({ ordersPage, order }) => {
   // Setup — the order open.
   await ordersPage.openOrder(order.id)
 
@@ -28,7 +28,7 @@ test.describe('quote with deadline and delivery, one product in every department
   // An array option goes in as a `[value, options]` tuple — see `productSeeds` in fixtures/orders.ts.
   test.use({ orderSeed: COMPLETE_QUOTE_ORDER, productSeeds: [ONE_PRODUCT_PER_DEPARTMENT, { scope: 'test' }] })
 
-  test('starting processing promotes every product to pre-press', async ({ ordersPage, order, products }) => {
+  test('ORD-STA-002 starting processing promotes every product to pre-press', async ({ ordersPage, order, products }) => {
     // Setup — every product expected in pre-press, with the order open and its last product listed.
     const allInPrepress = Object.fromEntries(products.map(product => [product.id, PREPRESS_STATUS]))
     await ordersPage.openOrder(order.id)
@@ -46,7 +46,7 @@ test.describe('quote with deadline and delivery, one product in every department
 test.describe('in progress, the only product in production', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: PRODUCT_IN_PRODUCTION })
 
-  test('marking the last product done finishes the order on its own', async ({ ordersPage, order, product }) => {
+  test('ORD-STA-003 marking the last product done finishes the order on its own', async ({ ordersPage, order, product }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
@@ -64,7 +64,7 @@ test.describe('in progress, one product done and one in production', () => {
   // An array option goes in as a `[value, options]` tuple — see `productSeeds` in fixtures/orders.ts.
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeeds: [[PRODUCT_DONE, PRODUCT_IN_PRODUCTION], { scope: 'test' }] })
 
-  test('the order stays in progress with no lifecycle action while a product is still open', async ({ ordersPage, order, products }) => {
+  test('ORD-STA-004 the order stays in progress with no lifecycle action while a product is still open', async ({ ordersPage, order, products }) => {
     // Setup — the order open with both products listed; the fixture seeded one of them done.
     await ordersPage.openOrder(order.id)
     await ordersPage.details.productList.row(products[1].id).waitFor()
@@ -74,7 +74,7 @@ test.describe('in progress, one product done and one in production', () => {
     await expect(ordersPage.details.lifecycle).toHaveCount(0)
   })
 
-  test('marking the remaining product done finishes the order on its own', async ({ ordersPage, order, products }) => {
+  test('ORD-STA-005 marking the remaining product done finishes the order on its own', async ({ ordersPage, order, products }) => {
     // Setup — the product still in production open.
     await ordersPage.openProduct(products[1])
 
@@ -91,7 +91,7 @@ test.describe('in progress, one product done and one in production', () => {
 test.describe('in progress cash order, the only product in production', () => {
   test.use({ orderSeed: IN_PROGRESS_CASH_ORDER, productSeed: PRODUCT_IN_PRODUCTION })
 
-  test('marking the last product done leaves the cash order in progress, offering to finish and close it', async ({ ordersPage, order, product }) => {
+  test('ORD-STA-006 marking the last product done leaves the cash order in progress, offering to finish and close it', async ({ ordersPage, order, product }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
@@ -111,7 +111,7 @@ test.describe('in progress, every product done', () => {
 
   // The order was seeded with its product already done, so nothing finished it
   // on its own: this is the manual fallback the lifecycle button keeps offering.
-  test('marking the order finished moves it to finished', async ({ ordersPage, order, product }) => {
+  test('ORD-STA-007 marking the order finished moves it to finished', async ({ ordersPage, order, product }) => {
     // Setup — the order open.
     await ordersPage.openOrder(order.id)
 
@@ -128,7 +128,7 @@ test.describe('in progress, every product done', () => {
 test.describe('finished, every product done', () => {
   test.use({ orderSeed: FINISHED_ORDER, productSeed: PRODUCT_DONE })
 
-  test('marking the order as invoiced closes it and keeps it in the order list', async ({ ordersPage, order, product }) => {
+  test('ORD-STA-008 marking the order as invoiced closes it and keeps it in the order list', async ({ ordersPage, order, product }) => {
     // Setup — the order open with its done product loaded (the action is offered only once every product is done).
     await ordersPage.openOrder(order.id)
     await ordersPage.details.productList.row(product.id).waitFor()
@@ -146,7 +146,7 @@ test.describe('finished, every product done', () => {
 test.describe('as admin, finished, every product done', () => {
   test.use({ user: TEST_USERS.admin, orderSeed: FINISHED_ORDER, productSeed: PRODUCT_DONE })
 
-  test('reopening the order moves it back to in progress', async ({ ordersPage, order, product }) => {
+  test('ORD-STA-009 reopening the order moves it back to in progress', async ({ ordersPage, order, product }) => {
     // Setup — the order open with its done product loaded.
     await ordersPage.openOrder(order.id)
     await ordersPage.details.productList.row(product.id).waitFor()
@@ -159,7 +159,7 @@ test.describe('as admin, finished, every product done', () => {
     await expect(ordersPage.details.forOrder(order.id)).toHaveAttribute('data-status', IN_PROGRESS_STATUS)
   })
 
-  test('reopening the order leaves it open, with finishing it again a manual step', async ({ ordersPage, order, product }) => {
+  test('ORD-STA-010 reopening the order leaves it open, with finishing it again a manual step', async ({ ordersPage, order, product }) => {
     // Setup — the order open with its done product loaded.
     await ordersPage.openOrder(order.id)
     await ordersPage.details.productList.row(product.id).waitFor()
@@ -178,7 +178,7 @@ test.describe('as admin, finished, every product done', () => {
 test.describe('in progress cash order, every product done', () => {
   test.use({ orderSeed: IN_PROGRESS_CASH_ORDER, productSeed: PRODUCT_DONE })
 
-  test('finishing the cash order closes it in one step and keeps it in the order list', async ({ ordersPage, order, product }) => {
+  test('ORD-STA-011 finishing the cash order closes it in one step and keeps it in the order list', async ({ ordersPage, order, product }) => {
     // Setup — the order open with its done product loaded (the action is offered only once every product is done).
     await ordersPage.openOrder(order.id)
     await ordersPage.details.productList.row(product.id).waitFor()

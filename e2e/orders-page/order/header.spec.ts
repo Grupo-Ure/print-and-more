@@ -4,7 +4,7 @@ import { FULL_CUSTOMER, FULL_CUSTOMER_ADDRESS } from '../../fixtures/customers'
 test.describe('customer with every contact and address field set', () => {
   test.use({ customerSeed: FULL_CUSTOMER })
 
-  test('the header shows the order number and the customer\'s name, email, phone and address', async ({ ordersPage, order }) => {
+  test('ORD-HDR-001 the header shows the order number and the customer\'s name, email, phone and address', async ({ ordersPage, order }) => {
     // Setup — the header of the order under test.
     const header = ordersPage.details
 
@@ -19,7 +19,7 @@ test.describe('customer with every contact and address field set', () => {
     await expect(header.customerAddress).toContainText(FULL_CUSTOMER_ADDRESS)
   })
 
-  test('the copy button next to the order number puts it on the clipboard', async ({ ordersPage, order, clipboard }) => {
+  test('ORD-HDR-002 the copy button next to the order number puts it on the clipboard', async ({ ordersPage, order, clipboard }) => {
     // Setup — the order open, the clipboard empty.
     await ordersPage.openOrder(order.id)
     await clipboard.clear()
@@ -31,7 +31,7 @@ test.describe('customer with every contact and address field set', () => {
     await expect.poll(() => clipboard.read()).toBe(order.orderNumber)
   })
 
-  test('the copy button next to the email puts it on the clipboard', async ({ ordersPage, order, clipboard }) => {
+  test('ORD-HDR-003 the copy button next to the email puts it on the clipboard', async ({ ordersPage, order, clipboard }) => {
     // Setup — the order open, the clipboard empty.
     await ordersPage.openOrder(order.id)
     await clipboard.clear()
@@ -43,7 +43,7 @@ test.describe('customer with every contact and address field set', () => {
     await expect.poll(() => clipboard.read()).toBe(FULL_CUSTOMER.email)
   })
 
-  test('the copy button next to the phone number puts it on the clipboard', async ({ ordersPage, order, clipboard }) => {
+  test('ORD-HDR-004 the copy button next to the phone number puts it on the clipboard', async ({ ordersPage, order, clipboard }) => {
     // Setup — the order open, the clipboard empty.
     await ordersPage.openOrder(order.id)
     await clipboard.clear()
@@ -55,7 +55,7 @@ test.describe('customer with every contact and address field set', () => {
     await expect.poll(() => clipboard.read()).toBe(FULL_CUSTOMER.phone)
   })
 
-  test('the copy button next to the address puts it on the clipboard', async ({ ordersPage, order, clipboard }) => {
+  test('ORD-HDR-005 the copy button next to the address puts it on the clipboard', async ({ ordersPage, order, clipboard }) => {
     // Setup — the order open, the clipboard empty.
     await ordersPage.openOrder(order.id)
     await clipboard.clear()
