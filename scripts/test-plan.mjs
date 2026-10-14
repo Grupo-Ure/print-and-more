@@ -61,7 +61,9 @@ function parsePlan() {
 
     const asPack = PACK_LINE.exec(body)
     if (asPack) {
-      pack = { file: asPack[2], prefix: asPack[3], depth, line: no, tests: [] }
+      // The link is relative to the plan, as Markdown resolves it; the file is kept repo-relative.
+      const file = path.posix.join(path.posix.dirname(PLAN), asPack[2])
+      pack = { file, prefix: asPack[3], depth, line: no, tests: [] }
       packs.push(pack)
       describes = []
       return
