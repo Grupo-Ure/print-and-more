@@ -6,8 +6,9 @@ because it is listed here, and a test that is written without being listed
 fails `npm run test:plan:check` (run in CI). Change the suite by editing this
 file first; a spec follows the plan, never the other way round.
 
-- A **pack** is one spec file under [e2e/](e2e/) covering one sub-feature:
-  `[file](path) — \`PREFIX\``. The prefix starts every test ID of the pack.
+- A **pack** is one spec file under [e2e/](./) covering one sub-feature:
+  `[file](path) — \`PREFIX\``, the path relative to this file. The prefix
+  starts every test ID of the pack.
 - A bullet in *italics* is a `describe` block — the precondition the tests
   inside it share. A spec test sits inside the same chain of describes.
 - A test bullet is `**<PREFIX>-<NNN>** <title>`, the title being the one the
@@ -16,14 +17,14 @@ file first; a spec follows the plan, never the other way round.
   test leaves its number retired, a reworded test keeps its ID.
 - `npm run test:plan:status` lists what is planned and not yet written.
 
-How a run works is in [e2e/README.md](e2e/README.md); the conventions are in
-[docs/testing/](docs/testing/). The detailed plan behind the orders page is
-[e2e/orders-page-test-plan.md](e2e/orders-page-test-plan.md), and the
+How a run works is in [e2e/README.md](README.md); the conventions are in
+[docs/testing/](../docs/testing/). The detailed plan behind the orders page is
+[e2e/orders-page-test-plan.md](orders-page-test-plan.md), and the
 behaviour the lifecycle packs assert is written out in
-[e2e/order-lifecycle-and-visibility.md](e2e/order-lifecycle-and-visibility.md).
+[e2e/order-lifecycle-and-visibility.md](order-lifecycle-and-visibility.md).
 
 - **Auth**
-  - [auth.spec.ts](e2e/auth/auth.spec.ts) — `AUTH-LOGIN`
+  - [auth.spec.ts](auth/auth.spec.ts) — `AUTH-LOGIN`
     - *signed out*
       - **AUTH-LOGIN-001** signing in with email and password shows the user in the navbar
     - *as employee*
@@ -32,23 +33,23 @@ behaviour the lifecycle packs assert is written out in
       - **AUTH-LOGIN-003** signing in renders exactly the navigation links of the role
 - **Orders page**
   - **Sidebar**
-    - [sidebar.spec.ts](e2e/orders-page/sidebar.spec.ts) — `ORD-SIDE`
+    - [sidebar.spec.ts](orders-page/sidebar.spec.ts) — `ORD-SIDE`
       - **ORD-SIDE-001** selecting a listed order in the sidebar opens its details
   - **Order**
-    - [new-order.spec.ts](e2e/orders-page/order/new-order.spec.ts) — `ORD-NEW`
+    - [new-order.spec.ts](orders-page/order/new-order.spec.ts) — `ORD-NEW`
       - **ORD-NEW-001** creating an order for an existing customer opens it as a quote for that customer
       - **ORD-NEW-002** creating an order with a customer created in the dialog opens it as a quote for that customer
       - **ORD-NEW-003** creating an order pre-fills its deadline one week out
-    - [header.spec.ts](e2e/orders-page/order/header.spec.ts) — `ORD-HDR`
+    - [header.spec.ts](orders-page/order/header.spec.ts) — `ORD-HDR`
       - *customer with every contact and address field set*
         - **ORD-HDR-001** the header shows the order number and the customer's name, email, phone and address
         - **ORD-HDR-002** the copy button next to the order number puts it on the clipboard
         - **ORD-HDR-003** the copy button next to the email puts it on the clipboard
         - **ORD-HDR-004** the copy button next to the phone number puts it on the clipboard
         - **ORD-HDR-005** the copy button next to the address puts it on the clipboard
-    - [settings.spec.ts](e2e/orders-page/order/settings.spec.ts) — `ORD-SET`
+    - [settings.spec.ts](orders-page/order/settings.spec.ts) — `ORD-SET`
       - **ORD-SET-001** picking a date in the deadline calendar sets it as the order deadline
-    - [status.spec.ts](e2e/orders-page/order/status.spec.ts) — `ORD-STA`
+    - [status.spec.ts](orders-page/order/status.spec.ts) — `ORD-STA`
       - **ORD-STA-001** starting processing a quote moves the order to in progress
       - *quote with deadline and delivery, one product in every department*
         - **ORD-STA-002** starting processing promotes every product to pre-press
@@ -68,15 +69,15 @@ behaviour the lifecycle packs assert is written out in
         - **ORD-STA-010** reopening the order leaves it open, with finishing it again a manual step
       - *in progress cash order, every product done*
         - **ORD-STA-011** finishing the cash order closes it in one step and keeps it in the order list
-    - [remove.spec.ts](e2e/orders-page/order/remove.spec.ts) — `ORD-REM`
+    - [remove.spec.ts](orders-page/order/remove.spec.ts) — `ORD-REM`
       - **ORD-REM-001** archiving an order removes it from the order list
       - **ORD-REM-002** cancelling an order removes it from the order list
       - **ORD-REM-003** deleting a quote from its row menu removes it from the order list
-    - [duplicate.spec.ts](e2e/orders-page/order/duplicate.spec.ts) — `ORD-DUP`
+    - [duplicate.spec.ts](orders-page/order/duplicate.spec.ts) — `ORD-DUP`
       - **ORD-DUP-001** duplicating the order opens the copy as a new quote, selected in the list
       - **ORD-DUP-002** duplicating the order carries its product and spec into the copy
       - **ORD-DUP-003** deselecting every product leaves the duplicate unsubmittable
-    - [emails.spec.ts](e2e/orders-page/order/emails.spec.ts) — `ORD-EML`
+    - [emails.spec.ts](orders-page/order/emails.spec.ts) — `ORD-EML`
       - *mail not due for an hour*
         - **ORD-EML-001** opening the emails tab lists the mail as waiting to go
       - **ORD-EML-002** opening the emails tab lists a drained mail as sent
@@ -84,7 +85,7 @@ behaviour the lifecycle packs assert is written out in
       - *message naming an unknown template*
         - **ORD-EML-004** opening the emails tab lists the given-up mail as failed
   - **Product**
-    - [add-remove.spec.ts](e2e/orders-page/product/add-remove.spec.ts) — `PRD-ADD`
+    - [add-remove.spec.ts](orders-page/product/add-remove.spec.ts) — `PRD-ADD`
       - **PRD-ADD-001** adding a product through its department form selects it in the list
       - **PRD-ADD-002** the draft product is listed while it is being filled in
       - **PRD-ADD-003** cancelling the draft product adds nothing to the order
@@ -99,7 +100,7 @@ behaviour the lifecycle packs assert is written out in
         - **PRD-ADD-009** cancelling the pre-press product finishes the order on its own
       - *in progress without a deadline, one product done and one in setup*
         - **PRD-ADD-010** deleting the setup product finishes the order on its own
-    - [basic-info.spec.ts](e2e/orders-page/product/basic-info.spec.ts) — `PRD-INF`
+    - [basic-info.spec.ts](orders-page/product/basic-info.spec.ts) — `PRD-INF`
       - **PRD-INF-001** the product's saved spec is shown read-only, with no way to submit it
       - **PRD-INF-002** editing the description and saving it shows the new value on the closed form
       - **PRD-INF-003** cancelling an edit leaves the saved description in place
@@ -107,7 +108,7 @@ behaviour the lifecycle packs assert is written out in
         - **PRD-INF-004** the released product offers no way to edit its spec
         - **PRD-INF-005** writing the released product's typed spec row as the signed-in user is refused
         - **PRD-INF-006** writing the released product's quantity as the signed-in user is refused
-    - [status.spec.ts](e2e/orders-page/product/status.spec.ts) — `PRD-STA`
+    - [status.spec.ts](orders-page/product/status.spec.ts) — `PRD-STA`
       - *in progress, product without a deadline*
         - **PRD-STA-001** setting the order deadline completes the product and promotes it to pre-press
       - *in progress, LFP product*
@@ -135,7 +136,7 @@ behaviour the lifecycle packs assert is written out in
         - **PRD-STA-013** releasing the product to production records the assignee change in the order history
       - *in progress, product in production, pre-press default set*
         - **PRD-STA-014** sending the product back to pre-press assigns it to the pre-press default
-    - [release-gates.spec.ts](e2e/orders-page/product/release-gates.spec.ts) — `PRD-GAT`
+    - [release-gates.spec.ts](orders-page/product/release-gates.spec.ts) — `PRD-GAT`
       - *in progress, product with no deadline*
         - **PRD-GAT-001** the product is held in setup with the release blocked
       - *in progress, product in pre-press awaiting customer approval*
@@ -147,7 +148,7 @@ behaviour the lifecycle packs assert is written out in
         - **PRD-GAT-005** opening the force release prompt without a reason keeps it unsubmittable
         - **PRD-GAT-006** force releasing the product with a reason moves it to production flagged as missing information
         - **PRD-GAT-007** force releasing the product records an emergency entry in the order history
-    - [stock-deduction.spec.ts](e2e/orders-page/product/stock-deduction.spec.ts) — `PRD-STK`
+    - [stock-deduction.spec.ts](orders-page/product/stock-deduction.spec.ts) — `PRD-STK`
       - *in progress, stamp product in pre-press, model in stock*
         - **PRD-STK-001** releasing the product to production deducts its quantity from the model stock
         - **PRD-STK-002** marking the product done after the release deducts nothing more
@@ -155,7 +156,7 @@ behaviour the lifecycle packs assert is written out in
         - **PRD-STK-003** releasing the batch to production deducts its garment line's quantity from the variant stock
         - **PRD-STK-004** marking the batch done after the release deducts nothing more
 - **Production page**
-  - [feed.spec.ts](e2e/production-page/feed.spec.ts) — `PRN-FEED`
+  - [feed.spec.ts](production-page/feed.spec.ts) — `PRN-FEED`
     - *as admin*
       - *with a product in pre-press*
         - **PRN-FEED-001** opening the production page lists the product
@@ -171,19 +172,19 @@ behaviour the lifecycle packs assert is written out in
       - **PRN-FEED-008** widening the assignee filter to everyone lists products assigned to nobody
       - **PRN-FEED-009** opening the assignee filter leaves a developer account out of the list
 - **Settings page**
-  - [departments.spec.ts](e2e/settings-page/departments.spec.ts) — `SET-DEP`
+  - [departments.spec.ts](settings-page/departments.spec.ts) — `SET-DEP`
     - *pre-press slot empty*
       - **SET-DEP-001** picking a user as the pre-press default stores it on the row
     - *production slot empty*
       - **SET-DEP-002** picking a user as the production default stores it on the row
     - *pre-press slot held by the admin*
       - **SET-DEP-003** choosing unassigned clears the pre-press default from the row
-  - [emails.spec.ts](e2e/settings-page/emails.spec.ts) — `SET-EML`
+  - [emails.spec.ts](settings-page/emails.spec.ts) — `SET-EML`
     - **SET-EML-001** setting a delay makes the next mail queued for it wait that many days
     - **SET-EML-002** switching a mail off makes queuing it queue nothing
 - **Email runtime**
   - **Transport**
-    - [transport.spec.ts](e2e/email-runtime/transport.spec.ts) — `EML-TRN`
+    - [transport.spec.ts](email-runtime/transport.spec.ts) — `EML-TRN`
       - **EML-TRN-001** draining the queue turns the queued message into a sent record and takes it off the queue
       - **EML-TRN-002** draining the queue a second time sends nothing twice
       - *message not due for an hour*
@@ -198,13 +199,13 @@ behaviour the lifecycle packs assert is written out in
         - **EML-TRN-008** a refused send leaves the message on the queue with nothing recorded
         - **EML-TRN-009** the last allowed refusal archives the message with a failure entry on the order
   - **Settings**
-    - [settings.spec.ts](e2e/email-runtime/settings.spec.ts) — `EML-SET`
+    - [settings.spec.ts](email-runtime/settings.spec.ts) — `EML-SET`
       - *test-message repeated once a day, sent twice at most*
         - **EML-SET-001** sending the mail queues its repeat one repeat interval out
         - **EML-SET-002** draining each send as it comes due stops the mail at its maximum
       - **EML-SET-003** draining the queue archives unsent a waiting mail switched off since it was queued
   - **Webhook**
-    - [webhook.spec.ts](e2e/email-runtime/webhook.spec.ts) — `EML-WHK`
+    - [webhook.spec.ts](email-runtime/webhook.spec.ts) — `EML-WHK`
       - **EML-WHK-001** a delivery report marks the sent mail as delivered
       - **EML-WHK-002** a bounce report marks the sent mail as bounced with the provider's reason
       - **EML-WHK-003** a bounce report writes a bounce entry on the order's history
@@ -219,7 +220,7 @@ Areas not yet broken down into tests. When one is, its tests go into the
 tree above as bullets under a pack.
 
 - **Orders page — sidebar search and filters** (cases in
-  [the plan, section 10](e2e/orders-page-test-plan.md)): search (customer
+  [the plan, section 10](orders-page-test-plan.md)): search (customer
   name, substring, case-insensitive; clear; empty state; compact layout
   toggle); status filter (defaults; untick one status; all statuses; none
   ticked; reset); show archived (archived quote hidden / listed; billed order
@@ -228,6 +229,6 @@ tree above as bullets under a pack.
   while a bound is set; reset); assignee filter (one user, unassigned,
   reset); filters across groups (combine as AND; changed-dot on the toggle;
   no persistence; selection survives filtering).
-- **Not yet planned in detail** (from [the plan](e2e/orders-page-test-plan.md)):
+- **Not yet planned in detail** (from [the plan](orders-page-test-plan.md)):
   order settings and product overrides, files, history, time logs, role
   differences, compact layout, stock pages, profile page.
