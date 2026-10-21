@@ -555,6 +555,13 @@ export const TEST_IDS = {
       /** Most sends of one mail; `data-value` = the stored max_sends. */
       rowMaxSends: 'email-settings-row-max-sends',
     },
+    approval: {
+      root: 'approval-settings',
+      /** Days an approval link stays valid; `data-value` = the stored expiry_days. */
+      expiryDays: 'approval-settings-expiry-days',
+      /** Days proof copies are kept after billing; `data-value` = the stored retention_days. */
+      retentionDays: 'approval-settings-retention-days',
+    },
   },
 
   releaseNotesPage: {
