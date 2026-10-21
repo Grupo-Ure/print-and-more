@@ -2,7 +2,7 @@
  * Fixture chain: `@playwright/test` → database → electron → auth → **orders**.
  * Adds the orders view's page object (`ordersPage`) and the per-test data of
  * that view (`customer`, `order`, `product`, `newCustomer`,
- * `departmentDefault`, `developer`).
+ * `departmentDefault`, `developer`, `customerApprovalSettings`).
  *
  * Fixtures only seed data and reload so the app can see it. They never
  * navigate: getting to the order or product under test is the test's own Setup
@@ -14,6 +14,7 @@ import type { DefaultAssigneeStatus, DeliveryChoice, Department, OrderStatus, Pa
 import { test as base } from './auth'
 import { NEW_CUSTOMER, TEST_CUSTOMER, type TestCustomer } from './customers'
 import { OTHER_PRODUCT } from './products'
+import { DEFAULT_CUSTOMER_APPROVAL_SETTINGS, type CustomerApprovalSettingsSeed } from './customerApprovalSettings'
 import { EMPTY_PREPRESS_DEFAULT, type DepartmentDefaultSeed } from './departments'
 import { APPROVAL_FILE } from './files'
 import { IN_STOCK_STAMP_MODEL, OUT_OF_STOCK_STAMP_MODEL } from './stamps'
@@ -169,6 +170,14 @@ type OrdersViewFixtures = {
   developerSeed: TestUser
   /** The id of the login `developerSeed` names, flagged as a developer account before the test and unflagged after it. */
   developer: string
+  /** What `customerApprovalSettings` writes; override per describe block with `test.use({ customerApprovalSettingsSeed })`. */
+  customerApprovalSettingsSeed: CustomerApprovalSettingsSeed
+  /**
+   * The customer approval's settings, as `customerApprovalSettingsSeed`
+   * describes them, written onto the one row before the test and again after
+   * it — so a value a test changed in the app does not reach the next one.
+   */
+  customerApprovalSettings: CustomerApprovalSettingsSeed
 }
 
 // No `expect` in here: fixtures synchronise with `waitFor()`. A timeout then
@@ -212,6 +221,7 @@ export const test = base.extend<OrdersViewFixtures>({
   productSeeds: [[], { option: true }],
   departmentDefaultSeed: [EMPTY_PREPRESS_DEFAULT, { option: true }],
   developerSeed: [ADMIN_AS_DEVELOPER, { option: true }],
+  customerApprovalSettingsSeed: [DEFAULT_CUSTOMER_APPROVAL_SETTINGS, { option: true }],
 
   customer: async ({ page, navbar, database, customerSeed }, use) => {
     const customer = await database.createCustomer(customerSeed)
@@ -283,6 +293,15 @@ export const test = base.extend<OrdersViewFixtures>({
 
     await use(userId)
     await database.setDeveloper(developerSeed, false)
+  },
+
+  customerApprovalSettings: async ({ page, navbar, database, customerApprovalSettingsSeed }, use) => {
+    await database.updateCustomerApprovalSettings(customerApprovalSettingsSeed)
+    // The app caches the settings; reload so the Settings page shows the seed.
+    await reloadApp(page, navbar)
+
+    await use(customerApprovalSettingsSeed)
+    await database.updateCustomerApprovalSettings(customerApprovalSettingsSeed)
   },
 })
 

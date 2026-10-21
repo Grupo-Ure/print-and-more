@@ -3,6 +3,7 @@ import type { Database, Json, TablesInsert } from '../../src/types/supabase'
 import type { DefaultAssigneeStatus } from '../../src/types/database'
 import type { ChildTable } from '../../src/types/product'
 import type { TestCustomer } from '../fixtures/customers'
+import type { CustomerApprovalSettingsSeed } from '../fixtures/customerApprovalSettings'
 import type { EmailSettingPatch, EmailSettingSeed, QueuedEmailSeed, SentEmailSeed } from '../fixtures/emailMessages'
 import type { TestUser } from '../fixtures/users'
 
@@ -230,6 +231,14 @@ export class TestDatabase {
     const { error } = await this.client.from('users').update({ is_developer: isDeveloper }).eq('id', userId)
     if (error) throw error
     return userId
+  }
+
+  // ── Customer approval settings ───────────────────────────────────────────
+
+  /** Writes the customer approval's settings onto the one row, replacing whatever it held. */
+  async updateCustomerApprovalSettings(seed: CustomerApprovalSettingsSeed): Promise<void> {
+    const { error } = await this.client.from('customer_approval_settings').update(seed).eq('id', true)
+    if (error) throw error
   }
 
   // ── Department defaults ──────────────────────────────────────────────────
