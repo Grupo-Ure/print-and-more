@@ -450,6 +450,27 @@ export type Database = {
           },
         ]
       }
+      customer_approval_settings: {
+        Row: {
+          expiry_days: number
+          id: boolean
+          retention_days: number
+          updated_at: string
+        }
+        Insert: {
+          expiry_days?: number
+          id?: boolean
+          retention_days?: number
+          updated_at?: string
+        }
+        Update: {
+          expiry_days?: number
+          id?: boolean
+          retention_days?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           city: string | null
