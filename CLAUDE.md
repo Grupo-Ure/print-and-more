@@ -384,7 +384,10 @@ the default assignee per department) and *Emails* (admins;
 [`EmailSettings`](src/components/settings/EmailSettings.tsx), one row per
 delayed or repeating mail in `email_settings` — on/off, delay, repeat
 interval, most sends; a row is added by the migration of the feature that
-owns the mail); `ProfilePage`. Shared stock UI
+owns the mail) and *Customer approval* (admins;
+[`ApprovalSettings`](src/components/settings/ApprovalSettings.tsx), the
+approval link's validity and how long proofs are kept after billing, from
+`customer_approval_settings`); `ProfilePage`. Shared stock UI
 (booking fields, movement views, reorder list) lives in
 [`src/components/stock/`](src/components/stock/).
 
@@ -512,6 +515,13 @@ cannot hold an order open.
   of that department is handed to when it enters that stage. Readable by
   all, admin-writable; service
   [`departmentSettingsService`](src/services/departmentSettingsService.ts).
+- **Customer approval settings** — table `customer_approval_settings`:
+  exactly **one row** (a boolean primary key held true) with `expiry_days`
+  (how long an approval link stays valid, stamped onto each request) and
+  `retention_days` (how long proof copies are kept after billing), each
+  `NOT NULL` with its default and a check of at least one day. Readable by
+  all, admin-updatable; nobody inserts or deletes. Service
+  [`customerApprovalSettingsService`](src/services/customerApprovalSettingsService.ts).
 - **Blueprint** — `blueprint_*` tables exist in the schema (a separate
   blueprint-copying feature) but nothing in the client uses them yet.
 - **Retired ERP export** — the `erp_exports` table, `orders.is_erp_exported`
