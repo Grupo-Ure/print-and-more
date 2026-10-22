@@ -199,7 +199,9 @@ process, so they are edited as that process changes.
   approval page the approval mail links to (`/approval#<token>`); the
   request and answer shapes are
   `supabase/functions/customer-approval/contract.ts`, which that repository
-  copies. Its e2e suite runs against this repository's local Supabase.
+  mirrors by hand in its `lib/api.ts` — a change here is a change there. Its
+  e2e suite runs against this repository's local Supabase and is what
+  catches the two drifting apart.
 - **Client:** [src/supabase.ts](src/supabase.ts) (`createClient`); generated
   types in [src/types/supabase.ts](src/types/supabase.ts), app-facing aliases
   in [src/types/database.ts](src/types/database.ts).
