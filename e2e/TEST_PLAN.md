@@ -249,6 +249,17 @@ behaviour the lifecycle packs assert is written out in
       - **APR-REQ-016** settling the request is refused
     - *unmailed request*
       - **APR-REQ-017** withdrawing the request queues no mail
+  - [function.spec.ts](customer-approval/function.spec.ts) — `APR-FN`
+    - *waiting product*
+      - **APR-FN-001** reading the request by its token answers its message and files and leaves it pending
+      - **APR-FN-002** downloading the proof through the token streams the copy as an attachment
+      - **APR-FN-003** posting an approval settles the request as approved
+      - **APR-FN-004** posting a request for changes with a note records the note on the request
+      - **APR-FN-005** posting a second decision leaves the first one standing
+    - *withdrawn request*
+      - **APR-FN-006** reading the request by its token answers withdrawn with no file
+      - **APR-FN-007** downloading the proof through the token answers not found
+    - **APR-FN-008** reading a request by an unknown token answers not found
 
 ## Later
 
