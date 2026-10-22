@@ -7,6 +7,7 @@
 // carries only the request id (and, for the request mail, the link's token).
 
 import type { EmailMessage, TemplateDeps } from './registry.ts'
+import { productLabel } from '../../_shared/productLabel.ts'
 
 export interface ApprovalRequestContext {
   request: {
@@ -109,13 +110,6 @@ export async function loadApprovalRequestContext(message: EmailMessage, { db }: 
     order: { id: order.id, order_number: order.order_number },
     customer: { name: customer.name, email: customer.email },
   }
-}
-
-/** The product type as words: TRODAT_PRINTY → "Trodat printy". The app's own labels live in the renderer, out of reach here. */
-export function productLabel(type: string): string {
-  const words = type.toLowerCase().split('_').filter(word => word !== '')
-  if (words.length === 0) return 'product'
-  return words[0].charAt(0).toUpperCase() + words[0].slice(1) + (words.length > 1 ? ' ' + words.slice(1).join(' ') : '')
 }
 
 /** A timestamp as the shop writes dates: day.month.year. */
