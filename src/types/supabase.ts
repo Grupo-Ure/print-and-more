@@ -2700,6 +2700,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      settle_approval_request_by_token: {
+        Args: {
+          decision: Database["public"]["Enums"]["approval_request_status"]
+          ip?: string
+          note?: string
+          token: string
+          user_agent?: string
+        }
+        Returns: string
+      }
       withdraw_approval_request: { Args: { request_id: string }; Returns: undefined }
     }
     Enums: {
