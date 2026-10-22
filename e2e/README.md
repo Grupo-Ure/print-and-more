@@ -21,6 +21,7 @@ playwright test
 │   ├─ fixtures/production.ts      the production page's page object (lists the products seeded above)
 │   ├─ fixtures/stock.ts           the stock pages' page objects
 │   ├─ fixtures/emails.ts          the sender's and the webhook's handles + a message queued and a sent record for the order seeded above
+│   ├─ fixtures/approvals.ts       a customer approval request for the product seeded above
 │   └─ <page>/<feature>/*.spec.ts  one folder per page, subfolders per feature: auth/, orders-page/order/, orders-page/product/, …
 └─ e2e/global-teardown.ts          default() → delete the test logins
 ```
@@ -56,16 +57,21 @@ e2e/
 ├─ settings-page/
 │  ├─ departments.spec.ts         the default assignee per department and stage
 │  └─ emails.spec.ts              a mail's delay and on/off switch, as the next queued mail sees them
-└─ email-runtime/
-   ├─ transport.spec.ts           what one drain of the email queue does: send and record, wait, refuse, give up
-   ├─ settings.spec.ts            what a template's settings change about a drain: the repeat, its maximum, a mail switched off
-   └─ webhook.spec.ts             what the provider's delivery reports do: delivered, bounced (the record, the history, the customer's address), a forged one refused
+├─ email-runtime/
+│  ├─ transport.spec.ts           what one drain of the email queue does: send and record, wait, refuse, give up
+│  ├─ settings.spec.ts            what a template's settings change about a drain: the repeat, its maximum, a mail switched off
+│  └─ webhook.spec.ts             what the provider's delivery reports do: delivered, bounced (the record, the history, the customer's address), a forged one refused
+└─ customer-approval/
+   └─ requests.spec.ts            what asking, settling and withdrawing an approval request do in the database: the round, the product's status, the stock, the history, the mails, and what a waiting product refuses
 ```
 
 Later pages follow the same shape (`stamp-stock-page/`, `textile-stock-page/`,
-`profile-page/`). `email-runtime/` is the one folder that is not a page: the
-email system has no screen of its own yet, and its specs drive the `send-email`
-and `email-webhook` functions directly and read the outcome from the database. A file is never split just because
+`profile-page/`). `email-runtime/` and `customer-approval/` are the two
+folders that are not a page: the email system has no screen of its own, and
+the approval workflow's screens are still to come. Their specs drive the edge
+functions and the database's own functions directly — the `send-email` and
+`email-webhook` functions, the request RPCs as a signed-in session — and read
+the outcome from the database. A file is never split just because
 it has several tests; it is split when it covers two sub-features. Inside a
 file there is no `describe` for the feature — the path already names it — and
 a `describe` block exists only to carry a precondition (`test.use({ … })`)
@@ -86,7 +92,7 @@ lines:
 ```
 @playwright/test → fixtures/database.ts → fixtures/electron.ts → fixtures/auth.ts → fixtures/orders.ts → fixtures/stock.ts
                                                                                                       ↘ fixtures/production.ts
-                                                                                                      ↘ fixtures/emails.ts
+                                                                                                      ↘ fixtures/emails.ts → fixtures/approvals.ts
 ```
 
 A spec imports `test` from the link it needs — `./fixtures/auth` for a
@@ -149,6 +155,8 @@ Nothing here is imported by hand; the runner drives it from the config:
 | `fixtures/stock.ts` | `stampStockPage` / `textileStockPage` page objects, for reading stock after a release |
 | `fixtures/production.ts` | `productionPage` page object; the products it lists come from the `order` / `product` / `products` fixtures of the orders link |
 | `fixtures/emails.ts` | `sendEmail` (the runner's handle on the `send-email` function, one drain per call), `emailWebhook` (its handle on the `email-webhook` function, one signed delivery report per call), `queuedEmail` (a message queued for `order` through `queue_email` as `queuedEmailSeed` describes it; afterwards everything still queued for the order is archived, repeats included), `sentEmail` (a sent record for `order` as `sentEmailSeed` describes it, with a provider id of its own; removed with the order) and `emailSetting` (a template's row in Settings → Emails written over as `emailSettingSeed` describes it — switches, and wording where the seed gives one — and put back as it was afterwards; the row itself comes from the migration that adds the mail) |
+| `fixtures/approvals.ts` | `approvalRequest` (one approval round for `product` over `orderFile`, as `approvalRequestSeed` describes it — open, in which case the product is put into awaiting approval as sending the request would have, or closed; removed with the order) and `approvalMailQueue` (automatic: every mail still queued for `order` is archived after the test, so a request mail or a decision's notice a test left waiting is not claimed by the next drain) |
+| `fixtures/approvalRequests.ts` | The rounds the `approvalRequest` fixture inserts (open and mailed, open and unmailed, withdrawn), the message and the note a spec sends, the request statuses and history events a spec asserts against, and the helpers that mint a request id, build a file copy's storage path, read the token out of a sent request mail and hash it as the database does (data fixture) |
 | `fixtures/emailMessages.ts` | The messages the `queuedEmail` fixture queues (immediate, delayed, delayed by Settings, unknown template, no longer needed, refused by the dry-run transport), the sent record the `sentEmail` fixture inserts, the delivery reports a spec posts (delivered, bounced) and the secret a forged one is signed with, the Settings rows the `emailSetting` fixture writes (immediate, repeating, a subject with a slot for the order, a subject with a slot the data lacks), the wording a spec types into the wording dialog, every mail type the sender knows, and the sender's and the webhook's constants a spec asserts against (data fixture) |
 | `fixtures/customers.ts` | The customers those fixtures use (data fixture) |
 | `fixtures/departments.ts` | The department-default seeds the `departmentDefault` fixture applies: which department and stage, and who holds it (data fixture) |
@@ -159,7 +167,7 @@ Nothing here is imported by hand; the runner drives it from the config:
 | `pom/*POM.ts` | Page objects — every locator a spec uses, one class per view/dialog, composed parent → child |
 | `pom/BasePOM.ts` | Ancestor of every page object: holds the page and the shared helpers (`withAttr()` picks one instance of a repeated element by data attribute) |
 | `support/testIds.ts` | The `TEST_IDS` registry, imported by components (`data-testid`) and page objects alike |
-| `support/database.ts` | `TestDatabase`: the runner's service-role connection (bypasses RLS, exposes `auth.admin`) with the methods that seed and remove users, customers, orders and products, and that queue, reschedule, archive and read back emails, insert a sent record and read what the provider reported of it, and write a template's email settings — raw rows only, no app business logic. `asUser(login)` hands out a second connection signed in as one of the suite's logins, for the rules the database enforces on the app but not on the runner |
+| `support/database.ts` | `TestDatabase`: the runner's service-role connection (bypasses RLS, exposes `auth.admin`) with the methods that seed and remove users, customers, orders and products, insert an approval round and read the rounds, a product's workflow columns, the stock and movements of a stamp model and the order's history entries back, and that queue, reschedule, archive and read back emails, insert a sent record and read what the provider reported of it, and write a template's email settings — raw rows only, no app business logic. `asUser(login)` hands out a second connection signed in as one of the suite's logins, for the rules the database enforces on the app but not on the runner |
 | `support/sendEmail.ts` | `SendEmailFunction`: one drain of the email queue per call, the way the cron makes it (`drain()` with the service-role key, `drainAs(token)` with any other bearer token for the caller check) |
 | `support/emailWebhook.ts` | `EmailWebhookFunction`: one delivery report per call, posted the way Resend posts it — signed with the function's secret (`report()`), or with another one for the signature check (`reportSignedWith(secret, report)`) |
 | `TEST_PLAN.md` | The hand-written plan: which tests exist, by pack, precondition and ID. The source of truth the specs are held to by `scripts/test-plan.mjs` |

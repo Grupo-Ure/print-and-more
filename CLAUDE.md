@@ -517,6 +517,16 @@ cannot hold an order open.
   of that department is handed to when it enters that stage. Readable by
   all, admin-writable; service
   [`departmentSettingsService`](src/services/departmentSettingsService.ts).
+- **Approval requests** — `product_approval_requests` (one row per round of
+  asking the customer to approve a proof: the message, the link's token as a
+  SHA-256, the expiry, the decision and who gave it) and
+  `product_approval_request_files` (the round's files and the path of each
+  copy in the private `approval-proofs` bucket); `products.approved_request_id`
+  names the round an approved product went into production on. Read by every
+  employee, written only through the `create_approval_request`,
+  `settle_approval_request` and `withdraw_approval_request` RPCs. The three
+  mails they cause (`approval-request`, `approval-decided`,
+  `approval-withdrawn`) are templates of the email runtime.
 - **Customer approval settings** — table `customer_approval_settings`:
   exactly **one row** (a boolean primary key held true) with `expiry_days`
   (how long an approval link stays valid, stamped onto each request) and
@@ -606,7 +616,14 @@ product is done.
   any non-billed state; a quote can be deleted outright from the sidebar.
 
 **Product workflow** (`product_status`): `IN_SETUP` → `PREPRESS` →
-`IN_PRODUCTION` → `DONE`. The rules live in one place each:
+`IN_PRODUCTION` → `DONE`, with `AWAITING_APPROVAL` between pre-press and
+production for a product whose customer has been asked to approve a proof:
+only `create_approval_request` moves a product in, only the request closing
+(approved, changes requested, expired, withdrawn — one trigger,
+`fn_approval_request_closed`) moves it out, and while it waits its spec and
+settings are locked by the database. The app does not yet ask for approvals;
+the stream is [.plans/CUSTOMER_APPROVAL.md](.plans/CUSTOMER_APPROVAL.md).
+The rules live in one place each:
 
 - **Completeness** — [src/lib/productShared.ts](src/lib/productShared.ts):
   `isProductComplete` (the effective settings valid, which in practice means
