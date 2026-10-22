@@ -1,9 +1,11 @@
 // The email templates the sender knows, by name.
 //
-// A template is one folder named after it: subject.hbs, html.hbs, text.hbs
-// and an index.ts whose default export satisfies EmailTemplate. Registering
-// it here is what makes render.ts load its files at start-up and the sender
-// accept messages that name it.
+// A template is one folder named after it: html.hbs and text.hbs, the
+// structure that places the wording ({{{body}}}) plus any fixed element, and
+// an index.ts whose default export satisfies EmailTemplate. Its wording —
+// subject and body — is its email_settings row, which the migration adding
+// the mail inserts. Registering it here is what makes render.ts load its
+// files at start-up and the sender accept messages that name it.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import testMessage from './test-message/index.ts'
@@ -21,7 +23,7 @@ export interface TemplateDeps {
   db: SupabaseClient
 }
 
-/** Who the mail goes to and the data its .hbs files render with. */
+/** Who the mail goes to and the data its wording and .hbs files render with. */
 export interface ResolvedEmail {
   recipient: string
   data: Record<string, unknown>

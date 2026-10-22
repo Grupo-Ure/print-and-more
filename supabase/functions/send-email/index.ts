@@ -22,8 +22,15 @@ import 'node:fs'
 import { timingSafeEqual } from 'node:crypto'
 import { Buffer } from 'node:buffer'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import { renderEmail, type RenderedEmail } from './render.ts'
-import { TEMPLATES, isTemplateName, type EmailMessage, type TemplateDeps, type TemplateName } from './templates/registry.ts'
+import { renderEmail, type RenderedEmail, type Wording } from './render.ts'
+import {
+  TEMPLATES,
+  isTemplateName,
+  type EmailMessage,
+  type ResolvedEmail,
+  type TemplateDeps,
+  type TemplateName,
+} from './templates/registry.ts'
 import { createTransport, type SendError, type Transport } from './transport.ts'
 
 /** How long a claimed message stays invisible to other claims; a crashed sender hands it back after this. */
@@ -185,18 +192,18 @@ async function recordSent(
   })
 }
 
-/** A template's row in email_settings (Settings → Emails), as far as the sender reads it. */
-interface TemplateSettings {
+/** A template's row in email_settings (Settings → Emails), as far as the sender reads it: its switches and its wording. */
+interface TemplateSettings extends Wording {
   is_enabled: boolean
   repeat_days: number | null
   max_sends: number
 }
 
-/** The template's settings, or null when it has no row: enabled, sent once. */
+/** The template's settings, or null when it has no row — a mail with no wording, which is given up. */
 async function loadSettings(db: SupabaseClient, template: string): Promise<TemplateSettings | null> {
   const { data, error } = await db
     .from('email_settings')
-    .select('is_enabled, repeat_days, max_sends')
+    .select('is_enabled, repeat_days, max_sends, subject, body')
     .eq('template', template)
     .maybeSingle()
   if (error) throw new Error(`email_settings lookup failed: ${error.message}`)
@@ -210,8 +217,8 @@ async function loadSettings(db: SupabaseClient, template: string): Promise<Templ
  * as 1. Whether the next one is still wanted when it comes due is for the
  * template's stillNeeded to say.
  */
-async function queueRepeat(db: SupabaseClient, message: EmailMessage, settings: TemplateSettings | null): Promise<void> {
-  if (!settings || settings.repeat_days === null) return
+async function queueRepeat(db: SupabaseClient, message: EmailMessage, settings: TemplateSettings): Promise<void> {
+  if (settings.repeat_days === null) return
 
   const sequence = typeof message.context.sequence === 'number' ? message.context.sequence : 1
   if (sequence >= settings.max_sends) return
@@ -287,21 +294,39 @@ async function processMessage(db: SupabaseClient, claimed: ClaimedMessage): Prom
     return 'skipped'
   }
 
+  // A template without a row has no wording to send; the migration that adds
+  // a mail adds its row, so this is a mail added without one.
+  if (!settings) {
+    await writeHistory(db, message, 'EMAIL_FAILED', { reason: 'no_settings_row' })
+    await archive(db, claimed.msg_id)
+    return 'failed'
+  }
+
   if (template.stillNeeded && !(await template.stillNeeded(message, deps))) {
     await archive(db, claimed.msg_id)
     return 'skipped'
   }
 
-  let recipient: string
+  let resolved: ResolvedEmail
+  try {
+    resolved = await template.resolve(message, deps)
+  } catch (error) {
+    // Looking the data up failed; counted like a refusal so a transient cause
+    // gets its retries and a lasting one ends in EMAIL_FAILED.
+    return handleRefusal(db, claimed, message, null, { name: 'resolve_failed', message: errorText(error), statusCode: null })
+  }
+  const { recipient } = resolved
+
   let rendered: RenderedEmail
   try {
-    const resolved = await template.resolve(message, deps)
-    recipient = resolved.recipient
-    rendered = renderEmail(templateName, resolved.data)
+    rendered = renderEmail(templateName, settings, resolved.data)
   } catch (error) {
-    // Looking the data up or rendering it failed; counted like a refusal so a
-    // transient cause gets its retries and a lasting one ends in EMAIL_FAILED.
-    return handleRefusal(db, claimed, message, null, { name: 'resolve_failed', message: errorText(error), statusCode: null })
+    // The wording uses a slot the data has no value for, or does not parse.
+    // Another try renders the same text, so the mail is given up at once.
+    console.error('send-email: wording does not render, giving up', { msgId: claimed.msg_id, error: errorText(error) })
+    await writeHistory(db, message, 'EMAIL_FAILED', { reason: 'render_failed', recipient, error: errorText(error) })
+    await archive(db, claimed.msg_id)
+    return 'failed'
   }
 
   const outcome = await transport.send({
