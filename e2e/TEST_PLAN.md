@@ -223,6 +223,32 @@ behaviour the lifecycle packs assert is written out in
       - **EML-WHK-005** the same bounce report delivered twice writes one history entry
       - **EML-WHK-006** changing the customer's email address clears the bounce flag
       - **EML-WHK-007** a report signed with another secret is refused and marks nothing
+- **Customer approval**
+  - [requests.spec.ts](customer-approval/requests.spec.ts) — `APR-REQ`
+    - *in progress, product in pre-press with a file*
+      - **APR-REQ-001** creating a request records round one as pending with its file
+      - **APR-REQ-002** creating a request moves the product to awaiting approval
+      - **APR-REQ-003** creating a request queues the request mail for the order
+      - **APR-REQ-004** draining the queue after a request sends a mail whose link token finds the request by its hash
+      - **APR-REQ-005** setting the product to awaiting approval directly is refused
+    - *in progress, product in setup with a file*
+      - **APR-REQ-006** creating a request is refused
+    - *waiting product*
+      - **APR-REQ-007** approving the request by hand moves the product into production
+      - **APR-REQ-008** approving the request by hand sends the decided mail to the assignee
+      - **APR-REQ-009** requesting changes by hand returns the product to pre-press with the note in the history entry
+      - **APR-REQ-010** withdrawing the request returns the product to pre-press and queues the withdrawn mail
+      - **APR-REQ-011** moving the product to another status directly is refused
+      - **APR-REQ-012** changing the quantity of the product directly is refused
+      - **APR-REQ-013** changing the deadline of the product directly is refused
+    - *waiting stamp product, model in stock*
+      - **APR-REQ-014** approving the request by hand books the model stock with a movement naming the order
+    - *waiting stamp product, model out of stock*
+      - **APR-REQ-015** approving the request by hand books the shortfall at zero and names it in the history entry
+    - *withdrawn request*
+      - **APR-REQ-016** settling the request is refused
+    - *unmailed request*
+      - **APR-REQ-017** withdrawing the request queues no mail
 
 ## Later
 
