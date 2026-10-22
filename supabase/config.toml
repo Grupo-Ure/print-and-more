@@ -395,6 +395,12 @@ static_files = ["./functions/send-email/templates/**/*.hbs"]
 [functions.email-webhook]
 verify_jwt = false
 
+# The customer's approval page calls this from a browser with no Supabase
+# session, so the gateway's JWT check is off; the link's token is the
+# authentication, checked inside the function against its stored hash.
+[functions.customer-approval]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 55327
