@@ -3,6 +3,9 @@ import {
   DELAYED_TEST_MESSAGE,
   EMAIL_FAILED_HISTORY_EVENT,
   MAX_SEND_ATTEMPTS,
+  MISSING_SLOT_SUBJECT_SETTING,
+  ORDER_SLOT_SUBJECT_SETTING,
+  orderSlotSubject,
   REFUSED_CALLER_STATUS,
   REFUSED_TEST_MESSAGE,
   UNKNOWN_TEMPLATE_MESSAGE,
@@ -120,6 +123,35 @@ test.describe('message the provider refuses', () => {
       await sendEmail.drain()
       await database.makeEmailDue(queuedEmail.msgId)
     }
+
+    // Assert — one failure entry; the message is gone from the queue.
+    expect(await database.historyCount(queuedEmail.orderId, EMAIL_FAILED_HISTORY_EVENT)).toBe(1)
+    expect(await database.queuedEmails(queuedEmail.orderId)).toHaveLength(0)
+  })
+})
+
+// ── Wording ───────────────────────────────────────────────────────────────
+// The `emailSetting` fixture writes the subject onto test-message's row and
+// puts the row back afterwards; it is requested for that side effect.
+
+test.describe('test-message whose subject has a slot for the order', () => {
+  test.use({ emailSettingSeed: ORDER_SLOT_SUBJECT_SETTING })
+
+  test("EML-TRN-010 draining the queue sends the mail with the slot filled from the mail's data", async ({ database, sendEmail, queuedEmail, emailSetting: _orderSlotSubject }) => {
+    // Act
+    await sendEmail.drain()
+
+    // Assert — the subject carries the order's id where the slot stood.
+    expect((await database.sentEmails(queuedEmail.orderId)).map(sent => sent.subject)).toEqual([orderSlotSubject(queuedEmail.orderId)])
+  })
+})
+
+test.describe('test-message whose subject has a slot its data lacks', () => {
+  test.use({ emailSettingSeed: MISSING_SLOT_SUBJECT_SETTING })
+
+  test('EML-TRN-011 draining the queue gives the mail up with a failure entry on the order', async ({ database, sendEmail, queuedEmail, emailSetting: _missingSlotSubject }) => {
+    // Act
+    await sendEmail.drain()
 
     // Assert — one failure entry; the message is gone from the queue.
     expect(await database.historyCount(queuedEmail.orderId, EMAIL_FAILED_HISTORY_EVENT)).toBe(1)

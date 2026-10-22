@@ -182,6 +182,9 @@ behaviour the lifecycle packs assert is written out in
   - [emails.spec.ts](settings-page/emails.spec.ts) — `SET-EML`
     - **SET-EML-001** setting a delay makes the next mail queued for it wait that many days
     - **SET-EML-002** switching a mail off makes queuing it queue nothing
+    - **SET-EML-003** saving a changed subject in the wording dialog makes the next sent mail carry it
+    - **SET-EML-004** saving wording with a placeholder the mail does not offer is refused
+    - **SET-EML-005** opening the emails section lists every mail type, the immediate ones included
   - [approval.spec.ts](settings-page/approval.spec.ts) — `SET-APR`
     - **SET-APR-001** changing the approval expiry shows the new value again after reopening Settings
     - **SET-APR-002** opening Settings lists the customer approval section
@@ -201,6 +204,10 @@ behaviour the lifecycle packs assert is written out in
       - *message the provider refuses*
         - **EML-TRN-008** a refused send leaves the message on the queue with nothing recorded
         - **EML-TRN-009** the last allowed refusal archives the message with a failure entry on the order
+      - *test-message whose subject has a slot for the order*
+        - **EML-TRN-010** draining the queue sends the mail with the slot filled from the mail's data
+      - *test-message whose subject has a slot its data lacks*
+        - **EML-TRN-011** draining the queue gives the mail up with a failure entry on the order
   - **Settings**
     - [settings.spec.ts](email-runtime/settings.spec.ts) — `EML-SET`
       - *test-message repeated once a day, sent twice at most*

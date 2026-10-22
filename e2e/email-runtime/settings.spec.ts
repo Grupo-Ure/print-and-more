@@ -3,7 +3,7 @@ import { REPEATING_TEST_MESSAGE_SETTING, SWITCHED_OFF } from '../fixtures/emailM
 import { queuedDelayDays } from '../support/database'
 
 // What a template's row in Settings → Emails changes about a drain. The
-// `emailSetting` fixture writes test-message's row and deletes it afterwards;
+// `emailSetting` fixture writes test-message's row and puts it back afterwards;
 // `queuedEmail` queues one test-message, due at once. The sender runs with
 // EMAIL_DRY_RUN=true, so nothing leaves.
 
