@@ -8,6 +8,9 @@
 // files at start-up and the sender accept messages that name it.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
+import approvalDecided from './approval-decided/index.ts'
+import approvalRequest from './approval-request/index.ts'
+import approvalWithdrawn from './approval-withdrawn/index.ts'
 import testMessage from './test-message/index.ts'
 
 /** A queue message: the ids a mail is about, plus what cannot be looked up again. */
@@ -38,6 +41,9 @@ export interface EmailTemplate {
 
 export const TEMPLATES = {
   'test-message': testMessage,
+  'approval-request': approvalRequest,
+  'approval-decided': approvalDecided,
+  'approval-withdrawn': approvalWithdrawn,
 } satisfies Record<string, EmailTemplate>
 
 export type TemplateName = keyof typeof TEMPLATES
