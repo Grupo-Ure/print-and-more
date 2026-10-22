@@ -589,24 +589,33 @@ export type Database = {
       }
       email_settings: {
         Row: {
+          body: string
           delay_days: number
           is_enabled: boolean
           max_sends: number
+          placeholders: string[]
           repeat_days: number | null
+          subject: string
           template: string
         }
         Insert: {
+          body: string
           delay_days?: number
           is_enabled?: boolean
           max_sends?: number
+          placeholders?: string[]
           repeat_days?: number | null
+          subject: string
           template: string
         }
         Update: {
+          body?: string
           delay_days?: number
           is_enabled?: boolean
           max_sends?: number
+          placeholders?: string[]
           repeat_days?: number | null
+          subject?: string
           template?: string
         }
         Relationships: []
