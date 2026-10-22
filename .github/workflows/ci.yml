@@ -92,7 +92,8 @@ jobs:
         # throwaway of the right shape (`whsec_` + base64): email-webhook
         # verifies against it, and the e2e runner, which loads this file
         # too, signs its test reports with it. The customer app's origin is a
-        # placeholder: the approval-request mail only writes it into a link.
+        # placeholder: the approval-request mail writes it into a link, and
+        # customer-approval allows it in its CORS headers.
         run: |
           cat > supabase/functions/.env <<'EOF'
           EMAIL_DRY_RUN=true
@@ -126,7 +127,9 @@ jobs:
         # broken template fails the PR here rather than the first send after
         # deploy. The drain finds an empty queue and sends nothing.
         # email-webhook reads its secret when it boots; an unsigned report
-        # is refused with 401, which is what proves it is up.
+        # is refused with 401, which is what proves it is up. customer-approval
+        # reads CUSTOMER_APP_URL when it boots; a token that belongs to no
+        # request answers 404, which is what proves it is up.
         run: |
           curl -sS --fail-with-body -X POST "$VITE_SUPABASE_URL/functions/v1/send-email" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
@@ -136,6 +139,8 @@ jobs:
           status=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$VITE_SUPABASE_URL/functions/v1/email-webhook" \
             -H 'Content-Type: application/json' -d '{}')
           test "$status" = 401 || { echo "email-webhook answered $status instead of 401"; exit 1; }
+          status=$(curl -sS -o /dev/null -w '%{http_code}' "$VITE_SUPABASE_URL/functions/v1/customer-approval?token=0000000000000000000000000000000000000000000000000000000000000000")
+          test "$status" = 404 || { echo "customer-approval answered $status instead of 404"; exit 1; }
 
       - name: Build
         run: npm run build
