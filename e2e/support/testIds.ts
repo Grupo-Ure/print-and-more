@@ -542,10 +542,12 @@ export const TEST_IDS = {
     },
     emails: {
       root: 'email-settings',
-      /** Shown instead of the rows while no template has settings. */
+      /** Shown instead of the rows while no template has a row. */
       empty: 'email-settings-empty',
       /** One per email_settings row; `data-template` = the template's folder name. */
       row: 'email-settings-row',
+      /** Opens the row's wording dialog. */
+      rowEditWording: 'email-settings-row-edit-wording',
       /** The on/off switch; `data-state` = checked | unchecked (Radix), the stored value. */
       rowEnabled: 'email-settings-row-enabled',
       /** Days before the first send; `data-value` = the stored delay_days. */
@@ -554,6 +556,18 @@ export const TEST_IDS = {
       rowRepeat: 'email-settings-row-repeat',
       /** Most sends of one mail; `data-value` = the stored max_sends. */
       rowMaxSends: 'email-settings-row-max-sends',
+      wordingDialog: {
+        /** `data-template` = the mail whose wording is open. */
+        root: 'email-wording-dialog',
+        subject: 'email-wording-dialog-subject',
+        body: 'email-wording-dialog-body',
+        /** One per slot the mail offers; `data-placeholder` = its name. Inserts it at the cursor. */
+        placeholder: 'email-wording-dialog-placeholder',
+        /** Why the wording was refused; shown only then. */
+        error: 'email-wording-dialog-error',
+        cancel: 'email-wording-dialog-cancel',
+        submit: 'email-wording-dialog-submit',
+      },
     },
     approval: {
       root: 'approval-settings',
