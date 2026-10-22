@@ -1261,6 +1261,118 @@ export type Database = {
           },
         ]
       }
+      product_approval_request_files: {
+        Row: {
+          file_id: string
+          purged_at: string | null
+          request_id: string
+          storage_path: string
+        }
+        Insert: {
+          file_id: string
+          purged_at?: string | null
+          request_id: string
+          storage_path: string
+        }
+        Update: {
+          file_id?: string
+          purged_at?: string | null
+          request_id?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_approval_request_files_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_approval_request_files_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "product_approval_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_approval_requests: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          mailed: boolean
+          message: string | null
+          note: string | null
+          product_id: string
+          requested_by: string | null
+          responded_at: string | null
+          responded_ip: string | null
+          responded_user_agent: string | null
+          round: number
+          settled_by: string | null
+          status: Database["public"]["Enums"]["approval_request_status"]
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id: string
+          mailed?: boolean
+          message?: string | null
+          note?: string | null
+          product_id: string
+          requested_by?: string | null
+          responded_at?: string | null
+          responded_ip?: string | null
+          responded_user_agent?: string | null
+          round: number
+          settled_by?: string | null
+          status?: Database["public"]["Enums"]["approval_request_status"]
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          mailed?: boolean
+          message?: string | null
+          note?: string | null
+          product_id?: string
+          requested_by?: string | null
+          responded_at?: string | null
+          responded_ip?: string | null
+          responded_user_agent?: string | null
+          round?: number
+          settled_by?: string | null
+          status?: Database["public"]["Enums"]["approval_request_status"]
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_approval_requests_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_approval_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_approval_requests_settled_by_fkey"
+            columns: ["settled_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_files: {
         Row: {
           created_at: string
@@ -1374,6 +1486,7 @@ export type Database = {
       }
       products: {
         Row: {
+          approved_request_id: string | null
           assignee_id: string | null
           created_at: string
           customer_approval_file_id: string | null
@@ -1394,6 +1507,7 @@ export type Database = {
           type: string
         }
         Insert: {
+          approved_request_id?: string | null
           assignee_id?: string | null
           created_at?: string
           customer_approval_file_id?: string | null
@@ -1414,6 +1528,7 @@ export type Database = {
           type: string
         }
         Update: {
+          approved_request_id?: string | null
           assignee_id?: string | null
           created_at?: string
           customer_approval_file_id?: string | null
@@ -1439,6 +1554,13 @@ export type Database = {
             columns: ["customer_approval_file_id"]
             isOneToOne: false
             referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_approved_request_id_fkey"
+            columns: ["approved_request_id"]
+            isOneToOne: false
+            referencedRelation: "product_approval_requests"
             referencedColumns: ["id"]
           },
           {
@@ -2513,6 +2635,17 @@ export type Database = {
           vt: string
         }[]
       }
+      create_approval_request: {
+        Args: {
+          file_ids: string[]
+          mailed?: boolean
+          message?: string
+          product_id: string
+          request_id: string
+          storage_paths: string[]
+        }
+        Returns: string
+      }
       current_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
@@ -2533,6 +2666,7 @@ export type Database = {
         Args: { dept: Database["public"]["Enums"]["department"] }
         Returns: string
       }
+      fn_production_deductions: { Args: { product_id: string }; Returns: Json }
       list_queued_emails: {
         Args: { order_id: string }
         Returns: {
@@ -2558,8 +2692,18 @@ export type Database = {
         Args: { delay_seconds: number; msg_id: number }
         Returns: boolean
       }
+      settle_approval_request: {
+        Args: {
+          decision: Database["public"]["Enums"]["approval_request_status"]
+          note?: string
+          request_id: string
+        }
+        Returns: undefined
+      }
+      withdraw_approval_request: { Args: { request_id: string }; Returns: undefined }
     }
     Enums: {
+      approval_request_status: "PENDING" | "APPROVED" | "CHANGES_REQUESTED" | "EXPIRED" | "WITHDRAWN"
       delivery_type: "PICKUP" | "SHIPPING"
       department: "LFP" | "COPYSHOP" | "TEXTILE" | "STAMP" | "LASER_ENGRAVING" | "OTHER"
       file_role: "PRODUCTION_FILE" | "PREVIEW" | "CUSTOMER_APPROVAL" | "REFERENCE"
@@ -2597,10 +2741,13 @@ export type Database = {
         | "EMAIL_SENT"
         | "EMAIL_FAILED"
         | "EMAIL_BOUNCED"
+        | "CUSTOMER_APPROVAL_REQUESTED"
+        | "CUSTOMER_APPROVAL_CHANGES_REQUESTED"
+        | "CUSTOMER_APPROVAL_WITHDRAWN"
       order_status: "QUOTE" | "IN_PROGRESS" | "FINISHED" | "BILLED"
       payment_method: "INVOICE" | "CASH"
       priority_type: "NORMAL" | "HIGH"
-      product_status: "IN_SETUP" | "PREPRESS" | "IN_PRODUCTION" | "DONE"
+      product_status: "IN_SETUP" | "PREPRESS" | "AWAITING_APPROVAL" | "IN_PRODUCTION" | "DONE"
       textile_design_type: "TEXT" | "FILE"
       textile_font_class: "SANS_SERIF" | "SERIF" | "ELEGANT" | "PLAYFUL"
       user_role: "EMPLOYEE" | "ADMIN" | "SUPER_ADMIN"
@@ -2724,6 +2871,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      approval_request_status: ["PENDING", "APPROVED", "CHANGES_REQUESTED", "EXPIRED", "WITHDRAWN"],
       delivery_type: ["PICKUP", "SHIPPING"],
       department: ["LFP", "COPYSHOP", "TEXTILE", "STAMP", "LASER_ENGRAVING", "OTHER"],
       file_role: ["PRODUCTION_FILE", "PREVIEW", "CUSTOMER_APPROVAL", "REFERENCE"],
@@ -2761,11 +2909,14 @@ export const Constants = {
         "EMAIL_SENT",
         "EMAIL_FAILED",
         "EMAIL_BOUNCED",
+        "CUSTOMER_APPROVAL_REQUESTED",
+        "CUSTOMER_APPROVAL_CHANGES_REQUESTED",
+        "CUSTOMER_APPROVAL_WITHDRAWN",
       ],
       order_status: ["QUOTE", "IN_PROGRESS", "FINISHED", "BILLED"],
       payment_method: ["INVOICE", "CASH"],
       priority_type: ["NORMAL", "HIGH"],
-      product_status: ["IN_SETUP", "PREPRESS", "IN_PRODUCTION", "DONE"],
+      product_status: ["IN_SETUP", "PREPRESS", "AWAITING_APPROVAL", "IN_PRODUCTION", "DONE"],
       textile_design_type: ["TEXT", "FILE"],
       textile_font_class: ["SANS_SERIF", "SERIF", "ELEGANT", "PLAYFUL"],
       user_role: ["EMPLOYEE", "ADMIN", "SUPER_ADMIN"],
