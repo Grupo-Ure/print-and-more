@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Database, Json, TablesInsert } from '../../src/types/supabase'
 import type { DefaultAssigneeStatus } from '../../src/types/database'
 import type { ChildTable } from '../../src/types/product'
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { addDays } from 'date-fns'
 import type { ApprovalRequestSeed } from '../fixtures/approvalRequests'
 import type { TestCustomer } from '../fixtures/customers'
@@ -144,6 +144,11 @@ export type TestApprovalRequest = {
   productId: string
   orderId: string
   round: number
+  /** The link's token, whose hash the row stores — what the customer's page is handed. */
+  token: string
+  /** The file of the round, and where its copy for the customer's page is stored in the bucket. */
+  fileId: string
+  storagePath: string
 }
 
 /** A product's workflow columns, as much of them as a spec reads back after a refused or an allowed write. */
@@ -157,6 +162,9 @@ export type StockMovementRow = Pick<Database['public']['Tables']['stamp_stock_mo
 
 /** How long a seeded request stays valid — the setting's shipped default. */
 const SEEDED_REQUEST_VALIDITY_DAYS = 14
+
+/** The private bucket the customer's page is served proof copies from. */
+const APPROVAL_PROOFS_BUCKET = 'approval-proofs'
 
 export function requiredEnv(name: string): string {
   const value = process.env[name]
@@ -366,6 +374,20 @@ export class TestDatabase {
 
   /** Deletes the order; products, files and history follow by cascade. The customer stays. */
   async removeOrder(orderId: string): Promise<void> {
+    // The order's approval rounds go first. Deleting the order cascades to its
+    // files and, through its products, to the rounds' file links — but the
+    // link's FK onto files has no cascade, and Postgres checks it as soon as
+    // the files cascade runs, before the longer branch has removed the link.
+    const { data: products, error: productsError } = await this.client.from('products').select('id').eq('order_id', orderId)
+    if (productsError) throw productsError
+    if (products.length > 0) {
+      const { error: requestsError } = await this.client
+        .from('product_approval_requests')
+        .delete()
+        .in('product_id', products.map(product => product.id))
+      if (requestsError) throw requestsError
+    }
+
     const { error } = await this.client.from('orders').delete().eq('id', orderId)
     if (error) throw error
   }
@@ -497,9 +519,10 @@ export class TestDatabase {
 
   /**
    * Inserts one approval round for the product over the file, as the request
-   * RPC would have left it: the request row with a token hash of its own, the
-   * file row with the copy's path, and — for a pending round — the product in
-   * awaiting approval. Nothing is queued and nothing is stored in the bucket.
+   * RPC would have left it: the request row with the hash of a fresh token,
+   * the file row with the copy's path, and — for a pending round — the product
+   * in awaiting approval. The raw token is returned, as the request mail would
+   * have carried it. Nothing is queued and nothing is stored in the bucket.
    * Removed with the order by cascade.
    */
   async createApprovalRequest(
@@ -518,13 +541,15 @@ export class TestDatabase {
       .maybeSingle()
     if (roundError) throw roundError
     const round = (previous?.round ?? 0) + 1
+    const token = randomBytes(32).toString('hex')
+    const storagePath = `${product.orderId}/${id}/${file.id}-${file.display_name}`
 
     const { error } = await this.client.from('product_approval_requests').insert({
       id,
       product_id: product.id,
       round,
       message: seed.message,
-      token_hash: randomBytes(32).toString('hex'),
+      token_hash: createHash('sha256').update(token, 'utf8').digest('hex'),
       status: seed.status,
       mailed: seed.mailed,
       expires_at: addDays(new Date(), SEEDED_REQUEST_VALIDITY_DAYS).toISOString(),
@@ -535,7 +560,7 @@ export class TestDatabase {
     const { error: fileError } = await this.client.from('product_approval_request_files').insert({
       request_id: id,
       file_id: file.id,
-      storage_path: `${product.orderId}/${id}/${file.id}-${file.display_name}`,
+      storage_path: storagePath,
     })
     if (fileError) throw fileError
 
@@ -547,7 +572,32 @@ export class TestDatabase {
       if (statusError) throw statusError
     }
 
-    return { id, productId: product.id, orderId: product.orderId, round }
+    return { id, productId: product.id, orderId: product.orderId, round, token, fileId: file.id, storagePath }
+  }
+
+  /** Stores a proof's copy in the approval-proofs bucket, as the app uploads it before asking. Overwrites a copy left behind. */
+  async storeApprovalProof(storagePath: string, content: string): Promise<void> {
+    const { error } = await this.client.storage
+      .from(APPROVAL_PROOFS_BUCKET)
+      .upload(storagePath, content, { upsert: true, contentType: 'application/pdf' })
+    if (error) throw error
+  }
+
+  /** Removes proof copies from the bucket — they do not go with the order's cascade. */
+  async removeApprovalProofs(storagePaths: string[]): Promise<void> {
+    const { error } = await this.client.storage.from(APPROVAL_PROOFS_BUCKET).remove(storagePaths)
+    if (error) throw error
+  }
+
+  /** The request's decision as stored: its status and the note that came with it. */
+  async approvalRequestDecision(requestId: string): Promise<Pick<ApprovalRequestRow, 'status' | 'note'>> {
+    const { data, error } = await this.client
+      .from('product_approval_requests')
+      .select('status, note')
+      .eq('id', requestId)
+      .single()
+    if (error) throw error
+    return data
   }
 
   /** The product's approval rounds, newest first. */

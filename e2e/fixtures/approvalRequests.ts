@@ -25,11 +25,14 @@ export type ApprovalRequestSeed = {
 /** The state a request is created in: the customer has not answered yet. */
 export const PENDING_REQUEST_STATUS: ApprovalRequestStatus = 'PENDING'
 
+/** The two answers that settle a request — by an employee, or by the customer on the page. */
+export type ApprovalRequestDecision = Extract<ApprovalRequestStatus, 'APPROVED' | 'CHANGES_REQUESTED'>
+
 /** The decision that moves the product into production. */
-export const APPROVED_REQUEST_STATUS: ApprovalRequestStatus = 'APPROVED'
+export const APPROVED_REQUEST_STATUS: ApprovalRequestDecision = 'APPROVED'
 
 /** The decision that returns the product to pre-press for a rework. */
-export const CHANGES_REQUESTED_STATUS: ApprovalRequestStatus = 'CHANGES_REQUESTED'
+export const CHANGES_REQUESTED_STATUS: ApprovalRequestDecision = 'CHANGES_REQUESTED'
 
 /** The state of a request the shop took back. */
 export const WITHDRAWN_REQUEST_STATUS: ApprovalRequestStatus = 'WITHDRAWN'
@@ -58,6 +61,23 @@ export const APPROVAL_MESSAGE = 'E2E please check the attached proof'
 
 /** The note an employee records with a request for changes. */
 export const CHANGES_NOTE = 'E2E the customer wants the logo higher up'
+
+// ── The customer's page ───────────────────────────────────────────────────
+
+/** What the stored copy of the proof holds — the bytes the page downloads. */
+export const PROOF_CONTENT = '%PDF-1.4 E2E proof'
+
+/** How the function serves a proof: as a download, never inline. */
+export const ATTACHMENT_DISPOSITION = 'attachment'
+
+/** A token of the right shape that no request was ever given. */
+export const UNKNOWN_TOKEN = 'e2e0'.repeat(16)
+
+/** What the function answers a read or a decision with. */
+export const FUNCTION_OK_STATUS = 200
+
+/** What the function answers for a token or a file it does not serve. */
+export const NOT_FOUND_STATUS = 404
 
 /** An open request the customer was mailed — the default: the product is waiting. */
 export const PENDING_MAILED_REQUEST: ApprovalRequestSeed = {
