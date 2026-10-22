@@ -459,12 +459,21 @@ Function variables for local runs go in `supabase/functions/.env`
 
 Every function keeps the gateway's JWT verification and checks the caller
 itself (`manage-users` the user's role, `send-email` that the bearer token is
-the service-role key), with one exception: `email-webhook` is called by the
-mail provider with no Supabase session, so it has `verify_jwt = false` in
-`config.toml` and verifies the report's Svix signature against
-`RESEND_WEBHOOK_SECRET` instead. A new function without a session behind it
-follows that pattern — a signature or a shared secret checked inside the
-function, never an open endpoint.
+the service-role key), with two exceptions that have no Supabase session
+behind them and so have `verify_jwt = false` in `config.toml`:
+`email-webhook`, called by the mail provider, verifies the report's Svix
+signature against `RESEND_WEBHOOK_SECRET`; `customer-approval`, called from
+the customer's browser, looks the request up by the SHA-256 of the link's
+token. A new function without a session behind it follows that pattern:
+
+- **It authenticates by what it is handed, never by the gateway** — a
+  signature, a shared secret or a token checked inside the function against
+  what the database stored. Never an open endpoint.
+- **Its GET never mutates.** Mail gateways and link scanners open every URL
+  in a message before the recipient does; a change of state is a POST.
+- **It answers JSON or a file, never HTML**, and a failure's cause goes to
+  the function's log, not into the answer. A browser caller gets CORS
+  headers for its one known origin, from a function variable.
 
 ### Email templates
 

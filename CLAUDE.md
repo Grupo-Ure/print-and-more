@@ -184,13 +184,22 @@ process, so they are edited as that process changes.
   audit, duplicate_order); everything after that baseline is a dated
   migration on top of it, and that is the only way the schema changes (see
   "The app is in production" above). `supabase/seed.sql` holds catalog
-  master data; `seed.dev.sql` (git-ignored) holds local demo data. Three edge
+  master data; `seed.dev.sql` (git-ignored) holds local demo data. Four edge
   functions, for what the browser cannot do: `manage-users` (create/delete
   auth accounts), `send-email` (drains the email queue; called by the
-  database's cron job with the service-role key only) and `email-webhook`
-  (receives the mail provider's delivery reports; the one function without
-  JWT verification, the report's signature is checked instead). The email
-  system is documented in the vault note *Email runtime*.
+  database's cron job with the service-role key only), `email-webhook`
+  (receives the mail provider's delivery reports) and `customer-approval`
+  (the server half of the customer's approval page: reads a request, streams
+  its proofs, records the decision). The last two run without JWT
+  verification — the report's signature, or the link's token, is checked
+  instead. The email system is documented in the vault note *Email runtime*.
+- **Customer app:** the customer-facing pages live in their own repository,
+  `markus/customer-app`, beside this one — a static Next.js export with no
+  secret, which talks only to `customer-approval`. Its first page is the
+  approval page the approval mail links to (`/approval#<token>`); the
+  request and answer shapes are
+  `supabase/functions/customer-approval/contract.ts`, which that repository
+  copies. Its e2e suite runs against this repository's local Supabase.
 - **Client:** [src/supabase.ts](src/supabase.ts) (`createClient`); generated
   types in [src/types/supabase.ts](src/types/supabase.ts), app-facing aliases
   in [src/types/database.ts](src/types/database.ts).
