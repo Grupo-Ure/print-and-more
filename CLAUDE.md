@@ -382,9 +382,11 @@ the right: *User management* (super admins;
 *Departments* (admins; [`DepartmentSettings`](src/components/settings/DepartmentSettings.tsx),
 the default assignee per department) and *Emails* (admins;
 [`EmailSettings`](src/components/settings/EmailSettings.tsx), one row per
-delayed or repeating mail in `email_settings` — on/off, delay, repeat
-interval, most sends; a row is added by the migration of the feature that
-owns the mail) and *Customer approval* (admins;
+mail type in `email_settings` — on/off, delay, repeat interval, most sends,
+and the mail's wording: subject and body with `{{placeholder}}` slots from
+the row's list, edited in a dialog; a row is added, with its default
+wording, by the migration of the feature that owns the mail, and a mail
+without one is not sent) and *Customer approval* (admins;
 [`ApprovalSettings`](src/components/settings/ApprovalSettings.tsx), the
 approval link's validity and how long proofs are kept after billing, from
 `customer_approval_settings`); `ProfilePage`. Shared stock UI
