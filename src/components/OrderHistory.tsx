@@ -121,6 +121,10 @@ function historySegments(
     case 'PREPRESS_READY_MANUAL':
       return [actor, ' moved ', product, ' to ', { kind: 'status', meta: PRODUCT_STATUS_META.PREPRESS }]
     case 'PRODUCTION_READY_SET':
+      // Written by the database when a customer approval lands — nobody clicked.
+      if (meta?.automatic === true) {
+        return [product, ' went to ', { kind: 'status', meta: PRODUCT_STATUS_META.IN_PRODUCTION }, ' on the customer approval']
+      }
       return [actor, ' released ', product, ' to ', { kind: 'status', meta: PRODUCT_STATUS_META.IN_PRODUCTION }]
     case 'MARKED_DONE':
       return [actor, ' marked ', product, ' as ', { kind: 'status', meta: PRODUCT_STATUS_META.DONE }]
@@ -142,10 +146,26 @@ function historySegments(
       return [actor, ' requested customer approval for ', product]
     case 'CUSTOMER_APPROVAL_DEACTIVATED':
       return [actor, ' removed the customer-approval requirement for ', product]
-    case 'CUSTOMER_APPROVAL_GRANTED':
-      return [actor, ' granted customer approval for ', product]
+    case 'CUSTOMER_APPROVAL_REQUESTED': {
+      const round = typeof meta?.round === 'number' ? ` (round ${meta.round})` : ''
+      const unmailed = meta?.mailed === false ? ', without a mail' : ''
+      return [actor, ' asked the customer to approve ', product, `${round}${unmailed}`]
+    }
+    case 'CUSTOMER_APPROVAL_GRANTED': {
+      // `by` is CUSTOMER when the answer came through the page; an employee
+      // recording it by hand is the entry's actor.
+      if (meta?.by === 'CUSTOMER') return ['The customer approved ', product]
+      return [actor, ' recorded the customer approval for ', product]
+    }
+    case 'CUSTOMER_APPROVAL_CHANGES_REQUESTED': {
+      const note = typeof meta?.note === 'string' && meta.note ? `: “${meta.note}”` : ''
+      if (meta?.by === 'CUSTOMER') return ['The customer requested changes to ', product, note]
+      return [actor, ' recorded a request for changes to ', product, note]
+    }
+    case 'CUSTOMER_APPROVAL_WITHDRAWN':
+      return [actor, ' withdrew the approval request for ', product]
     case 'CUSTOMER_APPROVAL_EXPIRED':
-      return ['Customer approval for ', product, ' expired']
+      return ['The approval request for ', product, ' expired']
     case 'CUSTOMER_APPROVAL_BYPASSED':
       return [actor, ' bypassed customer approval for ', product]
     case 'ROLLED_BACK':
