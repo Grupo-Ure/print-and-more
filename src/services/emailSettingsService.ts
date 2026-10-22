@@ -1,22 +1,31 @@
 import { supabase } from '../supabase'
 import type { Tables, TablesUpdate } from '../types/supabase'
 
-/** One template's switches: on/off, the delay before the first send, the repeat interval, the most sends. */
+/** One mail type's row: its switches (on/off, the delay before the first send, the repeat interval, the most sends) and its wording. */
 export type EmailSetting = Tables<'email_settings'>
 
-/** The switches a save changes; the template names the row and is never changed. */
-export type EmailSettingPatch = Pick<TablesUpdate<'email_settings'>, 'is_enabled' | 'delay_days' | 'repeat_days' | 'max_sends'>
+/**
+ * What a save changes: a switch, or the wording. The template names the row
+ * and is never changed; the placeholders are the mail's, set by the migration
+ * that adds it.
+ */
+export type EmailSettingPatch = Pick<
+  TablesUpdate<'email_settings'>,
+  'is_enabled' | 'delay_days' | 'repeat_days' | 'max_sends' | 'subject' | 'body'
+>
 
-const EMAIL_SETTING_COLUMNS = 'template, is_enabled, delay_days, repeat_days, max_sends'
+const EMAIL_SETTING_COLUMNS = 'template, is_enabled, delay_days, repeat_days, max_sends, subject, body, placeholders'
 
 /**
- * Settings → Emails (`email_settings`, one row per delayed or repeating
- * template). A row is added by the migration of the feature that owns the
- * template; the app only lists and edits what is there. Writes are admin-only
+ * Settings → Emails (`email_settings`, one row per mail type). A row is added
+ * by the migration of the feature that owns the mail, with its default
+ * wording; the app only lists and edits what is there. Writes are admin-only
  * by RLS. `queue_email` reads `is_enabled` and `delay_days` when a mail is
- * queued, the sender reads `is_enabled`, `repeat_days` and `max_sends` when it
- * sends — so a change reaches mail queued afterwards, not mail already waiting
- * (except switching it off, which the sender also honours).
+ * queued, the sender reads `is_enabled`, `repeat_days`, `max_sends` and the
+ * wording when it sends — so a changed delay reaches mail queued afterwards,
+ * while switching a mail off and a changed wording reach mail already waiting
+ * too. Wording is checked against the row's placeholders before it is saved
+ * (`checkWording`); the database only refuses it blank.
  */
 class EmailSettingsService {
   async list(): Promise<EmailSetting[]> {
