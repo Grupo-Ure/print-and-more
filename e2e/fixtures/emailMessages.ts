@@ -32,8 +32,22 @@ export type EmailSettingPatch = Partial<Omit<EmailSettingSeed, 'template'>>
 /** The email system's own template; it exists to drive the whole path without a feature's mail. */
 export const TEST_MESSAGE_TEMPLATE = 'test-message'
 
+/** The mail asking the customer to approve a proof, with the private link. */
+export const APPROVAL_REQUEST_TEMPLATE = 'approval-request'
+
+/** The mail telling the product's assignee what the customer decided. */
+export const APPROVAL_DECIDED_TEMPLATE = 'approval-decided'
+
+/** The mail telling the customer that the shop withdrew its request. */
+export const APPROVAL_WITHDRAWN_TEMPLATE = 'approval-withdrawn'
+
 /** Every mail type the sender knows — each has its row in Settings → Emails, the immediate ones included. */
-export const MAIL_TEMPLATES = [TEST_MESSAGE_TEMPLATE]
+export const MAIL_TEMPLATES = [
+  TEST_MESSAGE_TEMPLATE,
+  APPROVAL_REQUEST_TEMPLATE,
+  APPROVAL_DECIDED_TEMPLATE,
+  APPROVAL_WITHDRAWN_TEMPLATE,
+]
 
 /** A name no template module is registered under. */
 export const UNKNOWN_TEMPLATE = 'e2e-unknown-template'

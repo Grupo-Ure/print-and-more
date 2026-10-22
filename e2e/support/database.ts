@@ -2,6 +2,9 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Database, Json, TablesInsert } from '../../src/types/supabase'
 import type { DefaultAssigneeStatus } from '../../src/types/database'
 import type { ChildTable } from '../../src/types/product'
+import { randomBytes } from 'node:crypto'
+import { addDays } from 'date-fns'
+import type { ApprovalRequestSeed } from '../fixtures/approvalRequests'
 import type { TestCustomer } from '../fixtures/customers'
 import type { CustomerApprovalSettingsSeed } from '../fixtures/customerApprovalSettings'
 import type { EmailSettingPatch, EmailSettingRow, QueuedEmailSeed, SentEmailSeed } from '../fixtures/emailMessages'
@@ -131,6 +134,29 @@ export type TestProduct = {
   orderId: string
   department: Department
 }
+
+/** One approval round, as the database holds it. */
+export type ApprovalRequestRow = Database['public']['Tables']['product_approval_requests']['Row']
+
+/** What a spec gets to know about the approval request the fixture inserted for it. */
+export type TestApprovalRequest = {
+  id: string
+  productId: string
+  orderId: string
+  round: number
+}
+
+/** A product's workflow columns, as much of them as a spec reads back after a refused or an allowed write. */
+export type ProductState = Pick<Database['public']['Tables']['products']['Row'], 'status' | 'quantity' | 'deadline' | 'assignee_id'>
+
+/** One history entry's product and details, for what an event recorded. */
+export type HistoryEntryRow = Pick<Database['public']['Tables']['history']['Row'], 'product_id' | 'meta'>
+
+/** One automatic stock movement, as much of it as a spec looks at. */
+export type StockMovementRow = Pick<Database['public']['Tables']['stamp_stock_movements']['Row'], 'quantity' | 'note'>
+
+/** How long a seeded request stays valid — the setting's shipped default. */
+const SEEDED_REQUEST_VALIDITY_DAYS = 14
 
 export function requiredEnv(name: string): string {
   const value = process.env[name]
@@ -448,6 +474,134 @@ export class TestDatabase {
     return { id: data.id, productNumber: data.product_number, orderId, department: seed.department }
   }
 
+  /** The product's workflow columns as stored. */
+  async productState(productId: string): Promise<ProductState> {
+    const { data, error } = await this.client
+      .from('products')
+      .select('status, quantity, deadline, assignee_id')
+      .eq('id', productId)
+      .single()
+    if (error) throw error
+    return data
+  }
+
+  /** Hands the product to the login, as picking them in the assignee picker would. Returns the user's id. */
+  async assignProduct(productId: string, user: TestUser): Promise<string> {
+    const userId = await this.userId(user)
+    const { error } = await this.client.from('products').update({ assignee_id: userId }).eq('id', productId)
+    if (error) throw error
+    return userId
+  }
+
+  // ── Customer approval ────────────────────────────────────────────────────
+
+  /**
+   * Inserts one approval round for the product over the file, as the request
+   * RPC would have left it: the request row with a token hash of its own, the
+   * file row with the copy's path, and — for a pending round — the product in
+   * awaiting approval. Nothing is queued and nothing is stored in the bucket.
+   * Removed with the order by cascade.
+   */
+  async createApprovalRequest(
+    product: TestProduct,
+    file: TestFile,
+    seed: ApprovalRequestSeed,
+    requestedBy: TestUser,
+  ): Promise<TestApprovalRequest> {
+    const id = crypto.randomUUID()
+    const { data: previous, error: roundError } = await this.client
+      .from('product_approval_requests')
+      .select('round')
+      .eq('product_id', product.id)
+      .order('round', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (roundError) throw roundError
+    const round = (previous?.round ?? 0) + 1
+
+    const { error } = await this.client.from('product_approval_requests').insert({
+      id,
+      product_id: product.id,
+      round,
+      message: seed.message,
+      token_hash: randomBytes(32).toString('hex'),
+      status: seed.status,
+      mailed: seed.mailed,
+      expires_at: addDays(new Date(), SEEDED_REQUEST_VALIDITY_DAYS).toISOString(),
+      requested_by: await this.userId(requestedBy),
+    })
+    if (error) throw error
+
+    const { error: fileError } = await this.client.from('product_approval_request_files').insert({
+      request_id: id,
+      file_id: file.id,
+      storage_path: `${product.orderId}/${id}/${file.id}-${file.display_name}`,
+    })
+    if (fileError) throw fileError
+
+    if (seed.status === 'PENDING') {
+      const { error: statusError } = await this.client
+        .from('products')
+        .update({ status: 'AWAITING_APPROVAL' })
+        .eq('id', product.id)
+      if (statusError) throw statusError
+    }
+
+    return { id, productId: product.id, orderId: product.orderId, round }
+  }
+
+  /** The product's approval rounds, newest first. */
+  async approvalRequests(productId: string): Promise<ApprovalRequestRow[]> {
+    const { data, error } = await this.client
+      .from('product_approval_requests')
+      .select('*')
+      .eq('product_id', productId)
+      .order('round', { ascending: false })
+    if (error) throw error
+    return data
+  }
+
+  /** The files of one approval round. */
+  async approvalRequestFileIds(requestId: string): Promise<string[]> {
+    const { data, error } = await this.client
+      .from('product_approval_request_files')
+      .select('file_id')
+      .eq('request_id', requestId)
+    if (error) throw error
+    return data.map(row => row.file_id)
+  }
+
+  /** The request a link's token belongs to, looked up as the customer's page does — by the token's hash. */
+  async approvalRequestIdByTokenHash(tokenHash: string): Promise<string | null> {
+    const { data, error } = await this.client
+      .from('product_approval_requests')
+      .select('id')
+      .eq('token_hash', tokenHash)
+      .maybeSingle()
+    if (error) throw error
+    return data?.id ?? null
+  }
+
+  // ── Stock ────────────────────────────────────────────────────────────────
+
+  /** The stamp model's stock as stored. */
+  async stampModelStock(modelId: string): Promise<number> {
+    const { data, error } = await this.client.from('stamp_models').select('stock').eq('id', modelId).single()
+    if (error) throw error
+    return data.stock
+  }
+
+  /** The automatic movements booked against the stamp model. */
+  async stampStockMovements(modelId: string): Promise<StockMovementRow[]> {
+    const { data, error } = await this.client
+      .from('stamp_stock_movements')
+      .select('quantity, note')
+      .eq('model_id', modelId)
+      .eq('type', 'AUTO_DEDUCTION')
+    if (error) throw error
+    return data
+  }
+
   // ── Emails ───────────────────────────────────────────────────────────────
 
   /** Queues a message for the order through queue_email, as a trigger would. Returns the queue message id. */
@@ -562,6 +716,24 @@ export class TestDatabase {
       .from('sent_emails')
       .select('id, provider_id, recipient, subject')
       .eq('order_id', orderId)
+    if (error) throw error
+    return data
+  }
+
+  /** The html bodies of the order's sent mails, as they went out. */
+  async sentEmailBodies(orderId: string): Promise<string[]> {
+    const { data, error } = await this.client.from('sent_emails').select('body_html').eq('order_id', orderId)
+    if (error) throw error
+    return data.map(row => row.body_html)
+  }
+
+  /** The order's history entries of that event, with what each recorded. */
+  async historyEntries(orderId: string, eventType: HistoryEvent): Promise<HistoryEntryRow[]> {
+    const { data, error } = await this.client
+      .from('history')
+      .select('product_id, meta')
+      .eq('order_id', orderId)
+      .eq('event_type', eventType)
     if (error) throw error
     return data
   }

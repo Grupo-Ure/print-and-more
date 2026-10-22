@@ -26,6 +26,9 @@ export const NEW_PRODUCT_STATUS: ProductStatus = 'IN_SETUP'
 /** The status a complete product advances to, automatically or by manual release. */
 export const PREPRESS_STATUS: ProductStatus = 'PREPRESS'
 
+/** The status a product waits in from the moment the customer is asked to approve a proof until the request closes. */
+export const AWAITING_APPROVAL_STATUS: ProductStatus = 'AWAITING_APPROVAL'
+
 /** The status "Release to Production" moves a product to. */
 export const IN_PRODUCTION_STATUS: ProductStatus = 'IN_PRODUCTION'
 
