@@ -15,14 +15,25 @@ export type QueuedEmailSeed = {
   delaySeconds: number | null
 }
 
-/** One template's row in Settings → Emails (`email_settings`), as the `emailSetting` fixture writes it. */
-export type EmailSettingSeed = Database['public']['Tables']['email_settings']['Row']
+/** One template's row in Settings → Emails (`email_settings`), as the database holds it. */
+export type EmailSettingRow = Database['public']['Tables']['email_settings']['Row']
+
+/**
+ * What the `emailSetting` fixture writes onto a template's row: every switch,
+ * and the wording only where a spec needs its own — otherwise the row keeps
+ * the wording its migration shipped.
+ */
+export type EmailSettingSeed = Omit<EmailSettingRow, 'subject' | 'body' | 'placeholders'> &
+  Partial<Pick<EmailSettingRow, 'subject' | 'body'>>
 
 /** The switches a spec changes on a seeded row. */
 export type EmailSettingPatch = Partial<Omit<EmailSettingSeed, 'template'>>
 
 /** The email system's own template; it exists to drive the whole path without a feature's mail. */
 export const TEST_MESSAGE_TEMPLATE = 'test-message'
+
+/** Every mail type the sender knows — each has its row in Settings → Emails, the immediate ones included. */
+export const MAIL_TEMPLATES = [TEST_MESSAGE_TEMPLATE]
 
 /** A name no template module is registered under. */
 export const UNKNOWN_TEMPLATE = 'e2e-unknown-template'
@@ -197,3 +208,31 @@ export const REPEATING_TEST_MESSAGE_SETTING: EmailSettingSeed = {
 
 /** What switching a mail off in Settings writes to its row. */
 export const SWITCHED_OFF: EmailSettingPatch = { is_enabled: false }
+
+// ── Wording ───────────────────────────────────────────────────────────────
+
+/** The fixed part of a subject with a slot for the order. */
+const ORDER_SUBJECT_PREFIX = 'E2E mail about order'
+
+/** test-message with a subject whose slot the sender fills with the order's id. */
+export const ORDER_SLOT_SUBJECT_SETTING: EmailSettingSeed = {
+  ...IMMEDIATE_TEST_MESSAGE_SETTING,
+  subject: `${ORDER_SUBJECT_PREFIX} {{orderId}}`,
+}
+
+/** The subject that setting's mail goes out with for that order. */
+export function orderSlotSubject(orderId: string): string {
+  return `${ORDER_SUBJECT_PREFIX} ${orderId}`
+}
+
+/** test-message with a subject naming a slot test-message's data does not have. */
+export const MISSING_SLOT_SUBJECT_SETTING: EmailSettingSeed = {
+  ...IMMEDIATE_TEST_MESSAGE_SETTING,
+  subject: 'E2E mail with {{e2eMissingSlot}}',
+}
+
+/** The subject a spec types into the wording dialog. */
+export const EDITED_SUBJECT = 'E2E edited subject'
+
+/** Body text using a placeholder test-message does not offer. */
+export const UNOFFERED_SLOT_BODY = 'E2E text with {{e2eUnofferedSlot}}'

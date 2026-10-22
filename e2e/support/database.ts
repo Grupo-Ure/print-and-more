@@ -4,7 +4,7 @@ import type { DefaultAssigneeStatus } from '../../src/types/database'
 import type { ChildTable } from '../../src/types/product'
 import type { TestCustomer } from '../fixtures/customers'
 import type { CustomerApprovalSettingsSeed } from '../fixtures/customerApprovalSettings'
-import type { EmailSettingPatch, EmailSettingSeed, QueuedEmailSeed, SentEmailSeed } from '../fixtures/emailMessages'
+import type { EmailSettingPatch, EmailSettingRow, QueuedEmailSeed, SentEmailSeed } from '../fixtures/emailMessages'
 import type { TestUser } from '../fixtures/users'
 
 type OrderInsert = Database['public']['Tables']['orders']['Insert']
@@ -503,21 +503,22 @@ export class TestDatabase {
     await Promise.all(queued.map(row => this.archiveEmail(row.msg_id)))
   }
 
-  /** Writes the template's row in Settings → Emails, replacing whatever it held. */
-  async upsertEmailSetting(seed: EmailSettingSeed): Promise<void> {
-    const { error } = await this.client.from('email_settings').upsert(seed)
+  /** The template's row in Settings → Emails, as stored; fails when the template has none. */
+  async emailSetting(template: string): Promise<EmailSettingRow> {
+    const { data, error } = await this.client.from('email_settings').select('*').eq('template', template).single()
     if (error) throw error
+    return data
   }
 
-  /** Changes switches on the template's row. */
+  /** Changes switches or wording on the template's row. */
   async updateEmailSetting(template: string, patch: EmailSettingPatch): Promise<void> {
     const { error } = await this.client.from('email_settings').update(patch).eq('template', template)
     if (error) throw error
   }
 
-  /** Deletes the template's row: the template is enabled and immediate again. Nothing happens when there is none. */
-  async removeEmailSetting(template: string): Promise<void> {
-    const { error } = await this.client.from('email_settings').delete().eq('template', template)
+  /** Writes a row read earlier back as it was. */
+  async restoreEmailSetting(row: EmailSettingRow): Promise<void> {
+    const { error } = await this.client.from('email_settings').upsert(row)
     if (error) throw error
   }
 

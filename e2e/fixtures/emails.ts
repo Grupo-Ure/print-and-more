@@ -54,10 +54,12 @@ type EmailFixtures = {
   /** What `emailSetting` writes; override per describe block with `test.use({ emailSettingSeed })`. */
   emailSettingSeed: EmailSettingSeed
   /**
-   * The template's row in Settings → Emails, as `emailSettingSeed` describes
-   * it, written before the test and deleted after it — so a delay or a switch
-   * a test changed does not reach the next one. The app is reloaded so the
-   * Settings page shows the row.
+   * The template's row in Settings → Emails, written over with what
+   * `emailSettingSeed` describes before the test and put back as it was after
+   * it — so a delay, a switch or a wording a test changed does not reach the
+   * next one. The row itself comes from the migration that adds the mail; a
+   * template without one is never sent. The app is reloaded so the Settings
+   * page shows the row.
    */
   emailSetting: EmailSettingSeed
 }
@@ -91,11 +93,13 @@ export const test = base.extend<EmailFixtures>({
   emailSettingSeed: [IMMEDIATE_TEST_MESSAGE_SETTING, { option: true }],
 
   emailSetting: async ({ page, navbar, database, emailSettingSeed }, use) => {
-    await database.upsertEmailSetting(emailSettingSeed)
+    const { template, ...patch } = emailSettingSeed
+    const stored = await database.emailSetting(template)
+    await database.updateEmailSetting(template, patch)
     await reloadApp(page, navbar)
 
     await use(emailSettingSeed)
-    await database.removeEmailSetting(emailSettingSeed.template)
+    await database.restoreEmailSetting(stored)
   },
 })
 
