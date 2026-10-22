@@ -28,7 +28,7 @@
 // one origin is not covered by the e2e suite: the local gateway answers the
 // preflight itself and rewrites the allowed origin to `*`, so the header the
 // function sets is only observable on the hosted project. The shapes are
-// contract.ts, which the customer app copies.
+// contract.ts, which the customer app mirrors in its lib/api.ts.
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { productLabel } from '../_shared/productLabel.ts'

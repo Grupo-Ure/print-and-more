@@ -1,8 +1,8 @@
 // The contract between the customer-approval edge function and the customer
 // app's approval page: what the page sends and what it gets back. The
-// function imports it from here; the customer app keeps a committed copy,
-// refreshed by its `npm run contract:pull`. Plain types and constants only —
-// no Deno, Node or browser API — so the same file compiles on both sides.
+// function is typed against it; the customer app (markus/customer-app)
+// declares the same shapes in its lib/api.ts, so a change here is a change
+// there, and its e2e suite fails when the two drift apart.
 //
 //   GET  ?token=…                → ApprovalView (404 ApprovalError for an unknown token)
 //   GET  ?token=…&file=<file id> → the file, as an attachment (404 when not served)
