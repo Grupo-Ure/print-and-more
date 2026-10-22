@@ -29,7 +29,7 @@ import { resolveEffectiveProduct } from '../lib/productShared'
 
 /** SELECT for `products` — the full row as the app consumes it (`ProductRow`). */
 const PRODUCT_COLUMNS =
-  'id, product_number, order_id, department, type, status, quantity, notes, sort_order, deadline, delivery, priority, assignee_id, is_cancelled, customer_approval_required, customer_approval_granted, customer_approval_file_id, created_at' as const
+  'id, product_number, order_id, department, type, status, quantity, notes, sort_order, deadline, delivery, priority, assignee_id, is_cancelled, customer_approval_required, customer_approval_granted, customer_approval_file_id, approved_request_id, created_at' as const
 
 /** `product_number` is trigger-assigned; the client never sets it. */
 export type ProductInsert = Omit<TablesInsert<'products'>, 'product_number'>
@@ -38,8 +38,12 @@ type ProductPatch = TablesUpdate<'products'>
 /** Pause before replacing a realtime channel that was lost. */
 const RESUBSCRIBE_DELAY_MS = 2000
 
-/** The statuses the production feed lists: work that waits for, or is with, its assignee. */
-export const PRODUCTION_FEED_STATUSES: readonly ProductStatus[] = ['PREPRESS', 'IN_PRODUCTION']
+/**
+ * The statuses the production feed lists: work that waits for, or is with, its
+ * assignee — a product waiting for the customer's approval included, since it
+ * is the assignee's and comes back to them.
+ */
+export const PRODUCTION_FEED_STATUSES: readonly ProductStatus[] = ['PREPRESS', 'AWAITING_APPROVAL', 'IN_PRODUCTION']
 
 /**
  * One row of the production feed: the product with the order fields its

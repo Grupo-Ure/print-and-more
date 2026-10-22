@@ -19,15 +19,25 @@ export const ORDER_STATUS_META: Record<OrderStatus, StatusMeta> = {
   BILLED:      { label: 'Billed',      color: 'bg-violet-500',  hoverColor: 'hover:bg-violet-600',  softHoverColor: 'focus:bg-violet-500/10 focus:text-violet-700',   textColor: 'text-violet-600 dark:text-violet-400' },
 }
 
-/** Product production workflow (IN_SETUP → PREPRESS → IN_PRODUCTION → DONE). */
+/**
+ * Product production workflow (IN_SETUP → PREPRESS → IN_PRODUCTION → DONE).
+ * AWAITING_APPROVAL sits between pre-press and production: the customer has
+ * been asked to approve a proof, and only the request closing moves the
+ * product on.
+ */
 export const PRODUCT_STATUS_META: Record<ProductStatus, StatusMeta> = {
-  IN_SETUP:      { label: 'In Setup',      color: 'bg-orange-500',  hoverColor: 'hover:bg-orange-600',  softHoverColor: 'focus:bg-orange-500/10 focus:text-orange-700',   textColor: 'text-orange-600 dark:text-orange-400' },
-  PREPRESS:      { label: 'Prepress',      color: 'bg-pink-500',    hoverColor: 'hover:bg-pink-600',    softHoverColor: 'focus:bg-pink-500/10 focus:text-pink-700',       textColor: 'text-pink-600 dark:text-pink-400' },
-  IN_PRODUCTION: { label: 'In Production', color: 'bg-blue-500',    hoverColor: 'hover:bg-blue-600',    softHoverColor: 'focus:bg-blue-500/10 focus:text-blue-700',       textColor: 'text-blue-600 dark:text-blue-400' },
-  DONE:          { label: 'Done',          color: 'bg-emerald-500', hoverColor: 'hover:bg-emerald-600', softHoverColor: 'focus:bg-emerald-500/10 focus:text-emerald-700', textColor: 'text-emerald-600 dark:text-emerald-400' },
+  IN_SETUP:          { label: 'In Setup',          color: 'bg-orange-500',  hoverColor: 'hover:bg-orange-600',  softHoverColor: 'focus:bg-orange-500/10 focus:text-orange-700',   textColor: 'text-orange-600 dark:text-orange-400' },
+  PREPRESS:          { label: 'Prepress',          color: 'bg-pink-500',    hoverColor: 'hover:bg-pink-600',    softHoverColor: 'focus:bg-pink-500/10 focus:text-pink-700',       textColor: 'text-pink-600 dark:text-pink-400' },
+  AWAITING_APPROVAL: { label: 'Awaiting approval', color: 'bg-teal-500',    hoverColor: 'hover:bg-teal-600',    softHoverColor: 'focus:bg-teal-500/10 focus:text-teal-700',       textColor: 'text-teal-600 dark:text-teal-400' },
+  IN_PRODUCTION:     { label: 'In Production',     color: 'bg-blue-500',    hoverColor: 'hover:bg-blue-600',    softHoverColor: 'focus:bg-blue-500/10 focus:text-blue-700',       textColor: 'text-blue-600 dark:text-blue-400' },
+  DONE:              { label: 'Done',              color: 'bg-emerald-500', hoverColor: 'hover:bg-emerald-600', softHoverColor: 'focus:bg-emerald-500/10 focus:text-emerald-700', textColor: 'text-emerald-600 dark:text-emerald-400' },
 }
 
-/** Ordered product statuses shown in the product status track. */
+/**
+ * Ordered product statuses shown in the product status track — the steps the
+ * release action walks. AWAITING_APPROVAL is not a step on it: the release
+ * never targets it, and nothing advances a waiting product by hand.
+ */
 export const WORKFLOW_STATUSES: ProductStatus[] = [
   'IN_SETUP',
   'PREPRESS',
