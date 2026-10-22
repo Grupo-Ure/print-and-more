@@ -91,7 +91,8 @@ jobs:
         # needed, and no mail can leave the runner. The webhook secret is a
         # throwaway of the right shape (`whsec_` + base64): email-webhook
         # verifies against it, and the e2e runner, which loads this file
-        # too, signs its test reports with it.
+        # too, signs its test reports with it. The customer app's origin is a
+        # placeholder: the approval-request mail only writes it into a link.
         run: |
           cat > supabase/functions/.env <<'EOF'
           EMAIL_DRY_RUN=true
@@ -99,6 +100,7 @@ jobs:
           EMAIL_REPLY_TO=ci@example.test
           EMAIL_SHOP_TO=ci@example.test
           RESEND_WEBHOOK_SECRET=whsec_Y2ktd2ViaG9vay1zZWNyZXQ=
+          CUSTOMER_APP_URL=https://customer.example.test
           EOF
       - name: Start local Supabase
         # Only the services the app talks to (postgres, kong, gotrue,
