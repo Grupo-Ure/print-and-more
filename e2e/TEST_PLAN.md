@@ -294,6 +294,27 @@ behaviour the lifecycle packs assert is written out in
       - **APR-FN-006** reading the request by its token answers withdrawn with no file
       - **APR-FN-007** downloading the proof through the token answers not found
     - **APR-FN-008** reading a request by an unknown token answers not found
+  - [release.spec.ts](customer-approval/release.spec.ts) — `APR-REL`
+    - *in progress, product in pre-press*
+      - **APR-REL-001** updating the product's status to production directly is refused
+      - **APR-REL-002** force releasing the product as an employee is refused
+    - *in progress without a deadline, product in pre-press*
+      - **APR-REL-003** releasing the product is refused
+    - *in progress, stamp product in pre-press, model out of stock*
+      - **APR-REL-004** releasing the product is refused and books nothing
+    - *newest round came back with changes*
+      - **APR-REL-005** releasing the product is refused
+    - *waiting stamp product, model in stock*
+      - **APR-REL-006** releasing the product is refused and books nothing
+    - *as admin, waiting stamp product, model in stock*
+      - **APR-REL-007** force releasing the product is refused and books nothing
+    - *as admin, in progress, product in pre-press*
+      - **APR-REL-008** force releasing the product without a reason is refused
+    - *as admin, in progress, stamp product in pre-press, model out of stock*
+      - **APR-REL-009** force releasing the product moves it to production past the shortage
+      - **APR-REL-010** force releasing the product records the reason in the emergency entry
+    - *as employee*
+      - **APR-REL-011** booking deductions past the model's stock with the shortage allowed is refused
 
 ## Later
 
