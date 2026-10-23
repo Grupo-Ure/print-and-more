@@ -1,5 +1,6 @@
-import { CalendarX, CheckCircle2, Lock, TriangleAlert } from 'lucide-react'
+import { CalendarX, CheckCircle2, Hourglass, Lock, MessageSquareWarning, TriangleAlert } from 'lucide-react'
 import { resolveEffectiveProduct } from '../lib/productShared'
+import { useNewestApprovalRequest } from '../queries/approvalQueries'
 import { useSetProductStatus } from '../queries/productQueries'
 import { useOrderById } from '../queries/orderQueries'
 import { useStockAvailability } from '../queries/stockQueries'
@@ -15,8 +16,11 @@ type Props = {
 }
 
 /**
- * Why the product is held in setup, phrased for the user — the same
- * requirement the release button and the automatic advance enforce
+ * Why the product cannot move on, phrased for the user: done, waiting for the
+ * customer, its newest approval round closed without an approval, short of
+ * stock, held in setup, or locked in production.
+ *
+ * Held in setup is the same requirement the release button and the automatic advance enforce
  * (`isProductComplete`). Delivery and priority always resolve via the order,
  * and a product cannot lack content of its own (the job model's "no products
  * yet" blocker is gone with the job), so the one requirement that can be unmet
@@ -30,6 +34,8 @@ export function ProductProductionBanner({ product }: Props) {
   const { data: shortages = [] } = useStockAvailability(product)
   // Already cached by the detail view; needed to explain a blocked release.
   const { data: order } = useOrderById(product.order_id)
+  // Already loaded by the release button; the newest round gates the release.
+  const newestRequest = useNewestApprovalRequest(product.id)
 
   // Done is terminal: a green, button-less banner — no going back once done.
   if (product.status === 'DONE') {
@@ -43,6 +49,54 @@ export function ProductProductionBanner({ product }: Props) {
         <p className="text-sm font-medium">
           This product is done and can no longer be modified.
         </p>
+      </div>
+    )
+  }
+
+  // Waiting for the customer: the product is locked until the request closes,
+  // and nothing — not even a force release — moves it on. Withdrawing the
+  // request on the Files tab is the shop's way out.
+  if (product.status === 'AWAITING_APPROVAL') {
+    return (
+      <div
+        data-testid={IDS.root}
+        data-kind="awaiting-approval"
+        className="flex items-center justify-center gap-4 border-t-6 border-teal-500 px-4 py-2 text-teal-600"
+      >
+        <Hourglass />
+        <p className="text-sm font-medium">
+          Waiting for the customer's approval — the product is locked until they answer. Withdraw the request on
+          the Files tab to change it.
+        </p>
+      </div>
+    )
+  }
+
+  // Pre-press whose newest round came back without an approval: the release
+  // to production is blocked until a new round is approved, or an admin
+  // forces it. An older approval does not count for a reworked proof.
+  if (product.status === 'PREPRESS' && newestRequest != null && newestRequest.status !== 'APPROVED') {
+    return (
+      <div
+        data-testid={IDS.root}
+        data-kind="approval-blocked"
+        data-approval-status={newestRequest.status}
+        className="flex items-center justify-center gap-4 border-t-6 border-amber-500 px-4 py-2 text-amber-600"
+      >
+        <MessageSquareWarning className="shrink-0" />
+        <div className="text-sm font-medium">
+          <p>
+            {newestRequest.status === 'CHANGES_REQUESTED' && `Round ${newestRequest.round}: the customer asked for changes.`}
+            {newestRequest.status === 'EXPIRED' && `Round ${newestRequest.round}: the customer did not answer before the link expired.`}
+            {newestRequest.status === 'WITHDRAWN' && `Round ${newestRequest.round} was withdrawn.`}
+            {' '}Send a new round from the Files tab, or an admin forces the release.
+          </p>
+          {newestRequest.note && (
+            <p data-testid={IDS.approvalNote} className="font-normal whitespace-pre-line">
+              “{newestRequest.note}”
+            </p>
+          )}
+        </div>
       </div>
     )
   }

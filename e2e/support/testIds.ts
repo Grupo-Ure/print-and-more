@@ -279,6 +279,8 @@ export const TEST_IDS = {
       banner: {
         root: 'product-banner',
         backToPrepress: 'product-banner-back-to-prepress',
+        /** The note the newest approval round closed with (a request for changes), while it blocks the release. */
+        approvalNote: 'product-banner-approval-note',
       },
       tabs: {
         basicInfo: 'product-tab-basic-info',
