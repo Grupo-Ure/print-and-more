@@ -376,14 +376,65 @@ export const TEST_IDS = {
         /** Switches to the Time logs tab. */
         showAll: 'quick-time-log-show-all',
       },
-      /** The order's file links, shown from the product so the production view has them too. */
+      /**
+       * The product's Files tab: the product's own files (with the approval
+       * request) or the whole order's, shown from the product so the
+       * production view has them too. `data-scope` = product | order.
+       */
       files: {
         root: 'order-files',
+        /** The *This product* / *Whole order* switch; one button per scope, `data-scope`, `data-active`. */
+        scope: 'order-files-scope',
         addFiles: 'order-files-add',
         error: 'order-files-error',
         list: 'order-files-list',
         /** One per file; `data-file-id`. */
         item: 'order-files-item',
+        /** The row's checkbox in the product scope; `data-state` = checked | unchecked. */
+        itemSelect: 'order-files-item-select',
+        /** Opens the approval request dialog; product scope only, enabled in pre-press. */
+        requestApproval: 'order-files-request-approval',
+        /** The product's approval rounds, newest first. */
+        requests: {
+          root: 'approval-requests',
+          empty: 'approval-requests-empty',
+          /** One per round; `data-request-id`, `data-round`, `data-status` = approval_request_status. */
+          row: 'approval-requests-row',
+          /** One per file of the round; `data-file-id`. */
+          file: 'approval-requests-file',
+          /** Who recorded the answer or withdrew the round; `data-user-name`. */
+          settledBy: 'approval-requests-settled-by',
+          approve: 'approval-requests-approve',
+          requestChanges: 'approval-requests-request-changes',
+          withdraw: 'approval-requests-withdraw',
+        },
+        /** The dialog that records the customer's answer by hand; `data-decision` = APPROVED | CHANGES_REQUESTED. */
+        answerDialog: {
+          root: 'approval-answer-dialog',
+          note: 'approval-answer-dialog-note',
+          cancel: 'approval-answer-dialog-cancel',
+          submit: 'approval-answer-dialog-submit',
+        },
+        /** The dialog that sends a round. */
+        requestDialog: {
+          root: 'approval-request-dialog',
+          /** One per file offered; `data-file-id`, `data-state` = checked | unchecked. */
+          file: 'approval-request-dialog-file',
+          /** The checkbox inside a file's row. */
+          fileSelect: 'approval-request-dialog-file-select',
+          message: 'approval-request-dialog-message',
+          /** *Email the customer*; `data-state` = checked | unchecked. */
+          mailed: 'approval-request-dialog-mailed',
+          /** The stock warning; one `shortage` per short target, `data-target-id`. */
+          shortages: 'approval-request-dialog-shortages',
+          shortage: 'approval-request-dialog-shortage',
+          /** Shown in a plain browser tab, where the files cannot be read. */
+          desktopRequired: 'approval-request-dialog-desktop-required',
+          error: 'approval-request-dialog-error',
+          cancel: 'approval-request-dialog-cancel',
+          /** `data-anyway` while the dialog warns of a shortage (*Send anyway*). */
+          submit: 'approval-request-dialog-submit',
+        },
         /** The display name — a static span, or the input while editing. */
         itemName: 'order-files-item-name',
         /** The pencil button that switches the name to its input. */
