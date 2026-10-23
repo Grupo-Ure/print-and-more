@@ -17,8 +17,10 @@ export interface ApprovalRequestContext {
     message: string | null
     note: string | null
     expires_at: string
+    responded_at: string | null
     settled_by: string | null
     mailed: boolean
+    created_at: string
   }
   product: {
     id: string
@@ -63,7 +65,7 @@ export async function loadApprovalRequestContext(message: EmailMessage, { db }: 
 
   const { data: request, error: requestError } = await db
     .from('product_approval_requests')
-    .select('id, round, status, message, note, expires_at, settled_by, mailed, product_id')
+    .select('id, round, status, message, note, expires_at, responded_at, settled_by, mailed, created_at, product_id')
     .eq('id', requestId)
     .maybeSingle()
   if (requestError) throw new Error(`${message.template}: request lookup failed: ${requestError.message}`)
@@ -98,8 +100,10 @@ export async function loadApprovalRequestContext(message: EmailMessage, { db }: 
       message: request.message,
       note: request.note,
       expires_at: request.expires_at,
+      responded_at: request.responded_at,
       settled_by: request.settled_by,
       mailed: request.mailed,
+      created_at: request.created_at,
     },
     product: {
       id: product.id,
