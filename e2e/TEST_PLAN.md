@@ -315,6 +315,17 @@ behaviour the lifecycle packs assert is written out in
       - **APR-REL-010** force releasing the product records the reason in the emergency entry
     - *as employee*
       - **APR-REL-011** booking deductions past the model's stock with the shortage allowed is refused
+  - [expiry.spec.ts](customer-approval/expiry.spec.ts) — `APR-EXP`
+    - *waiting product, request past its expiry*
+      - **APR-EXP-001** running the expiry closes the request as expired
+      - **APR-EXP-002** running the expiry returns the product to pre-press
+      - **APR-EXP-003** draining the queue after the expiry sends the expired mail to the shop's inbox
+    - *waiting product, request not yet due*
+      - **APR-EXP-004** running the expiry leaves the request pending
+    - *round that came back with changes, past its expiry*
+      - **APR-EXP-005** running the expiry leaves the round's decision standing
+    - *expired request*
+      - **APR-EXP-006** reading the request by its token answers expired with no file
 
 ## Later
 
