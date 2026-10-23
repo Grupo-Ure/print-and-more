@@ -548,9 +548,12 @@ cannot hold an order open.
   copy in the private `approval-proofs` bucket); `products.approved_request_id`
   names the round an approved product went into production on. Read by every
   employee, written only through the `create_approval_request`,
-  `settle_approval_request` and `withdraw_approval_request` RPCs. The three
-  mails they cause (`approval-request`, `approval-decided`,
-  `approval-withdrawn`) are templates of the email runtime.
+  `settle_approval_request` and `withdraw_approval_request` RPCs, the
+  customer's page (`settle_approval_request_by_token`) and a daily `pg_cron`
+  job, `fn_expire_approval_requests`, which closes every round still pending
+  past its expiry. The four mails they cause (`approval-request`,
+  `approval-decided`, `approval-withdrawn`, and `approval-expired` to the
+  shop's inbox) are templates of the email runtime.
 - **Customer approval settings** — table `customer_approval_settings`:
   exactly **one row** (a boolean primary key held true) with `expiry_days`
   (how long an approval link stays valid, stamped onto each request) and
