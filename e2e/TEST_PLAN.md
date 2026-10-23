@@ -148,6 +148,27 @@ behaviour the lifecycle packs assert is written out in
         - **PRD-GAT-005** opening the force release prompt without a reason keeps it unsubmittable
         - **PRD-GAT-006** force releasing the product with a reason moves it to production flagged as missing information
         - **PRD-GAT-007** force releasing the product records an emergency entry in the order history
+    - [approval-requests.spec.ts](orders-page/product/approval-requests.spec.ts) — `PRD-APR`
+      - *in progress, product in pre-press with two files*
+        - **PRD-APR-001** ticking one file and requesting approval lists round one as pending with that file
+        - **PRD-APR-002** requesting approval moves the product to awaiting approval
+        - **PRD-APR-003** unticking every file in the request dialog keeps it unsubmittable
+        - **PRD-APR-004** requesting approval records the request in the order history
+        - **PRD-APR-005** requesting approval lists its mail on the order's emails tab
+        - **PRD-APR-006** switching to the whole order's files offers no approval request
+      - *in progress, product with two files awaiting approval*
+        - **PRD-APR-007** approving the round by hand lists it as approved by the user
+        - **PRD-APR-008** approving the round by hand moves the product into production
+        - **PRD-APR-009** withdrawing the round lists it as withdrawn
+        - **PRD-APR-010** withdrawing the round offers the approval request again
+      - *in progress, stamp product in pre-press with two files, model out of stock*
+        - **PRD-APR-011** opening the approval request names the short model
+        - **PRD-APR-012** cancelling the warned request leaves the product in pre-press with no round
+        - **PRD-APR-013** sending the request anyway lists round one as pending
+      - *in progress, product in pre-press with two files, previous round withdrawn*
+        - **PRD-APR-014** opening the approval request preselects the previous round's file
+      - *in progress without a deadline, product in setup with two files*
+        - **PRD-APR-015** the approval request is disabled
     - [stock-deduction.spec.ts](orders-page/product/stock-deduction.spec.ts) — `PRD-STK`
       - *in progress, stamp product in pre-press, model in stock*
         - **PRD-STK-001** releasing the product to production deducts its quantity from the model stock
