@@ -2650,6 +2650,7 @@ export type Database = {
         Args: { dept: Database["public"]["Enums"]["department"] }
         Returns: string
       }
+      fn_expire_approval_requests: { Args: never; Returns: number }
       fn_production_deductions: { Args: { product_id: string }; Returns: Json }
       force_release_to_production: {
         Args: { product_id: string; reason: string }
