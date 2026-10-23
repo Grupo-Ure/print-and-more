@@ -1,4 +1,5 @@
 import type { Database } from '../../src/types/supabase'
+import { requiredEnv } from '../support/database'
 import { TEST_CUSTOMER } from './customers'
 
 type HistoryEvent = Database['public']['Enums']['history_event']
@@ -41,13 +42,26 @@ export const APPROVAL_DECIDED_TEMPLATE = 'approval-decided'
 /** The mail telling the customer that the shop withdrew its request. */
 export const APPROVAL_WITHDRAWN_TEMPLATE = 'approval-withdrawn'
 
+/** The mail telling the shop that nobody answered a request before its link ran out. */
+export const APPROVAL_EXPIRED_TEMPLATE = 'approval-expired'
+
 /** Every mail type the sender knows — each has its row in Settings → Emails, the immediate ones included. */
 export const MAIL_TEMPLATES = [
   TEST_MESSAGE_TEMPLATE,
   APPROVAL_REQUEST_TEMPLATE,
   APPROVAL_DECIDED_TEMPLATE,
   APPROVAL_WITHDRAWN_TEMPLATE,
+  APPROVAL_EXPIRED_TEMPLATE,
 ]
+
+/**
+ * The shop's own inbox, where the sender addresses mail meant for the
+ * business — its EMAIL_SHOP_TO, which the runner reads from the same
+ * `supabase/functions/.env`.
+ */
+export function shopInbox(): string {
+  return requiredEnv('EMAIL_SHOP_TO')
+}
 
 /** A name no template module is registered under. */
 export const UNKNOWN_TEMPLATE = 'e2e-unknown-template'

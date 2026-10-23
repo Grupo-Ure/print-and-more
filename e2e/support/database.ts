@@ -159,9 +159,6 @@ export type HistoryEntryRow = Pick<Database['public']['Tables']['history']['Row'
 /** One automatic stock movement, as much of it as a spec looks at. */
 export type StockMovementRow = Pick<Database['public']['Tables']['stamp_stock_movements']['Row'], 'quantity' | 'note'>
 
-/** How long a seeded request stays valid — the setting's shipped default. */
-const SEEDED_REQUEST_VALIDITY_DAYS = 14
-
 /** The private bucket the customer's page is served proof copies from. */
 const APPROVAL_PROOFS_BUCKET = 'approval-proofs'
 
@@ -557,7 +554,7 @@ export class TestDatabase {
       status: seed.status,
       mailed: seed.mailed,
       note: seed.note,
-      expires_at: addDays(new Date(), SEEDED_REQUEST_VALIDITY_DAYS).toISOString(),
+      expires_at: addDays(new Date(), seed.validForDays).toISOString(),
       requested_by: await this.userId(requestedBy),
     })
     if (error) throw error
@@ -642,6 +639,17 @@ export class TestDatabase {
       .eq('request_id', requestId)
     if (error) throw error
     return data.map(row => row.file_id)
+  }
+
+  /**
+   * One run of the daily expiry, as the cron job makes it: every pending
+   * request past its expiry — anyone's, not only the test's — is closed as
+   * expired. Seeded requests are valid for days unless a test made its own
+   * overdue, so a run touches nothing another test is waiting on.
+   */
+  async expireApprovalRequests(): Promise<void> {
+    const { error } = await this.client.rpc('fn_expire_approval_requests')
+    if (error) throw error
   }
 
   /** The request a link's token belongs to, looked up as the customer's page does — by the token's hash. */

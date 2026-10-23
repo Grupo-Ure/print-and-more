@@ -10,7 +10,8 @@ export type ApprovalRequestStatus = Database['public']['Enums']['approval_reques
 /**
  * What the `approvalRequest` fixture inserts for the test's product: the
  * employee's message, whether the customer was mailed, the state the round is
- * in and the note it closed with. A `PENDING` round puts the product into
+ * in, the note it closed with and how many days from now its link runs out —
+ * below zero, it ran out already. A `PENDING` round puts the product into
  * awaiting approval, as sending the request would have; a closed one leaves
  * the product where the seed put it.
  */
@@ -19,6 +20,7 @@ export type ApprovalRequestSeed = {
   mailed: boolean
   status: ApprovalRequestStatus
   note: string | null
+  validForDays: number
 }
 
 // ── Statuses ──────────────────────────────────────────────────────────────
@@ -37,6 +39,9 @@ export const CHANGES_REQUESTED_STATUS: ApprovalRequestDecision = 'CHANGES_REQUES
 
 /** The state of a request the shop took back. */
 export const WITHDRAWN_REQUEST_STATUS: ApprovalRequestStatus = 'WITHDRAWN'
+
+/** The state of a request nobody answered before its link ran out. */
+export const EXPIRED_REQUEST_STATUS: ApprovalRequestStatus = 'EXPIRED'
 
 /** The round a product's first request gets. */
 export const FIRST_ROUND = 1
@@ -80,12 +85,19 @@ export const FUNCTION_OK_STATUS = 200
 /** What the function answers for a token or a file it does not serve. */
 export const NOT_FOUND_STATUS = 404
 
+/** How long a seeded request's link stays valid — the setting's shipped default. */
+const REQUEST_VALIDITY_DAYS = 14
+
+/** A link that ran out a day ago. */
+const OVERDUE_VALIDITY_DAYS = -1
+
 /** An open request the customer was mailed — the default: the product is waiting. */
 export const PENDING_MAILED_REQUEST: ApprovalRequestSeed = {
   message: APPROVAL_MESSAGE,
   mailed: true,
   status: PENDING_REQUEST_STATUS,
   note: null,
+  validForDays: REQUEST_VALIDITY_DAYS,
 }
 
 /** An open request shown to the customer another way: no mail went out, and none follows a withdrawal. */
@@ -103,6 +115,22 @@ export const CHANGES_REQUESTED_REQUEST: ApprovalRequestSeed = {
 
 /** A round the customer approved, with the product back in pre-press — sent back from production after it. */
 export const APPROVED_REQUEST: ApprovalRequestSeed = { ...PENDING_MAILED_REQUEST, status: APPROVED_REQUEST_STATUS }
+
+/** An open request whose link ran out before the expiry run closed it; the product is still waiting. */
+export const OVERDUE_REQUEST: ApprovalRequestSeed = { ...PENDING_MAILED_REQUEST, validForDays: OVERDUE_VALIDITY_DAYS }
+
+/** A round the customer sent back with changes before its link ran out — closed, so the expiry run has nothing to do with it. */
+export const OVERDUE_CHANGES_REQUESTED_REQUEST: ApprovalRequestSeed = {
+  ...CHANGES_REQUESTED_REQUEST,
+  validForDays: OVERDUE_VALIDITY_DAYS,
+}
+
+/** A round nobody answered, closed by the expiry run; the product is back in pre-press, its release blocked. */
+export const EXPIRED_REQUEST: ApprovalRequestSeed = {
+  ...PENDING_MAILED_REQUEST,
+  status: EXPIRED_REQUEST_STATUS,
+  validForDays: OVERDUE_VALIDITY_DAYS,
+}
 
 // ── What the RPC takes and the mail carries ───────────────────────────────
 
