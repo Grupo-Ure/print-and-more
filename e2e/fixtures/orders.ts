@@ -66,18 +66,27 @@ export function missedOrderDeadline(): string {
  * - `QUOTE` and `IN_PROGRESS` have no requirements of their own.
  * - `FINISHED` is only offered once every product is done, so a product seeded
  *   into such an order must be `PRODUCT_DONE`.
- * - `BILLED` is never seeded: the app archives the order at that moment and
- *   a billed order is never listed, so there is nothing left to drive.
+ * - `BILLED` is seeded only for what the database does with a billed order
+ *   (the proof purge): the app archives the order at that moment, so there is
+ *   nothing left to drive on screen. Its `billedDaysAgo` dates the billing;
+ *   every other status leaves it null.
  */
 export type OrderSeed = {
   status: OrderStatus
   delivery: DeliveryChoice | null
   paymentMethod: PaymentMethod
   deadline: 'tomorrow' | 'yesterday' | null
+  billedDaysAgo: number | null
 }
 
 /** A fresh quote with nothing set — the default. */
-export const QUOTE_ORDER: OrderSeed = { status: NEW_ORDER_STATUS, delivery: null, paymentMethod: 'INVOICE', deadline: null }
+export const QUOTE_ORDER: OrderSeed = {
+  status: NEW_ORDER_STATUS,
+  delivery: null,
+  paymentMethod: 'INVOICE',
+  deadline: null,
+  billedDaysAgo: null,
+}
 
 /** A quote with deadline and delivery set: a product in it is complete the moment processing starts. */
 export const COMPLETE_QUOTE_ORDER: OrderSeed = { ...QUOTE_ORDER, delivery: 'PICKUP', deadline: 'tomorrow' }
@@ -101,6 +110,19 @@ export const IN_PROGRESS_CASH_ORDER: OrderSeed = { ...IN_PROGRESS_ORDER, payment
 
 /** A finished invoice order, awaiting "Mark as invoiced". Seed only `PRODUCT_DONE` products into it. */
 export const FINISHED_ORDER: OrderSeed = { ...IN_PROGRESS_ORDER, status: FINISHED_STATUS }
+
+/** An invoiced order whose approval proofs the retention no longer covers: billed a day longer ago than it lasts. */
+export const BILLED_PAST_RETENTION_ORDER: OrderSeed = {
+  ...FINISHED_ORDER,
+  status: BILLED_STATUS,
+  billedDaysAgo: DEFAULT_CUSTOMER_APPROVAL_SETTINGS.retention_days + 1,
+}
+
+/** An invoiced order still inside the retention: billed a day before it runs out. */
+export const BILLED_WITHIN_RETENTION_ORDER: OrderSeed = {
+  ...BILLED_PAST_RETENTION_ORDER,
+  billedDaysAgo: DEFAULT_CUSTOMER_APPROVAL_SETTINGS.retention_days - 1,
+}
 
 /** The slot the `departmentDefault` fixture owns, and who it holds (`null` while empty). */
 export type TestDepartmentDefault = {
@@ -237,6 +259,7 @@ export const test = base.extend<OrdersViewFixtures>({
       delivery: orderSeed.delivery,
       payment_method: orderSeed.paymentMethod,
       deadline: orderSeed.deadline ? DEADLINE_BY_NAME[orderSeed.deadline]() : null,
+      billed_at: orderSeed.billedDaysAgo === null ? null : addDays(new Date(), -orderSeed.billedDaysAgo).toISOString(),
     })
     await reloadApp(page, navbar)
 

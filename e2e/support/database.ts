@@ -55,6 +55,8 @@ export type OrderSeedRow = {
   deadline: string | null
   delivery: DeliveryType | null
   payment_method: PaymentMethod
+  /** When a `BILLED` order was billed; null for any other status. */
+  billed_at: string | null
 }
 
 /** The columns a fixture chooses for a file it links to an order. */
@@ -360,11 +362,20 @@ export class TestDatabase {
    * Inserts an order for an existing customer in the given state. `order_number`
    * is assigned by the trg_order_number trigger, so it is left out of the payload
    * (as the app's NewOrderDialog does); `created_by` stays null under the service role.
+   *
+   * `billed_at` is written in a second step: trg_order_billed_at stamps the
+   * moment of the insert on an order created billed, and lets the service
+   * role date it back only once it is billed.
    */
   async createOrder(customerId: string, seed: OrderSeedRow): Promise<TestOrder> {
-    const payload = { customer_id: customerId, ...seed } as OrderInsert
+    const { billed_at, ...columns } = seed
+    const payload = { customer_id: customerId, ...columns } as OrderInsert
     const { data, error } = await this.client.from('orders').insert(payload).select('id, order_number').single()
     if (error) throw error
+    if (billed_at !== null) {
+      const { error: billedError } = await this.client.from('orders').update({ billed_at }).eq('id', data.id)
+      if (billedError) throw billedError
+    }
     return { id: data.id, orderNumber: data.order_number, customerId }
   }
 
@@ -650,6 +661,39 @@ export class TestDatabase {
   async expireApprovalRequests(): Promise<void> {
     const { error } = await this.client.rpc('fn_expire_approval_requests')
     if (error) throw error
+  }
+
+  /**
+   * One run of the daily proof purge, as the cron job makes it: every copy of
+   * a closed round on an order billed longer ago than the retention — anyone's,
+   * not only the test's — is stamped purged and deleted from the bucket. The
+   * deletes go out after the run commits and are not waited for. Only seeds
+   * meant for the purge are billed, so a run touches no other test's copies.
+   */
+  async purgeApprovalFiles(): Promise<void> {
+    const { error } = await this.client.rpc('fn_purge_approval_files')
+    if (error) throw error
+  }
+
+  /** When the purge removed the copy of the round's file; null while it is held. */
+  async approvalRequestFilePurgedAt(requestId: string, fileId: string): Promise<string | null> {
+    const { data, error } = await this.client
+      .from('product_approval_request_files')
+      .select('purged_at')
+      .eq('request_id', requestId)
+      .eq('file_id', fileId)
+      .single()
+    if (error) throw error
+    return data.purged_at
+  }
+
+  /** Whether a proof copy is in the approval-proofs bucket at that path. */
+  async approvalProofStored(storagePath: string): Promise<boolean> {
+    const folder = storagePath.slice(0, storagePath.lastIndexOf('/'))
+    const name = storagePath.slice(storagePath.lastIndexOf('/') + 1)
+    const { data, error } = await this.client.storage.from(APPROVAL_PROOFS_BUCKET).list(folder, { search: name })
+    if (error) throw error
+    return data.some(object => object.name === name)
   }
 
   /** The request a link's token belongs to, looked up as the customer's page does — by the token's hash. */
