@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu'
 import { PRODUCT_TYPES_BY_DEPARTMENT, PRODUCT_TYPE_LABELS } from '../lib/productTypeLabels'
-import { PRODUCT_STATUS_META, WORKFLOW_STATUSES } from '../lib/statusLabels'
+import { PRODUCT_STATUS_META, PRODUCT_TRACK_STATUSES } from '../lib/statusLabels'
 import { TEST_IDS } from '@e2e/support/testIds'
 
 const IDS = TEST_IDS.orders.productList
@@ -32,7 +32,7 @@ const IDS = TEST_IDS.orders.productList
 function ProductStatusTrack({ status }: { status: ProductStatus }) {
   return (
     <div className="flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-gray-100">
-      {WORKFLOW_STATUSES.map(s => (
+      {PRODUCT_TRACK_STATUSES.map(s => (
         <div
           key={s}
           title={PRODUCT_STATUS_META[s].label}

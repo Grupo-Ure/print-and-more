@@ -49,6 +49,20 @@ export const WORKFLOW_STATUSES: ProductStatus[] = [
 ]
 
 /**
+ * The squares of the product list's status track: the workflow steps with
+ * AWAITING_APPROVAL in its place between pre-press and production, so a
+ * waiting product shows where it stands. A product never asked about simply
+ * passes that square by.
+ */
+export const PRODUCT_TRACK_STATUSES: ProductStatus[] = [
+  'IN_SETUP',
+  'PREPRESS',
+  'AWAITING_APPROVAL',
+  'IN_PRODUCTION',
+  'DONE',
+]
+
+/**
  * A customer approval round, as the requests table on the product's Files tab
  * words it. PENDING is the open round; the other four are the ways it closes.
  */
