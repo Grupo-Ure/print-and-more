@@ -259,8 +259,6 @@ export function ProductDetail({
             order={order}
             product={product}
             effectiveProduct={effectiveProduct}
-            orderFiles={orderFiles}
-            onOrderFilesChanged={onOrderFilesChanged}
           />
         </TabsContent>
 

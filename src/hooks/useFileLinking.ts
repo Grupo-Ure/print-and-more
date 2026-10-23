@@ -12,9 +12,9 @@ const DEFAULT_ROLE: FileRole = 'PRODUCTION_FILE'
 
 /**
  * Links files to an order by their real disk path (via the Electron bridge):
- * shared by OrderFiles, GrantApprovalDialog and the textile batch editor's
- * artwork picker. Every link writes a FILE_ADDED history event and refreshes
- * the order's file list wherever it is shown; failures surface as error toasts.
+ * shared by OrderFiles and the textile batch editor's artwork picker. Every
+ * link writes a FILE_ADDED history event and refreshes the order's file list
+ * wherever it is shown; failures surface as error toasts.
  *
  * With a `productId` (the product's Files tab) each file is attached to that
  * product as well, so it shows among the product's own files at once.

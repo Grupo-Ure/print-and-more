@@ -29,7 +29,7 @@ import { resolveEffectiveProduct } from '../lib/productShared'
 
 /** SELECT for `products` — the full row as the app consumes it (`ProductRow`). */
 const PRODUCT_COLUMNS =
-  'id, product_number, order_id, department, type, status, quantity, notes, sort_order, deadline, delivery, priority, assignee_id, is_cancelled, customer_approval_required, customer_approval_granted, customer_approval_file_id, approved_request_id, created_at' as const
+  'id, product_number, order_id, department, type, status, quantity, notes, sort_order, deadline, delivery, priority, assignee_id, is_cancelled, approved_request_id, created_at' as const
 
 /** `product_number` is trigger-assigned; the client never sets it. */
 export type ProductInsert = Omit<TablesInsert<'products'>, 'product_number'>
@@ -62,8 +62,6 @@ export type ProductionProduct = Pick<
   | 'priority'
   | 'assignee_id'
   | 'is_cancelled'
-  | 'customer_approval_required'
-  | 'customer_approval_granted'
 > & {
   orders: {
     order_number: string
@@ -76,7 +74,7 @@ export type ProductionProduct = Pick<
 }
 
 const PRODUCTION_PRODUCT_SELECT =
-  'id, product_number, order_id, department, type, status, deadline, delivery, priority, assignee_id, is_cancelled, customer_approval_required, customer_approval_granted, orders!inner(order_number, status, deadline, delivery, priority, is_archived, customers(name))'
+  'id, product_number, order_id, department, type, status, deadline, delivery, priority, assignee_id, is_cancelled, orders!inner(order_number, status, deadline, delivery, priority, is_archived, customers(name))'
 
 /**
  * Feed order: effective priority HIGH before NORMAL regardless of date, then
@@ -222,16 +220,6 @@ class ProductService {
 
   async setStatus(id: string, status: ProductStatus): Promise<ProductRow> {
     return this.update(id, { status })
-  }
-
-  async setCustomerApproval(
-    id: string,
-    patch: Pick<
-      ProductPatch,
-      'customer_approval_required' | 'customer_approval_granted' | 'customer_approval_file_id'
-    >,
-  ): Promise<ProductRow> {
-    return this.update(id, patch)
   }
 
   async cancel(id: string): Promise<void> {

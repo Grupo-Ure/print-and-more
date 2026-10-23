@@ -1,6 +1,4 @@
-import { useState } from 'react'
-import { Check } from 'lucide-react'
-import { useUpdateProduct, useSetCustomerApproval } from '../../queries/productQueries'
+import { useUpdateProduct } from '../../queries/productQueries'
 import { validateProductCommonFields } from '../../lib/productShared'
 import { toDateOnly, todayDateOnly } from '../../lib/formatDate'
 import {
@@ -11,56 +9,32 @@ import {
   type ProductUpdate,
 } from '../../types/database'
 import type { LoadedProduct } from '../../types/product'
-import type { FileRow } from '../../services/fileService'
 import { DeadlinePicker } from '../fields/DeadlinePicker'
 import { DeliverySelect } from '../fields/DeliverySelect'
 import { PrioritySelect } from '../fields/PrioritySelect'
-import { Button } from '../ui/button'
 import { Switch } from '../ui/switch'
 import { useToast } from '../Toast'
-import { GrantApprovalDialog } from './GrantApprovalDialog'
 import { TEST_IDS } from '@e2e/support/testIds'
 
 const IDS = TEST_IDS.orders.productDetail.settings
 
 /**
  * The "Product Settings" section: the separate-value switches (deadline,
- * delivery, priority — null column = inherit from the order) and the
- * customer-approval toggle. Owns its own mutations; both patch the product
- * cache themselves, so nothing is bubbled to the workspace.
+ * delivery, priority — null column = inherit from the order). Owns its
+ * mutation, which patches the product cache itself, so nothing is bubbled to
+ * the workspace. The customer approval is asked for on the Files tab.
  */
 export function ProductSettingsSection({
   order,
   product,
   effectiveProduct,
-  orderFiles,
-  onOrderFilesChanged,
 }: {
   order: OrderDetailRow
   product: LoadedProduct
   effectiveProduct: LoadedProduct
-  orderFiles: FileRow[]
-  onOrderFilesChanged: () => void | Promise<void>
 }) {
   const updateProduct = useUpdateProduct()
-  const setCustomerApproval = useSetCustomerApproval()
   const { showError } = useToast()
-  const [grantOpen, setGrantOpen] = useState(false)
-
-  const handleGrantApproval = (fileId: string) => {
-    setCustomerApproval.mutate(
-      {
-        id: product.id,
-        orderId: product.order_id,
-        patch: { customer_approval_granted: true, customer_approval_file_id: fileId },
-        history: { event_type: 'CUSTOMER_APPROVAL_GRANTED', meta: { file_id: fileId } },
-      },
-      {
-        onSuccess: () => setGrantOpen(false),
-        onError: () => showError('Save failed'),
-      },
-    )
-  }
 
   // Raw order fields drive the toggle defaults and the equality-collapse compares.
   const orderDeliveryMode = (order.delivery ?? 'PICKUP') as DeliveryChoice
@@ -211,62 +185,6 @@ export function ProductSettingsSection({
         />
         {hasSeparatePriority && validationErrors.priority && <p className="text-destructive text-xs mt-1">{validationErrors.priority}</p>}
       </div>
-
-      <label htmlFor={IDS.approvalRequired} className="text-sm select-none">
-        Customer approval required
-      </label>
-      <Switch
-        id={IDS.approvalRequired}
-        data-testid={IDS.approvalRequired}
-        disabled={isLocked}
-        checked={product.customer_approval_required}
-        onCheckedChange={checked => {
-          setCustomerApproval.mutate({
-            id: product.id,
-            orderId: product.order_id,
-            patch: checked
-              ? { customer_approval_required: true }
-              : { customer_approval_required: false, customer_approval_granted: false, customer_approval_file_id: null },
-            history: {
-              event_type: checked ? 'CUSTOMER_APPROVAL_ACTIVATED' : 'CUSTOMER_APPROVAL_DEACTIVATED',
-            },
-          })
-        }}
-      />
-      <div className="flex items-center gap-2">
-        {product.customer_approval_required && !product.customer_approval_granted && (
-          <Button
-            type="button"
-            variant="outline"
-            size="xs"
-            data-testid={IDS.grantApproval}
-            disabled={isDone}
-            onClick={() => setGrantOpen(true)}
-          >
-            Grant approval…
-          </Button>
-        )}
-        {product.customer_approval_granted && (
-          <span data-testid={IDS.approvalGranted} className="flex items-center gap-1 text-xs text-green-600">
-            <Check className="size-3.5" aria-hidden />
-            Granted
-            {(() => {
-              const approvedFile = orderFiles.find(file => file.id === product.customer_approval_file_id)
-              return approvedFile ? ` — ${approvedFile.display_name}` : ''
-            })()}
-          </span>
-        )}
-      </div>
-
-      <GrantApprovalDialog
-        orderId={product.order_id}
-        files={orderFiles}
-        onFilesChanged={onOrderFilesChanged}
-        open={grantOpen}
-        onOpenChange={setGrantOpen}
-        onConfirm={handleGrantApproval}
-        pending={setCustomerApproval.isPending}
-      />
     </div>
   )
 }

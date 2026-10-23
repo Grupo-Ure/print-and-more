@@ -14,7 +14,7 @@ import { stockAvailabilityKeys } from './stockQueries'
 /**
  * The product query layer. A product is the unit of work, so this module owns
  * what the job model split between two: the workflow (status, assignee,
- * approval, release, cancellation) and the spec (the typed child row and its
+ * release, cancellation) and the spec (the typed child row and its
  * file links). Both halves live on one row, so they share one cache — the
  * order's `LoadedProduct[]`, keyed by {@link productKeys.byOrderId}.
  */
@@ -395,33 +395,6 @@ export function useSetProductAssignee() {
       patchProductInCache(queryClient, orderId, row)
       void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
       void queryClient.invalidateQueries({ queryKey: productKeys.production })
-    },
-  })
-}
-
-/** Customer-approval requirement / grant. Does not change status. */
-export function useSetCustomerApproval() {
-  const queryClient = useQueryClient()
-  return useMutation<
-    ProductRow,
-    Error,
-    {
-      id: string
-      orderId: string
-      patch: Pick<
-        ProductUpdate,
-        'customer_approval_required' | 'customer_approval_granted' | 'customer_approval_file_id'
-      >
-      history?: HistoryParams
-    }
-  >({
-    mutationFn: async ({ id, orderId, patch, history }) => {
-      const row = await productService.setCustomerApproval(id, patch)
-      if (history) await historyService.tryWriteHistory({ order_id: orderId, product_id: id, ...history })
-      return row
-    },
-    onSuccess: (row, { orderId }) => {
-      patchProductInCache(queryClient, orderId, row)
     },
   })
 }
