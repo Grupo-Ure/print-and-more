@@ -2667,6 +2667,10 @@ export type Database = {
         Returns: string
       }
       fn_production_deductions: { Args: { product_id: string }; Returns: Json }
+      force_release_to_production: {
+        Args: { product_id: string; reason: string }
+        Returns: undefined
+      }
       list_queued_emails: {
         Args: { order_id: string }
         Returns: {
@@ -2688,6 +2692,7 @@ export type Database = {
         }
         Returns: number
       }
+      release_to_production: { Args: { product_id: string }; Returns: undefined }
       reschedule_email: {
         Args: { delay_seconds: number; msg_id: number }
         Returns: boolean
