@@ -57,9 +57,11 @@ export function ProductSettingsSection({
   const deadlineIso = toDateOnly(effectiveDeadline) ?? ''
 
   const validationErrors = validateProductCommonFields(effectiveProduct, orderIsQuote)
-  // In production a subset of fields is locked; once DONE everything is read-only.
-  const isDone = product.status === 'DONE'
-  const isLocked = product.status === 'IN_PRODUCTION' || isDone
+  // In production the deadline is locked; once DONE everything is read-only,
+  // and so it is while the customer is asked to approve — the request was sent
+  // against these settings (the database refuses the change either way).
+  const isReadOnly = product.status === 'DONE' || product.status === 'AWAITING_APPROVAL'
+  const isLocked = product.status === 'IN_PRODUCTION' || isReadOnly
 
   // Persist a field edit straight to the DB (optimistic via useUpdateProduct —
   // instant UI, rollback on error). No status calculation here: status is driven
@@ -128,7 +130,7 @@ export function ProductSettingsSection({
       <Switch
         id={IDS.separateDelivery}
         data-testid={IDS.separateDelivery}
-        disabled={isDone}
+        disabled={isReadOnly}
         checked={hasSeparateDelivery}
         onCheckedChange={checked => {
           if (checked !== true) {
@@ -141,7 +143,7 @@ export function ProductSettingsSection({
       <div className="min-w-0">
         <DeliverySelect
           testId={IDS.delivery}
-          disabled={!hasSeparateDelivery || isDone}
+          disabled={!hasSeparateDelivery || isReadOnly}
           value={effectiveDelivery}
           onChange={value => {
             if (value === orderDeliveryMode) {
@@ -160,7 +162,7 @@ export function ProductSettingsSection({
       <Switch
         id={IDS.separatePriority}
         data-testid={IDS.separatePriority}
-        disabled={isDone}
+        disabled={isReadOnly}
         checked={hasSeparatePriority}
         onCheckedChange={checked => {
           if (checked !== true) {
@@ -173,7 +175,7 @@ export function ProductSettingsSection({
       <div className="min-w-0">
         <PrioritySelect
           testId={IDS.priority}
-          disabled={!hasSeparatePriority || isDone}
+          disabled={!hasSeparatePriority || isReadOnly}
           value={effectivePriority}
           onChange={value => {
             if (value === orderPriorityMode) {

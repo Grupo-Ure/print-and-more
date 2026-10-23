@@ -9,7 +9,8 @@
  * pressed, and goes back to read-only on save or cancel.
  *
  * Products are read-only for good once the product is in production or done,
- * in which case no Edit button is offered at all.
+ * and for as long as the customer is asked to approve it, in which case no
+ * Edit button is offered at all.
  */
 
 import { useState } from 'react'
@@ -46,8 +47,10 @@ export function ProductBasicInfo({
   const [editing, setEditing] = useState(false)
   const ActiveForm = FORM_BY_TYPE[product.type]
 
-  // Released work is not corrected here; the production banner says why.
-  const locked = product.status === 'IN_PRODUCTION' || product.status === 'DONE'
+  // Released work is not corrected here, nor work the customer is looking at;
+  // the production banner says why.
+  const locked =
+    product.status === 'AWAITING_APPROVAL' || product.status === 'IN_PRODUCTION' || product.status === 'DONE'
   const viewing = !editing || locked
   const canRequestApproval = product.status === 'PREPRESS' && !product.is_cancelled
 
