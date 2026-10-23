@@ -231,6 +231,7 @@ export function ProductDetail({
             orderFiles={orderFiles}
             fileIds={fileIds}
             shortages={shortages}
+            onRequestApproval={() => setTab('files')}
           />
 
           {/* Quick time entry without leaving the spec; the full log is one

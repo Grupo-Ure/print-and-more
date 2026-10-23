@@ -8,7 +8,8 @@
 
 import { type AnyFieldApi } from '@tanstack/react-form'
 import { useContext, useState, type ReactNode } from 'react'
-import { ProductViewContext, SubmitAttemptedContext, useSubmitAttempted } from './formContexts'
+import { Send } from 'lucide-react'
+import { ProductViewContext, RequestApprovalContext, SubmitAttemptedContext, useSubmitAttempted } from './formContexts'
 import { Input } from '../../ui/input'
 import { Textarea } from '../../ui/textarea'
 import { Label } from '../../ui/label'
@@ -268,6 +269,7 @@ export function FilePickerField({ orderId, value, onChange, orderFiles }: { orde
       <div data-testid={FILE_IDS.root} className="flex flex-col gap-2">
         {(value.length > 0 || viewing) && (
           <div className="flex flex-wrap items-center gap-2">
+            {viewing && value.length > 0 && <RequestApprovalShortcut />}
             {viewing && value.length === 0 && <span className="text-sm text-muted-foreground">—</span>}
             {value.map(fid => {
               const file = orderFiles.find(f => f.id === fid)
@@ -309,6 +311,21 @@ export function FilePickerField({ orderId, value, onChange, orderFiles }: { orde
         )}
       </div>
     </FieldRow>
+  )
+}
+
+/**
+ * *Request approval* beside the product's files on the read-only *Basic info*
+ * tab: switches to the Files tab, where the proofs are picked and the request
+ * is sent. Renders nothing where no switch is provided (`RequestApprovalContext`).
+ */
+export function RequestApprovalShortcut() {
+  const requestApproval = useContext(RequestApprovalContext)
+  if (!requestApproval) return null
+  return (
+    <Button type="button" size="xs" variant="outline" data-testid={IDS.requestApproval} onClick={requestApproval}>
+      <Send /> Request approval
+    </Button>
   )
 }
 

@@ -324,6 +324,8 @@ export const TEST_IDS = {
           /** The text tab's input; Enter or the add button adds the design. */
           pickerText: 'product-basic-info-textile-picker-text',
         },
+        /** Beside the files (the Files field, or a textile batch's designs) in pre-press: switches to the Files tab. */
+        requestApproval: 'product-basic-info-request-approval',
         /** The Files field of every non-textile form: the picked chips plus the shared picker. */
         files: {
           root: 'product-basic-info-files',

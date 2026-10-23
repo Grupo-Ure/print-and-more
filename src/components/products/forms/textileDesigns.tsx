@@ -25,6 +25,7 @@ import type { FileRow } from '@/services/fileService'
 import { TEST_IDS } from '@e2e/support/testIds'
 import { OptionStep, PickSeparator, StepPick } from './guidedSteps'
 import { ProductViewContext, useSubmitAttempted } from './formContexts'
+import { RequestApprovalShortcut } from './fields'
 
 const IDS = TEST_IDS.orders.productDetail.basicInfo.textile
 
@@ -214,6 +215,11 @@ export function DesignsEditor({
   return (
     <section data-testid={IDS.designs} className="flex flex-col gap-2">
       <SectionHeader title="Designs" />
+      {readOnly && designs.some(design => design.type === 'FILE') && (
+        <div>
+          <RequestApprovalShortcut />
+        </div>
+      )}
       {designs.map(design => (
         <DesignRow
           key={design.key}

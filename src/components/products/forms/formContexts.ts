@@ -15,3 +15,10 @@ export const ProductViewContext = createContext(false)
 export const SubmitAttemptedContext = createContext(false)
 
 export const useSubmitAttempted = () => useContext(SubmitAttemptedContext)
+
+/**
+ * Takes the user from the product's files on *Basic info* to the Files tab,
+ * where the approval is asked for. `ProductBasicInfo` provides it while the
+ * product can be sent for approval; null everywhere else (the draft panel).
+ */
+export const RequestApprovalContext = createContext<(() => void) | null>(null)
