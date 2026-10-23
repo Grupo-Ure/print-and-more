@@ -211,8 +211,8 @@ process, so they are edited as that process changes.
   app protocol, deep links, window state, Sentry). The renderer is the Vite
   bundle; the preload exposes a small typed bridge as `window.pam`
   ([src/types/electron-api.d.ts](src/types/electron-api.d.ts)): reveal a path
-  in the file manager, pick files, open external URLs, and deep-link
-  callbacks. The app must still run in a plain browser tab for development;
+  in the file manager, pick files, read a linked file (the approval proof
+  upload), open external URLs, and deep-link callbacks. The app must still run in a plain browser tab for development;
   code that needs the bridge checks for `window.pam` and degrades with a
   toast.
 - **Deep links:** the `pam://` scheme. `pam://order/<uuid>` opens that order
@@ -257,8 +257,14 @@ logs*, *Settings* (separate deadline/delivery/priority overrides, customer
 approval; [`src/components/productDetail/`](src/components/productDetail/))
 and *Files* ([`OrderFiles`](src/components/OrderFiles.tsx)). The files belong
 to the order; the tab sits on the product so the production view, which shows
-only a product, has them too. Every workflow action lives in the header of the
-order or the product (or the product list's context menu).
+only a product, has them too. It shows *This product*'s files by default and
+*Whole order* at a switch; the product scope ticks proofs for a customer
+approval, sends them through
+[`ApprovalRequestDialog`](src/components/productDetail/ApprovalRequestDialog.tsx)
+and lists every round below, where an answer given by phone is recorded and an
+open round withdrawn. Every workflow action lives in the header of the order or
+the product (or the product list's context menu), the approval request on the
+*Files* tab excepted.
 [`useStatusManager`](src/queries/useStatusManager.ts), called by
 `OrderDetails`, runs the automatic status logic (see "Status") — one effect
 per order, over all of its products.
@@ -339,6 +345,9 @@ Simple confirmations (archive/cancel/delete/mark-done/release prompts) go
 through the promise-based `useConfirm()` hook from
 [`ConfirmDialog`](src/components/ConfirmDialog.tsx) (`ConfirmProvider` is
 mounted in `App.tsx`) — don't use `window.confirm` or one-off confirm dialogs.
+A prompt that needs a field of its own (the note of an approval recorded by
+hand, the reason of a force release) is a purpose-built dialog beside the
+feature, not an extension of this one.
 Errors surface as toasts (`useToast()` from
 [`Toast.tsx`](src/components/Toast.tsx)).
 
@@ -495,14 +504,17 @@ cannot hold an order open.
 - **Files** — table `files` (`order_id`, `display_name`, `path`, `role`
   (`PRODUCTION_FILE` | `PREVIEW` | `CUSTOMER_APPROVAL` | `REFERENCE`)).
   Attached at the **order** level via `OrderFiles` on each product's *Files* tab (drop or pick files;
-  the desktop bridge resolves the real path), and from the shared
+  the desktop bridge resolves the real path; the file is attached to that product too), and from the shared
   [`FilePicker`](src/components/FilePicker.tsx) inside any product form, which
   links a dropped file to the order and hands it to the product in one go — as
   an attachment on the other types, as a design on a textile batch; products
   link to them through `product_files`; a customer approval is granted against
   one of them.
   UNC-path **linking**, not upload — the files stay on the network share, and
-  "open" reveals them through `window.pam.revealPath`.
+  "open" reveals them through `window.pam.revealPath`. The one copy ever made
+  is a customer approval's: the desktop app reads each proof
+  (`window.pam.readFile`) and uploads it to the private `approval-proofs`
+  bucket for the customer's page ([`approvalRequestService`](src/services/approvalRequestService.ts)).
 - **History** — table `history` (`order_id`, `product_id`, `event_type`
   (`history_event` enum), `user_id`, `meta`). Written alongside every
   workflow action by [`historyService`](src/services/historyService.ts);
@@ -632,8 +644,10 @@ production for a product whose customer has been asked to approve a proof:
 only `create_approval_request` moves a product in, only the request closing
 (approved, changes requested, expired, withdrawn — one trigger,
 `fn_approval_request_closed`) moves it out, and while it waits its spec and
-settings are locked by the database. The app does not yet ask for approvals;
-the stream is [.plans/CUSTOMER_APPROVAL.md](.plans/CUSTOMER_APPROVAL.md).
+settings are locked by the database. The app asks from the product's *Files*
+tab (`approvalRequestService`, `src/queries/approvalQueries.ts`); the release
+gate on the newest round is not built yet, and the stream is
+[.plans/CUSTOMER_APPROVAL.md](.plans/CUSTOMER_APPROVAL.md).
 The rules live in one place each:
 
 - **Completeness** — [src/lib/productShared.ts](src/lib/productShared.ts):
