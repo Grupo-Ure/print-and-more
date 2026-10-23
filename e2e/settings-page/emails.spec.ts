@@ -83,6 +83,11 @@ test('SET-EML-004 saving wording with a placeholder the mail does not offer is r
 
   // Assert — the stored body is unchanged.
   expect((await database.emailSetting(emailSetting.template)).body).toBe(before.body)
+
+  // Cleanup — a refused save keeps the dialog open, and the worker's window
+  // carries it into the next test; close it.
+  await dialog.cancel.click()
+  await dialog.root.waitFor({ state: 'hidden' })
 })
 
 test('SET-EML-005 opening the emails section lists every mail type, the immediate ones included', async ({ settingsPage }) => {
