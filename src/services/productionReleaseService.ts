@@ -1,3 +1,4 @@
+import type { PostgrestError } from '@supabase/supabase-js'
 import { supabase } from '../supabase'
 import { stampService } from './stampService'
 import { textileService } from './textileService'
@@ -26,7 +27,7 @@ export type StockShortage = {
   available: number
 }
 
-/** Thrown when the deduction RPC rejects a release for insufficient stock. */
+/** Thrown when the release RPC rejects a release for insufficient stock. */
 export class InsufficientStockError extends Error {
   shortages: { target: string; id: string; required: number; available: number }[]
 
@@ -41,13 +42,14 @@ const floorQuantity = (raw: number | null | undefined): number =>
   Number.isFinite(raw) && (raw as number) >= 1 ? Math.floor(raw as number) : 1
 
 /**
- * Stock consumption on release to production (the only point stock is consumed
- * — not on "mark done"). A release is now always a single product. The
- * requirements are collected client-side, where the product-type knowledge
- * lives next to the schemas; the deduction itself is booked atomically by the
- * `book_production_deductions` RPC (conditional decrement + AUTO_DEDUCTION
- * movement rows in one transaction), so concurrent releases can never lose an
- * update or drive stock negative.
+ * The release to production (the only point stock is consumed — not on "mark
+ * done"). The release itself is the database's: `release_to_production` and
+ * `force_release_to_production` check the gates, book the deductions
+ * (`fn_production_deductions` + `book_production_deductions`, conditional
+ * decrements and AUTO_DEDUCTION movements in one transaction) and move the
+ * product. The requirements and shortages are still computed here, as the
+ * database computes them, for what the app shows before a release: the
+ * banner, the size grid, the approval request's stock warning.
  */
 class ProductionReleaseService {
   /**
@@ -154,38 +156,39 @@ class ProductionReleaseService {
   }
 
   /**
-   * Book the product's stock deductions atomically via the
-   * `book_production_deductions` RPC. With `allowShortage: false` (normal
-   * release) any shortage aborts the whole booking and raises
-   * `InsufficientStockError`; with `allowShortage: true` (admin force release)
-   * stock is floored at 0 and the movements record what was actually deducted.
+   * Release the product to production through the `release_to_production`
+   * RPC, which checks every gate (pre-press, completeness, the newest approval
+   * round, stock), books the deductions and moves the product in one
+   * transaction. A shortage aborts it as `InsufficientStockError` — a
+   * concurrent release may have taken the stock the banner still counted.
    */
-  async deductProductionStock(
-    product: LoadedProduct,
-    orderNumber: string | null,
-    opts: { allowShortage?: boolean } = {},
-  ): Promise<void> {
-    const requirements = await this.collectStockRequirements(product)
-    if (requirements.length === 0) return
-
-    const { error } = await supabase.rpc('book_production_deductions', {
-      deductions: requirements.map(r => ({ target: r.target, id: r.targetId, quantity: r.quantity })),
-      note: 'Automatic on production release ' + (orderNumber ?? ''),
-      allow_shortage: opts.allowShortage ?? false,
-    })
-    if (error) {
-      if (error.message.includes('INSUFFICIENT_STOCK')) {
-        let shortages: InsufficientStockError['shortages'] = []
-        try {
-          shortages = JSON.parse(error.details ?? '[]')
-        } catch {
-          // keep the empty list — the error itself is what matters
-        }
-        throw new InsufficientStockError(shortages)
-      }
-      throw error
-    }
+  async release(productId: string): Promise<void> {
+    const { error } = await supabase.rpc('release_to_production', { product_id: productId })
+    if (error) throw toReleaseError(error)
   }
+
+  /**
+   * The admin override: `force_release_to_production` skips completeness,
+   * stock and a newest round that came back without an approval, floors short
+   * stock at 0 and records the reason as an EMERGENCY_TRIGGERED entry. Never
+   * for a product still waiting for the customer.
+   */
+  async forceRelease(productId: string, reason: string): Promise<void> {
+    const { error } = await supabase.rpc('force_release_to_production', { product_id: productId, reason })
+    if (error) throw error
+  }
+}
+
+/** The release RPC's refusal for a shortage carries the short targets as its detail. */
+function toReleaseError(error: PostgrestError): Error {
+  if (!error.message.includes('INSUFFICIENT_STOCK')) return error
+  let shortages: InsufficientStockError['shortages'] = []
+  try {
+    shortages = JSON.parse(error.details ?? '[]')
+  } catch {
+    // keep the empty list — the error itself is what matters
+  }
+  return new InsufficientStockError(shortages)
 }
 
 export const productionReleaseService = new ProductionReleaseService()
