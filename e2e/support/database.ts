@@ -405,6 +405,12 @@ export class TestDatabase {
     return { ...seed, id: data.id, orderId }
   }
 
+  /** Attaches an order's file to one of its products (`product_files`), as picking it in the product's form does. Removed with the order. */
+  async attachFileToProduct(productId: string, fileId: string): Promise<void> {
+    const { error } = await this.client.from('product_files').insert({ product_id: productId, file_id: fileId })
+    if (error) throw error
+  }
+
   // ── Catalog ──────────────────────────────────────────────────────────────
 
   /** Inserts the stamp model, or resets it to the seed (stock included) if it is already there. */
@@ -587,6 +593,24 @@ export class TestDatabase {
   async removeApprovalProofs(storagePaths: string[]): Promise<void> {
     const { error } = await this.client.storage.from(APPROVAL_PROOFS_BUCKET).remove(storagePaths)
     if (error) throw error
+  }
+
+  /**
+   * Removes every proof copy stored for the order — what the app uploaded when
+   * a test asked for an approval. Copies sit at `<order>/<request>/<file>`, so
+   * the order's folder is listed one request folder at a time.
+   */
+  async removeApprovalProofsOfOrder(orderId: string): Promise<void> {
+    const bucket = this.client.storage.from(APPROVAL_PROOFS_BUCKET)
+    const { data: requestFolders, error } = await bucket.list(orderId)
+    if (error) throw error
+    const paths: string[] = []
+    for (const folder of requestFolders) {
+      const { data: copies, error: listError } = await bucket.list(`${orderId}/${folder.name}`)
+      if (listError) throw listError
+      paths.push(...copies.map(copy => `${orderId}/${folder.name}/${copy.name}`))
+    }
+    if (paths.length > 0) await this.removeApprovalProofs(paths)
   }
 
   /** The request's decision as stored: its status and the note that came with it. */

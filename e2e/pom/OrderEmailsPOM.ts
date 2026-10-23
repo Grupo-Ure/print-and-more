@@ -33,4 +33,9 @@ export class OrderEmailsPOM extends BasePOM {
   queued(msgId: number): Locator {
     return this.withAttr(this.queuedItems, 'data-msg-id', String(msgId))
   }
+
+  /** The mails of one template, waiting or sent — the queue may be drained while the tab is open. */
+  ofTemplate(template: string): Locator {
+    return this.withAttr(this.queuedItems.or(this.sentItems), 'data-template', template)
+  }
 }

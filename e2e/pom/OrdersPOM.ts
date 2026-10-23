@@ -61,4 +61,11 @@ export class OrdersPOM extends BasePOM {
     await this.details.productDetail.settingsTab.click()
     await this.details.productDetail.settings.root.waitFor()
   }
+
+  /** Opens the product on its Files tab, which shows the product's own files. */
+  async openProductFiles(product: ProductRef): Promise<void> {
+    await this.openProduct(product)
+    await this.details.productDetail.filesTab.click()
+    await this.details.productDetail.files.inScope('product').waitFor()
+  }
 }
