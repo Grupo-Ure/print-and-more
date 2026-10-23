@@ -21,6 +21,9 @@ contextBridge.exposeInMainWorld('pam', {
   pickFiles: (): Promise<string[]> => ipcRenderer.invoke('dialog:pick-files'),
   // Real disk path of a dropped/selected File object (the web platform hides it).
   getPathForFile: (file: File): string => webUtils.getPathForFile(file),
+  // Bytes of a linked file, for the approval proof upload; validated in main.
+  readFile: (path: string): Promise<{ ok: true; data: Uint8Array } | { ok: false; error: string }> =>
+    ipcRenderer.invoke('fs:read-file', path),
   // Opens the OAuth sign-in page in the system browser; https only, enforced in main.
   openExternal: (url: string): Promise<{ ok: true } | { ok: false; error: string }> =>
     ipcRenderer.invoke('shell:open-external', url),
