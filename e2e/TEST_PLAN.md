@@ -330,6 +330,15 @@ behaviour the lifecycle packs assert is written out in
       - **APR-EXP-005** running the expiry leaves the round's decision standing
     - *expired request*
       - **APR-EXP-006** reading the request by its token answers expired with no file
+  - [cleanup.spec.ts](customer-approval/cleanup.spec.ts) — `APR-CLN`
+    - *order billed longer ago than the retention, approved round*
+      - **APR-CLN-001** running the purge removes the proof's copy from the bucket
+      - **APR-CLN-002** running the purge marks the round's file as purged
+      - **APR-CLN-003** downloading the proof through the token after the purge answers not found
+    - *order billed within the retention, approved round*
+      - **APR-CLN-004** running the purge leaves the round's file unpurged
+    - *finished, unbilled order, approved round*
+      - **APR-CLN-005** running the purge leaves the round's file unpurged
 
 ## Later
 
