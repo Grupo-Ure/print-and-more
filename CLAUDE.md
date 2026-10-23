@@ -253,8 +253,8 @@ delete-or-cancel actions, the
 the unmet release requirement, and the product tabs: *Basic info* (the type's
 own form, inline — read-only until *Edit*, with `QuickTimeLog` at its bottom;
 [`ProductBasicInfo`](src/components/products/ProductBasicInfo.tsx)), *Time
-logs*, *Settings* (separate deadline/delivery/priority overrides, customer
-approval; [`src/components/productDetail/`](src/components/productDetail/))
+logs*, *Settings* (separate deadline/delivery/priority overrides;
+[`src/components/productDetail/`](src/components/productDetail/))
 and *Files* ([`OrderFiles`](src/components/OrderFiles.tsx)). The files belong
 to the order; the tab sits on the product so the production view, which shows
 only a product, has them too. It shows *This product*'s files by default and
@@ -485,8 +485,9 @@ cannot hold an order open.
   client), `order_id`, `department`, `status`, `deadline` / `delivery` /
   `priority` (**nullable = inherit from the order**; `resolveEffectiveProduct`
   in [src/lib/productShared.ts](src/lib/productShared.ts) resolves the
-  effective values), `assignee_id`, `is_cancelled`, and the customer-approval
-  fields (`customer_approval_required` / `_granted` / `_file_id`). Spec half:
+  effective values), `assignee_id`, `is_cancelled`, and `approved_request_id`
+  (the approval round it went into production on; the rounds themselves are
+  the *Approval requests* below). Spec half:
   `type` (the child-table discriminator), `quantity`, `notes`, `sort_order`
   (ordering the products within their order).
 - **Time logs** — table `product_time_logs`: worked-time entries per product
@@ -508,8 +509,8 @@ cannot hold an order open.
   [`FilePicker`](src/components/FilePicker.tsx) inside any product form, which
   links a dropped file to the order and hands it to the product in one go — as
   an attachment on the other types, as a design on a textile batch; products
-  link to them through `product_files`; a customer approval is granted against
-  one of them.
+  link to them through `product_files`; a customer approval round is sent over
+  some of them.
   UNC-path **linking**, not upload — the files stay on the network share, and
   "open" reveals them through `window.pam.revealPath`. The one copy ever made
   is a customer approval's: the desktop app reads each proof
@@ -593,7 +594,7 @@ and the textile arm (parent + `garments[]` + `designs[]`) — plus
 and the `isSingleChildProductType` guard for callers that can see either
 shape. [`productService`](src/services/productService.ts) is the only product
 service and owns both halves: the workflow (`setStatus`, `cancel`,
-`setCustomerApproval`, `listProductionProducts`) and the spec
+`listProductionProducts`) and the spec
 (`getLoadedByOrderId` / `getLoadedById`, `createProduct` / `updateProduct` —
 a TS two-step, insert/update parent then children, no RPC —, `deleteProduct`
 (cascade) and the `product_files` helpers). Validation is **one Zod schema per
@@ -645,8 +646,9 @@ only `create_approval_request` moves a product in, only the request closing
 (approved, changes requested, expired, withdrawn — one trigger,
 `fn_approval_request_closed`) moves it out, and while it waits its spec and
 settings are locked by the database. The app asks from the product's *Files*
-tab (`approvalRequestService`, `src/queries/approvalQueries.ts`); the release
-gate on the newest round is not built yet, and the stream is
+tab (`approvalRequestService`, `src/queries/approvalQueries.ts`); once asked,
+the newest round gates the release to production (see "Customer approval"
+below). The stream is
 [.plans/CUSTOMER_APPROVAL.md](.plans/CUSTOMER_APPROVAL.md).
 The rules live in one place each:
 
@@ -680,22 +682,39 @@ The rules live in one place each:
   menu: *Release to Pre-Press* (a manual fallback; complete products normally
   get there on their own), *Release to Production*, *Mark product as done*.
   Each confirms first and writes its history event (`PREPRESS_READY_MANUAL`,
-  `PRODUCTION_READY_SET`, `MARKED_DONE`).
+  `PRODUCTION_READY_SET`, `MARKED_DONE`) — the release to production through
+  the database function that performs it (see "Release to production"). A
+  product awaiting approval offers no advance at all.
 - **Removal** — [`useProductRemoval`](src/hooks/useProductRemoval.ts): a
   product in setup is deleted; past setup it is cancelled (kept for history);
-  once in production or done it can be neither.
-- **Force release** — admins can push an incomplete or stock-blocked
-  product straight into production from the release button's dropdown; a
-  reason is required and recorded as `EMERGENCY_TRIGGERED`. Customer approval
-  is the one gate the force release does not bypass.
+  once in production or done it can be neither. Cancelling a product awaiting
+  approval withdraws its open round first.
+- **Force release** — admins can push an incomplete, stock-blocked or
+  approval-blocked product (newest round changes requested, expired or
+  withdrawn) straight into production from the release button's dropdown,
+  through `force_release_to_production`; a reason is required and recorded as
+  `EMERGENCY_TRIGGERED`. A product awaiting approval is the one it never
+  moves: the request closing is its only way out.
 
 ## Workflow specifics
 
-- **Release to production** (`PREPRESS` → `IN_PRODUCTION`) books
-  **automatic stock deductions** (only here, not on "mark done") via the
-  `book_production_deductions` RPC — one transaction, row-locked conditional
-  decrements, `AUTO_DEDUCTION` movement rows with a note incl. the order number
-  ([`productionReleaseService`](src/services/productionReleaseService.ts)):
+- **Release to production** (`PREPRESS` → `IN_PRODUCTION`) is the
+  database's: the only ways into `IN_PRODUCTION` from the client are the
+  security-definer functions `release_to_production` (everyone: checks
+  pre-press, completeness, the newest approval round and stock) and
+  `force_release_to_production` (admins, a reason required), each one
+  transaction that decides, books and moves; the only way into
+  `AWAITING_APPROVAL` is `create_approval_request`. Behind them the
+  `fn_refuse_direct_release` trigger refuses either status written by
+  `authenticated` directly, and `book_production_deductions`, which the client
+  no longer calls, refuses a booking past a shortage from anyone but an
+  admin. The app mirrors the gates so the buttons never
+  offer a release the database would refuse
+  ([`productionReleaseService`](src/services/productionReleaseService.ts)).
+  The release books **automatic stock deductions** (only here, not on "mark
+  done") — `fn_production_deductions` lists them, `book_production_deductions`
+  books them with row-locked conditional decrements and `AUTO_DEDUCTION`
+  movement rows with a note incl. the order number:
   - **STAMP:** stamp-model products decrement their model (plus the matching
     replacement pad for a catalog ink colour); `TRODAT_PAD` products decrement
     their pad variant.
@@ -703,8 +722,8 @@ The rules live in one place each:
     decrements that variant by the line's own quantity.
   - Insufficient stock **blocks the release**: `ProductProductionBanner` names
     the short targets, the release button is disabled while in pre-press, and
-    the RPC rejects atomically if a concurrent release consumed the stock
-    first. A textile shortage carries its garment line id, so the batch's size
+    `release_to_production` rejects atomically if a concurrent release
+    consumed the stock first. A textile shortage carries its garment line id, so the batch's size
     grid highlights the short size rather than the whole batch. The admin
     **force release** bypasses the shortage: stock is floored at 0 and
     movements record what was actually deducted.
@@ -716,12 +735,19 @@ The rules live in one place each:
   `attention`). The admin force release bypasses it.
 - **Product settings overrides** — a product inherits deadline, delivery and
   priority from the order unless its "separate …" switch is on; setting an
-  override equal to the order's value collapses it back to inherit. Deadline
-  and approval are locked once the product is in production; everything is
-  read-only once done.
-- **Customer approval** — toggled per product in its settings; when required,
-  the release to production stays blocked until an approval is granted against
-  one of the order's files (`CUSTOMER_APPROVAL_GRANTED`, file id in `meta`).
+  override equal to the order's value collapses it back to inherit. The
+  deadline is locked once the product is in production; everything is
+  read-only while it awaits approval and once done.
+- **Customer approval** — asked for per product, a round at a time, from its
+  *Files* tab. A product never asked about is released as any other. Once
+  asked, the **newest round decides**: approved, the product went into
+  production by itself (`fn_approval_request_closed` books its stock with the
+  shortage allowed and writes `CUSTOMER_APPROVAL_GRANTED`), and a plain
+  release after it — sent back to pre-press — goes straight through; changes
+  requested, expired or withdrawn, the release to production is blocked —
+  the banner says why, with the customer's note — until a new round is
+  approved or an admin forces it. An older approval does not count for a
+  reworked proof.
 - **Duplicate order** — RPC `duplicate_order` deep-copies an order (the
   selected products incl. their typed child by `type`, their `product_files`,
   and a textile batch's garment lines and designs) in one transaction; called
@@ -755,9 +781,9 @@ The rules live in one place each:
 | [`src/lib/pdf/productionSheet.ts`](src/lib/pdf/productionSheet.ts) | The per-product production sheet (fetch + pure `renderProductionSheet`) |
 | [`src/types/database.ts`](src/types/database.ts) | App-facing row/enum aliases over the generated `supabase.ts` |
 | [`src/types/supabase.ts`](src/types/supabase.ts) | Generated DB types (regenerate after migrations) |
-| [`src/services/productService.ts`](src/services/productService.ts) | The product, both halves: workflow (status, assignee, approval, the production feed) and spec (parent + typed child, file links, textile lines and designs) |
+| [`src/services/productService.ts`](src/services/productService.ts) | The product, both halves: workflow (status, assignee, the production feed) and spec (parent + typed child, file links, textile lines and designs) |
 | [`src/services/orderService.ts`](src/services/orderService.ts) | Orders: list, filters, lifecycle, `duplicate_order` |
-| [`src/services/productionReleaseService.ts`](src/services/productionReleaseService.ts) | Stock requirements, shortage check, `book_production_deductions` |
+| [`src/services/productionReleaseService.ts`](src/services/productionReleaseService.ts) | Stock requirements and shortage check (for the banner and the size grid), `release_to_production` / `force_release_to_production` |
 | [`src/services/textileService.ts`](src/services/textileService.ts) / [`textileMasterDataService.ts`](src/services/textileMasterDataService.ts) | Textile catalog lookups for the batch editor + master data |
 | [`src/services/historyService.ts`](src/services/historyService.ts) | History events |
 | [`electron/`](electron/) | Main process: window, app protocol, deep links, IPC bridge, updater |
