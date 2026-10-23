@@ -1004,6 +1004,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          billed_at: string | null
           billing_note: string | null
           created_at: string
           created_by: string | null
@@ -1019,6 +1020,7 @@ export type Database = {
           status: Database["public"]["Enums"]["order_status"]
         }
         Insert: {
+          billed_at?: string | null
           billing_note?: string | null
           created_at?: string
           created_by?: string | null
@@ -1034,6 +1036,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["order_status"]
         }
         Update: {
+          billed_at?: string | null
           billing_note?: string | null
           created_at?: string
           created_by?: string | null
@@ -2652,6 +2655,7 @@ export type Database = {
       }
       fn_expire_approval_requests: { Args: never; Returns: number }
       fn_production_deductions: { Args: { product_id: string }; Returns: Json }
+      fn_purge_approval_files: { Args: never; Returns: number }
       force_release_to_production: {
         Args: { product_id: string; reason: string }
         Returns: undefined
