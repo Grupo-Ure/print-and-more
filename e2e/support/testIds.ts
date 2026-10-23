@@ -204,9 +204,9 @@ export const TEST_IDS = {
       emails: {
         root: 'order-emails',
         empty: 'order-emails-empty',
-        /** One per mail waiting on the queue; `data-msg-id` = queue message id. */
+        /** One per mail waiting on the queue; `data-msg-id` = queue message id, `data-template`. */
         queuedItem: 'order-emails-queued-item',
-        /** One per mail that went out; `data-sent-email-id` = sent_emails.id. */
+        /** One per mail that went out; `data-sent-email-id` = sent_emails.id, `data-template`. */
         sentItem: 'order-emails-sent-item',
         /** Opens the sent mail's body; inside a sent item. */
         viewSent: 'order-emails-view-sent',

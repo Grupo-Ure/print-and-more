@@ -126,7 +126,7 @@ function queuedDetail(email: QueuedEmailRow): string {
 
 function QueuedEmailItem({ email, productLabel }: { email: QueuedEmailRow; productLabel: string | null }) {
   return (
-    <li data-testid={IDS.queuedItem} data-msg-id={email.msg_id} className="flex py-1.5 text-sm">
+    <li data-testid={IDS.queuedItem} data-msg-id={email.msg_id} data-template={email.template} className="flex py-1.5 text-sm">
       <EmailLine template={email.template} productLabel={productLabel} detail={queuedDetail(email)} />
     </li>
   )
@@ -157,6 +157,7 @@ function SentEmailItem({ email, productLabel, onView }: SentEmailItemProps) {
     <li
       data-testid={IDS.sentItem}
       data-sent-email-id={email.id}
+      data-template={email.template}
       className={cn('flex items-center gap-2 py-1 text-sm', email.bounced_at && 'text-destructive')}
     >
       <EmailLine template={email.template} productLabel={productLabel} detail={detail} />
