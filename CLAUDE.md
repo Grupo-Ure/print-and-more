@@ -473,7 +473,10 @@ cannot hold an order open.
 - **Order** — table `orders` (`order_number` from a DB counter, `customer_id`,
   `status`, `deadline`, `delivery` (`PICKUP`|`SHIPPING`), `priority`
   (`NORMAL`|`HIGH`), `payment_method` (`INVOICE`|`CASH`), `billing_note`,
-  `is_archived`, `created_by`, `created_at`). A new order is created as a
+  `is_archived`, `billed_at`, `created_by`, `created_at`). `billed_at` is kept
+  by a trigger — stamped when the order becomes `BILLED`, cleared otherwise,
+  never written by the client — and starts the retention of its approval
+  proofs. A new order is created as a
   quote with its deadline pre-filled to one week from today (a local date,
   set by `NewOrderDialog`, not a DB default). The header fields save on
   change, one field per save, each logged as a `SETTINGS_CHANGED` history
@@ -515,7 +518,8 @@ cannot hold an order open.
   "open" reveals them through `window.pam.revealPath`. The one copy ever made
   is a customer approval's: the desktop app reads each proof
   (`window.pam.readFile`) and uploads it to the private `approval-proofs`
-  bucket for the customer's page ([`approvalRequestService`](src/services/approvalRequestService.ts)).
+  bucket for the customer's page ([`approvalRequestService`](src/services/approvalRequestService.ts)),
+  where it stays until the retention after billing runs out.
 - **History** — table `history` (`order_id`, `product_id`, `event_type`
   (`history_event` enum), `user_id`, `meta`). Written alongside every
   workflow action by [`historyService`](src/services/historyService.ts);
@@ -551,13 +555,20 @@ cannot hold an order open.
   `settle_approval_request` and `withdraw_approval_request` RPCs, the
   customer's page (`settle_approval_request_by_token`) and a daily `pg_cron`
   job, `fn_expire_approval_requests`, which closes every round still pending
-  past its expiry. The four mails they cause (`approval-request`,
+  past its expiry. A second daily job, `fn_purge_approval_files`, removes the
+  proof copies of closed rounds on orders billed longer ago than the
+  retention: it stamps the file row's `purged_at` and deletes the copy
+  through the Storage API (`pg_net`, URL and key from the Vault, as the email
+  drain reads them). The round keeps its file rows as the record; the
+  customer's page serves a purged file no more, and the *Files* tab strikes
+  it through. The four mails they cause (`approval-request`,
   `approval-decided`, `approval-withdrawn`, and `approval-expired` to the
   shop's inbox) are templates of the email runtime.
 - **Customer approval settings** — table `customer_approval_settings`:
   exactly **one row** (a boolean primary key held true) with `expiry_days`
   (how long an approval link stays valid, stamped onto each request) and
-  `retention_days` (how long proof copies are kept after billing), each
+  `retention_days` (how long proof copies are kept after billing, read when
+  the purge runs), each
   `NOT NULL` with its default and a check of at least one day. Readable by
   all, admin-updatable; nobody inserts or deletes. Service
   [`customerApprovalSettingsService`](src/services/customerApprovalSettingsService.ts).
