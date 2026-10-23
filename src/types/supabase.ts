@@ -1489,9 +1489,6 @@ export type Database = {
           approved_request_id: string | null
           assignee_id: string | null
           created_at: string
-          customer_approval_file_id: string | null
-          customer_approval_granted: boolean
-          customer_approval_required: boolean
           deadline: string | null
           delivery: Database["public"]["Enums"]["delivery_type"] | null
           department: Database["public"]["Enums"]["department"]
@@ -1510,9 +1507,6 @@ export type Database = {
           approved_request_id?: string | null
           assignee_id?: string | null
           created_at?: string
-          customer_approval_file_id?: string | null
-          customer_approval_granted?: boolean
-          customer_approval_required?: boolean
           deadline?: string | null
           delivery?: Database["public"]["Enums"]["delivery_type"] | null
           department: Database["public"]["Enums"]["department"]
@@ -1531,9 +1525,6 @@ export type Database = {
           approved_request_id?: string | null
           assignee_id?: string | null
           created_at?: string
-          customer_approval_file_id?: string | null
-          customer_approval_granted?: boolean
-          customer_approval_required?: boolean
           deadline?: string | null
           delivery?: Database["public"]["Enums"]["delivery_type"] | null
           department?: Database["public"]["Enums"]["department"]
@@ -1549,13 +1540,6 @@ export type Database = {
           type?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "fk_approval_file"
-            columns: ["customer_approval_file_id"]
-            isOneToOne: false
-            referencedRelation: "files"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "products_approved_request_id_fkey"
             columns: ["approved_request_id"]
