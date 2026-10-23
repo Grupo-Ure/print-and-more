@@ -75,7 +75,7 @@ export function ProductList() {
         ) : (
         <ul data-testid={IDS.list} className="flex flex-col flex-1 min-w-0 min-h-0 overflow-y-auto" aria-label="Products">
           {visibleProducts.map(product => (
-            <ProductContextMenu key={product.id} product={product} orderNumber={order?.order_number ?? null}>
+            <ProductContextMenu key={product.id} product={product}>
             <li
               data-testid={IDS.row}
               data-product-id={product.id}

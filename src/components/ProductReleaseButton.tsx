@@ -26,17 +26,17 @@ const IDS = TEST_IDS.orders.productDetail.release
 
 type Props = {
   product: LoadedProduct
-  orderNumber: string | null
 }
 
 /**
  * The product header's forward action: advances the product one workflow step,
  * in the colour of the target status. Admins additionally get a dropdown with
- * the force release while a completeness/stock gate is failing. Every rule
+ * the force release while a completeness, stock or approval-round gate is
+ * failing. A product awaiting approval has no advance, so neither is offered. Every rule
  * lives in useProductRelease; this component is the presentation.
  */
-export function ProductReleaseButton({ product, orderNumber }: Props) {
-  const release = useProductRelease(product, orderNumber)
+export function ProductReleaseButton({ product }: Props) {
+  const release = useProductRelease(product)
   const [forceDialogOpen, setForceDialogOpen] = useState(false)
   const [forceReason, setForceReason] = useState('')
 
@@ -95,21 +95,13 @@ export function ProductReleaseButton({ product, orderNumber }: Props) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-auto min-w-64 p-0 overflow-hidden">
-          {/* Customer approval is the one gate a force release does not bypass. */}
           <DropdownMenuItem
             data-testid={IDS.forceItem}
-            disabled={release.pending || release.approvalBlocked}
+            disabled={release.pending}
             onSelect={() => setForceDialogOpen(true)}
             className={cn('rounded-none px-3 py-2.5', PRODUCT_STATUS_META[target].softHoverColor)}
           >
-            <div className="flex flex-col">
-              <span>Force release to Production…</span>
-              {release.approvalBlocked && (
-                <span className="text-xs text-muted-foreground">
-                  Requires the customer's approval
-                </span>
-              )}
-            </div>
+            Force release to Production…
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

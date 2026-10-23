@@ -193,7 +193,7 @@ export function ProductDetail({
             )}
           </div>
 
-          <ProductReleaseButton product={product} orderNumber={order.order_number ?? null} />
+          <ProductReleaseButton product={product} />
         </div>
       </div>
       
