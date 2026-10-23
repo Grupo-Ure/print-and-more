@@ -155,6 +155,8 @@ behaviour the lifecycle packs assert is written out in
       - *in progress, product in pre-press whose newest round came back with changes*
         - **PRD-GAT-013** the release to production is blocked
         - **PRD-GAT-014** the banner shows the customer's note
+      - *in progress, product in pre-press whose newest round expired*
+        - **PRD-GAT-017** the release to production is blocked
       - *as admin, in progress, product in pre-press whose newest round came back with changes*
         - **PRD-GAT-015** force releasing the product with a reason moves it to production
       - *in progress, product in pre-press with an approved round*
@@ -178,6 +180,8 @@ behaviour the lifecycle packs assert is written out in
         - **PRD-APR-013** sending the request anyway lists round one as pending
       - *in progress, product in pre-press with two files, previous round withdrawn*
         - **PRD-APR-014** opening the approval request preselects the previous round's file
+      - *in progress, product in pre-press with two files, previous round expired*
+        - **PRD-APR-016** the approval request is enabled
       - *in progress without a deadline, product in setup with two files*
         - **PRD-APR-015** the approval request is disabled
     - [stock-deduction.spec.ts](orders-page/product/stock-deduction.spec.ts) — `PRD-STK`

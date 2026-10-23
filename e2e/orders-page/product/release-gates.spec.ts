@@ -4,6 +4,7 @@ import {
   APPROVED_REQUEST,
   CHANGES_NOTE,
   CHANGES_REQUESTED_REQUEST,
+  EXPIRED_REQUEST,
   WITHDRAWN_REQUEST_STATUS,
 } from '../../fixtures/approvalRequests'
 import {
@@ -185,6 +186,18 @@ test.describe('in progress, product in pre-press whose newest round came back wi
 
     // Assert — the banner quotes what the customer asked for.
     await expect(ordersPage.details.productDetail.bannerApprovalNote).toContainText(CHANGES_NOTE)
+  })
+})
+
+test.describe('in progress, product in pre-press whose newest round expired', () => {
+  test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: PRODUCT_IN_PREPRESS, approvalRequestSeed: EXPIRED_REQUEST })
+
+  test('PRD-GAT-017 the release to production is blocked', async ({ ordersPage, product, approvalRequest: _expired }) => {
+    // Setup — the product open.
+    await ordersPage.openProduct(product)
+
+    // Assert — the release cannot be pressed.
+    await expect(ordersPage.details.productDetail.releaseButton).toBeDisabled()
   })
 })
 

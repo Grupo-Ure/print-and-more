@@ -3,6 +3,7 @@ import { IN_PROGRESS_ORDER, IN_PROGRESS_ORDER_WITHOUT_DEADLINE } from '../../fix
 import {
   APPROVAL_REQUESTED_HISTORY_EVENT,
   APPROVED_REQUEST_STATUS,
+  EXPIRED_REQUEST,
   FIRST_ROUND,
   PENDING_REQUEST_STATUS,
   WITHDRAWN_REQUEST,
@@ -244,6 +245,20 @@ test.describe('in progress, product in pre-press with two files, previous round 
 
     // Assert — exactly the previous round's proof is ticked.
     await expect.poll(() => files.requestDialog.checkedFileIds()).toEqual([proofRound.fileId])
+  })
+})
+
+test.describe('in progress, product in pre-press with two files, previous round expired', () => {
+  test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: PRODUCT_IN_PREPRESS, proofRoundSeed: EXPIRED_REQUEST })
+
+  test('PRD-APR-016 the approval request is enabled', async ({ ordersPage, product, proofRound }) => {
+    // Setup — the product's Files tab open, the expired round listed.
+    const files = ordersPage.details.productDetail.files
+    await ordersPage.openProductFiles(product)
+    await files.requests.row(proofRound.id).waitFor()
+
+    // Assert — a new round can be asked for.
+    await expect(files.requestApproval).toBeEnabled()
   })
 })
 
