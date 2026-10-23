@@ -2,9 +2,11 @@ import type { DragEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { fileService } from '../services/fileService'
 import { historyService } from '../services/historyService'
+import { productService } from '../services/productService'
 import type { FileRow, FileRole } from '../services/fileService'
 import { useToast } from '../components/Toast'
 import { fileKeys } from '../queries/fileQueries'
+import { productKeys } from '../queries/productQueries'
 
 const DEFAULT_ROLE: FileRole = 'PRODUCTION_FILE'
 
@@ -13,8 +15,11 @@ const DEFAULT_ROLE: FileRole = 'PRODUCTION_FILE'
  * shared by OrderFiles, GrantApprovalDialog and the textile batch editor's
  * artwork picker. Every link writes a FILE_ADDED history event and refreshes
  * the order's file list wherever it is shown; failures surface as error toasts.
+ *
+ * With a `productId` (the product's Files tab) each file is attached to that
+ * product as well, so it shows among the product's own files at once.
  */
-export function useFileLinking(orderId: string) {
+export function useFileLinking(orderId: string, productId: string | null = null) {
   const { showError, showSuccess } = useToast()
   const queryClient = useQueryClient()
 
@@ -28,6 +33,7 @@ export function useFileLinking(orderId: string) {
           path: item.path,
           role: DEFAULT_ROLE,
         })
+        if (productId) await productService.assignFileToProduct(productId, data.id)
         void historyService.tryWriteHistory({
           order_id: orderId,
           event_type: 'FILE_ADDED',
@@ -42,6 +48,7 @@ export function useFileLinking(orderId: string) {
     if (added.length > 0) {
       showSuccess(added.length === 1 ? '1 file linked' : `${added.length} files linked`)
       void queryClient.invalidateQueries({ queryKey: fileKeys.byOrderId(orderId) })
+      if (productId) void queryClient.invalidateQueries({ queryKey: productKeys.filesByOrderId(orderId) })
     }
     return added
   }
