@@ -22,3 +22,15 @@ export const IN_STOCK_STAMP_MODEL: StampModelSeedRow = {
   type: 'TRODAT_PRINTY',
   stock: 5,
 }
+
+/**
+ * A deduction one past the in-stock model's stock, as the jsonb list
+ * `book_production_deductions` takes: with the shortage allowed it would
+ * empty the model.
+ */
+export const DEDUCTION_PAST_IN_STOCK_MODEL = [
+  { target: 'STAMP', id: IN_STOCK_STAMP_MODEL.id, quantity: IN_STOCK_STAMP_MODEL.stock + 1 },
+]
+
+/** The note a hand-made booking carries. */
+export const MANUAL_DEDUCTION_NOTE = 'E2E booking by hand'

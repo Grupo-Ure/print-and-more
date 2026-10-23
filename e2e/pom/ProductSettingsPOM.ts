@@ -1,11 +1,10 @@
 import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
-import { GrantApprovalDialogPOM } from './GrantApprovalDialogPOM'
 import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.orders.productDetail.settings
 
-/** Per-product overrides (deadline / delivery / priority) and customer approval (the product's Settings tab). */
+/** Per-product overrides of deadline, delivery and priority (the product's Settings tab). */
 export class ProductSettingsPOM extends BasePOM {
   readonly root: Locator
   readonly separateDeadline: Locator
@@ -17,10 +16,6 @@ export class ProductSettingsPOM extends BasePOM {
   readonly separatePriority: Locator
   /** Carries `data-value`. */
   readonly priority: Locator
-  readonly approvalRequired: Locator
-  readonly grantApproval: Locator
-  readonly approvalGranted: Locator
-  readonly grantDialog: GrantApprovalDialogPOM
 
   constructor(page: Page) {
     super(page)
@@ -31,9 +26,5 @@ export class ProductSettingsPOM extends BasePOM {
     this.delivery = this.root.getByTestId(IDS.delivery)
     this.separatePriority = this.root.getByTestId(IDS.separatePriority)
     this.priority = this.root.getByTestId(IDS.priority)
-    this.approvalRequired = this.root.getByTestId(IDS.approvalRequired)
-    this.grantApproval = this.root.getByTestId(IDS.grantApproval)
-    this.approvalGranted = this.root.getByTestId(IDS.approvalGranted)
-    this.grantDialog = new GrantApprovalDialogPOM(page)
   }
 }

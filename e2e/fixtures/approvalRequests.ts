@@ -9,15 +9,16 @@ export type ApprovalRequestStatus = Database['public']['Enums']['approval_reques
 
 /**
  * What the `approvalRequest` fixture inserts for the test's product: the
- * employee's message, whether the customer was mailed, and the state the
- * round is in. A `PENDING` round puts the product into awaiting approval,
- * as sending the request would have; a closed one leaves the product where
- * the seed put it.
+ * employee's message, whether the customer was mailed, the state the round is
+ * in and the note it closed with. A `PENDING` round puts the product into
+ * awaiting approval, as sending the request would have; a closed one leaves
+ * the product where the seed put it.
  */
 export type ApprovalRequestSeed = {
   message: string | null
   mailed: boolean
   status: ApprovalRequestStatus
+  note: string | null
 }
 
 // ── Statuses ──────────────────────────────────────────────────────────────
@@ -84,6 +85,7 @@ export const PENDING_MAILED_REQUEST: ApprovalRequestSeed = {
   message: APPROVAL_MESSAGE,
   mailed: true,
   status: PENDING_REQUEST_STATUS,
+  note: null,
 }
 
 /** An open request shown to the customer another way: no mail went out, and none follows a withdrawal. */
@@ -91,6 +93,16 @@ export const PENDING_UNMAILED_REQUEST: ApprovalRequestSeed = { ...PENDING_MAILED
 
 /** A request the shop took back; the product is back in pre-press. */
 export const WITHDRAWN_REQUEST: ApprovalRequestSeed = { ...PENDING_MAILED_REQUEST, status: WITHDRAWN_REQUEST_STATUS }
+
+/** A round the customer sent back with a note; the product is back in pre-press, its release blocked. */
+export const CHANGES_REQUESTED_REQUEST: ApprovalRequestSeed = {
+  ...PENDING_MAILED_REQUEST,
+  status: CHANGES_REQUESTED_STATUS,
+  note: CHANGES_NOTE,
+}
+
+/** A round the customer approved, with the product back in pre-press — sent back from production after it. */
+export const APPROVED_REQUEST: ApprovalRequestSeed = { ...PENDING_MAILED_REQUEST, status: APPROVED_REQUEST_STATUS }
 
 // ── What the RPC takes and the mail carries ───────────────────────────────
 

@@ -39,9 +39,15 @@ export class ProductDetailPOM extends BasePOM {
   readonly forceReleaseItem: Locator
   readonly forceReleaseDialog: ForceReleaseDialogPOM
 
-  /** Carries `data-kind` = done | shortage | blocked | production. */
+  /**
+   * Carries `data-kind` = done | awaiting-approval | approval-blocked |
+   * shortage | blocked | production; an approval-blocked banner also carries
+   * `data-approval-status` = the newest round's status.
+   */
   readonly banner: Locator
   readonly backToPrepress: Locator
+  /** The note the newest round closed with, while it blocks the release. */
+  readonly bannerApprovalNote: Locator
 
   readonly basicInfoTab: Locator
   readonly timeLogsTab: Locator
@@ -74,6 +80,7 @@ export class ProductDetailPOM extends BasePOM {
 
     this.banner = this.root.getByTestId(IDS.banner.root)
     this.backToPrepress = this.banner.getByTestId(IDS.banner.backToPrepress)
+    this.bannerApprovalNote = this.banner.getByTestId(IDS.banner.approvalNote)
 
     this.basicInfoTab = this.root.getByTestId(IDS.tabs.basicInfo)
     this.timeLogsTab = this.root.getByTestId(IDS.tabs.timeLogs)

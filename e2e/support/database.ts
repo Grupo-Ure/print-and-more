@@ -90,7 +90,6 @@ export type ProductSeedRow = {
   status: ProductStatus
   /** Null for a textile batch, whose pieces are counted on its garment lines. */
   quantity: number | null
-  customer_approval_required: boolean
 }
 
 /**
@@ -154,8 +153,8 @@ export type TestApprovalRequest = {
 /** A product's workflow columns, as much of them as a spec reads back after a refused or an allowed write. */
 export type ProductState = Pick<Database['public']['Tables']['products']['Row'], 'status' | 'quantity' | 'deadline' | 'assignee_id'>
 
-/** One history entry's product and details, for what an event recorded. */
-export type HistoryEntryRow = Pick<Database['public']['Tables']['history']['Row'], 'product_id' | 'meta'>
+/** One history entry's product, reason and details, for what an event recorded. */
+export type HistoryEntryRow = Pick<Database['public']['Tables']['history']['Row'], 'product_id' | 'reason' | 'meta'>
 
 /** One automatic stock movement, as much of it as a spec looks at. */
 export type StockMovementRow = Pick<Database['public']['Tables']['stamp_stock_movements']['Row'], 'quantity' | 'note'>
@@ -470,7 +469,6 @@ export class TestDatabase {
       type: seed.type,
       status: seed.status,
       quantity: seed.quantity,
-      customer_approval_required: seed.customer_approval_required,
     } as ProductInsert
     const { data, error } = await this.client
       .from('products')
@@ -558,6 +556,7 @@ export class TestDatabase {
       token_hash: createHash('sha256').update(token, 'utf8').digest('hex'),
       status: seed.status,
       mailed: seed.mailed,
+      note: seed.note,
       expires_at: addDays(new Date(), SEEDED_REQUEST_VALIDITY_DAYS).toISOString(),
       requested_by: await this.userId(requestedBy),
     })
@@ -805,7 +804,7 @@ export class TestDatabase {
   async historyEntries(orderId: string, eventType: HistoryEvent): Promise<HistoryEntryRow[]> {
     const { data, error } = await this.client
       .from('history')
-      .select('product_id, meta')
+      .select('product_id, reason, meta')
       .eq('order_id', orderId)
       .eq('event_type', eventType)
     if (error) throw error

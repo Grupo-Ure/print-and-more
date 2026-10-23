@@ -345,17 +345,6 @@ export const TEST_IDS = {
         delivery: 'product-settings-delivery',
         separatePriority: 'product-settings-separate-priority',
         priority: 'product-settings-priority',
-        approvalRequired: 'product-settings-approval-required',
-        grantApproval: 'product-settings-grant-approval',
-        approvalGranted: 'product-settings-approval-granted',
-        grantDialog: {
-          root: 'grant-approval-dialog',
-          addFiles: 'grant-approval-dialog-add',
-          /** One per file; `data-file-id`. */
-          file: 'grant-approval-dialog-file',
-          cancel: 'grant-approval-dialog-cancel',
-          submit: 'grant-approval-dialog-submit',
-        },
       },
       timeLogs: {
         root: 'time-logs',

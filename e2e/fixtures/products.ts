@@ -63,6 +63,9 @@ export const EDITED_OTHER_QUANTITY = Number(OTHER_PRODUCT_FORM.quantity) + 1
 /** What an admin types into the force-release prompt. */
 export const FORCE_RELEASE_REASON = 'E2E emergency release'
 
+/** A reason of nothing but spaces — no reason at all. */
+export const BLANK_FORCE_RELEASE_REASON = '   '
+
 /** The history entry a force release writes. */
 export const FORCE_RELEASE_HISTORY_EVENT: HistoryEvent = 'EMERGENCY_TRIGGERED'
 
@@ -77,7 +80,7 @@ export const PRODUCT_CANCELLED_HISTORY_EVENT: HistoryEvent = 'PRODUCT_CANCELLED'
 // ── Rows to insert ────────────────────────────────────────────────────────
 //
 // A product is the unit of work, so a seed describes the whole of it: the
-// parent columns (department, type, status, approval flag) and the children
+// parent columns (department, type, status) and the children
 // that hold its spec. The seed must describe a state the app can reach, since
 // nothing in the database enforces the workflow:
 // - `PREPRESS` and beyond need a complete product, which now means an
@@ -96,7 +99,6 @@ export const OTHER_PRODUCT: ProductSeed = {
   type: 'OTHER',
   status: NEW_PRODUCT_STATUS,
   quantity: Number(OTHER_PRODUCT_FORM.quantity),
-  customer_approval_required: false,
   childTable: TEST_PRODUCT_CHILD_TABLE,
   child: { description: OTHER_PRODUCT_FORM.description },
 }
@@ -165,7 +167,6 @@ export const SHOP_SUPPLIED_TEXTILE_BATCH: ProductSeed = {
   type: 'TEXTILE_GARMENT',
   status: NEW_PRODUCT_STATUS,
   quantity: null,
-  customer_approval_required: false,
   garments: [
     {
       origin: 'SHOP_SUPPLIED',
@@ -190,12 +191,6 @@ export const ONE_PRODUCT_PER_DEPARTMENT: readonly ProductSeed[] = [
 
 /** A product already in pre-press. */
 export const PRODUCT_IN_PREPRESS: ProductSeed = { ...OTHER_PRODUCT, status: PREPRESS_STATUS }
-
-/** A product in pre-press that the customer still has to approve. */
-export const PRODUCT_IN_PREPRESS_AWAITING_APPROVAL: ProductSeed = {
-  ...PRODUCT_IN_PREPRESS,
-  customer_approval_required: true,
-}
 
 /** A stamp product in pre-press whose only stock target is empty. */
 export const STAMP_PRODUCT_IN_PREPRESS_OUT_OF_STOCK: ProductSeed = {

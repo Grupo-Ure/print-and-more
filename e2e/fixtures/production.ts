@@ -1,10 +1,12 @@
 /**
  * Fixture chain: `@playwright/test` → database → electron → auth → orders →
- * **production**. Adds the Production page's page object (`productionPage`).
- * The products it lists come from the orders view's data fixtures (`order`,
- * `product`, `products`), which is why this link sits above `orders`.
+ * emails → approvals → **production**. Adds the Production page's page object
+ * (`productionPage`). The products it lists come from the orders view's data
+ * fixtures (`order`, `product`, `products`), and a product waiting for the
+ * customer from the approvals' `approvalRequest`, which is why this link sits
+ * above both.
  */
-import { test as base } from './orders'
+import { test as base } from './approvals'
 import { ProductionPOM } from '../pom/ProductionPOM'
 
 type ProductionViewFixtures = {
