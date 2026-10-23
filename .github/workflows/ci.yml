@@ -121,6 +121,22 @@ jobs:
             echo "VITE_SUPABASE_ANON_KEY=$ANON_KEY"
             echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
           } >> "$GITHUB_ENV"
+      - name: Fill the Vault
+        # The database's own HTTP calls read the API's URL and the service
+        # role key from the Vault: the email drain cron, and the approval
+        # proof purge, which deletes copies through the Storage API and which
+        # APR-CLN runs. Locally supabase/.env fills them at start; here the
+        # key exists only after the start. The URL is Kong as the postgres
+        # container reaches it on the stack's network. With them, the drain
+        # cron also runs here, as it does on a developer's stack.
+        run: |
+          eval "$(supabase status -o env)"
+          docker exec -i supabase_db_Auftragssystem psql -U postgres -v ON_ERROR_STOP=1 \
+            -v key="$SERVICE_ROLE_KEY" <<'SQL'
+          DELETE FROM vault.secrets WHERE name IN ('project_url', 'service_role_key');
+          SELECT vault.create_secret('http://supabase_kong_Auftragssystem:8000', 'project_url');
+          SELECT vault.create_secret(:'key', 'service_role_key');
+          SQL
       - name: Boot the edge functions
         # A function only boots on its first request. send-email reads and
         # parses every registered template when it boots, so a missing or
