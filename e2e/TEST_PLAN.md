@@ -139,15 +139,26 @@ behaviour the lifecycle packs assert is written out in
     - [release-gates.spec.ts](orders-page/product/release-gates.spec.ts) — `PRD-GAT`
       - *in progress, product with no deadline*
         - **PRD-GAT-001** the product is held in setup with the release blocked
-      - *in progress, product in pre-press awaiting customer approval*
-        - **PRD-GAT-002** the release to production is blocked
-        - **PRD-GAT-003** granting the approval against a file unblocks the release to production
       - *in progress, stamp product in pre-press, model out of stock*
         - **PRD-GAT-004** the shortage is shown and the release to production is blocked
       - *as admin, in progress, product with no deadline*
         - **PRD-GAT-005** opening the force release prompt without a reason keeps it unsubmittable
         - **PRD-GAT-006** force releasing the product with a reason moves it to production flagged as missing information
         - **PRD-GAT-007** force releasing the product records an emergency entry in the order history
+      - *as admin, waiting product*
+        - **PRD-GAT-008** the product offers neither a release nor a force release
+      - *waiting product*
+        - **PRD-GAT-009** the product offers no way to edit its spec
+        - **PRD-GAT-010** the product's settings are locked
+        - **PRD-GAT-011** withdrawing the round offers the edit of the spec again
+        - **PRD-GAT-012** cancelling the product withdraws its open round
+      - *in progress, product in pre-press whose newest round came back with changes*
+        - **PRD-GAT-013** the release to production is blocked
+        - **PRD-GAT-014** the banner shows the customer's note
+      - *as admin, in progress, product in pre-press whose newest round came back with changes*
+        - **PRD-GAT-015** force releasing the product with a reason moves it to production
+      - *in progress, product in pre-press with an approved round*
+        - **PRD-GAT-016** releasing the product to production moves it to in production
     - [approval-requests.spec.ts](orders-page/product/approval-requests.spec.ts) — `PRD-APR`
       - *in progress, product in pre-press with two files*
         - **PRD-APR-001** ticking one file and requesting approval lists round one as pending with that file
@@ -187,6 +198,8 @@ behaviour the lifecycle packs assert is written out in
         - **PRN-FEED-005** releasing the product to production from the feed keeps it listed, now in production
       - *with a product in production*
         - **PRN-FEED-006** opening the production page lists the product
+      - *with a product awaiting approval*
+        - **PRN-FEED-010** opening the production page lists the product as awaiting approval
     - *as admin, order without a deadline*
       - **PRN-FEED-007** opening the production page leaves a product still in setup out
     - *as employee*
