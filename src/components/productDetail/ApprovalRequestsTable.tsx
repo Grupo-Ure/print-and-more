@@ -19,7 +19,9 @@ const IDS = TEST_IDS.orders.productDetail.files.requests
 /**
  * Every approval round of the product, newest first: when it was sent and
  * until when the link holds, the files and the note, whether the customer was
- * mailed, and what came of it — with who recorded it. The open round carries
+ * mailed, and what came of it — with who recorded it. A file whose copy the
+ * retention purge removed is struck through: the round still records that it
+ * was shown, but the customer's page serves it no more. The open round carries
  * the three things an employee can do with it: record the customer's
  * *Approve* or *Request changes* by hand, or *Withdraw* it.
  */
@@ -109,7 +111,12 @@ export function ApprovalRequestsTable({
                             key={file.file_id}
                             data-testid={IDS.file}
                             data-file-id={file.file_id}
-                            title={file.display_name}
+                            data-purged={file.purged_at ? true : undefined}
+                            title={
+                              file.purged_at
+                                ? `${file.display_name} — copy no longer held: removed ${formatDateTimeDe(file.purged_at)}, after the retention period`
+                                : file.display_name
+                            }
                             className={cn('truncate', file.purged_at && 'text-muted-foreground line-through')}
                           >
                             {file.display_name}
