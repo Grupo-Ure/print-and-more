@@ -31,7 +31,9 @@ export type ApprovalRequest = Pick<
   files: ApprovalRequestFile[]
   /** Who recorded the answer or withdrew the round; null for the customer's page and the expiry. */
   settled_by_name: string | null
+  settled_by_avatar_url: string | null
   requested_by_name: string | null
+  requested_by_avatar_url: string | null
 }
 
 /** Asking for a round: the product, the files to show and the employee's note. */
@@ -66,8 +68,8 @@ const APPROVAL_PROOFS_BUCKET = 'approval-proofs'
 
 const REQUEST_SELECT =
   'id, product_id, round, message, status, mailed, expires_at, note, responded_at, created_at, ' +
-  'settled_by_user:users!product_approval_requests_settled_by_fkey(name), ' +
-  'requested_by_user:users!product_approval_requests_requested_by_fkey(name), ' +
+  'settled_by_user:users!product_approval_requests_settled_by_fkey(name, avatar_url), ' +
+  'requested_by_user:users!product_approval_requests_requested_by_fkey(name, avatar_url), ' +
   'product_approval_request_files(file_id, purged_at, files(display_name))'
 
 // The content types a proof is usually in; the customer's browser is handed
@@ -100,9 +102,12 @@ function storagePathFor(orderId: string, requestId: string, file: FileRow): stri
   return `${orderId}/${requestId}/${file.id}-${safeName}`
 }
 
-type RequestRow = Omit<ApprovalRequest, 'files' | 'settled_by_name' | 'requested_by_name'> & {
-  settled_by_user: { name: string } | null
-  requested_by_user: { name: string } | null
+type RequestRow = Omit<
+  ApprovalRequest,
+  'files' | 'settled_by_name' | 'settled_by_avatar_url' | 'requested_by_name' | 'requested_by_avatar_url'
+> & {
+  settled_by_user: { name: string; avatar_url: string | null } | null
+  requested_by_user: { name: string; avatar_url: string | null } | null
   product_approval_request_files: { file_id: string; purged_at: string | null; files: { display_name: string } | null }[]
 }
 
@@ -111,7 +116,9 @@ function toApprovalRequest(row: RequestRow): ApprovalRequest {
   return {
     ...request,
     settled_by_name: settled_by_user?.name ?? null,
+    settled_by_avatar_url: settled_by_user?.avatar_url ?? null,
     requested_by_name: requested_by_user?.name ?? null,
+    requested_by_avatar_url: requested_by_user?.avatar_url ?? null,
     files: product_approval_request_files.map(file => ({
       file_id: file.file_id,
       display_name: file.files?.display_name ?? file.file_id,
