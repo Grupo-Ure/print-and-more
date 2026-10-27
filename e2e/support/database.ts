@@ -803,8 +803,8 @@ export class TestDatabase {
 
   /**
    * Inserts a sent record for the order as the sender writes one after the
-   * provider accepted the mail — with a fresh provider id in place of
-   * Resend's, and a queue message id below zero, outside pgmq's range, so it
+   * provider accepted the mail — with a fresh provider id in place of the
+   * provider's, and a queue message id below zero, outside pgmq's range, so it
    * cannot collide with a message the sender records. Removed with the order
    * by cascade.
    */

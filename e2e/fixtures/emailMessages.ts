@@ -1,4 +1,5 @@
 import type { Database } from '../../src/types/supabase'
+import type { BounceDetail, DeliveryReport } from '../../supabase/functions/_shared/emailProvider.ts'
 import { requiredEnv } from '../support/database'
 import { TEST_CUSTOMER } from './customers'
 
@@ -69,7 +70,7 @@ export const UNKNOWN_TEMPLATE = 'e2e-unknown-template'
 /** Where test-message addresses the mail. The dry-run transport sends nothing, so the address is never reached. */
 export const TEST_MESSAGE_RECIPIENT = 'inbox@e2e.local'
 
-/** The provider id the sender records in place of Resend's when EMAIL_DRY_RUN=true. */
+/** The provider id the sender records in place of the provider's when EMAIL_DRY_RUN=true. */
 export const DRY_RUN_PROVIDER_ID = 'dry-run'
 
 /** The claim on which the sender gives a refused message up and writes the failure entry. */
@@ -112,69 +113,38 @@ export const SENT_TEST_MESSAGE: SentEmailSeed = {
   body_text: 'E2E test message',
 }
 
-/** What Resend says about a bounce in its report. */
-export type BounceDetail = {
-  message: string
-  type: string
-  subType: string
-}
-
-/** Resend's event envelope, as far as the webhook reads it: the type, when it happened, and the mail's id. */
-export type DeliveryReport = {
-  type: string
-  created_at: string
-  data: {
-    email_id: string
-    from: string
-    to: string[]
-    subject: string
-    created_at: string
-    bounce?: BounceDetail
-  }
-}
-
 /** The status the webhook answers a report with that is not signed with its secret. */
 export const REFUSED_REPORT_STATUS = 401
 
-/** A signing secret of the right shape that is not the function's. */
-export const WRONG_WEBHOOK_SECRET = 'whsec_bm90LXRoZS1mdW5jdGlvbnMtc2VjcmV0'
+/** A signing secret that is not the function's. */
+export const WRONG_WEBHOOK_SECRET = 'not-the-functions-webhook-secret'
 
-/** A hard bounce, as Resend words one. */
+/** A hard bounce: the receiving server does not know the address. */
 export const PERMANENT_BOUNCE: BounceDetail = {
-  message: 'The recipient address does not exist',
-  type: 'Permanent',
-  subType: 'General',
+  reason: 'The recipient address does not exist',
+  classification: 'InvalidRecipient',
+  statusCode: '5.1.1',
 }
 
 /** The address the customer is corrected to after a bounce. */
 export const CORRECTED_CUSTOMER_EMAIL = 'corrected-customer@e2e.local'
 
-const REPORT_SENDER = 'Print And More <shop@e2e.local>'
-
-function report(type: string, emailId: string, bounce?: BounceDetail): DeliveryReport {
-  const now = new Date().toISOString()
-  return {
-    type,
-    created_at: now,
-    data: {
-      email_id: emailId,
-      from: REPORT_SENDER,
-      to: [SENT_TEST_MESSAGE.recipient],
-      subject: SENT_TEST_MESSAGE.subject,
-      created_at: now,
-      ...(bounce ? { bounce } : {}),
-    },
-  }
+/**
+ * A report about the mail with that provider id, as the webhook acts on it.
+ * The support's `EmailWebhookFunction` writes it in the provider's format.
+ */
+function report(event: DeliveryReport['event'], providerId: string, bounce: BounceDetail | null): DeliveryReport {
+  return { event, occurredAt: new Date().toISOString(), providerId, bounce }
 }
 
-/** Resend reporting the mail with that id delivered. */
-export function deliveredReport(emailId: string): DeliveryReport {
-  return report('email.delivered', emailId)
+/** The provider reporting the mail with that id delivered. */
+export function deliveredReport(providerId: string): DeliveryReport {
+  return report('delivered', providerId, null)
 }
 
-/** Resend reporting the mail with that id bounced, hard. */
-export function bouncedReport(emailId: string): DeliveryReport {
-  return report('email.bounced', emailId, PERMANENT_BOUNCE)
+/** The provider reporting the mail with that id bounced, hard. */
+export function bouncedReport(providerId: string): DeliveryReport {
+  return report('bounced', providerId, PERMANENT_BOUNCE)
 }
 
 // ── Messages to queue ─────────────────────────────────────────────────────

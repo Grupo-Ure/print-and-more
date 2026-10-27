@@ -32,7 +32,7 @@ export type QueuedEmail = {
 type EmailFixtures = {
   /** The `send-email` edge function, called the way the cron calls it. */
   sendEmail: SendEmailFunction
-  /** The `email-webhook` edge function, called the way Resend calls it. */
+  /** The `email-webhook` edge function, called the way the email provider calls it. */
   emailWebhook: EmailWebhookFunction
   /** What `sentEmail` records; override per describe block with `test.use({ sentEmailSeed })`. */
   sentEmailSeed: SentEmailSeed
