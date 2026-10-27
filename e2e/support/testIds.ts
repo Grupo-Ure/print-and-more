@@ -239,6 +239,21 @@ export const TEST_IDS = {
         failedItem: 'order-emails-failed-item',
         /** The dialog showing a sent mail as it went out. */
         sentDialog: 'order-emails-sent-dialog',
+        /** Shown instead of the groups while the filters leave no mail. */
+        noMatch: 'order-emails-no-match',
+        filters: {
+          /** The date range trigger; `data-from` / `data-to` = the range, `YYYY-MM-DD`. */
+          dateRange: 'order-emails-filter-date-range',
+          /** The range calendar's popover. */
+          dateRangeCalendar: 'order-emails-filter-date-range-calendar',
+          /** `data-value` = the product id while one is picked. */
+          product: 'order-emails-filter-product',
+          productAll: 'order-emails-filter-product-all',
+          /** One per product; `data-product-id`. */
+          productOption: 'order-emails-filter-product-option',
+          /** Clears every filter; shown while one is set. */
+          clear: 'order-emails-filter-clear',
+        },
       },
     },
 
