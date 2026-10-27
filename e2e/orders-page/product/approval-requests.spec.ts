@@ -37,9 +37,10 @@ test.describe('in progress, product in pre-press with two files', () => {
     await files.requestApproval.click()
     await files.requestDialog.submit.click()
 
-    // Assert — round one is listed as pending, over that proof.
+    // Assert — round one is listed as pending, and its details name that proof.
     await expect(files.requests.round(FIRST_ROUND)).toHaveAttribute('data-status', PENDING_REQUEST_STATUS)
-    await expect(files.requests.file(files.requests.round(FIRST_ROUND), backProof.id)).toBeVisible()
+    await files.requests.round(FIRST_ROUND).click()
+    await expect(files.requests.file(backProof.id)).toBeVisible()
   })
 
   test('PRD-APR-002 requesting approval moves the product to awaiting approval', async ({ ordersPage, product, proofFiles }) => {
@@ -134,9 +135,10 @@ test.describe('in progress, product with two files awaiting approval', () => {
     await files.requests.approve(row).click()
     await files.answerDialog.submit.click()
 
-    // Assert — the round is approved, recorded by the signed-in employee.
+    // Assert — the round is approved, and its details name the signed-in employee as who recorded it.
     await expect(row).toHaveAttribute('data-status', APPROVED_REQUEST_STATUS)
-    await expect(files.requests.settledBy(row)).toHaveAttribute('data-user-name', TEST_USERS.employee.name)
+    await row.click()
+    await expect(files.requests.settledBy).toHaveAttribute('data-user-name', TEST_USERS.employee.name)
   })
 
   test('PRD-APR-008 approving the round by hand moves the product into production', async ({ ordersPage, product, proofRound }) => {
