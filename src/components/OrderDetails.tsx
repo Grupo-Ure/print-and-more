@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toDateOnly } from '../lib/formatDate'
 import { formatMinutes } from '../lib/formatMinutes'
@@ -783,61 +783,87 @@ function OrderSettings({ order, onSave, deadlineRequired }: OrderSettingsProps) 
   return (
     <section
       data-testid={SETTINGS_IDS.root}
-      className="flex flex-wrap items-center gap-x-4 gap-y-1"
+      className="flex flex-wrap items-end gap-x-4 gap-y-2"
       aria-label="Order meta"
     >
-      <DeadlinePicker
-        testId={SETTINGS_IDS.deadline}
-        calendarTestId={SETTINGS_IDS.deadlineCalendar}
-        value={headerDeadline}
-        // Judged on the local value so the ring settles the moment a date is picked.
-        attention={deadlineRequired && headerDeadline === ''}
-        onChange={value => {
-          setHeaderDeadline(value ?? '')
-          const snapshot = toDateOnly(headerSnapshot.current.deadline) ?? ''
-          if ((value || '') !== (snapshot || '')) {
-            onSave({ deadline: value })
-          }
-        }}
-      />
-      {deadlineRequired && headerDeadline === '' && (
-        <span
-          data-testid={SETTINGS_IDS.deadlineHint}
-          className="animate-in fade-in zoom-in-75 text-xs font-medium text-destructive"
-        >
-          Set a deadline
-        </span>
-      )}
-      <DeliverySelect
-        testId={SETTINGS_IDS.delivery}
-        value={headerDelivery}
-        onChange={value => {
-          setHeaderDelivery(value)
-          if (value !== headerSnapshot.current.delivery) {
-            onSave({ delivery: value })
-          }
-        }}
-      />
-      <PrioritySelect
-        testId={SETTINGS_IDS.priority}
-        value={headerPriority}
-        onChange={value => {
-          setHeaderPriority(value)
-          if (value !== headerSnapshot.current.priority) {
-            onSave({ priority: value })
-          }
-        }}
-      />
-      <PaymentSelect
-        testId={SETTINGS_IDS.payment}
-        value={headerPayment}
-        onChange={value => {
-          setHeaderPayment(value)
-          if (value !== headerSnapshot.current.payment_method) {
-            onSave({ payment_method: value })
-          }
-        }}
-      />
+      <SettingField
+        label="Deadline"
+        hint={
+          deadlineRequired &&
+          headerDeadline === '' && (
+            <span
+              data-testid={SETTINGS_IDS.deadlineHint}
+              className="animate-in fade-in zoom-in-75 font-medium text-destructive"
+            >
+              Set a deadline
+            </span>
+          )
+        }
+      >
+        <DeadlinePicker
+          testId={SETTINGS_IDS.deadline}
+          calendarTestId={SETTINGS_IDS.deadlineCalendar}
+          value={headerDeadline}
+          // Judged on the local value so the ring settles the moment a date is picked.
+          attention={deadlineRequired && headerDeadline === ''}
+          onChange={value => {
+            setHeaderDeadline(value ?? '')
+            const snapshot = toDateOnly(headerSnapshot.current.deadline) ?? ''
+            if ((value || '') !== (snapshot || '')) {
+              onSave({ deadline: value })
+            }
+          }}
+        />
+      </SettingField>
+      <SettingField label="Delivery">
+        <DeliverySelect
+          testId={SETTINGS_IDS.delivery}
+          value={headerDelivery}
+          onChange={value => {
+            setHeaderDelivery(value)
+            if (value !== headerSnapshot.current.delivery) {
+              onSave({ delivery: value })
+            }
+          }}
+        />
+      </SettingField>
+      <SettingField label="Priority">
+        <PrioritySelect
+          testId={SETTINGS_IDS.priority}
+          value={headerPriority}
+          onChange={value => {
+            setHeaderPriority(value)
+            if (value !== headerSnapshot.current.priority) {
+              onSave({ priority: value })
+            }
+          }}
+        />
+      </SettingField>
+      <SettingField label="Payment">
+        <PaymentSelect
+          testId={SETTINGS_IDS.payment}
+          value={headerPayment}
+          onChange={value => {
+            setHeaderPayment(value)
+            if (value !== headerSnapshot.current.payment_method) {
+              onSave({ payment_method: value })
+            }
+          }}
+        />
+      </SettingField>
     </section>
+  )
+}
+
+/** One field of the order settings row with its name above it, and room for a hint beside the name. */
+function SettingField({ label, hint, children }: { label: string; hint?: ReactNode; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        {label}
+        {hint}
+      </span>
+      {children}
+    </div>
   )
 }
