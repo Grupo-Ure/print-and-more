@@ -224,8 +224,8 @@ behaviour the lifecycle packs assert is written out in
     - **SET-EML-004** saving wording with a placeholder the mail does not offer is refused
     - **SET-EML-005** opening the emails section lists every mail type, the immediate ones included
   - [approval.spec.ts](settings-page/approval.spec.ts) — `SET-APR`
-    - **SET-APR-001** changing the approval expiry shows the new value again after reopening Settings
-    - **SET-APR-002** opening Settings lists the customer approval section
+    - **SET-APR-001** opening Settings lists the customer approval section
+    - **SET-APR-002** changing the approval expiry shows the new value again after reopening Settings
     - **SET-APR-003** changing how long approval proofs are kept shows the new value again after reopening Settings
 - **Email runtime**
   - **Transport**

@@ -6,7 +6,15 @@ import { TEST_USERS } from '../fixtures/users'
 // writes the settings at their defaults and writes them back afterwards.
 test.use({ user: TEST_USERS.admin })
 
-test('SET-APR-001 changing the approval expiry shows the new value again after reopening Settings', async ({ settingsPage, page, navbar, customerApprovalSettings }) => {
+test('SET-APR-001 opening Settings lists the customer approval section', async ({ settingsPage }) => {
+  // Act — open the Settings page.
+  await settingsPage.open()
+
+  // Assert — the section's link is in the list.
+  await expect(settingsPage.sectionLink('approval')).toBeVisible()
+})
+
+test('SET-APR-002 changing the approval expiry shows the new value again after reopening Settings', async ({ settingsPage, page, navbar, customerApprovalSettings }) => {
   // Setup — the Customer approval section open, the field holding the seeded expiry.
   await settingsPage.openSection('approval')
   const { approval } = settingsPage
@@ -40,12 +48,4 @@ test('SET-APR-003 changing how long approval proofs are kept shows the new value
 
   // Assert — the field shows the stored retention, read afresh from the database.
   await expect(retention).toHaveAttribute('data-value', String(EDITED_RETENTION_DAYS))
-})
-
-test('SET-APR-002 opening Settings lists the customer approval section', async ({ settingsPage }) => {
-  // Act — open the Settings page.
-  await settingsPage.open()
-
-  // Assert — the section's link is in the list.
-  await expect(settingsPage.sectionLink('approval')).toBeVisible()
 })
