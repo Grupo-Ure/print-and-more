@@ -1,7 +1,6 @@
 {
   "imports": {
     "@supabase/supabase-js": "jsr:@supabase/supabase-js@2",
-    "handlebars": "npm:handlebars@4.7.10",
-    "resend": "npm:resend@6.32.1"
+    "handlebars": "npm:handlebars@4.7.10"
   }
 }

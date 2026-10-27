@@ -8,7 +8,7 @@
 // Two context switches exist for the suite, so every fork of the sender can
 // be driven without a feature's template: `still_needed: false` answers the
 // sender's "still needed?" with no, and `dry_run_refuse: true` makes the
-// dry-run transport refuse the mail (see transport.ts).
+// dry-run transport refuse the mail (see _shared/emailProvider.ts).
 //
 // Its wording is its email_settings row, with orderId, productId and
 // renderedAt as slots; `context.note`, when given, is a fixed paragraph the
