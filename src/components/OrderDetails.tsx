@@ -135,6 +135,12 @@ export function OrderDetails() {
     }
   }, [visibleProducts, activeProductId, productDraft, setActiveProduct])
 
+  // A product number in the History or Emails tab: show that product on the Products tab.
+  const openProduct = (productId: string) => {
+    setActiveProduct(productId)
+    setTab('products')
+  }
+
   const archiveOrder = useArchiveOrder()
   const cancelOrder = useArchiveOrderWithCancelledProducts()
   const setOrderStatus = useSetOrderStatus()
@@ -444,11 +450,11 @@ export function OrderDetails() {
         </TabsContent>
 
         <TabsContent value="history" className="min-h-0">
-          <OrderHistory orderId={order.id} />
+          <OrderHistory orderId={order.id} onOpenProduct={openProduct} />
         </TabsContent>
 
         <TabsContent value="emails" className="min-h-0">
-          <OrderEmails orderId={order.id} />
+          <OrderEmails orderId={order.id} onOpenProduct={openProduct} />
         </TabsContent>
       </Tabs>
     </main>
