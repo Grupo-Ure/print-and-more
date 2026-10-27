@@ -36,6 +36,37 @@ export function formatDateHuman(iso: string | null | undefined, now: Date = new 
   if (!date) return '—'
   const relative = relativeDay(iso, now)
   if (relative) return relative.charAt(0).toUpperCase() + relative.slice(1)
+  return monthDay(date, now)
+}
+
+/**
+ * A date as month name and ordinal day ("Sep 28th"; "Jan 5th, 2027" outside
+ * the current year), never relative — for a date that is the content of a
+ * sentence ("changed the deadline to Sep 28th"), where "Tomorrow" would go
+ * stale. Date-only values are read as local dates. '—' for empty or invalid input.
+ */
+export function formatDateShort(iso: string | null | undefined, now: Date = new Date()): string {
+  const date = parseLocalDate(iso, now)
+  return date ? monthDay(date, now) : '—'
+}
+
+/**
+ * A moment in human terms for logs: "Today, 14:05", "Yesterday, 09:30",
+ * "Sep 28th, 14:05", with the year only when it is not the current one
+ * ("Jan 5th, 2027, 14:05"). A timestamp is read in local time, so the day is
+ * the one the user lived it on. Returns the input unchanged if it is not a
+ * valid date.
+ */
+export function formatDateTimeHuman(iso: string, now: Date = new Date()): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  const dayDiff = differenceInCalendarDays(date, now)
+  const day =
+    dayDiff === 0 ? 'Today' : dayDiff === 1 ? 'Tomorrow' : dayDiff === -1 ? 'Yesterday' : monthDay(date, now)
+  return `${day}, ${format(date, 'HH:mm')}`
+}
+
+function monthDay(date: Date, now: Date): string {
   return format(date, isSameYear(date, now) ? 'MMM do' : 'MMM do, yyyy')
 }
 
