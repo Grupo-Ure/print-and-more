@@ -23,10 +23,10 @@ const IDS = TEST_IDS.orders.productDetail.files
 
 type FilesScope = 'product' | 'order'
 
-const SCOPES: { value: FilesScope; label: string }[] = [
-  { value: 'product', label: 'This product' },
-  { value: 'order', label: 'Whole order' },
-]
+// The whole order's scope is hidden for now (the tab shows the product's own
+// files only); with a single scope the switch is not rendered. Adding
+// `{ value: 'order', label: 'Whole order' }` back brings it back.
+const SCOPES: { value: FilesScope; label: string }[] = [{ value: 'product', label: 'This product' }]
 
 // A file shown to the customer in a round has no cascade from the round's
 // file rows, so the database refuses to remove it from the order.
@@ -64,8 +64,9 @@ type Props = {
 
 /**
  * The product's Files tab (UNC-path linking, not upload). The files belong to
- * the order; the tab shows the product's own by default and the whole order's
- * at a switch, and sits on the product so the production view has it too.
+ * the order; the tab shows the product's own (the whole order's scope is
+ * hidden for now, see `SCOPES`), and sits on the product so the production
+ * view has it too.
  * File-first flow: drop files (or click the drop area to browse) to link them
  * immediately — to the order and to this product — and edit display name and
  * role inline on each row.
@@ -193,48 +194,28 @@ export function OrderFiles({ orderId, product, files, productFileIds, shortages,
       onDrop={e => void handleDrop(e)}
     >
       <div className="flex items-center gap-3">
-        <div role="group" aria-label="Show files of" className="inline-flex rounded-md border p-0.5">
-          {SCOPES.map(option => (
-            <Button
-              key={option.value}
-              type="button"
-              size="xs"
-              variant={scope === option.value ? 'secondary' : 'ghost'}
-              aria-pressed={scope === option.value}
-              data-testid={IDS.scope}
-              data-scope={option.value}
-              data-active={scope === option.value || undefined}
-              onClick={() => setScope(option.value)}
-            >
-              {option.label}
-            </Button>
-          ))}
-        </div>
-        <p className="min-w-0 flex-1 text-xs text-muted-foreground">
-          {scope === 'product'
-            ? 'Files of this product — tick the proofs to ask the customer about.'
-            : 'Files of the whole order'}{' '}
-          — links to the network share; the files themselves stay where they are.
-        </p>
-        {scope === 'product' && (
-          <Button
-            type="button"
-            size="sm"
-            data-testid={IDS.requestApproval}
-            disabled={!canRequest}
-            title={
-              canRequest
-                ? undefined
-                : productFiles.length === 0
-                  ? 'Link the proof to this product first'
-                  : 'An approval can be requested while the product is in pre-press'
-            }
-            onClick={() => setRequestDialogOpen(true)}
-          >
-            <Send />
-            Request approval
-          </Button>
+        {SCOPES.length > 1 && (
+          <div role="group" aria-label="Show files of" className="inline-flex rounded-md border p-0.5">
+            {SCOPES.map(option => (
+              <Button
+                key={option.value}
+                type="button"
+                size="xs"
+                variant={scope === option.value ? 'secondary' : 'ghost'}
+                aria-pressed={scope === option.value}
+                data-testid={IDS.scope}
+                data-scope={option.value}
+                data-active={scope === option.value || undefined}
+                onClick={() => setScope(option.value)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
         )}
+        <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+          {scope === 'product' ? 'Files of this product' : 'Files of the whole order'}
+        </p>
       </div>
 
       <button
@@ -388,7 +369,32 @@ export function OrderFiles({ orderId, product, files, productFileIds, shortages,
         </>
       )}
 
-      {scope === 'product' && <ApprovalRequestsTable orderId={orderId} productId={product.id} requests={requests} />}
+      {scope === 'product' && (
+        <ApprovalRequestsTable
+          orderId={orderId}
+          productId={product.id}
+          requests={requests}
+          action={
+            <Button
+              type="button"
+              size="sm"
+              data-testid={IDS.requestApproval}
+              disabled={!canRequest}
+              title={
+                canRequest
+                  ? undefined
+                  : productFiles.length === 0
+                    ? 'Link the proof to this product first'
+                    : 'An approval can be requested while the product is in pre-press'
+              }
+              onClick={() => setRequestDialogOpen(true)}
+            >
+              <Send />
+              Request approval
+            </Button>
+          }
+        />
+      )}
 
       {requestDialogOpen && (
         <ApprovalRequestDialog

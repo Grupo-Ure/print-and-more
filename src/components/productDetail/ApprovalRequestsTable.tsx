@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Check, Pencil, Undo2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ApprovalDecision, ApprovalRequest } from '../../services/approvalRequestService'
@@ -29,10 +29,13 @@ export function ApprovalRequestsTable({
   orderId,
   productId,
   requests,
+  action,
 }: {
   orderId: string
   productId: string
   requests: ApprovalRequest[]
+  /** Rendered at the right of the heading (the *Request approval* button). */
+  action?: ReactNode
 }) {
   const confirm = useConfirm()
   const withdraw = useWithdrawApprovalRequest()
@@ -60,7 +63,10 @@ export function ApprovalRequestsTable({
   return (
     <div data-testid={IDS.root} className="flex flex-col gap-2">
       <Separator />
-      <h3 className="text-sm font-semibold">Approval requests</h3>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold">Approval requests</h3>
+        {action}
+      </div>
       {requests.length === 0 ? (
         <p data-testid={IDS.empty} className="text-sm text-muted-foreground">
           The customer has not been asked to approve this product yet.
