@@ -69,7 +69,7 @@ export const PRODUCT_TRACK_STATUSES: ProductStatus[] = [
 export const APPROVAL_REQUEST_STATUS_META: Record<ApprovalRequestStatus, StatusMeta> = {
   PENDING:           { label: 'Pending',           color: 'bg-teal-500',    hoverColor: 'hover:bg-teal-600',    softHoverColor: 'focus:bg-teal-500/10 focus:text-teal-700',       textColor: 'text-teal-600 dark:text-teal-400' },
   APPROVED:          { label: 'Approved',          color: 'bg-emerald-500', hoverColor: 'hover:bg-emerald-600', softHoverColor: 'focus:bg-emerald-500/10 focus:text-emerald-700', textColor: 'text-emerald-600 dark:text-emerald-400' },
-  CHANGES_REQUESTED: { label: 'Changes requested', color: 'bg-amber-500',   hoverColor: 'hover:bg-amber-600',   softHoverColor: 'focus:bg-amber-500/10 focus:text-amber-700',     textColor: 'text-amber-600 dark:text-amber-400' },
+  CHANGES_REQUESTED: { label: 'Changes requested', color: 'bg-gray-500',    hoverColor: 'hover:bg-gray-600',    softHoverColor: 'focus:bg-gray-500/10 focus:text-gray-700',       textColor: 'text-gray-600 dark:text-gray-400' },
   EXPIRED:           { label: 'Expired',           color: 'bg-gray-500',    hoverColor: 'hover:bg-gray-600',    softHoverColor: 'focus:bg-gray-500/10 focus:text-gray-700',       textColor: 'text-gray-600 dark:text-gray-400' },
   WITHDRAWN:         { label: 'Withdrawn',         color: 'bg-gray-500',    hoverColor: 'hover:bg-gray-600',    softHoverColor: 'focus:bg-gray-500/10 focus:text-gray-700',       textColor: 'text-gray-600 dark:text-gray-400' },
 }
