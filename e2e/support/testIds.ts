@@ -393,9 +393,11 @@ export const TEST_IDS = {
           empty: 'approval-requests-empty',
           /** One per round; `data-request-id`, `data-round`, `data-status` = approval_request_status. */
           row: 'approval-requests-row',
-          /** One per file of the round; `data-file-id`. */
+          /** The round's details, opened by clicking its row; `data-request-id`. */
+          details: 'approval-requests-details',
+          /** One per file of the round, in its details; `data-file-id`. */
           file: 'approval-requests-file',
-          /** Who recorded the answer or withdrew the round; `data-user-name`. */
+          /** Who recorded the answer or withdrew the round, in its details; `data-user-name`. */
           settledBy: 'approval-requests-settled-by',
           approve: 'approval-requests-approve',
           requestChanges: 'approval-requests-request-changes',
