@@ -10,7 +10,7 @@ import {
 } from '../fixtures/emailMessages'
 
 // The provider's delivery reports, posted to the local email-webhook function
-// signed the way Resend signs them. `sentEmail` is a sent record for the
+// signed the way the provider signs them. `sentEmail` is a sent record for the
 // test's order, addressed to its customer, with a provider id of its own for
 // the report to name. No mail is involved: the record is inserted, not sent.
 
@@ -33,7 +33,7 @@ test("EML-WHK-002 a bounce report marks the sent mail as bounced with the provid
   // Assert
   const delivery = await database.sentEmailDelivery(sentEmail.id)
   expect(delivery.bounced_at).not.toBeNull()
-  expect(delivery.bounce_reason).toBe(PERMANENT_BOUNCE.message)
+  expect(delivery.bounce_reason).toBe(PERMANENT_BOUNCE.reason)
 })
 
 test("EML-WHK-003 a bounce report writes a bounce entry on the order's history", async ({ database, emailWebhook, sentEmail }) => {
@@ -53,7 +53,7 @@ test("EML-WHK-004 a bounce report flags the customer's address as bounced", asyn
 })
 
 test('EML-WHK-005 the same bounce report delivered twice writes one history entry', async ({ database, emailWebhook, sentEmail }) => {
-  // Act — Resend retries a report it is unsure about.
+  // Act — the provider retries a report it is unsure about.
   await emailWebhook.report(bouncedReport(sentEmail.providerId))
   await emailWebhook.report(bouncedReport(sentEmail.providerId))
 
