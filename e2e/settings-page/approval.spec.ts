@@ -1,5 +1,5 @@
 import { expect, reloadApp, test } from '../fixtures/orders'
-import { EDITED_EXPIRY_DAYS } from '../fixtures/customerApprovalSettings'
+import { EDITED_EXPIRY_DAYS, EDITED_RETENTION_DAYS } from '../fixtures/customerApprovalSettings'
 import { TEST_USERS } from '../fixtures/users'
 
 // Only admins reach the Settings page. The `customerApprovalSettings` fixture
@@ -22,6 +22,24 @@ test('SET-APR-001 changing the approval expiry shows the new value again after r
 
   // Assert — the field shows the stored expiry, read afresh from the database.
   await expect(expiry).toHaveAttribute('data-value', String(EDITED_EXPIRY_DAYS))
+})
+
+test('SET-APR-003 changing how long approval proofs are kept shows the new value again after reopening Settings', async ({ settingsPage, page, navbar, customerApprovalSettings }) => {
+  // Setup — the Customer approval section open, the field holding the seeded retention.
+  await settingsPage.openSection('approval')
+  const { approval } = settingsPage
+  const retention = approval.retentionDays
+  await approval.stored(retention, customerApprovalSettings.retention_days).waitFor()
+
+  // Act — type the retention, leave the field, wait for it to be stored, then reload the app and reopen the section.
+  await retention.fill(String(EDITED_RETENTION_DAYS))
+  await retention.press('Enter')
+  await approval.stored(retention, EDITED_RETENTION_DAYS).waitFor()
+  await reloadApp(page, navbar)
+  await settingsPage.openSection('approval')
+
+  // Assert — the field shows the stored retention, read afresh from the database.
+  await expect(retention).toHaveAttribute('data-value', String(EDITED_RETENTION_DAYS))
 })
 
 test('SET-APR-002 opening Settings lists the customer approval section', async ({ settingsPage }) => {

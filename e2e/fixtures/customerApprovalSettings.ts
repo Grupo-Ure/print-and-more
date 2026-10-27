@@ -13,3 +13,6 @@ export const DEFAULT_CUSTOMER_APPROVAL_SETTINGS: CustomerApprovalSettingsSeed = 
 
 /** The validity a test types in place of the default. */
 export const EDITED_EXPIRY_DAYS = 30
+
+/** The retention a test types in place of the default. */
+export const EDITED_RETENTION_DAYS = 365

@@ -226,6 +226,7 @@ behaviour the lifecycle packs assert is written out in
   - [approval.spec.ts](settings-page/approval.spec.ts) — `SET-APR`
     - **SET-APR-001** changing the approval expiry shows the new value again after reopening Settings
     - **SET-APR-002** opening Settings lists the customer approval section
+    - **SET-APR-003** changing how long approval proofs are kept shows the new value again after reopening Settings
 - **Email runtime**
   - **Transport**
     - [transport.spec.ts](email-runtime/transport.spec.ts) — `EML-TRN`
