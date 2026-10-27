@@ -200,6 +200,31 @@ export const TEST_IDS = {
         /** One per entry; `data-event-type` = history_event. */
         item: 'order-history-item',
         empty: 'order-history-empty',
+        /** Shown instead of the list while the filters leave no entry. */
+        noMatch: 'order-history-no-match',
+        filters: {
+          /** The date range trigger; `data-from` / `data-to` = the range, `YYYY-MM-DD`. */
+          dateRange: 'order-history-filter-date-range',
+          /** The range calendar's popover. */
+          dateRangeCalendar: 'order-history-filter-date-range-calendar',
+          /** The user picker; `data-value` = the user id while one is picked. */
+          user: 'order-history-filter-user',
+          userAll: 'order-history-filter-user-all',
+          /** One per user; `data-user-id`. */
+          userOption: 'order-history-filter-user-option',
+          /** `data-value` = the product id while one is picked. */
+          product: 'order-history-filter-product',
+          productAll: 'order-history-filter-product-all',
+          /** One per product; `data-product-id`. */
+          productOption: 'order-history-filter-product-option',
+          /** `data-value` = the history_event while one is picked. */
+          event: 'order-history-filter-event',
+          eventAll: 'order-history-filter-event-all',
+          /** One per event type the history holds; `data-event-type`. */
+          eventOption: 'order-history-filter-event-option',
+          /** Clears every filter; shown while one is set. */
+          clear: 'order-history-filter-clear',
+        },
       },
       emails: {
         root: 'order-emails',
