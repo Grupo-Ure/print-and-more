@@ -176,7 +176,7 @@ Nothing here is imported by hand; the runner drives it from the config:
 | `support/testIds.ts` | The `TEST_IDS` registry, imported by components (`data-testid`) and page objects alike |
 | `support/database.ts` | `TestDatabase`: the runner's service-role connection (bypasses RLS, exposes `auth.admin`) with the methods that seed and remove users, customers, orders and products, attach a file to a product, insert an approval round and read the rounds, run the expiry and the proof purge and read whether a copy is stored and when its file was purged, remove the proof copies stored for an order, a product's workflow columns, the stock and movements of a stamp model and the order's history entries back, and that queue, reschedule, archive and read back emails, insert a sent record and read what the provider reported of it, and write a template's email settings — raw rows only, no app business logic. `asUser(login)` hands out a second connection signed in as one of the suite's logins, for the rules the database enforces on the app but not on the runner |
 | `support/sendEmail.ts` | `SendEmailFunction`: one drain of the email queue per call, the way the cron makes it (`drain()` with the service-role key, `drainAs(token)` with any other bearer token for the caller check) |
-| `support/emailWebhook.ts` | `EmailWebhookFunction`: one delivery report per call, posted the way Resend posts it — signed with the function's secret (`report()`), or with another one for the signature check (`reportSignedWith(secret, report)`) |
+| `support/emailWebhook.ts` | `EmailWebhookFunction`: one delivery report per call, posted the way the email provider posts it — written and signed by the provider's own `encodeReport`, with the function's secret (`report()`), or with another one for the signature check (`reportSignedWith(secret, report)`) |
 | `support/customerApproval.ts` | `CustomerApprovalFunction`: the `customer-approval` function called the way the customer's page calls it — no session, the token only: `read(token)`, `download(token, fileId)`, `decide(token, decision, note)` |
 | `TEST_PLAN.md` | The hand-written plan: which tests exist, by pack, precondition and ID. The source of truth the specs are held to by `scripts/test-plan.mjs` |
 | `global-setup.ts`, `global-teardown.ts` | Run-wide data, wired via `playwright.config.ts` |
@@ -190,7 +190,7 @@ as a signed-in login) and `SUPABASE_SERVICE_ROLE_KEY` (runner only, never
 keys are in `supabase status`. In CI the job exports them from its own instance
 and has no `.env`. The variables the runner shares with the edge functions
 are read from `supabase/functions/.env` — the file the local functions read
-them from — so no value is kept twice: `RESEND_WEBHOOK_SECRET`, which the
+them from — so no value is kept twice: `EMAIL_WEBHOOK_SECRET`, which the
 reports the suite signs verify against in `email-webhook`, and
 `EMAIL_SHOP_TO`, the shop's inbox the sender addresses the expired-approval
 mail to. The local functions
