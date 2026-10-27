@@ -89,7 +89,7 @@ jobs:
         # supabase/functions/.env is git-ignored, and the edge runtime reads it
         # when it starts. Dry run and placeholder addresses: no secret is
         # needed, and no mail can leave the runner. The webhook secret is a
-        # throwaway of the right shape (`whsec_` + base64): email-webhook
+        # throwaway (the provider uses it as it stands): email-webhook
         # verifies against it, and the e2e runner, which loads this file
         # too, signs its test reports with it. The customer app's origin is a
         # placeholder: the approval-request mail writes it into a link, and
@@ -100,7 +100,7 @@ jobs:
           EMAIL_FROM=ci@example.test
           EMAIL_REPLY_TO=ci@example.test
           EMAIL_SHOP_TO=ci@example.test
-          RESEND_WEBHOOK_SECRET=whsec_Y2ktd2ViaG9vay1zZWNyZXQ=
+          EMAIL_WEBHOOK_SECRET=aha-whsec-ci-webhook-secret
           CUSTOMER_APP_URL=https://customer.example.test
           EOF
       - name: Start local Supabase

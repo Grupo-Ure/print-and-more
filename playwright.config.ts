@@ -6,7 +6,7 @@ import { defineConfig } from '@playwright/test'
 // SUPABASE_SERVICE_ROLE_KEY). Variables already in the environment win — CI
 // exports them from its local instance and has no .env. The edge functions'
 // own variables are read as well, for the ones the suite shares with a
-// function: RESEND_WEBHOOK_SECRET, which email-webhook verifies against and
+// function: EMAIL_WEBHOOK_SECRET, which email-webhook verifies against and
 // the runner signs its test reports with, and EMAIL_SHOP_TO, where the
 // sender addresses the shop's own mail.
 if (fs.existsSync('.env')) process.loadEnvFile('.env')

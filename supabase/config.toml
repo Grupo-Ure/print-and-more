@@ -390,9 +390,9 @@ deno_version = 2
 [functions.send-email]
 static_files = ["./functions/send-email/templates/**/*.hbs"]
 
-# Resend posts its delivery reports here with no Supabase session, so the
-# gateway's JWT check is off for this one function; the report's Svix
-# signature is verified against RESEND_WEBHOOK_SECRET inside it instead.
+# The email provider posts its delivery reports here with no Supabase
+# session, so the gateway's JWT check is off for this one function; the
+# report's signature is verified against EMAIL_WEBHOOK_SECRET inside it instead.
 [functions.email-webhook]
 verify_jwt = false
 
