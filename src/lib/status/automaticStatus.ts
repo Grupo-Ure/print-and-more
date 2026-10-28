@@ -6,7 +6,9 @@ import { customerMeetsPrepressContact } from '../customer'
  * The automatic `IN_SETUP ↔ PREPRESS` decision — a pure function of the
  * product's *current* state. The status manager calls this only for a product
  * whose status is already `IN_SETUP` or `PREPRESS` (the caller gates out
- * committed / cancelled rows), so the return value is always one of those two.
+ * committed / cancelled rows — `AWAITING_APPROVAL` is committed: a waiting
+ * product moves only when its request closes), so the return value is always
+ * one of those two.
  *
  * The same rules apply to every department and product type — a product in the
  * OTHER department advances exactly like a CopyShop one:

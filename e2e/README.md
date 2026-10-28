@@ -18,9 +18,10 @@ playwright test
 │   ├─ fixtures/electron.ts        launch one app with a throwaway profile (per worker)
 │   ├─ fixtures/auth.ts            bring the app into the auth state the spec asked for
 │   ├─ fixtures/orders.ts          the orders view's page object + per-test rows + the catalog rows + a department default + a developer flag
-│   ├─ fixtures/production.ts      the production page's page object (lists the products seeded above)
 │   ├─ fixtures/stock.ts           the stock pages' page objects
 │   ├─ fixtures/emails.ts          the sender's and the webhook's handles + a message queued and a sent record for the order seeded above
+│   ├─ fixtures/approvals.ts       a customer approval request for the product seeded above
+│   ├─ fixtures/production.ts      the production page's page object (lists the products seeded above)
 │   └─ <page>/<feature>/*.spec.ts  one folder per page, subfolders per feature: auth/, orders-page/order/, orders-page/product/, …
 └─ e2e/global-teardown.ts          default() → delete the test logins
 ```
@@ -50,22 +51,35 @@ e2e/
        ├─ basic-info.spec.ts      the spec read-only, edited in place, locked once released
        ├─ status.spec.ts          the workflow: pre-press, production, done
        ├─ release-gates.spec.ts   what refuses a release, and the admin override
-       └─ stock-deduction.spec.ts what a release books against the stock pages
+       ├─ stock-deduction.spec.ts what a release books against the stock pages
+       └─ approval-requests.spec.ts asking the customer from the Files tab: the round, the stock warning, the next round's preselection; an answer recorded by hand, a withdrawal
 ├─ production-page/
 │  └─ feed.spec.ts                which products the feed lists, the assignee filter (and who it leaves out), the product detail beside it
 ├─ settings-page/
 │  ├─ departments.spec.ts         the default assignee per department and stage
 │  └─ emails.spec.ts              a mail's delay and on/off switch, as the next queued mail sees them
-└─ email-runtime/
-   ├─ transport.spec.ts           what one drain of the email queue does: send and record, wait, refuse, give up
-   ├─ settings.spec.ts            what a template's settings change about a drain: the repeat, its maximum, a mail switched off
-   └─ webhook.spec.ts             what the provider's delivery reports do: delivered, bounced (the record, the history, the customer's address), a forged one refused
+├─ email-runtime/
+│  ├─ transport.spec.ts           what one drain of the email queue does: send and record, wait, refuse, give up
+│  ├─ settings.spec.ts            what a template's settings change about a drain: the repeat, its maximum, a mail switched off
+│  └─ webhook.spec.ts             what the provider's delivery reports do: delivered, bounced (the record, the history, the customer's address), a forged one refused
+└─ customer-approval/
+   ├─ requests.spec.ts            what asking, settling and withdrawing an approval request do in the database: the round, the product's status, the stock, the history, the mails, and what a waiting product refuses
+   ├─ function.spec.ts            what the customer's page can do through the customer-approval function with a link's token: read the request, download a proof, decide once; a closed request serves no file, an unknown token nothing
+   ├─ release.spec.ts             what the release functions and the status guard refuse and book in the database: a direct status write, an incomplete or short product, a blocked or waiting round, a force release without the role or a reason
+   ├─ expiry.spec.ts              what the daily expiry run does: an overdue pending round expires, its product returns to pre-press and the shop is mailed; a round not yet due or already closed is left alone; an expired link serves no file
+   └─ cleanup.spec.ts             what the daily proof purge does: a closed round's copy on an order billed past the retention leaves the bucket and its file row is stamped, so the link serves it no more; within the retention or unbilled, nothing is purged
 ```
 
 Later pages follow the same shape (`stamp-stock-page/`, `textile-stock-page/`,
-`profile-page/`). `email-runtime/` is the one folder that is not a page: the
-email system has no screen of its own yet, and its specs drive the `send-email`
-and `email-webhook` functions directly and read the outcome from the database. A file is never split just because
+`profile-page/`). `email-runtime/` and `customer-approval/` are the two
+folders that are not a page: the email system has no screen of its own, and
+the approval workflow's database and function rules hold whatever screen
+drives them (its screen in this app, the product's Files tab, is tested under
+`orders-page/product/`). Their specs drive the edge
+functions and the database's own functions directly — the `send-email`,
+`email-webhook` and `customer-approval` functions, the request RPCs as a
+signed-in session — and read the outcome from the database. The customer's
+approval page itself is tested in its own repository, `markus/customer-app`. A file is never split just because
 it has several tests; it is split when it covers two sub-features. Inside a
 file there is no `describe` for the feature — the path already names it — and
 a `describe` block exists only to carry a precondition (`test.use({ … })`)
@@ -85,8 +99,7 @@ lines:
 
 ```
 @playwright/test → fixtures/database.ts → fixtures/electron.ts → fixtures/auth.ts → fixtures/orders.ts → fixtures/stock.ts
-                                                                                                      ↘ fixtures/production.ts
-                                                                                                      ↘ fixtures/emails.ts
+                                                                                                      ↘ fixtures/emails.ts → fixtures/approvals.ts → fixtures/production.ts
 ```
 
 A spec imports `test` from the link it needs — `./fixtures/auth` for a
@@ -145,23 +158,26 @@ Nothing here is imported by hand; the runner drives it from the config:
 | `fixtures/electron.ts` | Launches the built app; replaces Playwright's browser `page` |
 | `fixtures/auth.ts` | `user` option + signed-in `page`; `login` / `navbar` / `settingsPage` page objects; `signIn` / `signOut` helpers |
 | `fixtures/users.ts` | The test logins, and which of them the `developer` fixture flags (data fixture) |
-| `fixtures/orders.ts` | `ordersPage` page object + per-test data of the orders view: `customer` (a fresh customer), `order` (a fresh order for it), `product` (a fresh product in that order), `orderFile` (a file linked to it), `newCustomer` (data for a customer the test creates in the app), `departmentDefault` (one department's default assignee for one stage, emptied afterwards), `developer` (a login flagged as a developer account, unflagged afterwards) — each created/cleaned up around the test. The state `order` and `product` are inserted in comes from the `orderSeed` / `productSeed` options (`test.use({ orderSeed: IN_PROGRESS_ORDER })`); the defaults are an empty quote and an OTHER product in setup. `catalog` (automatic) keeps the stamp models and the textile chain the product seeds reference in the catalog, reset to their seed stock before every test |
+| `fixtures/orders.ts` | `ordersPage` page object + per-test data of the orders view: `customer` (a fresh customer), `order` (a fresh order for it; a billed one dated back by its seed, for the proof purge), `product` (a fresh product in that order), `orderFile` (a file linked to it), `newCustomer` (data for a customer the test creates in the app), `departmentDefault` (one department's default assignee for one stage, emptied afterwards), `developer` (a login flagged as a developer account, unflagged afterwards) — each created/cleaned up around the test. The state `order` and `product` are inserted in comes from the `orderSeed` / `productSeed` options (`test.use({ orderSeed: IN_PROGRESS_ORDER })`); the defaults are an empty quote and an OTHER product in setup. `catalog` (automatic) keeps the stamp models and the textile chain the product seeds reference in the catalog, reset to their seed stock before every test |
 | `fixtures/stock.ts` | `stampStockPage` / `textileStockPage` page objects, for reading stock after a release |
-| `fixtures/production.ts` | `productionPage` page object; the products it lists come from the `order` / `product` / `products` fixtures of the orders link |
-| `fixtures/emails.ts` | `sendEmail` (the runner's handle on the `send-email` function, one drain per call), `emailWebhook` (its handle on the `email-webhook` function, one signed delivery report per call), `queuedEmail` (a message queued for `order` through `queue_email` as `queuedEmailSeed` describes it; afterwards everything still queued for the order is archived, repeats included), `sentEmail` (a sent record for `order` as `sentEmailSeed` describes it, with a provider id of its own; removed with the order) and `emailSetting` (a template's row in Settings → Emails as `emailSettingSeed` describes it, deleted afterwards) |
-| `fixtures/emailMessages.ts` | The messages the `queuedEmail` fixture queues (immediate, delayed, delayed by Settings, unknown template, no longer needed, refused by the dry-run transport), the sent record the `sentEmail` fixture inserts, the delivery reports a spec posts (delivered, bounced) and the secret a forged one is signed with, the Settings rows the `emailSetting` fixture writes (immediate, repeating) and the sender's and the webhook's constants a spec asserts against (data fixture) |
+| `fixtures/production.ts` | `productionPage` page object; the products it lists come from the `order` / `product` / `products` fixtures of the orders link, and a product waiting for the customer from the `approvalRequest` of the approvals link |
+| `fixtures/emails.ts` | `sendEmail` (the runner's handle on the `send-email` function, one drain per call), `emailWebhook` (its handle on the `email-webhook` function, one signed delivery report per call), `queuedEmail` (a message queued for `order` through `queue_email` as `queuedEmailSeed` describes it; afterwards everything still queued for the order is archived, repeats included), `sentEmail` (a sent record for `order` as `sentEmailSeed` describes it, with a provider id of its own; removed with the order) and `emailSetting` (a template's row in Settings → Emails written over as `emailSettingSeed` describes it — switches, and wording where the seed gives one — and put back as it was afterwards; the row itself comes from the migration that adds the mail) |
+| `fixtures/approvals.ts` | `approvalRequest` (one approval round for `product` over `orderFile`, as `approvalRequestSeed` describes it — open, in which case the product is put into awaiting approval as sending the request would have, or closed — with its link valid for days or already run out; it carries the link's raw token, whose hash the row stores; removed with the order), `approvalProof` (the round's file copy in the approval-proofs bucket; removed from the bucket afterwards), `proofFiles` (the `PROOF_FILES` as real files in a fresh temporary folder — the desktop app reads them when it asks — linked to `order` and attached to `product`; afterwards the folder is deleted and every copy the app stored for the order is removed from the bucket), `proofRound` (a round for `product` over the first of them, as `proofRoundSeed` describes it, so the Files tab lists it and can ask again once it is closed), `customerApproval` (the runner's handle on the `customer-approval` function) and `approvalMailQueue` (automatic: every mail still queued for `order` is archived after the test, so a request mail or a decision's notice a test left waiting is not claimed by the next drain) |
+| `fixtures/approvalRequests.ts` | The rounds the `approvalRequest` fixture inserts (open and mailed, open and unmailed, withdrawn, sent back with changes and a note, approved), the message and the note a spec sends, the request statuses and history events a spec asserts against, and the helpers that mint a request id, build a file copy's storage path, read the token out of a sent request mail and hash it as the database does, and what the customer's page meets: the proof's stored bytes, a token no request has, the function's answer statuses (data fixture) |
+| `fixtures/emailMessages.ts` | The messages the `queuedEmail` fixture queues (immediate, delayed, delayed by Settings, unknown template, no longer needed, refused by the dry-run transport), the sent record the `sentEmail` fixture inserts, the delivery reports a spec posts (delivered, bounced) and the secret a forged one is signed with, the Settings rows the `emailSetting` fixture writes (immediate, repeating, a subject with a slot for the order, a subject with a slot the data lacks), the wording a spec types into the wording dialog, every mail type the sender knows, and the sender's and the webhook's constants a spec asserts against (data fixture) |
 | `fixtures/customers.ts` | The customers those fixtures use (data fixture) |
 | `fixtures/departments.ts` | The department-default seeds the `departmentDefault` fixture applies: which department and stage, and who holds it (data fixture) |
-| `fixtures/products.ts` | Product seeds (department, type, status, approval flag, and the children holding the spec), the form values a spec types, the expected product number, the force-release reason (data fixture) |
-| `fixtures/files.ts` | The file the `orderFile` fixture links for the customer approval (data fixture) |
-| `fixtures/stamps.ts` | The stamp models the `catalog` fixture keeps in the catalog: one out of stock for the gate, one in stock for the deduction (data fixture) |
+| `fixtures/products.ts` | Product seeds (department, type, status, and the children holding the spec), the form values a spec types, the expected product number, the force-release reason and a blank one (data fixture) |
+| `fixtures/files.ts` | The file the `orderFile` fixture links for the customer approval, and the two proofs, with what they hold, that the `proofFiles` fixture writes to disk (data fixture) |
+| `fixtures/stamps.ts` | The stamp models the `catalog` fixture keeps in the catalog: one out of stock for the gate, one in stock for the deduction — and a deduction past that one's stock, with the note of a booking by hand (data fixture) |
 | `fixtures/textiles.ts` | The textile brand → model → variant chain the `catalog` fixture keeps in the catalog, in stock for the deduction (data fixture) |
 | `pom/*POM.ts` | Page objects — every locator a spec uses, one class per view/dialog, composed parent → child |
 | `pom/BasePOM.ts` | Ancestor of every page object: holds the page and the shared helpers (`withAttr()` picks one instance of a repeated element by data attribute) |
 | `support/testIds.ts` | The `TEST_IDS` registry, imported by components (`data-testid`) and page objects alike |
-| `support/database.ts` | `TestDatabase`: the runner's service-role connection (bypasses RLS, exposes `auth.admin`) with the methods that seed and remove users, customers, orders and products, and that queue, reschedule, archive and read back emails, insert a sent record and read what the provider reported of it, and write a template's email settings — raw rows only, no app business logic. `asUser(login)` hands out a second connection signed in as one of the suite's logins, for the rules the database enforces on the app but not on the runner |
+| `support/database.ts` | `TestDatabase`: the runner's service-role connection (bypasses RLS, exposes `auth.admin`) with the methods that seed and remove users, customers, orders and products, attach a file to a product, insert an approval round and read the rounds, run the expiry and the proof purge and read whether a copy is stored and when its file was purged, remove the proof copies stored for an order, a product's workflow columns, the stock and movements of a stamp model and the order's history entries back, and that queue, reschedule, archive and read back emails, insert a sent record and read what the provider reported of it, and write a template's email settings — raw rows only, no app business logic. `asUser(login)` hands out a second connection signed in as one of the suite's logins, for the rules the database enforces on the app but not on the runner |
 | `support/sendEmail.ts` | `SendEmailFunction`: one drain of the email queue per call, the way the cron makes it (`drain()` with the service-role key, `drainAs(token)` with any other bearer token for the caller check) |
 | `support/emailWebhook.ts` | `EmailWebhookFunction`: one delivery report per call, posted the way Resend posts it — signed with the function's secret (`report()`), or with another one for the signature check (`reportSignedWith(secret, report)`) |
+| `support/customerApproval.ts` | `CustomerApprovalFunction`: the `customer-approval` function called the way the customer's page calls it — no session, the token only: `read(token)`, `download(token, fileId)`, `decide(token, decision, note)` |
 | `TEST_PLAN.md` | The hand-written plan: which tests exist, by pack, precondition and ID. The source of truth the specs are held to by `scripts/test-plan.mjs` |
 | `global-setup.ts`, `global-teardown.ts` | Run-wide data, wired via `playwright.config.ts` |
 
@@ -172,12 +188,19 @@ ones the build inlines; the anon key is for `TestDatabase.asUser`, which writes
 as a signed-in login) and `SUPABASE_SERVICE_ROLE_KEY` (runner only, never
 `VITE_`-prefixed). Locally all three come from `.env`; for a local Supabase the
 keys are in `supabase status`. In CI the job exports them from its own instance
-and has no `.env`. The one variable the runner shares with an edge function,
-`RESEND_WEBHOOK_SECRET`, is read from `supabase/functions/.env` — the file the
-local `email-webhook` reads it from — so the reports the suite signs verify
-against the function without the value being kept twice. The local
-`send-email` and `email-webhook` do not boot without that file (copy
-`supabase/functions/.env.example`), and neither do the `email-runtime/` specs.
+and has no `.env`. The variables the runner shares with the edge functions
+are read from `supabase/functions/.env` — the file the local functions read
+them from — so no value is kept twice: `RESEND_WEBHOOK_SECRET`, which the
+reports the suite signs verify against in `email-webhook`, and
+`EMAIL_SHOP_TO`, the shop's inbox the sender addresses the expired-approval
+mail to. The local functions
+do not boot without that file (copy `supabase/functions/.env.example`;
+`customer-approval` also needs its `CUSTOMER_APP_URL`), and neither do the
+`email-runtime/` and `customer-approval/` specs. The proof purge
+(`customer-approval/cleanup.spec.ts`) deletes copies from the database, with
+the URL and key in the local Vault; `supabase/.env` fills them when the stack
+starts (copy `supabase/.env.example`), and the CI job fills them after its
+start. Without them the purge does nothing and its pack fails.
 
 [`TEST_PLAN.md`](TEST_PLAN.md) comes first: a test is planned there, numbered with `npm run test:plan:assign`, and then written with that ID in its title. `npm run test:plan:status` lists what is still to write; `npm run test:plan:check` (run in CI) fails on a spec test the plan does not name or that differs from it. The rules are in the testing standards under "The plan comes first".
 

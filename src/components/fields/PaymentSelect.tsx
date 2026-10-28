@@ -1,38 +1,30 @@
+import { Wallet } from 'lucide-react'
 import { type PaymentMethod } from '../../types/database'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../ui/select'
+import { SettingSelect } from './SettingSelect'
+
+const PAYMENT_OPTIONS: { value: PaymentMethod; label: string }[] = [
+  { value: 'INVOICE', label: 'Invoice' },
+  { value: 'CASH', label: 'Cash' },
+]
 
 type PaymentSelectProps = {
   value: PaymentMethod
   onChange: (value: PaymentMethod) => void
   disabled?: boolean
-  /** data-testid for the trigger. */
+  /** data-testid for the trigger — the field is shared by the order row and the product's Settings tab. */
   testId?: string
 }
 
 export function PaymentSelect({ value, onChange, disabled = false, testId }: PaymentSelectProps) {
   return (
-    <label className="meta-pill" title="Payment method">
-      <Select
-        value={value}
-        disabled={disabled}
-        onValueChange={next => {
-          if (next === 'INVOICE' || next === 'CASH') onChange(next)
-        }}
-      >
-        <SelectTrigger size="sm" data-testid={testId} data-value={value}>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="INVOICE">Invoice</SelectItem>
-          <SelectItem value="CASH">Cash</SelectItem>
-        </SelectContent>
-      </Select>
-    </label>
+    <SettingSelect
+      value={value}
+      onChange={onChange}
+      options={PAYMENT_OPTIONS}
+      icon={Wallet}
+      title="Payment method"
+      disabled={disabled}
+      testId={testId}
+    />
   )
 }

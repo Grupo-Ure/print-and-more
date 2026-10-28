@@ -200,13 +200,38 @@ export const TEST_IDS = {
         /** One per entry; `data-event-type` = history_event. */
         item: 'order-history-item',
         empty: 'order-history-empty',
+        /** Shown instead of the list while the filters leave no entry. */
+        noMatch: 'order-history-no-match',
+        filters: {
+          /** The date range trigger; `data-from` / `data-to` = the range, `YYYY-MM-DD`. */
+          dateRange: 'order-history-filter-date-range',
+          /** The range calendar's popover. */
+          dateRangeCalendar: 'order-history-filter-date-range-calendar',
+          /** The user picker; `data-value` = the user id while one is picked. */
+          user: 'order-history-filter-user',
+          userAll: 'order-history-filter-user-all',
+          /** One per user; `data-user-id`. */
+          userOption: 'order-history-filter-user-option',
+          /** `data-value` = the product id while one is picked. */
+          product: 'order-history-filter-product',
+          productAll: 'order-history-filter-product-all',
+          /** One per product; `data-product-id`. */
+          productOption: 'order-history-filter-product-option',
+          /** `data-value` = the history_event while one is picked. */
+          event: 'order-history-filter-event',
+          eventAll: 'order-history-filter-event-all',
+          /** One per event type the history holds; `data-event-type`. */
+          eventOption: 'order-history-filter-event-option',
+          /** Clears every filter; shown while one is set. */
+          clear: 'order-history-filter-clear',
+        },
       },
       emails: {
         root: 'order-emails',
         empty: 'order-emails-empty',
-        /** One per mail waiting on the queue; `data-msg-id` = queue message id. */
+        /** One per mail waiting on the queue; `data-msg-id` = queue message id, `data-template`. */
         queuedItem: 'order-emails-queued-item',
-        /** One per mail that went out; `data-sent-email-id` = sent_emails.id. */
+        /** One per mail that went out; `data-sent-email-id` = sent_emails.id, `data-template`. */
         sentItem: 'order-emails-sent-item',
         /** Opens the sent mail's body; inside a sent item. */
         viewSent: 'order-emails-view-sent',
@@ -214,6 +239,21 @@ export const TEST_IDS = {
         failedItem: 'order-emails-failed-item',
         /** The dialog showing a sent mail as it went out. */
         sentDialog: 'order-emails-sent-dialog',
+        /** Shown instead of the groups while the filters leave no mail. */
+        noMatch: 'order-emails-no-match',
+        filters: {
+          /** The date range trigger; `data-from` / `data-to` = the range, `YYYY-MM-DD`. */
+          dateRange: 'order-emails-filter-date-range',
+          /** The range calendar's popover. */
+          dateRangeCalendar: 'order-emails-filter-date-range-calendar',
+          /** `data-value` = the product id while one is picked. */
+          product: 'order-emails-filter-product',
+          productAll: 'order-emails-filter-product-all',
+          /** One per product; `data-product-id`. */
+          productOption: 'order-emails-filter-product-option',
+          /** Clears every filter; shown while one is set. */
+          clear: 'order-emails-filter-clear',
+        },
       },
     },
 
@@ -279,6 +319,8 @@ export const TEST_IDS = {
       banner: {
         root: 'product-banner',
         backToPrepress: 'product-banner-back-to-prepress',
+        /** The note the newest approval round closed with (a request for changes), while it blocks the release. */
+        approvalNote: 'product-banner-approval-note',
       },
       tabs: {
         basicInfo: 'product-tab-basic-info',
@@ -324,6 +366,8 @@ export const TEST_IDS = {
           /** The text tab's input; Enter or the add button adds the design. */
           pickerText: 'product-basic-info-textile-picker-text',
         },
+        /** Beside the files (the Files field, or a textile batch's designs) in pre-press: switches to the Files tab. */
+        requestApproval: 'product-basic-info-request-approval',
         /** The Files field of every non-textile form: the picked chips plus the shared picker. */
         files: {
           root: 'product-basic-info-files',
@@ -341,17 +385,6 @@ export const TEST_IDS = {
         delivery: 'product-settings-delivery',
         separatePriority: 'product-settings-separate-priority',
         priority: 'product-settings-priority',
-        approvalRequired: 'product-settings-approval-required',
-        grantApproval: 'product-settings-grant-approval',
-        approvalGranted: 'product-settings-approval-granted',
-        grantDialog: {
-          root: 'grant-approval-dialog',
-          addFiles: 'grant-approval-dialog-add',
-          /** One per file; `data-file-id`. */
-          file: 'grant-approval-dialog-file',
-          cancel: 'grant-approval-dialog-cancel',
-          submit: 'grant-approval-dialog-submit',
-        },
       },
       timeLogs: {
         root: 'time-logs',
@@ -376,14 +409,67 @@ export const TEST_IDS = {
         /** Switches to the Time logs tab. */
         showAll: 'quick-time-log-show-all',
       },
-      /** The order's file links, shown from the product so the production view has them too. */
+      /**
+       * The product's Files tab: the product's own files (with the approval
+       * request) or the whole order's, shown from the product so the
+       * production view has them too. `data-scope` = product | order.
+       */
       files: {
         root: 'order-files',
+        /** The *This product* / *Whole order* switch; one button per scope, `data-scope`, `data-active`. */
+        scope: 'order-files-scope',
         addFiles: 'order-files-add',
         error: 'order-files-error',
         list: 'order-files-list',
         /** One per file; `data-file-id`. */
         item: 'order-files-item',
+        /** The row's checkbox in the product scope; `data-state` = checked | unchecked. */
+        itemSelect: 'order-files-item-select',
+        /** Opens the approval request dialog; product scope only, enabled in pre-press. */
+        requestApproval: 'order-files-request-approval',
+        /** The product's approval rounds, newest first. */
+        requests: {
+          root: 'approval-requests',
+          empty: 'approval-requests-empty',
+          /** One per round; `data-request-id`, `data-round`, `data-status` = approval_request_status. */
+          row: 'approval-requests-row',
+          /** The round's details, opened by clicking its row; `data-request-id`. */
+          details: 'approval-requests-details',
+          /** One per file of the round, in its details; `data-file-id`. */
+          file: 'approval-requests-file',
+          /** Who recorded the answer or withdrew the round, in its details; `data-user-name`. */
+          settledBy: 'approval-requests-settled-by',
+          approve: 'approval-requests-approve',
+          requestChanges: 'approval-requests-request-changes',
+          withdraw: 'approval-requests-withdraw',
+        },
+        /** The dialog that records the customer's answer by hand; `data-decision` = APPROVED | CHANGES_REQUESTED. */
+        answerDialog: {
+          root: 'approval-answer-dialog',
+          note: 'approval-answer-dialog-note',
+          cancel: 'approval-answer-dialog-cancel',
+          submit: 'approval-answer-dialog-submit',
+        },
+        /** The dialog that sends a round. */
+        requestDialog: {
+          root: 'approval-request-dialog',
+          /** One per file offered; `data-file-id`, `data-state` = checked | unchecked. */
+          file: 'approval-request-dialog-file',
+          /** The checkbox inside a file's row. */
+          fileSelect: 'approval-request-dialog-file-select',
+          message: 'approval-request-dialog-message',
+          /** *Email the customer*; `data-state` = checked | unchecked. */
+          mailed: 'approval-request-dialog-mailed',
+          /** The stock warning; one `shortage` per short target, `data-target-id`. */
+          shortages: 'approval-request-dialog-shortages',
+          shortage: 'approval-request-dialog-shortage',
+          /** Shown in a plain browser tab, where the files cannot be read. */
+          desktopRequired: 'approval-request-dialog-desktop-required',
+          error: 'approval-request-dialog-error',
+          cancel: 'approval-request-dialog-cancel',
+          /** `data-anyway` while the dialog warns of a shortage (*Send anyway*). */
+          submit: 'approval-request-dialog-submit',
+        },
         /** The display name — a static span, or the input while editing. */
         itemName: 'order-files-item-name',
         /** The pencil button that switches the name to its input. */
@@ -542,10 +628,12 @@ export const TEST_IDS = {
     },
     emails: {
       root: 'email-settings',
-      /** Shown instead of the rows while no template has settings. */
+      /** Shown instead of the rows while no template has a row. */
       empty: 'email-settings-empty',
       /** One per email_settings row; `data-template` = the template's folder name. */
       row: 'email-settings-row',
+      /** Opens the row's wording dialog. */
+      rowEditWording: 'email-settings-row-edit-wording',
       /** The on/off switch; `data-state` = checked | unchecked (Radix), the stored value. */
       rowEnabled: 'email-settings-row-enabled',
       /** Days before the first send; `data-value` = the stored delay_days. */
@@ -554,6 +642,25 @@ export const TEST_IDS = {
       rowRepeat: 'email-settings-row-repeat',
       /** Most sends of one mail; `data-value` = the stored max_sends. */
       rowMaxSends: 'email-settings-row-max-sends',
+      wordingDialog: {
+        /** `data-template` = the mail whose wording is open. */
+        root: 'email-wording-dialog',
+        subject: 'email-wording-dialog-subject',
+        body: 'email-wording-dialog-body',
+        /** One per slot the mail offers; `data-placeholder` = its name. Inserts it at the cursor. */
+        placeholder: 'email-wording-dialog-placeholder',
+        /** Why the wording was refused; shown only then. */
+        error: 'email-wording-dialog-error',
+        cancel: 'email-wording-dialog-cancel',
+        submit: 'email-wording-dialog-submit',
+      },
+    },
+    approval: {
+      root: 'approval-settings',
+      /** Days an approval link stays valid; `data-value` = the stored expiry_days. */
+      expiryDays: 'approval-settings-expiry-days',
+      /** Days proof copies are kept after billing; `data-value` = the stored retention_days. */
+      retentionDays: 'approval-settings-retention-days',
     },
   },
 

@@ -1,15 +1,26 @@
-import type { HistoryRow } from '../services/historyService'
+import { useState } from 'react'
+import { RotateCcw } from 'lucide-react'
+import type { HistoryEvent, HistoryRow } from '../services/historyService'
 import { useHistoryForOrder } from '../queries/historyQueries'
 import { useProductsByOrderId } from '../queries/productQueries'
 import { useUsers } from '../queries/userQueries'
 import { PRODUCT_STATUS_META, ORDER_STATUS_META, type StatusMeta } from '../lib/statusLabels'
 import { PRODUCT_TYPE_LABELS } from '../lib/productTypeLabels'
 import { emailTemplateLabel } from '../lib/emailTemplateLabels'
+import { formatDateShort, formatDateTimeHuman } from '../lib/formatDate'
 import { shortProductNumber } from '../lib/productShared'
 import { cn } from '../lib/utils'
+import { isInDateRange } from '../lib/dateRange'
+import { FilterBar, ProductLink, Quote } from './LogText'
+import { DateRangeFilter } from './fields/DateRangeFilter'
+import { EmployeeCombobox } from './fields/EmployeeCombobox'
+import { HistoryEventCombobox } from './fields/HistoryEventCombobox'
+import { ProductCombobox } from './fields/ProductCombobox'
+import { Button } from './ui/button'
 import { TEST_IDS } from '@e2e/support/testIds'
 
 const IDS = TEST_IDS.orders.details.history
+const FILTER_IDS = IDS.filters
 
 /**
  * What a PRODUCT_* event's product was, from the meta snapshot: "12× Banner".
@@ -35,25 +46,11 @@ function settingValueText(field: string, value: unknown): string | null {
   if (value == null || value === '') return null
   const raw = String(value)
   if (field === 'deadline') {
-    const date = new Date(raw)
-    return Number.isNaN(date.getTime())
-      ? raw
-      : date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })
+    const text = formatDateShort(raw)
+    return text === '—' ? raw : text
   }
   const labels: Record<string, string> = { PICKUP: 'Pickup', SHIPPING: 'Shipping', HIGH: 'High', NORMAL: 'Normal' }
   return labels[raw] ?? raw
-}
-
-function formatHistoryTime(iso: string): string {
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return iso
-  return date.toLocaleString('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 }
 
 function metaRecord(entry: HistoryRow): Record<string, unknown> | null {
@@ -79,19 +76,22 @@ function metaName(
 
 /**
  * A sentence is a list of segments so each part can carry its own styling:
- * plain strings render as-is, persons/products get a colour highlight, statuses
- * render as a chip in the status' actual colour.
+ * plain strings render as-is, persons/products/quotes get a colour highlight,
+ * statuses render in the status' actual colour. A product carries its id while
+ * it still exists, which makes it a link to the product.
  */
 type Segment =
   | string
   | { kind: 'person'; text: string }
-  | { kind: 'product'; text: string }
+  | { kind: 'product'; text: string; productId: string | null }
   | { kind: 'duration'; text: string }
+  | { kind: 'quote'; text: string }
   | { kind: 'status'; meta: StatusMeta }
 
 function segmentText(segment: Segment): string {
   if (typeof segment === 'string') return segment
-  return segment.kind === 'status' ? segment.meta.label : segment.text
+  if (segment.kind === 'status') return segment.meta.label
+  return segment.kind === 'quote' ? `“${segment.text}”` : segment.text
 }
 
 /**
@@ -102,13 +102,14 @@ function segmentText(segment: Segment): string {
 function historySegments(
   entry: HistoryRow,
   productLabel: string | null,
+  productId: string | null,
   staffById: Map<string, string>,
 ): Segment[] {
   const actor: Segment = {
     kind: 'person',
     text: entry.user_id ? (staffById.get(entry.user_id) ?? 'Someone') : 'The system',
   }
-  const product: Segment = productLabel ? { kind: 'product', text: productLabel } : 'a product'
+  const product: Segment = productLabel ? { kind: 'product', text: productLabel, productId } : 'a product'
   const meta = metaRecord(entry)
 
   switch (entry.event_type) {
@@ -121,6 +122,10 @@ function historySegments(
     case 'PREPRESS_READY_MANUAL':
       return [actor, ' moved ', product, ' to ', { kind: 'status', meta: PRODUCT_STATUS_META.PREPRESS }]
     case 'PRODUCTION_READY_SET':
+      // Written by the database when a customer approval lands — nobody clicked.
+      if (meta?.automatic === true) {
+        return [product, ' went to ', { kind: 'status', meta: PRODUCT_STATUS_META.IN_PRODUCTION }, ' on the customer approval']
+      }
       return [actor, ' released ', product, ' to ', { kind: 'status', meta: PRODUCT_STATUS_META.IN_PRODUCTION }]
     case 'MARKED_DONE':
       return [actor, ' marked ', product, ' as ', { kind: 'status', meta: PRODUCT_STATUS_META.DONE }]
@@ -142,10 +147,26 @@ function historySegments(
       return [actor, ' requested customer approval for ', product]
     case 'CUSTOMER_APPROVAL_DEACTIVATED':
       return [actor, ' removed the customer-approval requirement for ', product]
-    case 'CUSTOMER_APPROVAL_GRANTED':
-      return [actor, ' granted customer approval for ', product]
+    case 'CUSTOMER_APPROVAL_REQUESTED': {
+      const round = typeof meta?.round === 'number' ? ` (round ${meta.round})` : ''
+      const unmailed = meta?.mailed === false ? ', without a mail' : ''
+      return [actor, ' asked the customer to approve ', product, `${round}${unmailed}`]
+    }
+    case 'CUSTOMER_APPROVAL_GRANTED': {
+      // `by` is CUSTOMER when the answer came through the page; an employee
+      // recording it by hand is the entry's actor.
+      if (meta?.by === 'CUSTOMER') return ['The customer approved ', product]
+      return [actor, ' recorded the customer approval for ', product]
+    }
+    case 'CUSTOMER_APPROVAL_CHANGES_REQUESTED': {
+      const note: Segment[] = typeof meta?.note === 'string' && meta.note ? [': ', { kind: 'quote', text: meta.note }] : []
+      if (meta?.by === 'CUSTOMER') return ['The customer requested changes to ', product, ...note]
+      return [actor, ' recorded a request for changes to ', product, ...note]
+    }
+    case 'CUSTOMER_APPROVAL_WITHDRAWN':
+      return [actor, ' withdrew the approval request for ', product]
     case 'CUSTOMER_APPROVAL_EXPIRED':
-      return ['Customer approval for ', product, ' expired']
+      return ['The approval request for ', product, ' expired']
     case 'CUSTOMER_APPROVAL_BYPASSED':
       return [actor, ' bypassed customer approval for ', product]
     case 'ROLLED_BACK':
@@ -189,7 +210,7 @@ function historySegments(
       return [
         actor,
         ' deleted ',
-        number ? { kind: 'product', text: number } : 'a product',
+        number ? { kind: 'product', text: number, productId: null } : 'a product',
         ` (${productKind(meta)})`,
       ]
     }
@@ -229,8 +250,8 @@ function historySegments(
       const recipient = typeof meta?.recipient === 'string' ? ` to ${meta.recipient}` : ''
       const about: Segment[] = productLabel ? [' about ', product] : []
       if (entry.event_type === 'EMAIL_SENT') {
-        const subject = typeof meta?.subject === 'string' ? ` “${meta.subject}”` : ''
-        return [`${template}${subject} was sent${recipient}`, ...about]
+        const subject: Segment[] = typeof meta?.subject === 'string' ? [' ', { kind: 'quote', text: meta.subject }] : []
+        return [template, ...subject, ` was sent${recipient}`, ...about]
       }
       if (entry.event_type === 'EMAIL_BOUNCED') {
         const reason = typeof meta?.reason === 'string' ? `: ${meta.reason}` : ''
@@ -244,19 +265,49 @@ function historySegments(
   }
 }
 
+type HistoryFilter = {
+  from: string
+  to: string
+  userId: string | null
+  productId: string | null
+  event: HistoryEvent | null
+}
+
+const NO_FILTER: HistoryFilter = { from: '', to: '', userId: null, productId: null, event: null }
+
 /**
- * The order's history log, newest first, one sentence per event. Rendered as
- * the order's History tab — mounted only while that tab is active, so the
- * query runs on demand.
+ * The order's history log, newest first, one sentence per event, under a row
+ * of filters: a date range, who did it, which product, which event. Rendered
+ * as the order's History tab — mounted only while that tab is active, so the
+ * query runs on demand (and the filters start empty each time).
  */
-export function OrderHistory({ orderId }: { orderId: string }) {
+export function OrderHistory({
+  orderId,
+  onOpenProduct,
+}: {
+  orderId: string
+  /** Shows the product on the order's Products tab; makes the product numbers links. */
+  onOpenProduct?: (productId: string) => void
+}) {
   const historyQuery = useHistoryForOrder(orderId)
   const productsQuery = useProductsByOrderId(orderId)
   const { data: users } = useUsers()
+  const [filter, setFilter] = useState<HistoryFilter>(NO_FILTER)
 
   const staffById = new Map((users ?? []).map(user => [user.id, user.name ?? user.id]))
   const products = productsQuery.data ?? []
   const entries = historyQuery.data ?? []
+  // Only the event types this order's history holds are worth offering.
+  const eventOptions = [...new Set(entries.map(entry => entry.event_type))]
+  const isFiltered =
+    filter.from !== '' || filter.to !== '' || filter.userId !== null || filter.productId !== null || filter.event !== null
+  const shown = entries.filter(
+    entry =>
+      isInDateRange(entry.created_at, filter.from, filter.to) &&
+      (filter.userId === null || entry.user_id === filter.userId) &&
+      (filter.productId === null || entry.product_id === filter.productId) &&
+      (filter.event === null || entry.event_type === filter.event),
+  )
 
   // "LFP-01" — the product number without the redundant order-number prefix
   // (every entry in this log belongs to the same order).
@@ -265,28 +316,87 @@ export function OrderHistory({ orderId }: { orderId: string }) {
     const number = products.find(product => product.id === productId)?.product_number
     return number ? shortProductNumber(number) : 'Product'
   }
+  // The product to open from the entry, while the Products tab still lists it (not deleted, not cancelled).
+  const existingProductId = (productId: string | null): string | null =>
+    productId && products.some(product => product.id === productId && !product.is_cancelled) ? productId : null
 
   return (
-    <section data-testid={IDS.root} aria-label="Order history" className="h-full overflow-y-auto">
-      {historyQuery.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
-      {historyQuery.isError && (
-        <p className="text-sm text-destructive">History could not be loaded</p>
-      )}
-      {historyQuery.isSuccess && entries.length === 0 && (
-        <p data-testid={IDS.empty} className="text-sm text-muted-foreground">No history entries yet</p>
-      )}
+    <section data-testid={IDS.root} aria-label="Order history" className="flex h-full flex-col gap-3">
       {entries.length > 0 && (
-        <ul data-testid={IDS.list} className="divide-y divide-border">
-          {entries.map(entry => (
-            <HistoryItem
-              key={entry.id}
-              entry={entry}
-              productLabel={productShortNumber(entry.product_id)}
-              staffById={staffById}
-            />
-          ))}
-        </ul>
+        <FilterBar label="Filter the history">
+          <DateRangeFilter
+            from={filter.from}
+            to={filter.to}
+            onChange={range => setFilter(prev => ({ ...prev, ...range }))}
+            testId={FILTER_IDS.dateRange}
+            calendarTestId={FILTER_IDS.dateRangeCalendar}
+          />
+          <EmployeeCombobox
+            value={filter.userId}
+            onChange={user => setFilter(prev => ({ ...prev, userId: user?.id ?? null }))}
+            emptyLabel="Everyone"
+            testId={FILTER_IDS.user}
+            emptyOptionTestId={FILTER_IDS.userAll}
+            userOptionTestId={FILTER_IDS.userOption}
+          />
+          <ProductCombobox
+            products={products}
+            value={filter.productId}
+            onChange={productId => setFilter(prev => ({ ...prev, productId }))}
+            testId={FILTER_IDS.product}
+            emptyOptionTestId={FILTER_IDS.productAll}
+            optionTestId={FILTER_IDS.productOption}
+          />
+          <HistoryEventCombobox
+            options={eventOptions}
+            value={filter.event}
+            onChange={event => setFilter(prev => ({ ...prev, event }))}
+            testId={FILTER_IDS.event}
+            emptyOptionTestId={FILTER_IDS.eventAll}
+            optionTestId={FILTER_IDS.eventOption}
+          />
+          {isFiltered && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground"
+              data-testid={FILTER_IDS.clear}
+              onClick={() => setFilter(NO_FILTER)}
+            >
+              <RotateCcw />
+              Clear
+            </Button>
+          )}
+        </FilterBar>
       )}
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {historyQuery.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+        {historyQuery.isError && (
+          <p className="text-sm text-destructive">History could not be loaded</p>
+        )}
+        {historyQuery.isSuccess && entries.length === 0 && (
+          <p data-testid={IDS.empty} className="text-sm text-muted-foreground">No history entries yet</p>
+        )}
+        {entries.length > 0 && shown.length === 0 && (
+          <p data-testid={IDS.noMatch} className="text-sm text-muted-foreground">No entries match the filters</p>
+        )}
+        {shown.length > 0 && (
+          <ul data-testid={IDS.list} className="divide-y divide-border">
+            {shown.map(entry => (
+              <HistoryItem
+                key={entry.id}
+                entry={entry}
+                productLabel={productShortNumber(entry.product_id)}
+                productId={existingProductId(entry.product_id)}
+                staffById={staffById}
+                onOpenProduct={onOpenProduct}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
     </section>
   )
 }
@@ -295,18 +405,22 @@ type HistoryItemProps = {
   entry: HistoryRow
   /** Short product number ("LFP-01") for product-scoped entries; null = order-scoped. */
   productLabel: string | null
+  /** The entry's product while it still exists, to link to; null otherwise. */
+  productId: string | null
   staffById: Map<string, string>
+  onOpenProduct?: (productId: string) => void
 }
 
 /**
  * One history entry as a single styled sentence line: the date first in muted
- * gray, then the sentence — persons in the brand colour, product numbers in sky,
- * statuses as text in their own status colour. Every item is one line high; overflow truncates
+ * gray, then the sentence — persons in the brand colour, product numbers in sky
+ * (a link to the product), quotes in dark yellow, statuses as text in their own
+ * status colour. Every item is one line high; overflow truncates
  * with the full plain-text sentence in the title tooltip.
  */
-function HistoryItem({ entry, productLabel, staffById }: HistoryItemProps) {
-  const segments = historySegments(entry, productLabel, staffById)
-  const time = formatHistoryTime(entry.created_at)
+function HistoryItem({ entry, productLabel, productId, staffById, onOpenProduct }: HistoryItemProps) {
+  const segments = historySegments(entry, productLabel, productId, staffById)
+  const time = formatDateTimeHuman(entry.created_at)
   const plain = `${time} — ${segments.map(segmentText).join('')}${entry.reason ? ` — ${entry.reason}` : ''}`
 
   return (
@@ -324,10 +438,11 @@ function HistoryItem({ entry, productLabel, staffById }: HistoryItemProps) {
             )
           if (segment.kind === 'product')
             return (
-              <span key={i} className="font-medium text-sky-600 dark:text-sky-400">
+              <ProductLink key={i} productId={segment.productId} onOpen={onOpenProduct}>
                 {segment.text}
-              </span>
+              </ProductLink>
             )
+          if (segment.kind === 'quote') return <Quote key={i}>{segment.text}</Quote>
           if (segment.kind === 'duration')
             return (
               <span key={i} className="font-medium text-primary">

@@ -9,6 +9,10 @@
 // be driven without a feature's template: `still_needed: false` answers the
 // sender's "still needed?" with no, and `dry_run_refuse: true` makes the
 // dry-run transport refuse the mail (see transport.ts).
+//
+// Its wording is its email_settings row, with orderId, productId and
+// renderedAt as slots; `context.note`, when given, is a fixed paragraph the
+// folder's html.hbs and text.hbs add below it.
 
 import type { EmailTemplate } from '../registry.ts'
 

@@ -47,7 +47,8 @@ default_pool_size = 20
 # Maximum number of client connections allowed.
 max_client_conn = 100
 
-# The two secrets the email drain cron (public.drain_emails) reads. Each key
+# The two secrets the email drain cron (public.drain_emails) and the approval
+# proof purge (public.fn_purge_approval_files) read. Each key
 # becomes a Vault secret of that name when the local stack starts or resets,
 # with its value taken from supabase/.env (git-ignored). Only the local
 # database is affected; the hosted Vault is filled by hand.
@@ -393,6 +394,12 @@ static_files = ["./functions/send-email/templates/**/*.hbs"]
 # gateway's JWT check is off for this one function; the report's Svix
 # signature is verified against RESEND_WEBHOOK_SECRET inside it instead.
 [functions.email-webhook]
+verify_jwt = false
+
+# The customer's approval page calls this from a browser with no Supabase
+# session, so the gateway's JWT check is off; the link's token is the
+# authentication, checked inside the function against its stored hash.
+[functions.customer-approval]
 verify_jwt = false
 
 [analytics]

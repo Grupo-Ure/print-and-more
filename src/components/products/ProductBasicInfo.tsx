@@ -9,7 +9,8 @@
  * pressed, and goes back to read-only on save or cancel.
  *
  * Products are read-only for good once the product is in production or done,
- * in which case no Edit button is offered at all.
+ * and for as long as the customer is asked to approve it, in which case no
+ * Edit button is offered at all.
  */
 
 import { useState } from 'react'
@@ -19,7 +20,7 @@ import type { StockShortage } from '../../services/productionReleaseService'
 import type { LoadedProduct } from '../../types/product'
 import type { OrderDetailRow } from '../../types/database'
 import { Button } from '../ui/button'
-import { ProductViewContext } from './forms/formContexts'
+import { ProductViewContext, RequestApprovalContext } from './forms/formContexts'
 import { FORM_BY_TYPE } from './productTypes'
 import { TEST_IDS } from '@e2e/support/testIds'
 
@@ -31,6 +32,7 @@ export function ProductBasicInfo({
   orderFiles,
   fileIds,
   shortages,
+  onRequestApproval,
 }: {
   order: OrderDetailRow
   product: LoadedProduct
@@ -39,13 +41,18 @@ export function ProductBasicInfo({
   fileIds: string[]
   /** Shortages blocking this product's release — the textile grid highlights the short sizes. */
   shortages: StockShortage[]
+  /** Switches to the Files tab, where the approval is asked for. */
+  onRequestApproval: () => void
 }) {
   const [editing, setEditing] = useState(false)
   const ActiveForm = FORM_BY_TYPE[product.type]
 
-  // Released work is not corrected here; the production banner says why.
-  const locked = product.status === 'IN_PRODUCTION' || product.status === 'DONE'
+  // Released work is not corrected here, nor work the customer is looking at;
+  // the production banner says why.
+  const locked =
+    product.status === 'AWAITING_APPROVAL' || product.status === 'IN_PRODUCTION' || product.status === 'DONE'
   const viewing = !editing || locked
+  const canRequestApproval = product.status === 'PREPRESS' && !product.is_cancelled
 
   if (!ActiveForm) {
     return (
@@ -65,6 +72,8 @@ export function ProductBasicInfo({
         </div>
       )}
       <ProductViewContext.Provider value={viewing}>
+        {/* Offered only where a request can be sent: in pre-press, beside the read-only files. */}
+        <RequestApprovalContext.Provider value={canRequestApproval ? onRequestApproval : null}>
         <fieldset disabled={viewing} className="contents">
           <ActiveForm
             // A fresh form per product and per mode switch, so the draft never
@@ -81,6 +90,7 @@ export function ProductBasicInfo({
             onCancel={() => setEditing(false)}
           />
         </fieldset>
+        </RequestApprovalContext.Provider>
       </ProductViewContext.Provider>
     </section>
   )

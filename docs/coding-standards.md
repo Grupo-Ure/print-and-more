@@ -459,12 +459,21 @@ Function variables for local runs go in `supabase/functions/.env`
 
 Every function keeps the gateway's JWT verification and checks the caller
 itself (`manage-users` the user's role, `send-email` that the bearer token is
-the service-role key), with one exception: `email-webhook` is called by the
-mail provider with no Supabase session, so it has `verify_jwt = false` in
-`config.toml` and verifies the report's Svix signature against
-`RESEND_WEBHOOK_SECRET` instead. A new function without a session behind it
-follows that pattern — a signature or a shared secret checked inside the
-function, never an open endpoint.
+the service-role key), with two exceptions that have no Supabase session
+behind them and so have `verify_jwt = false` in `config.toml`:
+`email-webhook`, called by the mail provider, verifies the report's Svix
+signature against `RESEND_WEBHOOK_SECRET`; `customer-approval`, called from
+the customer's browser, looks the request up by the SHA-256 of the link's
+token. A new function without a session behind it follows that pattern:
+
+- **It authenticates by what it is handed, never by the gateway** — a
+  signature, a shared secret or a token checked inside the function against
+  what the database stored. Never an open endpoint.
+- **Its GET never mutates.** Mail gateways and link scanners open every URL
+  in a message before the recipient does; a change of state is a POST.
+- **It answers JSON or a file, never HTML**, and a failure's cause goes to
+  the function's log, not into the answer. A browser caller gets CORS
+  headers for its one known origin, from a function variable.
 
 ### Email templates
 
@@ -473,21 +482,35 @@ Every mail the `send-email` function sends is a template under
 documented in the vault note *Email runtime*; this is the repo-side half of
 its "Adding a mail".
 
-- **One folder per template**, named after it: `subject.hbs`, `html.hbs`,
-  `text.hbs` and an `index.ts` whose default export satisfies `EmailTemplate`
+- **One folder per template**, named after it: `html.hbs`, `text.hbs` and an
+  `index.ts` whose default export satisfies `EmailTemplate`
   (`templates/registry.ts`) — `resolve` (recipient and data from the
   message's ids, looked up at send time) and, for a delayed mail,
   `stillNeeded` (absent means always needed).
+- **The folder holds structure, the row holds the wording.** The subject and
+  body text are the template's `email_settings` row, which the shop edits in
+  Settings → Emails. `html.hbs` and `text.hbs` place the rendered body with
+  `{{{body}}}` and add only what the wording must not be able to lose — a
+  link's button, say. No subject or body text in the `.hbs` files or in
+  TypeScript.
+- **Every mail type gets an `email_settings` row** in the migration that adds
+  the mail: its default `subject` and `body`, and `placeholders` — the names
+  of the data `resolve` returns that the wording may use. A template without
+  a row is given up, never sent.
+- **Wording is plain text with `{{name}}` slots.** The sender compiles it with
+  Handlebars `strict: true`, so a slot without a value fails the mail
+  (`EMAIL_FAILED`) instead of printing nothing; Settings refuses anything but
+  plain slots from the row's list (`checkWording` in
+  `src/lib/emailWording.ts`). A blank line in the body is a paragraph, a
+  single line break a `<br>`.
 - **Register it** in `TEMPLATES` in `templates/registry.ts`. An unregistered
   folder is never loaded.
 - **The html body is a fragment**, rendered inside the shared `layout.hbs`
   (shop header and footer). Mail clients need inline styles and table
   layout; no `<style>` blocks, no external CSS.
-- **Escaping:** values in `html.hbs` are HTML-escaped; `subject.hbs` and
-  `text.hbs` are plain text and are not. The subject is collapsed onto one
-  line.
-- **The wording lives in the `.hbs` files.** No subject or body text in
-  TypeScript.
+- **Escaping:** the body goes into `html.hbs` HTML-escaped, its text as much
+  as its values; `text.hbs` and the subject are plain text and are not. The
+  subject is collapsed onto one line.
 - **Templates ship as static files.** `config.toml` lists
   `./functions/send-email/templates/**/*.hbs` under `[functions.send-email]`
   `static_files`, so a new folder needs no config change. `render.ts` reads
@@ -496,12 +519,12 @@ its "Adding a mail".
   first call after deploy, before any mail is claimed.
 - **`node:fs` is the first import** of `send-email/index.ts`, as Supabase
   prescribes for functions that read static files.
-- **A delayed or repeating mail gets an `email_settings` row** in the
-  migration of the feature that owns it, so the shop can switch it off or
-  change its timing in Settings → Emails. Its trigger calls `queue_email`
-  without `delay_seconds`: the delay then comes from that row, and a changed
-  delay reaches every mail queued afterwards. Pass a delay only where it must
-  not follow Settings.
+- **A delayed or repeating mail sets its timing in that row**
+  (`delay_days`, `repeat_days`, `max_sends`), so the shop can change it in
+  Settings → Emails. Its trigger calls `queue_email` without
+  `delay_seconds`: the delay then comes from that row, and a changed delay
+  reaches every mail queued afterwards. Pass a delay only where it must not
+  follow Settings.
 
 ---
 

@@ -2,8 +2,12 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Database, Json, TablesInsert } from '../../src/types/supabase'
 import type { DefaultAssigneeStatus } from '../../src/types/database'
 import type { ChildTable } from '../../src/types/product'
+import { createHash, randomBytes } from 'node:crypto'
+import { addDays } from 'date-fns'
+import type { ApprovalRequestSeed } from '../fixtures/approvalRequests'
 import type { TestCustomer } from '../fixtures/customers'
-import type { EmailSettingPatch, EmailSettingSeed, QueuedEmailSeed, SentEmailSeed } from '../fixtures/emailMessages'
+import type { CustomerApprovalSettingsSeed } from '../fixtures/customerApprovalSettings'
+import type { EmailSettingPatch, EmailSettingRow, QueuedEmailSeed, SentEmailSeed } from '../fixtures/emailMessages'
 import type { TestUser } from '../fixtures/users'
 
 type OrderInsert = Database['public']['Tables']['orders']['Insert']
@@ -51,6 +55,8 @@ export type OrderSeedRow = {
   deadline: string | null
   delivery: DeliveryType | null
   payment_method: PaymentMethod
+  /** When a `BILLED` order was billed; null for any other status. */
+  billed_at: string | null
 }
 
 /** The columns a fixture chooses for a file it links to an order. */
@@ -86,7 +92,6 @@ export type ProductSeedRow = {
   status: ProductStatus
   /** Null for a textile batch, whose pieces are counted on its garment lines. */
   quantity: number | null
-  customer_approval_required: boolean
 }
 
 /**
@@ -130,6 +135,34 @@ export type TestProduct = {
   orderId: string
   department: Department
 }
+
+/** One approval round, as the database holds it. */
+export type ApprovalRequestRow = Database['public']['Tables']['product_approval_requests']['Row']
+
+/** What a spec gets to know about the approval request the fixture inserted for it. */
+export type TestApprovalRequest = {
+  id: string
+  productId: string
+  orderId: string
+  round: number
+  /** The link's token, whose hash the row stores — what the customer's page is handed. */
+  token: string
+  /** The file of the round, and where its copy for the customer's page is stored in the bucket. */
+  fileId: string
+  storagePath: string
+}
+
+/** A product's workflow columns, as much of them as a spec reads back after a refused or an allowed write. */
+export type ProductState = Pick<Database['public']['Tables']['products']['Row'], 'status' | 'quantity' | 'deadline' | 'assignee_id'>
+
+/** One history entry's product, reason and details, for what an event recorded. */
+export type HistoryEntryRow = Pick<Database['public']['Tables']['history']['Row'], 'product_id' | 'reason' | 'meta'>
+
+/** One automatic stock movement, as much of it as a spec looks at. */
+export type StockMovementRow = Pick<Database['public']['Tables']['stamp_stock_movements']['Row'], 'quantity' | 'note'>
+
+/** The private bucket the customer's page is served proof copies from. */
+const APPROVAL_PROOFS_BUCKET = 'approval-proofs'
 
 export function requiredEnv(name: string): string {
   const value = process.env[name]
@@ -232,6 +265,14 @@ export class TestDatabase {
     return userId
   }
 
+  // ── Customer approval settings ───────────────────────────────────────────
+
+  /** Writes the customer approval's settings onto the one row, replacing whatever it held. */
+  async updateCustomerApprovalSettings(seed: CustomerApprovalSettingsSeed): Promise<void> {
+    const { error } = await this.client.from('customer_approval_settings').update(seed).eq('id', true)
+    if (error) throw error
+  }
+
   // ── Department defaults ──────────────────────────────────────────────────
 
   /** Puts the user into the department's slot for that stage, replacing whoever held it. Returns the user's id. */
@@ -321,16 +362,39 @@ export class TestDatabase {
    * Inserts an order for an existing customer in the given state. `order_number`
    * is assigned by the trg_order_number trigger, so it is left out of the payload
    * (as the app's NewOrderDialog does); `created_by` stays null under the service role.
+   *
+   * `billed_at` is written in a second step: trg_order_billed_at stamps the
+   * moment of the insert on an order created billed, and lets the service
+   * role date it back only once it is billed.
    */
   async createOrder(customerId: string, seed: OrderSeedRow): Promise<TestOrder> {
-    const payload = { customer_id: customerId, ...seed } as OrderInsert
+    const { billed_at, ...columns } = seed
+    const payload = { customer_id: customerId, ...columns } as OrderInsert
     const { data, error } = await this.client.from('orders').insert(payload).select('id, order_number').single()
     if (error) throw error
+    if (billed_at !== null) {
+      const { error: billedError } = await this.client.from('orders').update({ billed_at }).eq('id', data.id)
+      if (billedError) throw billedError
+    }
     return { id: data.id, orderNumber: data.order_number, customerId }
   }
 
   /** Deletes the order; products, files and history follow by cascade. The customer stays. */
   async removeOrder(orderId: string): Promise<void> {
+    // The order's approval rounds go first. Deleting the order cascades to its
+    // files and, through its products, to the rounds' file links — but the
+    // link's FK onto files has no cascade, and Postgres checks it as soon as
+    // the files cascade runs, before the longer branch has removed the link.
+    const { data: products, error: productsError } = await this.client.from('products').select('id').eq('order_id', orderId)
+    if (productsError) throw productsError
+    if (products.length > 0) {
+      const { error: requestsError } = await this.client
+        .from('product_approval_requests')
+        .delete()
+        .in('product_id', products.map(product => product.id))
+      if (requestsError) throw requestsError
+    }
+
     const { error } = await this.client.from('orders').delete().eq('id', orderId)
     if (error) throw error
   }
@@ -346,6 +410,12 @@ export class TestDatabase {
       .single()
     if (error) throw error
     return { ...seed, id: data.id, orderId }
+  }
+
+  /** Attaches an order's file to one of its products (`product_files`), as picking it in the product's form does. Removed with the order. */
+  async attachFileToProduct(productId: string, fileId: string): Promise<void> {
+    const { error } = await this.client.from('product_files').insert({ product_id: productId, file_id: fileId })
+    if (error) throw error
   }
 
   // ── Catalog ──────────────────────────────────────────────────────────────
@@ -407,7 +477,6 @@ export class TestDatabase {
       type: seed.type,
       status: seed.status,
       quantity: seed.quantity,
-      customer_approval_required: seed.customer_approval_required,
     } as ProductInsert
     const { data, error } = await this.client
       .from('products')
@@ -437,6 +506,225 @@ export class TestDatabase {
     }
 
     return { id: data.id, productNumber: data.product_number, orderId, department: seed.department }
+  }
+
+  /** The product's workflow columns as stored. */
+  async productState(productId: string): Promise<ProductState> {
+    const { data, error } = await this.client
+      .from('products')
+      .select('status, quantity, deadline, assignee_id')
+      .eq('id', productId)
+      .single()
+    if (error) throw error
+    return data
+  }
+
+  /** Hands the product to the login, as picking them in the assignee picker would. Returns the user's id. */
+  async assignProduct(productId: string, user: TestUser): Promise<string> {
+    const userId = await this.userId(user)
+    const { error } = await this.client.from('products').update({ assignee_id: userId }).eq('id', productId)
+    if (error) throw error
+    return userId
+  }
+
+  // ── Customer approval ────────────────────────────────────────────────────
+
+  /**
+   * Inserts one approval round for the product over the file, as the request
+   * RPC would have left it: the request row with the hash of a fresh token,
+   * the file row with the copy's path, and — for a pending round — the product
+   * in awaiting approval. The raw token is returned, as the request mail would
+   * have carried it. Nothing is queued and nothing is stored in the bucket.
+   * Removed with the order by cascade.
+   */
+  async createApprovalRequest(
+    product: TestProduct,
+    file: TestFile,
+    seed: ApprovalRequestSeed,
+    requestedBy: TestUser,
+  ): Promise<TestApprovalRequest> {
+    const id = crypto.randomUUID()
+    const { data: previous, error: roundError } = await this.client
+      .from('product_approval_requests')
+      .select('round')
+      .eq('product_id', product.id)
+      .order('round', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (roundError) throw roundError
+    const round = (previous?.round ?? 0) + 1
+    const token = randomBytes(32).toString('hex')
+    const storagePath = `${product.orderId}/${id}/${file.id}-${file.display_name}`
+
+    const { error } = await this.client.from('product_approval_requests').insert({
+      id,
+      product_id: product.id,
+      round,
+      message: seed.message,
+      token_hash: createHash('sha256').update(token, 'utf8').digest('hex'),
+      status: seed.status,
+      mailed: seed.mailed,
+      note: seed.note,
+      expires_at: addDays(new Date(), seed.validForDays).toISOString(),
+      requested_by: await this.userId(requestedBy),
+    })
+    if (error) throw error
+
+    const { error: fileError } = await this.client.from('product_approval_request_files').insert({
+      request_id: id,
+      file_id: file.id,
+      storage_path: storagePath,
+    })
+    if (fileError) throw fileError
+
+    if (seed.status === 'PENDING') {
+      const { error: statusError } = await this.client
+        .from('products')
+        .update({ status: 'AWAITING_APPROVAL' })
+        .eq('id', product.id)
+      if (statusError) throw statusError
+    }
+
+    return { id, productId: product.id, orderId: product.orderId, round, token, fileId: file.id, storagePath }
+  }
+
+  /** Stores a proof's copy in the approval-proofs bucket, as the app uploads it before asking. Overwrites a copy left behind. */
+  async storeApprovalProof(storagePath: string, content: string): Promise<void> {
+    const { error } = await this.client.storage
+      .from(APPROVAL_PROOFS_BUCKET)
+      .upload(storagePath, content, { upsert: true, contentType: 'application/pdf' })
+    if (error) throw error
+  }
+
+  /** Removes proof copies from the bucket — they do not go with the order's cascade. */
+  async removeApprovalProofs(storagePaths: string[]): Promise<void> {
+    const { error } = await this.client.storage.from(APPROVAL_PROOFS_BUCKET).remove(storagePaths)
+    if (error) throw error
+  }
+
+  /**
+   * Removes every proof copy stored for the order — what the app uploaded when
+   * a test asked for an approval. Copies sit at `<order>/<request>/<file>`, so
+   * the order's folder is listed one request folder at a time.
+   */
+  async removeApprovalProofsOfOrder(orderId: string): Promise<void> {
+    const bucket = this.client.storage.from(APPROVAL_PROOFS_BUCKET)
+    const { data: requestFolders, error } = await bucket.list(orderId)
+    if (error) throw error
+    const paths: string[] = []
+    for (const folder of requestFolders) {
+      const { data: copies, error: listError } = await bucket.list(`${orderId}/${folder.name}`)
+      if (listError) throw listError
+      paths.push(...copies.map(copy => `${orderId}/${folder.name}/${copy.name}`))
+    }
+    if (paths.length > 0) await this.removeApprovalProofs(paths)
+  }
+
+  /** The request's decision as stored: its status and the note that came with it. */
+  async approvalRequestDecision(requestId: string): Promise<Pick<ApprovalRequestRow, 'status' | 'note'>> {
+    const { data, error } = await this.client
+      .from('product_approval_requests')
+      .select('status, note')
+      .eq('id', requestId)
+      .single()
+    if (error) throw error
+    return data
+  }
+
+  /** The product's approval rounds, newest first. */
+  async approvalRequests(productId: string): Promise<ApprovalRequestRow[]> {
+    const { data, error } = await this.client
+      .from('product_approval_requests')
+      .select('*')
+      .eq('product_id', productId)
+      .order('round', { ascending: false })
+    if (error) throw error
+    return data
+  }
+
+  /** The files of one approval round. */
+  async approvalRequestFileIds(requestId: string): Promise<string[]> {
+    const { data, error } = await this.client
+      .from('product_approval_request_files')
+      .select('file_id')
+      .eq('request_id', requestId)
+    if (error) throw error
+    return data.map(row => row.file_id)
+  }
+
+  /**
+   * One run of the daily expiry, as the cron job makes it: every pending
+   * request past its expiry — anyone's, not only the test's — is closed as
+   * expired. Seeded requests are valid for days unless a test made its own
+   * overdue, so a run touches nothing another test is waiting on.
+   */
+  async expireApprovalRequests(): Promise<void> {
+    const { error } = await this.client.rpc('fn_expire_approval_requests')
+    if (error) throw error
+  }
+
+  /**
+   * One run of the daily proof purge, as the cron job makes it: every copy of
+   * a closed round on an order billed longer ago than the retention — anyone's,
+   * not only the test's — is stamped purged and deleted from the bucket. The
+   * deletes go out after the run commits and are not waited for. Only seeds
+   * meant for the purge are billed, so a run touches no other test's copies.
+   */
+  async purgeApprovalFiles(): Promise<void> {
+    const { error } = await this.client.rpc('fn_purge_approval_files')
+    if (error) throw error
+  }
+
+  /** When the purge removed the copy of the round's file; null while it is held. */
+  async approvalRequestFilePurgedAt(requestId: string, fileId: string): Promise<string | null> {
+    const { data, error } = await this.client
+      .from('product_approval_request_files')
+      .select('purged_at')
+      .eq('request_id', requestId)
+      .eq('file_id', fileId)
+      .single()
+    if (error) throw error
+    return data.purged_at
+  }
+
+  /** Whether a proof copy is in the approval-proofs bucket at that path. */
+  async approvalProofStored(storagePath: string): Promise<boolean> {
+    const folder = storagePath.slice(0, storagePath.lastIndexOf('/'))
+    const name = storagePath.slice(storagePath.lastIndexOf('/') + 1)
+    const { data, error } = await this.client.storage.from(APPROVAL_PROOFS_BUCKET).list(folder, { search: name })
+    if (error) throw error
+    return data.some(object => object.name === name)
+  }
+
+  /** The request a link's token belongs to, looked up as the customer's page does — by the token's hash. */
+  async approvalRequestIdByTokenHash(tokenHash: string): Promise<string | null> {
+    const { data, error } = await this.client
+      .from('product_approval_requests')
+      .select('id')
+      .eq('token_hash', tokenHash)
+      .maybeSingle()
+    if (error) throw error
+    return data?.id ?? null
+  }
+
+  // ── Stock ────────────────────────────────────────────────────────────────
+
+  /** The stamp model's stock as stored. */
+  async stampModelStock(modelId: string): Promise<number> {
+    const { data, error } = await this.client.from('stamp_models').select('stock').eq('id', modelId).single()
+    if (error) throw error
+    return data.stock
+  }
+
+  /** The automatic movements booked against the stamp model. */
+  async stampStockMovements(modelId: string): Promise<StockMovementRow[]> {
+    const { data, error } = await this.client
+      .from('stamp_stock_movements')
+      .select('quantity, note')
+      .eq('model_id', modelId)
+      .eq('type', 'AUTO_DEDUCTION')
+    if (error) throw error
+    return data
   }
 
   // ── Emails ───────────────────────────────────────────────────────────────
@@ -494,21 +782,22 @@ export class TestDatabase {
     await Promise.all(queued.map(row => this.archiveEmail(row.msg_id)))
   }
 
-  /** Writes the template's row in Settings → Emails, replacing whatever it held. */
-  async upsertEmailSetting(seed: EmailSettingSeed): Promise<void> {
-    const { error } = await this.client.from('email_settings').upsert(seed)
+  /** The template's row in Settings → Emails, as stored; fails when the template has none. */
+  async emailSetting(template: string): Promise<EmailSettingRow> {
+    const { data, error } = await this.client.from('email_settings').select('*').eq('template', template).single()
     if (error) throw error
+    return data
   }
 
-  /** Changes switches on the template's row. */
+  /** Changes switches or wording on the template's row. */
   async updateEmailSetting(template: string, patch: EmailSettingPatch): Promise<void> {
     const { error } = await this.client.from('email_settings').update(patch).eq('template', template)
     if (error) throw error
   }
 
-  /** Deletes the template's row: the template is enabled and immediate again. Nothing happens when there is none. */
-  async removeEmailSetting(template: string): Promise<void> {
-    const { error } = await this.client.from('email_settings').delete().eq('template', template)
+  /** Writes a row read earlier back as it was. */
+  async restoreEmailSetting(row: EmailSettingRow): Promise<void> {
+    const { error } = await this.client.from('email_settings').upsert(row)
     if (error) throw error
   }
 
@@ -552,6 +841,24 @@ export class TestDatabase {
       .from('sent_emails')
       .select('id, provider_id, recipient, subject')
       .eq('order_id', orderId)
+    if (error) throw error
+    return data
+  }
+
+  /** The html bodies of the order's sent mails, as they went out. */
+  async sentEmailBodies(orderId: string): Promise<string[]> {
+    const { data, error } = await this.client.from('sent_emails').select('body_html').eq('order_id', orderId)
+    if (error) throw error
+    return data.map(row => row.body_html)
+  }
+
+  /** The order's history entries of that event, with what each recorded. */
+  async historyEntries(orderId: string, eventType: HistoryEvent): Promise<HistoryEntryRow[]> {
+    const { data, error } = await this.client
+      .from('history')
+      .select('product_id, reason, meta')
+      .eq('order_id', orderId)
+      .eq('event_type', eventType)
     if (error) throw error
     return data
   }

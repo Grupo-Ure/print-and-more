@@ -1,6 +1,12 @@
 import { expect, test } from '../fixtures/production'
 import { IN_PROGRESS_ORDER, IN_PROGRESS_ORDER_WITHOUT_DEADLINE } from '../fixtures/orders'
-import { PRODUCT_IN_PREPRESS, PRODUCT_IN_PRODUCTION, OTHER_PRODUCT, IN_PRODUCTION_STATUS } from '../fixtures/products'
+import {
+  AWAITING_APPROVAL_STATUS,
+  PRODUCT_IN_PREPRESS,
+  PRODUCT_IN_PRODUCTION,
+  OTHER_PRODUCT,
+  IN_PRODUCTION_STATUS,
+} from '../fixtures/products'
 import { TEST_USERS } from '../fixtures/users'
 
 // Products seeded through the runner's connection carry no assignee, so the
@@ -73,6 +79,19 @@ test.describe('as admin', () => {
 
       // Assert — the feed has a row for that product.
       await expect(productionPage.sidebar.row(product.id)).toBeVisible()
+    })
+  })
+
+  test.describe('with a product awaiting approval', () => {
+    // The `approvalRequest` fixture's pending round puts the pre-press product into awaiting approval.
+    test.use({ productSeed: PRODUCT_IN_PREPRESS })
+
+    test('PRN-FEED-010 opening the production page lists the product as awaiting approval', async ({ productionPage, product, approvalRequest: _waiting }) => {
+      // Act — switch to the production page, widened to everyone's products.
+      await productionPage.openForEveryone()
+
+      // Assert — the waiting product is the assignee's work too, so it is listed with its status.
+      await expect(productionPage.sidebar.row(product.id)).toHaveAttribute('data-status', AWAITING_APPROVAL_STATUS)
     })
   })
 })

@@ -1,11 +1,11 @@
+import { Flag } from 'lucide-react'
 import { type Priority } from '../../types/database'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../ui/select'
+import { SettingSelect } from './SettingSelect'
+
+const PRIORITY_OPTIONS: { value: Priority; label: string }[] = [
+  { value: 'NORMAL', label: 'Normal' },
+  { value: 'HIGH', label: 'High' },
+]
 
 type PrioritySelectProps = {
   value: Priority
@@ -17,22 +17,14 @@ type PrioritySelectProps = {
 
 export function PrioritySelect({ value, onChange, disabled = false, testId }: PrioritySelectProps) {
   return (
-    <label className="meta-pill" title="Priority">
-      <Select
-        value={value}
-        disabled={disabled}
-        onValueChange={next => {
-          if (next === 'NORMAL' || next === 'HIGH') onChange(next)
-        }}
-      >
-        <SelectTrigger size="sm" data-testid={testId} data-value={value}>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="NORMAL">Normal</SelectItem>
-          <SelectItem value="HIGH">High</SelectItem>
-        </SelectContent>
-      </Select>
-    </label>
+    <SettingSelect
+      value={value}
+      onChange={onChange}
+      options={PRIORITY_OPTIONS}
+      icon={Flag}
+      title="Priority"
+      disabled={disabled}
+      testId={testId}
+    />
   )
 }

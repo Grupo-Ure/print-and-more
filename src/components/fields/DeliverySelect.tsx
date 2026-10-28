@@ -1,11 +1,11 @@
+import { Truck } from 'lucide-react'
 import { type DeliveryChoice } from '../../types/database'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../ui/select'
+import { SettingSelect } from './SettingSelect'
+
+const DELIVERY_OPTIONS: { value: DeliveryChoice; label: string }[] = [
+  { value: 'PICKUP', label: 'Pickup' },
+  { value: 'SHIPPING', label: 'Shipping' },
+]
 
 type DeliverySelectProps = {
   value: DeliveryChoice
@@ -17,22 +17,14 @@ type DeliverySelectProps = {
 
 export function DeliverySelect({ value, onChange, disabled = false, testId }: DeliverySelectProps) {
   return (
-    <label className="meta-pill" title="Delivery">
-      <Select
-        value={value}
-        disabled={disabled}
-        onValueChange={next => {
-          if (next === 'PICKUP' || next === 'SHIPPING') onChange(next)
-        }}
-      >
-        <SelectTrigger size="sm" data-testid={testId} data-value={value}>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="PICKUP">Pickup</SelectItem>
-          <SelectItem value="SHIPPING">Shipping</SelectItem>
-        </SelectContent>
-      </Select>
-    </label>
+    <SettingSelect
+      value={value}
+      onChange={onChange}
+      options={DELIVERY_OPTIONS}
+      icon={Truck}
+      title="Delivery"
+      disabled={disabled}
+      testId={testId}
+    />
   )
 }

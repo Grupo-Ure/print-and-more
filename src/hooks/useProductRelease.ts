@@ -10,6 +10,7 @@ import {
   useReleaseToProduction,
   useSetProductStatus,
 } from '../queries/productQueries'
+import { useApprovalRequests } from '../queries/approvalQueries'
 import { useOrderById } from '../queries/orderQueries'
 import { useStockAvailability } from '../queries/stockQueries'
 import { useIsAdmin } from '../queries/userQueries'
@@ -32,22 +33,25 @@ export type ProductRelease = {
   pending: boolean
   /** True while the advance is blocked by a gate or a mutation is in flight. */
   disabled: boolean
-  approvalBlocked: boolean
-  /** Admins may bypass the completeness/stock gates while one of them is failing. */
+  /** Admins may bypass the completeness, stock and approval-round gates while one of them is failing. */
   canForceRelease: boolean
   /** Confirms with the user, then advances the product one workflow step. */
   advance: () => Promise<void>
-  /** Admin override past the completeness/stock gates; resolves true on success. */
+  /** Admin override past the completeness, stock and approval-round gates; resolves true on success. */
   forceRelease: (reason: string) => Promise<boolean>
 }
 
 /**
  * The single forward action of a product's workflow — IN_SETUP → PREPRESS →
- * IN_PRODUCTION → DONE — with its gates (completeness, customer approval,
- * stock) and confirmations. Shared by the release button in the product header
- * and the product list's context menu so both enforce the same rules.
+ * IN_PRODUCTION → DONE — with its gates (completeness, the newest customer
+ * approval round, stock) and confirmations. Shared by the release button in
+ * the product header and the product list's context menu so both enforce the
+ * same rules. The release to production's gates are the database's
+ * (`release_to_production`); they are mirrored here so the buttons never
+ * offer a release it would refuse. A product awaiting approval has no
+ * advance at all — the request closing is its only way out.
  */
-export function useProductRelease(product: LoadedProduct, orderNumber: string | null): ProductRelease {
+export function useProductRelease(product: LoadedProduct): ProductRelease {
   const setProductStatus = useSetProductStatus()
   const releaseToProduction = useReleaseToProduction()
   const forceReleaseMutation = useForceReleaseToProduction()
@@ -58,6 +62,7 @@ export function useProductRelease(product: LoadedProduct, orderNumber: string | 
   const orderQuery = useOrderById(product.order_id)
   const { data: siblings = [] } = useProductsByOrderId(product.order_id)
   const { data: shortages = [] } = useStockAvailability(product)
+  const approvalRequests = useApprovalRequests(product.id)
 
   const order = orderQuery.data
   const orderIsQuote = order?.status === 'QUOTE'
@@ -77,10 +82,14 @@ export function useProductRelease(product: LoadedProduct, orderNumber: string | 
   const pending =
     setProductStatus.isPending || releaseToProduction.isPending || forceReleaseMutation.isPending
 
-  // Customer approval blocks any release to production — including a forced
-  // one; only the completeness and stock gates are overridable.
+  // The newest round decides: once the customer has been asked, only an
+  // approved round releases — changes requested, expired or withdrawn block,
+  // and an older approval does not count for a reworked proof. A product never
+  // asked has no round. Until the rounds have loaded nothing is offered.
+  const newestRequest = approvalRequests.data?.[0] ?? null
   const approvalBlocked =
-    product.customer_approval_required === true && product.customer_approval_granted !== true
+    product.status === 'PREPRESS' &&
+    (approvalRequests.isPending || (newestRequest != null && newestRequest.status !== 'APPROVED'))
 
   const disabled =
     pending ||
@@ -92,7 +101,7 @@ export function useProductRelease(product: LoadedProduct, orderNumber: string | 
   const canForceRelease =
     isAdmin &&
     ((product.status === 'IN_SETUP' && !complete) ||
-      (product.status === 'PREPRESS' && stockBlocked))
+      (product.status === 'PREPRESS' && (stockBlocked || (approvalBlocked && !approvalRequests.isPending))))
 
   const releaseToPrepress = async (): Promise<void> => {
     const confirmed = await confirm({
@@ -123,7 +132,7 @@ export function useProductRelease(product: LoadedProduct, orderNumber: string | 
     })
     if (!confirmed) return
     try {
-      await releaseToProduction.mutateAsync({ product, orderId: product.order_id, orderNumber })
+      await releaseToProduction.mutateAsync({ productId: product.id, orderId: product.order_id })
     } catch (error) {
       // Lost the race against a concurrent release: the RPC rejected atomically.
       if (error instanceof InsufficientStockError) {
@@ -176,12 +185,7 @@ export function useProductRelease(product: LoadedProduct, orderNumber: string | 
 
   const forceRelease = async (reason: string): Promise<boolean> => {
     try {
-      await forceReleaseMutation.mutateAsync({
-        product,
-        orderId: product.order_id,
-        orderNumber,
-        reason,
-      })
+      await forceReleaseMutation.mutateAsync({ productId: product.id, orderId: product.order_id, reason })
       return true
     } catch {
       showError('Status could not be updated')
@@ -194,7 +198,6 @@ export function useProductRelease(product: LoadedProduct, orderNumber: string | 
     label: available ? label : null,
     pending,
     disabled,
-    approvalBlocked,
     canForceRelease,
     advance,
     forceRelease,

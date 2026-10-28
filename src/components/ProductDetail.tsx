@@ -101,6 +101,11 @@ export function ProductDetail({
   const fileIds = fileAssignments
     .filter(assignment => assignment.product_id === product.id)
     .map(assignment => assignment.file_id)
+  // The product's own files on the Files tab: its attachments, and a textile
+  // batch's artwork, which its designs hold rather than the attachments.
+  const designFileIds =
+    'designs' in product ? product.designs.flatMap(design => (design.file_id ? [design.file_id] : [])) : []
+  const productFileIds = [...new Set([...fileIds, ...designFileIds])]
 
   return (
     <div
@@ -188,7 +193,7 @@ export function ProductDetail({
             )}
           </div>
 
-          <ProductReleaseButton product={product} orderNumber={order.order_number ?? null} />
+          <ProductReleaseButton product={product} />
         </div>
       </div>
       
@@ -226,6 +231,7 @@ export function ProductDetail({
             orderFiles={orderFiles}
             fileIds={fileIds}
             shortages={shortages}
+            onRequestApproval={() => setTab('files')}
           />
 
           {/* Quick time entry without leaving the spec; the full log is one
@@ -253,13 +259,21 @@ export function ProductDetail({
             order={order}
             product={product}
             effectiveProduct={effectiveProduct}
-            orderFiles={orderFiles}
-            onOrderFilesChanged={onOrderFilesChanged}
           />
         </TabsContent>
 
         <TabsContent value="files">
-          <OrderFiles orderId={order.id} files={orderFiles} onFileChanged={onOrderFilesChanged} />
+          <OrderFiles
+            // A fresh tab per product, so the ticked files never carry over.
+            key={product.id}
+            orderId={order.id}
+            product={product}
+            files={orderFiles}
+            productFileIds={productFileIds}
+            shortages={shortages}
+            customerEmail={order.customers?.email ?? null}
+            onFileChanged={onOrderFilesChanged}
+          />
         </TabsContent>
       </Tabs>
     </div>

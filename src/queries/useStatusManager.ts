@@ -10,8 +10,9 @@ import { useProductsByOrderId, useSetProductStatus } from './productQueries'
  * open order — by `OrderDetails`, and by `ProductionProductPanel` when the
  * product is edited from the production view — so there is a single writer per
  * order and a transition fires when the underlying data changes, not on
- * selecting a product. It does NOT touch IN_PRODUCTION / DONE rows, and does
- * not do bounce-back.
+ * selecting a product. It does NOT touch AWAITING_APPROVAL / IN_PRODUCTION /
+ * DONE rows — a waiting product is the database's to move, when its request
+ * closes — and does not do bounce-back.
  *
  * The job model needed one watcher per job, because each job kept its products
  * in a query of its own; the order's products now share one cache, so one
@@ -41,7 +42,8 @@ export function useStatusManager(orderId: string | null): void {
 
     const customer = order.customers // joined onto the order; no separate fetch
     for (const product of products) {
-      // Gate: only the auto band, never cancelled rows.
+      // Gate: only the auto band, never cancelled rows. Everything from
+      // AWAITING_APPROVAL on is committed and left alone.
       if (product.is_cancelled) continue
       if (product.status !== 'IN_SETUP' && product.status !== 'PREPRESS') continue
 

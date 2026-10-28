@@ -5,6 +5,10 @@
  */
 const EMAIL_TEMPLATE_LABELS: Record<string, string> = {
   'test-message': 'Test message',
+  'approval-request': 'Approval request',
+  'approval-decided': 'Approval decided',
+  'approval-withdrawn': 'Approval withdrawn',
+  'approval-expired': 'Approval expired',
 }
 
 export function emailTemplateLabel(template: string): string {

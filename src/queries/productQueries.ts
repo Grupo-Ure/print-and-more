@@ -14,7 +14,7 @@ import { stockAvailabilityKeys } from './stockQueries'
 /**
  * The product query layer. A product is the unit of work, so this module owns
  * what the job model split between two: the workflow (status, assignee,
- * approval, release, cancellation) and the spec (the typed child row and its
+ * release, cancellation) and the spec (the typed child row and its
  * file links). Both halves live on one row, so they share one cache — the
  * order's `LoadedProduct[]`, keyed by {@link productKeys.byOrderId}.
  */
@@ -308,68 +308,48 @@ export function useSetProductStatus() {
 }
 
 /**
- * Release to production: book stock deductions (stamp/textile), set
- * IN_PRODUCTION, write the PRODUCTION_READY_SET history entry. The stock
- * deduction runs before the status write and is all-or-nothing: on insufficient
+ * Release to production through `release_to_production`, which checks the
+ * gates, books the stock deductions (stamp/textile), sets IN_PRODUCTION and
+ * writes the PRODUCTION_READY_SET entry in one transaction: on insufficient
  * stock it throws InsufficientStockError and the product stays in pre-press.
+ * The row is read back for the cache.
  */
 export function useReleaseToProduction() {
   const queryClient = useQueryClient()
-  return useMutation<
-    ProductRow,
-    Error,
-    { product: LoadedProduct; orderId: string; orderNumber: string | null }
-  >({
-    mutationFn: async ({ product, orderId, orderNumber }) => {
-      await productionReleaseService.deductProductionStock(product, orderNumber)
-      const row = await productService.setStatus(product.id, 'IN_PRODUCTION')
-      await historyService.tryWriteHistory({
-        order_id: orderId,
-        product_id: product.id,
-        event_type: 'PRODUCTION_READY_SET',
-      })
-      return row
+  return useMutation<ProductRow | null, Error, { productId: string; orderId: string }>({
+    mutationFn: async ({ productId }) => {
+      await productionReleaseService.release(productId)
+      return productService.getById(productId)
     },
     onSuccess: (row, { orderId }) => {
-      patchProductInCache(queryClient, orderId, row)
+      if (row) patchProductInCache(queryClient, orderId, row)
       invalidateOrderLists(queryClient)
       // Stock changed — other pre-press products' availability may have too.
       void queryClient.invalidateQueries({ queryKey: stockAvailabilityKeys.root })
-      // A stage default may have reassigned the product and logged it (DB trigger).
+      // The release wrote its entry, and a stage default may have reassigned the product and logged it.
       void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
     },
   })
 }
 
 /**
- * Emergency force release: bypass the completeness/prepress gate and put the
- * product straight into IN_PRODUCTION. Books the same stock deductions as the
- * regular release and writes an EMERGENCY_TRIGGERED history entry with the
- * reason — history is the sole record of the override. IN_PRODUCTION is outside
- * the automatic status band, so the status manager leaves the product alone.
- * The stock gate is bypassed too: available stock is deducted (floored at 0)
- * and the movements record what was actually taken.
+ * Emergency force release through `force_release_to_production` (admins
+ * only): bypasses the completeness, stock and approval-round gates and puts the
+ * product straight into IN_PRODUCTION, writing an EMERGENCY_TRIGGERED entry
+ * with the reason — history is the sole record of the override. Short stock is
+ * floored at 0 and the movements record what was actually taken. IN_PRODUCTION
+ * is outside the automatic status band, so the status manager leaves the
+ * product alone.
  */
 export function useForceReleaseToProduction() {
   const queryClient = useQueryClient()
-  return useMutation<
-    ProductRow,
-    Error,
-    { product: LoadedProduct; orderId: string; orderNumber: string | null; reason: string }
-  >({
-    mutationFn: async ({ product, orderId, orderNumber, reason }) => {
-      await productionReleaseService.deductProductionStock(product, orderNumber, { allowShortage: true })
-      const row = await productService.setStatus(product.id, 'IN_PRODUCTION')
-      await historyService.tryWriteHistory({
-        order_id: orderId,
-        product_id: product.id,
-        event_type: 'EMERGENCY_TRIGGERED',
-        reason,
-      })
-      return row
+  return useMutation<ProductRow | null, Error, { productId: string; orderId: string; reason: string }>({
+    mutationFn: async ({ productId, reason }) => {
+      await productionReleaseService.forceRelease(productId, reason)
+      return productService.getById(productId)
     },
     onSuccess: (row, { orderId }) => {
-      patchProductInCache(queryClient, orderId, row)
+      if (row) patchProductInCache(queryClient, orderId, row)
       invalidateOrderLists(queryClient)
       // Stock changed — other pre-press products' availability may have too.
       void queryClient.invalidateQueries({ queryKey: stockAvailabilityKeys.root })
@@ -415,33 +395,6 @@ export function useSetProductAssignee() {
       patchProductInCache(queryClient, orderId, row)
       void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
       void queryClient.invalidateQueries({ queryKey: productKeys.production })
-    },
-  })
-}
-
-/** Customer-approval requirement / grant. Does not change status. */
-export function useSetCustomerApproval() {
-  const queryClient = useQueryClient()
-  return useMutation<
-    ProductRow,
-    Error,
-    {
-      id: string
-      orderId: string
-      patch: Pick<
-        ProductUpdate,
-        'customer_approval_required' | 'customer_approval_granted' | 'customer_approval_file_id'
-      >
-      history?: HistoryParams
-    }
-  >({
-    mutationFn: async ({ id, orderId, patch, history }) => {
-      const row = await productService.setCustomerApproval(id, patch)
-      if (history) await historyService.tryWriteHistory({ order_id: orderId, product_id: id, ...history })
-      return row
-    },
-    onSuccess: (row, { orderId }) => {
-      patchProductInCache(queryClient, orderId, row)
     },
   })
 }

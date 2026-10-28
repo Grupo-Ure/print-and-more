@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { LayoutGrid, Mail, Users } from 'lucide-react'
+import { BadgeCheck, LayoutGrid, Mail, Users } from 'lucide-react'
 import { Login } from '../components/Login'
 import { AccessDenied } from '../components/AccessDenied'
+import { ApprovalSettings } from '../components/settings/ApprovalSettings'
 import { DepartmentSettings } from '../components/settings/DepartmentSettings'
 import { EmailSettings } from '../components/settings/EmailSettings'
 import { UserManagementSettings } from '../components/settings/UserManagementSettings'
@@ -13,7 +14,7 @@ import { TEST_IDS } from '@e2e/support/testIds'
 
 const IDS = TEST_IDS.settings
 
-export type SettingsSection = 'userManagement' | 'departments' | 'emails'
+export type SettingsSection = 'userManagement' | 'departments' | 'emails' | 'approval'
 
 type SectionItem = {
   section: SettingsSection
@@ -25,6 +26,7 @@ const SECTION_ITEMS: SectionItem[] = [
   { section: 'userManagement', label: 'User management', icon: Users },
   { section: 'departments', label: 'Departments', icon: LayoutGrid },
   { section: 'emails', label: 'Emails', icon: Mail },
+  { section: 'approval', label: 'Customer approval', icon: BadgeCheck },
 ]
 
 /**
@@ -67,6 +69,7 @@ export function SettingsPage() {
         {section === 'userManagement' && <UserManagementSettings />}
         {section === 'departments' && <DepartmentSettings />}
         {section === 'emails' && <EmailSettings />}
+        {section === 'approval' && <ApprovalSettings />}
       </main>
     </div>
   )

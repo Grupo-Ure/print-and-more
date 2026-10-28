@@ -139,15 +139,50 @@ behaviour the lifecycle packs assert is written out in
     - [release-gates.spec.ts](orders-page/product/release-gates.spec.ts) — `PRD-GAT`
       - *in progress, product with no deadline*
         - **PRD-GAT-001** the product is held in setup with the release blocked
-      - *in progress, product in pre-press awaiting customer approval*
-        - **PRD-GAT-002** the release to production is blocked
-        - **PRD-GAT-003** granting the approval against a file unblocks the release to production
       - *in progress, stamp product in pre-press, model out of stock*
         - **PRD-GAT-004** the shortage is shown and the release to production is blocked
       - *as admin, in progress, product with no deadline*
         - **PRD-GAT-005** opening the force release prompt without a reason keeps it unsubmittable
         - **PRD-GAT-006** force releasing the product with a reason moves it to production flagged as missing information
         - **PRD-GAT-007** force releasing the product records an emergency entry in the order history
+      - *as admin, waiting product*
+        - **PRD-GAT-008** the product offers neither a release nor a force release
+      - *waiting product*
+        - **PRD-GAT-009** the product offers no way to edit its spec
+        - **PRD-GAT-010** the product's settings are locked
+        - **PRD-GAT-011** withdrawing the round offers the edit of the spec again
+        - **PRD-GAT-012** cancelling the product withdraws its open round
+      - *in progress, product in pre-press whose newest round came back with changes*
+        - **PRD-GAT-013** the release to production is blocked
+        - **PRD-GAT-014** the banner shows the customer's note
+      - *in progress, product in pre-press whose newest round expired*
+        - **PRD-GAT-017** the release to production is blocked
+      - *as admin, in progress, product in pre-press whose newest round came back with changes*
+        - **PRD-GAT-015** force releasing the product with a reason moves it to production
+      - *in progress, product in pre-press with an approved round*
+        - **PRD-GAT-016** releasing the product to production moves it to in production
+    - [approval-requests.spec.ts](orders-page/product/approval-requests.spec.ts) — `PRD-APR`
+      - *in progress, product in pre-press with two files*
+        - **PRD-APR-001** ticking one file and requesting approval lists round one as pending with that file
+        - **PRD-APR-002** requesting approval moves the product to awaiting approval
+        - **PRD-APR-003** unticking every file in the request dialog keeps it unsubmittable
+        - **PRD-APR-004** requesting approval records the request in the order history
+        - **PRD-APR-005** requesting approval lists its mail on the order's emails tab
+      - *in progress, product with two files awaiting approval*
+        - **PRD-APR-007** approving the round by hand lists it as approved by the user
+        - **PRD-APR-008** approving the round by hand moves the product into production
+        - **PRD-APR-009** withdrawing the round lists it as withdrawn
+        - **PRD-APR-010** withdrawing the round offers the approval request again
+      - *in progress, stamp product in pre-press with two files, model out of stock*
+        - **PRD-APR-011** opening the approval request names the short model
+        - **PRD-APR-012** cancelling the warned request leaves the product in pre-press with no round
+        - **PRD-APR-013** sending the request anyway lists round one as pending
+      - *in progress, product in pre-press with two files, previous round withdrawn*
+        - **PRD-APR-014** opening the approval request preselects the previous round's file
+      - *in progress, product in pre-press with two files, previous round expired*
+        - **PRD-APR-016** the approval request is enabled
+      - *in progress without a deadline, product in setup with two files*
+        - **PRD-APR-015** the approval request is disabled
     - [stock-deduction.spec.ts](orders-page/product/stock-deduction.spec.ts) — `PRD-STK`
       - *in progress, stamp product in pre-press, model in stock*
         - **PRD-STK-001** releasing the product to production deducts its quantity from the model stock
@@ -166,6 +201,8 @@ behaviour the lifecycle packs assert is written out in
         - **PRN-FEED-005** releasing the product to production from the feed keeps it listed, now in production
       - *with a product in production*
         - **PRN-FEED-006** opening the production page lists the product
+      - *with a product awaiting approval*
+        - **PRN-FEED-010** opening the production page lists the product as awaiting approval
     - *as admin, order without a deadline*
       - **PRN-FEED-007** opening the production page leaves a product still in setup out
     - *as employee*
@@ -182,6 +219,13 @@ behaviour the lifecycle packs assert is written out in
   - [emails.spec.ts](settings-page/emails.spec.ts) — `SET-EML`
     - **SET-EML-001** setting a delay makes the next mail queued for it wait that many days
     - **SET-EML-002** switching a mail off makes queuing it queue nothing
+    - **SET-EML-003** saving a changed subject in the wording dialog makes the next sent mail carry it
+    - **SET-EML-004** saving wording with a placeholder the mail does not offer is refused
+    - **SET-EML-005** opening the emails section lists every mail type, the immediate ones included
+  - [approval.spec.ts](settings-page/approval.spec.ts) — `SET-APR`
+    - **SET-APR-001** opening Settings lists the customer approval section
+    - **SET-APR-002** changing the approval expiry shows the new value again after reopening Settings
+    - **SET-APR-003** changing how long approval proofs are kept shows the new value again after reopening Settings
 - **Email runtime**
   - **Transport**
     - [transport.spec.ts](email-runtime/transport.spec.ts) — `EML-TRN`
@@ -198,6 +242,10 @@ behaviour the lifecycle packs assert is written out in
       - *message the provider refuses*
         - **EML-TRN-008** a refused send leaves the message on the queue with nothing recorded
         - **EML-TRN-009** the last allowed refusal archives the message with a failure entry on the order
+      - *test-message whose subject has a slot for the order*
+        - **EML-TRN-010** draining the queue sends the mail with the slot filled from the mail's data
+      - *test-message whose subject has a slot its data lacks*
+        - **EML-TRN-011** draining the queue gives the mail up with a failure entry on the order
   - **Settings**
     - [settings.spec.ts](email-runtime/settings.spec.ts) — `EML-SET`
       - *test-message repeated once a day, sent twice at most*
@@ -213,6 +261,84 @@ behaviour the lifecycle packs assert is written out in
       - **EML-WHK-005** the same bounce report delivered twice writes one history entry
       - **EML-WHK-006** changing the customer's email address clears the bounce flag
       - **EML-WHK-007** a report signed with another secret is refused and marks nothing
+- **Customer approval**
+  - [requests.spec.ts](customer-approval/requests.spec.ts) — `APR-REQ`
+    - *in progress, product in pre-press with a file*
+      - **APR-REQ-001** creating a request records round one as pending with its file
+      - **APR-REQ-002** creating a request moves the product to awaiting approval
+      - **APR-REQ-003** creating a request queues the request mail for the order
+      - **APR-REQ-004** draining the queue after a request sends a mail whose link token finds the request by its hash
+      - **APR-REQ-005** setting the product to awaiting approval directly is refused
+    - *in progress, product in setup with a file*
+      - **APR-REQ-006** creating a request is refused
+    - *waiting product*
+      - **APR-REQ-007** approving the request by hand moves the product into production
+      - **APR-REQ-008** approving the request by hand sends the decided mail to the assignee
+      - **APR-REQ-009** requesting changes by hand returns the product to pre-press with the note in the history entry
+      - **APR-REQ-010** withdrawing the request returns the product to pre-press and queues the withdrawn mail
+      - **APR-REQ-011** moving the product to another status directly is refused
+      - **APR-REQ-012** changing the quantity of the product directly is refused
+      - **APR-REQ-013** changing the deadline of the product directly is refused
+    - *waiting stamp product, model in stock*
+      - **APR-REQ-014** approving the request by hand books the model stock with a movement naming the order
+    - *waiting stamp product, model out of stock*
+      - **APR-REQ-015** approving the request by hand books the shortfall at zero and names it in the history entry
+    - *withdrawn request*
+      - **APR-REQ-016** settling the request is refused
+    - *unmailed request*
+      - **APR-REQ-017** withdrawing the request queues no mail
+  - [function.spec.ts](customer-approval/function.spec.ts) — `APR-FN`
+    - *waiting product*
+      - **APR-FN-001** reading the request by its token answers its message and files and leaves it pending
+      - **APR-FN-002** downloading the proof through the token streams the copy as an attachment
+      - **APR-FN-003** posting an approval settles the request as approved
+      - **APR-FN-004** posting a request for changes with a note records the note on the request
+      - **APR-FN-005** posting a second decision leaves the first one standing
+    - *withdrawn request*
+      - **APR-FN-006** reading the request by its token answers withdrawn with no file
+      - **APR-FN-007** downloading the proof through the token answers not found
+    - **APR-FN-008** reading a request by an unknown token answers not found
+  - [release.spec.ts](customer-approval/release.spec.ts) — `APR-REL`
+    - *in progress, product in pre-press*
+      - **APR-REL-001** updating the product's status to production directly is refused
+      - **APR-REL-002** force releasing the product as an employee is refused
+    - *in progress without a deadline, product in pre-press*
+      - **APR-REL-003** releasing the product is refused
+    - *in progress, stamp product in pre-press, model out of stock*
+      - **APR-REL-004** releasing the product is refused and books nothing
+    - *newest round came back with changes*
+      - **APR-REL-005** releasing the product is refused
+    - *waiting stamp product, model in stock*
+      - **APR-REL-006** releasing the product is refused and books nothing
+    - *as admin, waiting stamp product, model in stock*
+      - **APR-REL-007** force releasing the product is refused and books nothing
+    - *as admin, in progress, product in pre-press*
+      - **APR-REL-008** force releasing the product without a reason is refused
+    - *as admin, in progress, stamp product in pre-press, model out of stock*
+      - **APR-REL-009** force releasing the product moves it to production past the shortage
+      - **APR-REL-010** force releasing the product records the reason in the emergency entry
+    - *as employee*
+      - **APR-REL-011** booking deductions past the model's stock with the shortage allowed is refused
+  - [expiry.spec.ts](customer-approval/expiry.spec.ts) — `APR-EXP`
+    - *waiting product, request past its expiry*
+      - **APR-EXP-001** running the expiry closes the request as expired
+      - **APR-EXP-002** running the expiry returns the product to pre-press
+      - **APR-EXP-003** draining the queue after the expiry sends the expired mail to the shop's inbox
+    - *waiting product, request not yet due*
+      - **APR-EXP-004** running the expiry leaves the request pending
+    - *round that came back with changes, past its expiry*
+      - **APR-EXP-005** running the expiry leaves the round's decision standing
+    - *expired request*
+      - **APR-EXP-006** reading the request by its token answers expired with no file
+  - [cleanup.spec.ts](customer-approval/cleanup.spec.ts) — `APR-CLN`
+    - *order billed longer ago than the retention, approved round*
+      - **APR-CLN-001** running the purge removes the proof's copy from the bucket
+      - **APR-CLN-002** running the purge marks the round's file as purged
+      - **APR-CLN-003** downloading the proof through the token after the purge answers not found
+    - *order billed within the retention, approved round*
+      - **APR-CLN-004** running the purge leaves the round's file unpurged
+    - *finished, unbilled order, approved round*
+      - **APR-CLN-005** running the purge leaves the round's file unpurged
 
 ## Later
 

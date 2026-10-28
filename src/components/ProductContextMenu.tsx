@@ -16,7 +16,6 @@ const IDS = TEST_IDS.orders.productList.contextMenu
 
 type Props = {
   product: LoadedProduct
-  orderNumber: string | null
   /** The row that opens the menu on right-click. */
   children: ReactElement
 }
@@ -24,21 +23,22 @@ type Props = {
 /**
  * Right-click menu for a row of the product list: advance the product to its
  * next workflow stage, or delete/cancel it. The items mount only while the menu
- * is open, so their queries (stock) run on demand for that product.
+ * is open, so their queries (stock, approval rounds) run on demand for that
+ * product.
  */
-export function ProductContextMenu({ product, orderNumber, children }: Props) {
+export function ProductContextMenu({ product, children }: Props) {
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent>
-        <ProductContextMenuItems product={product} orderNumber={orderNumber} />
+        <ProductContextMenuItems product={product} />
       </ContextMenuContent>
     </ContextMenu>
   )
 }
 
-function ProductContextMenuItems({ product, orderNumber }: Omit<Props, 'children'>) {
-  const release = useProductRelease(product, orderNumber)
+function ProductContextMenuItems({ product }: Omit<Props, 'children'>) {
+  const release = useProductRelease(product)
   const removal = useProductRemoval(product)
 
   return (

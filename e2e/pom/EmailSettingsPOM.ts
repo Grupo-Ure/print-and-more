@@ -1,29 +1,42 @@
 import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
 import { BasePOM } from './BasePOM'
+import { EmailWordingDialogPOM } from './EmailWordingDialogPOM'
 
 const IDS = TEST_IDS.settings.emails
 
 /**
- * Settings → Emails: one row per template with settings — an on/off switch
- * and three number fields (delay, repeat interval, most sends), each saving
- * when it is left.
+ * Settings → Emails: one row per mail type — an on/off switch and three
+ * number fields (delay, repeat interval, most sends), each saving when it is
+ * left, and *Edit wording*, which opens the wording dialog.
  */
 export class EmailSettingsPOM extends BasePOM {
   readonly root: Locator
   /** Every template row; each carries `data-template`. */
   readonly rows: Locator
   readonly empty: Locator
+  readonly wordingDialog: EmailWordingDialogPOM
 
   constructor(page: Page) {
     super(page)
     this.root = page.getByTestId(IDS.root)
     this.rows = this.root.getByTestId(IDS.row)
     this.empty = this.root.getByTestId(IDS.empty)
+    this.wordingDialog = new EmailWordingDialogPOM(page)
   }
 
   row(template: string): Locator {
     return this.withAttr(this.rows, 'data-template', template)
+  }
+
+  /** The templates currently listed, in table order. */
+  async renderedTemplates(): Promise<string[]> {
+    return this.rows.evaluateAll(els => els.map(el => el.getAttribute('data-template') ?? ''))
+  }
+
+  /** The row's button that opens its wording dialog. */
+  rowEditWording(row: Locator): Locator {
+    return row.getByTestId(IDS.rowEditWording)
   }
 
   /** The row's on/off switch; `data-state` = checked | unchecked, the stored value. */

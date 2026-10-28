@@ -91,7 +91,9 @@ jobs:
         # needed, and no mail can leave the runner. The webhook secret is a
         # throwaway of the right shape (`whsec_` + base64): email-webhook
         # verifies against it, and the e2e runner, which loads this file
-        # too, signs its test reports with it.
+        # too, signs its test reports with it. The customer app's origin is a
+        # placeholder: the approval-request mail writes it into a link, and
+        # customer-approval allows it in its CORS headers.
         run: |
           cat > supabase/functions/.env <<'EOF'
           EMAIL_DRY_RUN=true
@@ -99,6 +101,7 @@ jobs:
           EMAIL_REPLY_TO=ci@example.test
           EMAIL_SHOP_TO=ci@example.test
           RESEND_WEBHOOK_SECRET=whsec_Y2ktd2ViaG9vay1zZWNyZXQ=
+          CUSTOMER_APP_URL=https://customer.example.test
           EOF
       - name: Start local Supabase
         # Only the services the app talks to (postgres, kong, gotrue,
@@ -118,13 +121,31 @@ jobs:
             echo "VITE_SUPABASE_ANON_KEY=$ANON_KEY"
             echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
           } >> "$GITHUB_ENV"
+      - name: Fill the Vault
+        # The database's own HTTP calls read the API's URL and the service
+        # role key from the Vault: the email drain cron, and the approval
+        # proof purge, which deletes copies through the Storage API and which
+        # APR-CLN runs. Locally supabase/.env fills them at start; here the
+        # key exists only after the start. The URL is Kong as the postgres
+        # container reaches it on the stack's network. With them, the drain
+        # cron also runs here, as it does on a developer's stack.
+        run: |
+          eval "$(supabase status -o env)"
+          docker exec -i supabase_db_Auftragssystem psql -U postgres -v ON_ERROR_STOP=1 \
+            -v key="$SERVICE_ROLE_KEY" <<'SQL'
+          DELETE FROM vault.secrets WHERE name IN ('project_url', 'service_role_key');
+          SELECT vault.create_secret('http://supabase_kong_Auftragssystem:8000', 'project_url');
+          SELECT vault.create_secret(:'key', 'service_role_key');
+          SQL
       - name: Boot the edge functions
         # A function only boots on its first request. send-email reads and
         # parses every registered template when it boots, so a missing or
         # broken template fails the PR here rather than the first send after
         # deploy. The drain finds an empty queue and sends nothing.
         # email-webhook reads its secret when it boots; an unsigned report
-        # is refused with 401, which is what proves it is up.
+        # is refused with 401, which is what proves it is up. customer-approval
+        # reads CUSTOMER_APP_URL when it boots; a token that belongs to no
+        # request answers 404, which is what proves it is up.
         run: |
           curl -sS --fail-with-body -X POST "$VITE_SUPABASE_URL/functions/v1/send-email" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
@@ -134,6 +155,8 @@ jobs:
           status=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$VITE_SUPABASE_URL/functions/v1/email-webhook" \
             -H 'Content-Type: application/json' -d '{}')
           test "$status" = 401 || { echo "email-webhook answered $status instead of 401"; exit 1; }
+          status=$(curl -sS -o /dev/null -w '%{http_code}' "$VITE_SUPABASE_URL/functions/v1/customer-approval?token=0000000000000000000000000000000000000000000000000000000000000000")
+          test "$status" = 404 || { echo "customer-approval answered $status instead of 404"; exit 1; }
 
       - name: Build
         run: npm run build

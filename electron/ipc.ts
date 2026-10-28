@@ -5,8 +5,13 @@ import { consumePendingOrderId } from './deepLinks'
 
 type RevealResult = { ok: true } | { ok: false; error: string }
 
+type ReadFileResult = { ok: true; data: Uint8Array } | { ok: false; error: string }
+
 const MAX_PATH_LENGTH = 2000
 const MAX_URL_LENGTH = 4000
+// A proof copied for the customer's approval page; anything larger is not a
+// proof but a production file, and would only stall the upload.
+const MAX_READ_BYTES = 100 * 1024 * 1024
 
 function isSanePath(value: unknown): value is string {
   if (typeof value !== 'string') return false
@@ -68,6 +73,32 @@ export function registerIpcHandlers(): void {
 
     await shell.openExternal(rawUrl)
     return { ok: true }
+  })
+
+  // Hands a linked file's bytes to the renderer, which uploads a copy for the
+  // customer's approval page — the edge function cannot reach the share. Only
+  // a plain file is read; a path that climbs out with `..` is refused outright.
+  ipcMain.handle('fs:read-file', async (_event, rawPath: unknown): Promise<ReadFileResult> => {
+    if (!isSanePath(rawPath)) return { ok: false, error: 'Invalid path.' }
+    const target =
+      process.platform === 'win32' ? rawPath.trim().replace(/\//g, '\\') : rawPath.trim()
+    if (target.split(/[\\/]/).includes('..')) return { ok: false, error: 'Invalid path.' }
+
+    let size: number
+    try {
+      const stat = await fs.stat(target)
+      if (!stat.isFile()) return { ok: false, error: 'Not a file.' }
+      size = stat.size
+    } catch {
+      return { ok: false, error: 'File not reachable — it does not exist, or the share is offline.' }
+    }
+    if (size > MAX_READ_BYTES) return { ok: false, error: 'File is too large to send for approval.' }
+
+    try {
+      return { ok: true, data: new Uint8Array(await fs.readFile(target)) }
+    } catch {
+      return { ok: false, error: 'File could not be read.' }
+    }
   })
 
   ipcMain.handle('deeplink:consume-pending', (): string | null => consumePendingOrderId())
