@@ -1,29 +1,16 @@
-import { createHmac, randomUUID } from 'node:crypto'
-import type { DeliveryReport } from '../fixtures/emailMessages'
+import type { DeliveryReport } from '../../supabase/functions/_shared/emailProvider.ts'
+import { encodeReport } from '../../supabase/functions/_shared/emailProviders/active.ts'
 import { requiredEnv } from './database'
-
-/** The prefix Resend puts before the base64 key of an endpoint's signing secret. */
-const SECRET_PREFIX = 'whsec_'
-
-/**
- * Signs a report the way Svix, and so Resend, does: an HMAC-SHA256 over
- * `<id>.<timestamp>.<body>` with the key behind the secret's `whsec_` prefix,
- * presented in the three `svix-*` headers the function verifies.
- */
-function signatureHeaders(secret: string, body: string): Record<string, string> {
-  const id = `msg_${randomUUID()}`
-  const timestamp = String(Math.floor(Date.now() / 1000))
-  const encoded = secret.startsWith(SECRET_PREFIX) ? secret.slice(SECRET_PREFIX.length) : secret
-  const signature = createHmac('sha256', Buffer.from(encoded, 'base64')).update(`${id}.${timestamp}.${body}`).digest('base64')
-  return { 'svix-id': id, 'svix-timestamp': timestamp, 'svix-signature': `v1,${signature}` }
-}
 
 /**
  * The runner's handle on the `email-webhook` edge function: one delivery
- * report per call, posted the way Resend posts it — signed, with no Supabase
- * session. The secret is the one the local function verifies against,
- * `RESEND_WEBHOOK_SECRET` from `supabase/functions/.env`, which the Playwright
- * config loads into the runner.
+ * report per call, posted the way the email provider posts it — in its
+ * format, signed, with no Supabase session. The format and the signing are
+ * the provider's own (`encodeReport` from the provider in use), so nothing
+ * here or in the specs changes with the provider. The secret is the one the
+ * local function verifies against, `EMAIL_WEBHOOK_SECRET` from
+ * `supabase/functions/.env`, which the Playwright config loads into the
+ * runner.
  *
  * Nothing in here reads the result's content; what a report did is read from
  * the database (`TestDatabase.sentEmailDelivery`, `customerEmailBouncedAt`,
@@ -35,10 +22,10 @@ export class EmailWebhookFunction {
 
   constructor() {
     this.url = `${requiredEnv('VITE_SUPABASE_URL')}/functions/v1/email-webhook`
-    this.secret = requiredEnv('RESEND_WEBHOOK_SECRET')
+    this.secret = requiredEnv('EMAIL_WEBHOOK_SECRET')
   }
 
-  /** Posts one report signed with the function's secret, as Resend would. Throws when the function does not answer 200. */
+  /** Posts one report signed with the function's secret, as the provider would. Throws when the function does not answer 200. */
   async report(report: DeliveryReport): Promise<void> {
     const response = await this.post(this.secret, report)
     if (!response.ok) {
@@ -52,11 +39,11 @@ export class EmailWebhookFunction {
     return response.status
   }
 
-  private post(secret: string, report: DeliveryReport): Promise<Response> {
-    const body = JSON.stringify(report)
+  private async post(secret: string, report: DeliveryReport): Promise<Response> {
+    const { headers, body } = await encodeReport(report, secret)
     return fetch(this.url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...signatureHeaders(secret, body) },
+      headers: { 'Content-Type': 'application/json', ...headers },
       body,
     })
   }

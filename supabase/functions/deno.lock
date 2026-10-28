@@ -8,8 +8,7 @@
     "npm:@supabase/realtime-js@2.110.1": "2.110.1",
     "npm:@supabase/storage-js@2.110.1": "2.110.1",
     "npm:@types/node@*": "24.2.0",
-    "npm:handlebars@4.7.10": "4.7.10",
-    "npm:resend@6.32.1": "6.32.1"
+    "npm:handlebars@4.7.10": "4.7.10"
   },
   "jsr": {
     "@supabase/supabase-js@2.110.1": {
@@ -24,9 +23,6 @@
     }
   },
   "npm": {
-    "@stablelib/base64@1.0.1": {
-      "integrity": "sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ=="
-    },
     "@supabase/auth-js@2.110.1": {
       "integrity": "sha512-8EJUoRoqzAYWkieHrLCrGrxs3cBbRB94xK8GzHe0aSLlSa4mt1enYLCiMgLiKJOF8GNYeX6PLTBNef0XAhILgw==",
       "dependencies": [
@@ -68,9 +64,6 @@
         "undici-types"
       ]
     },
-    "fast-sha256@1.3.0": {
-      "integrity": "sha512-n11RGP/lrWEFI/bWdygLxhI+pVeo1ZYIVwvvPkW7azl/rOy+F3HYRZ2K5zeE9mmkhQppyv9sQFx0JM9UabnpPQ=="
-    },
     "handlebars@4.7.10": {
       "integrity": "sha512-P5VJMVM7qgBn6vjXMw8WG9uVI+ncf2pi72j4de4yz5ZULLj2RGqLYaKOYGsgyrViQ0tePOVlN1tDCCXXtFqXKg==",
       "dependencies": [
@@ -93,25 +86,8 @@
     "neo-async@2.6.2": {
       "integrity": "sha512-Yd3UES5mWCSqR+qNT93S3UoYUkqAZ9lLg8a7g9rimsWmYGK8cVToA4/sF3RrshdyV3sAGMXVUmpMYOw+dLpOuw=="
     },
-    "postal-mime@2.7.6": {
-      "integrity": "sha512-UUlyE2KlxmvwMGq060onF/VWU3zD6dVW31FwokQ5v26jWd35fbs2MoTFzh+jXnPwAyV2MULMKXcBInGOl5TO6Q=="
-    },
-    "resend@6.32.1": {
-      "integrity": "sha512-Z9DxkIZt5uvVNkjxjc+r4rCPI0MdDIJ7H+GvU50o9GkhrD0tVTwP6caE8KYEco90sos312l6R72jAEMCBFBiFQ==",
-      "dependencies": [
-        "postal-mime",
-        "standardwebhooks"
-      ]
-    },
     "source-map@0.6.1": {
       "integrity": "sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g=="
-    },
-    "standardwebhooks@1.1.1": {
-      "integrity": "sha512-bCbX9ZEyFkWPsRz7Bl3NuQUJohmwGSev/yhr7vhaGPlc4AfIrspIRa6cPTBuI1ItmrTDJ4d/S2hCsfe4+vQGnQ==",
-      "dependencies": [
-        "@stablelib/base64",
-        "fast-sha256"
-      ]
     },
     "tslib@2.8.1": {
       "integrity": "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w=="
@@ -130,8 +106,7 @@
   "workspace": {
     "dependencies": [
       "jsr:@supabase/supabase-js@2",
-      "npm:handlebars@4.7.10",
-      "npm:resend@6.32.1"
+      "npm:handlebars@4.7.10"
     ]
   }
 }

@@ -461,8 +461,8 @@ Every function keeps the gateway's JWT verification and checks the caller
 itself (`manage-users` the user's role, `send-email` that the bearer token is
 the service-role key), with two exceptions that have no Supabase session
 behind them and so have `verify_jwt = false` in `config.toml`:
-`email-webhook`, called by the mail provider, verifies the report's Svix
-signature against `RESEND_WEBHOOK_SECRET`; `customer-approval`, called from
+`email-webhook`, called by the mail provider, verifies the report's
+signature against `EMAIL_WEBHOOK_SECRET`; `customer-approval`, called from
 the customer's browser, looks the request up by the SHA-256 of the link's
 token. A new function without a session behind it follows that pattern:
 

@@ -31,7 +31,8 @@ import {
   type TemplateDeps,
   type TemplateName,
 } from './templates/registry.ts'
-import { createTransport, type SendError, type Transport } from './transport.ts'
+import type { SendError, Transport } from '../_shared/emailProvider.ts'
+import { transportFromEnv } from '../_shared/emailProviderFromEnv.ts'
 
 /** How long a claimed message stays invisible to other claims; a crashed sender hands it back after this. */
 const QUEUE_VISIBILITY_SECONDS = 30
@@ -68,7 +69,7 @@ interface DrainSummary {
   retried: number
 }
 
-const transport: Transport = createTransport()
+const transport: Transport = transportFromEnv('send-email')
 
 function json(status: number, body: Record<string, unknown>): Response {
   return new Response(JSON.stringify(body), {
@@ -313,7 +314,7 @@ async function processMessage(db: SupabaseClient, claimed: ClaimedMessage): Prom
   } catch (error) {
     // Looking the data up failed; counted like a refusal so a transient cause
     // gets its retries and a lasting one ends in EMAIL_FAILED.
-    return handleRefusal(db, claimed, message, null, { name: 'resolve_failed', message: errorText(error), statusCode: null })
+    return handleRefusal(db, claimed, message, null, { code: 'resolve_failed', message: errorText(error), status: null })
   }
   const { recipient } = resolved
 
