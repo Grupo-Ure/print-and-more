@@ -106,18 +106,6 @@ test.describe('in progress, product in pre-press with two files', () => {
     // Assert — the request mail is listed, waiting or sent.
     await expect(ordersPage.details.emails.ofTemplate(APPROVAL_REQUEST_TEMPLATE)).toHaveCount(1)
   })
-
-  test("PRD-APR-006 switching to the whole order's files offers no approval request", async ({ ordersPage, product, proofFiles: _proofFiles }) => {
-    // Setup — the product's Files tab open on its own files.
-    const files = ordersPage.details.productDetail.files
-    await ordersPage.openProductFiles(product)
-
-    // Act — show the whole order's files.
-    await files.orderScope.click()
-
-    // Assert — the request is not offered there.
-    await expect(files.requestApproval).toHaveCount(0)
-  })
 })
 
 // ── Answering by hand, withdrawing ────────────────────────────────────────

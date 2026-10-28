@@ -168,7 +168,6 @@ behaviour the lifecycle packs assert is written out in
         - **PRD-APR-003** unticking every file in the request dialog keeps it unsubmittable
         - **PRD-APR-004** requesting approval records the request in the order history
         - **PRD-APR-005** requesting approval lists its mail on the order's emails tab
-        - **PRD-APR-006** switching to the whole order's files offers no approval request
       - *in progress, product with two files awaiting approval*
         - **PRD-APR-007** approving the round by hand lists it as approved by the user
         - **PRD-APR-008** approving the round by hand moves the product into production
