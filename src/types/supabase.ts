@@ -2637,6 +2637,7 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      delete_quote: { Args: { p_order_id: string }; Returns: undefined }
       drain_emails: { Args: never; Returns: undefined }
       duplicate_order: {
         Args: {
@@ -2654,6 +2655,7 @@ export type Database = {
         Returns: string
       }
       fn_expire_approval_requests: { Args: never; Returns: number }
+      fn_order_is_closed: { Args: { p_order_id: string }; Returns: boolean }
       fn_production_deductions: { Args: { product_id: string }; Returns: Json }
       fn_purge_approval_files: { Args: never; Returns: number }
       force_release_to_production: {
