@@ -211,9 +211,14 @@ class OrderService {
     if (error) throw error
   }
 
-  /** Hard-delete an order row (cascades per FK constraints). Prefer {@link archiveOrder} for normal flow. */
+  /**
+   * Delete a quote with everything under it, through the `delete_quote`
+   * function — the one way an order is deleted. The database refuses any
+   * other status; past quote an order is archived or cancelled
+   * ({@link archiveOrder}), never removed.
+   */
   async deleteOrder(id: string): Promise<void> {
-    const { error } = await supabase.from('orders').delete().eq('id', id)
+    const { error } = await supabase.rpc('delete_quote', { p_order_id: id })
     if (error) throw error
   }
 
