@@ -152,6 +152,12 @@ export type TestApprovalRequest = {
   storagePath: string
 }
 
+/** An order's header columns, as much of them as a spec reads back after a refused or an allowed write. */
+export type OrderState = Pick<
+  Database['public']['Tables']['orders']['Row'],
+  'status' | 'customer_id' | 'payment_method' | 'billing_note' | 'is_archived'
+>
+
 /** A product's workflow columns, as much of them as a spec reads back after a refused or an allowed write. */
 export type ProductState = Pick<Database['public']['Tables']['products']['Row'], 'status' | 'quantity' | 'deadline' | 'assignee_id'>
 
@@ -345,11 +351,20 @@ export class TestDatabase {
 
   /**
    * Orders reference their customer without a cascade, so their orders go
-   * first (products, files and history follow those by cascade), then the
-   * customers.
+   * first — each with its history, as `removeOrder` does; products and files
+   * follow by cascade — then the customers.
    */
   private async removeCustomers(ids: string[]): Promise<void> {
     if (ids.length === 0) return
+    const { data: orders, error: ordersError } = await this.client.from('orders').select('id').in('customer_id', ids)
+    if (ordersError) throw ordersError
+    if (orders.length > 0) {
+      const { error: historyError } = await this.client
+        .from('history')
+        .delete()
+        .in('order_id', orders.map(order => order.id))
+      if (historyError) throw historyError
+    }
     const { error: orderError } = await this.client.from('orders').delete().in('customer_id', ids)
     if (orderError) throw orderError
     const { error: customerError } = await this.client.from('customers').delete().in('id', ids)
@@ -379,7 +394,7 @@ export class TestDatabase {
     return { id: data.id, orderNumber: data.order_number, customerId }
   }
 
-  /** Deletes the order; products, files and history follow by cascade. The customer stays. */
+  /** Deletes the order with its history; products and files follow by cascade. The customer stays. */
   async removeOrder(orderId: string): Promise<void> {
     // The order's approval rounds go first. Deleting the order cascades to its
     // files and, through its products, to the rounds' file links — but the
@@ -394,6 +409,12 @@ export class TestDatabase {
         .in('product_id', products.map(product => product.id))
       if (requestsError) throw requestsError
     }
+
+    // History no longer goes with its order (the FK restricts), so the
+    // order's entries go before it — the runner's connection is exempt from
+    // the guard that keeps them for the app.
+    const { error: historyError } = await this.client.from('history').delete().eq('order_id', orderId)
+    if (historyError) throw historyError
 
     const { error } = await this.client.from('orders').delete().eq('id', orderId)
     if (error) throw error
@@ -881,5 +902,99 @@ export class TestDatabase {
     if (error) throw error
     if (!data.session) throw new Error(`No session for ${user.email} after signing in`)
     return data.session.access_token
+  }
+
+  // ── Record protection ────────────────────────────────────────────────────
+  //
+  // What the guards of 20261103115958_gobd_record_protection leave standing:
+  // rows read back by id after a refused or an allowed write.
+
+  /** The order's header columns as stored. */
+  async orderState(orderId: string): Promise<OrderState> {
+    const { data, error } = await this.client
+      .from('orders')
+      .select('status, customer_id, payment_method, billing_note, is_archived')
+      .eq('id', orderId)
+      .single()
+    if (error) throw error
+    return data
+  }
+
+  /** Whether the order row is still there. */
+  async orderExists(orderId: string): Promise<boolean> {
+    const { count, error } = await this.client.from('orders').select('id', { count: 'exact', head: true }).eq('id', orderId)
+    if (error) throw error
+    return (count ?? 0) > 0
+  }
+
+  /** Whether the product row is still there. */
+  async productExists(productId: string): Promise<boolean> {
+    const { count, error } = await this.client.from('products').select('id', { count: 'exact', head: true }).eq('id', productId)
+    if (error) throw error
+    return (count ?? 0) > 0
+  }
+
+  /** Whether the file row is still there. */
+  async fileExists(fileId: string): Promise<boolean> {
+    const { count, error } = await this.client.from('files').select('id', { count: 'exact', head: true }).eq('id', fileId)
+    if (error) throw error
+    return (count ?? 0) > 0
+  }
+
+  /** Whether the customer row is still there. */
+  async customerExists(customerId: string): Promise<boolean> {
+    const { count, error } = await this.client.from('customers').select('id', { count: 'exact', head: true }).eq('id', customerId)
+    if (error) throw error
+    return (count ?? 0) > 0
+  }
+
+  /** Whether the history entry is still there. */
+  async historyEntryExists(historyId: string): Promise<boolean> {
+    const { count, error } = await this.client.from('history').select('id', { count: 'exact', head: true }).eq('id', historyId)
+    if (error) throw error
+    return (count ?? 0) > 0
+  }
+
+  /** How many files the product links. */
+  async productFileCount(productId: string): Promise<number> {
+    const { count, error } = await this.client
+      .from('product_files')
+      .select('id', { count: 'exact', head: true })
+      .eq('product_id', productId)
+    if (error) throw error
+    return count ?? 0
+  }
+
+  /** How many time logs the product has. */
+  async timeLogCount(productId: string): Promise<number> {
+    const { count, error } = await this.client
+      .from('product_time_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('product_id', productId)
+    if (error) throw error
+    return count ?? 0
+  }
+
+  /** Logs the minutes on the product for the login, written by them, as the time log form would. Returns the log's id. */
+  async createTimeLog(productId: string, user: TestUser, minutes: number): Promise<string> {
+    const userId = await this.userId(user)
+    const { data, error } = await this.client
+      .from('product_time_logs')
+      .insert({ product_id: productId, user_id: userId, created_by: userId, minutes })
+      .select('id')
+      .single()
+    if (error) throw error
+    return data.id
+  }
+
+  /** Writes one history entry of that event onto the order, with nothing else recorded. Returns the entry's id. Removed with the order. */
+  async createHistoryEntry(orderId: string, eventType: HistoryEvent): Promise<string> {
+    const { data, error } = await this.client
+      .from('history')
+      .insert({ order_id: orderId, event_type: eventType })
+      .select('id')
+      .single()
+    if (error) throw error
+    return data.id
   }
 }
