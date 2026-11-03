@@ -340,6 +340,35 @@ behaviour the lifecycle packs assert is written out in
     - *finished, unbilled order, approved round*
       - **APR-CLN-005** running the purge leaves the round's file unpurged
 
+- **Record protection**
+  - [record-protection.spec.ts](compliance/record-protection.spec.ts) — `CMP-LOCK`
+    - *as admin, finished order, done product with a file link and a time log*
+      - **CMP-LOCK-001** deleting the order is refused
+      - **CMP-LOCK-002** deleting the done product is refused
+      - **CMP-LOCK-003** deleting the order's file is refused
+      - **CMP-LOCK-004** removing the done product's file link is refused
+      - **CMP-LOCK-005** deleting the product's time log is refused
+      - **CMP-LOCK-006** changing the order's customer is refused
+      - **CMP-LOCK-007** changing the order's payment method is refused
+      - **CMP-LOCK-008** changing the done product's status is refused
+      - **CMP-LOCK-009** changing the order's billing note saves it
+      - **CMP-LOCK-010** archiving the order saves it
+      - **CMP-LOCK-011** reopening the order moves it to in progress
+    - *as admin, billed order*
+      - **CMP-LOCK-012** changing the status of the billed order is refused
+      - **CMP-LOCK-013** deleting the order's customer is refused
+    - *as admin, in progress order, one product in production and one in setup, a file linked to each*
+      - **CMP-LOCK-014** deleting the order is refused
+      - **CMP-LOCK-015** deleting the released product is refused
+      - **CMP-LOCK-016** removing the released product's file link is refused
+      - **CMP-LOCK-017** deleting the setup product removes it
+      - **CMP-LOCK-018** deleting the setup product's file removes it
+      - **CMP-LOCK-019** deleting the released product's file is refused
+    - *as admin, quote with a history entry*
+      - **CMP-LOCK-020** deleting the history entry is refused
+      - **CMP-LOCK-021** deleting the quote row directly is refused
+      - **CMP-LOCK-022** deleting the quote through the function removes it with its history
+
 ## Later
 
 Areas not yet broken down into tests. When one is, its tests go into the
