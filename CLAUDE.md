@@ -180,8 +180,8 @@ process, so they are edited as that process changes.
 - **Backend:** Supabase — PostgreSQL with Auth and Row-Level Security; RLS
   policies and triggers live in the migrations. The base schema is split into
   domain migration files under `supabase/migrations/` (types, core, orders,
-  products, catalog, one file per department's product tables, blueprint,
-  audit, duplicate_order); everything after that baseline is a dated
+  products, catalog, one file per department's product tables, audit,
+  duplicate_order); everything after that baseline is a dated
   migration on top of it, and that is the only way the schema changes (see
   "The app is in production" above). `supabase/seed.sql` holds catalog
   master data; `seed.dev.sql` (git-ignored) holds local demo data. Four edge
@@ -572,12 +572,10 @@ cannot hold an order open.
   `NOT NULL` with its default and a check of at least one day. Readable by
   all, admin-updatable; nobody inserts or deletes. Service
   [`customerApprovalSettingsService`](src/services/customerApprovalSettingsService.ts).
-- **Blueprint** — `blueprint_*` tables exist in the schema (a separate
-  blueprint-copying feature) but nothing in the client uses them yet.
-- **Retired ERP export** — the `erp_exports` table, `orders.is_erp_exported`
-  and the `ERP_EXPORTED` history event are left over from an export feature
-  the shop retired. Nothing in the client reads, writes or renders them;
-  dropping them is a migration of its own. Don't build on them.
+- **Retired ERP export** — the `ERP_EXPORTED` history event is the one
+  trace left of an export feature the shop retired; its table and the
+  order flag were dropped. Rows that carry the event still render with
+  their label. Don't build on it.
 
 ### Products — typed per-type tables
 
