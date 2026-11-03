@@ -767,6 +767,25 @@ The rules live in one place each:
   and a textile batch's garment lines and designs) in one transaction; called
   from [`DuplicateDialog`](src/components/DuplicateDialog.tsx). Workflow state
   is not carried over — the copies start in setup.
+- **Record protection** (GoBD) — a record once in processing is neither
+  deleted nor silently altered, and the database is what holds that: one
+  `fn_refuse_*_record_change` guard per table (`orders`, `products`,
+  `files`, `product_files`, `product_time_logs`, `history`), each a
+  `BEFORE` trigger that refuses the write for every app role and exempts
+  the owner and `service_role` as the other guards do. An order is never
+  deleted by the client directly — the sidebar's quote delete calls
+  `delete_quote`, which refuses any other status and removes the quote's
+  history in the open (the history FK onto orders restricts rather than
+  cascades). Past that: a product is deleted only in setup on an open
+  order; once an order is `FINISHED`/`BILLED` its billing-relevant columns
+  (number, customer, dates, payment, delivery, deadline, priority), its
+  files and its products' workflow columns are locked, `BILLED` is final,
+  and only archiving, the billing note and the lifecycle out of `FINISHED`
+  stay open; a product's file links lock from `AWAITING_APPROVAL` on, a
+  file linked to a released product is not deleted, and a time log is
+  deleted only while the product is open. The client hides what the
+  database would refuse — a refusal reaches a user only through a stale
+  view. The plan is the vault note *GoBD record protection*.
 - **PDF production sheet** — one sheet per product, from the product header
   ([`src/lib/pdf/productionSheet.ts`](src/lib/pdf/productionSheet.ts)): a
   label/value list of the product's set spec fields, with a textile batch's
