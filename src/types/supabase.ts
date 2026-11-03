@@ -125,148 +125,6 @@ export type Database = {
           },
         ]
       }
-      blueprint_customers: {
-        Row: {
-          created_at: string
-          id: string
-          is_active: boolean
-          name: string
-          short_code: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          name: string
-          short_code?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          name?: string
-          short_code?: string | null
-        }
-        Relationships: []
-      }
-      blueprint_job_items: {
-        Row: {
-          copies: number
-          created_at: string
-          filename: string | null
-          format: string
-          height_mm: number | null
-          id: string
-          is_color: boolean
-          job_id: string
-          page_count: number
-          width_mm: number | null
-        }
-        Insert: {
-          copies?: number
-          created_at?: string
-          filename?: string | null
-          format: string
-          height_mm?: number | null
-          id?: string
-          is_color: boolean
-          job_id: string
-          page_count?: number
-          width_mm?: number | null
-        }
-        Update: {
-          copies?: number
-          created_at?: string
-          filename?: string | null
-          format?: string
-          height_mm?: number | null
-          id?: string
-          is_color?: boolean
-          job_id?: string
-          page_count?: number
-          width_mm?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "blueprint_job_items_job_id_fkey"
-            columns: ["job_id"]
-            isOneToOne: false
-            referencedRelation: "blueprint_jobs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      blueprint_jobs: {
-        Row: {
-          created_at: string
-          customer_id: string
-          id: string
-          job_date: string
-          notes: string | null
-          project_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          customer_id: string
-          id?: string
-          job_date?: string
-          notes?: string | null
-          project_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          customer_id?: string
-          id?: string
-          job_date?: string
-          notes?: string | null
-          project_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "blueprint_jobs_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "blueprint_customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "blueprint_jobs_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "blueprint_projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      blueprint_projects: {
-        Row: {
-          created_at: string
-          customer_id: string
-          id: string
-          name: string
-        }
-        Insert: {
-          created_at?: string
-          customer_id: string
-          id?: string
-          name: string
-        }
-        Update: {
-          created_at?: string
-          customer_id?: string
-          id?: string
-          name?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "blueprint_projects_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "blueprint_customers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       brochure_products: {
         Row: {
           binding: string | null
@@ -620,48 +478,6 @@ export type Database = {
         }
         Relationships: []
       }
-      erp_exports: {
-        Row: {
-          export_data: Json
-          exported_at: string
-          exported_by: string | null
-          id: string
-          mode: string
-          order_id: string
-        }
-        Insert: {
-          export_data: Json
-          exported_at?: string
-          exported_by?: string | null
-          id?: string
-          mode: string
-          order_id: string
-        }
-        Update: {
-          export_data?: Json
-          exported_at?: string
-          exported_by?: string | null
-          id?: string
-          mode?: string
-          order_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "erp_exports_exported_by_fkey"
-            columns: ["exported_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "erp_exports_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       files: {
         Row: {
           created_at: string
@@ -1013,7 +829,6 @@ export type Database = {
           delivery: Database["public"]["Enums"]["delivery_type"] | null
           id: string
           is_archived: boolean
-          is_erp_exported: boolean
           order_number: string
           payment_method: Database["public"]["Enums"]["payment_method"]
           priority: Database["public"]["Enums"]["priority_type"]
@@ -1029,7 +844,6 @@ export type Database = {
           delivery?: Database["public"]["Enums"]["delivery_type"] | null
           id?: string
           is_archived?: boolean
-          is_erp_exported?: boolean
           order_number: string
           payment_method?: Database["public"]["Enums"]["payment_method"]
           priority?: Database["public"]["Enums"]["priority_type"]
@@ -1045,7 +859,6 @@ export type Database = {
           delivery?: Database["public"]["Enums"]["delivery_type"] | null
           id?: string
           is_archived?: boolean
-          is_erp_exported?: boolean
           order_number?: string
           payment_method?: Database["public"]["Enums"]["payment_method"]
           priority?: Database["public"]["Enums"]["priority_type"]
