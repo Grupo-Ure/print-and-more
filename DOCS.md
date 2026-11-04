@@ -81,7 +81,7 @@ Vendor documentation snapshots for the tools these guidelines build on.
 | Clerk | [docs/reference/clerk/](docs/reference/clerk/) — CLI, core concepts, Next.js quickstart, MCP server, AI integration, content protection |
 | Stripe | [docs/reference/stripe/](docs/reference/stripe/) — React Stripe reference, CLI usage |
 | Supabase | [docs/reference/supabase/](docs/reference/supabase/) — getting started, auth with Next.js, TypeScript type generation, self-hosting |
-| GoBD | [docs/reference/gobd/](docs/reference/gobd/) — the IHK Darmstadt summary of the German bookkeeping compliance rules, the primary source named by the client for the compliance work (MKS-1) |
+| GoBD | [docs/reference/gobd/](docs/reference/gobd/) — the IHK Darmstadt summary of the German bookkeeping compliance rules, the primary source named by the client for the compliance work (MKS-1), and the IHK Rhein-Neckar list of retention periods by document type |
 
 ---
 
