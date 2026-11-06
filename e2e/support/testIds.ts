@@ -676,6 +676,32 @@ export const TEST_IDS = {
       shareServer: 'backup-settings-share-server',
       shareName: 'backup-settings-share-name',
       shareFolder: 'backup-settings-share-folder',
+      /** The list of every backup ever made, above the settings. */
+      jobs: {
+        root: 'backup-jobs',
+        /** Shown instead of the rows while no backup has been made. */
+        empty: 'backup-jobs-empty',
+        /** One per backup_jobs row; `data-job-id`, `data-state` = WAITING | TAKEN | DELIVERED. */
+        row: 'backup-jobs-row',
+        /** The machine holding the claim, or the last one to hold it. */
+        rowTakenBy: 'backup-jobs-row-taken-by',
+        /** The machine that brought it to the shop folder; empty until delivered. */
+        rowDeliveredBy: 'backup-jobs-row-delivered-by',
+        /** Failed deliveries; `data-value` = attempts. */
+        rowAttempts: 'backup-jobs-row-attempts',
+        /** Why the last delivery failed; empty when none has. */
+        rowLastError: 'backup-jobs-row-last-error',
+        /** Whether the online copy is still kept; `data-purged` = true | false. */
+        rowHoldingCopy: 'backup-jobs-row-holding-copy',
+      },
+      /** This machine: its name and whether it can reach the shop folder now. */
+      machine: {
+        root: 'backup-machine',
+        name: 'backup-machine-name',
+        /** `data-reachable` = true | false. */
+        status: 'backup-machine-status',
+        path: 'backup-machine-path',
+      },
     },
   },
 

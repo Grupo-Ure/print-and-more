@@ -1,14 +1,21 @@
 import { useState, type KeyboardEvent } from 'react'
+import { formatDateTimeHuman } from '../../lib/formatDate'
+import { useBackupJobs, useBackupMachine } from '../../queries/backupJobQueries'
 import { useBackupSettings, useUpdateBackupSettings } from '../../queries/backupSettingsQueries'
-import type { BackupSettingsPatch } from '../../services/backupSettingsService'
+import type { BackupJob } from '../../services/backupJobService'
+import type { BackupSettings as BackupSettingsRow, BackupSettingsPatch } from '../../services/backupSettingsService'
 import { useToast } from '../Toast'
 import { WholeNumberField } from '../fields/WholeNumberField'
 import { SettingRow } from './SettingRow'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { cn } from '@/lib/utils'
 import { TEST_IDS } from '@e2e/support/testIds'
 
 const IDS = TEST_IDS.settings.backups
+const JOB_IDS = IDS.jobs
+const MACHINE_IDS = IDS.machine
 
 /** The longest any day-based setting may be: a year. */
 const MAX_DAYS = 365
@@ -19,10 +26,12 @@ const MAX_MINUTES = 1440
 type ShareSetting = 'share_server' | 'share_name' | 'share_folder'
 
 /**
- * Settings → Backups: when the weekly backup is made, how the running copies
- * of the app hand it on, when the shop is warned, and the folder on the shop's
- * share it is brought to (`backup_settings`). Each field saves on its own, the
- * moment it is left.
+ * Settings → Backups, in three parts: every backup ever made and where it is
+ * (`backup_jobs`, live); the settings — when the weekly backup is made, how
+ * the running copies of the app hand it on, when the shop is warned, and the
+ * folder on the shop's share it is brought to (`backup_settings`), each field
+ * saving on its own the moment it is left; and whether this machine can reach
+ * that folder now.
  */
 export function BackupSettings() {
   const { showError } = useToast()
@@ -67,6 +76,9 @@ export function BackupSettings() {
     <>
       <h1>Backups</h1>
 
+      <BackupJobList />
+
+      <h2>Settings</h2>
       <section data-testid={IDS.root} className="rounded-md border border-neutral-200">
         <SettingRow
           title="Make backups"
@@ -152,7 +164,142 @@ export function BackupSettings() {
           {shareField('share_folder', IDS.shareFolder, 'Folder of the app on the share', 'Print And More')}
         </SettingRow>
       </section>
+
+      <h2>This computer</h2>
+      <ThisMachine settings={settings ?? null} />
     </>
+  )
+}
+
+const STATE_LABELS: Record<BackupJob['state'], string> = {
+  WAITING: 'Waiting',
+  TAKEN: 'Being delivered',
+  DELIVERED: 'Delivered',
+}
+
+/** Bytes in the unit a person reads: "820 KB", "1.8 MB", "2.4 GB". */
+function formatSize(bytes: number): string {
+  const units = ['B', 'KB', 'MB', 'GB']
+  let value = bytes
+  let unit = 0
+  while (value >= 1000 && unit < units.length - 1) {
+    value /= 1000
+    unit += 1
+  }
+  return `${unit === 0 || value >= 10 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`
+}
+
+/** Every backup ever made, newest first: what it is, where it is, and what went wrong on the way. */
+function BackupJobList() {
+  const { data: jobs, isLoading } = useBackupJobs()
+
+  return (
+    <section data-testid={JOB_IDS.root} className="overflow-x-auto rounded-md border border-neutral-200">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="pl-4">Week</TableHead>
+            <TableHead>Made</TableHead>
+            <TableHead>Size</TableHead>
+            <TableHead>State</TableHead>
+            <TableHead>Taken by</TableHead>
+            <TableHead>Delivered</TableHead>
+            <TableHead>Failed tries</TableHead>
+            <TableHead>Last error</TableHead>
+            <TableHead className="pr-4">Online copy</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {!isLoading && jobs?.length === 0 && (
+            <TableRow>
+              <TableCell data-testid={JOB_IDS.empty} colSpan={9} className="pl-4 text-neutral-500">
+                No backup has been made yet.
+              </TableCell>
+            </TableRow>
+          )}
+          {jobs?.map(job => <BackupJobRow key={job.id} job={job} />)}
+        </TableBody>
+      </Table>
+    </section>
+  )
+}
+
+function BackupJobRow({ job }: { job: BackupJob }) {
+  const isPurged = job.purged_at !== null
+  return (
+    <TableRow data-testid={JOB_IDS.row} data-job-id={job.id} data-state={job.state}>
+      <TableCell className="pl-4 font-medium">{job.period}</TableCell>
+      <TableCell>{formatDateTimeHuman(job.created_at)}</TableCell>
+      <TableCell>{formatSize(job.size_bytes)}</TableCell>
+      <TableCell>{STATE_LABELS[job.state as BackupJob['state']] ?? job.state}</TableCell>
+      <TableCell>
+        <span data-testid={JOB_IDS.rowTakenBy}>{job.claimed_by_machine ?? ''}</span>
+        {job.state === 'TAKEN' && job.lease_until && (
+          <span className="block text-xs text-neutral-500">until {formatDateTimeHuman(job.lease_until)}</span>
+        )}
+      </TableCell>
+      <TableCell>
+        <span data-testid={JOB_IDS.rowDeliveredBy}>{job.delivered_by_machine ?? ''}</span>
+        {job.delivered_at && (
+          <span className="block text-xs text-neutral-500">{formatDateTimeHuman(job.delivered_at)}</span>
+        )}
+      </TableCell>
+      <TableCell data-testid={JOB_IDS.rowAttempts} data-value={job.attempts}>
+        {job.attempts}
+      </TableCell>
+      <TableCell data-testid={JOB_IDS.rowLastError} className="max-w-64 truncate" title={job.last_error ?? undefined}>
+        {job.last_error ?? ''}
+      </TableCell>
+      <TableCell data-testid={JOB_IDS.rowHoldingCopy} data-purged={isPurged} className="pr-4">
+        {isPurged ? `Deleted ${formatDateTimeHuman(job.purged_at!)}` : 'Kept'}
+      </TableCell>
+    </TableRow>
+  )
+}
+
+/** This computer's name, whether it can reach the shop folder right now, and the folder it resolved. */
+function ThisMachine({ settings }: { settings: BackupSettingsRow | null }) {
+  const share = settings
+    ? { server: settings.share_server, share: settings.share_name, folder: settings.share_folder }
+    : null
+  const { data } = useBackupMachine(share)
+
+  if (!window.pam) {
+    return (
+      <section data-testid={MACHINE_IDS.root} className="rounded-md border border-neutral-200 px-4 py-3 text-neutral-500">
+        Only the desktop app brings backups to the shop folder.
+      </section>
+    )
+  }
+
+  const reachable = data?.folder.reachable ?? false
+  return (
+    <section data-testid={MACHINE_IDS.root} className="rounded-md border border-neutral-200">
+      <SettingRow title="Name" description="How this computer appears in the list above when it takes a backup.">
+        <span data-testid={MACHINE_IDS.name} className="font-medium">
+          {data?.machine ?? '…'}
+        </span>
+      </SettingRow>
+      <SettingRow
+        title="Shop folder"
+        description={
+          data && !data.folder.reachable ? data.folder.reason : 'Whether this computer can bring backups in right now.'
+        }
+      >
+        <span
+          data-testid={MACHINE_IDS.status}
+          data-reachable={reachable}
+          className={cn('font-medium', reachable ? 'text-green-700' : 'text-neutral-500')}
+        >
+          {data ? (reachable ? 'Reachable' : 'Not reachable') : '…'}
+        </span>
+      </SettingRow>
+      <SettingRow title="Folder" description="Where backups go on this computer.">
+        <span data-testid={MACHINE_IDS.path} className="font-mono text-xs break-all">
+          {data?.folder.path ?? '—'}
+        </span>
+      </SettingRow>
+    </section>
   )
 }
 
