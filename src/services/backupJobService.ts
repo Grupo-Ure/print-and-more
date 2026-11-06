@@ -86,6 +86,46 @@ class BackupJobService {
   }
 
   /**
+   * Fires `onChanged` on any change to `backup_jobs` — a job recorded,
+   * claimed, delivered, given back or purged — so Settings → Backups can
+   * refetch, and once more when a lost channel is back. Self-healing as the
+   * production feed's subscription is. Returns an unsubscribe function.
+   */
+  subscribeToJobChanges(onChanged: () => void): () => void {
+    let channel: RealtimeChannel | null = null
+    let stopped = false
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
+    let reconnecting = false
+
+    const open = () => {
+      // A unique topic per channel, so a remount never reuses one still being removed.
+      const current: RealtimeChannel = supabase
+        .channel(`backup-jobs-refresh:${crypto.randomUUID()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'backup_jobs' }, () => onChanged())
+        .subscribe(status => {
+          if (stopped || current !== channel) return
+          if (status === 'SUBSCRIBED') {
+            if (reconnecting) onChanged()
+            reconnecting = false
+            return
+          }
+          channel = null
+          reconnecting = true
+          void supabase.removeChannel(current)
+          retryTimer = setTimeout(open, RESUBSCRIBE_DELAY_MS)
+        })
+      channel = current
+    }
+
+    open()
+    return () => {
+      stopped = true
+      clearTimeout(retryTimer)
+      if (channel) void supabase.removeChannel(channel)
+    }
+  }
+
+  /**
    * Listens for the roll call: `onRollCall` fires on every broadcast on the
    * private `backups` channel, and once more when a lost channel is back, so
    * a roll call missed in the gap is made up for.
