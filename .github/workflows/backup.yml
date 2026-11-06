@@ -5,10 +5,11 @@
 # secrets.
 #
 # Trigger:
-#   workflow_dispatch only, no schedule. The database's own cron tick starts
-#   it through the GitHub API when a dump is due (fn_backup_tick, WP5), so
-#   GitHub's rule that disables idle scheduled workflows never applies. Two
-#   runs never overlap.
+#   workflow_dispatch only, no schedule. A daily cron job in the database
+#   starts it through the GitHub API when a backup is due
+#   (fn_start_due_backup, WP5), with a token the hosted project's Vault holds
+#   as `github_backup_token`; so GitHub's rule that disables idle scheduled
+#   workflows never applies. Two runs never overlap.
 #
 # Running it by hand:
 #   Actions → Backup → Run workflow, or `gh workflow run backup.yml`. A run
