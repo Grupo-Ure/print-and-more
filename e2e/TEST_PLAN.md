@@ -372,6 +372,17 @@ behaviour the lifecycle packs assert is written out in
       - **CMP-LOCK-021** deleting the quote row directly is refused
       - **CMP-LOCK-022** deleting the quote through the function removes it with its history
 
+- **Backups**
+  - [backup-record.spec.ts](compliance/backup-record.spec.ts) — `BKP-REC`
+    - *as admin, waiting job*
+      - **BKP-REC-001** claiming a waiting job returns it and stamps the lease
+      - **BKP-REC-002** claiming a job another session just claimed returns nothing
+    - *as admin, job taken by another session, lease passed*
+      - **BKP-REC-003** claiming a taken job whose lease has passed returns it
+    - *as admin, job held by this session*
+      - **BKP-REC-004** reporting a delivery with the wrong fingerprint is refused
+      - **BKP-REC-005** reporting a failed delivery puts the job back with the attempt counted and the reason kept
+
 ## Later
 
 Areas not yet broken down into tests. When one is, its tests go into the
