@@ -28,6 +28,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      backup_settings: {
+        Row: {
+          dump_interval_days: number
+          enabled: boolean
+          holding_retention_days: number
+          id: boolean
+          lease_minutes: number
+          missing_backup_alert_days: number
+          reannounce_minutes: number
+          share_folder: string | null
+          share_name: string | null
+          share_server: string | null
+          undelivered_alert_days: number
+          updated_at: string
+        }
+        Insert: {
+          dump_interval_days?: number
+          enabled?: boolean
+          holding_retention_days?: number
+          id?: boolean
+          lease_minutes?: number
+          missing_backup_alert_days?: number
+          reannounce_minutes?: number
+          share_folder?: string | null
+          share_name?: string | null
+          share_server?: string | null
+          undelivered_alert_days?: number
+          updated_at?: string
+        }
+        Update: {
+          dump_interval_days?: number
+          enabled?: boolean
+          holding_retention_days?: number
+          id?: boolean
+          lease_minutes?: number
+          missing_backup_alert_days?: number
+          reannounce_minutes?: number
+          share_folder?: string | null
+          share_name?: string | null
+          share_server?: string | null
+          undelivered_alert_days?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       banner_products: {
         Row: {
           eyelet_detail: string | null
