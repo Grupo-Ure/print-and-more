@@ -5,6 +5,7 @@ import type { ChildTable } from '../../src/types/product'
 import { createHash, randomBytes } from 'node:crypto'
 import { addDays } from 'date-fns'
 import type { ApprovalRequestSeed } from '../fixtures/approvalRequests'
+import type { BackupJobSeed, TestBackupJob } from '../fixtures/backupJobs'
 import type { BackupSettingsSeed } from '../fixtures/backupSettings'
 import type { TestCustomer } from '../fixtures/customers'
 import type { CustomerApprovalSettingsSeed } from '../fixtures/customerApprovalSettings'
@@ -285,6 +286,48 @@ export class TestDatabase {
   /** Writes the backup runtime's settings onto the one row, replacing whatever it held. */
   async updateBackupSettings(seed: BackupSettingsSeed): Promise<void> {
     const { error } = await this.client.from('backup_settings').update(seed).eq('id', true)
+    if (error) throw error
+  }
+
+  // ── Backup jobs ──────────────────────────────────────────────────────────
+
+  /**
+   * Inserts one backup job as the seed describes it: waiting, or taken with
+   * the seed's claim. Its storage path is its own, so parallel workers never
+   * collide on the unique path. Returns the row as stored.
+   */
+  async createBackupJob(seed: BackupJobSeed): Promise<TestBackupJob> {
+    const now = Date.now()
+    const claim = seed.claim
+    const { data, error } = await this.client
+      .from('backup_jobs')
+      .insert({
+        period: seed.period,
+        storage_path: `e2e/${crypto.randomUUID()}.dump.age`,
+        size_bytes: seed.sizeBytes,
+        sha256: seed.sha256,
+        state: claim ? 'TAKEN' : 'WAITING',
+        claimed_by_session: claim?.session ?? null,
+        claimed_by_machine: claim?.machine ?? null,
+        claimed_at: claim ? new Date(now).toISOString() : null,
+        lease_until: claim ? new Date(now + claim.leaseEndsInMinutes * 60_000).toISOString() : null,
+      })
+      .select('*')
+      .single()
+    if (error) throw error
+    return data
+  }
+
+  /** Reads one backup job back as stored. */
+  async backupJob(jobId: string): Promise<TestBackupJob> {
+    const { data, error } = await this.client.from('backup_jobs').select('*').eq('id', jobId).single()
+    if (error) throw error
+    return data
+  }
+
+  /** Removes a seeded backup job. Only the runner may: the app never deletes one. */
+  async removeBackupJob(jobId: string): Promise<void> {
+    const { error } = await this.client.from('backup_jobs').delete().eq('id', jobId)
     if (error) throw error
   }
 

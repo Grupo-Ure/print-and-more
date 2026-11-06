@@ -2,7 +2,8 @@
  * Fixture chain: `@playwright/test` → database → electron → auth → **orders**.
  * Adds the orders view's page object (`ordersPage`) and the per-test data of
  * that view (`customer`, `order`, `product`, `newCustomer`,
- * `departmentDefault`, `developer`, `customerApprovalSettings`, `backupSettings`).
+ * `departmentDefault`, `developer`, `customerApprovalSettings`, `backupSettings`,
+ * `backupJob`).
  *
  * Fixtures only seed data and reload so the app can see it. They never
  * navigate: getting to the order or product under test is the test's own Setup
@@ -16,6 +17,7 @@ import { NEW_CUSTOMER, TEST_CUSTOMER, type TestCustomer } from './customers'
 import { OTHER_PRODUCT } from './products'
 import { DEFAULT_CUSTOMER_APPROVAL_SETTINGS, type CustomerApprovalSettingsSeed } from './customerApprovalSettings'
 import { DEFAULT_BACKUP_SETTINGS, type BackupSettingsSeed } from './backupSettings'
+import { WAITING_BACKUP_JOB, type BackupJobSeed, type TestBackupJob } from './backupJobs'
 import { EMPTY_PREPRESS_DEFAULT, type DepartmentDefaultSeed } from './departments'
 import { APPROVAL_FILE } from './files'
 import { IN_STOCK_STAMP_MODEL, OUT_OF_STOCK_STAMP_MODEL } from './stamps'
@@ -209,6 +211,10 @@ type OrdersViewFixtures = {
    * a test changed in the app does not reach the next one.
    */
   backupSettings: BackupSettingsSeed
+  /** What `backupJob` inserts; override per describe block with `test.use({ backupJobSeed })`. */
+  backupJobSeed: BackupJobSeed
+  /** One backup job, as `backupJobSeed` describes it, inserted before the test and removed after it. */
+  backupJob: TestBackupJob
 }
 
 // No `expect` in here: fixtures synchronise with `waitFor()`. A timeout then
@@ -254,6 +260,7 @@ export const test = base.extend<OrdersViewFixtures>({
   developerSeed: [ADMIN_AS_DEVELOPER, { option: true }],
   customerApprovalSettingsSeed: [DEFAULT_CUSTOMER_APPROVAL_SETTINGS, { option: true }],
   backupSettingsSeed: [DEFAULT_BACKUP_SETTINGS, { option: true }],
+  backupJobSeed: [WAITING_BACKUP_JOB, { option: true }],
 
   customer: async ({ page, navbar, database, customerSeed }, use) => {
     const customer = await database.createCustomer(customerSeed)
@@ -344,6 +351,14 @@ export const test = base.extend<OrdersViewFixtures>({
 
     await use(backupSettingsSeed)
     await database.updateBackupSettings(backupSettingsSeed)
+  },
+
+  backupJob: async ({ database, backupJobSeed }, use) => {
+    // No reload: the specs that use it drive the database functions, not the screen.
+    const job = await database.createBackupJob(backupJobSeed)
+
+    await use(job)
+    await database.removeBackupJob(job.id)
   },
 })
 

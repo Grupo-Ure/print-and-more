@@ -1,0 +1,65 @@
+import type { Database } from '../../src/types/supabase'
+
+type BackupJobRow = Database['public']['Tables']['backup_jobs']['Row']
+
+/** A backup job as the database holds it. */
+export type TestBackupJob = BackupJobRow
+
+/** The claim a seeded job carries: who holds it and how far its lease lies from now. */
+export type BackupClaimSeed = {
+  session: string
+  machine: string
+  /** Minutes from now the lease ends; negative for a lease that has passed. */
+  leaseEndsInMinutes: number
+}
+
+/**
+ * One backup job, as the `backupJob` fixture inserts it with the runner's
+ * connection — the row the dump workflow, and any claim since, would have
+ * left. The fixture gives each job a storage path of its own.
+ */
+export type BackupJobSeed = {
+  period: string
+  sizeBytes: number
+  sha256: string
+  claim: BackupClaimSeed | null
+}
+
+/** The session id the spec's own running copy of the app claims and reports with. */
+export const THIS_SESSION = '0b0b0b0b-0000-4000-8000-000000000001'
+
+/** The session id of another running copy, on another machine. */
+export const OTHER_SESSION = '0b0b0b0b-0000-4000-8000-000000000002'
+
+export const THIS_MACHINE = 'E2E-THIS-PC'
+
+export const OTHER_MACHINE = 'E2E-OTHER-PC'
+
+/** The fingerprint every seeded job's file is recorded with. */
+export const BACKUP_SHA256 = 'a'.repeat(64)
+
+/** A fingerprint that matches no seeded job's file. */
+export const WRONG_SHA256 = 'b'.repeat(64)
+
+/** Why the spec's failed delivery failed. */
+export const DELIVERY_FAILURE_REASON = 'Shop folder not reachable'
+
+/** A dump waiting to be claimed. */
+export const WAITING_BACKUP_JOB: BackupJobSeed = {
+  period: '2026-W45',
+  sizeBytes: 1024,
+  sha256: BACKUP_SHA256,
+  claim: null,
+}
+
+/** A dump another copy took and did not finish: its lease ended an hour ago. */
+export const LAPSED_BACKUP_JOB: BackupJobSeed = {
+  ...WAITING_BACKUP_JOB,
+  claim: { session: OTHER_SESSION, machine: OTHER_MACHINE, leaseEndsInMinutes: -60 },
+}
+
+/** A dump the spec's own copy holds, its lease still running. */
+export const HELD_BACKUP_JOB: BackupJobSeed = {
+  ...WAITING_BACKUP_JOB,
+  claim: { session: THIS_SESSION, machine: THIS_MACHINE, leaseEndsInMinutes: 30 },
+}
