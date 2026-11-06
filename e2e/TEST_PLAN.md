@@ -392,6 +392,16 @@ behaviour the lifecycle packs assert is written out in
     - *as admin, job held by this session*
       - **BKP-REC-004** reporting a delivery with the wrong fingerprint is refused
       - **BKP-REC-005** reporting a failed delivery puts the job back with the attempt counted and the reason kept
+  - [backup-schedule.spec.ts](compliance/backup-schedule.spec.ts) — `BKP-SCHED`
+    - *delivered job past the holding retention*
+      - **BKP-SCHED-001** running the upkeep removes the job's online copy from the bucket
+      - **BKP-SCHED-002** running the upkeep marks the job as purged
+    - *delivered job inside the holding retention*
+      - **BKP-SCHED-003** running the upkeep leaves the job unpurged
+    - *waiting job announced longer ago than the re-announce interval*
+      - **BKP-SCHED-004** running the upkeep calls the roll for the job again
+    - *backups switched off*
+      - **BKP-SCHED-005** running the daily start reports backups as switched off
 
 ## Later
 
