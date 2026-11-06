@@ -28,6 +28,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      backup_jobs: {
+        Row: {
+          announced_at: string | null
+          attempts: number
+          claimed_at: string | null
+          claimed_by_machine: string | null
+          claimed_by_session: string | null
+          created_at: string
+          delivered_at: string | null
+          delivered_by_machine: string | null
+          delivered_sha256: string | null
+          id: string
+          last_error: string | null
+          lease_until: string | null
+          period: string
+          purged_at: string | null
+          sha256: string
+          size_bytes: number
+          state: string
+          storage_path: string
+        }
+        Insert: {
+          announced_at?: string | null
+          attempts?: number
+          claimed_at?: string | null
+          claimed_by_machine?: string | null
+          claimed_by_session?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          delivered_by_machine?: string | null
+          delivered_sha256?: string | null
+          id?: string
+          last_error?: string | null
+          lease_until?: string | null
+          period: string
+          purged_at?: string | null
+          sha256: string
+          size_bytes: number
+          state?: string
+          storage_path: string
+        }
+        Update: {
+          announced_at?: string | null
+          attempts?: number
+          claimed_at?: string | null
+          claimed_by_machine?: string | null
+          claimed_by_session?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          delivered_by_machine?: string | null
+          delivered_sha256?: string | null
+          id?: string
+          last_error?: string | null
+          lease_until?: string | null
+          period?: string
+          purged_at?: string | null
+          sha256?: string
+          size_bytes?: number
+          state?: string
+          storage_path?: string
+        }
+        Relationships: []
+      }
       backup_settings: {
         Row: {
           dump_interval_days: number
@@ -2470,6 +2533,35 @@ export type Database = {
         Args: { allow_shortage?: boolean; deductions: Json; note: string }
         Returns: Json
       }
+      claim_backup_job: {
+        Args: { job_id: string; machine: string; session_id: string }
+        Returns: {
+          announced_at: string | null
+          attempts: number
+          claimed_at: string | null
+          claimed_by_machine: string | null
+          claimed_by_session: string | null
+          created_at: string
+          delivered_at: string | null
+          delivered_by_machine: string | null
+          delivered_sha256: string | null
+          id: string
+          last_error: string | null
+          lease_until: string | null
+          period: string
+          purged_at: string | null
+          sha256: string
+          size_bytes: number
+          state: string
+          storage_path: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "backup_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_emails: {
         Args: { batch_size: number; visibility_seconds: number }
         Returns: {
@@ -2541,7 +2633,99 @@ export type Database = {
         }
         Returns: number
       }
+      record_backup_job: {
+        Args: {
+          period: string
+          sha256: string
+          size_bytes: number
+          storage_path: string
+        }
+        Returns: {
+          announced_at: string | null
+          attempts: number
+          claimed_at: string | null
+          claimed_by_machine: string | null
+          claimed_by_session: string | null
+          created_at: string
+          delivered_at: string | null
+          delivered_by_machine: string | null
+          delivered_sha256: string | null
+          id: string
+          last_error: string | null
+          lease_until: string | null
+          period: string
+          purged_at: string | null
+          sha256: string
+          size_bytes: number
+          state: string
+          storage_path: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "backup_jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       release_to_production: { Args: { product_id: string }; Returns: undefined }
+      report_backup_delivered: {
+        Args: { job_id: string; session_id: string; sha256: string }
+        Returns: {
+          announced_at: string | null
+          attempts: number
+          claimed_at: string | null
+          claimed_by_machine: string | null
+          claimed_by_session: string | null
+          created_at: string
+          delivered_at: string | null
+          delivered_by_machine: string | null
+          delivered_sha256: string | null
+          id: string
+          last_error: string | null
+          lease_until: string | null
+          period: string
+          purged_at: string | null
+          sha256: string
+          size_bytes: number
+          state: string
+          storage_path: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "backup_jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      report_backup_failed: {
+        Args: { job_id: string; reason: string; session_id: string }
+        Returns: {
+          announced_at: string | null
+          attempts: number
+          claimed_at: string | null
+          claimed_by_machine: string | null
+          claimed_by_session: string | null
+          created_at: string
+          delivered_at: string | null
+          delivered_by_machine: string | null
+          delivered_sha256: string | null
+          id: string
+          last_error: string | null
+          lease_until: string | null
+          period: string
+          purged_at: string | null
+          sha256: string
+          size_bytes: number
+          state: string
+          storage_path: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "backup_jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       reschedule_email: {
         Args: { delay_seconds: number; msg_id: number }
         Returns: boolean
