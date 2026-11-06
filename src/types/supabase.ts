@@ -2600,6 +2600,7 @@ export type Database = {
         }
         Returns: string
       }
+      fn_backup_upkeep: { Args: never; Returns: undefined }
       fn_department_abbreviation: {
         Args: { dept: Database["public"]["Enums"]["department"] }
         Returns: string
@@ -2608,6 +2609,7 @@ export type Database = {
       fn_order_is_closed: { Args: { p_order_id: string }; Returns: boolean }
       fn_production_deductions: { Args: { product_id: string }; Returns: Json }
       fn_purge_approval_files: { Args: never; Returns: number }
+      fn_start_due_backup: { Args: never; Returns: string }
       force_release_to_production: {
         Args: { product_id: string; reason: string }
         Returns: undefined
