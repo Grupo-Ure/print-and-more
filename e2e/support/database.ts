@@ -5,6 +5,7 @@ import type { ChildTable } from '../../src/types/product'
 import { createHash, randomBytes } from 'node:crypto'
 import { addDays } from 'date-fns'
 import type { ApprovalRequestSeed } from '../fixtures/approvalRequests'
+import type { BackupSettingsSeed } from '../fixtures/backupSettings'
 import type { TestCustomer } from '../fixtures/customers'
 import type { CustomerApprovalSettingsSeed } from '../fixtures/customerApprovalSettings'
 import type { EmailSettingPatch, EmailSettingRow, QueuedEmailSeed, SentEmailSeed } from '../fixtures/emailMessages'
@@ -276,6 +277,14 @@ export class TestDatabase {
   /** Writes the customer approval's settings onto the one row, replacing whatever it held. */
   async updateCustomerApprovalSettings(seed: CustomerApprovalSettingsSeed): Promise<void> {
     const { error } = await this.client.from('customer_approval_settings').update(seed).eq('id', true)
+    if (error) throw error
+  }
+
+  // ── Backup settings ──────────────────────────────────────────────────────
+
+  /** Writes the backup runtime's settings onto the one row, replacing whatever it held. */
+  async updateBackupSettings(seed: BackupSettingsSeed): Promise<void> {
+    const { error } = await this.client.from('backup_settings').update(seed).eq('id', true)
     if (error) throw error
   }
 
