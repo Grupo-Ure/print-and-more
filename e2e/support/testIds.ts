@@ -662,6 +662,21 @@ export const TEST_IDS = {
       /** Days proof copies are kept after billing; `data-value` = the stored retention_days. */
       retentionDays: 'approval-settings-retention-days',
     },
+    /** Every number field carries `data-value` = the stored value; every text field `data-value` = the stored text, empty while unset. */
+    backups: {
+      root: 'backup-settings',
+      /** The on/off switch; `data-state` = checked | unchecked (Radix), the stored value. */
+      enabled: 'backup-settings-enabled',
+      dumpIntervalDays: 'backup-settings-dump-interval-days',
+      leaseMinutes: 'backup-settings-lease-minutes',
+      reannounceMinutes: 'backup-settings-reannounce-minutes',
+      holdingRetentionDays: 'backup-settings-holding-retention-days',
+      undeliveredAlertDays: 'backup-settings-undelivered-alert-days',
+      missingBackupAlertDays: 'backup-settings-missing-backup-alert-days',
+      shareServer: 'backup-settings-share-server',
+      shareName: 'backup-settings-share-name',
+      shareFolder: 'backup-settings-share-folder',
+    },
   },
 
   releaseNotesPage: {
