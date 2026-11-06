@@ -31,7 +31,13 @@ export type BackupJobSeed = {
   claim: BackupClaimSeed | null
   failures: BackupFailureSeed | null
   delivered: boolean
+  /** Days back the delivery lies; 0 for one just now. */
+  deliveredDaysAgo: number
   purged: boolean
+  /** Minutes back the roll was last called for it; 0 for the call its insert made. */
+  announcedMinutesAgo: number
+  /** Whether an object is put into the backups bucket at its path, as the workflow uploads one. */
+  stored: boolean
 }
 
 /** The session id the spec's own running copy of the app claims and reports with. */
@@ -61,7 +67,10 @@ export const WAITING_BACKUP_JOB: BackupJobSeed = {
   claim: null,
   failures: null,
   delivered: false,
+  deliveredDaysAgo: 0,
   purged: false,
+  announcedMinutesAgo: 0,
+  stored: false,
 }
 
 /** A dump another copy took and did not finish: its lease ended an hour ago. */
@@ -99,4 +108,27 @@ export const DELIVERED_BACKUP_JOB: BackupJobSeed = {
 export const PURGED_BACKUP_JOB: BackupJobSeed = {
   ...DELIVERED_BACKUP_JOB,
   purged: true,
+}
+
+/** The bytes a stored seed's object holds; never read, only deleted. */
+export const BACKUP_FILE_CONTENT = 'e2e backup placeholder'
+
+/** A dump delivered longer ago than the shipped holding retention (3 days), its online copy still in the bucket. */
+export const DELIVERED_PAST_RETENTION_BACKUP_JOB: BackupJobSeed = {
+  ...DELIVERED_BACKUP_JOB,
+  deliveredDaysAgo: 4,
+  stored: true,
+}
+
+/** A dump delivered a day ago, inside the shipped holding retention, its online copy in the bucket. */
+export const DELIVERED_WITHIN_RETENTION_BACKUP_JOB: BackupJobSeed = {
+  ...DELIVERED_BACKUP_JOB,
+  deliveredDaysAgo: 1,
+  stored: true,
+}
+
+/** A dump waiting since its roll was last called an hour ago, past the shipped re-announce interval (30 minutes). */
+export const UNANSWERED_BACKUP_JOB: BackupJobSeed = {
+  ...WAITING_BACKUP_JOB,
+  announcedMinutesAgo: 60,
 }

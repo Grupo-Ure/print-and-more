@@ -5,7 +5,7 @@ import type { ChildTable } from '../../src/types/product'
 import { createHash, randomBytes } from 'node:crypto'
 import { addDays } from 'date-fns'
 import type { ApprovalRequestSeed } from '../fixtures/approvalRequests'
-import type { BackupJobSeed, TestBackupJob } from '../fixtures/backupJobs'
+import { BACKUP_FILE_CONTENT, type BackupJobSeed, type TestBackupJob } from '../fixtures/backupJobs'
 import type { BackupSettingsSeed } from '../fixtures/backupSettings'
 import type { TestCustomer } from '../fixtures/customers'
 import type { CustomerApprovalSettingsSeed } from '../fixtures/customerApprovalSettings'
@@ -172,6 +172,8 @@ export type StockMovementRow = Pick<Database['public']['Tables']['stamp_stock_mo
 /** The private bucket the customer's page is served proof copies from. */
 const APPROVAL_PROOFS_BUCKET = 'approval-proofs'
 
+const BACKUPS_BUCKET = 'backups'
+
 export function requiredEnv(name: string): string {
   const value = process.env[name]
   if (!value) {
@@ -313,7 +315,7 @@ export class TestDatabase {
         lease_until: claim ? new Date(now + claim.leaseEndsInMinutes * 60_000).toISOString() : null,
         attempts: seed.failures?.attempts ?? 0,
         last_error: seed.failures?.lastError ?? null,
-        delivered_at: seed.delivered ? new Date(now).toISOString() : null,
+        delivered_at: seed.delivered ? new Date(now - seed.deliveredDaysAgo * 86_400_000).toISOString() : null,
         delivered_by_machine: seed.delivered ? (claim?.machine ?? null) : null,
         delivered_sha256: seed.delivered ? seed.sha256 : null,
         purged_at: seed.purged ? new Date(now).toISOString() : null,
@@ -321,7 +323,23 @@ export class TestDatabase {
       .select('*')
       .single()
     if (error) throw error
-    return data
+
+    if (seed.stored) {
+      const { error: uploadError } = await this.client.storage
+        .from(BACKUPS_BUCKET)
+        .upload(data.storage_path, BACKUP_FILE_CONTENT, { contentType: 'application/octet-stream' })
+      if (uploadError) throw uploadError
+    }
+    // The insert called the roll and stamped announced_at; an older call is written over it.
+    if (seed.announcedMinutesAgo === 0) return data
+    const { data: backdated, error: backdateError } = await this.client
+      .from('backup_jobs')
+      .update({ announced_at: new Date(now - seed.announcedMinutesAgo * 60_000).toISOString() })
+      .eq('id', data.id)
+      .select('*')
+      .single()
+    if (backdateError) throw backdateError
+    return backdated
   }
 
   /** Reads one backup job back as stored. */
@@ -331,10 +349,34 @@ export class TestDatabase {
     return data
   }
 
-  /** Removes a seeded backup job. Only the runner may: the app never deletes one. */
-  async removeBackupJob(jobId: string): Promise<void> {
-    const { error } = await this.client.from('backup_jobs').delete().eq('id', jobId)
+  /** Removes a seeded backup job and any object left at its path. Only the runner may: the app never deletes one. */
+  async removeBackupJob(job: TestBackupJob): Promise<void> {
+    const { error: storageError } = await this.client.storage.from(BACKUPS_BUCKET).remove([job.storage_path])
+    if (storageError) throw storageError
+    const { error } = await this.client.from('backup_jobs').delete().eq('id', job.id)
     if (error) throw error
+  }
+
+  /** Whether an object is in the backups bucket at that path. */
+  async backupFileStored(storagePath: string): Promise<boolean> {
+    const folder = storagePath.slice(0, storagePath.lastIndexOf('/'))
+    const name = storagePath.slice(storagePath.lastIndexOf('/') + 1)
+    const { data, error } = await this.client.storage.from(BACKUPS_BUCKET).list(folder, { search: name })
+    if (error) throw error
+    return data.some(object => object.name === name)
+  }
+
+  /** Runs the five-minute backup upkeep once, as its cron job does. */
+  async runBackupUpkeep(): Promise<void> {
+    const { error } = await this.client.rpc('fn_backup_upkeep')
+    if (error) throw error
+  }
+
+  /** Runs the daily backup start once, as its cron job does; returns what it decided. */
+  async startDueBackup(): Promise<string> {
+    const { data, error } = await this.client.rpc('fn_start_due_backup')
+    if (error) throw error
+    return data
   }
 
   // ── Department defaults ──────────────────────────────────────────────────

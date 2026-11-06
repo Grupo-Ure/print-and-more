@@ -21,3 +21,12 @@ export const DEFAULT_BACKUP_SETTINGS: BackupSettingsSeed = {
 
 /** The backup interval a test types in place of the default. */
 export const EDITED_DUMP_INTERVAL_DAYS = 14
+
+/** Backups switched off: nothing is started or announced, delivered copies are still purged. */
+export const DISABLED_BACKUP_SETTINGS: BackupSettingsSeed = {
+  ...DEFAULT_BACKUP_SETTINGS,
+  enabled: false,
+}
+
+/** What the daily start reports when backups are switched off (`fn_start_due_backup`). */
+export const START_DISABLED_OUTCOME = 'disabled'

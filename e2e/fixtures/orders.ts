@@ -358,7 +358,7 @@ export const test = base.extend<OrdersViewFixtures>({
     const job = await database.createBackupJob(backupJobSeed)
 
     await use(job)
-    await database.removeBackupJob(job.id)
+    await database.removeBackupJob(job)
   },
 })
 
