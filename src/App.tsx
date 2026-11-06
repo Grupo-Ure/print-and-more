@@ -11,6 +11,7 @@ import { ConfirmProvider } from './components/ConfirmDialog'
 import { ForcedPasswordChange } from './components/ChangePasswordDialog'
 import { AppNavbar } from './components/AppNavbar'
 import { useNavigation, type AppView } from './context/navigation.context'
+import { useBackupDelivery } from './hooks/useBackupDelivery'
 import { authService } from './services/authService'
 
 function ActiveView({ view }: { view: AppView }) {
@@ -38,6 +39,9 @@ function App() {
   useEffect(() => {
     void authService.discardRevokedSession()
   }, [])
+
+  // Brings waiting backups to the shop folder while the app runs; desktop only.
+  useBackupDelivery()
 
   return (
     <ToastProvider>
