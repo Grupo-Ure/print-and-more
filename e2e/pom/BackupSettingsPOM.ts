@@ -3,10 +3,12 @@ import { TEST_IDS } from '../support/testIds'
 import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.settings.backups
+const JOB_IDS = IDS.jobs
 
 /**
- * Settings → Backups: a switch, six number fields and the three parts of the
- * shop folder (`backup_settings`), each saving when it is left.
+ * Settings → Backups: the list of backups (`backup_jobs`), then a switch, six
+ * number fields and the three parts of the shop folder (`backup_settings`),
+ * each saving when it is left.
  */
 export class BackupSettingsPOM extends BasePOM {
   readonly root: Locator
@@ -23,6 +25,9 @@ export class BackupSettingsPOM extends BasePOM {
   readonly shareServer: Locator
   readonly shareName: Locator
   readonly shareFolder: Locator
+  /** The list of backups; a sibling of `root`, not inside it. */
+  readonly jobs: Locator
+  private readonly jobRows: Locator
 
   constructor(page: Page) {
     super(page)
@@ -37,6 +42,38 @@ export class BackupSettingsPOM extends BasePOM {
     this.shareServer = this.root.getByTestId(IDS.shareServer)
     this.shareName = this.root.getByTestId(IDS.shareName)
     this.shareFolder = this.root.getByTestId(IDS.shareFolder)
+    this.jobs = page.getByTestId(JOB_IDS.root)
+    this.jobRows = this.jobs.getByTestId(JOB_IDS.row)
+  }
+
+  /** One backup's row; `data-state` = WAITING | TAKEN | DELIVERED. */
+  jobRow(jobId: string): Locator {
+    return this.withAttr(this.jobRows, 'data-job-id', jobId)
+  }
+
+  /** The machine holding the job's claim, or the last one to hold it. */
+  jobTakenBy(jobId: string): Locator {
+    return this.jobRow(jobId).getByTestId(JOB_IDS.rowTakenBy)
+  }
+
+  /** The machine that brought the job to the shop folder. */
+  jobDeliveredBy(jobId: string): Locator {
+    return this.jobRow(jobId).getByTestId(JOB_IDS.rowDeliveredBy)
+  }
+
+  /** Failed deliveries; `data-value` = attempts. */
+  jobAttempts(jobId: string): Locator {
+    return this.jobRow(jobId).getByTestId(JOB_IDS.rowAttempts)
+  }
+
+  /** Why the job's last delivery failed. */
+  jobLastError(jobId: string): Locator {
+    return this.jobRow(jobId).getByTestId(JOB_IDS.rowLastError)
+  }
+
+  /** Whether the job's online copy is kept; `data-purged` = true | false. */
+  jobHoldingCopy(jobId: string): Locator {
+    return this.jobRow(jobId).getByTestId(JOB_IDS.rowHoldingCopy)
   }
 
   /** A field once the database holds that value — a draft being typed does not match. */

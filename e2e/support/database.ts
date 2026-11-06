@@ -306,11 +306,17 @@ export class TestDatabase {
         storage_path: `e2e/${crypto.randomUUID()}.dump.age`,
         size_bytes: seed.sizeBytes,
         sha256: seed.sha256,
-        state: claim ? 'TAKEN' : 'WAITING',
+        state: seed.delivered ? 'DELIVERED' : claim && !seed.failures ? 'TAKEN' : 'WAITING',
         claimed_by_session: claim?.session ?? null,
         claimed_by_machine: claim?.machine ?? null,
         claimed_at: claim ? new Date(now).toISOString() : null,
         lease_until: claim ? new Date(now + claim.leaseEndsInMinutes * 60_000).toISOString() : null,
+        attempts: seed.failures?.attempts ?? 0,
+        last_error: seed.failures?.lastError ?? null,
+        delivered_at: seed.delivered ? new Date(now).toISOString() : null,
+        delivered_by_machine: seed.delivered ? (claim?.machine ?? null) : null,
+        delivered_sha256: seed.delivered ? seed.sha256 : null,
+        purged_at: seed.purged ? new Date(now).toISOString() : null,
       })
       .select('*')
       .single()

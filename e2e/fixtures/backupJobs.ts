@@ -13,16 +13,25 @@ export type BackupClaimSeed = {
   leaseEndsInMinutes: number
 }
 
+/** Failed deliveries a seeded job has behind it. */
+export type BackupFailureSeed = { attempts: number; lastError: string }
+
 /**
  * One backup job, as the `backupJob` fixture inserts it with the runner's
- * connection — the row the dump workflow, and any claim since, would have
- * left. The fixture gives each job a storage path of its own.
+ * connection — the row the dump workflow, and any claim, failure, delivery
+ * and purge since, would have left. A job with a delivery is delivered, by
+ * the machine of its claim; one with failures behind it is waiting again,
+ * its last claim kept; one with a claim alone is taken; one with none of
+ * these is waiting. The fixture gives each job a storage path of its own.
  */
 export type BackupJobSeed = {
   period: string
   sizeBytes: number
   sha256: string
   claim: BackupClaimSeed | null
+  failures: BackupFailureSeed | null
+  delivered: boolean
+  purged: boolean
 }
 
 /** The session id the spec's own running copy of the app claims and reports with. */
@@ -50,6 +59,9 @@ export const WAITING_BACKUP_JOB: BackupJobSeed = {
   sizeBytes: 1024,
   sha256: BACKUP_SHA256,
   claim: null,
+  failures: null,
+  delivered: false,
+  purged: false,
 }
 
 /** A dump another copy took and did not finish: its lease ended an hour ago. */
@@ -62,4 +74,29 @@ export const LAPSED_BACKUP_JOB: BackupJobSeed = {
 export const HELD_BACKUP_JOB: BackupJobSeed = {
   ...WAITING_BACKUP_JOB,
   claim: { session: THIS_SESSION, machine: THIS_MACHINE, leaseEndsInMinutes: 30 },
+}
+
+/** A dump waiting again after two deliveries failed. */
+export const RETRIED_BACKUP_JOB: BackupJobSeed = {
+  ...WAITING_BACKUP_JOB,
+  claim: { session: OTHER_SESSION, machine: OTHER_MACHINE, leaseEndsInMinutes: -60 },
+  failures: { attempts: 2, lastError: DELIVERY_FAILURE_REASON },
+}
+
+/** A dump another copy is bringing to the shop folder right now. */
+export const TAKEN_BACKUP_JOB: BackupJobSeed = {
+  ...WAITING_BACKUP_JOB,
+  claim: { session: OTHER_SESSION, machine: OTHER_MACHINE, leaseEndsInMinutes: 30 },
+}
+
+/** A dump in the shop folder, its online copy still kept. */
+export const DELIVERED_BACKUP_JOB: BackupJobSeed = {
+  ...TAKEN_BACKUP_JOB,
+  delivered: true,
+}
+
+/** A dump in the shop folder whose online copy the purge has deleted. */
+export const PURGED_BACKUP_JOB: BackupJobSeed = {
+  ...DELIVERED_BACKUP_JOB,
+  purged: true,
 }
