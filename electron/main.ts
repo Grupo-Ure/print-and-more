@@ -4,6 +4,7 @@ import { app, BrowserWindow, shell } from 'electron'
 import updater from 'electron-updater'
 import { registerAppScheme, serveRendererBundle, RENDERER_ORIGIN, RENDERER_URL } from './appProtocol'
 import { findDeepLink, parseDeepLink, registerDeepLinkScheme, setPendingOrderId } from './deepLinks'
+import { registerBackupHandlers } from './backups'
 import { registerIpcHandlers } from './ipc'
 import { initSentry } from './sentry'
 import { defaultWindowSize, restoreWindowState, trackWindowState } from './windowState'
@@ -130,6 +131,7 @@ if (!app.requestSingleInstanceLock()) {
   void app.whenReady().then(() => {
     serveRendererBundle()
     registerIpcHandlers()
+    registerBackupHandlers()
     createWindow()
     if (app.isPackaged) {
       // Checks the GitHub Releases feed, downloads in the background, shows a
