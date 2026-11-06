@@ -14,10 +14,15 @@ import approvalRequest from './approval-request/index.ts'
 import approvalWithdrawn from './approval-withdrawn/index.ts'
 import testMessage from './test-message/index.ts'
 
-/** A queue message: the ids a mail is about, plus what cannot be looked up again. */
+/**
+ * A queue message: the ids a mail is about, plus what cannot be looked up
+ * again. `order_id` is null for a mail about the system rather than an order
+ * (a backup notice); such a mail is recorded in the mail tables alone and
+ * never on a history.
+ */
 export interface EmailMessage {
   template: string
-  order_id: string
+  order_id: string | null
   product_id: string | null
   context: Record<string, unknown>
 }

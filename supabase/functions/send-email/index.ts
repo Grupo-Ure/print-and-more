@@ -12,12 +12,15 @@ import 'node:fs'
 //
 // A message carries ids, not a mail. Its template's module looks the
 // recipient and the data up at send time, so the mail goes out with today's
-// details. What the sender writes: a sent_emails row and an EMAIL_SENT
-// history entry when the provider accepts; an EMAIL_FAILED history entry when
-// the attempts are spent; nothing at all when a refused send still has tries
-// left — the message stays claimed and comes back when its visibility timeout
-// lapses. Every path ends by archiving the message, except the one that
-// leaves it to come back.
+// details. What the sender writes: a sent_emails row when the provider
+// accepts; a failed_emails row when the mail is given up — a template it does
+// not know, no wording, a wording that does not render, or the attempts
+// spent; nothing at all when a refused send still has tries left — the
+// message stays claimed and comes back when its visibility timeout lapses. A
+// mail about an order also gets the matching EMAIL_SENT / EMAIL_FAILED entry
+// on the order's history; a mail with no order (a backup notice) has the two
+// tables as its whole record. Every path ends by archiving the message,
+// except the one that leaves it to come back.
 
 import { timingSafeEqual } from 'node:crypto'
 import { Buffer } from 'node:buffer'
@@ -40,7 +43,7 @@ const QUEUE_VISIBILITY_SECONDS = 30
 /** How many due messages one drain claims. */
 const CLAIM_BATCH_SIZE = 20
 
-/** The claim on which a refused send is given up on and EMAIL_FAILED written. */
+/** The claim on which a refused send is given up on and the failure recorded. */
 const MAX_ATTEMPTS = 5
 
 const SECONDS_PER_DAY = 86_400
@@ -63,7 +66,7 @@ interface DrainSummary {
   sent: number
   /** Archived unsent: not needed any more, order gone, or malformed. */
   skipped: number
-  /** Given up on: archived with EMAIL_FAILED. */
+  /** Given up on: archived with a failed_emails row. */
   failed: number
   /** Refused with tries left: left on the queue to come back. */
   retried: number
@@ -111,16 +114,23 @@ async function readAction(req: Request): Promise<string | null> {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+/** A uuid, or null for a missing one; undefined when the value is neither. */
+function optionalUuid(value: unknown): string | null | undefined {
+  if (value === null || value === undefined) return null
+  return typeof value === 'string' && UUID_RE.test(value) ? value : undefined
+}
+
 /** The queue payload as queue_email shapes it, or null when it is not one. */
 function parseMessage(raw: unknown): EmailMessage | null {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null
   const { template, order_id, product_id, context } = raw as Record<string, unknown>
   if (typeof template !== 'string' || template === '') return null
-  if (typeof order_id !== 'string' || !UUID_RE.test(order_id)) return null
-  if (product_id !== null && product_id !== undefined && (typeof product_id !== 'string' || !UUID_RE.test(product_id))) return null
+  const orderId = optionalUuid(order_id)
+  const productId = optionalUuid(product_id)
+  if (orderId === undefined || productId === undefined) return null
   const safeContext =
     typeof context === 'object' && context !== null && !Array.isArray(context) ? (context as Record<string, unknown>) : {}
-  return { template, order_id, product_id: product_id ?? null, context: safeContext }
+  return { template, order_id: orderId, product_id: productId, context: safeContext }
 }
 
 // ── Queue and record ──────────────────────────────────────────────────────────
@@ -136,12 +146,14 @@ async function orderExists(db: SupabaseClient, orderId: string): Promise<boolean
   return data !== null
 }
 
+/** The order's history entry for the mail; nothing for a mail with no order, whose record is the mail tables. */
 async function writeHistory(
   db: SupabaseClient,
   message: EmailMessage,
   eventType: 'EMAIL_SENT' | 'EMAIL_FAILED',
   meta: Record<string, unknown>,
 ): Promise<void> {
+  if (message.order_id === null) return
   const { error } = await db.from('history').insert({
     order_id: message.order_id,
     product_id: message.product_id,
@@ -152,10 +164,51 @@ async function writeHistory(
   if (error) throw new Error(`history ${eventType} failed: ${error.message}`)
 }
 
+/** Why a mail was given up — the failed_emails reason codes. */
+type FailureReason = 'unknown_template' | 'no_settings_row' | 'render_failed' | 'resolve_failed' | 'provider_refused'
+
+interface Failure {
+  reason: FailureReason
+  /** Who the mail was for, when the failure came after the lookup. */
+  recipient: string | null
+  /** The error's wording, when there is one. */
+  error: string | null
+}
+
 /**
- * Writes the record and its history entry. A row for this message already
- * being there means a previous attempt was accepted but crashed before
- * archiving; the record stands and nothing is written twice.
+ * Records a mail the sender gives up on: a failed_emails row, and the
+ * EMAIL_FAILED history entry when the mail is about an order. A row for this
+ * message already being there means a previous attempt recorded it and
+ * crashed before archiving; the record stands and nothing is written twice.
+ */
+async function recordFailed(db: SupabaseClient, claimed: ClaimedMessage, message: EmailMessage, failure: Failure): Promise<void> {
+  const { error } = await db.from('failed_emails').insert({
+    queue_msg_id: claimed.msg_id,
+    template: message.template,
+    order_id: message.order_id,
+    product_id: message.product_id,
+    recipient: failure.recipient,
+    reason: failure.reason,
+    error: failure.error,
+    attempts: claimed.read_ct,
+  })
+  if (error) {
+    // 23505: unique_violation on queue_msg_id — already recorded.
+    if (error.code === '23505') return
+    throw new Error(`failed_emails insert failed: ${error.message}`)
+  }
+  await writeHistory(db, message, 'EMAIL_FAILED', {
+    reason: failure.reason,
+    recipient: failure.recipient,
+    error: failure.error,
+    attempts: claimed.read_ct,
+  })
+}
+
+/**
+ * Writes the record and, for a mail about an order, its history entry. A row
+ * for this message already being there means a previous attempt was accepted
+ * but crashed before archiving; the record stands and nothing is written twice.
  */
 async function recordSent(
   db: SupabaseClient,
@@ -235,8 +288,8 @@ async function queueRepeat(db: SupabaseClient, message: EmailMessage, settings: 
 }
 
 /**
- * Decided after the attempt, not on claim, so the history entry carries the
- * actual refusal: spent attempts archive the message with EMAIL_FAILED;
+ * Decided after the attempt, not on claim, so the record carries the actual
+ * refusal: spent attempts archive the message with a failed_emails row;
  * otherwise nothing is written and the visibility timeout brings it back.
  */
 async function handleRefusal(
@@ -244,6 +297,7 @@ async function handleRefusal(
   claimed: ClaimedMessage,
   message: EmailMessage,
   recipient: string | null,
+  reason: 'resolve_failed' | 'provider_refused',
   error: SendError,
 ): Promise<Outcome> {
   if (claimed.read_ct < MAX_ATTEMPTS) {
@@ -251,7 +305,7 @@ async function handleRefusal(
     return 'retried'
   }
   console.error('send-email: giving up', { msgId: claimed.msg_id, attempts: claimed.read_ct, error })
-  await writeHistory(db, message, 'EMAIL_FAILED', { recipient, attempts: claimed.read_ct, error })
+  await recordFailed(db, claimed, message, { reason, recipient, error: error.message })
   await archive(db, claimed.msg_id)
   return 'failed'
 }
@@ -261,15 +315,15 @@ async function handleRefusal(
 async function processMessage(db: SupabaseClient, claimed: ClaimedMessage): Promise<Outcome> {
   const message = parseMessage(claimed.message)
   if (!message) {
-    // Not a request queue_email could have written; there is no order to
-    // write a history entry against, so the log is the record.
+    // Not a request queue_email could have written; there is no template to
+    // record a failure under, so the log is the record.
     console.error('send-email: malformed message archived', { msgId: claimed.msg_id, message: claimed.message })
     await archive(db, claimed.msg_id)
     return 'skipped'
   }
 
   if (!isTemplateName(message.template)) {
-    await writeHistory(db, message, 'EMAIL_FAILED', { reason: 'unknown_template' })
+    await recordFailed(db, claimed, message, { reason: 'unknown_template', recipient: null, error: null })
     await archive(db, claimed.msg_id)
     return 'failed'
   }
@@ -288,8 +342,8 @@ async function processMessage(db: SupabaseClient, claimed: ClaimedMessage): Prom
   }
 
   // The order was deleted between queuing and sending: nothing to send about,
-  // and nothing to record against.
-  if (!(await orderExists(db, message.order_id))) {
+  // and nothing to record against. A mail with no order has none to lose.
+  if (message.order_id !== null && !(await orderExists(db, message.order_id))) {
     console.warn('send-email: order gone, message archived', { msgId: claimed.msg_id, orderId: message.order_id })
     await archive(db, claimed.msg_id)
     return 'skipped'
@@ -298,7 +352,7 @@ async function processMessage(db: SupabaseClient, claimed: ClaimedMessage): Prom
   // A template without a row has no wording to send; the migration that adds
   // a mail adds its row, so this is a mail added without one.
   if (!settings) {
-    await writeHistory(db, message, 'EMAIL_FAILED', { reason: 'no_settings_row' })
+    await recordFailed(db, claimed, message, { reason: 'no_settings_row', recipient: null, error: null })
     await archive(db, claimed.msg_id)
     return 'failed'
   }
@@ -313,8 +367,12 @@ async function processMessage(db: SupabaseClient, claimed: ClaimedMessage): Prom
     resolved = await template.resolve(message, deps)
   } catch (error) {
     // Looking the data up failed; counted like a refusal so a transient cause
-    // gets its retries and a lasting one ends in EMAIL_FAILED.
-    return handleRefusal(db, claimed, message, null, { code: 'resolve_failed', message: errorText(error), status: null })
+    // gets its retries and a lasting one ends in a failed record.
+    return handleRefusal(db, claimed, message, null, 'resolve_failed', {
+      code: 'resolve_failed',
+      message: errorText(error),
+      status: null,
+    })
   }
   const { recipient } = resolved
 
@@ -325,10 +383,14 @@ async function processMessage(db: SupabaseClient, claimed: ClaimedMessage): Prom
     // The wording uses a slot the data has no value for, or does not parse.
     // Another try renders the same text, so the mail is given up at once.
     console.error('send-email: wording does not render, giving up', { msgId: claimed.msg_id, error: errorText(error) })
-    await writeHistory(db, message, 'EMAIL_FAILED', { reason: 'render_failed', recipient, error: errorText(error) })
+    await recordFailed(db, claimed, message, { reason: 'render_failed', recipient, error: errorText(error) })
     await archive(db, claimed.msg_id)
     return 'failed'
   }
+
+  // What the provider's log is searched by; a mail with no order carries the template alone.
+  const tags: Record<string, string> = { template: message.template }
+  if (message.order_id !== null) tags.order_id = message.order_id
 
   const outcome = await transport.send({
     to: recipient,
@@ -336,11 +398,11 @@ async function processMessage(db: SupabaseClient, claimed: ClaimedMessage): Prom
     html: rendered.html,
     text: rendered.text,
     idempotencyKey: `email/${claimed.msg_id}`,
-    tags: { order_id: message.order_id, template: message.template },
+    tags,
     dryRunRefuse: message.context.dry_run_refuse === true,
   })
   if (!outcome.ok) {
-    return handleRefusal(db, claimed, message, recipient, outcome.error)
+    return handleRefusal(db, claimed, message, recipient, 'provider_refused', outcome.error)
   }
 
   await recordSent(db, claimed.msg_id, message, recipient, rendered, outcome.providerId)
