@@ -229,6 +229,16 @@ behaviour the lifecycle packs assert is written out in
   - [backups.spec.ts](settings-page/backups.spec.ts) — `SET-BKP`
     - **SET-BKP-001** opening Settings lists the backups section
     - **SET-BKP-002** changing the backup interval shows the new value again after reopening Settings
+    - *backup waiting again after failed deliveries*
+      - **SET-BKP-003** opening the backups section shows the job's failed attempts
+      - **SET-BKP-004** opening the backups section shows why the job's last delivery failed
+    - *backup being delivered by another machine*
+      - **SET-BKP-005** opening the backups section names the machine holding the job
+    - *backup delivered, online copy kept*
+      - **SET-BKP-006** opening the backups section names the machine that delivered the job
+      - **SET-BKP-007** opening the backups section shows the job's online copy as kept
+    - *backup delivered, online copy purged*
+      - **SET-BKP-008** opening the backups section shows the job's online copy as deleted
 - **Email runtime**
   - **Transport**
     - [transport.spec.ts](email-runtime/transport.spec.ts) — `EML-TRN`
