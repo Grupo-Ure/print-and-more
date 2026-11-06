@@ -226,6 +226,9 @@ behaviour the lifecycle packs assert is written out in
     - **SET-APR-001** opening Settings lists the customer approval section
     - **SET-APR-002** changing the approval expiry shows the new value again after reopening Settings
     - **SET-APR-003** changing how long approval proofs are kept shows the new value again after reopening Settings
+  - [backups.spec.ts](settings-page/backups.spec.ts) — `SET-BKP`
+    - **SET-BKP-001** opening Settings lists the backups section
+    - **SET-BKP-002** changing the backup interval shows the new value again after reopening Settings
 - **Email runtime**
   - **Transport**
     - [transport.spec.ts](email-runtime/transport.spec.ts) — `EML-TRN`
