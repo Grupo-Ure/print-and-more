@@ -586,6 +586,60 @@ export type Database = {
         }
         Relationships: []
       }
+      failed_emails: {
+        Row: {
+          attempts: number
+          error: string | null
+          failed_at: string
+          id: string
+          order_id: string | null
+          product_id: string | null
+          queue_msg_id: number
+          reason: string
+          recipient: string | null
+          template: string
+        }
+        Insert: {
+          attempts: number
+          error?: string | null
+          failed_at?: string
+          id?: string
+          order_id?: string | null
+          product_id?: string | null
+          queue_msg_id: number
+          reason: string
+          recipient?: string | null
+          template: string
+        }
+        Update: {
+          attempts?: number
+          error?: string | null
+          failed_at?: string
+          id?: string
+          order_id?: string | null
+          product_id?: string | null
+          queue_msg_id?: number
+          reason?: string
+          recipient?: string | null
+          template?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "failed_emails_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "failed_emails_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       files: {
         Row: {
           created_at: string
@@ -1558,7 +1612,7 @@ export type Database = {
           complained_at: string | null
           delivered_at: string | null
           id: string
-          order_id: string
+          order_id: string | null
           product_id: string | null
           provider_id: string
           queue_msg_id: number
@@ -1575,7 +1629,7 @@ export type Database = {
           complained_at?: string | null
           delivered_at?: string | null
           id?: string
-          order_id: string
+          order_id?: string | null
           product_id?: string | null
           provider_id: string
           queue_msg_id: number
@@ -1592,7 +1646,7 @@ export type Database = {
           complained_at?: string | null
           delivered_at?: string | null
           id?: string
-          order_id?: string
+          order_id?: string | null
           product_id?: string | null
           provider_id?: string
           queue_msg_id?: number
