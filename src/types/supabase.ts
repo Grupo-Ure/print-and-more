@@ -1607,7 +1607,9 @@ export type Database = {
         Row: {
           body_html: string
           body_text: string
+          bounce_classification: string | null
           bounce_reason: string | null
+          bounce_status_code: string | null
           bounced_at: string | null
           complained_at: string | null
           delivered_at: string | null
@@ -1624,7 +1626,9 @@ export type Database = {
         Insert: {
           body_html: string
           body_text: string
+          bounce_classification?: string | null
           bounce_reason?: string | null
+          bounce_status_code?: string | null
           bounced_at?: string | null
           complained_at?: string | null
           delivered_at?: string | null
@@ -1641,7 +1645,9 @@ export type Database = {
         Update: {
           body_html?: string
           body_text?: string
+          bounce_classification?: string | null
           bounce_reason?: string | null
+          bounce_status_code?: string | null
           bounced_at?: string | null
           complained_at?: string | null
           delivered_at?: string | null
