@@ -693,6 +693,10 @@ export const TEST_IDS = {
         rowLastError: 'backup-jobs-row-last-error',
         /** Whether the online copy is still kept; `data-purged` = true | false. */
         rowHoldingCopy: 'backup-jobs-row-holding-copy',
+        /** On a job not yet delivered, made longer ago than the undelivered alert threshold; `data-days` = days since it was made. */
+        rowUndeliveredFlag: 'backup-jobs-row-undelivered-flag',
+        /** On the newest job, made longer ago than the missing-backup alert threshold; `data-days` = days since it was made. */
+        rowMissingFlag: 'backup-jobs-row-missing-flag',
       },
       /** This machine: its name and whether it can reach the shop folder now. */
       machine: {

@@ -76,7 +76,7 @@ export function BackupSettings() {
     <>
       <h1>Backups</h1>
 
-      <BackupJobList />
+      <BackupJobList settings={settings ?? null} />
 
       <h2>Settings</h2>
       <section data-testid={IDS.root} className="rounded-md border border-neutral-200">
@@ -189,9 +189,28 @@ function formatSize(bytes: number): string {
   return `${unit === 0 || value >= 10 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`
 }
 
-/** Every backup ever made, newest first: what it is, where it is, and what went wrong on the way. */
-function BackupJobList() {
-  const { data: jobs, isLoading } = useBackupJobs()
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/** Whole days since the job was made. */
+function daysSinceMade(job: BackupJob, now: number): number {
+  return Math.floor((now - Date.parse(job.created_at)) / DAY_MS)
+}
+
+/** Whether the job was made more than `days` ago — the upkeep's test for both alert mails. */
+function madeMoreThan(job: BackupJob, days: number, now: number): boolean {
+  return Date.parse(job.created_at) < now - days * DAY_MS
+}
+
+/**
+ * Every backup ever made, newest first: what it is, where it is, and what went
+ * wrong on the way. The two conditions the upkeep mails about are flagged on
+ * the rows that earn them, from the same settings: a job not yet delivered
+ * past `undelivered_alert_days`, and — while backups are on — the newest job
+ * past `missing_backup_alert_days`.
+ */
+function BackupJobList({ settings }: { settings: BackupSettingsRow | null }) {
+  // The ages are judged as of the list's last fetch, which every change to a job triggers.
+  const { data: jobs, isLoading, dataUpdatedAt: now } = useBackupJobs()
 
   return (
     <section data-testid={JOB_IDS.root} className="overflow-x-auto rounded-md border border-neutral-200">
@@ -217,21 +236,65 @@ function BackupJobList() {
               </TableCell>
             </TableRow>
           )}
-          {jobs?.map(job => <BackupJobRow key={job.id} job={job} />)}
+          {jobs?.map((job, index) => (
+            <BackupJobRow
+              key={job.id}
+              job={job}
+              now={now}
+              isUndelivered={
+                settings !== null &&
+                job.state !== 'DELIVERED' &&
+                madeMoreThan(job, settings.undelivered_alert_days, now)
+              }
+              isMissingNext={
+                settings !== null &&
+                settings.enabled &&
+                index === 0 &&
+                madeMoreThan(job, settings.missing_backup_alert_days, now)
+              }
+            />
+          ))}
         </TableBody>
       </Table>
     </section>
   )
 }
 
-function BackupJobRow({ job }: { job: BackupJob }) {
+function BackupJobRow({
+  job,
+  now,
+  isUndelivered,
+  isMissingNext,
+}: {
+  job: BackupJob
+  now: number
+  /** Not yet delivered, made longer ago than the undelivered alert threshold. */
+  isUndelivered: boolean
+  /** The newest job, made longer ago than the missing-backup alert threshold: the next one is overdue. */
+  isMissingNext: boolean
+}) {
   const isPurged = job.purged_at !== null
+  const days = daysSinceMade(job, now)
   return (
     <TableRow data-testid={JOB_IDS.row} data-job-id={job.id} data-state={job.state}>
       <TableCell className="pl-4 font-medium">{job.period}</TableCell>
-      <TableCell>{formatDateTimeHuman(job.created_at)}</TableCell>
+      <TableCell>
+        {formatDateTimeHuman(job.created_at)}
+        {isMissingNext && (
+          <span data-testid={JOB_IDS.rowMissingFlag} data-days={days} className="block text-xs font-medium text-red-600">
+            No backup for {days} days
+          </span>
+        )}
+      </TableCell>
       <TableCell>{formatSize(job.size_bytes)}</TableCell>
-      <TableCell>{STATE_LABELS[job.state as BackupJob['state']] ?? job.state}</TableCell>
+      <TableCell>
+        {STATE_LABELS[job.state as BackupJob['state']] ?? job.state}
+        {isUndelivered && (
+          <span data-testid={JOB_IDS.rowUndeliveredFlag} data-days={days} className="block text-xs font-medium text-red-600">
+            Undelivered for {days} days
+          </span>
+        )}
+      </TableCell>
       <TableCell>
         <span data-testid={JOB_IDS.rowTakenBy}>{job.claimed_by_machine ?? ''}</span>
         {job.state === 'TAKEN' && job.lease_until && (
