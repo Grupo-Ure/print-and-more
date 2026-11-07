@@ -16,11 +16,10 @@ import 'node:fs'
 // accepts; a failed_emails row when the mail is given up — a template it does
 // not know, no wording, a wording that does not render, or the attempts
 // spent; nothing at all when a refused send still has tries left — the
-// message stays claimed and comes back when its visibility timeout lapses. A
-// mail about an order also gets the matching EMAIL_SENT / EMAIL_FAILED entry
-// on the order's history; a mail with no order (a backup notice) has the two
-// tables as its whole record. Every path ends by archiving the message,
-// except the one that leaves it to come back.
+// message stays claimed and comes back when its visibility timeout lapses.
+// The order's EMAIL_SENT / EMAIL_FAILED history entry is not the sender's: a
+// trigger on each table writes it for a mail about an order. Every path ends
+// by archiving the message, except the one that leaves it to come back.
 
 import { timingSafeEqual } from 'node:crypto'
 import { Buffer } from 'node:buffer'
@@ -146,24 +145,6 @@ async function orderExists(db: SupabaseClient, orderId: string): Promise<boolean
   return data !== null
 }
 
-/** The order's history entry for the mail; nothing for a mail with no order, whose record is the mail tables. */
-async function writeHistory(
-  db: SupabaseClient,
-  message: EmailMessage,
-  eventType: 'EMAIL_SENT' | 'EMAIL_FAILED',
-  meta: Record<string, unknown>,
-): Promise<void> {
-  if (message.order_id === null) return
-  const { error } = await db.from('history').insert({
-    order_id: message.order_id,
-    product_id: message.product_id,
-    event_type: eventType,
-    user_id: null,
-    meta: { template: message.template, ...meta },
-  })
-  if (error) throw new Error(`history ${eventType} failed: ${error.message}`)
-}
-
 /** Why a mail was given up — the failed_emails reason codes. */
 type FailureReason = 'unknown_template' | 'no_settings_row' | 'render_failed' | 'resolve_failed' | 'provider_refused'
 
@@ -176,9 +157,8 @@ interface Failure {
 }
 
 /**
- * Records a mail the sender gives up on: a failed_emails row, and the
- * EMAIL_FAILED history entry when the mail is about an order. A row for this
- * message already being there means a previous attempt recorded it and
+ * Records a mail the sender gives up on as a failed_emails row. A row for
+ * this message already being there means a previous attempt recorded it and
  * crashed before archiving; the record stands and nothing is written twice.
  */
 async function recordFailed(db: SupabaseClient, claimed: ClaimedMessage, message: EmailMessage, failure: Failure): Promise<void> {
@@ -197,18 +177,12 @@ async function recordFailed(db: SupabaseClient, claimed: ClaimedMessage, message
     if (error.code === '23505') return
     throw new Error(`failed_emails insert failed: ${error.message}`)
   }
-  await writeHistory(db, message, 'EMAIL_FAILED', {
-    reason: failure.reason,
-    recipient: failure.recipient,
-    error: failure.error,
-    attempts: claimed.read_ct,
-  })
 }
 
 /**
- * Writes the record and, for a mail about an order, its history entry. A row
- * for this message already being there means a previous attempt was accepted
- * but crashed before archiving; the record stands and nothing is written twice.
+ * Writes the sent record. A row for this message already being there means a
+ * previous attempt was accepted but crashed before archiving; the record
+ * stands and nothing is written twice.
  */
 async function recordSent(
   db: SupabaseClient,
@@ -218,32 +192,22 @@ async function recordSent(
   rendered: RenderedEmail,
   providerId: string,
 ): Promise<void> {
-  const { data, error } = await db
-    .from('sent_emails')
-    .insert({
-      queue_msg_id: msgId,
-      template: message.template,
-      order_id: message.order_id,
-      product_id: message.product_id,
-      recipient,
-      subject: rendered.subject,
-      body_html: rendered.html,
-      body_text: rendered.text,
-      provider_id: providerId,
-    })
-    .select('id')
-    .single()
+  const { error } = await db.from('sent_emails').insert({
+    queue_msg_id: msgId,
+    template: message.template,
+    order_id: message.order_id,
+    product_id: message.product_id,
+    recipient,
+    subject: rendered.subject,
+    body_html: rendered.html,
+    body_text: rendered.text,
+    provider_id: providerId,
+  })
   if (error) {
     // 23505: unique_violation on queue_msg_id — already recorded.
     if (error.code === '23505') return
     throw new Error(`sent_emails insert failed: ${error.message}`)
   }
-  await writeHistory(db, message, 'EMAIL_SENT', {
-    recipient,
-    subject: rendered.subject,
-    provider_id: providerId,
-    sent_email_id: data.id,
-  })
 }
 
 /** A template's row in email_settings (Settings → Emails), as far as the sender reads it: its switches and its wording. */
