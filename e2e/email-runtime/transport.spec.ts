@@ -83,7 +83,8 @@ test.describe('message naming an unknown template', () => {
     // Act
     await sendEmail.drain()
 
-    // Assert — one failure entry; the message is gone from the queue.
+    // Assert — one failed record and one failure entry; the message is gone from the queue.
+    expect(await database.failedEmails(queuedEmail.orderId)).toHaveLength(1)
     expect(await database.historyCount(queuedEmail.orderId, EMAIL_FAILED_HISTORY_EVENT)).toBe(1)
     expect(await database.queuedEmails(queuedEmail.orderId)).toHaveLength(0)
   })
@@ -124,7 +125,8 @@ test.describe('message the provider refuses', () => {
       await database.makeEmailDue(queuedEmail.msgId)
     }
 
-    // Assert — one failure entry; the message is gone from the queue.
+    // Assert — one failed record and one failure entry; the message is gone from the queue.
+    expect(await database.failedEmails(queuedEmail.orderId)).toHaveLength(1)
     expect(await database.historyCount(queuedEmail.orderId, EMAIL_FAILED_HISTORY_EVENT)).toBe(1)
     expect(await database.queuedEmails(queuedEmail.orderId)).toHaveLength(0)
   })
@@ -153,8 +155,36 @@ test.describe('test-message whose subject has a slot its data lacks', () => {
     // Act
     await sendEmail.drain()
 
-    // Assert — one failure entry; the message is gone from the queue.
+    // Assert — one failed record and one failure entry; the message is gone from the queue.
+    expect(await database.failedEmails(queuedEmail.orderId)).toHaveLength(1)
     expect(await database.historyCount(queuedEmail.orderId, EMAIL_FAILED_HISTORY_EVENT)).toBe(1)
     expect(await database.queuedEmails(queuedEmail.orderId)).toHaveLength(0)
+  })
+})
+
+// ── Mails with no order ───────────────────────────────────────────────────
+// The `queuedSystemEmail` fixture queues the seed with no order, as the backup
+// upkeep queues a notice about the system; history is an order's, so the
+// record is the mail tables alone.
+
+test.describe('message queued with no order', () => {
+  test('EML-TRN-012 draining the queue records the sent mail with no order', async ({ database, sendEmail, queuedSystemEmail }) => {
+    // Act
+    await sendEmail.drain()
+
+    // Assert — a sent record about no order.
+    expect(await database.sentEmailOf(queuedSystemEmail.msgId)).toEqual({ order_id: null })
+  })
+})
+
+test.describe('message queued with no order, naming an unknown template', () => {
+  test.use({ queuedEmailSeed: UNKNOWN_TEMPLATE_MESSAGE })
+
+  test('EML-TRN-013 draining the queue records the given-up mail as failed with no order', async ({ database, sendEmail, queuedSystemEmail }) => {
+    // Act
+    await sendEmail.drain()
+
+    // Assert — a failed record about no order.
+    expect(await database.failedEmailOf(queuedSystemEmail.msgId)).toEqual({ order_id: null })
   })
 })

@@ -259,6 +259,10 @@ behaviour the lifecycle packs assert is written out in
         - **EML-TRN-010** draining the queue sends the mail with the slot filled from the mail's data
       - *test-message whose subject has a slot its data lacks*
         - **EML-TRN-011** draining the queue gives the mail up with a failure entry on the order
+      - *message queued with no order*
+        - **EML-TRN-012** draining the queue records the sent mail with no order
+      - *message queued with no order, naming an unknown template*
+        - **EML-TRN-013** draining the queue records the given-up mail as failed with no order
   - **Settings**
     - [settings.spec.ts](email-runtime/settings.spec.ts) — `EML-SET`
       - *test-message repeated once a day, sent twice at most*
