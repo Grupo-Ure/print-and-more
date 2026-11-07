@@ -100,6 +100,7 @@ jobs:
           EMAIL_FROM=ci@example.test
           EMAIL_REPLY_TO=ci@example.test
           EMAIL_SHOP_TO=ci@example.test
+          EMAIL_DEVELOPER_TO=ci-developers@example.test
           EMAIL_WEBHOOK_SECRET=aha-whsec-ci-webhook-secret
           CUSTOMER_APP_URL=https://customer.example.test
           EOF
