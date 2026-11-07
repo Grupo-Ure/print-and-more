@@ -37,6 +37,12 @@ export function queuedDelayDays(row: QueuedEmailRow): number {
 /** One sent record, as much of it as a spec looks at. */
 export type SentEmailRow = Pick<Database['public']['Tables']['sent_emails']['Row'], 'id' | 'provider_id' | 'recipient' | 'subject'>
 
+/** A failed record as a spec reads it: which, and why the sender gave it up. */
+export type FailedEmailRow = Pick<Database['public']['Tables']['failed_emails']['Row'], 'id' | 'reason'>
+
+/** The order a sent or failed record is about — null for a mail about the system. */
+export type EmailRecordOrder = Pick<Database['public']['Tables']['sent_emails']['Row'], 'order_id'>
+
 /** What the provider has reported of a sent mail, as the record holds it. */
 export type SentEmailDelivery = Pick<
   Database['public']['Tables']['sent_emails']['Row'],
@@ -850,18 +856,23 @@ export class TestDatabase {
 
   // ── Emails ───────────────────────────────────────────────────────────────
 
-  /** Queues a message for the order through queue_email, as a trigger would. Returns the queue message id. */
-  async queueEmail(orderId: string, seed: QueuedEmailSeed): Promise<number> {
+  /**
+   * Queues a message through queue_email, as a trigger would for the order —
+   * or, with no order, as a scheduled job queues a mail about the system.
+   * Returns the queue message id.
+   */
+  async queueEmail(orderId: string | null, seed: QueuedEmailSeed): Promise<number> {
     const msgId = await this.tryQueueEmail(orderId, seed)
     if (msgId === null) throw new Error(`queue_email queued nothing for ${seed.template} — is the template disabled?`)
     return msgId
   }
 
   /** The same call, returning null where queue_email queued nothing (the template is switched off). */
-  async tryQueueEmail(orderId: string, seed: QueuedEmailSeed): Promise<number | null> {
+  async tryQueueEmail(orderId: string | null, seed: QueuedEmailSeed): Promise<number | null> {
     const { data, error } = await this.client.rpc('queue_email', {
       template: seed.template,
-      order_id: orderId,
+      // The generated type wants the uuid or nothing; `null` is what queue_email reads as "no order".
+      order_id: orderId as string,
       product_id: undefined,
       // A seed's context is plain JSON data; the generated type wants it spelled as Json.
       context: seed.context as Json,
@@ -971,6 +982,35 @@ export class TestDatabase {
     const { data, error } = await this.client.from('sent_emails').select('body_html').eq('order_id', orderId)
     if (error) throw error
     return data.map(row => row.body_html)
+  }
+
+  /** The order's mails the sender gave up on. */
+  async failedEmails(orderId: string): Promise<FailedEmailRow[]> {
+    const { data, error } = await this.client.from('failed_emails').select('id, reason').eq('order_id', orderId)
+    if (error) throw error
+    return data
+  }
+
+  /** The sent record of the message, or null while there is none; `order_id` is null for a mail about the system. */
+  async sentEmailOf(msgId: number): Promise<EmailRecordOrder | null> {
+    const { data, error } = await this.client.from('sent_emails').select('order_id').eq('queue_msg_id', msgId).maybeSingle()
+    if (error) throw error
+    return data
+  }
+
+  /** The failed record of the message, or null while there is none; `order_id` is null for a mail about the system. */
+  async failedEmailOf(msgId: number): Promise<EmailRecordOrder | null> {
+    const { data, error } = await this.client.from('failed_emails').select('order_id').eq('queue_msg_id', msgId).maybeSingle()
+    if (error) throw error
+    return data
+  }
+
+  /** Removes the message's sent or failed record — a record with no order, which no order's removal takes along. */
+  async removeEmailRecords(msgId: number): Promise<void> {
+    const { error: sentError } = await this.client.from('sent_emails').delete().eq('queue_msg_id', msgId)
+    if (sentError) throw sentError
+    const { error: failedError } = await this.client.from('failed_emails').delete().eq('queue_msg_id', msgId)
+    if (failedError) throw failedError
   }
 
   /** The order's history entries of that event, with what each recorded. */
