@@ -595,7 +595,7 @@ export type Database = {
           order_id: string | null
           product_id: string | null
           queue_msg_id: number
-          reason: string
+          reason: Database["public"]["Enums"]["email_failure_reason"]
           recipient: string | null
           template: string
         }
@@ -607,7 +607,7 @@ export type Database = {
           order_id?: string | null
           product_id?: string | null
           queue_msg_id: number
-          reason: string
+          reason: Database["public"]["Enums"]["email_failure_reason"]
           recipient?: string | null
           template: string
         }
@@ -619,7 +619,7 @@ export type Database = {
           order_id?: string | null
           product_id?: string | null
           queue_msg_id?: number
-          reason?: string
+          reason?: Database["public"]["Enums"]["email_failure_reason"]
           recipient?: string | null
           template?: string
         }
@@ -2816,6 +2816,8 @@ export type Database = {
       approval_request_status: "PENDING" | "APPROVED" | "CHANGES_REQUESTED" | "EXPIRED" | "WITHDRAWN"
       delivery_type: "PICKUP" | "SHIPPING"
       department: "LFP" | "COPYSHOP" | "TEXTILE" | "STAMP" | "LASER_ENGRAVING" | "OTHER"
+      email_failure_reason:
+        "unknown_template" | "no_settings_row" | "render_failed" | "resolve_failed" | "provider_refused"
       file_role: "PRODUCTION_FILE" | "PREVIEW" | "CUSTOMER_APPROVAL" | "REFERENCE"
       history_event:
         | "ORDER_CREATED"
@@ -2984,6 +2986,13 @@ export const Constants = {
       approval_request_status: ["PENDING", "APPROVED", "CHANGES_REQUESTED", "EXPIRED", "WITHDRAWN"],
       delivery_type: ["PICKUP", "SHIPPING"],
       department: ["LFP", "COPYSHOP", "TEXTILE", "STAMP", "LASER_ENGRAVING", "OTHER"],
+      email_failure_reason: [
+        "unknown_template",
+        "no_settings_row",
+        "render_failed",
+        "resolve_failed",
+        "provider_refused",
+      ],
       file_role: ["PRODUCTION_FILE", "PREVIEW", "CUSTOMER_APPROVAL", "REFERENCE"],
       history_event: [
         "ORDER_CREATED",
