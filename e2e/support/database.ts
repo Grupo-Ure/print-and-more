@@ -310,6 +310,7 @@ export class TestDatabase {
     const { data, error } = await this.client
       .from('backup_jobs')
       .insert({
+        created_at: new Date(now - seed.createdDaysAgo * 86_400_000).toISOString(),
         period: seed.period,
         storage_path: `e2e/${crypto.randomUUID()}.dump.age`,
         size_bytes: seed.sizeBytes,
@@ -376,6 +377,28 @@ export class TestDatabase {
   async runBackupUpkeep(): Promise<void> {
     const { error } = await this.client.rpc('fn_backup_upkeep')
     if (error) throw error
+  }
+
+  /** Who each overdue-backup mail of that template the upkeep queued is for (`SHOP` | `DEVELOPER`), as its record holds it. */
+  async backupAlertRecipients(template: string): Promise<string[]> {
+    const { data, error } = await this.client.from('backup_alerts').select('recipient').eq('template', template)
+    if (error) throw error
+    return data.map(row => row.recipient)
+  }
+
+  /**
+   * Removes every overdue-backup mail the upkeep queued: takes each message
+   * off the queue, removes its sent or failed record — a record with no
+   * order, which nothing else removes — and deletes the alert's own record,
+   * so the next run may queue the mail again the same day.
+   */
+  async removeBackupAlerts(): Promise<void> {
+    const { data, error } = await this.client.from('backup_alerts').select('id, queue_msg_id')
+    if (error) throw error
+    await Promise.all(data.map(row => this.archiveEmail(row.queue_msg_id)))
+    await Promise.all(data.map(row => this.removeEmailRecords(row.queue_msg_id)))
+    const { error: deleteError } = await this.client.from('backup_alerts').delete().in('id', data.map(row => row.id))
+    if (deleteError) throw deleteError
   }
 
   /** Runs the daily backup start once, as its cron job does; returns what it decided. */

@@ -46,6 +46,15 @@ export const APPROVAL_WITHDRAWN_TEMPLATE = 'approval-withdrawn'
 /** The mail telling the shop that nobody answered a request before its link ran out. */
 export const APPROVAL_EXPIRED_TEMPLATE = 'approval-expired'
 
+/** The mail telling the shop and the developers that a backup has not reached the shop folder. */
+export const BACKUP_UNDELIVERED_TEMPLATE = 'backup-undelivered'
+
+/** The mail telling the shop and the developers that no new backup has been made for too long. */
+export const BACKUP_MISSING_TEMPLATE = 'backup-missing'
+
+/** Who the upkeep queues each overdue-backup mail for, one message each, sorted. */
+export const BACKUP_ALERT_RECIPIENTS = ['DEVELOPER', 'SHOP']
+
 /** Every mail type the sender knows — each has its row in Settings → Emails, the immediate ones included. */
 export const MAIL_TEMPLATES = [
   TEST_MESSAGE_TEMPLATE,
@@ -53,6 +62,8 @@ export const MAIL_TEMPLATES = [
   APPROVAL_DECIDED_TEMPLATE,
   APPROVAL_WITHDRAWN_TEMPLATE,
   APPROVAL_EXPIRED_TEMPLATE,
+  BACKUP_UNDELIVERED_TEMPLATE,
+  BACKUP_MISSING_TEMPLATE,
 ]
 
 /**

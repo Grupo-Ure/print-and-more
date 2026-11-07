@@ -76,6 +76,16 @@ export class BackupSettingsPOM extends BasePOM {
     return this.jobRow(jobId).getByTestId(JOB_IDS.rowHoldingCopy)
   }
 
+  /** The job's flag for being undelivered past the alert threshold; `data-days` = days since it was made. */
+  jobUndeliveredFlag(jobId: string): Locator {
+    return this.jobRow(jobId).getByTestId(JOB_IDS.rowUndeliveredFlag)
+  }
+
+  /** The newest job's flag for no new backup past the alert threshold; `data-days` = days since it was made. */
+  jobMissingFlag(jobId: string): Locator {
+    return this.jobRow(jobId).getByTestId(JOB_IDS.rowMissingFlag)
+  }
+
   /** A field once the database holds that value — a draft being typed does not match. */
   stored(field: Locator, value: number | string): Locator {
     return this.withAttr(field, 'data-value', String(value))

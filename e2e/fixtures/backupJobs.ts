@@ -28,6 +28,8 @@ export type BackupJobSeed = {
   period: string
   sizeBytes: number
   sha256: string
+  /** Days back the dump was made; 0 for one just now. */
+  createdDaysAgo: number
   claim: BackupClaimSeed | null
   failures: BackupFailureSeed | null
   delivered: boolean
@@ -64,6 +66,7 @@ export const WAITING_BACKUP_JOB: BackupJobSeed = {
   period: '2026-W45',
   sizeBytes: 1024,
   sha256: BACKUP_SHA256,
+  createdDaysAgo: 0,
   claim: null,
   failures: null,
   delivered: false,
@@ -131,4 +134,17 @@ export const DELIVERED_WITHIN_RETENTION_BACKUP_JOB: BackupJobSeed = {
 export const UNANSWERED_BACKUP_JOB: BackupJobSeed = {
   ...WAITING_BACKUP_JOB,
   announcedMinutesAgo: 60,
+}
+
+/** A dump made three days ago and still waiting, past the shipped undelivered alert threshold (2 days). */
+export const OVERDUE_BACKUP_JOB: BackupJobSeed = {
+  ...WAITING_BACKUP_JOB,
+  createdDaysAgo: 3,
+}
+
+/** A dump made and delivered nine days ago with none since, past the shipped missing-backup alert threshold (8 days). */
+export const STALE_BACKUP_JOB: BackupJobSeed = {
+  ...DELIVERED_BACKUP_JOB,
+  createdDaysAgo: 9,
+  deliveredDaysAgo: 9,
 }

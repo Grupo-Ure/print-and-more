@@ -3,7 +3,7 @@
  * Adds the orders view's page object (`ordersPage`) and the per-test data of
  * that view (`customer`, `order`, `product`, `newCustomer`,
  * `departmentDefault`, `developer`, `customerApprovalSettings`, `backupSettings`,
- * `backupJob`).
+ * `backupJob`, `backupAlerts`).
  *
  * Fixtures only seed data and reload so the app can see it. They never
  * navigate: getting to the order or product under test is the test's own Setup
@@ -215,6 +215,12 @@ type OrdersViewFixtures = {
   backupJobSeed: BackupJobSeed
   /** One backup job, as `backupJobSeed` describes it, inserted before the test and removed after it. */
   backupJob: TestBackupJob
+  /**
+   * No overdue-backup mail on record, before the test and after it: every
+   * alert the upkeep queued is removed with its message and its mail record,
+   * so the once-a-day rule starts afresh.
+   */
+  backupAlerts: void
 }
 
 // No `expect` in here: fixtures synchronise with `waitFor()`. A timeout then
@@ -359,6 +365,13 @@ export const test = base.extend<OrdersViewFixtures>({
 
     await use(job)
     await database.removeBackupJob(job)
+  },
+
+  backupAlerts: async ({ database }, use) => {
+    await database.removeBackupAlerts()
+
+    await use()
+    await database.removeBackupAlerts()
   },
 })
 
