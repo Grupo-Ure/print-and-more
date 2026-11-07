@@ -2,8 +2,10 @@ import { expect, reloadApp, test } from '../fixtures/orders'
 import { EDITED_DUMP_INTERVAL_DAYS } from '../fixtures/backupSettings'
 import {
   DELIVERED_BACKUP_JOB,
+  OVERDUE_BACKUP_JOB,
   PURGED_BACKUP_JOB,
   RETRIED_BACKUP_JOB,
+  STALE_BACKUP_JOB,
   TAKEN_BACKUP_JOB,
 } from '../fixtures/backupJobs'
 import { TEST_USERS } from '../fixtures/users'
@@ -101,5 +103,34 @@ test.describe('backup delivered, online copy purged', () => {
 
     // Assert
     await expect(settingsPage.backups.jobHoldingCopy(backupJob.id)).toHaveAttribute('data-purged', 'true')
+  })
+})
+
+// The two flags below are judged against the settings' shipped thresholds,
+// which the `backupSettings` fixture writes and the seeds are dated against.
+
+test.describe('backup waiting longer than the undelivered alert threshold', () => {
+  test.use({ backupJobSeed: OVERDUE_BACKUP_JOB })
+
+  // `backupSettings` is named only to have the fixture write the shipped thresholds.
+  test('SET-BKP-009 opening the backups section flags the job as undelivered with the days since it was made', async ({ settingsPage, backupSettings: _thresholds, backupJob, backupJobSeed }) => {
+    // Act
+    await settingsPage.openSection('backups')
+
+    // Assert
+    await expect(settingsPage.backups.jobUndeliveredFlag(backupJob.id)).toHaveAttribute('data-days', String(backupJobSeed.createdDaysAgo))
+  })
+})
+
+test.describe('newest backup made longer ago than the missing-backup alert threshold', () => {
+  test.use({ backupJobSeed: STALE_BACKUP_JOB })
+
+  // `backupSettings` is named only to have the fixture write the shipped thresholds.
+  test('SET-BKP-010 opening the backups section flags the newest job with the days without a new backup', async ({ settingsPage, backupSettings: _thresholds, backupJob, backupJobSeed }) => {
+    // Act
+    await settingsPage.openSection('backups')
+
+    // Assert
+    await expect(settingsPage.backups.jobMissingFlag(backupJob.id)).toHaveAttribute('data-days', String(backupJobSeed.createdDaysAgo))
   })
 })

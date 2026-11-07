@@ -239,6 +239,10 @@ behaviour the lifecycle packs assert is written out in
       - **SET-BKP-007** opening the backups section shows the job's online copy as kept
     - *backup delivered, online copy purged*
       - **SET-BKP-008** opening the backups section shows the job's online copy as deleted
+    - *backup waiting longer than the undelivered alert threshold*
+      - **SET-BKP-009** opening the backups section flags the job as undelivered with the days since it was made
+    - *newest backup made longer ago than the missing-backup alert threshold*
+      - **SET-BKP-010** opening the backups section flags the newest job with the days without a new backup
 - **Email runtime**
   - **Transport**
     - [transport.spec.ts](email-runtime/transport.spec.ts) — `EML-TRN`
@@ -406,6 +410,11 @@ behaviour the lifecycle packs assert is written out in
       - **BKP-SCHED-004** running the upkeep calls the roll for the job again
     - *backups switched off*
       - **BKP-SCHED-005** running the daily start reports backups as switched off
+    - *waiting job made longer ago than the undelivered alert threshold*
+      - **BKP-SCHED-006** running the upkeep queues the undelivered-backup mail once to the shop and once to the developers
+      - **BKP-SCHED-007** running the upkeep a second time the same day queues no further mail
+    - *newest job made longer ago than the missing-backup alert threshold*
+      - **BKP-SCHED-008** running the upkeep queues the missing-backup mail once to the shop and once to the developers
 
 ## Later
 

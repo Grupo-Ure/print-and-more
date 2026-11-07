@@ -1,9 +1,12 @@
 import {
   DELIVERED_PAST_RETENTION_BACKUP_JOB,
   DELIVERED_WITHIN_RETENTION_BACKUP_JOB,
+  OVERDUE_BACKUP_JOB,
+  STALE_BACKUP_JOB,
   UNANSWERED_BACKUP_JOB,
 } from '../fixtures/backupJobs'
 import { DISABLED_BACKUP_SETTINGS, START_DISABLED_OUTCOME } from '../fixtures/backupSettings'
+import { BACKUP_ALERT_RECIPIENTS, BACKUP_MISSING_TEMPLATE, BACKUP_UNDELIVERED_TEMPLATE } from '../fixtures/emailMessages'
 import { expect, test } from '../fixtures/orders'
 
 // The two scheduled backup functions, called on demand through the runner's
@@ -76,5 +79,43 @@ test.describe('backups switched off', () => {
 
     // Assert — nothing was started.
     expect(outcome).toBe(START_DISABLED_OUTCOME)
+  })
+})
+
+// ── Alerts ──────────────────────────────────────────────────────────────────
+// The `backupAlerts` fixture clears every alert on record before and after,
+// so the once-a-day rule starts afresh; it is named only for that. What the
+// upkeep queued is read from its alert records, one per message.
+
+test.describe('waiting job made longer ago than the undelivered alert threshold', () => {
+  test.use({ backupJobSeed: OVERDUE_BACKUP_JOB })
+
+  test('BKP-SCHED-006 running the upkeep queues the undelivered-backup mail once to the shop and once to the developers', async ({ database, backupAlerts: _cleared, backupJob: _overdue }) => {
+    // Act
+    await database.runBackupUpkeep()
+
+    // Assert
+    expect((await database.backupAlertRecipients(BACKUP_UNDELIVERED_TEMPLATE)).sort()).toEqual(BACKUP_ALERT_RECIPIENTS)
+  })
+
+  test('BKP-SCHED-007 running the upkeep a second time the same day queues no further mail', async ({ database, backupAlerts: _cleared, backupJob: _overdue }) => {
+    // Act
+    await database.runBackupUpkeep()
+    await database.runBackupUpkeep()
+
+    // Assert — still the first run's one message per recipient.
+    expect(await database.backupAlertRecipients(BACKUP_UNDELIVERED_TEMPLATE)).toHaveLength(BACKUP_ALERT_RECIPIENTS.length)
+  })
+})
+
+test.describe('newest job made longer ago than the missing-backup alert threshold', () => {
+  test.use({ backupJobSeed: STALE_BACKUP_JOB })
+
+  test('BKP-SCHED-008 running the upkeep queues the missing-backup mail once to the shop and once to the developers', async ({ database, backupAlerts: _cleared, backupJob: _stale }) => {
+    // Act
+    await database.runBackupUpkeep()
+
+    // Assert
+    expect((await database.backupAlertRecipients(BACKUP_MISSING_TEMPLATE)).sort()).toEqual(BACKUP_ALERT_RECIPIENTS)
   })
 })
