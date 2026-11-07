@@ -498,13 +498,19 @@ its "Adding a mail".
   of the data `resolve` returns that the wording may use. A template without
   a row is given up, never sent.
 - **Wording is plain text with `{{name}}` slots.** The sender compiles it with
-  Handlebars `strict: true`, so a slot without a value fails the mail
-  (`EMAIL_FAILED`) instead of printing nothing; Settings refuses anything but
+  Handlebars `strict: true`, so a slot without a value fails the mail (a
+  `failed_emails` row, `reason` `render_failed`) instead of printing nothing;
+  Settings refuses anything but
   plain slots from the row's list (`checkWording` in
   `src/lib/emailWording.ts`). A blank line in the body is a paragraph, a
   single line break a `<br>`.
 - **Register it** in `TEMPLATES` in `templates/registry.ts`. An unregistered
   folder is never loaded.
+- **A mail about the system, not an order** (a backup notice) is queued with
+  `order_id` NULL and its `resolve` finds the recipient from the message and
+  the function's variables alone. It is recorded in `sent_emails` or
+  `failed_emails` like any other, and gets no history entry — history is an
+  order's record. Nothing in the sender needs to know which kind it is.
 - **The html body is a fragment**, rendered inside the shared `layout.hbs`
   (shop header and footer). Mail clients need inline styles and table
   layout; no `<style>` blocks, no external CSS.
