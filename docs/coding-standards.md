@@ -511,6 +511,10 @@ its "Adding a mail".
   the function's variables alone. It is recorded in `sent_emails` or
   `failed_emails` like any other, and gets no history entry — history is an
   order's record. Nothing in the sender needs to know which kind it is.
+- **A failed `resolve` is retried** like a refused send, up to the attempt
+  limit. A cause no retry can fix — the recipient's variable is not set —
+  throws `UnsendableEmail` (`templates/unsendable.ts`) instead: the mail is
+  given up at once (`failed_emails`, `reason` `resolve_failed`).
 - **The html body is a fragment**, rendered inside the shared `layout.hbs`
   (shop header and footer). Mail clients need inline styles and table
   layout; no `<style>` blocks, no external CSS.
