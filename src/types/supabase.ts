@@ -28,6 +28,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      backup_alerts: {
+        Row: {
+          id: string
+          queue_msg_id: number
+          queued_at: string
+          recipient: string
+          template: string
+        }
+        Insert: {
+          id?: string
+          queue_msg_id: number
+          queued_at?: string
+          recipient: string
+          template: string
+        }
+        Update: {
+          id?: string
+          queue_msg_id?: number
+          queued_at?: string
+          recipient?: string
+          template?: string
+        }
+        Relationships: []
+      }
       backup_jobs: {
         Row: {
           announced_at: string | null
