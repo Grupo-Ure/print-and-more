@@ -14,8 +14,8 @@ import 'node:fs'
 // recipient and the data up at send time, so the mail goes out with today's
 // details. What the sender writes: a sent_emails row when the provider
 // accepts; a failed_emails row when the mail is given up — a template it does
-// not know, no wording, a wording that does not render, or the attempts
-// spent; nothing at all when a refused send still has tries left — the
+// not know, no wording, a recipient whose address is not configured, a
+// wording that does not render, or the attempts spent; nothing at all when a refused send still has tries left — the
 // message stays claimed and comes back when its visibility timeout lapses.
 // The order's EMAIL_SENT / EMAIL_FAILED history entry is not the sender's: a
 // trigger on each table writes it for a mail about an order. Every path ends
@@ -25,6 +25,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { Buffer } from 'node:buffer'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { renderEmail, type RenderedEmail, type Wording } from './render.ts'
+import { UnsendableEmail } from './templates/unsendable.ts'
 import {
   TEMPLATES,
   isTemplateName,
@@ -330,6 +331,14 @@ async function processMessage(db: SupabaseClient, claimed: ClaimedMessage): Prom
   try {
     resolved = await template.resolve(message, deps)
   } catch (error) {
+    // The template says no attempt can succeed (its address is not
+    // configured): given up at once, so an unset address costs no retries.
+    if (error instanceof UnsendableEmail) {
+      console.warn('send-email: template cannot send, giving up', { msgId: claimed.msg_id, error: error.message })
+      await recordFailed(db, claimed, message, { reason: 'resolve_failed', recipient: null, error: error.message })
+      await archive(db, claimed.msg_id)
+      return 'failed'
+    }
     // Looking the data up failed; counted like a refusal so a transient cause
     // gets its retries and a lasting one ends in a failed record.
     return handleRefusal(db, claimed, message, null, 'resolve_failed', {
