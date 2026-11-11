@@ -408,6 +408,12 @@ behaviour the lifecycle packs assert is written out in
     - *as admin, job held by this session*
       - **BKP-REC-004** reporting a delivery with the wrong fingerprint is refused
       - **BKP-REC-005** reporting a failed delivery puts the job back with the attempt counted and the reason kept
+    - *start still open*
+      - **BKP-REC-006** recording a backup with the start's id links the backup onto the start <!-- new: BACKUP_RUNTIME WP9 -->
+      - **BKP-REC-007** reporting the run as failed stamps the start with the reason <!-- new: BACKUP_RUNTIME WP9 -->
+    - *start whose run already recorded a backup*
+      - **BKP-REC-008** recording another backup with the start's id records it and leaves the start's backup as it was <!-- new: BACKUP_RUNTIME WP9 -->
+      - **BKP-REC-009** reporting the run as failed is refused <!-- new: BACKUP_RUNTIME WP9 -->
   - [backup-schedule.spec.ts](compliance/backup-schedule.spec.ts) — `BKP-SCHED`
     - *delivered job past the holding retention*
       - **BKP-SCHED-001** running the upkeep removes the job's online copy from the bucket
@@ -423,6 +429,12 @@ behaviour the lifecycle packs assert is written out in
       - **BKP-SCHED-007** running the upkeep a second time the same day queues no further mail
     - *newest job made longer ago than the missing-backup alert threshold*
       - **BKP-SCHED-008** running the upkeep queues the missing-backup mail once to the shop and once to the developers
+    - *backup due, a start still open*
+      - **BKP-SCHED-009** running the daily start reports a backup as already started <!-- new: BACKUP_RUNTIME WP9 -->
+    - *backup due, a start whose run reported a failure*
+      - **BKP-SCHED-010** running the daily start goes past it to the GitHub token <!-- new: BACKUP_RUNTIME WP9 -->
+    - *backup due, a start that never reported, sent longer ago than the wait for it*
+      - **BKP-SCHED-011** running the daily start goes past it to the GitHub token <!-- new: BACKUP_RUNTIME WP9 -->
   - [backup-retention.spec.ts](compliance/backup-retention.spec.ts) — `BKP-RET`
     - *delivered job past the weekly retention, a later job made the same month*
       - **BKP-RET-001** listing the backups due for removal includes the job <!-- new: BACKUP_RUNTIME WP8 -->
