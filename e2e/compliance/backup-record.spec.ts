@@ -8,6 +8,7 @@ import {
   THIS_SESSION,
   WRONG_SHA256,
 } from '../fixtures/backupJobs'
+import { RECORDED_BACKUP, RECORDED_BACKUP_DISPATCH, RUN_FAILURE_REASON } from '../fixtures/backupDispatches'
 import { expect, test } from '../fixtures/orders'
 import { TEST_USERS } from '../fixtures/users'
 
@@ -109,5 +110,51 @@ test.describe('as admin, job held by this session', () => {
       attempts: 1,
       last_error: DELIVERY_FAILURE_REASON,
     })
+  })
+})
+
+// ── The start a run belongs to ──────────────────────────────────────────────
+// The dump workflow's own calls, made with the service role through the
+// runner's connection; the `backupDispatch` fixture inserts the start as
+// fn_start_due_backup, and the run's report since, would have left it.
+
+test.describe('start still open', () => {
+  test("BKP-REC-006 recording a backup with the start's id links the backup onto the start", async ({ database, backupDispatch }) => {
+    // Act
+    const recorded = await database.recordBackupJob(backupDispatch.id, RECORDED_BACKUP)
+
+    // Assert
+    expect((await database.backupDispatch(backupDispatch.id)).job_id).toBe(recorded.id)
+  })
+
+  test('BKP-REC-007 reporting the run as failed stamps the start with the reason', async ({ database, backupDispatch }) => {
+    // Act
+    await database.reportBackupDispatchFailed(backupDispatch.id, RUN_FAILURE_REASON)
+
+    // Assert
+    const stored = await database.backupDispatch(backupDispatch.id)
+    expect(stored.failed_at).not.toBeNull()
+    expect(stored.error).toBe(RUN_FAILURE_REASON)
+  })
+})
+
+test.describe('start whose run already recorded a backup', () => {
+  test.use({ backupDispatchSeed: RECORDED_BACKUP_DISPATCH })
+
+  test("BKP-REC-008 recording another backup with the start's id records it and leaves the start's backup as it was", async ({ database, backupDispatch }) => {
+    // Act
+    const recorded = await database.recordBackupJob(backupDispatch.id, RECORDED_BACKUP)
+
+    // Assert — the backup is on record; the start still names the first one.
+    expect((await database.backupJob(recorded.id)).id).toBe(recorded.id)
+    expect((await database.backupDispatch(backupDispatch.id)).job_id).toBe(backupDispatch.job_id)
+  })
+
+  test('BKP-REC-009 reporting the run as failed is refused', async ({ database, backupDispatch }) => {
+    // Act
+    const { error } = await database.reportBackupDispatchFailed(backupDispatch.id, RUN_FAILURE_REASON)
+
+    // Assert
+    expect(error).not.toBeNull()
   })
 })
