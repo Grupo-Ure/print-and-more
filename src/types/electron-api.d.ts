@@ -22,6 +22,8 @@ type NativeBackupProbeResult =
 
 type NativeBackupDeliverResult = { ok: true; sha256: string; path: string } | { ok: false; error: string }
 
+type NativeBackupRemoveResult = { ok: true } | { ok: false; error: string }
+
 /** Native bridge exposed by the Electron preload (electron/preload.ts); absent in a plain browser tab. */
 interface Window {
   pam?: {
@@ -50,6 +52,8 @@ interface Window {
         sha256: string
         sizeBytes: number
       }) => Promise<NativeBackupDeliverResult>
+      /** Deletes the file from `<folder>/Backups`; a file already gone counts as removed, an unreachable folder does not. */
+      remove: (request: { share: NativeBackupShare; fileName: string }) => Promise<NativeBackupRemoveResult>
     }
   }
 }

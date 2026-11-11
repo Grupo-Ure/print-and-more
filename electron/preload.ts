@@ -2,7 +2,15 @@
 // main process over IPC (sandbox-safe; falls back to sentry-ipc:// without it).
 import '@sentry/electron/preload'
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
-import type { BackupDeliverRequest, BackupDeliverResult, BackupIdentity, BackupProbeResult, BackupShare } from './backups'
+import type {
+  BackupDeliverRequest,
+  BackupDeliverResult,
+  BackupIdentity,
+  BackupProbeResult,
+  BackupRemoveRequest,
+  BackupRemoveResult,
+  BackupShare,
+} from './backups'
 import type { AuthCallback } from './deepLinks'
 
 /** Subscribes to a main→renderer channel and returns its unsubscribe. */
@@ -38,12 +46,14 @@ contextBridge.exposeInMainWorld('pam', {
     onAuthCallback: (listener: (result: AuthCallback) => void): (() => void) =>
       subscribe<AuthCallback>('deeplink:auth', listener),
   },
-  // Delivery of backups into the shop folder; the file never passes through the renderer.
+  // Delivery of backups into the shop folder and their deletion from it; the file never passes through the renderer.
   backups: {
     identity: (): Promise<BackupIdentity> => ipcRenderer.invoke('backups:identity'),
     probeFolder: (share: BackupShare, requiredBytes?: number): Promise<BackupProbeResult> =>
       ipcRenderer.invoke('backups:probe-folder', share, requiredBytes),
     deliver: (request: BackupDeliverRequest): Promise<BackupDeliverResult> =>
       ipcRenderer.invoke('backups:deliver', request),
+    remove: (request: BackupRemoveRequest): Promise<BackupRemoveResult> =>
+      ipcRenderer.invoke('backups:remove', request),
   },
 })

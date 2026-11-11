@@ -9,10 +9,11 @@ import { pipeline } from 'node:stream/promises'
 import { ipcMain } from 'electron'
 
 /**
- * Delivery of backups into the shop folder (BACKUP_RUNTIME.md, WP3). The
- * renderer claims a job and hands over its download link; everything that
- * touches the share or the file happens here, and the file's bytes never
- * pass through the renderer.
+ * Delivery of backups into the shop folder (BACKUP_RUNTIME.md, WP3), and
+ * their deletion from it once their keep has run out (WP8). The renderer
+ * claims a job and hands over its download link, or names the file to
+ * delete; everything that touches the share or the file happens here, and
+ * the file's bytes never pass through the renderer.
  */
 
 /** Which copy of the app this is: a session id for the life of the process, and the machine's name. */
@@ -34,6 +35,10 @@ export type BackupDeliverRequest = {
 }
 
 export type BackupDeliverResult = { ok: true; sha256: string; path: string } | { ok: false; error: string }
+
+export type BackupRemoveRequest = { share: BackupShare; fileName: string }
+
+export type BackupRemoveResult = { ok: true } | { ok: false; error: string }
 
 /** The subfolder of the app's folder the backups go in; created when missing. */
 const BACKUPS_SUBFOLDER = 'Backups'
@@ -256,6 +261,28 @@ async function deliver(request: BackupDeliverRequest): Promise<BackupDeliverResu
   }
 }
 
+// ── Removing a file ──────────────────────────────────────────────────────────
+
+/**
+ * Deletes one backup from the shop folder, its keep having run out
+ * (BACKUP_RUNTIME.md, WP8). The folder has to be reachable — an offline share
+ * is a failure, never "gone" — but a file no longer in it counts as removed:
+ * another copy of the app deleted it a moment ago, or the shop did by hand.
+ */
+async function remove(request: BackupRemoveRequest): Promise<BackupRemoveResult> {
+  if (!BACKUP_FILE_NAME.test(request.fileName)) return { ok: false, error: 'Invalid backup file name.' }
+
+  const folder = await probe(request.share, 0)
+  if (!folder.reachable) return { ok: false, error: folder.reason }
+
+  try {
+    await fs.rm(path.join(folder.path, request.fileName), { force: true })
+    return { ok: true }
+  } catch {
+    return { ok: false, error: 'The file could not be deleted from the shop folder.' }
+  }
+}
+
 // ── IPC ──────────────────────────────────────────────────────────────────────
 
 function toShare(raw: unknown): BackupShare {
@@ -297,5 +324,11 @@ export function registerBackupHandlers(): void {
     } finally {
       delivering = false
     }
+  })
+
+  ipcMain.handle('backups:remove', (_event, raw: unknown): Promise<BackupRemoveResult> => {
+    const value = (raw ?? {}) as Record<string, unknown>
+    if (typeof value.fileName !== 'string') return Promise.resolve({ ok: false, error: 'Invalid removal request.' })
+    return remove({ share: toShare(value.share), fileName: value.fileName })
   })
 }
