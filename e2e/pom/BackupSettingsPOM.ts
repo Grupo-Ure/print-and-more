@@ -6,7 +6,7 @@ const IDS = TEST_IDS.settings.backups
 const JOB_IDS = IDS.jobs
 
 /**
- * Settings → Backups: the list of backups (`backup_jobs`), then a switch, eight
+ * Settings → Backups: the list of backups (`backup_jobs`), then a switch, nine
  * number fields and the three parts of the shop folder (`backup_settings`),
  * each saving when it is left.
  */
@@ -16,6 +16,7 @@ export class BackupSettingsPOM extends BasePOM {
   readonly enabled: Locator
   /** Each number field: `data-value` = the stored value, empty while loading. */
   readonly dumpIntervalDays: Locator
+  readonly startWaitMinutes: Locator
   readonly leaseMinutes: Locator
   readonly reannounceMinutes: Locator
   readonly holdingRetentionDays: Locator
@@ -36,6 +37,7 @@ export class BackupSettingsPOM extends BasePOM {
     this.root = page.getByTestId(IDS.root)
     this.enabled = this.root.getByTestId(IDS.enabled)
     this.dumpIntervalDays = this.root.getByTestId(IDS.dumpIntervalDays)
+    this.startWaitMinutes = this.root.getByTestId(IDS.startWaitMinutes)
     this.leaseMinutes = this.root.getByTestId(IDS.leaseMinutes)
     this.reannounceMinutes = this.root.getByTestId(IDS.reannounceMinutes)
     this.holdingRetentionDays = this.root.getByTestId(IDS.holdingRetentionDays)

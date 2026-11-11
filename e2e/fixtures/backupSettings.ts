@@ -9,6 +9,7 @@ export type BackupSettingsSeed = Omit<BackupSettingsRow, 'id' | 'updated_at'>
 export const DEFAULT_BACKUP_SETTINGS: BackupSettingsSeed = {
   enabled: true,
   dump_interval_days: 7,
+  start_wait_minutes: 120,
   lease_minutes: 30,
   reannounce_minutes: 30,
   holding_retention_days: 3,
@@ -41,3 +42,9 @@ export const DISABLED_BACKUP_SETTINGS: BackupSettingsSeed = {
 
 /** What the daily start reports when backups are switched off (`fn_start_due_backup`). */
 export const START_DISABLED_OUTCOME = 'disabled'
+
+/** What the daily start reports while a start it sent is still open. */
+export const START_ALREADY_STARTED_OUTCOME = 'already_started'
+
+/** What the daily start reports once it has gone past every other check to the GitHub token, which a local or CI database does not have. */
+export const START_NO_TOKEN_OUTCOME = 'no_token'
