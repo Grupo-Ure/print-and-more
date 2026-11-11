@@ -68,6 +68,9 @@ export type Database = {
           lease_until: string | null
           period: string
           purged_at: string | null
+          removal_announced_at: string | null
+          removed_at: string | null
+          removed_by_machine: string | null
           sha256: string
           size_bytes: number
           state: string
@@ -88,6 +91,9 @@ export type Database = {
           lease_until?: string | null
           period: string
           purged_at?: string | null
+          removal_announced_at?: string | null
+          removed_at?: string | null
+          removed_by_machine?: string | null
           sha256: string
           size_bytes: number
           state?: string
@@ -108,6 +114,9 @@ export type Database = {
           lease_until?: string | null
           period?: string
           purged_at?: string | null
+          removal_announced_at?: string | null
+          removed_at?: string | null
+          removed_by_machine?: string | null
           sha256?: string
           size_bytes?: number
           state?: string
@@ -123,12 +132,14 @@ export type Database = {
           id: boolean
           lease_minutes: number
           missing_backup_alert_days: number
+          monthly_retention_years: number
           reannounce_minutes: number
           share_folder: string | null
           share_name: string | null
           share_server: string | null
           undelivered_alert_days: number
           updated_at: string
+          weekly_retention_days: number
         }
         Insert: {
           dump_interval_days?: number
@@ -137,12 +148,14 @@ export type Database = {
           id?: boolean
           lease_minutes?: number
           missing_backup_alert_days?: number
+          monthly_retention_years?: number
           reannounce_minutes?: number
           share_folder?: string | null
           share_name?: string | null
           share_server?: string | null
           undelivered_alert_days?: number
           updated_at?: string
+          weekly_retention_days?: number
         }
         Update: {
           dump_interval_days?: number
@@ -151,12 +164,14 @@ export type Database = {
           id?: boolean
           lease_minutes?: number
           missing_backup_alert_days?: number
+          monthly_retention_years?: number
           reannounce_minutes?: number
           share_folder?: string | null
           share_name?: string | null
           share_server?: string | null
           undelivered_alert_days?: number
           updated_at?: string
+          weekly_retention_days?: number
         }
         Relationships: []
       }
@@ -2634,6 +2649,9 @@ export type Database = {
           lease_until: string | null
           period: string
           purged_at: string | null
+          removal_announced_at: string | null
+          removed_at: string | null
+          removed_by_machine: string | null
           sha256: string
           size_bytes: number
           state: string
@@ -2698,6 +2716,38 @@ export type Database = {
         Args: { product_id: string; reason: string }
         Returns: undefined
       }
+      list_backups_due_for_removal: {
+        Args: never
+        Returns: {
+          announced_at: string | null
+          attempts: number
+          claimed_at: string | null
+          claimed_by_machine: string | null
+          claimed_by_session: string | null
+          created_at: string
+          delivered_at: string | null
+          delivered_by_machine: string | null
+          delivered_sha256: string | null
+          id: string
+          last_error: string | null
+          lease_until: string | null
+          period: string
+          purged_at: string | null
+          removal_announced_at: string | null
+          removed_at: string | null
+          removed_by_machine: string | null
+          sha256: string
+          size_bytes: number
+          state: string
+          storage_path: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "backup_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       list_queued_emails: {
         Args: { order_id: string }
         Returns: {
@@ -2741,6 +2791,9 @@ export type Database = {
           lease_until: string | null
           period: string
           purged_at: string | null
+          removal_announced_at: string | null
+          removed_at: string | null
+          removed_by_machine: string | null
           sha256: string
           size_bytes: number
           state: string
@@ -2771,6 +2824,9 @@ export type Database = {
           lease_until: string | null
           period: string
           purged_at: string | null
+          removal_announced_at: string | null
+          removed_at: string | null
+          removed_by_machine: string | null
           sha256: string
           size_bytes: number
           state: string
@@ -2800,6 +2856,41 @@ export type Database = {
           lease_until: string | null
           period: string
           purged_at: string | null
+          removal_announced_at: string | null
+          removed_at: string | null
+          removed_by_machine: string | null
+          sha256: string
+          size_bytes: number
+          state: string
+          storage_path: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "backup_jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      report_backup_removed: {
+        Args: { job_id: string; machine: string }
+        Returns: {
+          announced_at: string | null
+          attempts: number
+          claimed_at: string | null
+          claimed_by_machine: string | null
+          claimed_by_session: string | null
+          created_at: string
+          delivered_at: string | null
+          delivered_by_machine: string | null
+          delivered_sha256: string | null
+          id: string
+          last_error: string | null
+          lease_until: string | null
+          period: string
+          purged_at: string | null
+          removal_announced_at: string | null
+          removed_at: string | null
+          removed_by_machine: string | null
           sha256: string
           size_bytes: number
           state: string
