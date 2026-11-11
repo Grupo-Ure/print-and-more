@@ -103,6 +103,17 @@ export function BackupSettings() {
           {numberField('dump_interval_days', IDS.dumpIntervalDays, 'Make a backup every so many days', MAX_DAYS)}
         </SettingRow>
         <SettingRow
+          title="Wait for a started backup (minutes)"
+          description="How long no new backup is started while one that was started has not finished or reported a failure. A backup normally takes under an hour."
+        >
+          {numberField(
+            'start_wait_minutes',
+            IDS.startWaitMinutes,
+            'Wait so many minutes for a started backup before starting another',
+            MAX_MINUTES,
+          )}
+        </SettingRow>
+        <SettingRow
           title="Claim holds for (minutes)"
           description="How long a computer that took a backup has to bring it to the shop folder before another may try. Fixed when it is taken."
         >

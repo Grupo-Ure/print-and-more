@@ -670,6 +670,7 @@ export const TEST_IDS = {
       dumpIntervalDays: 'backup-settings-dump-interval-days',
       leaseMinutes: 'backup-settings-lease-minutes',
       reannounceMinutes: 'backup-settings-reannounce-minutes',
+      startWaitMinutes: 'backup-settings-start-wait-minutes',
       holdingRetentionDays: 'backup-settings-holding-retention-days',
       undeliveredAlertDays: 'backup-settings-undelivered-alert-days',
       missingBackupAlertDays: 'backup-settings-missing-backup-alert-days',
