@@ -11,7 +11,7 @@ const BACKUPS_BUCKET = 'backups'
 /** How long a job's download link holds: long enough to start the download, which then streams on. */
 const SIGNED_URL_SECONDS = 600
 
-/** The private channel the database calls the roll on (`fn_backup_job_roll_call`); its read policy names this topic. */
+/** The private channel the database calls the roll on (`fn_backup_job_roll_call`, `fn_backup_upkeep`); its read policy names this topic. */
 const ROLL_CALL_TOPIC = 'backups'
 
 /** Pause before replacing a roll-call channel that was lost. */
@@ -76,6 +76,24 @@ class BackupJobService {
     return data
   }
 
+  /**
+   * The delivered backups whose keep in the shop folder has run out, oldest
+   * first. The database derives the list on every call from the retention
+   * settings; nothing is stored about a backup being due.
+   */
+  async listDueForRemoval(): Promise<BackupJob[]> {
+    const { data, error } = await supabase.rpc('list_backups_due_for_removal')
+    if (error) throw error
+    return data
+  }
+
+  /** Records that this machine deleted the job's file from the shop folder; a job already recorded keeps its first stamp. */
+  async reportRemoved(jobId: string, machine: string): Promise<BackupJob> {
+    const { data, error } = await supabase.rpc('report_backup_removed', { job_id: jobId, machine })
+    if (error) throw error
+    return data
+  }
+
   /** A short-lived download link for the job's encrypted file, for the main process to stream from. */
   async signedUrl(job: BackupJob): Promise<string> {
     const { data, error } = await supabase.storage
@@ -126,16 +144,17 @@ class BackupJobService {
   }
 
   /**
-   * Listens for the roll call: `onRollCall` fires on every broadcast on the
-   * private `backups` channel, and once more when a lost channel is back, so
-   * a roll call missed in the gap is made up for.
+   * Listens for the two roll calls on the private `backups` channel:
+   * `onRollCall` fires when a backup is free to be brought in, `onRemovalCall`
+   * when backups are due to leave the shop folder. Both fire once more when a
+   * lost channel is back, so a call missed in the gap is made up for.
    *
    * The topic is fixed — the channel's read policy names it — so a channel of
    * that topic still open from a remount is removed before a new one opens.
    * Self-healing as the production feed's subscription is. Returns an
    * unsubscribe function.
    */
-  subscribeToRollCall(onRollCall: () => void): () => void {
+  subscribeToRollCall(onRollCall: () => void, onRemovalCall: () => void): () => void {
     let channel: RealtimeChannel | null = null
     let stopped = false
     let retryTimer: ReturnType<typeof setTimeout> | undefined
@@ -149,10 +168,14 @@ class BackupJobService {
       const current: RealtimeChannel = supabase
         .channel(ROLL_CALL_TOPIC, { config: { private: true } })
         .on('broadcast', { event: 'roll-call' }, () => onRollCall())
+        .on('broadcast', { event: 'remove' }, () => onRemovalCall())
         .subscribe(status => {
           if (stopped || current !== channel) return
           if (status === 'SUBSCRIBED') {
-            if (reconnecting) onRollCall()
+            if (reconnecting) {
+              onRollCall()
+              onRemovalCall()
+            }
             reconnecting = false
             return
           }

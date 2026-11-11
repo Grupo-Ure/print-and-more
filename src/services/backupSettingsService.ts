@@ -9,7 +9,7 @@ export type BackupSettingsPatch = Omit<TablesUpdate<'backup_settings'>, 'id' | '
 
 // One literal, not a concatenation: supabase-js types the row from the string.
 const BACKUP_SETTINGS_COLUMNS =
-  'id, enabled, dump_interval_days, lease_minutes, reannounce_minutes, holding_retention_days, undelivered_alert_days, missing_backup_alert_days, share_server, share_name, share_folder, updated_at'
+  'id, enabled, dump_interval_days, lease_minutes, reannounce_minutes, holding_retention_days, undelivered_alert_days, missing_backup_alert_days, weekly_retention_days, monthly_retention_years, share_server, share_name, share_folder, updated_at'
 
 /**
  * Settings → Backups (`backup_settings`). The table holds exactly one row,
