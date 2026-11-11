@@ -5,7 +5,13 @@ import {
   STALE_BACKUP_JOB,
   UNANSWERED_BACKUP_JOB,
 } from '../fixtures/backupJobs'
-import { DISABLED_BACKUP_SETTINGS, START_DISABLED_OUTCOME } from '../fixtures/backupSettings'
+import { FAILED_BACKUP_DISPATCH, TIMED_OUT_BACKUP_DISPATCH } from '../fixtures/backupDispatches'
+import {
+  DISABLED_BACKUP_SETTINGS,
+  START_ALREADY_STARTED_OUTCOME,
+  START_DISABLED_OUTCOME,
+  START_NO_TOKEN_OUTCOME,
+} from '../fixtures/backupSettings'
 import { BACKUP_ALERT_RECIPIENTS, BACKUP_MISSING_TEMPLATE, BACKUP_UNDELIVERED_TEMPLATE } from '../fixtures/emailMessages'
 import { expect, test } from '../fixtures/orders'
 
@@ -117,5 +123,45 @@ test.describe('newest job made longer ago than the missing-backup alert threshol
 
     // Assert
     expect((await database.backupAlertRecipients(BACKUP_MISSING_TEMPLATE)).sort()).toEqual(BACKUP_ALERT_RECIPIENTS)
+  })
+})
+
+// ── Start record ────────────────────────────────────────────────────────────
+// No backup job is seeded, so a backup is due. The local and CI databases
+// hold no GitHub token: a start that goes past every check answers
+// `no_token`, which is how these cases tell "held back" from "went past".
+// `backupSettings` is named to have the fixture write the shipped settings.
+
+test.describe('backup due, a start still open', () => {
+  test('BKP-SCHED-009 running the daily start reports a backup as already started', async ({ database, backupSettings: _shipped, backupDispatch: _open }) => {
+    // Act
+    const outcome = await database.startDueBackup()
+
+    // Assert
+    expect(outcome).toBe(START_ALREADY_STARTED_OUTCOME)
+  })
+})
+
+test.describe('backup due, a start whose run reported a failure', () => {
+  test.use({ backupDispatchSeed: FAILED_BACKUP_DISPATCH })
+
+  test('BKP-SCHED-010 running the daily start goes past it to the GitHub token', async ({ database, backupSettings: _shipped, backupDispatch: _failed }) => {
+    // Act
+    const outcome = await database.startDueBackup()
+
+    // Assert
+    expect(outcome).toBe(START_NO_TOKEN_OUTCOME)
+  })
+})
+
+test.describe('backup due, a start that never reported, sent longer ago than the wait for it', () => {
+  test.use({ backupDispatchSeed: TIMED_OUT_BACKUP_DISPATCH })
+
+  test('BKP-SCHED-011 running the daily start goes past it to the GitHub token', async ({ database, backupSettings: _shipped, backupDispatch: _timedOut }) => {
+    // Act
+    const outcome = await database.startDueBackup()
+
+    // Assert
+    expect(outcome).toBe(START_NO_TOKEN_OUTCOME)
   })
 })
