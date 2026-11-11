@@ -199,16 +199,18 @@ type OrdersViewFixtures = {
   customerApprovalSettingsSeed: CustomerApprovalSettingsSeed
   /**
    * The customer approval's settings, as `customerApprovalSettingsSeed`
-   * describes them, written onto the one row before the test and again after
-   * it — so a value a test changed in the app does not reach the next one.
+   * describes them, written onto the one row before the test; the defaults
+   * are written back after it — so neither the seed nor a value a test
+   * changed in the app reaches the next one.
    */
   customerApprovalSettings: CustomerApprovalSettingsSeed
   /** What `backupSettings` writes; override per describe block with `test.use({ backupSettingsSeed })`. */
   backupSettingsSeed: BackupSettingsSeed
   /**
    * The backup runtime's settings, as `backupSettingsSeed` describes them,
-   * written onto the one row before the test and again after it — so a value
-   * a test changed in the app does not reach the next one.
+   * written onto the one row before the test; the defaults are written back
+   * after it — so neither the seed nor a value a test changed in the app
+   * reaches the next one.
    */
   backupSettings: BackupSettingsSeed
   /** What `backupJob` inserts; override per describe block with `test.use({ backupJobSeed })`. */
@@ -347,7 +349,7 @@ export const test = base.extend<OrdersViewFixtures>({
     await reloadApp(page, navbar)
 
     await use(customerApprovalSettingsSeed)
-    await database.updateCustomerApprovalSettings(customerApprovalSettingsSeed)
+    await database.updateCustomerApprovalSettings(DEFAULT_CUSTOMER_APPROVAL_SETTINGS)
   },
 
   backupSettings: async ({ page, navbar, database, backupSettingsSeed }, use) => {
@@ -356,7 +358,7 @@ export const test = base.extend<OrdersViewFixtures>({
     await reloadApp(page, navbar)
 
     await use(backupSettingsSeed)
-    await database.updateBackupSettings(backupSettingsSeed)
+    await database.updateBackupSettings(DEFAULT_BACKUP_SETTINGS)
   },
 
   backupJob: async ({ database, backupJobSeed }, use) => {
