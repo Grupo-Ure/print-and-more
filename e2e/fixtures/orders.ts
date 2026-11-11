@@ -218,6 +218,19 @@ type OrdersViewFixtures = {
   /** One backup job, as `backupJobSeed` describes it, inserted before the test and removed after it. */
   backupJob: TestBackupJob
   /**
+   * What `backupJobs` inserts, one job per entry, the job the test is about
+   * first. Override per describe block as
+   * `test.use({ backupJobSeeds: [SEEDS, { scope: 'test' }] })`, as with
+   * `productSeeds`.
+   */
+  backupJobSeeds: readonly BackupJobSeed[]
+  /**
+   * Several backup jobs, one per `backupJobSeeds` entry in that order — for
+   * what the database decides by comparing jobs, as the retention rule does.
+   * Inserted before the test, removed after it. Independent of `backupJob`.
+   */
+  backupJobs: TestBackupJob[]
+  /**
    * No overdue-backup mail on record, before the test and after it: every
    * alert the upkeep queued is removed with its message and its mail record,
    * so the once-a-day rule starts afresh.
@@ -269,6 +282,7 @@ export const test = base.extend<OrdersViewFixtures>({
   customerApprovalSettingsSeed: [DEFAULT_CUSTOMER_APPROVAL_SETTINGS, { option: true }],
   backupSettingsSeed: [DEFAULT_BACKUP_SETTINGS, { option: true }],
   backupJobSeed: [WAITING_BACKUP_JOB, { option: true }],
+  backupJobSeeds: [[], { option: true }],
 
   customer: async ({ page, navbar, database, customerSeed }, use) => {
     const customer = await database.createCustomer(customerSeed)
@@ -367,6 +381,17 @@ export const test = base.extend<OrdersViewFixtures>({
 
     await use(job)
     await database.removeBackupJob(job)
+  },
+
+  backupJobs: async ({ database, backupJobSeeds }, use) => {
+    // One after the other, so each is inserted in the order the seeds name.
+    const created: TestBackupJob[] = []
+    for (const seed of backupJobSeeds) {
+      created.push(await database.createBackupJob(seed))
+    }
+
+    await use(created)
+    await Promise.all(created.map(job => database.removeBackupJob(job)))
   },
 
   backupAlerts: async ({ database }, use) => {
