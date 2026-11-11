@@ -1,9 +1,10 @@
 import { expect, reloadApp, test } from '../fixtures/orders'
-import { EDITED_DUMP_INTERVAL_DAYS } from '../fixtures/backupSettings'
+import { EDITED_DUMP_INTERVAL_DAYS, EDITED_WEEKLY_RETENTION_DAYS } from '../fixtures/backupSettings'
 import {
   DELIVERED_BACKUP_JOB,
   OVERDUE_BACKUP_JOB,
   PURGED_BACKUP_JOB,
+  REMOVED_BACKUP_JOB,
   RETRIED_BACKUP_JOB,
   STALE_BACKUP_JOB,
   TAKEN_BACKUP_JOB,
@@ -40,6 +41,24 @@ test('SET-BKP-002 changing the backup interval shows the new value again after r
 
   // Assert — the field shows the stored interval, read afresh from the database.
   await expect(interval).toHaveAttribute('data-value', String(EDITED_DUMP_INTERVAL_DAYS))
+})
+
+test('SET-BKP-011 changing the shop folder retention shows the new value again after reopening Settings', async ({ settingsPage, page, navbar, backupSettings }) => {
+  // Setup — the Backups section open, the field holding the seeded retention.
+  await settingsPage.openSection('backups')
+  const { backups } = settingsPage
+  const retention = backups.weeklyRetentionDays
+  await backups.stored(retention, backupSettings.weekly_retention_days).waitFor()
+
+  // Act — type the retention, leave the field, wait for it to be stored, then reload the app and reopen the section.
+  await retention.fill(String(EDITED_WEEKLY_RETENTION_DAYS))
+  await retention.press('Enter')
+  await backups.stored(retention, EDITED_WEEKLY_RETENTION_DAYS).waitFor()
+  await reloadApp(page, navbar)
+  await settingsPage.openSection('backups')
+
+  // Assert — the field shows the stored retention, read afresh from the database.
+  await expect(retention).toHaveAttribute('data-value', String(EDITED_WEEKLY_RETENTION_DAYS))
 })
 
 test.describe('backup waiting again after failed deliveries', () => {
@@ -103,6 +122,20 @@ test.describe('backup delivered, online copy purged', () => {
 
     // Assert
     await expect(settingsPage.backups.jobHoldingCopy(backupJob.id)).toHaveAttribute('data-purged', 'true')
+  })
+})
+
+test.describe('backup delivered, file deleted from the shop folder', () => {
+  test.use({ backupJobSeed: REMOVED_BACKUP_JOB })
+
+  test("SET-BKP-012 opening the backups section shows the job's shop folder copy as deleted with the machine that deleted it", async ({ settingsPage, backupJob, backupJobSeed }) => {
+    // Act
+    await settingsPage.openSection('backups')
+
+    // Assert — marked deleted, and naming the machine of the seeded deletion.
+    const shopCopy = settingsPage.backups.jobShopCopy(backupJob.id)
+    await expect(shopCopy).toHaveAttribute('data-removed', 'true')
+    await expect(shopCopy).toContainText(String(backupJobSeed.removal?.machine))
   })
 })
 
