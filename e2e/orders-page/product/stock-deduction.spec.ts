@@ -1,4 +1,4 @@
-import { expect, test, IN_PROGRESS_ORDER } from '../../fixtures/stock'
+import { expect, test, IN_PROGRESS_ORDER, FINISHED_STATUS } from '../../fixtures/stock'
 import {
   STAMP_PRODUCT_IN_PREPRESS_IN_STOCK,
   TEXTILE_BATCH_IN_PREPRESS_IN_STOCK,
@@ -40,11 +40,14 @@ test.describe('in progress, stamp product in pre-press, model in stock', () => {
     await ordersPage.openProduct(product)
 
     // Act — release it, then mark it done, each confirmed, then find the model on the stamp stock page.
+    // Its order's last product, so the order finishes on its own, with a history
+    // entry of its own; wait for that, or the order's removal after the test races the write.
     await ordersPage.details.productDetail.releaseButton.click()
     await ordersPage.confirmDialog.confirm.click()
     await ordersPage.details.productDetail.releaseButtonTo(DONE_STATUS).click()
     await ordersPage.confirmDialog.confirm.click()
     await ordersPage.details.productList.rowInStatus(product.id, DONE_STATUS).waitFor()
+    await ordersPage.details.inStatus(FINISHED_STATUS).waitFor()
     await navbar.link('stampStock').click()
     await stampStockPage.search.fill(IN_STOCK_STAMP_MODEL.name)
 
@@ -80,11 +83,14 @@ test.describe('in progress, textile batch in pre-press, variant in stock', () =>
     await ordersPage.openProduct(product)
 
     // Act — release it, then mark it done, each confirmed, then find the variant on the textile stock page.
+    // Its order's last product, so the order finishes on its own, with a history
+    // entry of its own; wait for that, or the order's removal after the test races the write.
     await ordersPage.details.productDetail.releaseButton.click()
     await ordersPage.confirmDialog.confirm.click()
     await ordersPage.details.productDetail.releaseButtonTo(DONE_STATUS).click()
     await ordersPage.confirmDialog.confirm.click()
     await ordersPage.details.productList.rowInStatus(product.id, DONE_STATUS).waitFor()
+    await ordersPage.details.inStatus(FINISHED_STATUS).waitFor()
     await navbar.link('textileStock').click()
     await textileStockPage.search.fill(IN_STOCK_TEXTILE_CHAIN.brand.name)
 
