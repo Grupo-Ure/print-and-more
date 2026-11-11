@@ -24,6 +24,15 @@ export const DEFAULT_BACKUP_SETTINGS: BackupSettingsSeed = {
 /** The backup interval a test types in place of the default. */
 export const EDITED_DUMP_INTERVAL_DAYS = 14
 
+/** The shop folder retention a test types in place of the default. */
+export const EDITED_WEEKLY_RETENTION_DAYS = 60
+
+/** A weekly retention of ten years, so dumps made in March 2025 lie inside it. */
+export const LONG_WEEKLY_RETENTION_BACKUP_SETTINGS: BackupSettingsSeed = {
+  ...DEFAULT_BACKUP_SETTINGS,
+  weekly_retention_days: 3650,
+}
+
 /** Backups switched off: nothing is started or announced, delivered copies are still purged. */
 export const DISABLED_BACKUP_SETTINGS: BackupSettingsSeed = {
   ...DEFAULT_BACKUP_SETTINGS,
