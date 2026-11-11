@@ -106,6 +106,11 @@ export class OrderDetailsPOM extends BasePOM {
     return this.withAttr(this.root, 'data-order-id', orderId)
   }
 
+  /** The details column only while the order it shows is in this status. */
+  inStatus(status: string): Locator {
+    return this.withAttr(this.root, 'data-status', status)
+  }
+
   /** The details column only while it shows an order other than this one — e.g. a copy whose id the spec cannot know. */
   forOrderOtherThan(orderId: string): Locator {
     return this.withoutAttr(this.root, 'data-order-id', orderId)
