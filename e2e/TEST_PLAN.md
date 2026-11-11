@@ -17,7 +17,8 @@ file first; a spec follows the plan, never the other way round.
   test leaves its number retired, a reworded test keeps its ID.
 - An HTML comment at the end of a bullet is a note for the reader, not part
   of the title: `<!-- new: <plan> <package> -->` marks a test a work stream
-  has planned and not yet written. It is removed when the test is.
+  added that the maintainer has not yet reviewed. It is removed by the
+  reviewer once the test is checked, not when it is written.
 - `npm run test:plan:status` lists what is planned and not yet written.
 
 How a run works is in [e2e/README.md](README.md); the conventions are in
@@ -439,6 +440,7 @@ behaviour the lifecycle packs assert is written out in
       - **BKP-RET-007** reporting the removal stamps the job with the time and the machine <!-- new: BACKUP_RUNTIME WP8 -->
       - **BKP-RET-008** reporting the removal a second time keeps the first stamp <!-- new: BACKUP_RUNTIME WP8 -->
       - **BKP-RET-009** running the upkeep stamps the job as announced for removal <!-- new: BACKUP_RUNTIME WP8 -->
+    - *job due for removal, its deletion asked for five minutes ago*
       - **BKP-RET-010** running the upkeep again inside the re-announce interval leaves the announcement as it was <!-- new: BACKUP_RUNTIME WP8 -->
 
 ## Later
