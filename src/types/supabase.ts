@@ -52,6 +52,38 @@ export type Database = {
         }
         Relationships: []
       }
+      backup_dispatches: {
+        Row: {
+          error: string | null
+          failed_at: string | null
+          id: string
+          job_id: string | null
+          requested_at: string
+        }
+        Insert: {
+          error?: string | null
+          failed_at?: string | null
+          id?: string
+          job_id?: string | null
+          requested_at?: string
+        }
+        Update: {
+          error?: string | null
+          failed_at?: string | null
+          id?: string
+          job_id?: string | null
+          requested_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backup_dispatches_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "backup_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       backup_jobs: {
         Row: {
           announced_at: string | null
@@ -137,6 +169,7 @@ export type Database = {
           share_folder: string | null
           share_name: string | null
           share_server: string | null
+          start_wait_minutes: number
           undelivered_alert_days: number
           updated_at: string
           weekly_retention_days: number
@@ -153,6 +186,7 @@ export type Database = {
           share_folder?: string | null
           share_name?: string | null
           share_server?: string | null
+          start_wait_minutes?: number
           undelivered_alert_days?: number
           updated_at?: string
           weekly_retention_days?: number
@@ -169,6 +203,7 @@ export type Database = {
           share_folder?: string | null
           share_name?: string | null
           share_server?: string | null
+          start_wait_minutes?: number
           undelivered_alert_days?: number
           updated_at?: string
           weekly_retention_days?: number
@@ -2771,6 +2806,7 @@ export type Database = {
       }
       record_backup_job: {
         Args: {
+          dispatch_id?: string
           period: string
           sha256: string
           size_bytes: number
@@ -2835,6 +2871,22 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "backup_jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      report_backup_dispatch_failed: {
+        Args: { dispatch_id: string; reason: string }
+        Returns: {
+          error: string | null
+          failed_at: string | null
+          id: string
+          job_id: string | null
+          requested_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "backup_dispatches"
           isOneToOne: true
           isSetofReturn: false
         }
