@@ -15,6 +15,9 @@ file first; a spec follows the plan, never the other way round.
   spec uses word for word. Add a new test without the ID and run
   `npm run test:plan:assign` to number it; IDs are never reused — a deleted
   test leaves its number retired, a reworded test keeps its ID.
+- An HTML comment at the end of a bullet is a note for the reader, not part
+  of the title: `<!-- new: <plan> <package> -->` marks a test a work stream
+  has planned and not yet written. It is removed when the test is.
 - `npm run test:plan:status` lists what is planned and not yet written.
 
 How a run works is in [e2e/README.md](README.md); the conventions are in
@@ -229,6 +232,7 @@ behaviour the lifecycle packs assert is written out in
   - [backups.spec.ts](settings-page/backups.spec.ts) — `SET-BKP`
     - **SET-BKP-001** opening Settings lists the backups section
     - **SET-BKP-002** changing the backup interval shows the new value again after reopening Settings
+    - **SET-BKP-011** changing the shop folder retention shows the new value again after reopening Settings <!-- new: BACKUP_RUNTIME WP8 -->
     - *backup waiting again after failed deliveries*
       - **SET-BKP-003** opening the backups section shows the job's failed attempts
       - **SET-BKP-004** opening the backups section shows why the job's last delivery failed
@@ -239,6 +243,8 @@ behaviour the lifecycle packs assert is written out in
       - **SET-BKP-007** opening the backups section shows the job's online copy as kept
     - *backup delivered, online copy purged*
       - **SET-BKP-008** opening the backups section shows the job's online copy as deleted
+    - *backup delivered, file deleted from the shop folder*
+      - **SET-BKP-012** opening the backups section shows the job's shop folder copy as deleted with the machine that deleted it <!-- new: BACKUP_RUNTIME WP8 -->
     - *backup waiting longer than the undelivered alert threshold*
       - **SET-BKP-009** opening the backups section flags the job as undelivered with the days since it was made
     - *newest backup made longer ago than the missing-backup alert threshold*
@@ -272,7 +278,8 @@ behaviour the lifecycle packs assert is written out in
       - *test-message repeated once a day, sent twice at most*
         - **EML-SET-001** sending the mail queues its repeat one repeat interval out
         - **EML-SET-002** draining each send as it comes due stops the mail at its maximum
-      - **EML-SET-003** draining the queue archives unsent a waiting mail switched off since it was queued
+      - *test-message waiting, not yet due*
+        - **EML-SET-003** draining the queue archives unsent a waiting mail switched off since it was queued
   - **Webhook**
     - [webhook.spec.ts](email-runtime/webhook.spec.ts) — `EML-WHK`
       - **EML-WHK-001** a delivery report marks the sent mail as delivered
@@ -415,6 +422,24 @@ behaviour the lifecycle packs assert is written out in
       - **BKP-SCHED-007** running the upkeep a second time the same day queues no further mail
     - *newest job made longer ago than the missing-backup alert threshold*
       - **BKP-SCHED-008** running the upkeep queues the missing-backup mail once to the shop and once to the developers
+  - [backup-retention.spec.ts](compliance/backup-retention.spec.ts) — `BKP-RET`
+    - *delivered job past the weekly retention, a later job made the same month*
+      - **BKP-RET-001** listing the backups due for removal includes the job <!-- new: BACKUP_RUNTIME WP8 -->
+    - *delivered job inside the weekly retention, a later job made the same month*
+      - **BKP-RET-002** listing the backups due for removal leaves the job out <!-- new: BACKUP_RUNTIME WP8 -->
+    - *last delivered job of its month, past the weekly retention, inside the monthly one*
+      - **BKP-RET-003** listing the backups due for removal leaves the job out <!-- new: BACKUP_RUNTIME WP8 -->
+    - *last delivered job of its month, past the monthly retention*
+      - **BKP-RET-004** listing the backups due for removal includes the job <!-- new: BACKUP_RUNTIME WP8 -->
+    - *newest delivered job, past the monthly retention*
+      - **BKP-RET-005** listing the backups due for removal leaves the job out <!-- new: BACKUP_RUNTIME WP8 -->
+    - *job due for removal, already reported removed*
+      - **BKP-RET-006** listing the backups due for removal leaves the job out <!-- new: BACKUP_RUNTIME WP8 -->
+    - *job due for removal*
+      - **BKP-RET-007** reporting the removal stamps the job with the time and the machine <!-- new: BACKUP_RUNTIME WP8 -->
+      - **BKP-RET-008** reporting the removal a second time keeps the first stamp <!-- new: BACKUP_RUNTIME WP8 -->
+      - **BKP-RET-009** running the upkeep stamps the job as announced for removal <!-- new: BACKUP_RUNTIME WP8 -->
+      - **BKP-RET-010** running the upkeep again inside the re-announce interval leaves the announcement as it was <!-- new: BACKUP_RUNTIME WP8 -->
 
 ## Later
 
