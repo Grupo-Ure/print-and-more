@@ -673,6 +673,8 @@ export const TEST_IDS = {
       holdingRetentionDays: 'backup-settings-holding-retention-days',
       undeliveredAlertDays: 'backup-settings-undelivered-alert-days',
       missingBackupAlertDays: 'backup-settings-missing-backup-alert-days',
+      weeklyRetentionDays: 'backup-settings-weekly-retention-days',
+      monthlyRetentionYears: 'backup-settings-monthly-retention-years',
       shareServer: 'backup-settings-share-server',
       shareName: 'backup-settings-share-name',
       shareFolder: 'backup-settings-share-folder',
@@ -693,6 +695,8 @@ export const TEST_IDS = {
         rowLastError: 'backup-jobs-row-last-error',
         /** Whether the online copy is still kept; `data-purged` = true | false. */
         rowHoldingCopy: 'backup-jobs-row-holding-copy',
+        /** Whether the file is still in the shop folder; `data-removed` = true | false, empty until delivered. Names the machine that deleted it. */
+        rowShopCopy: 'backup-jobs-row-shop-copy',
         /** On a job not yet delivered, made longer ago than the undelivered alert threshold; `data-days` = days since it was made. */
         rowUndeliveredFlag: 'backup-jobs-row-undelivered-flag',
         /** On the newest job, made longer ago than the missing-backup alert threshold; `data-days` = days since it was made. */

@@ -20,6 +20,9 @@ const MACHINE_IDS = IDS.machine
 /** The longest any day-based setting may be: a year. */
 const MAX_DAYS = 365
 
+/** The longest the last backup of a month may be kept. */
+const MAX_YEARS = 30
+
 /** The longest any minute-based setting may be: a day. */
 const MAX_MINUTES = 1440
 
@@ -28,8 +31,9 @@ type ShareSetting = 'share_server' | 'share_name' | 'share_folder'
 /**
  * Settings → Backups, in three parts: every backup ever made and where it is
  * (`backup_jobs`, live); the settings — when the weekly backup is made, how
- * the running copies of the app hand it on, when the shop is warned, and the
- * folder on the shop's share it is brought to (`backup_settings`), each field
+ * the running copies of the app hand it on, when the shop is warned, how long
+ * it is kept in the shop folder, and the folder on the shop's share it is
+ * brought to (`backup_settings`), each field
  * saving on its own the moment it is left; and whether this machine can reach
  * that folder now.
  */
@@ -117,7 +121,7 @@ export function BackupSettings() {
         </SettingRow>
         <SettingRow
           title="Keep the online copy for (days after delivery)"
-          description="How long a backup stays in online storage once it has reached the shop folder. The copy in the shop folder is not touched."
+          description="How long a backup stays in online storage once it has reached the shop folder. The copy in the shop folder has its own keep, below."
         >
           {numberField(
             'holding_retention_days',
@@ -146,6 +150,28 @@ export function BackupSettings() {
             IDS.missingBackupAlertDays,
             'Warn when no backup has been made for so many days',
             MAX_DAYS,
+          )}
+        </SettingRow>
+        <SettingRow
+          title="Keep backups in the shop folder for (days)"
+          description="How long after it was made a backup is deleted from the shop folder. The last backup of each month is kept longer, and the newest one always stays."
+        >
+          {numberField(
+            'weekly_retention_days',
+            IDS.weeklyRetentionDays,
+            'Keep a backup in the shop folder for so many days',
+            MAX_DAYS,
+          )}
+        </SettingRow>
+        <SettingRow
+          title="Keep each month's last backup for (years)"
+          description="How long the last backup of a month stays in the shop folder before it is deleted too."
+        >
+          {numberField(
+            'monthly_retention_years',
+            IDS.monthlyRetentionYears,
+            'Keep the last backup of a month for so many years',
+            MAX_YEARS,
           )}
         </SettingRow>
         <SettingRow
@@ -225,13 +251,14 @@ function BackupJobList({ settings }: { settings: BackupSettingsRow | null }) {
             <TableHead>Delivered</TableHead>
             <TableHead>Failed tries</TableHead>
             <TableHead>Last error</TableHead>
-            <TableHead className="pr-4">Online copy</TableHead>
+            <TableHead>Online copy</TableHead>
+            <TableHead className="pr-4">Shop folder copy</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {!isLoading && jobs?.length === 0 && (
             <TableRow>
-              <TableCell data-testid={JOB_IDS.empty} colSpan={9} className="pl-4 text-neutral-500">
+              <TableCell data-testid={JOB_IDS.empty} colSpan={10} className="pl-4 text-neutral-500">
                 No backup has been made yet.
               </TableCell>
             </TableRow>
@@ -274,6 +301,7 @@ function BackupJobRow({
   isMissingNext: boolean
 }) {
   const isPurged = job.purged_at !== null
+  const isRemoved = job.removed_at !== null
   const days = daysSinceMade(job, now)
   return (
     <TableRow data-testid={JOB_IDS.row} data-job-id={job.id} data-state={job.state}>
@@ -313,8 +341,16 @@ function BackupJobRow({
       <TableCell data-testid={JOB_IDS.rowLastError} className="max-w-64 truncate" title={job.last_error ?? undefined}>
         {job.last_error ?? ''}
       </TableCell>
-      <TableCell data-testid={JOB_IDS.rowHoldingCopy} data-purged={isPurged} className="pr-4">
+      <TableCell data-testid={JOB_IDS.rowHoldingCopy} data-purged={isPurged}>
         {isPurged ? `Deleted ${formatDateTimeHuman(job.purged_at!)}` : 'Kept'}
+      </TableCell>
+      <TableCell
+        data-testid={JOB_IDS.rowShopCopy}
+        data-removed={job.state === 'DELIVERED' ? isRemoved : undefined}
+        className="pr-4"
+      >
+        {job.state === 'DELIVERED' && (isRemoved ? `Deleted ${formatDateTimeHuman(job.removed_at!)}` : 'Kept')}
+        {isRemoved && <span className="block text-xs text-neutral-500">by {job.removed_by_machine}</span>}
       </TableCell>
     </TableRow>
   )
