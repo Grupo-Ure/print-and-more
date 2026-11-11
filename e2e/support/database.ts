@@ -5,6 +5,7 @@ import type { ChildTable } from '../../src/types/product'
 import { createHash, randomBytes } from 'node:crypto'
 import { addDays } from 'date-fns'
 import type { ApprovalRequestSeed } from '../fixtures/approvalRequests'
+import type { BackupDispatchSeed, RecordedBackupSeed, TestBackupDispatch } from '../fixtures/backupDispatches'
 import { BACKUP_FILE_CONTENT, type BackupJobSeed, type TestBackupJob } from '../fixtures/backupJobs'
 import type { BackupSettingsSeed } from '../fixtures/backupSettings'
 import type { TestCustomer } from '../fixtures/customers'
@@ -25,6 +26,11 @@ type HistoryEvent = Database['public']['Enums']['history_event']
 export type QueuedEmailRow = Database['public']['Functions']['list_queued_emails']['Returns'][number]
 
 const MS_PER_DAY = 86_400_000
+
+/** Where the backup jobs a spec records for a start are put, so the start's removal finds them all. */
+function dispatchStoragePrefix(dispatchId: string): string {
+  return `e2e/dispatch-${dispatchId}/`
+}
 
 /**
  * How many whole days the message was queued to wait: from when it was queued
@@ -418,6 +424,69 @@ export class TestDatabase {
     const { data, error } = await this.client.rpc('fn_start_due_backup')
     if (error) throw error
     return data
+  }
+
+  // ── Backup starts ────────────────────────────────────────────────────────
+
+  /**
+   * Inserts one start of the backup workflow as the seed describes it, linked
+   * onto `jobId` when its run recorded a backup. Returns the row as stored.
+   */
+  async createBackupDispatch(seed: BackupDispatchSeed, jobId: string | null): Promise<TestBackupDispatch> {
+    const { data, error } = await this.client
+      .from('backup_dispatches')
+      .insert({
+        requested_at: new Date(Date.now() - seed.requestedMinutesAgo * 60_000).toISOString(),
+        job_id: jobId,
+        failed_at: seed.failure ? new Date().toISOString() : null,
+        error: seed.failure,
+      })
+      .select('*')
+      .single()
+    if (error) throw error
+    return data
+  }
+
+  /** Reads one start back as stored. */
+  async backupDispatch(dispatchId: string): Promise<TestBackupDispatch> {
+    const { data, error } = await this.client.from('backup_dispatches').select('*').eq('id', dispatchId).single()
+    if (error) throw error
+    return data
+  }
+
+  /**
+   * Records a backup as the run of that start records it (`record_backup_job`,
+   * service role). Its storage path lies under the start's own prefix, so the
+   * start's removal finds every job recorded for it. Returns the job.
+   */
+  async recordBackupJob(dispatchId: string, backup: RecordedBackupSeed): Promise<TestBackupJob> {
+    const { data, error } = await this.client.rpc('record_backup_job', {
+      period: backup.period,
+      storage_path: `${dispatchStoragePrefix(dispatchId)}${crypto.randomUUID()}.dump.age`,
+      size_bytes: backup.sizeBytes,
+      sha256: backup.sha256,
+      dispatch_id: dispatchId,
+    })
+    if (error) throw error
+    return data
+  }
+
+  /** Reports the run of that start as failed, as the workflow's last step does; the database's answer is returned, not thrown, since refusing is a case. */
+  async reportBackupDispatchFailed(dispatchId: string, reason: string): Promise<{ error: unknown }> {
+    const { error } = await this.client.rpc('report_backup_dispatch_failed', { dispatch_id: dispatchId, reason })
+    return { error }
+  }
+
+  /** Removes a seeded start and every backup job a spec recorded for it. Only the runner may: the app never deletes one. */
+  async removeBackupDispatch(dispatch: TestBackupDispatch): Promise<void> {
+    const { error } = await this.client.from('backup_dispatches').delete().eq('id', dispatch.id)
+    if (error) throw error
+    const { data: recorded, error: listError } = await this.client
+      .from('backup_jobs')
+      .select('*')
+      .like('storage_path', `${dispatchStoragePrefix(dispatch.id)}%`)
+    if (listError) throw listError
+    await Promise.all(recorded.map(job => this.removeBackupJob(job)))
   }
 
   // ── Department defaults ──────────────────────────────────────────────────

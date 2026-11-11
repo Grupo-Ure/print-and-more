@@ -3,7 +3,7 @@
  * Adds the orders view's page object (`ordersPage`) and the per-test data of
  * that view (`customer`, `order`, `product`, `newCustomer`,
  * `departmentDefault`, `developer`, `customerApprovalSettings`, `backupSettings`,
- * `backupJob`, `backupAlerts`).
+ * `backupJob`, `backupJobs`, `backupDispatch`, `backupAlerts`).
  *
  * Fixtures only seed data and reload so the app can see it. They never
  * navigate: getting to the order or product under test is the test's own Setup
@@ -17,7 +17,8 @@ import { NEW_CUSTOMER, TEST_CUSTOMER, type TestCustomer } from './customers'
 import { OTHER_PRODUCT } from './products'
 import { DEFAULT_CUSTOMER_APPROVAL_SETTINGS, type CustomerApprovalSettingsSeed } from './customerApprovalSettings'
 import { DEFAULT_BACKUP_SETTINGS, type BackupSettingsSeed } from './backupSettings'
-import { WAITING_BACKUP_JOB, type BackupJobSeed, type TestBackupJob } from './backupJobs'
+import { DELIVERED_BACKUP_JOB, WAITING_BACKUP_JOB, type BackupJobSeed, type TestBackupJob } from './backupJobs'
+import { OPEN_BACKUP_DISPATCH, type BackupDispatchSeed, type TestBackupDispatch } from './backupDispatches'
 import { EMPTY_PREPRESS_DEFAULT, type DepartmentDefaultSeed } from './departments'
 import { APPROVAL_FILE } from './files'
 import { IN_STOCK_STAMP_MODEL, OUT_OF_STOCK_STAMP_MODEL } from './stamps'
@@ -230,6 +231,14 @@ type OrdersViewFixtures = {
    * Inserted before the test, removed after it. Independent of `backupJob`.
    */
   backupJobs: TestBackupJob[]
+  /** What `backupDispatch` inserts; override per describe block with `test.use({ backupDispatchSeed })`. */
+  backupDispatchSeed: BackupDispatchSeed
+  /**
+   * One start of the backup workflow, as `backupDispatchSeed` describes it —
+   * with a backup job of its own when its run recorded one. Inserted before
+   * the test; removed after it, with every job a spec recorded for it.
+   */
+  backupDispatch: TestBackupDispatch
   /**
    * No overdue-backup mail on record, before the test and after it: every
    * alert the upkeep queued is removed with its message and its mail record,
@@ -283,6 +292,7 @@ export const test = base.extend<OrdersViewFixtures>({
   backupSettingsSeed: [DEFAULT_BACKUP_SETTINGS, { option: true }],
   backupJobSeed: [WAITING_BACKUP_JOB, { option: true }],
   backupJobSeeds: [[], { option: true }],
+  backupDispatchSeed: [OPEN_BACKUP_DISPATCH, { option: true }],
 
   customer: async ({ page, navbar, database, customerSeed }, use) => {
     const customer = await database.createCustomer(customerSeed)
@@ -392,6 +402,16 @@ export const test = base.extend<OrdersViewFixtures>({
 
     await use(created)
     await Promise.all(created.map(job => database.removeBackupJob(job)))
+  },
+
+  backupDispatch: async ({ database, backupDispatchSeed }, use) => {
+    // A recorded start's backup is a delivered job of its own, linked onto it.
+    const job = backupDispatchSeed.recorded ? await database.createBackupJob(DELIVERED_BACKUP_JOB) : null
+    const dispatch = await database.createBackupDispatch(backupDispatchSeed, job?.id ?? null)
+
+    await use(dispatch)
+    await database.removeBackupDispatch(dispatch)
+    if (job) await database.removeBackupJob(job)
   },
 
   backupAlerts: async ({ database }, use) => {
