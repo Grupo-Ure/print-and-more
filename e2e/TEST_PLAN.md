@@ -132,7 +132,7 @@ behaviour the lifecycle packs assert is written out in
       - *in progress, product in pre-press*
         - **PRD-STA-009** releasing the product to production moves it to in production
       - *in progress, product in production*
-        - **PRD-STA-010** marking the product as done moves it to done
+        - **PRD-STA-010** marking the product as done moves it to done <!-- new: suite stabilisation -->
       - *in progress, OTHER product, pre-press default set*
         - **PRD-STA-011** the product promoted to pre-press is assigned to the pre-press default
       - *in progress, product in pre-press, production default set*
@@ -190,10 +190,10 @@ behaviour the lifecycle packs assert is written out in
     - [stock-deduction.spec.ts](orders-page/product/stock-deduction.spec.ts) — `PRD-STK`
       - *in progress, stamp product in pre-press, model in stock*
         - **PRD-STK-001** releasing the product to production deducts its quantity from the model stock
-        - **PRD-STK-002** marking the product done after the release deducts nothing more
+        - **PRD-STK-002** marking the product done after the release deducts nothing more <!-- new: suite stabilisation -->
       - *in progress, textile batch in pre-press, variant in stock*
         - **PRD-STK-003** releasing the batch to production deducts its garment line's quantity from the variant stock
-        - **PRD-STK-004** marking the batch done after the release deducts nothing more
+        - **PRD-STK-004** marking the batch done after the release deducts nothing more <!-- new: suite stabilisation -->
 - **Production page**
   - [feed.spec.ts](production-page/feed.spec.ts) — `PRN-FEED`
     - *as admin*
@@ -280,7 +280,7 @@ behaviour the lifecycle packs assert is written out in
         - **EML-SET-001** sending the mail queues its repeat one repeat interval out
         - **EML-SET-002** draining each send as it comes due stops the mail at its maximum
       - *test-message waiting, not yet due*
-        - **EML-SET-003** draining the queue archives unsent a waiting mail switched off since it was queued
+        - **EML-SET-003** draining the queue archives unsent a waiting mail switched off since it was queued <!-- new: suite stabilisation -->
   - **Webhook**
     - [webhook.spec.ts](email-runtime/webhook.spec.ts) — `EML-WHK`
       - **EML-WHK-001** a delivery report marks the sent mail as delivered
