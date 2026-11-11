@@ -14,6 +14,8 @@ export const DEFAULT_BACKUP_SETTINGS: BackupSettingsSeed = {
   holding_retention_days: 3,
   undelivered_alert_days: 2,
   missing_backup_alert_days: 8,
+  weekly_retention_days: 90,
+  monthly_retention_years: 10,
   share_server: null,
   share_name: null,
   share_folder: null,
