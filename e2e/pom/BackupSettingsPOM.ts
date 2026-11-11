@@ -6,7 +6,7 @@ const IDS = TEST_IDS.settings.backups
 const JOB_IDS = IDS.jobs
 
 /**
- * Settings → Backups: the list of backups (`backup_jobs`), then a switch, six
+ * Settings → Backups: the list of backups (`backup_jobs`), then a switch, eight
  * number fields and the three parts of the shop folder (`backup_settings`),
  * each saving when it is left.
  */
@@ -21,6 +21,8 @@ export class BackupSettingsPOM extends BasePOM {
   readonly holdingRetentionDays: Locator
   readonly undeliveredAlertDays: Locator
   readonly missingBackupAlertDays: Locator
+  readonly weeklyRetentionDays: Locator
+  readonly monthlyRetentionYears: Locator
   /** Each text field: `data-value` = the stored text, empty while unset. */
   readonly shareServer: Locator
   readonly shareName: Locator
@@ -39,6 +41,8 @@ export class BackupSettingsPOM extends BasePOM {
     this.holdingRetentionDays = this.root.getByTestId(IDS.holdingRetentionDays)
     this.undeliveredAlertDays = this.root.getByTestId(IDS.undeliveredAlertDays)
     this.missingBackupAlertDays = this.root.getByTestId(IDS.missingBackupAlertDays)
+    this.weeklyRetentionDays = this.root.getByTestId(IDS.weeklyRetentionDays)
+    this.monthlyRetentionYears = this.root.getByTestId(IDS.monthlyRetentionYears)
     this.shareServer = this.root.getByTestId(IDS.shareServer)
     this.shareName = this.root.getByTestId(IDS.shareName)
     this.shareFolder = this.root.getByTestId(IDS.shareFolder)
@@ -74,6 +78,14 @@ export class BackupSettingsPOM extends BasePOM {
   /** Whether the job's online copy is kept; `data-purged` = true | false. */
   jobHoldingCopy(jobId: string): Locator {
     return this.jobRow(jobId).getByTestId(JOB_IDS.rowHoldingCopy)
+  }
+
+  /**
+   * Whether the job's file is still in the shop folder; `data-removed` =
+   * true | false, absent until delivered. Names the machine that deleted it.
+   */
+  jobShopCopy(jobId: string): Locator {
+    return this.jobRow(jobId).getByTestId(JOB_IDS.rowShopCopy)
   }
 
   /** The job's flag for being undelivered past the alert threshold; `data-days` = days since it was made. */
