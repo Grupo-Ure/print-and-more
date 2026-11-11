@@ -20,7 +20,8 @@
 #   4. Upload to backups/<period>_<UTC time>.dump.age with the service-role
 #      key, never overwriting.
 #   5. record_backup_job — the insert calls the roll for the running copies
-#      of the app.
+#      of the app. With DISPATCH_ID (the start fn_start_due_backup recorded,
+#      WP9) the backup is linked onto that start, which closes it.
 #
 # Nothing here prints a connection string, a key, a row of data or a row
 # count: the workflow's log is public.
@@ -34,6 +35,13 @@ set -euo pipefail
 : "${BACKUP_ENCRYPTION_PUBLIC_KEY:?the public key the shop sent, age or SSH Ed25519}"
 WORK_DIR="${WORK_DIR:-$(mktemp -d)}"
 mkdir -p "$WORK_DIR"
+
+# The start this run belongs to; empty for a run started by hand.
+DISPATCH_ID="${DISPATCH_ID:-}"
+if [[ -n "$DISPATCH_ID" && ! "$DISPATCH_ID" =~ ^[0-9a-f-]{36}$ ]]; then
+  printf 'DISPATCH_ID is not a start id\n' >&2
+  exit 1
+fi
 
 # The schemas whose tables are counted on both sides: the app's data, the
 # accounts, the storage metadata and the migration history. Extension schemas
@@ -127,9 +135,12 @@ log "Uploaded to backups/$file_name"
 
 # ── 5. Record ───────────────────────────────────────────────────────────────
 
+dispatch_json=null
+[[ -n "$DISPATCH_ID" ]] && dispatch_json="\"$DISPATCH_ID\""
+
 curl -sS --fail-with-body -o /dev/null \
   -X POST "$SUPABASE_URL/rest/v1/rpc/record_backup_job" \
   -H "apikey: $BACKUP_SERVICE_ROLE_KEY" \
   -H 'Content-Type: application/json' \
-  -d "{\"period\":\"$period\",\"storage_path\":\"$file_name\",\"size_bytes\":$size_bytes,\"sha256\":\"$sha256\"}"
+  -d "{\"period\":\"$period\",\"storage_path\":\"$file_name\",\"size_bytes\":$size_bytes,\"sha256\":\"$sha256\",\"dispatch_id\":$dispatch_json}"
 log "Recorded the backup job for $period"

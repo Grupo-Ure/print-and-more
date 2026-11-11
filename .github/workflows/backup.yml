@@ -9,12 +9,16 @@
 #   starts it through the GitHub API when a backup is due
 #   (fn_start_due_backup, WP5), with a token the hosted project's Vault holds
 #   as `github_backup_token`; so GitHub's rule that disables idle scheduled
-#   workflows never applies. Two runs never overlap.
+#   workflows never applies. Two runs never overlap. Each start is recorded
+#   (backup_dispatches, WP9) and handed to the run as the input
+#   `dispatch_id`: the run links its backup onto it, or reports its failure
+#   in a last step, and either closes the start.
 #
 # Running it by hand:
 #   Actions → Backup → Run workflow, or `gh workflow run backup.yml`. A run
 #   makes a new backup like any other — a new file and a new job row, which
-#   the running copies of the app then bring to the shop folder.
+#   the running copies of the app then bring to the shop folder. Leave
+#   `dispatch_id` empty: a run by hand belongs to no start.
 #
 #   Against a local Supabase, run the script itself with Postgres 17 client
 #   tools and age on the PATH; the local database serves as its own restore
@@ -58,6 +62,11 @@ name: Backup
 
 on:
   workflow_dispatch:
+    inputs:
+      dispatch_id:
+        description: The start this run belongs to (backup_dispatches); set by fn_start_due_backup, left empty when run by hand.
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -105,4 +114,22 @@ jobs:
           SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           BACKUP_SERVICE_ROLE_KEY: ${{ secrets.BACKUP_SERVICE_ROLE_KEY }}
           BACKUP_ENCRYPTION_PUBLIC_KEY: ${{ secrets.BACKUP_ENCRYPTION_PUBLIC_KEY }}
+          DISPATCH_ID: ${{ inputs.dispatch_id }}
           WORK_DIR: ${{ runner.temp }}/backup
+      - name: Report the failed run
+        # Closes the start, so the next daily start sends a new one rather
+        # than waiting out start_wait_minutes. Only for a run that has a
+        # start: one started by hand has none.
+        if: failure() && inputs.dispatch_id != ''
+        run: |
+          [[ "$DISPATCH_ID" =~ ^[0-9a-f-]{36}$ ]] || { echo 'Not a start id'; exit 1; }
+          curl -sS --fail-with-body -o /dev/null \
+            -X POST "$SUPABASE_URL/rest/v1/rpc/report_backup_dispatch_failed" \
+            -H "apikey: $BACKUP_SERVICE_ROLE_KEY" \
+            -H 'Content-Type: application/json' \
+            -d "{\"dispatch_id\":\"$DISPATCH_ID\",\"reason\":\"Run $RUN_URL failed\"}"
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          BACKUP_SERVICE_ROLE_KEY: ${{ secrets.BACKUP_SERVICE_ROLE_KEY }}
+          DISPATCH_ID: ${{ inputs.dispatch_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
