@@ -301,8 +301,9 @@ export class TestDatabase {
 
   /**
    * Inserts one backup job as the seed describes it: waiting, or taken with
-   * the seed's claim. Its storage path is its own, so parallel workers never
-   * collide on the unique path. Returns the row as stored.
+   * the seed's claim, or delivered — and then perhaps deleted from the shop
+   * folder, or announced for that. Its storage path is its own, so parallel
+   * workers never collide on the unique path. Returns the row as stored.
    */
   async createBackupJob(seed: BackupJobSeed): Promise<TestBackupJob> {
     const now = Date.now()
@@ -310,7 +311,7 @@ export class TestDatabase {
     const { data, error } = await this.client
       .from('backup_jobs')
       .insert({
-        created_at: new Date(now - seed.createdDaysAgo * 86_400_000).toISOString(),
+        created_at: seed.createdAt ?? new Date(now - seed.createdDaysAgo * 86_400_000).toISOString(),
         period: seed.period,
         storage_path: `e2e/${crypto.randomUUID()}.dump.age`,
         size_bytes: seed.sizeBytes,
@@ -326,6 +327,10 @@ export class TestDatabase {
         delivered_by_machine: seed.delivered ? (claim?.machine ?? null) : null,
         delivered_sha256: seed.delivered ? seed.sha256 : null,
         purged_at: seed.purged ? new Date(now).toISOString() : null,
+        removed_at: seed.removal ? new Date(now - seed.removal.daysAgo * 86_400_000).toISOString() : null,
+        removed_by_machine: seed.removal?.machine ?? null,
+        removal_announced_at:
+          seed.removalAnnouncedMinutesAgo === null ? null : new Date(now - seed.removalAnnouncedMinutesAgo * 60_000).toISOString(),
       })
       .select('*')
       .single()
@@ -371,6 +376,13 @@ export class TestDatabase {
     const { data, error } = await this.client.storage.from(BACKUPS_BUCKET).list(folder, { search: name })
     if (error) throw error
     return data.some(object => object.name === name)
+  }
+
+  /** The ids of the backup jobs the retention rule lists as due to leave the shop folder (`list_backups_due_for_removal`), judged now. */
+  async backupJobsDueForRemoval(): Promise<string[]> {
+    const { data, error } = await this.client.rpc('list_backups_due_for_removal')
+    if (error) throw error
+    return data.map(job => job.id)
   }
 
   /** Runs the five-minute backup upkeep once, as its cron job does. */
