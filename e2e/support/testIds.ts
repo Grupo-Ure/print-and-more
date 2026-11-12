@@ -676,6 +676,10 @@ export const TEST_IDS = {
       missingBackupAlertDays: 'backup-settings-missing-backup-alert-days',
       weeklyRetentionDays: 'backup-settings-weekly-retention-days',
       monthlyRetentionYears: 'backup-settings-monthly-retention-years',
+      /** Opens the system's folder dialog; the picked folder fills the three share fields below. */
+      browseShare: 'backup-settings-browse-share',
+      /** The shop folder as one network path, or "Not set" while server, share or folder is empty. */
+      sharePath: 'backup-settings-share-path',
       shareServer: 'backup-settings-share-server',
       shareName: 'backup-settings-share-name',
       shareFolder: 'backup-settings-share-folder',

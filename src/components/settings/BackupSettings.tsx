@@ -7,6 +7,7 @@ import type { BackupSettings as BackupSettingsRow, BackupSettingsPatch } from '.
 import { useToast } from '../Toast'
 import { WholeNumberField } from '../fields/WholeNumberField'
 import { SettingRow } from './SettingRow'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -75,6 +76,26 @@ export function BackupSettings() {
       onSave={next => save({ [setting]: next })}
     />
   )
+
+  const isSavingShare = isSaving('share_server') || isSaving('share_name') || isSaving('share_folder')
+
+  /** The shop folder as one network path, once server, share and folder are all set. */
+  const sharePath =
+    settings?.share_server && settings.share_name && settings.share_folder
+      ? `\\\\${settings.share_server}\\${settings.share_name}\\${settings.share_folder.replace(/\//g, '\\')}`
+      : null
+
+  /** Has the shop folder picked in the system's file dialog and stores the server, share and folder it stands for. */
+  const browseShare = async () => {
+    if (!window.pam) {
+      showError('Only the desktop app can browse for the shop folder')
+      return
+    }
+    const picked = await window.pam.backups.pickFolder()
+    if (picked.status === 'refused') showError(picked.reason)
+    if (picked.status !== 'picked') return
+    await save({ share_server: picked.server, share_name: picked.share, share_folder: picked.folder })
+  }
 
   return (
     <>
@@ -184,6 +205,28 @@ export function BackupSettings() {
             'Keep the last backup of a month for so many years',
             MAX_YEARS,
           )}
+        </SettingRow>
+        <SettingRow
+          title="Shop folder"
+          description="Pick the app's folder on the shop's share. Server, share and folder below are filled in from it and can still be typed by hand."
+        >
+          <div className="flex items-center gap-3">
+            <span
+              data-testid={IDS.sharePath}
+              className={cn('text-xs break-all', sharePath ? 'font-mono' : 'text-neutral-500')}
+            >
+              {sharePath ?? 'Not set'}
+            </span>
+            <Button
+              data-testid={IDS.browseShare}
+              variant="outline"
+              size="sm"
+              disabled={!settings || isSavingShare}
+              onClick={() => void browseShare()}
+            >
+              Browse…
+            </Button>
+          </div>
         </SettingRow>
         <SettingRow
           title="Server"
