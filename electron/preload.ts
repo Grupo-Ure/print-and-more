@@ -6,6 +6,7 @@ import type {
   BackupDeliverRequest,
   BackupDeliverResult,
   BackupIdentity,
+  BackupPickResult,
   BackupProbeResult,
   BackupRemoveRequest,
   BackupRemoveResult,
@@ -49,6 +50,7 @@ contextBridge.exposeInMainWorld('pam', {
   // Delivery of backups into the shop folder and their deletion from it; the file never passes through the renderer.
   backups: {
     identity: (): Promise<BackupIdentity> => ipcRenderer.invoke('backups:identity'),
+    pickFolder: (): Promise<BackupPickResult> => ipcRenderer.invoke('backups:pick-folder'),
     probeFolder: (share: BackupShare, requiredBytes?: number): Promise<BackupProbeResult> =>
       ipcRenderer.invoke('backups:probe-folder', share, requiredBytes),
     deliver: (request: BackupDeliverRequest): Promise<BackupDeliverResult> =>

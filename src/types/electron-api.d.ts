@@ -20,6 +20,12 @@ type NativeBackupProbeResult =
   | { reachable: true; path: string; freeBytes: number }
   | { reachable: false; reason: string; path: string | null }
 
+/** A folder picked as the shop folder: the three settings it stands for, or why it cannot be one. */
+type NativeBackupPickResult =
+  | { status: 'cancelled' }
+  | { status: 'picked'; server: string; share: string; folder: string }
+  | { status: 'refused'; reason: string }
+
 type NativeBackupDeliverResult = { ok: true; sha256: string; path: string } | { ok: false; error: string }
 
 type NativeBackupRemoveResult = { ok: true } | { ok: false; error: string }
@@ -42,6 +48,8 @@ interface Window {
     }
     backups: {
       identity: () => Promise<NativeBackupIdentity>
+      /** Opens the system's folder dialog and names the picked folder as server, share and folder; refused for a folder not on a network share. */
+      pickFolder: () => Promise<NativeBackupPickResult>
       /** Resolves the folder for this platform and checks it exists, is writable and has `requiredBytes` free; gives up after a few seconds. */
       probeFolder: (share: NativeBackupShare, requiredBytes?: number) => Promise<NativeBackupProbeResult>
       /** Streams the job's file from its signed link into `<folder>/Backups`, checked against `sha256` while writing and read back after. */

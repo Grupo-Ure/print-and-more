@@ -6,7 +6,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
-import { ipcMain } from 'electron'
+import { BrowserWindow, dialog, ipcMain } from 'electron'
 
 /**
  * Delivery of backups into the shop folder (BACKUP_RUNTIME.md, WP3), and
@@ -39,6 +39,15 @@ export type BackupDeliverResult = { ok: true; sha256: string; path: string } | {
 export type BackupRemoveRequest = { share: BackupShare; fileName: string }
 
 export type BackupRemoveResult = { ok: true } | { ok: false; error: string }
+
+/**
+ * What picking the shop folder in the system's file dialog came to: the three
+ * settings the folder stands for, or why it cannot be the shop folder.
+ */
+export type BackupPickResult =
+  | { status: 'cancelled' }
+  | { status: 'picked'; server: string; share: string; folder: string }
+  | { status: 'refused'; reason: string }
 
 /** The subfolder of the app's folder the backups go in; created when missing. */
 const BACKUPS_SUBFOLDER = 'Backups'
@@ -77,24 +86,26 @@ function isSaneName(value: unknown, allowSubfolders: boolean): value is string {
 
 /** `Server._smb._tcp.local` (a Bonjour mount), `server.local`, `SERVER` and `server` name the same host. */
 function sameHost(a: string, b: string): boolean {
-  const normalise = (host: string) => host.toLowerCase().replace(/(\._smb\._tcp)?\.local$/, '')
-  return normalise(a) === normalise(b)
+  return bareHost(a).toLowerCase() === bareHost(b).toLowerCase()
+}
+
+/** The host without the suffix a Mac adds to it: `Server._smb._tcp.local` and `server.local` are `Server` and `server`. */
+function bareHost(host: string): string {
+  return host.replace(/(\._smb\._tcp)?\.local$/i, '')
 }
 
 /**
- * The mount point of `//<server>/<share>` from the Mac's mount table. An SMB
- * line reads `//user@host/Server%20A-Z on /Volumes/Server A-Z (smbfs, …)`.
- * The share name decides; the host only breaks a tie, so a share mounted by
- * its address (`//user@192.168.2.10/Server A-Z`) still resolves.
+ * The network shares in the Mac's mount table. An SMB line reads
+ * `//user@host/Server%20A-Z on /Volumes/Server A-Z (smbfs, …)`.
  */
-async function macMountPoint(server: string, share: string): Promise<string | null> {
+async function macSmbMounts(): Promise<{ host: string; share: string; mountPoint: string }[]> {
   const table = await new Promise<string>((resolve, reject) => {
     execFile('/sbin/mount', [], { timeout: PROBE_TIMEOUT_MS }, (error, stdout) =>
       error ? reject(error) : resolve(stdout),
     )
   })
 
-  const mounts = table
+  return table
     .split('\n')
     .map(line => /^\/\/(?:[^@/]*@)?([^/]+)\/(.+?) on (.+) \((?:smbfs|cifs)\b/.exec(line))
     .filter((match): match is RegExpExecArray => match !== null)
@@ -107,8 +118,15 @@ async function macMountPoint(server: string, share: string): Promise<string | nu
       }
       return { host, share: shareName, mountPoint }
     })
-    .filter(mount => mount.share.toLowerCase() === share.toLowerCase())
+}
 
+/**
+ * The mount point of `//<server>/<share>` on this Mac. The share name
+ * decides; the host only breaks a tie, so a share mounted by its address
+ * (`//user@192.168.2.10/Server A-Z`) still resolves.
+ */
+async function macMountPoint(server: string, share: string): Promise<string | null> {
+  const mounts = (await macSmbMounts()).filter(mount => mount.share.toLowerCase() === share.toLowerCase())
   const onServer = mounts.find(mount => sameHost(mount.host, server))
   return (onServer ?? mounts[0])?.mountPoint ?? null
 }
@@ -131,6 +149,62 @@ async function resolveFolder(share: BackupShare): Promise<{ path: string } | { r
     return { path: path.join(mountPoint, ...folder.split(/[\\/]/)) }
   }
   return { reason: 'Backups are delivered from Windows and Mac only.' }
+}
+
+// ── Naming a picked folder ───────────────────────────────────────────────────
+// The reverse of resolveFolder: a folder picked in the system's file dialog,
+// taken apart into the server, share and folder the settings hold, so every
+// other machine can resolve it its own way.
+
+type NamedFolder = { server: string; share: string; folder: string }
+
+const NOT_ON_A_SHARE = 'That folder is not on a network share, so the other computers could not reach it.'
+
+/** `\\server\share\a\b` in its parts, the folder with forward slashes; null for anything else. */
+function splitUncPath(target: string): NamedFolder | null {
+  const match = /^\\\\([^\\?.][^\\]*)\\([^\\]+)(?:\\(.*))?$/.exec(target)
+  if (match === null) return null
+  const [, server, share, rest] = match
+  return { server, share, folder: (rest ?? '').split('\\').filter(Boolean).join('/') }
+}
+
+/**
+ * A folder picked on Windows. One reached through the network is a UNC path
+ * already. One reached through a mapped drive (`Z:\…`) is asked for its real
+ * path, which names the share the letter stands for; a local drive keeps its
+ * letter and is refused.
+ */
+async function nameWindowsFolder(picked: string): Promise<NamedFolder | null> {
+  const direct = splitUncPath(picked)
+  if (direct !== null) return direct
+  return splitUncPath(await fs.realpath(picked))
+}
+
+/** A folder picked on a Mac: the mounted share it lies in, from the mount table. */
+async function nameMacFolder(picked: string): Promise<NamedFolder | null> {
+  const mount = (await macSmbMounts())
+    .filter(candidate => picked === candidate.mountPoint || picked.startsWith(`${candidate.mountPoint}/`))
+    .sort((a, b) => b.mountPoint.length - a.mountPoint.length)[0]
+  if (mount === undefined) return null
+  return {
+    server: bareHost(mount.host),
+    share: mount.share,
+    folder: path.relative(mount.mountPoint, picked).split(path.sep).join('/'),
+  }
+}
+
+/** The server, share and folder a picked folder stands for, or why it cannot be the shop folder. */
+async function nameFolder(picked: string): Promise<NamedFolder | { reason: string }> {
+  if (process.platform !== 'win32' && process.platform !== 'darwin') {
+    return { reason: 'Backups are delivered from Windows and Mac only.' }
+  }
+  const named = process.platform === 'win32' ? await nameWindowsFolder(picked) : await nameMacFolder(picked)
+  if (named === null) return { reason: NOT_ON_A_SHARE }
+  if (named.folder === '') return { reason: "Pick the app's folder inside the share, not the share itself." }
+  if (!isSaneName(named.server, false) || !isSaneName(named.share, false) || !isSaneName(named.folder, true)) {
+    return { reason: 'That folder cannot be used as the shop folder.' }
+  }
+  return named
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | 'timeout'> {
@@ -293,6 +367,22 @@ function toShare(raw: unknown): BackupShare {
 
 export function registerBackupHandlers(): void {
   ipcMain.handle('backups:identity', (): BackupIdentity => identity)
+
+  // The shop folder picked in the system's file dialog, as the three settings it stands for.
+  ipcMain.handle('backups:pick-folder', async (event): Promise<BackupPickResult> => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    const options = { title: 'Select the shop folder', properties: ['openDirectory' as const] }
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    const picked = result.filePaths[0]
+    if (result.canceled || picked === undefined) return { status: 'cancelled' }
+
+    try {
+      const named = await nameFolder(picked)
+      return 'reason' in named ? { status: 'refused', reason: named.reason } : { status: 'picked', ...named }
+    } catch {
+      return { status: 'refused', reason: 'The picked folder could not be checked.' }
+    }
+  })
 
   ipcMain.handle('backups:probe-folder', (_event, rawShare: unknown, rawRequired: unknown): Promise<BackupProbeResult> => {
     const required = typeof rawRequired === 'number' && Number.isFinite(rawRequired) && rawRequired > 0 ? rawRequired : 0
