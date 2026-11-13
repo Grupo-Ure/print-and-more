@@ -10,7 +10,8 @@
 // its ID prefix, an italic bullet is a `describe` block (the precondition),
 // and a test bullet is `**<PREFIX>-<NNN>** <title>` — or just `<title>` until
 // `assign` numbers it. A spec test's title is `<ID> <title>`, inside the same
-// describe chain the plan puts it under. Nothing here edits a spec.
+// describe chain the plan puts it under. An HTML comment at the end of a
+// bullet is a note for the reader and is ignored. Nothing here edits a spec.
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -27,6 +28,8 @@ const PACK_LINE = /^\[([^\]]+)\]\(([^)]+\.spec\.ts)\)\s*—\s*`([A-Z]+-[A-Z]+)`\
 const DESCRIBE_LINE = /^\*([^*].*)\*$/
 const NUMBERED_LINE = /^\*\*([A-Z]+-[A-Z]+-\d{3})\*\* (\S.*)$/
 const HEADING_LINE = /^\*\*[^*]+\*\*$/
+// A note for the reader at the end of a bullet (`<!-- new -->`); not part of what it names.
+const TRAILING_COMMENT = /\s*<!--.*?-->\s*$/
 const TEST_MODIFIERS = new Set(['skip', 'fixme', 'only', 'fail', 'slow'])
 
 // ---------------------------------------------------------------- the plan
@@ -57,7 +60,7 @@ function parsePlan() {
     const bullet = BULLET.exec(line)
     if (!bullet) return
     const depth = bullet[1].length / 2
-    const body = bullet[2].trim()
+    const body = bullet[2].replace(TRAILING_COMMENT, '').trim()
 
     const asPack = PACK_LINE.exec(body)
     if (asPack) {

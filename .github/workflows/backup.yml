@@ -1,0 +1,135 @@
+# The weekly backup of the production database (BACKUP_RUNTIME.md, WP2):
+# dump, prove the dump restores, encrypt to the shop's key, upload to the
+# `backups` bucket, record the job. The steps are scripts/backup.sh; this
+# file gives it the tools, a throwaway Postgres to restore into, and the
+# secrets.
+#
+# Trigger:
+#   workflow_dispatch only, no schedule. A daily cron job in the database
+#   starts it through the GitHub API when a backup is due
+#   (fn_start_due_backup, WP5), with a token the hosted project's Vault holds
+#   as `github_backup_token`; so GitHub's rule that disables idle scheduled
+#   workflows never applies. Two runs never overlap. Each start is recorded
+#   (backup_dispatches, WP9) and handed to the run as the input
+#   `dispatch_id`: the run links its backup onto it, or reports its failure
+#   in a last step, and either closes the start.
+#
+# Running it by hand:
+#   Actions → Backup → Run workflow, or `gh workflow run backup.yml`. A run
+#   makes a new backup like any other — a new file and a new job row, which
+#   the running copies of the app then bring to the shop folder. Leave
+#   `dispatch_id` empty: a run by hand belongs to no start.
+#
+#   Against a local Supabase, run the script itself with Postgres 17 client
+#   tools and age on the PATH; the local database serves as its own restore
+#   server:
+#     SUPABASE_DB_URL=postgresql://postgres:postgres@127.0.0.1:55322/postgres \
+#     RESTORE_SERVER_URL=postgresql://postgres:postgres@127.0.0.1:55322 \
+#     SUPABASE_URL=http://127.0.0.1:55321 \
+#     BACKUP_SERVICE_ROLE_KEY=<the secret key (sb_secret_…) from `supabase status`> \
+#     BACKUP_ENCRYPTION_PUBLIC_KEY=<an age or SSH Ed25519 public key of your own> \
+#     scripts/backup.sh
+#
+# The repository is public, and so is this log. The dump is never an
+# artifact and never leaves the runner unencrypted; the script prints no
+# connection string, key, row or row count; every credential is a secret.
+#
+# Secrets (Settings → Secrets and variables → Actions):
+#   SUPABASE_DB_URL          the production database's connection string
+#                            through the session pooler (Supabase → Connect →
+#                            Session pooler), with the postgres password
+#                            URL-encoded. Session mode: the dump and the row
+#                            counts share one exported snapshot.
+#   BACKUP_SERVICE_ROLE_KEY  a secret API key of the hosted project made for
+#                            this workflow alone (Project Settings → API Keys,
+#                            `github_backup`, sb_secret_…): uploads the file
+#                            and calls record_backup_job. Its own key so a
+#                            leak is revoked without touching the Vault or the
+#                            edge functions. Sent as `apikey` only — it is not
+#                            a JWT.
+#   BACKUP_ENCRYPTION_PUBLIC_KEY  the public key the shop generated, the whole
+#                            line: an age key (`age1…`) or an SSH Ed25519
+#                            key (`ssh-ed25519 …`). The private key never
+#                            leaves the shop.
+#
+# Reused from the release job: VITE_SUPABASE_URL, the hosted project's URL.
+#
+# A failing run mails the repository owner through GitHub. A run that never
+# happened is what the shop's own alert catches (missing_backup_alert_days,
+# WP6).
+
+name: Backup
+
+on:
+  workflow_dispatch:
+    inputs:
+      dispatch_id:
+        description: The start this run belongs to (backup_dispatches); set by fn_start_due_backup, left empty when run by hand.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Dump, verify, encrypt, upload
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      # The restore check's throwaway server: the image the hosted project
+      # and `supabase start` run, so the dump restores among the same roles
+      # and extensions. Keep in step with the local CLI's Postgres image.
+      restore:
+        image: public.ecr.aws/supabase/postgres:17.6.1.105
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -h 127.0.0.1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Postgres 17 client and age
+        # The runner's own client is older than the server; pg_dump must be
+        # at least the server's version.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -qq postgresql-client-17 age
+          echo /usr/lib/postgresql/17/bin >> "$GITHUB_PATH"
+      - name: Back up
+        run: scripts/backup.sh
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          RESTORE_SERVER_URL: postgresql://postgres:postgres@127.0.0.1:5432
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          BACKUP_SERVICE_ROLE_KEY: ${{ secrets.BACKUP_SERVICE_ROLE_KEY }}
+          BACKUP_ENCRYPTION_PUBLIC_KEY: ${{ secrets.BACKUP_ENCRYPTION_PUBLIC_KEY }}
+          DISPATCH_ID: ${{ inputs.dispatch_id }}
+          WORK_DIR: ${{ runner.temp }}/backup
+      - name: Report the failed run
+        # Closes the start, so the next daily start sends a new one rather
+        # than waiting out start_wait_minutes. Only for a run that has a
+        # start: one started by hand has none.
+        if: failure() && inputs.dispatch_id != ''
+        run: |
+          [[ "$DISPATCH_ID" =~ ^[0-9a-f-]{36}$ ]] || { echo 'Not a start id'; exit 1; }
+          curl -sS --fail-with-body -o /dev/null \
+            -X POST "$SUPABASE_URL/rest/v1/rpc/report_backup_dispatch_failed" \
+            -H "apikey: $BACKUP_SERVICE_ROLE_KEY" \
+            -H 'Content-Type: application/json' \
+            -d "{\"dispatch_id\":\"$DISPATCH_ID\",\"reason\":\"Run $RUN_URL failed\"}"
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          BACKUP_SERVICE_ROLE_KEY: ${{ secrets.BACKUP_SERVICE_ROLE_KEY }}
+          DISPATCH_ID: ${{ inputs.dispatch_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

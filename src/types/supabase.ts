@@ -28,6 +28,188 @@ export type Database = {
   }
   public: {
     Tables: {
+      backup_alerts: {
+        Row: {
+          id: string
+          queue_msg_id: number
+          queued_at: string
+          recipient: string
+          template: string
+        }
+        Insert: {
+          id?: string
+          queue_msg_id: number
+          queued_at?: string
+          recipient: string
+          template: string
+        }
+        Update: {
+          id?: string
+          queue_msg_id?: number
+          queued_at?: string
+          recipient?: string
+          template?: string
+        }
+        Relationships: []
+      }
+      backup_dispatches: {
+        Row: {
+          error: string | null
+          failed_at: string | null
+          id: string
+          job_id: string | null
+          requested_at: string
+        }
+        Insert: {
+          error?: string | null
+          failed_at?: string | null
+          id?: string
+          job_id?: string | null
+          requested_at?: string
+        }
+        Update: {
+          error?: string | null
+          failed_at?: string | null
+          id?: string
+          job_id?: string | null
+          requested_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backup_dispatches_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "backup_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      backup_jobs: {
+        Row: {
+          announced_at: string | null
+          attempts: number
+          claimed_at: string | null
+          claimed_by_machine: string | null
+          claimed_by_session: string | null
+          created_at: string
+          delivered_at: string | null
+          delivered_by_machine: string | null
+          delivered_sha256: string | null
+          id: string
+          last_error: string | null
+          lease_until: string | null
+          period: string
+          purged_at: string | null
+          removal_announced_at: string | null
+          removed_at: string | null
+          removed_by_machine: string | null
+          sha256: string
+          size_bytes: number
+          state: string
+          storage_path: string
+        }
+        Insert: {
+          announced_at?: string | null
+          attempts?: number
+          claimed_at?: string | null
+          claimed_by_machine?: string | null
+          claimed_by_session?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          delivered_by_machine?: string | null
+          delivered_sha256?: string | null
+          id?: string
+          last_error?: string | null
+          lease_until?: string | null
+          period: string
+          purged_at?: string | null
+          removal_announced_at?: string | null
+          removed_at?: string | null
+          removed_by_machine?: string | null
+          sha256: string
+          size_bytes: number
+          state?: string
+          storage_path: string
+        }
+        Update: {
+          announced_at?: string | null
+          attempts?: number
+          claimed_at?: string | null
+          claimed_by_machine?: string | null
+          claimed_by_session?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          delivered_by_machine?: string | null
+          delivered_sha256?: string | null
+          id?: string
+          last_error?: string | null
+          lease_until?: string | null
+          period?: string
+          purged_at?: string | null
+          removal_announced_at?: string | null
+          removed_at?: string | null
+          removed_by_machine?: string | null
+          sha256?: string
+          size_bytes?: number
+          state?: string
+          storage_path?: string
+        }
+        Relationships: []
+      }
+      backup_settings: {
+        Row: {
+          dump_interval_days: number
+          enabled: boolean
+          holding_retention_days: number
+          id: boolean
+          lease_minutes: number
+          missing_backup_alert_days: number
+          monthly_retention_years: number
+          reannounce_minutes: number
+          share_folder: string | null
+          share_name: string | null
+          share_server: string | null
+          start_wait_minutes: number
+          undelivered_alert_days: number
+          updated_at: string
+          weekly_retention_days: number
+        }
+        Insert: {
+          dump_interval_days?: number
+          enabled?: boolean
+          holding_retention_days?: number
+          id?: boolean
+          lease_minutes?: number
+          missing_backup_alert_days?: number
+          monthly_retention_years?: number
+          reannounce_minutes?: number
+          share_folder?: string | null
+          share_name?: string | null
+          share_server?: string | null
+          start_wait_minutes?: number
+          undelivered_alert_days?: number
+          updated_at?: string
+          weekly_retention_days?: number
+        }
+        Update: {
+          dump_interval_days?: number
+          enabled?: boolean
+          holding_retention_days?: number
+          id?: boolean
+          lease_minutes?: number
+          missing_backup_alert_days?: number
+          monthly_retention_years?: number
+          reannounce_minutes?: number
+          share_folder?: string | null
+          share_name?: string | null
+          share_server?: string | null
+          start_wait_minutes?: number
+          undelivered_alert_days?: number
+          updated_at?: string
+          weekly_retention_days?: number
+        }
+        Relationships: []
+      }
       banner_products: {
         Row: {
           eyelet_detail: string | null
@@ -121,148 +303,6 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: true
             referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      blueprint_customers: {
-        Row: {
-          created_at: string
-          id: string
-          is_active: boolean
-          name: string
-          short_code: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          name: string
-          short_code?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          name?: string
-          short_code?: string | null
-        }
-        Relationships: []
-      }
-      blueprint_job_items: {
-        Row: {
-          copies: number
-          created_at: string
-          filename: string | null
-          format: string
-          height_mm: number | null
-          id: string
-          is_color: boolean
-          job_id: string
-          page_count: number
-          width_mm: number | null
-        }
-        Insert: {
-          copies?: number
-          created_at?: string
-          filename?: string | null
-          format: string
-          height_mm?: number | null
-          id?: string
-          is_color: boolean
-          job_id: string
-          page_count?: number
-          width_mm?: number | null
-        }
-        Update: {
-          copies?: number
-          created_at?: string
-          filename?: string | null
-          format?: string
-          height_mm?: number | null
-          id?: string
-          is_color?: boolean
-          job_id?: string
-          page_count?: number
-          width_mm?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "blueprint_job_items_job_id_fkey"
-            columns: ["job_id"]
-            isOneToOne: false
-            referencedRelation: "blueprint_jobs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      blueprint_jobs: {
-        Row: {
-          created_at: string
-          customer_id: string
-          id: string
-          job_date: string
-          notes: string | null
-          project_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          customer_id: string
-          id?: string
-          job_date?: string
-          notes?: string | null
-          project_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          customer_id?: string
-          id?: string
-          job_date?: string
-          notes?: string | null
-          project_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "blueprint_jobs_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "blueprint_customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "blueprint_jobs_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "blueprint_projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      blueprint_projects: {
-        Row: {
-          created_at: string
-          customer_id: string
-          id: string
-          name: string
-        }
-        Insert: {
-          created_at?: string
-          customer_id: string
-          id?: string
-          name: string
-        }
-        Update: {
-          created_at?: string
-          customer_id?: string
-          id?: string
-          name?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "blueprint_projects_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "blueprint_customers"
             referencedColumns: ["id"]
           },
         ]
@@ -620,44 +660,56 @@ export type Database = {
         }
         Relationships: []
       }
-      erp_exports: {
+      failed_emails: {
         Row: {
-          export_data: Json
-          exported_at: string
-          exported_by: string | null
+          attempts: number
+          error: string | null
+          failed_at: string
           id: string
-          mode: string
-          order_id: string
+          order_id: string | null
+          product_id: string | null
+          queue_msg_id: number
+          reason: Database["public"]["Enums"]["email_failure_reason"]
+          recipient: string | null
+          template: string
         }
         Insert: {
-          export_data: Json
-          exported_at?: string
-          exported_by?: string | null
+          attempts: number
+          error?: string | null
+          failed_at?: string
           id?: string
-          mode: string
-          order_id: string
+          order_id?: string | null
+          product_id?: string | null
+          queue_msg_id: number
+          reason: Database["public"]["Enums"]["email_failure_reason"]
+          recipient?: string | null
+          template: string
         }
         Update: {
-          export_data?: Json
-          exported_at?: string
-          exported_by?: string | null
+          attempts?: number
+          error?: string | null
+          failed_at?: string
           id?: string
-          mode?: string
-          order_id?: string
+          order_id?: string | null
+          product_id?: string | null
+          queue_msg_id?: number
+          reason?: Database["public"]["Enums"]["email_failure_reason"]
+          recipient?: string | null
+          template?: string
         }
         Relationships: [
           {
-            foreignKeyName: "erp_exports_exported_by_fkey"
-            columns: ["exported_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "erp_exports_order_id_fkey"
+            foreignKeyName: "failed_emails_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "failed_emails_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -1013,7 +1065,6 @@ export type Database = {
           delivery: Database["public"]["Enums"]["delivery_type"] | null
           id: string
           is_archived: boolean
-          is_erp_exported: boolean
           order_number: string
           payment_method: Database["public"]["Enums"]["payment_method"]
           priority: Database["public"]["Enums"]["priority_type"]
@@ -1029,7 +1080,6 @@ export type Database = {
           delivery?: Database["public"]["Enums"]["delivery_type"] | null
           id?: string
           is_archived?: boolean
-          is_erp_exported?: boolean
           order_number: string
           payment_method?: Database["public"]["Enums"]["payment_method"]
           priority?: Database["public"]["Enums"]["priority_type"]
@@ -1045,7 +1095,6 @@ export type Database = {
           delivery?: Database["public"]["Enums"]["delivery_type"] | null
           id?: string
           is_archived?: boolean
-          is_erp_exported?: boolean
           order_number?: string
           payment_method?: Database["public"]["Enums"]["payment_method"]
           priority?: Database["public"]["Enums"]["priority_type"]
@@ -1632,12 +1681,14 @@ export type Database = {
         Row: {
           body_html: string
           body_text: string
+          bounce_classification: string | null
           bounce_reason: string | null
+          bounce_status_code: string | null
           bounced_at: string | null
           complained_at: string | null
           delivered_at: string | null
           id: string
-          order_id: string
+          order_id: string | null
           product_id: string | null
           provider_id: string
           queue_msg_id: number
@@ -1649,12 +1700,14 @@ export type Database = {
         Insert: {
           body_html: string
           body_text: string
+          bounce_classification?: string | null
           bounce_reason?: string | null
+          bounce_status_code?: string | null
           bounced_at?: string | null
           complained_at?: string | null
           delivered_at?: string | null
           id?: string
-          order_id: string
+          order_id?: string | null
           product_id?: string | null
           provider_id: string
           queue_msg_id: number
@@ -1666,12 +1719,14 @@ export type Database = {
         Update: {
           body_html?: string
           body_text?: string
+          bounce_classification?: string | null
           bounce_reason?: string | null
+          bounce_status_code?: string | null
           bounced_at?: string | null
           complained_at?: string | null
           delivered_at?: string | null
           id?: string
-          order_id?: string
+          order_id?: string | null
           product_id?: string | null
           provider_id?: string
           queue_msg_id?: number
@@ -2612,6 +2667,38 @@ export type Database = {
         Args: { allow_shortage?: boolean; deductions: Json; note: string }
         Returns: Json
       }
+      claim_backup_job: {
+        Args: { job_id: string; machine: string; session_id: string }
+        Returns: {
+          announced_at: string | null
+          attempts: number
+          claimed_at: string | null
+          claimed_by_machine: string | null
+          claimed_by_session: string | null
+          created_at: string
+          delivered_at: string | null
+          delivered_by_machine: string | null
+          delivered_sha256: string | null
+          id: string
+          last_error: string | null
+          lease_until: string | null
+          period: string
+          purged_at: string | null
+          removal_announced_at: string | null
+          removed_at: string | null
+          removed_by_machine: string | null
+          sha256: string
+          size_bytes: number
+          state: string
+          storage_path: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "backup_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_emails: {
         Args: { batch_size: number; visibility_seconds: number }
         Returns: {
@@ -2637,6 +2724,7 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      delete_quote: { Args: { p_order_id: string }; Returns: undefined }
       drain_emails: { Args: never; Returns: undefined }
       duplicate_order: {
         Args: {
@@ -2649,16 +2737,51 @@ export type Database = {
         }
         Returns: string
       }
+      fn_backup_upkeep: { Args: never; Returns: undefined }
       fn_department_abbreviation: {
         Args: { dept: Database["public"]["Enums"]["department"] }
         Returns: string
       }
       fn_expire_approval_requests: { Args: never; Returns: number }
+      fn_order_is_closed: { Args: { p_order_id: string }; Returns: boolean }
       fn_production_deductions: { Args: { product_id: string }; Returns: Json }
       fn_purge_approval_files: { Args: never; Returns: number }
+      fn_start_due_backup: { Args: never; Returns: string }
       force_release_to_production: {
         Args: { product_id: string; reason: string }
         Returns: undefined
+      }
+      list_backups_due_for_removal: {
+        Args: never
+        Returns: {
+          announced_at: string | null
+          attempts: number
+          claimed_at: string | null
+          claimed_by_machine: string | null
+          claimed_by_session: string | null
+          created_at: string
+          delivered_at: string | null
+          delivered_by_machine: string | null
+          delivered_sha256: string | null
+          id: string
+          last_error: string | null
+          lease_until: string | null
+          period: string
+          purged_at: string | null
+          removal_announced_at: string | null
+          removed_at: string | null
+          removed_by_machine: string | null
+          sha256: string
+          size_bytes: number
+          state: string
+          storage_path: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "backup_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       list_queued_emails: {
         Args: { order_id: string }
@@ -2681,7 +2804,157 @@ export type Database = {
         }
         Returns: number
       }
+      record_backup_job: {
+        Args: {
+          dispatch_id?: string
+          period: string
+          sha256: string
+          size_bytes: number
+          storage_path: string
+        }
+        Returns: {
+          announced_at: string | null
+          attempts: number
+          claimed_at: string | null
+          claimed_by_machine: string | null
+          claimed_by_session: string | null
+          created_at: string
+          delivered_at: string | null
+          delivered_by_machine: string | null
+          delivered_sha256: string | null
+          id: string
+          last_error: string | null
+          lease_until: string | null
+          period: string
+          purged_at: string | null
+          removal_announced_at: string | null
+          removed_at: string | null
+          removed_by_machine: string | null
+          sha256: string
+          size_bytes: number
+          state: string
+          storage_path: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "backup_jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       release_to_production: { Args: { product_id: string }; Returns: undefined }
+      report_backup_delivered: {
+        Args: { job_id: string; session_id: string; sha256: string }
+        Returns: {
+          announced_at: string | null
+          attempts: number
+          claimed_at: string | null
+          claimed_by_machine: string | null
+          claimed_by_session: string | null
+          created_at: string
+          delivered_at: string | null
+          delivered_by_machine: string | null
+          delivered_sha256: string | null
+          id: string
+          last_error: string | null
+          lease_until: string | null
+          period: string
+          purged_at: string | null
+          removal_announced_at: string | null
+          removed_at: string | null
+          removed_by_machine: string | null
+          sha256: string
+          size_bytes: number
+          state: string
+          storage_path: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "backup_jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      report_backup_dispatch_failed: {
+        Args: { dispatch_id: string; reason: string }
+        Returns: {
+          error: string | null
+          failed_at: string | null
+          id: string
+          job_id: string | null
+          requested_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "backup_dispatches"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      report_backup_failed: {
+        Args: { job_id: string; reason: string; session_id: string }
+        Returns: {
+          announced_at: string | null
+          attempts: number
+          claimed_at: string | null
+          claimed_by_machine: string | null
+          claimed_by_session: string | null
+          created_at: string
+          delivered_at: string | null
+          delivered_by_machine: string | null
+          delivered_sha256: string | null
+          id: string
+          last_error: string | null
+          lease_until: string | null
+          period: string
+          purged_at: string | null
+          removal_announced_at: string | null
+          removed_at: string | null
+          removed_by_machine: string | null
+          sha256: string
+          size_bytes: number
+          state: string
+          storage_path: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "backup_jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      report_backup_removed: {
+        Args: { job_id: string; machine: string }
+        Returns: {
+          announced_at: string | null
+          attempts: number
+          claimed_at: string | null
+          claimed_by_machine: string | null
+          claimed_by_session: string | null
+          created_at: string
+          delivered_at: string | null
+          delivered_by_machine: string | null
+          delivered_sha256: string | null
+          id: string
+          last_error: string | null
+          lease_until: string | null
+          period: string
+          purged_at: string | null
+          removal_announced_at: string | null
+          removed_at: string | null
+          removed_by_machine: string | null
+          sha256: string
+          size_bytes: number
+          state: string
+          storage_path: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "backup_jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       reschedule_email: {
         Args: { delay_seconds: number; msg_id: number }
         Returns: boolean
@@ -2710,6 +2983,8 @@ export type Database = {
       approval_request_status: "PENDING" | "APPROVED" | "CHANGES_REQUESTED" | "EXPIRED" | "WITHDRAWN"
       delivery_type: "PICKUP" | "SHIPPING"
       department: "LFP" | "COPYSHOP" | "TEXTILE" | "STAMP" | "LASER_ENGRAVING" | "OTHER"
+      email_failure_reason:
+        "unknown_template" | "no_settings_row" | "render_failed" | "resolve_failed" | "provider_refused"
       file_role: "PRODUCTION_FILE" | "PREVIEW" | "CUSTOMER_APPROVAL" | "REFERENCE"
       history_event:
         | "ORDER_CREATED"
@@ -2878,6 +3153,13 @@ export const Constants = {
       approval_request_status: ["PENDING", "APPROVED", "CHANGES_REQUESTED", "EXPIRED", "WITHDRAWN"],
       delivery_type: ["PICKUP", "SHIPPING"],
       department: ["LFP", "COPYSHOP", "TEXTILE", "STAMP", "LASER_ENGRAVING", "OTHER"],
+      email_failure_reason: [
+        "unknown_template",
+        "no_settings_row",
+        "render_failed",
+        "resolve_failed",
+        "provider_refused",
+      ],
       file_role: ["PRODUCTION_FILE", "PREVIEW", "CUSTOMER_APPROVAL", "REFERENCE"],
       history_event: [
         "ORDER_CREATED",

@@ -12,12 +12,19 @@ import approvalDecided from './approval-decided/index.ts'
 import approvalExpired from './approval-expired/index.ts'
 import approvalRequest from './approval-request/index.ts'
 import approvalWithdrawn from './approval-withdrawn/index.ts'
+import backupMissing from './backup-missing/index.ts'
+import backupUndelivered from './backup-undelivered/index.ts'
 import testMessage from './test-message/index.ts'
 
-/** A queue message: the ids a mail is about, plus what cannot be looked up again. */
+/**
+ * A queue message: the ids a mail is about, plus what cannot be looked up
+ * again. `order_id` is null for a mail about the system rather than an order
+ * (a backup notice); such a mail is recorded in the mail tables alone and
+ * never on a history.
+ */
 export interface EmailMessage {
   template: string
-  order_id: string
+  order_id: string | null
   product_id: string | null
   context: Record<string, unknown>
 }
@@ -34,7 +41,7 @@ export interface ResolvedEmail {
 }
 
 export interface EmailTemplate {
-  /** Recipient and template data, looked up from the message's ids at send time. */
+  /** Recipient and template data, looked up from the message's ids at send time; throws UnsendableEmail to give the mail up at once. */
   resolve(message: EmailMessage, deps: TemplateDeps): Promise<ResolvedEmail>
   /** Whether the mail is still wanted when it is claimed. Absent means always. */
   stillNeeded?(message: EmailMessage, deps: TemplateDeps): Promise<boolean>
@@ -46,6 +53,8 @@ export const TEMPLATES = {
   'approval-decided': approvalDecided,
   'approval-withdrawn': approvalWithdrawn,
   'approval-expired': approvalExpired,
+  'backup-undelivered': backupUndelivered,
+  'backup-missing': backupMissing,
 } satisfies Record<string, EmailTemplate>
 
 export type TemplateName = keyof typeof TEMPLATES

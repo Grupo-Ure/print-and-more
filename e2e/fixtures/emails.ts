@@ -29,6 +29,11 @@ export type QueuedEmail = {
   orderId: string
 }
 
+/** What a spec gets to know about the message the fixture queued with no order. */
+export type QueuedSystemEmail = {
+  msgId: number
+}
+
 type EmailFixtures = {
   /** The `send-email` edge function, called the way the cron calls it. */
   sendEmail: SendEmailFunction
@@ -51,6 +56,13 @@ type EmailFixtures = {
    * message a test left waiting cannot be claimed by the next test's drain.
    */
   queuedEmail: QueuedEmail
+  /**
+   * A message from `queuedEmailSeed` queued through `queue_email` with no
+   * order — a mail about the system, as the backup upkeep queues one. Nothing
+   * removes its record with an order, so afterwards the message is taken off
+   * the queue and its sent or failed record deleted.
+   */
+  queuedSystemEmail: QueuedSystemEmail
   /** What `emailSetting` writes; override per describe block with `test.use({ emailSettingSeed })`. */
   emailSettingSeed: EmailSettingSeed
   /**
@@ -88,6 +100,14 @@ export const test = base.extend<EmailFixtures>({
 
     await use({ msgId, orderId: order.id })
     await database.archiveQueuedEmails(order.id)
+  },
+
+  queuedSystemEmail: async ({ database, queuedEmailSeed }, use) => {
+    const msgId = await database.queueEmail(null, queuedEmailSeed)
+
+    await use({ msgId })
+    await database.archiveEmail(msgId)
+    await database.removeEmailRecords(msgId)
   },
 
   emailSettingSeed: [IMMEDIATE_TEST_MESSAGE_SETTING, { option: true }],

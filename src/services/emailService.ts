@@ -1,6 +1,5 @@
 import { supabase } from '../supabase'
 import type { Database, Tables } from '../types/supabase'
-import type { HistoryRow } from './historyService'
 
 /**
  * A mail still waiting on the queue (`list_queued_emails`). `due_at` is when
@@ -23,10 +22,23 @@ const SENT_EMAIL_COLUMNS =
   'id, template, product_id, recipient, subject, body_html, sent_at, delivered_at, bounced_at, bounce_reason, complained_at'
 
 /**
+ * A mail the sender gave up on: why (`reason`, one of the sender's codes), the
+ * error's wording when there was one, and how many claims it had by then.
+ * The recipient is null where the failure came before it was looked up.
+ */
+export type FailedEmailRow = Pick<
+  Tables<'failed_emails'>,
+  'id' | 'template' | 'product_id' | 'recipient' | 'reason' | 'error' | 'attempts' | 'failed_at'
+>
+
+const FAILED_EMAIL_COLUMNS = 'id, template, product_id, recipient, reason, error, attempts, failed_at'
+
+/**
  * The order's mails, read-only: every mail is automatic, so the app only looks.
  * The queue is reached through `list_queued_emails`, never the pgmq schema;
- * a mail the sender gave up on is an `EMAIL_FAILED` history entry, not a row
- * of its own.
+ * what went is `sent_emails`, what the sender gave up on is `failed_emails`.
+ * The order's history carries the same events as entries, but the mail
+ * tables are the record every page reads mails from.
  */
 class EmailService {
   async listQueued(orderId: string): Promise<QueuedEmailRow[]> {
@@ -45,14 +57,13 @@ class EmailService {
     return data ?? []
   }
 
-  /** The order's `EMAIL_FAILED` entries, newest first — the reason is in `meta`. */
-  async listFailed(orderId: string): Promise<HistoryRow[]> {
+  /** The order's mails the sender gave up on, newest first. */
+  async listFailed(orderId: string): Promise<FailedEmailRow[]> {
     const { data, error } = await supabase
-      .from('history')
-      .select('id, event_type, reason, meta, created_at, product_id, user_id')
+      .from('failed_emails')
+      .select(FAILED_EMAIL_COLUMNS)
       .eq('order_id', orderId)
-      .eq('event_type', 'EMAIL_FAILED')
-      .order('created_at', { ascending: false })
+      .order('failed_at', { ascending: false })
     if (error) throw error
     return data ?? []
   }

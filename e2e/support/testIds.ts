@@ -664,6 +664,60 @@ export const TEST_IDS = {
       /** Days proof copies are kept after billing; `data-value` = the stored retention_days. */
       retentionDays: 'approval-settings-retention-days',
     },
+    /** Every number field carries `data-value` = the stored value; every text field `data-value` = the stored text, empty while unset. */
+    backups: {
+      root: 'backup-settings',
+      /** The on/off switch; `data-state` = checked | unchecked (Radix), the stored value. */
+      enabled: 'backup-settings-enabled',
+      dumpIntervalDays: 'backup-settings-dump-interval-days',
+      leaseMinutes: 'backup-settings-lease-minutes',
+      reannounceMinutes: 'backup-settings-reannounce-minutes',
+      startWaitMinutes: 'backup-settings-start-wait-minutes',
+      holdingRetentionDays: 'backup-settings-holding-retention-days',
+      undeliveredAlertDays: 'backup-settings-undelivered-alert-days',
+      missingBackupAlertDays: 'backup-settings-missing-backup-alert-days',
+      weeklyRetentionDays: 'backup-settings-weekly-retention-days',
+      monthlyRetentionYears: 'backup-settings-monthly-retention-years',
+      /** Opens the system's folder dialog; the picked folder fills the three share fields below. */
+      browseShare: 'backup-settings-browse-share',
+      /** The shop folder as one network path, or "Not set" while server, share or folder is empty. */
+      sharePath: 'backup-settings-share-path',
+      shareServer: 'backup-settings-share-server',
+      shareName: 'backup-settings-share-name',
+      shareFolder: 'backup-settings-share-folder',
+      /** The list of every backup ever made, above the settings. */
+      jobs: {
+        root: 'backup-jobs',
+        /** Shown instead of the rows while no backup has been made. */
+        empty: 'backup-jobs-empty',
+        /** One per backup_jobs row; `data-job-id`, `data-state` = WAITING | TAKEN | DELIVERED. */
+        row: 'backup-jobs-row',
+        /** The machine holding the claim, or the last one to hold it. */
+        rowTakenBy: 'backup-jobs-row-taken-by',
+        /** The machine that brought it to the shop folder; empty until delivered. */
+        rowDeliveredBy: 'backup-jobs-row-delivered-by',
+        /** Failed deliveries; `data-value` = attempts. */
+        rowAttempts: 'backup-jobs-row-attempts',
+        /** Why the last delivery failed; empty when none has. */
+        rowLastError: 'backup-jobs-row-last-error',
+        /** Whether the online copy is still kept; `data-purged` = true | false. */
+        rowHoldingCopy: 'backup-jobs-row-holding-copy',
+        /** Whether the file is still in the shop folder; `data-removed` = true | false, empty until delivered. Names the machine that deleted it. */
+        rowShopCopy: 'backup-jobs-row-shop-copy',
+        /** On a job not yet delivered, made longer ago than the undelivered alert threshold; `data-days` = days since it was made. */
+        rowUndeliveredFlag: 'backup-jobs-row-undelivered-flag',
+        /** On the newest job, made longer ago than the missing-backup alert threshold; `data-days` = days since it was made. */
+        rowMissingFlag: 'backup-jobs-row-missing-flag',
+      },
+      /** This machine: its name and whether it can reach the shop folder now. */
+      machine: {
+        root: 'backup-machine',
+        name: 'backup-machine-name',
+        /** `data-reachable` = true | false. */
+        status: 'backup-machine-status',
+        path: 'backup-machine-path',
+      },
+    },
   },
 
   releaseNotesPage: {

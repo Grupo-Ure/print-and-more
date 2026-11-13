@@ -15,6 +15,10 @@ file first; a spec follows the plan, never the other way round.
   spec uses word for word. Add a new test without the ID and run
   `npm run test:plan:assign` to number it; IDs are never reused — a deleted
   test leaves its number retired, a reworded test keeps its ID.
+- An HTML comment at the end of a bullet is a note for the reader, not part
+  of the title: `<!-- new: <plan> <package> -->` marks a test a work stream
+  added that the maintainer has not yet reviewed. It is removed by the
+  reviewer once the test is checked, not when it is written.
 - `npm run test:plan:status` lists what is planned and not yet written.
 
 How a run works is in [e2e/README.md](README.md); the conventions are in
@@ -128,7 +132,7 @@ behaviour the lifecycle packs assert is written out in
       - *in progress, product in pre-press*
         - **PRD-STA-009** releasing the product to production moves it to in production
       - *in progress, product in production*
-        - **PRD-STA-010** marking the product as done moves it to done
+        - **PRD-STA-010** marking the product as done moves it to done <!-- new: suite stabilisation -->
       - *in progress, OTHER product, pre-press default set*
         - **PRD-STA-011** the product promoted to pre-press is assigned to the pre-press default
       - *in progress, product in pre-press, production default set*
@@ -186,10 +190,10 @@ behaviour the lifecycle packs assert is written out in
     - [stock-deduction.spec.ts](orders-page/product/stock-deduction.spec.ts) — `PRD-STK`
       - *in progress, stamp product in pre-press, model in stock*
         - **PRD-STK-001** releasing the product to production deducts its quantity from the model stock
-        - **PRD-STK-002** marking the product done after the release deducts nothing more
+        - **PRD-STK-002** marking the product done after the release deducts nothing more <!-- new: suite stabilisation -->
       - *in progress, textile batch in pre-press, variant in stock*
         - **PRD-STK-003** releasing the batch to production deducts its garment line's quantity from the variant stock
-        - **PRD-STK-004** marking the batch done after the release deducts nothing more
+        - **PRD-STK-004** marking the batch done after the release deducts nothing more <!-- new: suite stabilisation -->
 - **Production page**
   - [feed.spec.ts](production-page/feed.spec.ts) — `PRN-FEED`
     - *as admin*
@@ -226,6 +230,26 @@ behaviour the lifecycle packs assert is written out in
     - **SET-APR-001** opening Settings lists the customer approval section
     - **SET-APR-002** changing the approval expiry shows the new value again after reopening Settings
     - **SET-APR-003** changing how long approval proofs are kept shows the new value again after reopening Settings
+  - [backups.spec.ts](settings-page/backups.spec.ts) — `SET-BKP`
+    - **SET-BKP-001** opening Settings lists the backups section
+    - **SET-BKP-002** changing the backup interval shows the new value again after reopening Settings
+    - **SET-BKP-011** changing the shop folder retention shows the new value again after reopening Settings <!-- new: BACKUP_RUNTIME WP8 -->
+    - *backup waiting again after failed deliveries*
+      - **SET-BKP-003** opening the backups section shows the job's failed attempts
+      - **SET-BKP-004** opening the backups section shows why the job's last delivery failed
+    - *backup being delivered by another machine*
+      - **SET-BKP-005** opening the backups section names the machine holding the job
+    - *backup delivered, online copy kept*
+      - **SET-BKP-006** opening the backups section names the machine that delivered the job
+      - **SET-BKP-007** opening the backups section shows the job's online copy as kept
+    - *backup delivered, online copy purged*
+      - **SET-BKP-008** opening the backups section shows the job's online copy as deleted
+    - *backup delivered, file deleted from the shop folder*
+      - **SET-BKP-012** opening the backups section shows the job's shop folder copy as deleted with the machine that deleted it <!-- new: BACKUP_RUNTIME WP8 -->
+    - *backup waiting longer than the undelivered alert threshold*
+      - **SET-BKP-009** opening the backups section flags the job as undelivered with the days since it was made
+    - *newest backup made longer ago than the missing-backup alert threshold*
+      - **SET-BKP-010** opening the backups section flags the newest job with the days without a new backup
 - **Email runtime**
   - **Transport**
     - [transport.spec.ts](email-runtime/transport.spec.ts) — `EML-TRN`
@@ -246,12 +270,17 @@ behaviour the lifecycle packs assert is written out in
         - **EML-TRN-010** draining the queue sends the mail with the slot filled from the mail's data
       - *test-message whose subject has a slot its data lacks*
         - **EML-TRN-011** draining the queue gives the mail up with a failure entry on the order
+      - *message queued with no order*
+        - **EML-TRN-012** draining the queue records the sent mail with no order
+      - *message queued with no order, naming an unknown template*
+        - **EML-TRN-013** draining the queue records the given-up mail as failed with no order
   - **Settings**
     - [settings.spec.ts](email-runtime/settings.spec.ts) — `EML-SET`
       - *test-message repeated once a day, sent twice at most*
         - **EML-SET-001** sending the mail queues its repeat one repeat interval out
         - **EML-SET-002** draining each send as it comes due stops the mail at its maximum
-      - **EML-SET-003** draining the queue archives unsent a waiting mail switched off since it was queued
+      - *test-message waiting, not yet due*
+        - **EML-SET-003** draining the queue archives unsent a waiting mail switched off since it was queued <!-- new: suite stabilisation -->
   - **Webhook**
     - [webhook.spec.ts](email-runtime/webhook.spec.ts) — `EML-WHK`
       - **EML-WHK-001** a delivery report marks the sent mail as delivered
@@ -339,6 +368,92 @@ behaviour the lifecycle packs assert is written out in
       - **APR-CLN-004** running the purge leaves the round's file unpurged
     - *finished, unbilled order, approved round*
       - **APR-CLN-005** running the purge leaves the round's file unpurged
+
+- **Record protection**
+  - [record-protection.spec.ts](compliance/record-protection.spec.ts) — `CMP-LOCK`
+    - *as admin, finished order, done product with a file link and a time log*
+      - **CMP-LOCK-001** deleting the order is refused
+      - **CMP-LOCK-002** deleting the done product is refused
+      - **CMP-LOCK-003** deleting the order's file is refused
+      - **CMP-LOCK-004** removing the done product's file link is refused
+      - **CMP-LOCK-005** deleting the product's time log is refused
+      - **CMP-LOCK-006** changing the order's customer is refused
+      - **CMP-LOCK-007** changing the order's payment method is refused
+      - **CMP-LOCK-008** changing the done product's status is refused
+      - **CMP-LOCK-009** changing the order's billing note saves it
+      - **CMP-LOCK-010** archiving the order saves it
+      - **CMP-LOCK-011** reopening the order moves it to in progress
+    - *as admin, billed order*
+      - **CMP-LOCK-012** changing the status of the billed order is refused
+      - **CMP-LOCK-013** deleting the order's customer is refused
+    - *as admin, in progress order, one product in production and one in setup, a file linked to each*
+      - **CMP-LOCK-014** deleting the order is refused
+      - **CMP-LOCK-015** deleting the released product is refused
+      - **CMP-LOCK-016** removing the released product's file link is refused
+      - **CMP-LOCK-017** deleting the setup product removes it
+      - **CMP-LOCK-018** deleting the setup product's file removes it
+      - **CMP-LOCK-019** deleting the released product's file is refused
+    - *as admin, quote with a history entry*
+      - **CMP-LOCK-020** deleting the history entry is refused
+      - **CMP-LOCK-021** deleting the quote row directly is refused
+      - **CMP-LOCK-022** deleting the quote through the function removes it with its history
+
+- **Backups**
+  - [backup-record.spec.ts](compliance/backup-record.spec.ts) — `BKP-REC`
+    - *as admin, waiting job*
+      - **BKP-REC-001** claiming a waiting job returns it and stamps the lease
+      - **BKP-REC-002** claiming a job another session just claimed returns nothing
+    - *as admin, job taken by another session, lease passed*
+      - **BKP-REC-003** claiming a taken job whose lease has passed returns it
+    - *as admin, job held by this session*
+      - **BKP-REC-004** reporting a delivery with the wrong fingerprint is refused
+      - **BKP-REC-005** reporting a failed delivery puts the job back with the attempt counted and the reason kept
+    - *start still open*
+      - **BKP-REC-006** recording a backup with the start's id links the backup onto the start <!-- new: BACKUP_RUNTIME WP9 -->
+      - **BKP-REC-007** reporting the run as failed stamps the start with the reason <!-- new: BACKUP_RUNTIME WP9 -->
+    - *start whose run already recorded a backup*
+      - **BKP-REC-008** recording another backup with the start's id records it and leaves the start's backup as it was <!-- new: BACKUP_RUNTIME WP9 -->
+      - **BKP-REC-009** reporting the run as failed is refused <!-- new: BACKUP_RUNTIME WP9 -->
+  - [backup-schedule.spec.ts](compliance/backup-schedule.spec.ts) — `BKP-SCHED`
+    - *delivered job past the holding retention*
+      - **BKP-SCHED-001** running the upkeep removes the job's online copy from the bucket
+      - **BKP-SCHED-002** running the upkeep marks the job as purged
+    - *delivered job inside the holding retention*
+      - **BKP-SCHED-003** running the upkeep leaves the job unpurged
+    - *waiting job announced longer ago than the re-announce interval*
+      - **BKP-SCHED-004** running the upkeep calls the roll for the job again
+    - *backups switched off*
+      - **BKP-SCHED-005** running the daily start reports backups as switched off
+    - *waiting job made longer ago than the undelivered alert threshold*
+      - **BKP-SCHED-006** running the upkeep queues the undelivered-backup mail once to the shop and once to the developers
+      - **BKP-SCHED-007** running the upkeep a second time the same day queues no further mail
+    - *newest job made longer ago than the missing-backup alert threshold*
+      - **BKP-SCHED-008** running the upkeep queues the missing-backup mail once to the shop and once to the developers
+    - *backup due, a start still open*
+      - **BKP-SCHED-009** running the daily start reports a backup as already started <!-- new: BACKUP_RUNTIME WP9 -->
+    - *backup due, a start whose run reported a failure*
+      - **BKP-SCHED-010** running the daily start goes past it to the GitHub token <!-- new: BACKUP_RUNTIME WP9 -->
+    - *backup due, a start that never reported, sent longer ago than the wait for it*
+      - **BKP-SCHED-011** running the daily start goes past it to the GitHub token <!-- new: BACKUP_RUNTIME WP9 -->
+  - [backup-retention.spec.ts](compliance/backup-retention.spec.ts) — `BKP-RET`
+    - *delivered job past the weekly retention, a later job made the same month*
+      - **BKP-RET-001** listing the backups due for removal includes the job <!-- new: BACKUP_RUNTIME WP8 -->
+    - *delivered job inside the weekly retention, a later job made the same month*
+      - **BKP-RET-002** listing the backups due for removal leaves the job out <!-- new: BACKUP_RUNTIME WP8 -->
+    - *last delivered job of its month, past the weekly retention, inside the monthly one*
+      - **BKP-RET-003** listing the backups due for removal leaves the job out <!-- new: BACKUP_RUNTIME WP8 -->
+    - *last delivered job of its month, past the monthly retention*
+      - **BKP-RET-004** listing the backups due for removal includes the job <!-- new: BACKUP_RUNTIME WP8 -->
+    - *newest delivered job, past the monthly retention*
+      - **BKP-RET-005** listing the backups due for removal leaves the job out <!-- new: BACKUP_RUNTIME WP8 -->
+    - *job due for removal, already reported removed*
+      - **BKP-RET-006** listing the backups due for removal leaves the job out <!-- new: BACKUP_RUNTIME WP8 -->
+    - *job due for removal*
+      - **BKP-RET-007** reporting the removal stamps the job with the time and the machine <!-- new: BACKUP_RUNTIME WP8 -->
+      - **BKP-RET-008** reporting the removal a second time keeps the first stamp <!-- new: BACKUP_RUNTIME WP8 -->
+      - **BKP-RET-009** running the upkeep stamps the job as announced for removal <!-- new: BACKUP_RUNTIME WP8 -->
+    - *job due for removal, its deletion asked for five minutes ago*
+      - **BKP-RET-010** running the upkeep again inside the re-announce interval leaves the announcement as it was <!-- new: BACKUP_RUNTIME WP8 -->
 
 ## Later
 

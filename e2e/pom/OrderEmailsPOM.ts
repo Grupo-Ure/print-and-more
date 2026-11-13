@@ -12,7 +12,7 @@ export class OrderEmailsPOM extends BasePOM {
   readonly queuedItems: Locator
   /** Every mail that went out; each carries `data-sent-email-id`. */
   readonly sentItems: Locator
-  /** Every mail the sender gave up on; each carries `data-history-id`. */
+  /** Every mail the sender gave up on; each carries `data-failed-email-id`. */
   readonly failedItems: Locator
   /** The View button of every sent mail. */
   readonly viewSent: Locator
