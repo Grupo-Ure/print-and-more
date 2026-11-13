@@ -140,6 +140,8 @@ export const TEST_IDS = {
       city: 'customer-dialog-city',
       /** The notice under the email field while the stored address, which bounced, is still in it. */
       emailBounced: 'customer-dialog-email-bounced',
+      /** The notice under the phone field while neither an email nor a phone is entered. */
+      contactRequired: 'customer-dialog-contact-required',
       cancel: 'customer-dialog-cancel',
       submit: 'customer-dialog-submit',
     },
