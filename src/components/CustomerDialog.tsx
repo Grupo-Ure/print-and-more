@@ -118,6 +118,13 @@ function CustomerForm({ customer, submitting, serverError, onCancel, onSubmit }:
 
   const form = useForm({
     defaultValues,
+    validators: {
+      // Mirrors the database's customers_contact_required check, so a save it would refuse is never sent.
+      onChange: ({ value }) =>
+        value.email.trim().length === 0 && value.phone.trim().length === 0
+          ? 'Enter an email or a phone number'
+          : undefined,
+    },
     onSubmit: async ({ value }) => {
       await onSubmit(value)
     },
@@ -199,6 +206,18 @@ function CustomerForm({ customer, submitting, serverError, onCancel, onSubmit }:
           </FieldRow>
         )}
       </form.Field>
+
+      <form.Subscribe
+        selector={state => (state.isTouched && typeof state.errorMap.onChange === 'string' ? state.errorMap.onChange : undefined)}
+      >
+        {contactError =>
+          contactError && (
+            <p data-testid={IDS.contactRequired} className="text-xs text-destructive">
+              {contactError}
+            </p>
+          )
+        }
+      </form.Subscribe>
 
       <form.Field name="note">
         {field => (
