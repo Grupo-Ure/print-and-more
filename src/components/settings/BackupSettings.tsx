@@ -293,7 +293,7 @@ function BackupJobList({ settings }: { settings: BackupSettingsRow | null }) {
   const { data: jobs, isLoading, dataUpdatedAt: now } = useBackupJobs()
 
   return (
-    <section data-testid={JOB_IDS.root} className="overflow-x-auto rounded-md border border-neutral-200">
+    <section data-testid={JOB_IDS.root} className="shrink-0 overflow-x-auto rounded-md border border-neutral-200">
       <Table>
         <TableHeader>
           <TableRow>
