@@ -67,6 +67,7 @@ test.describe('backup waiting again after failed deliveries', () => {
   test("SET-BKP-003 opening the backups section shows the job's failed attempts", async ({ settingsPage, backupJob, backupJobSeed }) => {
     // Act — open the Backups section.
     await settingsPage.openSection('backups')
+    await settingsPage.backups.openJobs()
 
     // Assert — the row counts the seeded failures.
     await expect(settingsPage.backups.jobAttempts(backupJob.id)).toHaveAttribute('data-value', String(backupJobSeed.failures?.attempts))
@@ -75,6 +76,7 @@ test.describe('backup waiting again after failed deliveries', () => {
   test("SET-BKP-004 opening the backups section shows why the job's last delivery failed", async ({ settingsPage, backupJob, backupJobSeed }) => {
     // Act
     await settingsPage.openSection('backups')
+    await settingsPage.backups.openJobs()
 
     // Assert — the reason is the behaviour here, so the row is read for its text.
     await expect(settingsPage.backups.jobLastError(backupJob.id)).toHaveText(String(backupJobSeed.failures?.lastError))
@@ -87,6 +89,7 @@ test.describe('backup being delivered by another machine', () => {
   test('SET-BKP-005 opening the backups section names the machine holding the job', async ({ settingsPage, backupJob, backupJobSeed }) => {
     // Act
     await settingsPage.openSection('backups')
+    await settingsPage.backups.openJobs()
 
     // Assert
     await expect(settingsPage.backups.jobTakenBy(backupJob.id)).toHaveText(String(backupJobSeed.claim?.machine))
@@ -99,6 +102,7 @@ test.describe('backup delivered, online copy kept', () => {
   test('SET-BKP-006 opening the backups section names the machine that delivered the job', async ({ settingsPage, backupJob, backupJobSeed }) => {
     // Act
     await settingsPage.openSection('backups')
+    await settingsPage.backups.openJobs()
 
     // Assert
     await expect(settingsPage.backups.jobDeliveredBy(backupJob.id)).toHaveText(String(backupJobSeed.claim?.machine))
@@ -107,6 +111,7 @@ test.describe('backup delivered, online copy kept', () => {
   test("SET-BKP-007 opening the backups section shows the job's online copy as kept", async ({ settingsPage, backupJob }) => {
     // Act
     await settingsPage.openSection('backups')
+    await settingsPage.backups.openJobs()
 
     // Assert
     await expect(settingsPage.backups.jobHoldingCopy(backupJob.id)).toHaveAttribute('data-purged', 'false')
@@ -119,6 +124,7 @@ test.describe('backup delivered, online copy purged', () => {
   test("SET-BKP-008 opening the backups section shows the job's online copy as deleted", async ({ settingsPage, backupJob }) => {
     // Act
     await settingsPage.openSection('backups')
+    await settingsPage.backups.openJobs()
 
     // Assert
     await expect(settingsPage.backups.jobHoldingCopy(backupJob.id)).toHaveAttribute('data-purged', 'true')
@@ -131,6 +137,7 @@ test.describe('backup delivered, file deleted from the shop folder', () => {
   test("SET-BKP-012 opening the backups section shows the job's shop folder copy as deleted with the machine that deleted it", async ({ settingsPage, backupJob, backupJobSeed }) => {
     // Act
     await settingsPage.openSection('backups')
+    await settingsPage.backups.openJobs()
 
     // Assert — marked deleted, and naming the machine of the seeded deletion.
     const shopCopy = settingsPage.backups.jobShopCopy(backupJob.id)
@@ -149,6 +156,7 @@ test.describe('backup waiting longer than the undelivered alert threshold', () =
   test('SET-BKP-009 opening the backups section flags the job as undelivered with the days since it was made', async ({ settingsPage, backupSettings: _thresholds, backupJob, backupJobSeed }) => {
     // Act
     await settingsPage.openSection('backups')
+    await settingsPage.backups.openJobs()
 
     // Assert
     await expect(settingsPage.backups.jobUndeliveredFlag(backupJob.id)).toHaveAttribute('data-days', String(backupJobSeed.createdDaysAgo))
@@ -162,6 +170,7 @@ test.describe('newest backup made longer ago than the missing-backup alert thres
   test('SET-BKP-010 opening the backups section flags the newest job with the days without a new backup', async ({ settingsPage, backupSettings: _thresholds, backupJob, backupJobSeed }) => {
     // Act
     await settingsPage.openSection('backups')
+    await settingsPage.backups.openJobs()
 
     // Assert
     await expect(settingsPage.backups.jobMissingFlag(backupJob.id)).toHaveAttribute('data-days', String(backupJobSeed.createdDaysAgo))
