@@ -6,9 +6,10 @@ const IDS = TEST_IDS.settings.backups
 const JOB_IDS = IDS.jobs
 
 /**
- * Settings → Backups: the list of backups (`backup_jobs`), then a switch, nine
- * number fields and the three parts of the shop folder (`backup_settings`),
- * each saving when it is left.
+ * Settings → Backups, in two tabs: *Settings* (open by default) — a switch,
+ * nine number fields and the three parts of the shop folder
+ * (`backup_settings`), each saving when it is left — and *All backups*, the
+ * list of backups (`backup_jobs`).
  */
 export class BackupSettingsPOM extends BasePOM {
   readonly root: Locator
@@ -28,9 +29,10 @@ export class BackupSettingsPOM extends BasePOM {
   readonly shareServer: Locator
   readonly shareName: Locator
   readonly shareFolder: Locator
-  /** The list of backups; a sibling of `root`, not inside it. */
+  /** The list of backups, on the All backups tab; not inside `root`. */
   readonly jobs: Locator
   private readonly jobRows: Locator
+  private readonly jobsTab: Locator
 
   constructor(page: Page) {
     super(page)
@@ -50,6 +52,13 @@ export class BackupSettingsPOM extends BasePOM {
     this.shareFolder = this.root.getByTestId(IDS.shareFolder)
     this.jobs = page.getByTestId(JOB_IDS.root)
     this.jobRows = this.jobs.getByTestId(JOB_IDS.row)
+    this.jobsTab = page.getByTestId(IDS.tabs.jobs)
+  }
+
+  /** Switches to the All backups tab and waits for the list. */
+  async openJobs(): Promise<void> {
+    await this.jobsTab.click()
+    await this.jobs.waitFor()
   }
 
   /** One backup's row; `data-state` = WAITING | TAKEN | DELIVERED. */
