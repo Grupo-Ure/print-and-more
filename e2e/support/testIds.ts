@@ -676,14 +676,17 @@ export const TEST_IDS = {
       missingBackupAlertDays: 'backup-settings-missing-backup-alert-days',
       weeklyRetentionDays: 'backup-settings-weekly-retention-days',
       monthlyRetentionYears: 'backup-settings-monthly-retention-years',
+      /** The section's two tabs: the settings (default) and the list of backups. */
+      tabs: {
+        settings: 'backup-settings-tab-settings',
+        jobs: 'backup-settings-tab-jobs',
+      },
       /** Opens the system's folder dialog; the picked folder fills the three share fields below. */
       browseShare: 'backup-settings-browse-share',
-      /** The shop folder as one network path, or "Not set" while server, share or folder is empty. */
-      sharePath: 'backup-settings-share-path',
       shareServer: 'backup-settings-share-server',
       shareName: 'backup-settings-share-name',
       shareFolder: 'backup-settings-share-folder',
-      /** The list of every backup ever made, above the settings. */
+      /** The list of every backup ever made, on the All backups tab; loads a page at a time as it is scrolled. */
       jobs: {
         root: 'backup-jobs',
         /** Shown instead of the rows while no backup has been made. */

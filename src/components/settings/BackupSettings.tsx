@@ -1,4 +1,5 @@
-import { useState, type KeyboardEvent } from 'react'
+import { useEffect, useState, type KeyboardEvent } from 'react'
+import { Archive, FolderSearch, SlidersHorizontal } from 'lucide-react'
 import { formatDateTimeHuman } from '../../lib/formatDate'
 import { useBackupJobs, useBackupMachine } from '../../queries/backupJobQueries'
 import { useBackupSettings, useUpdateBackupSettings } from '../../queries/backupSettingsQueries'
@@ -6,11 +7,12 @@ import type { BackupJob } from '../../services/backupJobService'
 import type { BackupSettings as BackupSettingsRow, BackupSettingsPatch } from '../../services/backupSettingsService'
 import { useToast } from '../Toast'
 import { WholeNumberField } from '../fields/WholeNumberField'
-import { SettingRow } from './SettingRow'
+import { InfoHint, SettingRow } from './SettingRow'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { TEST_IDS } from '@e2e/support/testIds'
 
@@ -29,16 +31,19 @@ const MAX_MINUTES = 1440
 
 type ShareSetting = 'share_server' | 'share_name' | 'share_folder'
 
+type BackupTab = 'settings' | 'jobs'
+
 /**
- * Settings → Backups, in three parts: every backup ever made and where it is
- * (`backup_jobs`, live); the settings — when the weekly backup is made, how
- * the running copies of the app hand it on, when the shop is warned, how long
- * it is kept in the shop folder, and the folder on the shop's share it is
- * brought to (`backup_settings`), each field
- * saving on its own the moment it is left; and whether this machine can reach
- * that folder now.
+ * Settings → Backups, in two tabs. *Settings* (the default): when the weekly
+ * backup is made, how the running copies of the app hand it on, when the shop
+ * is warned, how long it is kept in the shop folder, and the folder on the
+ * shop's share it is brought to (`backup_settings`), each field saving on its
+ * own the moment it is left — then whether this machine can reach that folder
+ * now. *All backups*: every backup ever made and where it is (`backup_jobs`,
+ * live), loaded a page at a time as it is scrolled.
  */
 export function BackupSettings() {
+  const [tab, setTab] = useState<BackupTab>('settings')
   const { showError } = useToast()
   const { data: settings } = useBackupSettings()
   const updateSettings = useUpdateBackupSettings()
@@ -79,12 +84,6 @@ export function BackupSettings() {
 
   const isSavingShare = isSaving('share_server') || isSaving('share_name') || isSaving('share_folder')
 
-  /** The shop folder as one network path, once server, share and folder are all set. */
-  const sharePath =
-    settings?.share_server && settings.share_name && settings.share_folder
-      ? `\\\\${settings.share_server}\\${settings.share_name}\\${settings.share_folder.replace(/\//g, '\\')}`
-      : null
-
   /** Has the shop folder picked in the system's file dialog and stores the server, share and folder it stands for. */
   const browseShare = async () => {
     if (!window.pam) {
@@ -101,152 +100,180 @@ export function BackupSettings() {
     <>
       <h1>Backups</h1>
 
-      <BackupJobList settings={settings ?? null} />
+      <Tabs value={tab} onValueChange={value => setTab(value as BackupTab)} className="gap-3">
+        <TabsList aria-label="Backup sections">
+          <TabsTrigger value="settings" data-testid={IDS.tabs.settings} className="px-3 text-sm">
+            <SlidersHorizontal />
+            Settings
+          </TabsTrigger>
+          <TabsTrigger value="jobs" data-testid={IDS.tabs.jobs} className="px-3 text-sm">
+            <Archive />
+            All backups
+          </TabsTrigger>
+        </TabsList>
 
-      <h2>Settings</h2>
-      <section data-testid={IDS.root} className="rounded-md border border-neutral-200">
-        <SettingRow
-          title="Make backups"
-          description="Off pauses new backups and their announcement. A backup already made is still brought to the shop folder."
-        >
-          <Switch
-            data-testid={IDS.enabled}
-            aria-label="Make backups"
-            checked={settings?.enabled ?? false}
-            disabled={!settings || isSaving('enabled')}
-            onCheckedChange={checked => void save({ enabled: checked })}
-          />
-        </SettingRow>
-        <SettingRow
-          title="Back up every (days)"
-          description="A new backup is made once the newest one is this many days old."
-        >
-          {numberField('dump_interval_days', IDS.dumpIntervalDays, 'Make a backup every so many days', MAX_DAYS)}
-        </SettingRow>
-        <SettingRow
-          title="Wait for a started backup (minutes)"
-          description="How long no new backup is started while one that was started has not finished or reported a failure. A backup normally takes under an hour."
-        >
-          {numberField(
-            'start_wait_minutes',
-            IDS.startWaitMinutes,
-            'Wait so many minutes for a started backup before starting another',
-            MAX_MINUTES,
-          )}
-        </SettingRow>
-        <SettingRow
-          title="Claim holds for (minutes)"
-          description="How long a computer that took a backup has to bring it to the shop folder before another may try. Fixed when it is taken."
-        >
-          {numberField('lease_minutes', IDS.leaseMinutes, 'A claim on a backup holds for so many minutes', MAX_MINUTES)}
-        </SettingRow>
-        <SettingRow
-          title="Announce again after (minutes)"
-          description="How long a backup may wait untaken before the running computers are asked again."
-        >
-          {numberField(
-            'reannounce_minutes',
-            IDS.reannounceMinutes,
-            'Announce a waiting backup again after so many minutes',
-            MAX_MINUTES,
-          )}
-        </SettingRow>
-        <SettingRow
-          title="Keep the online copy for (days after delivery)"
-          description="How long a backup stays in online storage once it has reached the shop folder. The copy in the shop folder has its own keep, below."
-        >
-          {numberField(
-            'holding_retention_days',
-            IDS.holdingRetentionDays,
-            'Keep the online copy for so many days after delivery',
-            MAX_DAYS,
-          )}
-        </SettingRow>
-        <SettingRow
-          title="Warn when undelivered for (days)"
-          description="A mail goes out when a backup has not reached the shop folder for this many days."
-        >
-          {numberField(
-            'undelivered_alert_days',
-            IDS.undeliveredAlertDays,
-            'Warn when a backup is undelivered for so many days',
-            MAX_DAYS,
-          )}
-        </SettingRow>
-        <SettingRow
-          title="Warn when no backup for (days)"
-          description="A mail goes out when no new backup has been made for this many days."
-        >
-          {numberField(
-            'missing_backup_alert_days',
-            IDS.missingBackupAlertDays,
-            'Warn when no backup has been made for so many days',
-            MAX_DAYS,
-          )}
-        </SettingRow>
-        <SettingRow
-          title="Keep backups in the shop folder for (days)"
-          description="How long after it was made a backup is deleted from the shop folder. The last backup of each month is kept longer, and the newest one always stays."
-        >
-          {numberField(
-            'weekly_retention_days',
-            IDS.weeklyRetentionDays,
-            'Keep a backup in the shop folder for so many days',
-            MAX_DAYS,
-          )}
-        </SettingRow>
-        <SettingRow
-          title="Keep each month's last backup for (years)"
-          description="How long the last backup of a month stays in the shop folder before it is deleted too."
-        >
-          {numberField(
-            'monthly_retention_years',
-            IDS.monthlyRetentionYears,
-            'Keep the last backup of a month for so many years',
-            MAX_YEARS,
-          )}
-        </SettingRow>
-        <SettingRow
-          title="Shop folder"
-          description="Pick the app's folder on the shop's share. Server, share and folder below are filled in from it and can still be typed by hand."
-        >
-          <div className="flex items-center gap-3">
-            <span
-              data-testid={IDS.sharePath}
-              className={cn('text-xs break-all', sharePath ? 'font-mono' : 'text-neutral-500')}
+        <TabsContent value="settings" className="flex flex-col gap-3">
+          <section data-testid={IDS.root} className="rounded-md border border-neutral-200">
+            <SettingRow
+              descriptionAsHint
+              title="Make backups"
+              description="Off pauses new backups and their announcement. A backup already made is still brought to the shop folder."
             >
-              {sharePath ?? 'Not set'}
-            </span>
-            <Button
-              data-testid={IDS.browseShare}
-              variant="outline"
-              size="sm"
-              disabled={!settings || isSavingShare}
-              onClick={() => void browseShare()}
+              <Switch
+                data-testid={IDS.enabled}
+                aria-label="Make backups"
+                checked={settings?.enabled ?? false}
+                disabled={!settings || isSaving('enabled')}
+                onCheckedChange={checked => void save({ enabled: checked })}
+              />
+            </SettingRow>
+            <SettingRow
+              descriptionAsHint
+              title="Back up every (days)"
+              description="A new backup is made once the newest one is this many days old."
             >
-              Browse…
-            </Button>
-          </div>
-        </SettingRow>
-        <SettingRow
-          title="Server"
-          description="The file server the shop folder is on. While server, share or folder is empty, no computer brings backups in."
-        >
-          {shareField('share_server', IDS.shareServer, 'Server of the shop folder', 'Server')}
-        </SettingRow>
-        <SettingRow title="Share" description="The shared drive on that server.">
-          {shareField('share_name', IDS.shareName, 'Share of the shop folder', 'Server A-Z')}
-        </SettingRow>
-        <SettingRow
-          title="Folder"
-          description="The app's folder on that share. Backups go in its Backups subfolder, created when missing."
-        >
-          {shareField('share_folder', IDS.shareFolder, 'Folder of the app on the share', 'Print And More')}
-        </SettingRow>
-      </section>
+              {numberField('dump_interval_days', IDS.dumpIntervalDays, 'Make a backup every so many days', MAX_DAYS)}
+            </SettingRow>
+            <SettingRow
+              descriptionAsHint
+              title="Wait for a started backup (minutes)"
+              description="How long no new backup is started while one that was started has not finished or reported a failure. A backup normally takes under an hour."
+            >
+              {numberField(
+                'start_wait_minutes',
+                IDS.startWaitMinutes,
+                'Wait so many minutes for a started backup before starting another',
+                MAX_MINUTES,
+              )}
+            </SettingRow>
+            <SettingRow
+              descriptionAsHint
+              title="Claim holds for (minutes)"
+              description="How long a computer that took a backup has to bring it to the shop folder before another may try. Fixed when it is taken."
+            >
+              {numberField('lease_minutes', IDS.leaseMinutes, 'A claim on a backup holds for so many minutes', MAX_MINUTES)}
+            </SettingRow>
+            <SettingRow
+              descriptionAsHint
+              title="Announce again after (minutes)"
+              description="How long a backup may wait untaken before the running computers are asked again."
+            >
+              {numberField(
+                'reannounce_minutes',
+                IDS.reannounceMinutes,
+                'Announce a waiting backup again after so many minutes',
+                MAX_MINUTES,
+              )}
+            </SettingRow>
+            <SettingRow
+              descriptionAsHint
+              title="Keep the online copy for (days after delivery)"
+              description="How long a backup stays in online storage once it has reached the shop folder. The copy in the shop folder has its own keep, below."
+            >
+              {numberField(
+                'holding_retention_days',
+                IDS.holdingRetentionDays,
+                'Keep the online copy for so many days after delivery',
+                MAX_DAYS,
+              )}
+            </SettingRow>
+            <SettingRow
+              descriptionAsHint
+              title="Warn when undelivered for (days)"
+              description="A mail goes out when a backup has not reached the shop folder for this many days."
+            >
+              {numberField(
+                'undelivered_alert_days',
+                IDS.undeliveredAlertDays,
+                'Warn when a backup is undelivered for so many days',
+                MAX_DAYS,
+              )}
+            </SettingRow>
+            <SettingRow
+              descriptionAsHint
+              title="Warn when no backup for (days)"
+              description="A mail goes out when no new backup has been made for this many days."
+            >
+              {numberField(
+                'missing_backup_alert_days',
+                IDS.missingBackupAlertDays,
+                'Warn when no backup has been made for so many days',
+                MAX_DAYS,
+              )}
+            </SettingRow>
+            <SettingRow
+              descriptionAsHint
+              title="Keep backups in the shop folder for (days)"
+              description="How long after it was made a backup is deleted from the shop folder. The last backup of each month is kept longer, and the newest one always stays."
+            >
+              {numberField(
+                'weekly_retention_days',
+                IDS.weeklyRetentionDays,
+                'Keep a backup in the shop folder for so many days',
+                MAX_DAYS,
+              )}
+            </SettingRow>
+            <SettingRow
+              descriptionAsHint
+              title="Keep each month's last backup for (years)"
+              description="How long the last backup of a month stays in the shop folder before it is deleted too."
+            >
+              {numberField(
+                'monthly_retention_years',
+                IDS.monthlyRetentionYears,
+                'Keep the last backup of a month for so many years',
+                MAX_YEARS,
+              )}
+            </SettingRow>
+            {/* A group heading, not a setting: the button only fills in the three fields under it. */}
+            <div className="flex items-center justify-between gap-6 border-b border-neutral-200 bg-neutral-50 px-4 py-2">
+              <div className="flex items-center gap-1.5">
+                <h3 className="text-xs font-semibold tracking-wide text-neutral-500 uppercase">Shop folder</h3>
+                <InfoHint label="Shop folder">
+                  The folder on the shop's share that backups are brought to, in three parts. Pick the folder to fill
+                  them all in at once, or type them by hand.
+                </InfoHint>
+              </div>
+              <Button
+                data-testid={IDS.browseShare}
+                variant="ghost"
+                size="sm"
+                className="text-neutral-600"
+                disabled={!settings || isSavingShare}
+                onClick={() => void browseShare()}
+              >
+                <FolderSearch />
+                Fill in from a folder…
+              </Button>
+            </div>
+            <SettingRow
+              descriptionAsHint
+              title="Server"
+              description="The file server the shop folder is on. While server, share or folder is empty, no computer brings backups in."
+            >
+              {shareField('share_server', IDS.shareServer, 'Server of the shop folder', 'Server')}
+            </SettingRow>
+            <SettingRow descriptionAsHint title="Share" description="The shared drive on that server.">
+              {shareField('share_name', IDS.shareName, 'Share of the shop folder', 'Server A-Z')}
+            </SettingRow>
+            <SettingRow
+              descriptionAsHint
+              title="Folder"
+              description="The app's folder on that share. Backups go in its Backups subfolder, created when missing."
+            >
+              {shareField('share_folder', IDS.shareFolder, 'Folder of the app on the share', 'Print And More')}
+            </SettingRow>
+          </section>
 
-      <h2>This computer</h2>
-      <ThisMachine settings={settings ?? null} />
+          <h2>This computer</h2>
+          <ThisMachine settings={settings ?? null} />
+        </TabsContent>
+
+        {/* Inactive tabs unmount, so the list and its live subscription run only while this tab is open. */}
+        <TabsContent value="jobs">
+          <BackupJobList settings={settings ?? null} />
+        </TabsContent>
+      </Tabs>
     </>
   )
 }
@@ -290,7 +317,22 @@ function madeMoreThan(job: BackupJob, days: number, now: number): boolean {
  */
 function BackupJobList({ settings }: { settings: BackupSettingsRow | null }) {
   // The ages are judged as of the list's last fetch, which every change to a job triggers.
-  const { data: jobs, isLoading, dataUpdatedAt: now } = useBackupJobs()
+  const { data, isLoading, dataUpdatedAt: now, hasNextPage, isFetchingNextPage, fetchNextPage } = useBackupJobs()
+  const jobs = data?.pages.flat()
+
+  // The next page loads once the end of the list scrolls into view (the page's own scroll area clips it).
+  const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!sentinel) return
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) void fetchNextPage()
+      },
+      { rootMargin: '200px' },
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [sentinel, hasNextPage, isFetchingNextPage, fetchNextPage])
 
   return (
     <section data-testid={JOB_IDS.root} className="shrink-0 overflow-x-auto rounded-md border border-neutral-200">
@@ -337,6 +379,8 @@ function BackupJobList({ settings }: { settings: BackupSettingsRow | null }) {
           ))}
         </TableBody>
       </Table>
+      {hasNextPage && <div ref={setSentinel} aria-hidden className="h-px" />}
+      {isFetchingNextPage && <p className="px-4 py-2 text-xs text-neutral-500">Loading more backups…</p>}
     </section>
   )
 }
@@ -428,26 +472,25 @@ function ThisMachine({ settings }: { settings: BackupSettingsRow | null }) {
   const reachable = data?.folder.reachable ?? false
   return (
     <section data-testid={MACHINE_IDS.root} className="rounded-md border border-neutral-200">
-      <SettingRow title="Name" description="How this computer appears in the list above when it takes a backup.">
+      <SettingRow descriptionAsHint title="Name" description="How this computer appears under All backups when it takes a backup.">
         <span data-testid={MACHINE_IDS.name} className="font-medium">
           {data?.machine ?? '…'}
         </span>
       </SettingRow>
-      <SettingRow
-        title="Shop folder"
-        description={
-          data && !data.folder.reachable ? data.folder.reason : 'Whether this computer can bring backups in right now.'
-        }
-      >
-        <span
-          data-testid={MACHINE_IDS.status}
-          data-reachable={reachable}
-          className={cn('font-medium', reachable ? 'text-green-700' : 'text-neutral-500')}
-        >
-          {data ? (reachable ? 'Reachable' : 'Not reachable') : '…'}
-        </span>
+      <SettingRow descriptionAsHint title="Shop folder" description="Whether this computer can bring backups in right now.">
+        <div className="min-w-0 text-right">
+          <span
+            data-testid={MACHINE_IDS.status}
+            data-reachable={reachable}
+            className={cn('font-medium', reachable ? 'text-green-700' : 'text-neutral-500')}
+          >
+            {data ? (reachable ? 'Reachable' : 'Not reachable') : '…'}
+          </span>
+          {/* Why it cannot be reached is the thing to act on, so it stays in view rather than behind the hint. */}
+          {data && !data.folder.reachable && <p className="text-xs text-neutral-500">{data.folder.reason}</p>}
+        </div>
       </SettingRow>
-      <SettingRow title="Folder" description="Where backups go on this computer.">
+      <SettingRow descriptionAsHint title="Folder" description="Where backups go on this computer.">
         <span data-testid={MACHINE_IDS.path} className="font-mono text-xs break-all">
           {data?.folder.path ?? '—'}
         </span>
