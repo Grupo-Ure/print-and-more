@@ -8,6 +8,9 @@ export type BackupJob = Tables<'backup_jobs'>
 /** Where the dumps wait until a running copy of the app has brought them to the shop. */
 const BACKUPS_BUCKET = 'backups'
 
+/** How many backups Settings → Backups loads at a time; the next page loads as the list is scrolled to its end. */
+export const BACKUP_JOB_PAGE_SIZE = 50
+
 /** How long a job's download link holds: long enough to start the download, which then streams on. */
 const SIGNED_URL_SECONDS = 600
 
@@ -25,9 +28,14 @@ const RESUBSCRIBE_DELAY_MS = 2000
  * by its machine name.
  */
 class BackupJobService {
-  /** Every backup ever made, newest first. */
-  async list(): Promise<BackupJob[]> {
-    const { data, error } = await supabase.from('backup_jobs').select('*').order('created_at', { ascending: false })
+  /** One page of every backup ever made, newest first. */
+  async list({ offset, limit }: { offset: number; limit: number }): Promise<BackupJob[]> {
+    const { data, error } = await supabase
+      .from('backup_jobs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(offset, offset + limit - 1)
     if (error) throw error
     return data
   }

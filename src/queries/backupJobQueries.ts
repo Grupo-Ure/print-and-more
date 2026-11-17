@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { backupJobService } from '../services/backupJobService'
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
+import { BACKUP_JOB_PAGE_SIZE, backupJobService } from '../services/backupJobService'
 
 export const backupJobKeys = {
   all: ['backup-jobs'] as const,
@@ -8,7 +8,10 @@ export const backupJobKeys = {
     ['backup-machine', server, share, folder] as const,
 }
 
-/** Every backup ever made, newest first (Settings → Backups); follows changes live. */
+/**
+ * Every backup ever made, newest first, a page at a time (Settings → Backups);
+ * follows changes live — a change refetches every page loaded so far.
+ */
 export function useBackupJobs() {
   const queryClient = useQueryClient()
 
@@ -18,9 +21,12 @@ export function useBackupJobs() {
     })
   }, [queryClient])
 
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: backupJobKeys.all,
-    queryFn: () => backupJobService.list(),
+    queryFn: ({ pageParam }) => backupJobService.list({ offset: pageParam, limit: BACKUP_JOB_PAGE_SIZE }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, _allPages, lastPageParam) =>
+      lastPage.length < BACKUP_JOB_PAGE_SIZE ? undefined : lastPageParam + BACKUP_JOB_PAGE_SIZE,
   })
 }
 
