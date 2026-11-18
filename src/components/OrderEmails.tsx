@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Eye, RotateCcw } from 'lucide-react'
-import type { HistoryRow } from '../services/historyService'
-import type { QueuedEmailRow, SentEmailRow } from '../services/emailService'
+import type { FailedEmailRow, QueuedEmailRow, SentEmailRow } from '../services/emailService'
 import { useFailedEmails, useQueuedEmails, useSentEmails } from '../queries/emailQueries'
 import { useProductsByOrderId } from '../queries/productQueries'
 import { emailTemplateLabel } from '../lib/emailTemplateLabels'
@@ -60,7 +59,7 @@ export function OrderEmails({
     isInDateRange(iso, filter.from, filter.to) && (filter.productId === null || productId === filter.productId)
   const queued = allQueued.filter(email => matches(email.due_at, email.product_id))
   const sent = allSent.filter(email => matches(email.sent_at, email.product_id))
-  const failed = allFailed.filter(entry => matches(entry.created_at, entry.product_id))
+  const failed = allFailed.filter(email => matches(email.failed_at, email.product_id))
   const noMatch = total > 0 && queued.length + sent.length + failed.length === 0
 
   // "LFP-01" — every mail here belongs to the same order; null for a mail about the whole order.
@@ -136,11 +135,11 @@ export function OrderEmails({
 
         {failed.length > 0 && (
           <EmailGroup title="Failed">
-            {failed.map(entry => (
+            {failed.map(email => (
               <FailedEmailItem
-                key={entry.id}
-                entry={entry}
-                product={productOf(entry.product_id)}
+                key={email.id}
+                email={email}
+                product={productOf(email.product_id)}
                 onOpenProduct={onOpenProduct}
               />
             ))}
@@ -306,37 +305,33 @@ function SentEmailItem({ email, onView, ...productProps }: SentEmailItemProps) {
   )
 }
 
-function metaRecord(entry: HistoryRow): Record<string, unknown> | null {
-  const meta = entry.meta
-  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return null
-  return meta as Record<string, unknown>
+/** Why the sender gave the mail up, from the row's reason code, with the error's wording where there is one. */
+function failureReason(email: FailedEmailRow): string {
+  const error = email.error ? `: ${email.error}` : ''
+  const attempts = email.attempts > 1 ? ` after ${email.attempts} attempts` : ''
+  switch (email.reason) {
+    case 'unknown_template':
+      return 'the template does not exist'
+    case 'no_settings_row':
+      return 'the mail has no wording in Settings'
+    case 'render_failed':
+      return `the wording does not render${error}`
+    case 'resolve_failed':
+      return `looking its data up failed${attempts}${error}`
+    case 'provider_refused':
+      return `refused${attempts}${error}`
+  }
 }
 
-/**
- * Why the sender gave the mail up, from the EMAIL_FAILED meta: a template it
- * does not know, or the provider's last refusal.
- */
-function failureReason(meta: Record<string, unknown> | null): string {
-  if (meta?.reason === 'unknown_template') return 'the template does not exist'
-  const error = meta?.error
-  const message =
-    error && typeof error === 'object' && 'message' in error && typeof error.message === 'string' ? error.message : null
-  const attempts = typeof meta?.attempts === 'number' ? ` after ${meta.attempts} attempts` : ''
-  return message ? `refused${attempts}: ${message}` : `refused${attempts}`
-}
-
-function FailedEmailItem({ entry, ...productProps }: EmailProductProps & { entry: HistoryRow }) {
-  const meta = metaRecord(entry)
-  const template = typeof meta?.template === 'string' ? meta.template : 'Email'
-  const recipient = typeof meta?.recipient === 'string' ? meta.recipient : null
+function FailedEmailItem({ email, ...productProps }: EmailProductProps & { email: FailedEmailRow }) {
   return (
-    <li data-testid={IDS.failedItem} data-history-id={entry.id} className="flex py-1.5 text-sm">
+    <li data-testid={IDS.failedItem} data-failed-email-id={email.id} className="flex py-1.5 text-sm">
       <EmailLine
-        time={formatDateTimeHuman(entry.created_at)}
-        template={template}
+        time={formatDateTimeHuman(email.failed_at)}
+        template={email.template}
         {...productProps}
-        recipient={recipient}
-        detail={`not sent: ${failureReason(meta)}`}
+        recipient={email.recipient}
+        detail={`not sent: ${failureReason(email)}`}
         alert
       />
     </li>

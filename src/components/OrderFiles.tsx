@@ -59,6 +59,11 @@ type Props = {
   shortages: StockShortage[]
   /** The order's customer's address, which the request mail goes to. */
   customerEmail: string | null
+  /**
+   * The order is finished or billed: its files are the record, which the
+   * database keeps — nothing is linked, renamed, re-roled or removed here.
+   */
+  locked: boolean
   onFileChanged: (newFile?: FileRow) => void | Promise<void>
 }
 
@@ -76,8 +81,14 @@ type Props = {
  * with what came of it. The order scope is for browsing and offers no request.
  * Mount it per product (`key`), so the ticks never carry over to another one.
  */
-export function OrderFiles({ orderId, product, files, productFileIds, shortages, customerEmail, onFileChanged }: Props) {
+export function OrderFiles({ orderId, product, files, productFileIds, shortages, customerEmail, locked, onFileChanged }: Props) {
   const [error, setError] = useState<string | null>(null)
+  // A released product's files are part of what was produced: the database
+  // refuses to remove them (the link, or the file row that would take the
+  // link with it) from awaiting approval on, as it refuses everything on a
+  // closed order.
+  const linksLocked =
+    locked || product.status === 'AWAITING_APPROVAL' || product.status === 'IN_PRODUCTION' || product.status === 'DONE'
   const [removingId, setRemovingId] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   // The one row currently showing its name as an input instead of text.
@@ -120,6 +131,7 @@ export function OrderFiles({ orderId, product, files, productFileIds, shortages,
   const handleDrop = async (e: DragEvent<HTMLElement>) => {
     e.preventDefault()
     setIsDragging(false)
+    if (locked) return
     const added = await linkDropped(e)
     if (added.length > 0) void onFileChanged()
   }
@@ -218,20 +230,22 @@ export function OrderFiles({ orderId, product, files, productFileIds, shortages,
         </p>
       </div>
 
-      <button
-        type="button"
-        data-testid={IDS.addFiles}
-        onClick={() => void handlePickAndLink()}
-        title="Click to browse, or drop files here"
-        className={cn(
-          'flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
-          shownFiles.length === 0 ? 'min-h-40 flex-col' : 'min-h-12 shrink-0',
-          isDragging && 'border-primary bg-primary/5 text-foreground',
-        )}
-      >
-        <Plus className={cn(shownFiles.length === 0 ? 'size-6' : 'size-4')} aria-hidden />
-        {shownFiles.length === 0 ? 'Click here or drop files to link them' : 'Add files'}
-      </button>
+      {!locked && (
+        <button
+          type="button"
+          data-testid={IDS.addFiles}
+          onClick={() => void handlePickAndLink()}
+          title="Click to browse, or drop files here"
+          className={cn(
+            'flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
+            shownFiles.length === 0 ? 'min-h-40 flex-col' : 'min-h-12 shrink-0',
+            isDragging && 'border-primary bg-primary/5 text-foreground',
+          )}
+        >
+          <Plus className={cn(shownFiles.length === 0 ? 'size-6' : 'size-4')} aria-hidden />
+          {shownFiles.length === 0 ? 'Click here or drop files to link them' : 'Add files'}
+        </button>
+      )}
       {error && <p data-testid={IDS.error} className="text-sm text-destructive">{error}</p>}
 
       {shownFiles.length > 0 && (
@@ -296,18 +310,20 @@ export function OrderFiles({ orderId, product, files, productFileIds, shortages,
                               >
                                 {file.display_name}
                               </span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                className={cn('shrink-0', EDIT_ACTION_CLASS)}
-                                title="Edit name"
-                                aria-label={`Edit name: ${file.display_name}`}
-                                data-testid={IDS.itemEditName}
-                                onClick={() => setEditingNameId(file.id)}
-                              >
-                                <Pencil />
-                              </Button>
+                              {!locked && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className={cn('shrink-0', EDIT_ACTION_CLASS)}
+                                  title="Edit name"
+                                  aria-label={`Edit name: ${file.display_name}`}
+                                  data-testid={IDS.itemEditName}
+                                  onClick={() => setEditingNameId(file.id)}
+                                >
+                                  <Pencil />
+                                </Button>
+                              )}
                             </>
                           )}
                         </div>
@@ -324,41 +340,49 @@ export function OrderFiles({ orderId, product, files, productFileIds, shortages,
                         </button>
                       </TableCell>
                       <TableCell className="px-3 py-2 align-middle">
-                        <Select
-                          value={file.role}
-                          onValueChange={value => void handleUpdate(file.id, { role: value as FileRole })}
-                        >
-                          <SelectTrigger
-                            className="w-44"
-                            aria-label="Role"
-                            data-testid={IDS.itemRole}
-                            data-value={file.role}
+                        {locked ? (
+                          <span data-testid={IDS.itemRole} data-value={file.role} className="text-sm">
+                            {ROLES.find(roleOption => roleOption.value === file.role)?.label ?? file.role}
+                          </span>
+                        ) : (
+                          <Select
+                            value={file.role}
+                            onValueChange={value => void handleUpdate(file.id, { role: value as FileRole })}
                           >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ROLES.map(roleOption => (
-                              <SelectItem key={roleOption.value} value={roleOption.value}>
-                                {roleOption.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                            <SelectTrigger
+                              className="w-44"
+                              aria-label="Role"
+                              data-testid={IDS.itemRole}
+                              data-value={file.role}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ROLES.map(roleOption => (
+                                <SelectItem key={roleOption.value} value={roleOption.value}>
+                                  {roleOption.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
                       </TableCell>
                       <TableCell className="px-1 py-2 align-middle">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          className="text-muted-foreground hover:text-destructive"
-                          onClick={() => void handleRemove(file.id)}
-                          disabled={removingId === file.id}
-                          title="Remove link"
-                          aria-label={`Remove: ${file.display_name}`}
-                          data-testid={IDS.itemRemove}
-                        >
-                          <X />
-                        </Button>
+                        {!linksLocked && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="text-muted-foreground hover:text-destructive"
+                            onClick={() => void handleRemove(file.id)}
+                            disabled={removingId === file.id}
+                            title="Remove link"
+                            aria-label={`Remove: ${file.display_name}`}
+                            data-testid={IDS.itemRemove}
+                          >
+                            <X />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   )

@@ -5,6 +5,7 @@ import {
   IN_PROGRESS_ORDER,
   IN_PROGRESS_ORDER_WITHOUT_DEADLINE,
   IN_PROGRESS_ORDER_PAST_DEADLINE,
+  FINISHED_STATUS,
 } from '../../fixtures/orders'
 import {
   BANNER_PRODUCT,
@@ -158,9 +159,12 @@ test.describe('in progress, product in production', () => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
-    // Act — mark it done and confirm.
+    // Act — mark it done and confirm. Its order's last product, so the order
+    // finishes on its own a moment later, with a history entry of its own;
+    // wait for that, or the order's removal after the test races the write.
     await ordersPage.details.productDetail.releaseButton.click()
     await ordersPage.confirmDialog.confirm.click()
+    await ordersPage.details.inStatus(FINISHED_STATUS).waitFor()
 
     // Assert — the product is done.
     await expect(ordersPage.details.productList.row(product.id)).toHaveAttribute('data-status', DONE_STATUS)

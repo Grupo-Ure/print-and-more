@@ -5,6 +5,9 @@ import type { ChildTable } from '../../src/types/product'
 import { createHash, randomBytes } from 'node:crypto'
 import { addDays } from 'date-fns'
 import type { ApprovalRequestSeed } from '../fixtures/approvalRequests'
+import type { BackupDispatchSeed, RecordedBackupSeed, TestBackupDispatch } from '../fixtures/backupDispatches'
+import { BACKUP_FILE_CONTENT, type BackupJobSeed, type TestBackupJob } from '../fixtures/backupJobs'
+import type { BackupSettingsSeed } from '../fixtures/backupSettings'
 import type { TestCustomer } from '../fixtures/customers'
 import type { CustomerApprovalSettingsSeed } from '../fixtures/customerApprovalSettings'
 import type { EmailSettingPatch, EmailSettingRow, QueuedEmailSeed, SentEmailSeed } from '../fixtures/emailMessages'
@@ -24,6 +27,11 @@ export type QueuedEmailRow = Database['public']['Functions']['list_queued_emails
 
 const MS_PER_DAY = 86_400_000
 
+/** Where the backup jobs a spec records for a start are put, so the start's removal finds them all. */
+function dispatchStoragePrefix(dispatchId: string): string {
+  return `e2e/dispatch-${dispatchId}/`
+}
+
 /**
  * How many whole days the message was queued to wait: from when it was queued
  * to when it is due. Rounded, as pgmq stamps the two a moment apart.
@@ -34,6 +42,12 @@ export function queuedDelayDays(row: QueuedEmailRow): number {
 
 /** One sent record, as much of it as a spec looks at. */
 export type SentEmailRow = Pick<Database['public']['Tables']['sent_emails']['Row'], 'id' | 'provider_id' | 'recipient' | 'subject'>
+
+/** A failed record as a spec reads it: which, and why the sender gave it up. */
+export type FailedEmailRow = Pick<Database['public']['Tables']['failed_emails']['Row'], 'id' | 'reason'>
+
+/** The order a sent or failed record is about — null for a mail about the system. */
+export type EmailRecordOrder = Pick<Database['public']['Tables']['sent_emails']['Row'], 'order_id'>
 
 /** What the provider has reported of a sent mail, as the record holds it. */
 export type SentEmailDelivery = Pick<
@@ -152,6 +166,12 @@ export type TestApprovalRequest = {
   storagePath: string
 }
 
+/** An order's header columns, as much of them as a spec reads back after a refused or an allowed write. */
+export type OrderState = Pick<
+  Database['public']['Tables']['orders']['Row'],
+  'status' | 'customer_id' | 'payment_method' | 'billing_note' | 'is_archived'
+>
+
 /** A product's workflow columns, as much of them as a spec reads back after a refused or an allowed write. */
 export type ProductState = Pick<Database['public']['Tables']['products']['Row'], 'status' | 'quantity' | 'deadline' | 'assignee_id'>
 
@@ -163,6 +183,8 @@ export type StockMovementRow = Pick<Database['public']['Tables']['stamp_stock_mo
 
 /** The private bucket the customer's page is served proof copies from. */
 const APPROVAL_PROOFS_BUCKET = 'approval-proofs'
+
+const BACKUPS_BUCKET = 'backups'
 
 export function requiredEnv(name: string): string {
   const value = process.env[name]
@@ -273,6 +295,200 @@ export class TestDatabase {
     if (error) throw error
   }
 
+  // ── Backup settings ──────────────────────────────────────────────────────
+
+  /** Writes the backup runtime's settings onto the one row, replacing whatever it held. */
+  async updateBackupSettings(seed: BackupSettingsSeed): Promise<void> {
+    const { error } = await this.client.from('backup_settings').update(seed).eq('id', true)
+    if (error) throw error
+  }
+
+  // ── Backup jobs ──────────────────────────────────────────────────────────
+
+  /**
+   * Inserts one backup job as the seed describes it: waiting, or taken with
+   * the seed's claim, or delivered — and then perhaps deleted from the shop
+   * folder, or announced for that. Its storage path is its own, so parallel
+   * workers never collide on the unique path. Returns the row as stored.
+   */
+  async createBackupJob(seed: BackupJobSeed): Promise<TestBackupJob> {
+    const now = Date.now()
+    const claim = seed.claim
+    const { data, error } = await this.client
+      .from('backup_jobs')
+      .insert({
+        created_at: seed.createdAt ?? new Date(now - seed.createdDaysAgo * 86_400_000).toISOString(),
+        period: seed.period,
+        storage_path: `e2e/${crypto.randomUUID()}.dump.age`,
+        size_bytes: seed.sizeBytes,
+        sha256: seed.sha256,
+        state: seed.delivered ? 'DELIVERED' : claim && !seed.failures ? 'TAKEN' : 'WAITING',
+        claimed_by_session: claim?.session ?? null,
+        claimed_by_machine: claim?.machine ?? null,
+        claimed_at: claim ? new Date(now).toISOString() : null,
+        lease_until: claim ? new Date(now + claim.leaseEndsInMinutes * 60_000).toISOString() : null,
+        attempts: seed.failures?.attempts ?? 0,
+        last_error: seed.failures?.lastError ?? null,
+        delivered_at: seed.delivered ? new Date(now - seed.deliveredDaysAgo * 86_400_000).toISOString() : null,
+        delivered_by_machine: seed.delivered ? (claim?.machine ?? null) : null,
+        delivered_sha256: seed.delivered ? seed.sha256 : null,
+        purged_at: seed.purged ? new Date(now).toISOString() : null,
+        removed_at: seed.removal ? new Date(now - seed.removal.daysAgo * 86_400_000).toISOString() : null,
+        removed_by_machine: seed.removal?.machine ?? null,
+        removal_announced_at:
+          seed.removalAnnouncedMinutesAgo === null ? null : new Date(now - seed.removalAnnouncedMinutesAgo * 60_000).toISOString(),
+      })
+      .select('*')
+      .single()
+    if (error) throw error
+
+    if (seed.stored) {
+      const { error: uploadError } = await this.client.storage
+        .from(BACKUPS_BUCKET)
+        .upload(data.storage_path, BACKUP_FILE_CONTENT, { contentType: 'application/octet-stream' })
+      if (uploadError) throw uploadError
+    }
+    // The insert called the roll and stamped announced_at; an older call is written over it.
+    if (seed.announcedMinutesAgo === 0) return data
+    const { data: backdated, error: backdateError } = await this.client
+      .from('backup_jobs')
+      .update({ announced_at: new Date(now - seed.announcedMinutesAgo * 60_000).toISOString() })
+      .eq('id', data.id)
+      .select('*')
+      .single()
+    if (backdateError) throw backdateError
+    return backdated
+  }
+
+  /** Reads one backup job back as stored. */
+  async backupJob(jobId: string): Promise<TestBackupJob> {
+    const { data, error } = await this.client.from('backup_jobs').select('*').eq('id', jobId).single()
+    if (error) throw error
+    return data
+  }
+
+  /** Removes a seeded backup job and any object left at its path. Only the runner may: the app never deletes one. */
+  async removeBackupJob(job: TestBackupJob): Promise<void> {
+    const { error: storageError } = await this.client.storage.from(BACKUPS_BUCKET).remove([job.storage_path])
+    if (storageError) throw storageError
+    const { error } = await this.client.from('backup_jobs').delete().eq('id', job.id)
+    if (error) throw error
+  }
+
+  /** Whether an object is in the backups bucket at that path. */
+  async backupFileStored(storagePath: string): Promise<boolean> {
+    const folder = storagePath.slice(0, storagePath.lastIndexOf('/'))
+    const name = storagePath.slice(storagePath.lastIndexOf('/') + 1)
+    const { data, error } = await this.client.storage.from(BACKUPS_BUCKET).list(folder, { search: name })
+    if (error) throw error
+    return data.some(object => object.name === name)
+  }
+
+  /** The ids of the backup jobs the retention rule lists as due to leave the shop folder (`list_backups_due_for_removal`), judged now. */
+  async backupJobsDueForRemoval(): Promise<string[]> {
+    const { data, error } = await this.client.rpc('list_backups_due_for_removal')
+    if (error) throw error
+    return data.map(job => job.id)
+  }
+
+  /** Runs the five-minute backup upkeep once, as its cron job does. */
+  async runBackupUpkeep(): Promise<void> {
+    const { error } = await this.client.rpc('fn_backup_upkeep')
+    if (error) throw error
+  }
+
+  /** Who each overdue-backup mail of that template the upkeep queued is for (`SHOP` | `DEVELOPER`), as its record holds it. */
+  async backupAlertRecipients(template: string): Promise<string[]> {
+    const { data, error } = await this.client.from('backup_alerts').select('recipient').eq('template', template)
+    if (error) throw error
+    return data.map(row => row.recipient)
+  }
+
+  /**
+   * Removes every overdue-backup mail the upkeep queued: takes each message
+   * off the queue, removes its sent or failed record — a record with no
+   * order, which nothing else removes — and deletes the alert's own record,
+   * so the next run may queue the mail again the same day.
+   */
+  async removeBackupAlerts(): Promise<void> {
+    const { data, error } = await this.client.from('backup_alerts').select('id, queue_msg_id')
+    if (error) throw error
+    await Promise.all(data.map(row => this.archiveEmail(row.queue_msg_id)))
+    await Promise.all(data.map(row => this.removeEmailRecords(row.queue_msg_id)))
+    const { error: deleteError } = await this.client.from('backup_alerts').delete().in('id', data.map(row => row.id))
+    if (deleteError) throw deleteError
+  }
+
+  /** Runs the daily backup start once, as its cron job does; returns what it decided. */
+  async startDueBackup(): Promise<string> {
+    const { data, error } = await this.client.rpc('fn_start_due_backup')
+    if (error) throw error
+    return data
+  }
+
+  // ── Backup starts ────────────────────────────────────────────────────────
+
+  /**
+   * Inserts one start of the backup workflow as the seed describes it, linked
+   * onto `jobId` when its run recorded a backup. Returns the row as stored.
+   */
+  async createBackupDispatch(seed: BackupDispatchSeed, jobId: string | null): Promise<TestBackupDispatch> {
+    const { data, error } = await this.client
+      .from('backup_dispatches')
+      .insert({
+        requested_at: new Date(Date.now() - seed.requestedMinutesAgo * 60_000).toISOString(),
+        job_id: jobId,
+        failed_at: seed.failure ? new Date().toISOString() : null,
+        error: seed.failure,
+      })
+      .select('*')
+      .single()
+    if (error) throw error
+    return data
+  }
+
+  /** Reads one start back as stored. */
+  async backupDispatch(dispatchId: string): Promise<TestBackupDispatch> {
+    const { data, error } = await this.client.from('backup_dispatches').select('*').eq('id', dispatchId).single()
+    if (error) throw error
+    return data
+  }
+
+  /**
+   * Records a backup as the run of that start records it (`record_backup_job`,
+   * service role). Its storage path lies under the start's own prefix, so the
+   * start's removal finds every job recorded for it. Returns the job.
+   */
+  async recordBackupJob(dispatchId: string, backup: RecordedBackupSeed): Promise<TestBackupJob> {
+    const { data, error } = await this.client.rpc('record_backup_job', {
+      period: backup.period,
+      storage_path: `${dispatchStoragePrefix(dispatchId)}${crypto.randomUUID()}.dump.age`,
+      size_bytes: backup.sizeBytes,
+      sha256: backup.sha256,
+      dispatch_id: dispatchId,
+    })
+    if (error) throw error
+    return data
+  }
+
+  /** Reports the run of that start as failed, as the workflow's last step does; the database's answer is returned, not thrown, since refusing is a case. */
+  async reportBackupDispatchFailed(dispatchId: string, reason: string): Promise<{ error: unknown }> {
+    const { error } = await this.client.rpc('report_backup_dispatch_failed', { dispatch_id: dispatchId, reason })
+    return { error }
+  }
+
+  /** Removes a seeded start and every backup job a spec recorded for it. Only the runner may: the app never deletes one. */
+  async removeBackupDispatch(dispatch: TestBackupDispatch): Promise<void> {
+    const { error } = await this.client.from('backup_dispatches').delete().eq('id', dispatch.id)
+    if (error) throw error
+    const { data: recorded, error: listError } = await this.client
+      .from('backup_jobs')
+      .select('*')
+      .like('storage_path', `${dispatchStoragePrefix(dispatch.id)}%`)
+    if (listError) throw listError
+    await Promise.all(recorded.map(job => this.removeBackupJob(job)))
+  }
+
   // ── Department defaults ──────────────────────────────────────────────────
 
   /** Puts the user into the department's slot for that stage, replacing whoever held it. Returns the user's id. */
@@ -345,11 +561,20 @@ export class TestDatabase {
 
   /**
    * Orders reference their customer without a cascade, so their orders go
-   * first (products, files and history follow those by cascade), then the
-   * customers.
+   * first — each with its history, as `removeOrder` does; products and files
+   * follow by cascade — then the customers.
    */
   private async removeCustomers(ids: string[]): Promise<void> {
     if (ids.length === 0) return
+    const { data: orders, error: ordersError } = await this.client.from('orders').select('id').in('customer_id', ids)
+    if (ordersError) throw ordersError
+    if (orders.length > 0) {
+      const { error: historyError } = await this.client
+        .from('history')
+        .delete()
+        .in('order_id', orders.map(order => order.id))
+      if (historyError) throw historyError
+    }
     const { error: orderError } = await this.client.from('orders').delete().in('customer_id', ids)
     if (orderError) throw orderError
     const { error: customerError } = await this.client.from('customers').delete().in('id', ids)
@@ -379,7 +604,7 @@ export class TestDatabase {
     return { id: data.id, orderNumber: data.order_number, customerId }
   }
 
-  /** Deletes the order; products, files and history follow by cascade. The customer stays. */
+  /** Deletes the order with its history; products and files follow by cascade. The customer stays. */
   async removeOrder(orderId: string): Promise<void> {
     // The order's approval rounds go first. Deleting the order cascades to its
     // files and, through its products, to the rounds' file links — but the
@@ -394,6 +619,12 @@ export class TestDatabase {
         .in('product_id', products.map(product => product.id))
       if (requestsError) throw requestsError
     }
+
+    // History no longer goes with its order (the FK restricts), so the
+    // order's entries go before it — the runner's connection is exempt from
+    // the guard that keeps them for the app.
+    const { error: historyError } = await this.client.from('history').delete().eq('order_id', orderId)
+    if (historyError) throw historyError
 
     const { error } = await this.client.from('orders').delete().eq('id', orderId)
     if (error) throw error
@@ -729,18 +960,23 @@ export class TestDatabase {
 
   // ── Emails ───────────────────────────────────────────────────────────────
 
-  /** Queues a message for the order through queue_email, as a trigger would. Returns the queue message id. */
-  async queueEmail(orderId: string, seed: QueuedEmailSeed): Promise<number> {
+  /**
+   * Queues a message through queue_email, as a trigger would for the order —
+   * or, with no order, as a scheduled job queues a mail about the system.
+   * Returns the queue message id.
+   */
+  async queueEmail(orderId: string | null, seed: QueuedEmailSeed): Promise<number> {
     const msgId = await this.tryQueueEmail(orderId, seed)
     if (msgId === null) throw new Error(`queue_email queued nothing for ${seed.template} — is the template disabled?`)
     return msgId
   }
 
   /** The same call, returning null where queue_email queued nothing (the template is switched off). */
-  async tryQueueEmail(orderId: string, seed: QueuedEmailSeed): Promise<number | null> {
+  async tryQueueEmail(orderId: string | null, seed: QueuedEmailSeed): Promise<number | null> {
     const { data, error } = await this.client.rpc('queue_email', {
       template: seed.template,
-      order_id: orderId,
+      // The generated type wants the uuid or nothing; `null` is what queue_email reads as "no order".
+      order_id: orderId as string,
       product_id: undefined,
       // A seed's context is plain JSON data; the generated type wants it spelled as Json.
       context: seed.context as Json,
@@ -852,6 +1088,35 @@ export class TestDatabase {
     return data.map(row => row.body_html)
   }
 
+  /** The order's mails the sender gave up on. */
+  async failedEmails(orderId: string): Promise<FailedEmailRow[]> {
+    const { data, error } = await this.client.from('failed_emails').select('id, reason').eq('order_id', orderId)
+    if (error) throw error
+    return data
+  }
+
+  /** The sent record of the message, or null while there is none; `order_id` is null for a mail about the system. */
+  async sentEmailOf(msgId: number): Promise<EmailRecordOrder | null> {
+    const { data, error } = await this.client.from('sent_emails').select('order_id').eq('queue_msg_id', msgId).maybeSingle()
+    if (error) throw error
+    return data
+  }
+
+  /** The failed record of the message, or null while there is none; `order_id` is null for a mail about the system. */
+  async failedEmailOf(msgId: number): Promise<EmailRecordOrder | null> {
+    const { data, error } = await this.client.from('failed_emails').select('order_id').eq('queue_msg_id', msgId).maybeSingle()
+    if (error) throw error
+    return data
+  }
+
+  /** Removes the message's sent or failed record — a record with no order, which no order's removal takes along. */
+  async removeEmailRecords(msgId: number): Promise<void> {
+    const { error: sentError } = await this.client.from('sent_emails').delete().eq('queue_msg_id', msgId)
+    if (sentError) throw sentError
+    const { error: failedError } = await this.client.from('failed_emails').delete().eq('queue_msg_id', msgId)
+    if (failedError) throw failedError
+  }
+
   /** The order's history entries of that event, with what each recorded. */
   async historyEntries(orderId: string, eventType: HistoryEvent): Promise<HistoryEntryRow[]> {
     const { data, error } = await this.client
@@ -881,5 +1146,99 @@ export class TestDatabase {
     if (error) throw error
     if (!data.session) throw new Error(`No session for ${user.email} after signing in`)
     return data.session.access_token
+  }
+
+  // ── Record protection ────────────────────────────────────────────────────
+  //
+  // What the guards of 20261103115958_gobd_record_protection leave standing:
+  // rows read back by id after a refused or an allowed write.
+
+  /** The order's header columns as stored. */
+  async orderState(orderId: string): Promise<OrderState> {
+    const { data, error } = await this.client
+      .from('orders')
+      .select('status, customer_id, payment_method, billing_note, is_archived')
+      .eq('id', orderId)
+      .single()
+    if (error) throw error
+    return data
+  }
+
+  /** Whether the order row is still there. */
+  async orderExists(orderId: string): Promise<boolean> {
+    const { count, error } = await this.client.from('orders').select('id', { count: 'exact', head: true }).eq('id', orderId)
+    if (error) throw error
+    return (count ?? 0) > 0
+  }
+
+  /** Whether the product row is still there. */
+  async productExists(productId: string): Promise<boolean> {
+    const { count, error } = await this.client.from('products').select('id', { count: 'exact', head: true }).eq('id', productId)
+    if (error) throw error
+    return (count ?? 0) > 0
+  }
+
+  /** Whether the file row is still there. */
+  async fileExists(fileId: string): Promise<boolean> {
+    const { count, error } = await this.client.from('files').select('id', { count: 'exact', head: true }).eq('id', fileId)
+    if (error) throw error
+    return (count ?? 0) > 0
+  }
+
+  /** Whether the customer row is still there. */
+  async customerExists(customerId: string): Promise<boolean> {
+    const { count, error } = await this.client.from('customers').select('id', { count: 'exact', head: true }).eq('id', customerId)
+    if (error) throw error
+    return (count ?? 0) > 0
+  }
+
+  /** Whether the history entry is still there. */
+  async historyEntryExists(historyId: string): Promise<boolean> {
+    const { count, error } = await this.client.from('history').select('id', { count: 'exact', head: true }).eq('id', historyId)
+    if (error) throw error
+    return (count ?? 0) > 0
+  }
+
+  /** How many files the product links. */
+  async productFileCount(productId: string): Promise<number> {
+    const { count, error } = await this.client
+      .from('product_files')
+      .select('id', { count: 'exact', head: true })
+      .eq('product_id', productId)
+    if (error) throw error
+    return count ?? 0
+  }
+
+  /** How many time logs the product has. */
+  async timeLogCount(productId: string): Promise<number> {
+    const { count, error } = await this.client
+      .from('product_time_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('product_id', productId)
+    if (error) throw error
+    return count ?? 0
+  }
+
+  /** Logs the minutes on the product for the login, written by them, as the time log form would. Returns the log's id. */
+  async createTimeLog(productId: string, user: TestUser, minutes: number): Promise<string> {
+    const userId = await this.userId(user)
+    const { data, error } = await this.client
+      .from('product_time_logs')
+      .insert({ product_id: productId, user_id: userId, created_by: userId, minutes })
+      .select('id')
+      .single()
+    if (error) throw error
+    return data.id
+  }
+
+  /** Writes one history entry of that event onto the order, with nothing else recorded. Returns the entry's id. Removed with the order. */
+  async createHistoryEntry(orderId: string, eventType: HistoryEvent): Promise<string> {
+    const { data, error } = await this.client
+      .from('history')
+      .insert({ order_id: orderId, event_type: eventType })
+      .select('id')
+      .single()
+    if (error) throw error
+    return data.id
   }
 }

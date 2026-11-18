@@ -180,8 +180,8 @@ process, so they are edited as that process changes.
 - **Backend:** Supabase — PostgreSQL with Auth and Row-Level Security; RLS
   policies and triggers live in the migrations. The base schema is split into
   domain migration files under `supabase/migrations/` (types, core, orders,
-  products, catalog, one file per department's product tables, blueprint,
-  audit, duplicate_order); everything after that baseline is a dated
+  products, catalog, one file per department's product tables, audit,
+  duplicate_order); everything after that baseline is a dated
   migration on top of it, and that is the only way the schema changes (see
   "The app is in production" above). `supabase/seed.sql` holds catalog
   master data; `seed.dev.sql` (git-ignored) holds local demo data. Four edge
@@ -572,12 +572,10 @@ cannot hold an order open.
   `NOT NULL` with its default and a check of at least one day. Readable by
   all, admin-updatable; nobody inserts or deletes. Service
   [`customerApprovalSettingsService`](src/services/customerApprovalSettingsService.ts).
-- **Blueprint** — `blueprint_*` tables exist in the schema (a separate
-  blueprint-copying feature) but nothing in the client uses them yet.
-- **Retired ERP export** — the `erp_exports` table, `orders.is_erp_exported`
-  and the `ERP_EXPORTED` history event are left over from an export feature
-  the shop retired. Nothing in the client reads, writes or renders them;
-  dropping them is a migration of its own. Don't build on them.
+- **Retired ERP export** — the `ERP_EXPORTED` history event is the one
+  trace left of an export feature the shop retired; its table and the
+  order flag were dropped. Rows that carry the event still render with
+  their label. Don't build on it.
 
 ### Products — typed per-type tables
 
@@ -767,6 +765,25 @@ The rules live in one place each:
   and a textile batch's garment lines and designs) in one transaction; called
   from [`DuplicateDialog`](src/components/DuplicateDialog.tsx). Workflow state
   is not carried over — the copies start in setup.
+- **Record protection** (GoBD) — a record once in processing is neither
+  deleted nor silently altered, and the database is what holds that: one
+  `fn_refuse_*_record_change` guard per table (`orders`, `products`,
+  `files`, `product_files`, `product_time_logs`, `history`), each a
+  `BEFORE` trigger that refuses the write for every app role and exempts
+  the owner and `service_role` as the other guards do. An order is never
+  deleted by the client directly — the sidebar's quote delete calls
+  `delete_quote`, which refuses any other status and removes the quote's
+  history in the open (the history FK onto orders restricts rather than
+  cascades). Past that: a product is deleted only in setup on an open
+  order; once an order is `FINISHED`/`BILLED` its billing-relevant columns
+  (number, customer, dates, payment, delivery, deadline, priority), its
+  files and its products' workflow columns are locked, `BILLED` is final,
+  and only archiving, the billing note and the lifecycle out of `FINISHED`
+  stay open; a product's file links lock from `AWAITING_APPROVAL` on, a
+  file linked to a released product is not deleted, and a time log is
+  deleted only while the product is open. The client hides what the
+  database would refuse — a refusal reaches a user only through a stale
+  view. The plan is the vault note *GoBD record protection*.
 - **PDF production sheet** — one sheet per product, from the product header
   ([`src/lib/pdf/productionSheet.ts`](src/lib/pdf/productionSheet.ts)): a
   label/value list of the product's set spec fields, with a textile batch's

@@ -1,5 +1,5 @@
 import { expect, test } from '../fixtures/emails'
-import { REPEATING_TEST_MESSAGE_SETTING, SWITCHED_OFF } from '../fixtures/emailMessages'
+import { DELAYED_TEST_MESSAGE, REPEATING_TEST_MESSAGE_SETTING, SWITCHED_OFF } from '../fixtures/emailMessages'
 import { queuedDelayDays } from '../support/database'
 
 // What a template's row in Settings → Emails changes about a drain. The
@@ -30,14 +30,21 @@ test.describe('test-message repeated once a day, sent twice at most', () => {
   })
 })
 
-test('EML-SET-003 draining the queue archives unsent a waiting mail switched off since it was queued', async ({ database, sendEmail, queuedEmail, emailSetting }) => {
-  // Setup — the mail is already waiting (queuedEmail); now it is switched off.
-  await database.updateEmailSetting(emailSetting.template, SWITCHED_OFF)
+test.describe('test-message waiting, not yet due', () => {
+  // Queued not yet due, so the local stack's own drain cannot send it before
+  // it is switched off; once due, any drain finds it switched off.
+  test.use({ queuedEmailSeed: DELAYED_TEST_MESSAGE })
 
-  // Act
-  await sendEmail.drain()
+  test('EML-SET-003 draining the queue archives unsent a waiting mail switched off since it was queued', async ({ database, sendEmail, queuedEmail, emailSetting }) => {
+    // Setup — the mail is already waiting (queuedEmail); now it is switched off, then made due.
+    await database.updateEmailSetting(emailSetting.template, SWITCHED_OFF)
+    await database.makeQueuedEmailsDue(queuedEmail.orderId)
 
-  // Assert — nothing sent, nothing waiting.
-  expect(await database.sentEmails(queuedEmail.orderId)).toHaveLength(0)
-  expect(await database.queuedEmails(queuedEmail.orderId)).toHaveLength(0)
+    // Act
+    await sendEmail.drain()
+
+    // Assert — nothing sent, nothing waiting.
+    expect(await database.sentEmails(queuedEmail.orderId)).toHaveLength(0)
+    expect(await database.queuedEmails(queuedEmail.orderId)).toHaveLength(0)
+  })
 })

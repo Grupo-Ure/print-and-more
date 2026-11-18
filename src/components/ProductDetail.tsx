@@ -272,6 +272,7 @@ export function ProductDetail({
             productFileIds={productFileIds}
             shortages={shortages}
             customerEmail={order.customers?.email ?? null}
+            locked={order.status === 'FINISHED' || order.status === 'BILLED'}
             onFileChanged={onOrderFilesChanged}
           />
         </TabsContent>

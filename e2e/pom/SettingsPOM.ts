@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test'
 import { TEST_IDS } from '../support/testIds'
 import { ApprovalSettingsPOM } from './ApprovalSettingsPOM'
+import { BackupSettingsPOM } from './BackupSettingsPOM'
 import { DepartmentSettingsPOM } from './DepartmentSettingsPOM'
 import { EmailSettingsPOM } from './EmailSettingsPOM'
 import { UserManagementPOM } from './UserManagementPOM'
@@ -9,7 +10,7 @@ import { NavbarPOM } from './NavbarPOM'
 import { BasePOM } from './BasePOM'
 
 /** Mirrors `SettingsSection` in src/pages/SettingsPage.tsx (a .tsx module the e2e tsconfig can't import). */
-export type SettingsSection = 'userManagement' | 'departments' | 'emails' | 'approval'
+export type SettingsSection = 'userManagement' | 'departments' | 'emails' | 'approval' | 'backups'
 
 const IDS = TEST_IDS.settings
 
@@ -23,6 +24,7 @@ export class SettingsPOM extends BasePOM {
   readonly departments: DepartmentSettingsPOM
   readonly emails: EmailSettingsPOM
   readonly approval: ApprovalSettingsPOM
+  readonly backups: BackupSettingsPOM
   readonly accessDenied: AccessDeniedPOM
   private readonly sectionLinks: Locator
   private readonly navbar: NavbarPOM
@@ -35,6 +37,7 @@ export class SettingsPOM extends BasePOM {
     this.departments = new DepartmentSettingsPOM(page)
     this.emails = new EmailSettingsPOM(page)
     this.approval = new ApprovalSettingsPOM(page)
+    this.backups = new BackupSettingsPOM(page)
     this.accessDenied = new AccessDeniedPOM(page)
     this.navbar = new NavbarPOM(page)
   }
@@ -76,6 +79,8 @@ export class SettingsPOM extends BasePOM {
         return this.emails.root
       case 'approval':
         return this.approval.root
+      case 'backups':
+        return this.backups.root
     }
   }
 }
