@@ -3023,6 +3023,14 @@ export type Database = {
         | "CUSTOMER_APPROVAL_REQUESTED"
         | "CUSTOMER_APPROVAL_CHANGES_REQUESTED"
         | "CUSTOMER_APPROVAL_WITHDRAWN"
+        | "CUSTOMER_CREATED"
+        | "CUSTOMER_UPDATED"
+        | "FILE_RENAMED"
+        | "FILE_ROLE_CHANGED"
+        | "ORDER_BILLING_NOTE_CHANGED"
+        | "STOCK_BOOKED"
+        | "STOCK_AUTO_DEDUCTED"
+        | "RETURNED_TO_PREPRESS"
       order_status: "QUOTE" | "IN_PROGRESS" | "FINISHED" | "BILLED"
       payment_method: "INVOICE" | "CASH"
       priority_type: "NORMAL" | "HIGH"
@@ -3198,6 +3206,14 @@ export const Constants = {
         "CUSTOMER_APPROVAL_REQUESTED",
         "CUSTOMER_APPROVAL_CHANGES_REQUESTED",
         "CUSTOMER_APPROVAL_WITHDRAWN",
+        "CUSTOMER_CREATED",
+        "CUSTOMER_UPDATED",
+        "FILE_RENAMED",
+        "FILE_ROLE_CHANGED",
+        "ORDER_BILLING_NOTE_CHANGED",
+        "STOCK_BOOKED",
+        "STOCK_AUTO_DEDUCTED",
+        "RETURNED_TO_PREPRESS",
       ],
       order_status: ["QUOTE", "IN_PROGRESS", "FINISHED", "BILLED"],
       payment_method: ["INVOICE", "CASH"],
