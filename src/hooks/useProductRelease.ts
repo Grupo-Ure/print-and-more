@@ -149,7 +149,6 @@ export function useProductRelease(product: LoadedProduct): ProductRelease {
         id: product.id,
         orderId: product.order_id,
         status: 'DONE',
-        history: { event_type: 'MARKED_DONE' },
       })
     } catch {
       showError('Status could not be updated')

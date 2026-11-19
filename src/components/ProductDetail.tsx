@@ -8,7 +8,6 @@ import {
 } from '../queries/productQueries'
 import { useProductRemoval } from '../hooks/useProductRemoval'
 import { useStockAvailability } from '../queries/stockQueries'
-import { useUsers } from '../queries/userQueries'
 import { generateAndDownloadProductionSheet } from '../lib/pdf/productionSheet'
 import { useOrderById } from '../queries/orderQueries'
 import { useOrderSelection } from '../hooks/useOrderSelection'
@@ -55,7 +54,6 @@ export function ProductDetail({
   const effectiveProduct = useEffectiveProduct(activeOrderId, activeProductId) // inherited fields resolved
   const setProductAssignee = useSetProductAssignee()
   const removal = useProductRemoval(product)
-  const { data: users = [] } = useUsers()
   const { data: fileAssignments = [] } = useProductFilesByOrderId(activeOrderId)
   // Only fetched for a STAMP/TEXTILE product in pre-press; empty otherwise.
   const { data: shortages = [] } = useStockAvailability(product)
@@ -71,18 +69,11 @@ export function ProductDetail({
     if (!ok) showError('PDF could not be generated')
   }
 
-  // Any role may reassign a product. Writes the ASSIGNEE_CHANGED history entry
-  // alongside the product update.
+  // Any role may reassign a product; the database records the change (ASSIGNEE_CHANGED).
   const handleAssigneeChange = (assignee: { id: string; name: string } | null) => {
     if ((assignee?.id ?? null) === (product.assignee_id ?? null)) return
-    const previousUser = product.assignee_id ? users.find(u => u.id === product.assignee_id) : null
     setProductAssignee.mutate(
-      {
-        id: product.id,
-        orderId: product.order_id,
-        assignee,
-        previousAssignee: previousUser ? { id: previousUser.id, name: previousUser.name } : null,
-      },
+      { id: product.id, orderId: product.order_id, assigneeId: assignee?.id ?? null },
       { onError: () => showError('Assignee could not be changed') },
     )
   }

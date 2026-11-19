@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { productService, type ProductFileAssignment } from '../services/productService'
-import { historyService, type HistoryEvent } from '../services/historyService'
+import { historyService } from '../services/historyService'
 import { productionReleaseService } from '../services/productionReleaseService'
 import { resolveEffectiveProduct } from '../lib/productShared'
 import type { LoadedProduct, ProductWriteInput } from '../types/product'
@@ -17,8 +17,6 @@ import { stockAvailabilityKeys } from './stockQueries'
  * file links). Both halves live on one row, so they share one cache — the
  * order's `LoadedProduct[]`, keyed by {@link productKeys.byOrderId}.
  */
-
-type HistoryParams = { event_type: HistoryEvent; reason?: string; meta?: Record<string, unknown> }
 
 export const productKeys = {
   all: ['products'] as const,
@@ -214,21 +212,17 @@ export function useSaveProduct() {
  * Persist a product's own settings fields (deadline / delivery / priority
  * overrides, notes). Optimistic: `onMutate` patches the cached row in place for
  * an instant UI and the snapshot is restored on error. It persists the given
- * fields only.
+ * fields only; the database records each changed override (SETTINGS_CHANGED).
  */
 export function useUpdateProduct() {
   const queryClient = useQueryClient()
   return useMutation<
     ProductRow,
     Error,
-    { id: string; orderId: string; patch: ProductUpdate; history?: HistoryParams },
+    { id: string; orderId: string; patch: ProductUpdate },
     { previous?: LoadedProduct[] }
   >({
-    mutationFn: async ({ id, orderId, patch, history }) => {
-      const row = await productService.update(id, patch)
-      if (history) await historyService.tryWriteHistory({ order_id: orderId, product_id: id, ...history })
-      return row
-    },
+    mutationFn: ({ id, patch }) => productService.update(id, patch),
     onMutate: async ({ id, orderId, patch }) => {
       await queryClient.cancelQueries({ queryKey: productKeys.byOrderId(orderId) })
       const previous = queryClient.getQueryData<LoadedProduct[]>(productKeys.byOrderId(orderId))
@@ -254,26 +248,17 @@ export function useUpdateProduct() {
 }
 
 /**
- * Manual status transition: back to pre-press from production, or done.
- * Optionally writes a history entry (MARKED_DONE); the database records the
- * return to pre-press itself (RETURNED_TO_PREPRESS).
+ * Manual status transition: back to pre-press from production, or done. The
+ * database records the step (RETURNED_TO_PREPRESS, MARKED_DONE).
  */
 export function useSetProductStatus() {
   const queryClient = useQueryClient()
-  return useMutation<
-    ProductRow,
-    Error,
-    { id: string; orderId: string; status: ProductStatus; history?: HistoryParams }
-  >({
-    mutationFn: async ({ id, orderId, status, history }) => {
-      const row = await productService.setStatus(id, status)
-      if (history) await historyService.tryWriteHistory({ order_id: orderId, product_id: id, ...history })
-      return row
-    },
+  return useMutation<ProductRow, Error, { id: string; orderId: string; status: ProductStatus }>({
+    mutationFn: ({ id, status }) => productService.setStatus(id, status),
     onSuccess: (row, { orderId }) => {
       patchProductInCache(queryClient, orderId, row)
       invalidateOrderLists(queryClient)
-      // A stage default may have reassigned the product and logged it (DB trigger).
+      // The step's entry, and a stage default's reassignment, are written with it.
       void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
     },
   })
@@ -332,37 +317,13 @@ export function useForceReleaseToProduction() {
 }
 
 /**
- * Assign / unassign a product's responsible user — any role may do this. Always
- * writes an ASSIGNEE_CHANGED history entry; names are snapshotted into meta so
- * the entry stays readable if a user is later deleted.
+ * Assign / unassign a product's responsible user — any role may do this. The
+ * database records the change (ASSIGNEE_CHANGED), with both users' names.
  */
 export function useSetProductAssignee() {
   const queryClient = useQueryClient()
-  return useMutation<
-    ProductRow,
-    Error,
-    {
-      id: string
-      orderId: string
-      assignee: { id: string; name: string } | null
-      previousAssignee: { id: string; name: string } | null
-    }
-  >({
-    mutationFn: async ({ id, orderId, assignee, previousAssignee }) => {
-      const row = await productService.update(id, { assignee_id: assignee?.id ?? null })
-      await historyService.tryWriteHistory({
-        order_id: orderId,
-        product_id: id,
-        event_type: 'ASSIGNEE_CHANGED',
-        meta: {
-          previous_assignee_id: previousAssignee?.id ?? null,
-          previous_assignee_name: previousAssignee?.name ?? null,
-          new_assignee_id: assignee?.id ?? null,
-          new_assignee_name: assignee?.name ?? null,
-        },
-      })
-      return row
-    },
+  return useMutation<ProductRow, Error, { id: string; orderId: string; assigneeId: string | null }>({
+    mutationFn: ({ id, assigneeId }) => productService.update(id, { assignee_id: assigneeId }),
     onSuccess: (row, { orderId }) => {
       patchProductInCache(queryClient, orderId, row)
       void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
@@ -371,18 +332,14 @@ export function useSetProductAssignee() {
   })
 }
 
-/** Cancel a product (hidden from the workspace; keeps its data). */
+/**
+ * Cancel a product (hidden from the workspace; keeps its data). The database
+ * records it (PRODUCT_CANCELLED), with the product as it stood.
+ */
 export function useCancelProduct() {
   const queryClient = useQueryClient()
   return useMutation<void, Error, { id: string; orderId: string }>({
-    mutationFn: async ({ id, orderId }) => {
-      await productService.cancel(id)
-      await historyService.tryWriteHistory({
-        order_id: orderId,
-        product_id: id,
-        event_type: 'PRODUCT_CANCELLED',
-      })
-    },
+    mutationFn: ({ id }) => productService.cancel(id),
     onSuccess: (_void, { id, orderId }) => {
       queryClient.setQueryData<LoadedProduct[]>(
         productKeys.byOrderId(orderId),
