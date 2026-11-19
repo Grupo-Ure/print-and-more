@@ -1,6 +1,10 @@
 import { supabase } from '../supabase'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import type { Database } from '../types/supabase'
 import { type DuplicateOrderArgs, type OrderDetailRow, type OrderStatus, type OrderSummaryRow, type ProductStatus } from '../types/database'
+
+/** Pause before a lost realtime channel is replaced. */
+const RESUBSCRIBE_DELAY_MS = 2000
 
 /** SELECT for `orders` incl. customer join (list, detail, status sync). */
 const ORDER_COLUMNS =
@@ -265,6 +269,64 @@ class OrderService {
       })
       .subscribe()
     return () => { void supabase.removeChannel(channel) }
+  }
+
+  /**
+   * Realtime subscription for the orders view: fires `onChanged(orderId)` on
+   * any INSERT/UPDATE/DELETE of `orders` or `products`, whoever made it, so
+   * the open order, its products and the order lists can refetch.
+   *
+   * `orderId` is the order the change concerns, or `null` when it is not
+   * known: a product's DELETE carries only its primary key (the table keeps
+   * the default replica identity), and a replaced channel cannot say what it
+   * missed. `null` means "any order may have changed".
+   *
+   * Self-healing as `productService.subscribeToProductChanges` is: a channel
+   * that errors, times out or closes unasked is replaced after a short pause,
+   * and `onChanged(null)` fires once the replacement is subscribed.
+   * Returns an unsubscribe function.
+   */
+  subscribeToOrderChanges(onChanged: (orderId: string | null) => void): () => void {
+    let channel: RealtimeChannel | null = null
+    let stopped = false
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
+    let reconnecting = false
+
+    const open = () => {
+      // A unique topic per channel, so a remount never reuses one still being removed.
+      const current: RealtimeChannel = supabase
+        .channel(`orders-view-refresh:${crypto.randomUUID()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
+          const row = (payload.eventType === 'DELETE' ? payload.old : payload.new) as { id?: string }
+          onChanged(row.id ?? null)
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, payload => {
+          const row = (payload.eventType === 'DELETE' ? payload.old : payload.new) as { order_id?: string }
+          onChanged(row.order_id ?? null)
+        })
+        .subscribe(status => {
+          // Ignore channels already replaced or unsubscribed on purpose.
+          if (stopped || current !== channel) return
+          if (status === 'SUBSCRIBED') {
+            if (reconnecting) onChanged(null)
+            reconnecting = false
+            return
+          }
+          // CHANNEL_ERROR, TIMED_OUT, or CLOSED that we did not ask for.
+          channel = null
+          reconnecting = true
+          void supabase.removeChannel(current)
+          retryTimer = setTimeout(open, RESUBSCRIBE_DELAY_MS)
+        })
+      channel = current
+    }
+
+    open()
+    return () => {
+      stopped = true
+      clearTimeout(retryTimer)
+      if (channel) void supabase.removeChannel(channel)
+    }
   }
 }
 

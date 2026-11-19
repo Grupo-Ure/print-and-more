@@ -1,7 +1,9 @@
+import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { customerService } from '../services/customerService'
 import { historyService, type HistoryEvent } from '../services/historyService'
 import { orderService, type OrderListEntry } from '../services/orderService'
+import { historyKeys } from './historyQueries'
 import { productKeys } from './productQueries'
 import type { Department, OrderDetailRow, OrderStatus } from '../types/database'
 import type { Database } from '../types/supabase'
@@ -134,6 +136,39 @@ export function invalidateOrderListsIfCustomerReferenced(
   if (referenced) {
     void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
   }
+}
+
+/**
+ * Keeps the orders view in step with the database. While mounted it holds
+ * a realtime subscription on `orders` and `products`. On every change,
+ * the viewer's own included, it invalidates the order lists, plus the
+ * changed order, its products and its history. The history entries are
+ * written with the change, so the *History* tab stays in step with the
+ * header. When the order is not known (a product deleted, a channel
+ * replaced), it invalidates every order, product list and history.
+ * Invalidation refetches only what is on screen; everything else is merely
+ * marked stale.
+ *
+ * A refetch does not wipe a product form being edited: TanStack Form takes
+ * new default values only while the form is untouched.
+ */
+export function useOrdersViewLiveRefresh(): void {
+  const queryClient = useQueryClient()
+
+  useEffect(() => {
+    return orderService.subscribeToOrderChanges(orderId => {
+      if (orderId) {
+        void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
+        void queryClient.invalidateQueries({ queryKey: orderKeys.byId(orderId) })
+        void queryClient.invalidateQueries({ queryKey: productKeys.byOrderId(orderId) })
+        void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
+      } else {
+        void queryClient.invalidateQueries({ queryKey: orderKeys.all })
+        void queryClient.invalidateQueries({ queryKey: productKeys.byOrderIdRoot })
+        void queryClient.invalidateQueries({ queryKey: historyKeys.all })
+      }
+    })
+  }, [queryClient])
 }
 
 /**
