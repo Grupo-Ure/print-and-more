@@ -562,7 +562,8 @@ export class TestDatabase {
   /**
    * Orders reference their customer without a cascade, so their orders go
    * first — each with its history, as `removeOrder` does; products and files
-   * follow by cascade — then the customers.
+   * follow by cascade — then the customers' own entries (created, updated;
+   * linked to the customer, which they restrict), then the customers.
    */
   private async removeCustomers(ids: string[]): Promise<void> {
     if (ids.length === 0) return
@@ -577,6 +578,8 @@ export class TestDatabase {
     }
     const { error: orderError } = await this.client.from('orders').delete().in('customer_id', ids)
     if (orderError) throw orderError
+    const { error: customerHistoryError } = await this.client.from('history').delete().in('customer_id', ids)
+    if (customerHistoryError) throw customerHistoryError
     const { error: customerError } = await this.client.from('customers').delete().in('id', ids)
     if (customerError) throw customerError
   }
