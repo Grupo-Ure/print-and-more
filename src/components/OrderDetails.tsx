@@ -20,7 +20,6 @@ import { ProductList } from './ProductList'
 import { useOrderWorkspace } from '../context/order.context'
 import { useNavigation } from '../context/navigation.context'
 import { useOrderSelection } from '../hooks/useOrderSelection'
-import { useStatusManager } from '../queries/useStatusManager'
 import { ReleaseHighlights } from './ReleaseHighlights'
 import { useReleaseNotes } from '../queries/releaseNotesQueries'
 import { groupReleasesByLine, highlightsMarkdown } from '../lib/releaseNotes'
@@ -82,12 +81,6 @@ export function OrderDetails() {
   const orderQuery = useOrderById(activeOrderId)
   const productsQuery = useProductsByOrderId(activeOrderId)
   const updateOrder = useUpdateOrder()
-
-  // The single writer of the automatic IN_SETUP ↔ PREPRESS status, for every
-  // auto-band product of the open order — not just the selected one. It lives
-  // here rather than in the product detail so a product that quietly becomes
-  // complete is promoted when its data changes, not when someone clicks it.
-  useStatusManager(activeOrderId)
 
   const order = orderQuery.data ?? null
   const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data])
@@ -189,11 +182,8 @@ export function OrderDetails() {
     })
     if (!confirmed) return
     try {
-      await setOrderStatus.mutateAsync({
-        id: order.id,
-        status: 'FINISHED',
-        history: { event_type: 'ORDER_FINISHED' },
-      })
+      // The database records the finish (ORDER_FINISHED), as it does the automatic one.
+      await setOrderStatus.mutateAsync({ id: order.id, status: 'FINISHED' })
     } catch {
       showError('Status could not be changed')
     }
@@ -687,8 +677,8 @@ type OrderLifecycleButtonProps = {
  * IN_PROGRESS → "Mark finished", FINISHED → "Mark as invoiced". The latter two
  * require every non-cancelled product to be DONE; otherwise no button renders.
  * An invoice order normally finishes on its own the moment its last product is
- * done (`useFinishOrderWhenAllProductsDone`), so "Mark finished" is the manual
- * fallback — after an admin reopened the order, say.
+ * done (the database's `fn_finish_order_if_done`), so "Mark finished" is the
+ * manual fallback — after an admin reopened the order, say.
  * Cash orders skip FINISHED: their IN_PROGRESS action is "Finish & close",
  * which goes straight to BILLED (handled inside onMarkFinished).
  */

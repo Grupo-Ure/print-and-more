@@ -6,8 +6,7 @@ import { useNavigation } from '../../context/navigation.context'
 import { useOrderFiles } from '../../hooks/useOrderFiles'
 import { formatDateDe } from '../../lib/formatDate'
 import { useProductsByOrderId } from '../../queries/productQueries'
-import { useOrderById } from '../../queries/orderQueries'
-import { useStatusManager } from '../../queries/useStatusManager'
+import { useOrderById, useOrdersViewLiveRefresh } from '../../queries/orderQueries'
 import { ProductDetail } from '../ProductDetail'
 import { StatusBadge } from '../StatusBadge'
 import { TEST_IDS } from '@e2e/support/testIds'
@@ -18,20 +17,19 @@ const IDS = TEST_IDS.production.productPanel
  * The Production page's main area: the selected product's detail, exactly as the
  * orders view shows it, under a read-only strip naming the order it belongs to.
  * Everything the detail needs from its order (the row, the order's products, the
- * files, the automatic status watcher) is loaded here; the desk's order actions
- * stay on the orders view, one click away.
+ * files) is loaded here; the desk's order actions stay on the orders view, one
+ * click away. The order and its products follow the database live
+ * (`useOrdersViewLiveRefresh`, held here while the page is open), so a status the
+ * database moves shows here as it does on the orders view.
  */
 export function ProductionProductPanel() {
   const { activeOrderId, activeProductId, openProductInOrders } = useNavigation()
   const { data: order, isLoading: orderLoading, isError } = useOrderById(activeOrderId)
   const productsQuery = useProductsByOrderId(activeOrderId)
   const { files, reload: reloadFiles } = useOrderFiles(activeOrderId)
-
-  // Keeps the automatic IN_SETUP ↔ PREPRESS rule running for this order's
-  // products while they are edited here — the same one effect per order the
-  // orders view runs. Unconditional, because hooks cannot be skipped; it does
-  // nothing without an order.
-  useStatusManager(activeOrderId)
+  // The database moves statuses itself (pre-press, the order's finish), so the
+  // selected product's order follows it live, as on the orders view.
+  useOrdersViewLiveRefresh()
 
   if (!activeOrderId || !activeProductId) {
     return (
