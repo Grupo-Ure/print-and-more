@@ -268,6 +268,14 @@ the product (or the product list's context menu), the approval request on the
 `OrderDetails`, runs the automatic status logic (see "Status") — one effect
 per order, over all of its products.
 
+The view follows the database live. While it is mounted,
+`useOrdersViewLiveRefresh` ([`orderQueries`](src/queries/orderQueries.ts))
+holds a realtime subscription on `orders` and `products` and refetches the
+order lists, the changed order, its products and its history on any change,
+whoever made it. A product form being edited keeps its input: TanStack Form
+takes new defaults only while the form is untouched. A product's spec, its
+files and its time logs are not followed.
+
 ### Row flags and due dates
 
 The order sidebar, the product list and the production feed share their row
