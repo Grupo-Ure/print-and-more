@@ -32,7 +32,7 @@ export function useCreateTimeLog() {
     Error,
     { orderId: string; productId: string; minutes: number; user: { id: string; name: string } }
   >({
-    mutationFn: params => timeLogService.create(params),
+    mutationFn: ({ productId, minutes, user }) => timeLogService.create({ productId, minutes, userId: user.id }),
     onSuccess: (_row, { orderId, productId }) => {
       void queryClient.invalidateQueries({ queryKey: timeLogKeys.byProductId(productId) })
       void queryClient.invalidateQueries({ queryKey: timeLogKeys.minutesByOrderId(orderId) })
