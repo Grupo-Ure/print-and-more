@@ -912,36 +912,65 @@ export type Database = {
       }
       history: {
         Row: {
+          action_id: string | null
           created_at: string
+          customer_id: string | null
           event_type: Database["public"]["Enums"]["history_event"]
+          file_id: string | null
           id: string
           meta: Json | null
-          order_id: string
+          order_id: string | null
           product_id: string | null
           reason: string | null
+          stamp_model_id: string | null
+          textile_variant_id: string | null
           user_id: string | null
         }
         Insert: {
+          action_id?: string | null
           created_at?: string
+          customer_id?: string | null
           event_type: Database["public"]["Enums"]["history_event"]
+          file_id?: string | null
           id?: string
           meta?: Json | null
-          order_id: string
+          order_id?: string | null
           product_id?: string | null
           reason?: string | null
+          stamp_model_id?: string | null
+          textile_variant_id?: string | null
           user_id?: string | null
         }
         Update: {
+          action_id?: string | null
           created_at?: string
+          customer_id?: string | null
           event_type?: Database["public"]["Enums"]["history_event"]
+          file_id?: string | null
           id?: string
           meta?: Json | null
-          order_id?: string
+          order_id?: string | null
           product_id?: string | null
           reason?: string | null
+          stamp_model_id?: string | null
+          textile_variant_id?: string | null
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "history_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "history_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "history_order_id_fkey"
             columns: ["order_id"]
@@ -961,6 +990,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "history_stamp_model_id_fkey"
+            columns: ["stamp_model_id"]
+            isOneToOne: false
+            referencedRelation: "stamp_models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "history_textile_variant_id_fkey"
+            columns: ["textile_variant_id"]
+            isOneToOne: false
+            referencedRelation: "textile_variants"
             referencedColumns: ["id"]
           },
         ]
@@ -2738,15 +2781,27 @@ export type Database = {
         Returns: string
       }
       fn_backup_upkeep: { Args: never; Returns: undefined }
+      fn_child_table_for_type: { Args: { p_type: string }; Returns: string }
       fn_department_abbreviation: {
         Args: { dept: Database["public"]["Enums"]["department"] }
         Returns: string
       }
       fn_expire_approval_requests: { Args: never; Returns: number }
       fn_order_is_closed: { Args: { p_order_id: string }; Returns: boolean }
+      fn_order_snapshot: { Args: { p_order_id: string }; Returns: Json }
+      fn_product_snapshot: { Args: { p_product_id: string }; Returns: Json }
       fn_production_deductions: { Args: { product_id: string }; Returns: Json }
       fn_purge_approval_files: { Args: never; Returns: number }
       fn_start_due_backup: { Args: never; Returns: string }
+      fn_write_history: {
+        Args: {
+          p_event: Database["public"]["Enums"]["history_event"]
+          p_links: Json
+          p_meta?: Json
+          p_reason?: string
+        }
+        Returns: string
+      }
       force_release_to_production: {
         Args: { product_id: string; reason: string }
         Returns: undefined
