@@ -34,7 +34,7 @@ candidate spec; details come later.
 
 - Start processing → order In Progress
 - Complete product auto-promotes to Prepress, in every one of the six departments (OTHER included)
-- Start processing promotes every complete product of the order, not only the selected one — they share one status watcher per order
+- Start processing promotes every complete product of the order, not only the selected one — the database promotes them all in the start's own write
 - A past deadline does not hold a product back from auto-promotion — only a missing one does
 - Specs: `e2e/orders-page/order/status.spec.ts` (start processing; an order with one product per department, all promoted), `e2e/orders-page/product/status.spec.ts` (auto-promotion on completing the product; one case per department, plus one for a past deadline); the order/product state comes from the `orderSeed` / `productSeed` / `productSeeds` options
 

@@ -249,7 +249,7 @@ without a session, otherwise a two-column shell:
 delete-or-cancel actions, the
 [`ProductReleaseButton`](src/components/ProductReleaseButton.tsx)), the
 [`ProductProductionBanner`](src/components/ProductProductionBanner.tsx) naming
-the unmet release requirement, and the product tabs: *Basic info* (the type's
+what holds the product (in setup, short of stock, waiting on an approval), and the product tabs: *Basic info* (the type's
 own form, inline — read-only until *Edit*, with `QuickTimeLog` at its bottom;
 [`ProductBasicInfo`](src/components/products/ProductBasicInfo.tsx)), *Time
 logs*, *Settings* (separate deadline/delivery/priority overrides;
@@ -263,10 +263,8 @@ approval, sends them through
 and lists every round below, where an answer given by phone is recorded and an
 open round withdrawn. Every workflow action lives in the header of the order or
 the product (or the product list's context menu), the approval request on the
-*Files* tab excepted.
-[`useStatusManager`](src/queries/useStatusManager.ts), called by
-`OrderDetails`, runs the automatic status logic (see "Status") — one effect
-per order, over all of its products.
+*Files* tab excepted. The automatic status steps are the database's (see
+"Status"); the view only shows them.
 
 The view follows the database live. While it is mounted,
 `useOrdersViewLiveRefresh` ([`orderQueries`](src/queries/orderQueries.ts))
@@ -306,7 +304,8 @@ the navigation context) shows the product in
 [`ProductionProductPanel`](src/components/production/ProductionProductPanel.tsx):
 a read-only strip naming the order (customer, number, deadline, status, an
 *Open in orders* button) above the same `ProductDetail` the orders view uses,
-edited in place, with the order's `useStatusManager` running alongside. The
+edited in place; the panel holds the same `useOrdersViewLiveRefresh` as the
+orders view, so a status the database moves shows here too. The
 selection is the app-wide one, so the order stays selected when switching
 to the orders view. Order-level actions (lifecycle, settings, history)
 remain on the orders view; the product's tabs, *Files* included, work here as
@@ -391,8 +390,8 @@ database simply leaves it off.
 usually does not work on it. Each department can name a default assignee
 per stage (`department_default_assignees`, one user for `PREPRESS` and one
 for `IN_PRODUCTION`, set on the settings page). The moment a product enters one
-of those statuses — by automatic promotion, manual release, force release,
-or going back to pre-press — the `fn_assign_stage_default_assignee`
+of those statuses — by automatic promotion, release, force release, or
+going back to pre-press — the `fn_assign_stage_default_assignee`
 BEFORE UPDATE trigger hands it to that stage's default, whoever held it
 before, and writes `ASSIGNEE_CHANGED` history with `meta.automatic`;
 without a default the assignee stays. Reassigning by hand writes
@@ -465,8 +464,8 @@ settings and files all act on a persisted row. Save validates the type's Zod
 schema, writes parent + child, and selects the new product; Cancel drops the
 draft and the previous product is reselected. **The draft is derived for the
 list and nothing else** — it never enters `useProductsByOrderId`, whose data
-also drives `useStatusManager` and `areAllProductsDone`, so an unsaved product
-cannot hold an order open.
+also drives `areAllProductsDone`, so an unsaved product cannot hold an order
+open; the database, which finishes an order, never sees it either.
 
 ## Domain Model
 
@@ -539,7 +538,9 @@ cannot hold an order open.
   a product's or file's link with its order and stamps the `action_id`: the
   entries written in one transaction share it, so an action that causes
   several entries is one action in the record. The release, force release,
-  approval and mail functions write through it; the client still inserts
+  approval and mail functions write through it, and so do the triggers of
+  the automatic steps (`PREPRESS_READY`, `RETURNED_TO_PREPRESS`,
+  `ORDER_FINISHED`, see "Status"); the client still inserts
   the everyday entries (`historyService`) until each area moves into the
   database (the stream is
   [.plans/TRANSACTION_RECORD.md](.plans/TRANSACTION_RECORD.md)). An entry
@@ -659,11 +660,11 @@ product is done.
 - **Automatic finish** (`IN_PROGRESS` → `FINISHED`) — the moment every
   non-cancelled product of an invoice order is `DONE` (a product marked done,
   or the last open one cancelled or deleted), the order moves to `FINISHED` by
-  itself (`deriveAutomaticOrderStatus` in
-  [src/lib/status/automaticStatus.ts](src/lib/status/automaticStatus.ts),
-  applied by `useFinishOrderWhenAllProductsDone` from the product mutations;
-  history `ORDER_FINISHED` with `meta.automatic`). It fires on those events
-  only, so a reopened order stays open until something changes again.
+  itself, in the same write: a trigger on `products` calls
+  `fn_finish_order_if_done`, and the order's status trigger writes
+  `ORDER_FINISHED` under the name of whoever's change it was — the same entry
+  *Mark finished* gets. It fires on those events only, so a reopened order
+  stays open until something changes again.
 - *Mark finished* (`IN_PROGRESS` → `FINISHED`) — the manual fallback, offered
   only once every non-cancelled product is `DONE` (e.g. after a reopen).
   **Cash orders skip `FINISHED`** and never auto-finish: their action is
@@ -691,9 +692,13 @@ below). The stream is
 The rules live in one place each:
 
 - **Completeness** — [src/lib/productShared.ts](src/lib/productShared.ts):
-  `isProductComplete` (the effective settings valid, which in practice means
-  the effective deadline is set — delivery and priority always resolve from
-  the order; nothing is required while the order is a quote),
+  `prepressHold` / `isReadyForPrepress` (what keeps a product out of
+  pre-press: the order still a quote, no effective deadline, or a customer
+  without a name and an email or phone — the client's mirror of the
+  database's `fn_product_ready_for_prepress`), `isProductComplete` (the
+  effective settings valid, which in practice means the effective deadline is
+  set — delivery and priority always resolve from the order; nothing is
+  required while the order is a quote),
   `isDeadlineMissed` (derived warning, never a gate: an open product whose
   effective deadline lies strictly before today, local time), `isMissingInfo`
   (derived warning, never a gate: an open product with no effective deadline
@@ -705,31 +710,35 @@ The rules live in one place each:
   department and product type — there is no free-form exception. The
   product's *specification* is not part of completeness: the per-type Zod
   schema runs in the form, not in the gate.
-- **Automatic `IN_SETUP` ↔ `PREPRESS`** — `deriveAutomaticStatus` in
-  [src/lib/status/automaticStatus.ts](src/lib/status/automaticStatus.ts), run
-  by [`useStatusManager`](src/queries/useStatusManager.ts) — one effect per
-  open order, over every non-committed product it holds. A complete product
-  whose customer has the required contact data is promoted to `PREPRESS` on
-  its own (`PREPRESS_READY_AUTO`), whatever its department — so starting
-  processing on an order promotes every complete product at once; it is
-  retracted to `IN_SETUP` when it stops being complete or the order drops back
-  to quote. A past deadline plays no part. It never touches `IN_PRODUCTION` /
-  `DONE`.
+- **Automatic `IN_SETUP` ↔ `PREPRESS`** — the database's, and the only way
+  between the two: `fn_apply_automatic_status` promotes a ready product
+  (`fn_product_ready_for_prepress`) and retracts one that is no longer ready,
+  whatever its department, in the transaction of the change that caused it —
+  an order's status, deadline or customer, a product created or its deadline
+  changed, a product back in pre-press from production or an approval round,
+  a customer's name, email or phone (every open order of theirs). So starting
+  processing promotes every ready product at once. The promotion writes
+  `PREPRESS_READY` under the name of whoever's change it was; the retraction
+  is not recorded. A past deadline plays no part. It never touches
+  `IN_PRODUCTION` / `DONE`, and `fn_refuse_direct_release` refuses an app
+  role's own move between setup and pre-press.
 - **Manual advance** — [`useProductRelease`](src/hooks/useProductRelease.ts),
   shared by the header's `ProductReleaseButton` and the product list's context
-  menu: *Release to Pre-Press* (a manual fallback; complete products normally
-  get there on their own), *Release to Production*, *Mark product as done*.
-  Each confirms first and writes its history event (`PREPRESS_READY_MANUAL`,
-  `PRODUCTION_READY_SET`, `MARKED_DONE`) — the release to production through
-  the database function that performs it (see "Release to production"). A
-  product awaiting approval offers no advance at all.
+  menu: *Release to Production*, *Mark product as done*. Each confirms first
+  and writes its history event (`PRODUCTION_READY_SET`, `MARKED_DONE`) — the
+  release to production through the database function that performs it (see
+  "Release to production"). A product in setup offers no advance (it moves on
+  its own), nor does a product awaiting approval. *Go back to Pre-Press*, on
+  the production banner, is the one way back; the database records it as
+  `RETURNED_TO_PREPRESS`, and a product that is not ready lands in setup.
 - **Removal** — [`useProductRemoval`](src/hooks/useProductRemoval.ts): a
   product in setup is deleted; past setup it is cancelled (kept for history);
   once in production or done it can be neither. Cancelling a product awaiting
   approval withdraws its open round first.
-- **Force release** — admins can push an incomplete, stock-blocked or
-  approval-blocked product (newest round changes requested, expired or
-  withdrawn) straight into production from the release button's dropdown,
+- **Force release** — admins can push a product held in setup, a
+  stock-blocked or an approval-blocked product (newest round changes
+  requested, expired or withdrawn) straight into production — from the
+  release button's dropdown, or, in setup, from a button of its own —
   through `force_release_to_production`; a reason is required and recorded as
   `EMERGENCY_TRIGGERED`. A product awaiting approval is the one it never
   moves: the request closing is its only way out.
@@ -765,12 +774,12 @@ The rules live in one place each:
     grid highlights the short size rather than the whole batch. The admin
     **force release** bypasses the shortage: stock is floored at 0 and
     movements record what was actually deducted.
-- **Release to pre-press** requires a complete product; a deadline that has
-  passed does not block it (the row shows the deadline-missed flag instead).
-  While a product is held in setup, `ProductProductionBanner` names the unmet
-  requirement — the missing deadline, the only one left — and the order's
-  deadline field pulses until a deadline is set (`DeadlinePicker`
-  `attention`). The admin force release bypasses it.
+- **Pre-press** is reached on its own, once the product is ready; a deadline
+  that has passed does not hold it (the row shows the deadline-missed flag
+  instead). While a product is held in setup, `ProductProductionBanner` names
+  what it waits for (`prepressHold`) — the missing deadline or the customer's
+  contact data — and the order's deadline field pulses until a deadline is
+  set (`DeadlinePicker` `attention`). The admin force release bypasses it.
 - **Product settings overrides** — a product inherits deadline, delivery and
   priority from the order unless its "separate …" switch is on; setting an
   override equal to the order's value collapses it back to inherit. The
@@ -830,8 +839,7 @@ The rules live in one place each:
 | [`src/components/OrderDetails.tsx`](src/components/OrderDetails.tsx) | Order header, lifecycle actions, settings row, product list + detail host |
 | [`src/components/ProductDetail.tsx`](src/components/ProductDetail.tsx) / [`src/components/products/`](src/components/products/) | The product's header and tabs; the per-type forms, the draft panel of a product being added and the Basic info tab |
 | [`src/hooks/useProductRelease.ts`](src/hooks/useProductRelease.ts) / [`useProductRemoval.ts`](src/hooks/useProductRemoval.ts) | Every product workflow rule, shared by button and context menu |
-| [`src/lib/productShared.ts`](src/lib/productShared.ts) | Inheritance + completeness (`resolveEffectiveProduct`, `isProductComplete`, `isDeadlineMissed`, `areAllProductsDone`) |
-| [`src/lib/status/automaticStatus.ts`](src/lib/status/automaticStatus.ts) / [`src/queries/useStatusManager.ts`](src/queries/useStatusManager.ts) | Automatic setup ↔ pre-press transition |
+| [`src/lib/productShared.ts`](src/lib/productShared.ts) | Inheritance + completeness (`resolveEffectiveProduct`, `prepressHold` / `isReadyForPrepress`, `isProductComplete`, `isDeadlineMissed`, `areAllProductsDone`) |
 | [`src/lib/statusLabels.ts`](src/lib/statusLabels.ts) / [`departmentLabels.ts`](src/lib/departmentLabels.ts) / [`productTypeLabels.ts`](src/lib/productTypeLabels.ts) | Display maps: status labels/colours, department labels + abbreviations, product-type labels |
 | [`src/types/product.ts`](src/types/product.ts) | Typed product model: `LoadedProduct`, `ProductWriteInput`, `ChildTable`, `CHILD_TABLE_BY_TYPE` |
 | [`src/lib/products/registry.ts`](src/lib/products/registry.ts) | Per-type Zod schema registry, `validateProduct` |
