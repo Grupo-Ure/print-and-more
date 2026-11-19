@@ -3044,8 +3044,7 @@ export type Database = {
       history_event:
         | "ORDER_CREATED"
         | "PROCESSING_STARTED"
-        | "PREPRESS_READY_AUTO"
-        | "PREPRESS_READY_MANUAL"
+        | "PREPRESS_READY"
         | "PRODUCTION_READY_SET"
         | "MARKED_DONE"
         | "EMERGENCY_TRIGGERED"
@@ -3227,8 +3226,7 @@ export const Constants = {
       history_event: [
         "ORDER_CREATED",
         "PROCESSING_STARTED",
-        "PREPRESS_READY_AUTO",
-        "PREPRESS_READY_MANUAL",
+        "PREPRESS_READY",
         "PRODUCTION_READY_SET",
         "MARKED_DONE",
         "EMERGENCY_TRIGGERED",
