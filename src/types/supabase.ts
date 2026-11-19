@@ -2710,6 +2710,7 @@ export type Database = {
         Args: { allow_shortage?: boolean; deductions: Json; note: string }
         Returns: Json
       }
+      cancel_order: { Args: { p_order_id: string }; Returns: undefined }
       claim_backup_job: {
         Args: { job_id: string; machine: string; session_id: string }
         Returns: {
