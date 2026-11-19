@@ -117,10 +117,12 @@ function historySegments(
       return [actor, ' created the order']
     case 'PROCESSING_STARTED':
       return [actor, ' moved the order to ', { kind: 'status', meta: ORDER_STATUS_META.IN_PROGRESS }]
-    case 'PREPRESS_READY_AUTO':
-      return [product, ' became ready for ', { kind: 'status', meta: PRODUCT_STATUS_META.PREPRESS }]
-    case 'PREPRESS_READY_MANUAL':
-      return [actor, ' moved ', product, ' to ', { kind: 'status', meta: PRODUCT_STATUS_META.PREPRESS }]
+    case 'PREPRESS_READY':
+      // Only ever automatic: the database moves a ready product, in the write
+      // of whoever's change made it ready.
+      return [product, ' moved to ', { kind: 'status', meta: PRODUCT_STATUS_META.PREPRESS }]
+    case 'RETURNED_TO_PREPRESS':
+      return [actor, ' sent ', product, ' back to ', { kind: 'status', meta: PRODUCT_STATUS_META.PREPRESS }]
     case 'PRODUCTION_READY_SET':
       // Written by the database when a customer approval lands — nobody clicked.
       if (meta?.automatic === true) {
@@ -130,11 +132,8 @@ function historySegments(
     case 'MARKED_DONE':
       return [actor, ' marked ', product, ' as ', { kind: 'status', meta: PRODUCT_STATUS_META.DONE }]
     case 'ORDER_FINISHED':
-      // Written automatically when the last product was done — no one clicked.
-      if (meta?.automatic === true) {
-        return ['Every product is done — the order became ', { kind: 'status', meta: ORDER_STATUS_META.FINISHED }]
-      }
-      return [actor, ' marked the order as ', { kind: 'status', meta: ORDER_STATUS_META.FINISHED }]
+      // The order's button or the last open product being done — either way the actor's change.
+      return [actor, ' moved the order to ', { kind: 'status', meta: ORDER_STATUS_META.FINISHED }]
     case 'ORDER_REOPENED':
       return [actor, ' reopened the order']
     case 'ORDER_BILLED':

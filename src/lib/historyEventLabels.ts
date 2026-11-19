@@ -9,8 +9,7 @@ type HistoryEvent = Database['public']['Enums']['history_event']
 export const HISTORY_EVENT_LABELS: Record<HistoryEvent, string> = {
   ORDER_CREATED: 'Order created',
   PROCESSING_STARTED: 'Processing started',
-  PREPRESS_READY_AUTO: 'Pre-press (automatic)',
-  PREPRESS_READY_MANUAL: 'Released to pre-press',
+  PREPRESS_READY: 'Moved to pre-press',
   PRODUCTION_READY_SET: 'Released to production',
   MARKED_DONE: 'Marked done',
   EMERGENCY_TRIGGERED: 'Force release',
