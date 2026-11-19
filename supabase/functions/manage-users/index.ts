@@ -144,6 +144,24 @@ Deno.serve(async req => {
         return json(403, { error: 'Only super admins can delete admin accounts' })
       }
 
+      // A person named on a history entry is part of the record: the entry's
+      // link onto users restricts, so deleting the login — which cascades to
+      // public.users — would fail. Refuse it in the open, before anything is
+      // deleted, with the reason.
+      const { count: entryCount, error: entryCountError } = await admin
+        .from('history')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+      if (entryCountError) {
+        console.error('history lookup failed', entryCountError)
+        return json(500, { error: 'Failed to check the history for the user' })
+      }
+      if ((entryCount ?? 0) > 0) {
+        return json(409, {
+          error: 'This account is named on history entries and cannot be deleted; the entries are a record that is kept.',
+        })
+      }
+
       const { error: deleteError } = await admin.auth.admin.deleteUser(userId)
       if (deleteError) {
         console.error('deleteUser failed', deleteError)
