@@ -88,22 +88,13 @@ class TimeLogService {
     return data as unknown as TimeLogRow
   }
 
-  /** Admin-only (enforced by RLS). Records the removed log in history. */
-  async remove(params: { orderId: string; log: TimeLogRow }): Promise<void> {
-    const { log } = params
-    const { error } = await supabase.from('product_time_logs').delete().eq('id', log.id)
+  /**
+   * Admin-only (enforced by RLS). A deletion writes no history entry: the
+   * log's entry goes with it (fn_forget_history).
+   */
+  async remove(logId: string): Promise<void> {
+    const { error } = await supabase.from('product_time_logs').delete().eq('id', logId)
     if (error) throw error
-    await historyService.tryWriteHistory({
-      order_id: params.orderId,
-      product_id: log.product_id,
-      event_type: 'TIME_LOG_DELETED',
-      meta: {
-        minutes: log.minutes,
-        user_id: log.user?.id ?? null,
-        user_name: log.user?.name ?? null,
-        logged_at: log.created_at,
-      },
-    })
   }
 }
 

@@ -2,7 +2,6 @@ import { useState, type DragEvent, type KeyboardEvent } from 'react'
 import { FileText, Pencil, Plus, Send, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { fileService } from '../services/fileService'
-import { historyService } from '../services/historyService'
 import type { FileRow, FileRole } from '../services/fileService'
 import type { StockShortage } from '../services/productionReleaseService'
 import type { LoadedProduct } from '../types/product'
@@ -161,12 +160,7 @@ export function OrderFiles({ orderId, product, files, productFileIds, shortages,
       setError(err instanceof Error ? err.message : 'Error deleting')
       return
     }
-    const removed = files.find(file => file.id === id)
-    void historyService.tryWriteHistory({
-      order_id: orderId,
-      event_type: 'FILE_REMOVED',
-      meta: { display_name: removed?.display_name ?? null, role: removed?.role ?? null },
-    })
+    // A deletion writes no history entry: the file's entries go with it.
     setRemovingId(null)
     void onFileChanged()
   }

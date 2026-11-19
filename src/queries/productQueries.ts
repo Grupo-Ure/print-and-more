@@ -423,26 +423,15 @@ export function useCancelProduct() {
   })
 }
 
-/** Permanently delete a product (only while IN_SETUP). */
+/**
+ * Permanently delete a product (only while IN_SETUP). A deletion writes no
+ * history entry: the product's entries go with it (fn_forget_history).
+ */
 export function useDeleteProduct() {
   const queryClient = useQueryClient()
   return useMutation<void, Error, { id: string; orderId: string }>({
-    mutationFn: async ({ id, orderId }) => {
-      // Snapshot before the delete: the history entry can't reference the dead
-      // row (product_id stays null), so the product is identified via meta.
-      const product = queryClient
-        .getQueryData<LoadedProduct[]>(productKeys.byOrderId(orderId))
-        ?.find(row => row.id === id)
+    mutationFn: async ({ id }) => {
       await productService.deleteProduct(id)
-      await historyService.tryWriteHistory({
-        order_id: orderId,
-        event_type: 'PRODUCT_DELETED',
-        meta: {
-          product_number: product?.product_number ?? null,
-          department: product?.department ?? null,
-          type: product?.type ?? null,
-        },
-      })
     },
     onSuccess: (_void, { id, orderId }) => {
       queryClient.setQueryData<LoadedProduct[]>(

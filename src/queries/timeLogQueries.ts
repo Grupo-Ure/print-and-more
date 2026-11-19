@@ -45,13 +45,10 @@ export function useCreateTimeLog() {
 export function useDeleteTimeLog() {
   const queryClient = useQueryClient()
   return useMutation<void, Error, { orderId: string; log: TimeLogRow }>({
-    mutationFn: params => timeLogService.remove(params),
+    mutationFn: ({ log }) => timeLogService.remove(log.id),
     onSuccess: (_void, { orderId, log }) => {
       void queryClient.invalidateQueries({ queryKey: timeLogKeys.byProductId(log.product_id) })
       void queryClient.invalidateQueries({ queryKey: timeLogKeys.minutesByOrderId(orderId) })
-    },
-    onSettled: (_void, _err, { orderId }) => {
-      void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
     },
   })
 }
