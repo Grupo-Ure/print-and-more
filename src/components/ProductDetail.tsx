@@ -13,7 +13,6 @@ import { generateAndDownloadProductionSheet } from '../lib/pdf/productionSheet'
 import { useOrderById } from '../queries/orderQueries'
 import { useOrderSelection } from '../hooks/useOrderSelection'
 import { departmentLabel } from '../lib/departmentLabels'
-import { customerMeetsPrepressContact } from '../lib/customer'
 import { isMissingAssignee } from '../lib/productShared'
 import { EmployeeCombobox } from './fields/EmployeeCombobox'
 import { ProductSettingsSection } from './productDetail/ProductSettingsSection'
@@ -88,9 +87,6 @@ export function ProductDetail({
     )
   }
 
-  const customerMeetsPrepressRequirements = customerMeetsPrepressContact(order.customers)
-  // Nothing is required while the parent order is still a quote (order-level rule).
-  const shouldValidate = order.status !== 'QUOTE'
 
   // Once DONE the product is read-only.
   const isDone = product.status === 'DONE'
@@ -199,9 +195,6 @@ export function ProductDetail({
       
       <Separator />
 
-      {shouldValidate && !customerMeetsPrepressRequirements && (
-        <p className="text-xs italic text-muted-foreground">For auto-PREPRESS: Customer needs name and email or phone.</p>
-      )}
       <Tabs value={tab} onValueChange={value => setTab(value as ProductTab)} className="flex-1 gap-3">
         <TabsList aria-label="Product sections">
           <TabsTrigger value="basicInfo" data-testid={IDS.tabs.basicInfo} className="px-3 text-sm">

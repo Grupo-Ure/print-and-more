@@ -317,7 +317,10 @@ export const TEST_IDS = {
           submit: 'product-force-release-dialog-submit',
         },
       },
-      /** `data-kind` = done | shortage | blocked | production. */
+      /**
+       * `data-kind` = done | awaiting-approval | approval-blocked | shortage | blocked | production;
+       * a `blocked` banner carries `data-hold` = DEADLINE | CUSTOMER_CONTACT.
+       */
       banner: {
         root: 'product-banner',
         backToPrepress: 'product-banner-back-to-prepress',
