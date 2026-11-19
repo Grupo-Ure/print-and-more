@@ -7,6 +7,7 @@ import { useUsers } from '../queries/userQueries'
 import { PRODUCT_STATUS_META, ORDER_STATUS_META, type StatusMeta } from '../lib/statusLabels'
 import { PRODUCT_TYPE_LABELS } from '../lib/productTypeLabels'
 import { emailTemplateLabel } from '../lib/emailTemplateLabels'
+import { FILE_ROLE_LABELS } from '../lib/fileRoleLabels'
 import { formatDateShort, formatDateTimeHuman } from '../lib/formatDate'
 import { shortProductNumber } from '../lib/productShared'
 import { cn } from '../lib/utils'
@@ -39,6 +40,7 @@ const SETTING_FIELD_LABELS: Record<string, string> = {
   deadline: 'deadline',
   delivery: 'delivery type',
   priority: 'priority',
+  payment_method: 'payment method',
 }
 
 /** SETTINGS_CHANGED meta value → display text (dates formatted, enums labelled). */
@@ -49,8 +51,29 @@ function settingValueText(field: string, value: unknown): string | null {
     const text = formatDateShort(raw)
     return text === '—' ? raw : text
   }
-  const labels: Record<string, string> = { PICKUP: 'Pickup', SHIPPING: 'Shipping', HIGH: 'High', NORMAL: 'Normal' }
+  const labels: Record<string, string> = {
+    PICKUP: 'Pickup',
+    SHIPPING: 'Shipping',
+    HIGH: 'High',
+    NORMAL: 'Normal',
+    INVOICE: 'Invoice',
+    CASH: 'Cash',
+  }
   return labels[raw] ?? raw
+}
+
+/** A file's name from the entry: kept on the entry itself, or in the file row it was created with (meta.after). */
+function fileName(meta: Record<string, unknown> | null): string {
+  if (typeof meta?.display_name === 'string') return meta.display_name
+  const after = meta?.after
+  if (after && typeof after === 'object' && 'display_name' in after && typeof after.display_name === 'string') {
+    return after.display_name
+  }
+  return 'a file'
+}
+
+function fileRoleText(value: unknown): string {
+  return typeof value === 'string' ? (FILE_ROLE_LABELS[value as keyof typeof FILE_ROLE_LABELS] ?? value) : 'none'
 }
 
 function metaRecord(entry: HistoryRow): Record<string, unknown> | null {
@@ -179,6 +202,10 @@ function historySegments(
       return [actor, ' cancelled the order']
     case 'ORDER_ARCHIVED':
       return [actor, ' archived the order']
+    case 'ORDER_BILLING_NOTE_CHANGED': {
+      const next = typeof meta?.next === 'string' && meta.next ? meta.next : null
+      return next ? [actor, ' set the billing note to ', { kind: 'quote', text: next }] : [actor, ' cleared the billing note']
+    }
     case 'PRODUCT_CANCELLED':
       return [actor, ' cancelled ', product]
     case 'SETTINGS_CHANGED': {
@@ -215,20 +242,35 @@ function historySegments(
     }
     case 'FILE_ADDED':
     case 'FILE_REMOVED': {
-      const name = typeof meta?.display_name === 'string' ? meta.display_name : 'a file'
-      return entry.event_type === 'FILE_ADDED'
-        ? [actor, ` added file ${name}`]
-        : [actor, ` removed file ${name}`]
+      const name = fileName(meta)
+      if (entry.event_type === 'FILE_REMOVED') return [actor, ` removed file ${name}`]
+      // With a product: the order's file attached to that product.
+      return productLabel ? [actor, ` attached file ${name} to `, product] : [actor, ` added file ${name}`]
     }
+    case 'FILE_RENAMED': {
+      const previous = typeof meta?.previous === 'string' ? meta.previous : 'a file'
+      const next = typeof meta?.next === 'string' ? meta.next : '—'
+      return [actor, ` renamed file ${previous} to ${next}`]
+    }
+    case 'FILE_ROLE_CHANGED':
+      return [
+        actor,
+        ` changed the role of file ${fileName(meta)} from ${fileRoleText(meta?.previous)} to ${fileRoleText(meta?.next)}`,
+      ]
     case 'ASSIGNEE_CHANGED': {
-      const previous = metaName(meta, 'previous_assignee_name', 'previous_assignee_id', staffById)
-      const next = metaName(meta, 'new_assignee_name', 'new_assignee_id', staffById)
-      const suffix = meta?.automatic === true ? ' (automatic)' : ''
+      // By hand or the stage's default — the database writes both the same
+      // way; a handover shares its action with the step that caused it.
+      // Entries written before the database recorded them use the older keys.
+      const previous =
+        metaName(meta, 'previous_name', 'previous', staffById) ??
+        metaName(meta, 'previous_assignee_name', 'previous_assignee_id', staffById)
+      const next =
+        metaName(meta, 'next_name', 'next', staffById) ?? metaName(meta, 'new_assignee_name', 'new_assignee_id', staffById)
       if (next && previous)
-        return [actor, ' reassigned ', product, ' from ', { kind: 'person', text: previous }, ' to ', { kind: 'person', text: next }, suffix]
-      if (next) return [actor, ' assigned ', product, ' to ', { kind: 'person', text: next }, suffix]
-      if (previous) return [actor, ' unassigned ', { kind: 'person', text: previous }, ' from ', product, suffix]
-      return [actor, ' changed the assignee of ', product, suffix]
+        return [actor, ' reassigned ', product, ' from ', { kind: 'person', text: previous }, ' to ', { kind: 'person', text: next }]
+      if (next) return [actor, ' assigned ', product, ' to ', { kind: 'person', text: next }]
+      if (previous) return [actor, ' unassigned ', { kind: 'person', text: previous }, ' from ', product]
+      return [actor, ' changed the assignee of ', product]
     }
     case 'TIME_LOGGED':
     case 'TIME_LOG_DELETED': {
