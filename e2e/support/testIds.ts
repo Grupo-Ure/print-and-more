@@ -308,6 +308,8 @@ export const TEST_IDS = {
         button: 'product-release-button',
         menuTrigger: 'product-release-menu-trigger',
         forceItem: 'product-release-force-item',
+        /** The force release as a button of its own, for a product held in setup (admins). */
+        forceButton: 'product-release-force-button',
         dialog: {
           root: 'product-force-release-dialog',
           reason: 'product-force-release-dialog-reason',
