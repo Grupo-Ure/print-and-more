@@ -397,6 +397,12 @@ behaviour the lifecycle packs assert is written out in
       - **CMP-LOCK-020** deleting the history entry is refused
       - **CMP-LOCK-021** deleting the quote row directly is refused
       - **CMP-LOCK-022** deleting the quote through the function removes it with its history
+    - *as admin, quote with a product in setup that has a history entry*
+      - deleting the product removes it with its history entries <!-- new: TRANSACTION_RECORD WP0 -->
+    - *as admin, quote with a file that has a history entry*
+      - deleting the file removes it with its history entries <!-- new: TRANSACTION_RECORD WP0 -->
+    - *as admin, account named on a history entry*
+      - deleting the account's user row is refused <!-- new: TRANSACTION_RECORD WP0 -->
 
 - **Backups**
   - [backup-record.spec.ts](compliance/backup-record.spec.ts) — `BKP-REC`
