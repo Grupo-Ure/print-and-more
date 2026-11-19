@@ -148,11 +148,7 @@ export function OrderDetails() {
     })
     if (!confirmed) return
     try {
-      await setOrderStatus.mutateAsync({
-        id: order.id,
-        status: 'IN_PROGRESS',
-        history: { event_type: 'PROCESSING_STARTED' },
-      })
+      await setOrderStatus.mutateAsync({ id: order.id, status: 'IN_PROGRESS' })
     } catch {
       showError('Status could not be changed')
     }
@@ -170,7 +166,7 @@ export function OrderDetails() {
       })
       if (!confirmed) return
       try {
-        await markBilled.mutateAsync({ id: order.id, paidCash: true })
+        await markBilled.mutateAsync({ id: order.id })
       } catch {
         showError('Order could not be closed')
       }
@@ -182,7 +178,6 @@ export function OrderDetails() {
     })
     if (!confirmed) return
     try {
-      // The database records the finish (ORDER_FINISHED), as it does the automatic one.
       await setOrderStatus.mutateAsync({ id: order.id, status: 'FINISHED' })
     } catch {
       showError('Status could not be changed')
@@ -198,11 +193,7 @@ export function OrderDetails() {
     })
     if (!confirmed) return
     try {
-      await setOrderStatus.mutateAsync({
-        id: order.id,
-        status: 'IN_PROGRESS',
-        history: { event_type: 'ORDER_REOPENED' },
-      })
+      await setOrderStatus.mutateAsync({ id: order.id, status: 'IN_PROGRESS' })
     } catch {
       showError('Status could not be changed')
     }
@@ -257,25 +248,14 @@ export function OrderDetails() {
   const saveOrderHeader = useCallback(
     async (patch: OrderHeaderPatch) => {
       if (!activeOrderId) return
-      // One field per save (the header saves on change); previous value from the loaded order.
-      const field = Object.keys(patch)[0] as keyof OrderHeaderPatch | undefined
+      // The database records each changed field (SETTINGS_CHANGED).
       try {
-        await updateOrder.mutateAsync({
-          id: activeOrderId,
-          patch,
-          history:
-            order && field
-              ? {
-                  event_type: 'SETTINGS_CHANGED',
-                  meta: { field, previous: order[field] ?? null, next: patch[field] ?? null },
-                }
-              : undefined,
-        })
+        await updateOrder.mutateAsync({ id: activeOrderId, patch })
       } catch {
         showError('Order could not be saved')
       }
     },
-    [activeOrderId, order, updateOrder, showError]
+    [activeOrderId, updateOrder, showError]
   )
 
   if (!activeOrderId) {

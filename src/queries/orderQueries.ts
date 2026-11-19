@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { customerService } from '../services/customerService'
-import { historyService, type HistoryEvent } from '../services/historyService'
 import { orderService, type OrderListEntry } from '../services/orderService'
 import { historyKeys } from './historyQueries'
 import { productKeys } from './productQueries'
@@ -172,18 +171,11 @@ export function useOrdersViewLiveRefresh(): void {
   }, [queryClient])
 }
 
-/**
- * Create a new order. Writes an ORDER_CREATED history entry as a best-effort
- * follow-up — a failure there does not invalidate the order itself.
- */
+/** Create a new order. The database records it (ORDER_CREATED). */
 export function useCreateOrder() {
   const queryClient = useQueryClient()
   return useMutation<OrderDetailRow, Error, OrderInsert>({
-    mutationFn: async payload => {
-      const order = await orderService.createOrder(payload)
-      await historyService.tryWriteHistory({ order_id: order.id, event_type: 'ORDER_CREATED' })
-      return order
-    },
+    mutationFn: payload => orderService.createOrder(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
     },
@@ -198,14 +190,11 @@ export function useOrderById(orderId: string | null) {
   })
 }
 
+/** Save order header fields. The database records each changed field (SETTINGS_CHANGED). */
 export function useUpdateOrder() {
   const queryClient = useQueryClient()
-  return useMutation<OrderDetailRow, Error, { id: string; patch: OrderUpdate; history?: OrderHistoryParams }>({
-    mutationFn: async ({ id, patch, history }) => {
-      const updated = await orderService.updateOrder(id, patch)
-      if (history) await historyService.tryWriteHistory({ order_id: id, ...history })
-      return updated
-    },
+  return useMutation<OrderDetailRow, Error, { id: string; patch: OrderUpdate }>({
+    mutationFn: ({ id, patch }) => orderService.updateOrder(id, patch),
     onSuccess: updated => {
       queryClient.setQueryData(orderKeys.byId(updated.id), updated)
       void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
@@ -213,20 +202,15 @@ export function useUpdateOrder() {
   })
 }
 
-type OrderHistoryParams = { event_type: HistoryEvent; reason?: string; meta?: Record<string, unknown> }
-
 /**
- * Direct order-status set (start processing, mark finished, reopen). Optionally
- * writes history; the finish is recorded by the database (ORDER_FINISHED).
+ * Direct order-status set (start processing, mark finished, reopen). The
+ * database records the step (PROCESSING_STARTED, ORDER_FINISHED,
+ * ORDER_REOPENED).
  */
 export function useSetOrderStatus() {
   const queryClient = useQueryClient()
-  return useMutation<OrderDetailRow, Error, { id: string; status: OrderStatus; history?: OrderHistoryParams }>({
-    mutationFn: async ({ id, status, history }) => {
-      const updated = await orderService.setOrderStatus(id, status)
-      if (history) await historyService.tryWriteHistory({ order_id: id, ...history })
-      return updated
-    },
+  return useMutation<OrderDetailRow, Error, { id: string; status: OrderStatus }>({
+    mutationFn: ({ id, status }) => orderService.setOrderStatus(id, status),
     onSuccess: updated => {
       queryClient.setQueryData(orderKeys.byId(updated.id), updated)
       patchOrderStatusInCache(queryClient, updated.id, updated.status)
@@ -235,14 +219,11 @@ export function useSetOrderStatus() {
   })
 }
 
-/** Soft-archive (hidden from list, status unchanged). Writes an ORDER_ARCHIVED history entry. */
+/** Soft-archive (hidden from list, status unchanged). The database records it (ORDER_ARCHIVED). */
 export function useArchiveOrder() {
   const queryClient = useQueryClient()
   return useMutation<void, Error, { id: string }>({
-    mutationFn: async ({ id }) => {
-      await orderService.archiveOrder(id)
-      await historyService.tryWriteHistory({ order_id: id, event_type: 'ORDER_ARCHIVED' })
-    },
+    mutationFn: ({ id }) => orderService.archiveOrder(id),
     onSuccess: (_void, { id }) => {
       void queryClient.invalidateQueries({ queryKey: orderKeys.byId(id) })
       void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
@@ -269,19 +250,14 @@ export function useCancelOrder() {
 
 /**
  * Terminal close (BILLED + archived). Invoice orders reach this from FINISHED
- * ("Mark as invoiced", ORDER_BILLED); cash orders close directly from
- * IN_PROGRESS ("Finish & close", ORDER_CLOSED_CASH) and skip FINISHED entirely.
+ * ("Mark as invoiced"); cash orders close directly from IN_PROGRESS ("Finish &
+ * close") and skip FINISHED entirely. The database tells the two apart by the
+ * status left and records ORDER_BILLED or ORDER_CLOSED_CASH.
  */
 export function useMarkOrderBilled() {
   const queryClient = useQueryClient()
-  return useMutation<void, Error, { id: string; paidCash?: boolean }>({
-    mutationFn: async ({ id, paidCash }) => {
-      await orderService.markOrderBilled(id)
-      await historyService.tryWriteHistory({
-        order_id: id,
-        event_type: paidCash ? 'ORDER_CLOSED_CASH' : 'ORDER_BILLED',
-      })
-    },
+  return useMutation<void, Error, { id: string }>({
+    mutationFn: ({ id }) => orderService.markOrderBilled(id),
     onSuccess: (_void, { id }) => {
       patchOrderStatusInCache(queryClient, id, 'BILLED')
       void queryClient.invalidateQueries({ queryKey: orderKeys.byId(id) })
