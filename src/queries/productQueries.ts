@@ -1,13 +1,12 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { productService, type ProductFileAssignment } from '../services/productService'
 import { historyService, type HistoryEvent } from '../services/historyService'
 import { productionReleaseService } from '../services/productionReleaseService'
 import { resolveEffectiveProduct } from '../lib/productShared'
-import { deriveAutomaticOrderStatus } from '../lib/status/automaticStatus'
 import type { LoadedProduct, ProductWriteInput } from '../types/product'
-import type { OrderDetailRow, ProductRow, ProductStatus, ProductUpdate } from '../types/database'
-import { orderKeys, useOrderById, useSetOrderStatus } from './orderQueries'
+import type { ProductRow, ProductStatus, ProductUpdate } from '../types/database'
+import { orderKeys, useOrderById } from './orderQueries'
 import { historyKeys } from './historyQueries'
 import { stockAvailabilityKeys } from './stockQueries'
 
@@ -86,12 +85,10 @@ export function useProductFilesByOrderId(orderId: string | null) {
 }
 
 /**
- * Refresh the order lists after a product change. Order status is an
- * independent lifecycle (the one product-driven step, the automatic finish, is
- * a separate write — see {@link useFinishOrderWhenAllProductsDone}), but the
- * sidebar still shows product-derived data (e.g. the in-production-missing-info
- * warning), so the lists are invalidated whenever a product changes. The
- * production feed lists products across orders and follows the same events.
+ * Refresh the order lists after a product change. The sidebar shows
+ * product-derived data (e.g. the in-production-missing-info warning), so the
+ * lists are invalidated whenever a product changes. The production feed lists
+ * products across orders and follows the same events.
  */
 function invalidateOrderLists(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
@@ -112,35 +109,6 @@ function patchProductInCache(queryClient: QueryClient, orderId: string, row: Pro
   queryClient.setQueryData<LoadedProduct[]>(
     productKeys.byOrderId(orderId),
     old => old?.map(product => (product.id === row.id ? mergeParent(product, row) : product)) ?? old,
-  )
-}
-
-/**
- * The automatic order finish: once every non-cancelled product of an invoice
- * order is DONE, the order moves to FINISHED on its own (ORDER_FINISHED with
- * `meta.automatic`). The returned function is called right after a mutation
- * that can complete the order's work (mark done, cancel product, delete
- * product) — their `onSuccess` has patched the product cache by then, so the
- * cached rows are current. It reads the order and products from the cache
- * only; when either is missing it does nothing, which leaves the manual "Mark
- * finished" as the fallback. The rule itself is `deriveAutomaticOrderStatus`.
- */
-export function useFinishOrderWhenAllProductsDone(): (orderId: string) => Promise<void> {
-  const queryClient = useQueryClient()
-  const { mutateAsync: setOrderStatus } = useSetOrderStatus()
-  return useCallback(
-    async (orderId: string) => {
-      const order = queryClient.getQueryData<OrderDetailRow | null>(orderKeys.byId(orderId))
-      const products = queryClient.getQueryData<LoadedProduct[]>(productKeys.byOrderId(orderId))
-      if (!order || !products) return
-      if (deriveAutomaticOrderStatus(order, products) !== 'FINISHED') return
-      await setOrderStatus({
-        id: orderId,
-        status: 'FINISHED',
-        history: { event_type: 'ORDER_FINISHED', meta: { automatic: true } },
-      })
-    },
-    [queryClient, setOrderStatus],
   )
 }
 
@@ -171,7 +139,7 @@ export function useEffectiveProduct(
   const { data: order } = useOrderById(orderId)
   // Memoize so the resolved row keeps a stable reference between renders (it only
   // changes when the product or order data changes) — important for consumers that
-  // use it as an effect dependency (the status manager).
+  // use it as an effect dependency.
   return useMemo(
     () => (product && order ? resolveEffectiveProduct(product, order) : null),
     [product, order],
@@ -246,7 +214,7 @@ export function useSaveProduct() {
  * Persist a product's own settings fields (deadline / delivery / priority
  * overrides, notes). Optimistic: `onMutate` patches the cached row in place for
  * an instant UI and the snapshot is restored on error. It persists the given
- * fields only — the automatic status is the status manager's business.
+ * fields only.
  */
 export function useUpdateProduct() {
   const queryClient = useQueryClient()
@@ -285,7 +253,11 @@ export function useUpdateProduct() {
   })
 }
 
-/** Manual status transition (prepress / production / done). Optionally writes a history entry. */
+/**
+ * Manual status transition: back to pre-press from production, or done.
+ * Optionally writes a history entry (MARKED_DONE); the database records the
+ * return to pre-press itself (RETURNED_TO_PREPRESS).
+ */
 export function useSetProductStatus() {
   const queryClient = useQueryClient()
   return useMutation<
@@ -334,12 +306,12 @@ export function useReleaseToProduction() {
 
 /**
  * Emergency force release through `force_release_to_production` (admins
- * only): bypasses the completeness, stock and approval-round gates and puts the
- * product straight into IN_PRODUCTION, writing an EMERGENCY_TRIGGERED entry
- * with the reason — history is the sole record of the override. Short stock is
- * floored at 0 and the movements record what was actually taken. IN_PRODUCTION
- * is outside the automatic status band, so the status manager leaves the
- * product alone.
+ * only): bypasses the pre-press condition, stock and approval-round gates and
+ * puts the product straight into IN_PRODUCTION, writing an EMERGENCY_TRIGGERED
+ * entry with the reason — history is the sole record of the override. Short
+ * stock is floored at 0 and the movements record what was actually taken.
+ * IN_PRODUCTION is outside the setup/pre-press band, so the database's
+ * automatic move leaves the product alone.
  */
 export function useForceReleaseToProduction() {
   const queryClient = useQueryClient()

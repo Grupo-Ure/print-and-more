@@ -139,7 +139,8 @@ export function invalidateOrderListsIfCustomerReferenced(
 }
 
 /**
- * Keeps the orders view in step with the database. While mounted it holds
+ * Keeps the orders view in step with the database — and the production
+ * view's product panel, which shows the same order. While mounted it holds
  * a realtime subscription on `orders` and `products`. On every change,
  * the viewer's own included, it invalidates the order lists, plus the
  * changed order, its products and its history. The history entries are
@@ -214,7 +215,10 @@ export function useUpdateOrder() {
 
 type OrderHistoryParams = { event_type: HistoryEvent; reason?: string; meta?: Record<string, unknown> }
 
-/** Direct order-status set (e.g. start-processing QUOTE → IN_PROGRESS). Optionally writes history. */
+/**
+ * Direct order-status set (start processing, mark finished, reopen). Optionally
+ * writes history; the finish is recorded by the database (ORDER_FINISHED).
+ */
 export function useSetOrderStatus() {
   const queryClient = useQueryClient()
   return useMutation<OrderDetailRow, Error, { id: string; status: OrderStatus; history?: OrderHistoryParams }>({

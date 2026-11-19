@@ -96,8 +96,8 @@ const ORDER_LIST_COLUMNS = 'id, order_number, status, created_at, customers(name
  * Note on status: order status is its own lifecycle (QUOTE → IN_PROGRESS →
  * FINISHED → BILLED), written via {@link setOrderStatus} / {@link markOrderBilled}.
  * Every transition is an explicit user action except IN_PROGRESS → FINISHED,
- * which the client also performs on its own once every product of an invoice
- * order is done (`useFinishOrderWhenAllProductsDone`).
+ * which the database also makes on its own once every product of an invoice
+ * order is done (`fn_finish_order_if_done`, run by a trigger on products).
  */
 class OrderService {
   /** Filtered order list for the sidebar (archived toggle, customer, status, deadline/intake ranges). Newest first. */
