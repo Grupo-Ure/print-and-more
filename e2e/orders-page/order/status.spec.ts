@@ -38,7 +38,7 @@ test.describe('quote with deadline and delivery, one product in every department
     await ordersPage.details.lifecycle.click()
     await ordersPage.confirmDialog.confirm.click()
 
-    // Assert — all six advanced on their own; they share one status watcher per order.
+    // Assert — all six advanced on their own, in the start's own write.
     await expect.poll(() => ordersPage.details.productList.rowStatuses()).toEqual(allInPrepress)
   })
 })

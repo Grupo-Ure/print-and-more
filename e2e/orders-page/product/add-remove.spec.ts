@@ -165,8 +165,8 @@ test.describe('in progress, one product done and one in pre-press', () => {
 })
 
 test.describe('in progress without a deadline, one product done and one in setup', () => {
-  // No deadline on the order, so the setup product is incomplete and the
-  // status manager leaves it there — where it can still be deleted.
+  // No deadline on the order, so the setup product is not ready for pre-press
+  // and the database leaves it there — where it can still be deleted.
   test.use({
     orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE,
     productSeeds: [[PRODUCT_DONE, OTHER_PRODUCT], { scope: 'test' }],
