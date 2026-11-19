@@ -71,7 +71,7 @@ export const FORCE_RELEASE_HISTORY_EVENT: HistoryEvent = 'EMERGENCY_TRIGGERED'
 
 // ── Removal ───────────────────────────────────────────────────────────────
 
-/** The history entry deleting a product (only possible in setup) writes. */
+/** The event a product deletion used to write; nothing writes it since a deletion is not an entry. */
 export const PRODUCT_DELETED_HISTORY_EVENT: HistoryEvent = 'PRODUCT_DELETED'
 
 /** The history entry cancelling a product (past setup, kept for history) writes. */

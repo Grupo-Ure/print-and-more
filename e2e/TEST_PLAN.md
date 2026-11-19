@@ -96,7 +96,7 @@ behaviour the lifecycle packs assert is written out in
       - **PRD-ADD-004** a department of several product types offers them before the draft starts
       - *in progress, its only product done*
         - **PRD-ADD-005** a draft product does not count as work still open on the order
-      - **PRD-ADD-006** deleting a product in setup removes it from the order and records the deletion
+      - **PRD-ADD-006** deleting a product in setup removes it from the order and writes no history entry <!-- new: TRANSACTION_RECORD WP0 (reworded: a deletion is not an entry) -->
       - *in progress, product in pre-press*
         - **PRD-ADD-007** cancelling a product past setup removes it from the order and records the cancellation
         - **PRD-ADD-008** cancelling the only product leaves the order in progress
