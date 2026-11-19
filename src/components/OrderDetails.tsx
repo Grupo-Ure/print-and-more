@@ -23,7 +23,7 @@ import { useOrderSelection } from '../hooks/useOrderSelection'
 import { ReleaseHighlights } from './ReleaseHighlights'
 import { useReleaseNotes } from '../queries/releaseNotesQueries'
 import { groupReleasesByLine, highlightsMarkdown } from '../lib/releaseNotes'
-import { orderKeys, useArchiveOrder, useArchiveOrderWithCancelledProducts, useMarkOrderBilled, useOrderById, useSetOrderStatus, useUpdateOrder } from '../queries/orderQueries'
+import { orderKeys, useArchiveOrder, useCancelOrder, useMarkOrderBilled, useOrderById, useSetOrderStatus, useUpdateOrder } from '../queries/orderQueries'
 import { useProductsByOrderId } from '../queries/productQueries'
 import { useTimeLogMinutesByOrderId } from '../queries/timeLogQueries'
 import { useIsAdmin } from '../queries/userQueries'
@@ -135,7 +135,7 @@ export function OrderDetails() {
   }
 
   const archiveOrder = useArchiveOrder()
-  const cancelOrder = useArchiveOrderWithCancelledProducts()
+  const cancelOrder = useCancelOrder()
   const setOrderStatus = useSetOrderStatus()
   const markBilled = useMarkOrderBilled()
 

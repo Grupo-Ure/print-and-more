@@ -191,18 +191,14 @@ class OrderService {
     if (error) throw error
   }
 
-  /** Cancel all not-yet-cancelled products, then archive the order. Two writes, not transactional. */
-  async archiveOrderWithCancelledProducts(orderId: string): Promise<void> {
-    const { error: subError } = await supabase
-      .from('products')
-      .update({ is_cancelled: true })
-      .eq('order_id', orderId)
-      .neq('is_cancelled', true)
-    if (subError) throw subError
-    const { error } = await supabase
-      .from('orders')
-      .update({ is_archived: true })
-      .eq('id', orderId)
+  /**
+   * Cancel an order through the `cancel_order` function: every product not
+   * yet cancelled is cancelled and the order archived, in one transaction.
+   * The database refuses a billed order, and a finished one that still has a
+   * product to cancel.
+   */
+  async cancelOrder(orderId: string): Promise<void> {
+    const { error } = await supabase.rpc('cancel_order', { p_order_id: orderId })
     if (error) throw error
   }
 

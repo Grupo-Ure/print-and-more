@@ -250,14 +250,15 @@ export function useArchiveOrder() {
   })
 }
 
-/** Cancel order: cancel every product + archive. Writes a CANCELLED history entry. */
-export function useArchiveOrderWithCancelledProducts() {
+/**
+ * Cancel an order: every product cancelled and the order archived, in one
+ * call to `cancel_order`, which records the cancel and what it caused under
+ * one action.
+ */
+export function useCancelOrder() {
   const queryClient = useQueryClient()
   return useMutation<void, Error, { id: string }>({
-    mutationFn: async ({ id }) => {
-      await orderService.archiveOrderWithCancelledProducts(id)
-      await historyService.tryWriteHistory({ order_id: id, event_type: 'CANCELLED' })
-    },
+    mutationFn: ({ id }) => orderService.cancelOrder(id),
     onSuccess: (_void, { id }) => {
       void queryClient.invalidateQueries({ queryKey: productKeys.byOrderId(id) })
       void queryClient.invalidateQueries({ queryKey: orderKeys.byId(id) })
