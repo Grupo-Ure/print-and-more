@@ -365,7 +365,9 @@ Roles (`user_role` enum, table `users`): `EMPLOYEE`, `ADMIN`, `SUPER_ADMIN`
 Admin-only actions in the orders view: force-release a product, reopen a
 finished order, log time on someone else's behalf or delete a time log.
 Anyone may assign or reassign a product. Account creation/deletion goes through
-the `manage-users` edge function; role changes are plain updates on `users`,
+the `manage-users` edge function, which refuses to delete an account named on
+a history entry (the entry's link onto `users` restricts; the person is part
+of the record); role changes are plain updates on `users`,
 guarded by RLS and a trigger. DB triggers backstop every role rule — the UI
 only hides what the DB would reject anyway.
 
@@ -520,10 +522,27 @@ cannot hold an order open.
   (`window.pam.readFile`) and uploads it to the private `approval-proofs`
   bucket for the customer's page ([`approvalRequestService`](src/services/approvalRequestService.ts)),
   where it stays until the retention after billing runs out.
-- **History** — table `history` (`order_id`, `product_id`, `event_type`
-  (`history_event` enum), `user_id`, `meta`). Written alongside every
-  workflow action by [`historyService`](src/services/historyService.ts);
-  shown on the order's *History* tab (`OrderHistory`).
+- **History** — table `history`, the one record of every transaction,
+  whatever it concerns: `event_type` (`history_event` enum), `user_id`,
+  `reason`, `meta`, `action_id`, and the links to the records the entry is
+  about — `order_id` and `product_id`, `customer_id`, `file_id`,
+  `stamp_model_id`, `textile_variant_id` — at least one of them set, every
+  one `ON DELETE RESTRICT`. The database writes an entry through one
+  function, `fn_write_history`, which fills in the signed-in user, completes
+  a product's or file's link with its order and stamps the `action_id`: the
+  entries written in one transaction share it, so an action that causes
+  several entries is one action in the record. The release, force release,
+  approval and mail functions write through it; the client still inserts
+  the everyday entries (`historyService`) until each area moves into the
+  database (the stream is
+  [.plans/TRANSACTION_RECORD.md](.plans/TRANSACTION_RECORD.md)). An entry
+  lives exactly as long as its record: a deletion writes no entry, and what
+  may still be deleted — a product in setup, a file, a file's link to a
+  product, a time log — takes its entries along (`fn_forget_history`,
+  `BEFORE DELETE`); a customer, a stock item or a user named on an entry
+  cannot be deleted. Every employee reads the entries of an order; an entry
+  with no order link is an admin's to read. Shown on the order's *History*
+  tab (`OrderHistory`).
 - **Products** — see below (the typed per-type model).
 - **Textile master data** — `textile_brands` → `textile_models` →
   `textile_variants` (`color`, `color_hex`, `size`, `stock`, `min_stock`),
