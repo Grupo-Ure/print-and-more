@@ -22,9 +22,8 @@ reference material. Read it (and the docs it links) before making changes.
 
 ## Working with this project
 
-**The app is in production.** The shop works in it daily against the hosted
-Supabase project, which holds real orders, customers and stock. Treat the
-database as live:
+**Schema changes go through migrations.** The hosted Supabase project is
+changed only by the release's `deploy` job, from the files in the repo:
 
 - **Every schema change is a new migration** under `supabase/migrations/`
   (`supabase migration new <name>`): tables, columns, enum values, check
@@ -183,7 +182,7 @@ process, so they are edited as that process changes.
   products, catalog, one file per department's product tables, audit,
   duplicate_order); everything after that baseline is a dated
   migration on top of it, and that is the only way the schema changes (see
-  "The app is in production" above). `supabase/seed.sql` holds catalog
+  "Schema changes go through migrations" above). `supabase/seed.sql` holds catalog
   master data; `seed.dev.sql` (git-ignored) holds local demo data. Four edge
   functions, for what the browser cannot do: `manage-users` (create/delete
   auth accounts), `send-email` (drains the email queue; called by the
@@ -847,7 +846,7 @@ The rules live in one place each:
   parent + typed child tables) is fixed; no restructuring intended.
 - The colour system is centralised in `src/index.css` as CSS variables — consume
   the tokens, don't hardcode colours.
-- The database is live. A schema or master-data change is a new migration
+- A schema or master-data change is a new migration
   file, verified locally and by the e2e suite, followed by regenerated types
   — never a dashboard edit or a change to an applied migration.
 - **Open refactor streams** (see `.plans/`): value-rename of stored enum strings
