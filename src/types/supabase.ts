@@ -2780,6 +2780,10 @@ export type Database = {
         }
         Returns: string
       }
+      fn_apply_automatic_status: {
+        Args: { p_product_ids: string[] }
+        Returns: undefined
+      }
       fn_backup_upkeep: { Args: never; Returns: undefined }
       fn_child_table_for_type: { Args: { p_type: string }; Returns: string }
       fn_department_abbreviation: {
@@ -2787,8 +2791,16 @@ export type Database = {
         Returns: string
       }
       fn_expire_approval_requests: { Args: never; Returns: number }
+      fn_finish_order_if_done: {
+        Args: { p_order_id: string }
+        Returns: undefined
+      }
       fn_order_is_closed: { Args: { p_order_id: string }; Returns: boolean }
       fn_order_snapshot: { Args: { p_order_id: string }; Returns: Json }
+      fn_product_ready_for_prepress: {
+        Args: { p_product_id: string }
+        Returns: boolean
+      }
       fn_product_snapshot: { Args: { p_product_id: string }; Returns: Json }
       fn_production_deductions: { Args: { product_id: string }; Returns: Json }
       fn_purge_approval_files: { Args: never; Returns: number }
