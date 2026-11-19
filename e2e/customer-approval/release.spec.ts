@@ -7,6 +7,8 @@ import {
   FORCE_RELEASE_HISTORY_EVENT,
   FORCE_RELEASE_REASON,
   IN_PRODUCTION_STATUS,
+  NEW_PRODUCT_STATUS,
+  OTHER_PRODUCT,
   PREPRESS_STATUS,
   PRODUCT_IN_PREPRESS,
   STAMP_PRODUCT_IN_PREPRESS_IN_STOCK,
@@ -61,8 +63,10 @@ test.describe('in progress, product in pre-press', () => {
 
 // ── The plain release's gates ─────────────────────────────────────────────
 
-test.describe('in progress without a deadline, product in pre-press', () => {
-  test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, productSeed: PRODUCT_IN_PREPRESS })
+// Without a deadline a product cannot be in pre-press — the database holds it
+// in setup — so the incomplete product the release must refuse is one in setup.
+test.describe('in progress without a deadline, product in setup', () => {
+  test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, productSeed: OTHER_PRODUCT })
 
   test('APR-REL-003 releasing the product is refused', async ({ database, product }) => {
     // Setup
@@ -73,7 +77,7 @@ test.describe('in progress without a deadline, product in pre-press', () => {
 
     // Assert — an incomplete product does not reach production.
     expect(error).not.toBeNull()
-    expect((await database.productState(product.id)).status).toBe(PREPRESS_STATUS)
+    expect((await database.productState(product.id)).status).toBe(NEW_PRODUCT_STATUS)
   })
 })
 
