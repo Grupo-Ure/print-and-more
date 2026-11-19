@@ -393,9 +393,10 @@ for `IN_PRODUCTION`, set on the settings page). The moment a product enters one
 of those statuses — by automatic promotion, release, force release, or
 going back to pre-press — the `fn_assign_stage_default_assignee`
 BEFORE UPDATE trigger hands it to that stage's default, whoever held it
-before, and writes `ASSIGNEE_CHANGED` history with `meta.automatic`;
-without a default the assignee stays. Reassigning by hand writes
-`ASSIGNEE_CHANGED` as well.
+before; without a default the assignee stays. Either way — the handover or a
+reassignment by hand — the `products` history trigger records
+`ASSIGNEE_CHANGED` with both users' ids and names; a handover shares its
+action id with the step that caused it.
 
 ### Full-page views
 
@@ -487,8 +488,8 @@ open; the database, which finishes an order, never sees it either.
   proofs. A new order is created as a
   quote with its deadline pre-filled to one week from today (a local date,
   set by `NewOrderDialog`, not a DB default). The header fields save on
-  change, one field per save, each logged as a `SETTINGS_CHANGED` history
-  entry.
+  change, one field per save; the database records each changed field as a
+  `SETTINGS_CHANGED` history entry.
 - **Product** — table `products`, the unit of work: one object carrying both
   the production workflow and the specification (the typed child tables
   below). Workflow half: `product_number` (`<order_number>-<DEPT>-<NN>`,
@@ -506,8 +507,9 @@ open; the database, which finishes an order, never sees it either.
   attributed to; `created_by` = who wrote the row. Employees log as
   themselves; only admins may log on someone else's behalf or delete a log
   (RLS-enforced). The product's total time is `SUM(minutes)` over its logs —
-  there is no aggregate column. Every create/delete writes a history event
-  (`TIME_LOGGED` / `TIME_LOG_DELETED`). UI:
+  there is no aggregate column. The database records every log
+  (`TIME_LOGGED`, with the minutes and the attributed user); a deleted log
+  takes its entry along. UI:
   [`ProductTimeLogs`](src/components/ProductTimeLogs.tsx) on the product's
   *Time logs* tab, plus `QuickTimeLog` from the same file at the bottom of the
   *Basic info* tab — the same entry form without the list, so time is logged
@@ -538,11 +540,14 @@ open; the database, which finishes an order, never sees it either.
   a product's or file's link with its order and stamps the `action_id`: the
   entries written in one transaction share it, so an action that causes
   several entries is one action in the record. The release, force release,
-  approval and mail functions write through it, and so do the triggers of
-  the automatic steps (`PREPRESS_READY`, `RETURNED_TO_PREPRESS`,
-  `ORDER_FINISHED`, see "Status"); the client still inserts
-  the everyday entries (`historyService`) until each area moves into the
-  database (the stream is
+  approval and mail functions write through it, as do `cancel_order` and
+  one history trigger per table on `orders`, `products`, `files`,
+  `product_files`, `product_time_logs` and `customers`: a record created
+  keeps its full content (`meta.after`), a value changed its field, previous
+  and next value (`meta.field` / `previous` / `next`), a cancellation the
+  content as it stood (`meta.before`). The client still inserts the product
+  save's entries (`PRODUCT_CREATED`, `PRODUCT_UPDATED`; `historyService`)
+  until that moves into the database (the stream is
   [.plans/TRANSACTION_RECORD.md](.plans/TRANSACTION_RECORD.md)). An entry
   lives exactly as long as its record: a deletion writes no entry, and what
   may still be deleted — a product in setup, a file, a file's link to a
@@ -675,8 +680,11 @@ product is done.
   listed (and selected) as billed.
 - Admins may *reopen* a finished order (`FINISHED` → `IN_PROGRESS`).
 - Finished/billed orders are read-only: no new products, no spec edits.
-- Archive (hide) and cancel (cancel every product, then hide) are available in
-  any non-billed state; a quote can be deleted outright from the sidebar.
+- Archive (hide) and cancel are offered in any non-billed state. Cancel is
+  `cancel_order`: every product cancelled and the order archived in one
+  transaction, recorded as one action; the database refuses it on a finished
+  order that still has a product to cancel, whose products are part of the
+  record. A quote can be deleted outright from the sidebar.
 
 **Product workflow** (`product_status`): `IN_SETUP` → `PREPRESS` →
 `IN_PRODUCTION` → `DONE`, with `AWAITING_APPROVAL` between pre-press and
@@ -724,10 +732,10 @@ The rules live in one place each:
   role's own move between setup and pre-press.
 - **Manual advance** — [`useProductRelease`](src/hooks/useProductRelease.ts),
   shared by the header's `ProductReleaseButton` and the product list's context
-  menu: *Release to Production*, *Mark product as done*. Each confirms first
-  and writes its history event (`PRODUCTION_READY_SET`, `MARKED_DONE`) — the
-  release to production through the database function that performs it (see
-  "Release to production"). A product in setup offers no advance (it moves on
+  menu: *Release to Production*, *Mark product as done*. Each confirms first;
+  the database records the step — `PRODUCTION_READY_SET` from the function
+  that performs the release (see "Release to production"), `MARKED_DONE` from
+  the status trigger. A product in setup offers no advance (it moves on
   its own), nor does a product awaiting approval. *Go back to Pre-Press*, on
   the production banner, is the one way back; the database records it as
   `RETURNED_TO_PREPRESS`, and a product that is not ready lands in setup.
