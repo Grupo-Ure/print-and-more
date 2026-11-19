@@ -8,13 +8,16 @@
  * Key exports:
  * - {@link resolveEffectiveProduct}: resolve inherited fields against the order.
  * - {@link validateProductCommonFields}: per-field error map for the settings tab.
- * - {@link isProductComplete}: may this product leave IN_SETUP?
+ * - {@link prepressHold} / {@link isReadyForPrepress}: what keeps a product in
+ *   setup — the client's mirror of the database's pre-press condition.
+ * - {@link isProductComplete}: are the effective settings valid?
  *
  * Stored enum values (`'STAMP'`, statuses, …) mirror the Postgres enums.
  */
 
 import { format } from 'date-fns'
-import { type DeliveryChoice, type Priority, type ProductRow, type OrderStatus } from '../types/database'
+import { type Customer, type DeliveryChoice, type Priority, type ProductRow, type OrderStatus } from '../types/database'
+import { customerMeetsPrepressContact } from './customer'
 import { toDateOnly } from './formatDate'
 
 /**
@@ -71,17 +74,49 @@ export type ProductCompletenessFields = Pick<
 >
 
 /**
- * Whether the product is complete enough to advance from IN_SETUP. While the
- * parent order is a QUOTE, always true (nothing required yet).
- *
- * The job model also required "at least one product"; a product cannot lack
- * itself, so completeness reduces to the effective settings being valid —
- * which in practice means the deadline, since `resolveEffectiveProduct` always
- * yields a delivery and a priority.
+ * Whether the product's effective settings are valid. While the parent order
+ * is a QUOTE, always true (nothing required yet). In practice this means the
+ * deadline, since `resolveEffectiveProduct` always yields a delivery and a
+ * priority. It is what a product in production is checked against
+ * (`isMissingInfo`); whether a product may be in pre-press is
+ * {@link isReadyForPrepress}.
  */
 export function isProductComplete(product: ProductCompletenessFields, orderIsQuote: boolean): boolean {
   if (orderIsQuote) return true
   return Object.keys(validateProductCommonFields(product, orderIsQuote)).length === 0
+}
+
+/** What holds a product in setup: the order is a quote, no effective deadline, or the customer has no contact. */
+export type PrepressHold = 'QUOTE' | 'DEADLINE' | 'CUSTOMER_CONTACT'
+
+/**
+ * What keeps the product out of pre-press, or null when nothing does. The
+ * database moves a product between setup and pre-press by the same condition
+ * (`fn_product_ready_for_prepress`, run by triggers whenever the order, the
+ * product's deadline or the customer changes), so the app never moves it
+ * itself; this mirror only explains the wait. The holds are checked in the
+ * order the shop clears them: the order leaves quote, a deadline is set (the
+ * product's own or the order's), the customer has a name and an email or
+ * phone.
+ */
+export function prepressHold(
+  product: Pick<ProductRow, 'deadline'>,
+  order: { status: OrderStatus; deadline: string | null },
+  customer: Customer | null | undefined,
+): PrepressHold | null {
+  if (order.status === 'QUOTE') return 'QUOTE'
+  if (!(product.deadline ?? order.deadline)) return 'DEADLINE'
+  if (!customerMeetsPrepressContact(customer)) return 'CUSTOMER_CONTACT'
+  return null
+}
+
+/** Whether the product may be in pre-press — the condition of {@link prepressHold}. */
+export function isReadyForPrepress(
+  product: Pick<ProductRow, 'deadline'>,
+  order: { status: OrderStatus; deadline: string | null },
+  customer: Customer | null | undefined,
+): boolean {
+  return prepressHold(product, order, customer) === null
 }
 
 /**
@@ -145,8 +180,8 @@ export function isMissingInfo(
 /**
  * True when the order's work is complete: at least one non-cancelled product
  * and every one of them is DONE. Cancelled products do not count either way.
- * This is the condition for the order's "Mark finished" action and for the
- * automatic finish (`deriveAutomaticOrderStatus`).
+ * This is the condition for the order's "Mark finished" action; the database
+ * finishes an invoice order by the same rule (`fn_finish_order_if_done`).
  */
 export function areAllProductsDone(
   products: readonly Pick<ProductRow, 'status' | 'is_cancelled'>[],
