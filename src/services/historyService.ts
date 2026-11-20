@@ -1,10 +1,7 @@
 import { supabase } from '../supabase'
-import { authService } from './authService'
 import type { Database, Json } from '../types/supabase'
 
 export type HistoryEvent = Database['public']['Enums']['history_event']
-
-type HistoryInsert = Database['public']['Tables']['history']['Insert']
 
 export type HistoryRow = {
   id: string
@@ -20,42 +17,11 @@ export type HistoryRow = {
   textile_variants: { color: string; size: string; textile_models: { name: string } | null } | null
 }
 
+/**
+ * Reads the history. Nothing here writes it: every entry is written by the
+ * database, with the change it records.
+ */
 class HistoryService {
-  async writeHistory(params: {
-    order_id: string
-    product_id?: string
-    event_type: HistoryEvent
-    reason?: string
-    meta?: Record<string, unknown>
-  }): Promise<void> {
-    const user = await authService.getUser()
-
-    const row: HistoryInsert = {
-      order_id: params.order_id,
-      product_id: params.product_id ?? null,
-      event_type: params.event_type,
-      reason: params.reason ?? null,
-      meta: params.meta !== undefined ? (params.meta as Json) : null,
-      user_id: user?.id ?? null,
-    }
-
-    const { error } = await supabase.from('history').insert(row)
-    if (error) throw error
-  }
-
-  /**
-   * Best-effort variant: history is a log, not a transaction participant — a
-   * failed insert must never fail the action it records. All mutation call
-   * sites use this; `writeHistory` stays for callers that want the error.
-   */
-  async tryWriteHistory(params: Parameters<HistoryService['writeHistory']>[0]): Promise<void> {
-    try {
-      await this.writeHistory(params)
-    } catch (err) {
-      console.error(`History ${params.event_type} failed`, err)
-    }
-  }
-
   async getHistoryForOrder(orderId: string): Promise<HistoryRow[]> {
     const { data, error } = await supabase
       .from('history')
