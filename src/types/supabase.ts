@@ -2772,7 +2772,6 @@ export type Database = {
       drain_emails: { Args: never; Returns: undefined }
       duplicate_order: {
         Args: {
-          created_by_user_id: string
           new_deadline: string
           new_delivery: Database["public"]["Enums"]["delivery_type"]
           new_priority: Database["public"]["Enums"]["priority_type"]
@@ -2796,6 +2795,10 @@ export type Database = {
         Args: { p_order_id: string }
         Returns: undefined
       }
+      fn_insert_product_rows: {
+        Args: { p_product_id: string; p_rows: Json; p_table: string }
+        Returns: undefined
+      }
       fn_order_is_closed: { Args: { p_order_id: string }; Returns: boolean }
       fn_order_snapshot: { Args: { p_order_id: string }; Returns: Json }
       fn_product_ready_for_prepress: {
@@ -2803,8 +2806,13 @@ export type Database = {
         Returns: boolean
       }
       fn_product_snapshot: { Args: { p_product_id: string }; Returns: Json }
+      fn_product_snapshot_comparable: { Args: { p_snapshot: Json }; Returns: Json }
       fn_production_deductions: { Args: { product_id: string }; Returns: Json }
       fn_purge_approval_files: { Args: never; Returns: number }
+      fn_record_product_created: {
+        Args: { p_product_id: string }
+        Returns: undefined
+      }
       fn_start_due_backup: { Args: never; Returns: string }
       fn_write_history: {
         Args: {
@@ -3026,6 +3034,15 @@ export type Database = {
       reschedule_email: {
         Args: { delay_seconds: number; msg_id: number }
         Returns: boolean
+      }
+      save_product: {
+        Args: {
+          p_child?: Json
+          p_designs?: Json
+          p_garments?: Json
+          p_product: Json
+        }
+        Returns: string
       }
       settle_approval_request: {
         Args: {
