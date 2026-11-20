@@ -226,9 +226,8 @@ class OrderService {
   /**
    * Deep-copy an order via the `duplicate_order` Postgres RPC — products
    * (incl. typed child by `type`), `product_files`, and textile rows — in one
-   * transaction. This stays server-side *because* it must be atomic; it's the one
-   * status/data RPC deliberately kept (unlike the retired `fn_calculate_order_status`).
-   * Returns the new order id.
+   * transaction. The database records the copy as a new order, under the
+   * signed-in user. Returns the new order id.
    */
   async duplicateOrder(params: {
     source_order_id: string
@@ -236,7 +235,6 @@ class OrderService {
     new_delivery: DeliveryEnum | null
     new_deadline: string | null
     selected_product_ids: string[]
-    created_by_user_id: string | null
   }): Promise<string> {
     const { data, error } = await supabase.rpc('duplicate_order', params as unknown as DuplicateOrderArgs)
     if (error) throw new Error(error.message)

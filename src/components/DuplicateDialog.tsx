@@ -8,7 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { authService } from '../services/authService'
 import { orderService } from '../services/orderService'
 import { type OrderDetailRow } from '../types/database'
 import type { LoadedProduct } from '../types/product'
@@ -82,7 +81,6 @@ export function DuplicateDialog({ order, products, onSuccess, onCancel }: Props)
         new_delivery: order.delivery ?? null,
         new_deadline: newDeadline ? newDeadline : null,
         selected_product_ids: selectedProducts.map(product => product.id),
-        created_by_user_id: (await authService.getUser())?.id ?? null,
       })
 
       if (!newOrderId.trim()) {
