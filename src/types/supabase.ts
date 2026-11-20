@@ -2045,51 +2045,6 @@ export type Database = {
           },
         ]
       }
-      stamp_stock_movements: {
-        Row: {
-          created_at: string
-          id: string
-          model_id: string
-          note: string | null
-          quantity: number
-          type: string
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          model_id: string
-          note?: string | null
-          quantity: number
-          type: string
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          model_id?: string
-          note?: string | null
-          quantity?: number
-          type?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "stamp_stock_movements_model_id_fkey"
-            columns: ["model_id"]
-            isOneToOne: false
-            referencedRelation: "stamp_models"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "stamp_stock_movements_person_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       stand_stamp_products: {
         Row: {
           color: string | null
@@ -2348,51 +2303,6 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "textile_brands"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      textile_stock_movements: {
-        Row: {
-          created_at: string
-          id: string
-          note: string | null
-          quantity: number
-          type: string
-          user_id: string | null
-          variant_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          note?: string | null
-          quantity: number
-          type: string
-          user_id?: string | null
-          variant_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          note?: string | null
-          quantity?: number
-          type?: string
-          user_id?: string | null
-          variant_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "textile_stock_movements_person_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "textile_stock_movements_variant_id_fkey"
-            columns: ["variant_id"]
-            isOneToOne: false
-            referencedRelation: "textile_variants"
             referencedColumns: ["id"]
           },
         ]
@@ -2706,9 +2616,15 @@ export type Database = {
     }
     Functions: {
       archive_email: { Args: { msg_id: number }; Returns: boolean }
-      book_production_deductions: {
-        Args: { allow_shortage?: boolean; deductions: Json; note: string }
-        Returns: Json
+      book_stock: {
+        Args: {
+          p_item_id: string
+          p_kind: string
+          p_note?: string
+          p_quantity: number
+          p_type: string
+        }
+        Returns: number
       }
       cancel_order: { Args: { p_order_id: string }; Returns: undefined }
       claim_backup_job: {
@@ -2784,7 +2700,15 @@ export type Database = {
         Args: { p_product_ids: string[] }
         Returns: undefined
       }
+      fn_available_stock: {
+        Args: { p_item_id: string; p_kind: string }
+        Returns: number
+      }
       fn_backup_upkeep: { Args: never; Returns: undefined }
+      fn_book_production_deductions: {
+        Args: { p_allow_shortage: boolean; p_deductions: Json; p_note: string }
+        Returns: Json
+      }
       fn_child_table_for_type: { Args: { p_type: string }; Returns: string }
       fn_department_abbreviation: {
         Args: { dept: Database["public"]["Enums"]["department"] }
