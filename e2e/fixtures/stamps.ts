@@ -24,13 +24,13 @@ export const IN_STOCK_STAMP_MODEL: StampModelSeedRow = {
 }
 
 /**
- * A deduction one past the in-stock model's stock, as the jsonb list
- * `book_production_deductions` takes: with the shortage allowed it would
- * empty the model.
+ * A booking out of the in-stock model, as `book_stock` takes it: within the
+ * model's stock, so only who books it decides whether it goes through.
  */
-export const DEDUCTION_PAST_IN_STOCK_MODEL = [
-  { target: 'STAMP', id: IN_STOCK_STAMP_MODEL.id, quantity: IN_STOCK_STAMP_MODEL.stock + 1 },
-]
-
-/** The note a hand-made booking carries. */
-export const MANUAL_DEDUCTION_NOTE = 'E2E booking by hand'
+export const OUTBOUND_BOOKING_OF_IN_STOCK_MODEL = {
+  p_kind: 'STAMP',
+  p_item_id: IN_STOCK_STAMP_MODEL.id,
+  p_type: 'OUTBOUND',
+  p_quantity: 1,
+  p_note: 'E2E booking by hand',
+}

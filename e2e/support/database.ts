@@ -178,8 +178,8 @@ export type ProductState = Pick<Database['public']['Tables']['products']['Row'],
 /** One history entry's product, reason and details, for what an event recorded. */
 export type HistoryEntryRow = Pick<Database['public']['Tables']['history']['Row'], 'product_id' | 'reason' | 'meta'>
 
-/** One automatic stock movement, as much of it as a spec looks at. */
-export type StockMovementRow = Pick<Database['public']['Tables']['stamp_stock_movements']['Row'], 'quantity' | 'note'>
+/** One automatic stock deduction (a STOCK_AUTO_DEDUCTED entry), as much of it as a spec looks at. */
+export type StockDeductionRow = { quantity: number | null; note: string | null }
 
 /** The private bucket the customer's page is served proof copies from. */
 const APPROVAL_PROOFS_BUCKET = 'approval-proofs'
@@ -661,13 +661,13 @@ export class TestDatabase {
   }
 
   /**
-   * Deletes the stamp model with the movements booked against it (a release
-   * writes those, and they block the delete); products that referenced it
-   * lose the reference (set null).
+   * Deletes the stamp model with the stock entries written about it (a
+   * release or a booking writes those, and they block the delete); products
+   * that referenced it lose the reference (set null).
    */
   async removeStampModel(id: string): Promise<void> {
-    const { error: movementError } = await this.client.from('stamp_stock_movements').delete().eq('model_id', id)
-    if (movementError) throw movementError
+    const { error: historyError } = await this.client.from('history').delete().eq('stamp_model_id', id)
+    if (historyError) throw historyError
     const { error } = await this.client.from('stamp_models').delete().eq('id', id)
     if (error) throw error
   }
@@ -682,10 +682,10 @@ export class TestDatabase {
     if (variantError) throw variantError
   }
 
-  /** Deletes the chain leaf first, with the movements booked against the variant; garment lines that referenced it lose the reference. */
+  /** Deletes the chain leaf first, with the stock entries written about the variant; garment lines that referenced it lose the reference. */
   async removeTextileChain(seed: TextileChainSeed): Promise<void> {
-    const { error: movementError } = await this.client.from('textile_stock_movements').delete().eq('variant_id', seed.variant.id)
-    if (movementError) throw movementError
+    const { error: historyError } = await this.client.from('history').delete().eq('textile_variant_id', seed.variant.id)
+    if (historyError) throw historyError
     const { error: variantError } = await this.client.from('textile_variants').delete().eq('id', seed.variant.id)
     if (variantError) throw variantError
     const { error: modelError } = await this.client.from('textile_models').delete().eq('id', seed.model.id)
@@ -950,15 +950,21 @@ export class TestDatabase {
     return data.stock
   }
 
-  /** The automatic movements booked against the stamp model. */
-  async stampStockMovements(modelId: string): Promise<StockMovementRow[]> {
+  /** The automatic deductions recorded against the stamp model: its STOCK_AUTO_DEDUCTED entries. */
+  async stampStockDeductions(modelId: string): Promise<StockDeductionRow[]> {
     const { data, error } = await this.client
-      .from('stamp_stock_movements')
-      .select('quantity, note')
-      .eq('model_id', modelId)
-      .eq('type', 'AUTO_DEDUCTION')
+      .from('history')
+      .select('meta')
+      .eq('stamp_model_id', modelId)
+      .eq('event_type', 'STOCK_AUTO_DEDUCTED')
     if (error) throw error
-    return data
+    return data.map(({ meta }) => {
+      const fields = meta !== null && typeof meta === 'object' && !Array.isArray(meta) ? meta : {}
+      return {
+        quantity: typeof fields.quantity === 'number' ? fields.quantity : null,
+        note: typeof fields.note === 'string' ? fields.note : null,
+      }
+    })
   }
 
   // ── Emails ───────────────────────────────────────────────────────────────
