@@ -14,6 +14,10 @@ export type HistoryRow = {
   created_at: string
   product_id: string | null
   user_id: string | null
+  /** The stamp model a stock entry concerns (STOCK_AUTO_DEDUCTED on the order's tab). */
+  stamp_models: { name: string } | null
+  /** The textile variant a stock entry concerns. */
+  textile_variants: { color: string; size: string; textile_models: { name: string } | null } | null
 }
 
 class HistoryService {
@@ -55,12 +59,14 @@ class HistoryService {
   async getHistoryForOrder(orderId: string): Promise<HistoryRow[]> {
     const { data, error } = await supabase
       .from('history')
-      .select('id, event_type, reason, meta, created_at, product_id, user_id')
+      .select(
+        'id, event_type, reason, meta, created_at, product_id, user_id, stamp_models(name), textile_variants(color, size, textile_models(name))',
+      )
       .eq('order_id', orderId)
       .order('created_at', { ascending: false })
       .limit(50)
     if (error) throw error
-    return (data ?? []) as HistoryRow[]
+    return (data ?? []) as unknown as HistoryRow[]
   }
 }
 

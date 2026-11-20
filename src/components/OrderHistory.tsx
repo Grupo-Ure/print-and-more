@@ -84,6 +84,14 @@ function fileRoleText(value: unknown): string {
   return typeof value === 'string' ? (FILE_ROLE_LABELS[value as keyof typeof FILE_ROLE_LABELS] ?? value) : 'none'
 }
 
+/** The stock item a stock entry concerns: the stamp model's name, or "Model · Colour · Size". */
+function stockItemLabel(entry: HistoryRow): string {
+  if (entry.stamp_models) return entry.stamp_models.name
+  const variant = entry.textile_variants
+  if (variant) return [variant.textile_models?.name, variant.color, variant.size].filter(Boolean).join(' · ')
+  return 'stock item'
+}
+
 function metaRecord(entry: HistoryRow): Record<string, unknown> | null {
   const meta = entry.meta
   if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return null
@@ -173,6 +181,12 @@ function historySegments(
       return [actor, ' finished and closed the order as ', { kind: 'status', meta: ORDER_STATUS_META.BILLED }, ' (paid in cash)']
     case 'EMERGENCY_TRIGGERED':
       return [actor, ' force-released ', product, ' to ', { kind: 'status', meta: PRODUCT_STATUS_META.IN_PRODUCTION }]
+    case 'STOCK_AUTO_DEDUCTED': {
+      // Written by the release (or the approval) it shares its action with,
+      // one entry per stock item.
+      const quantity = typeof meta?.quantity === 'number' ? `${meta.quantity} × ` : ''
+      return [`${quantity}${stockItemLabel(entry)} taken from stock for `, product]
+    }
     case 'CUSTOMER_APPROVAL_ACTIVATED':
       return [actor, ' requested customer approval for ', product]
     case 'CUSTOMER_APPROVAL_DEACTIVATED':
