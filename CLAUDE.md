@@ -841,7 +841,9 @@ The rules live in one place each:
   deleted by the client directly — the sidebar's quote delete calls
   `delete_quote`, which refuses any other status and removes the quote's
   history in the open (the history FK onto orders restricts rather than
-  cascades). Past that: a product is deleted only in setup on an open
+  cascades): its products and files first, so that each takes its own
+  entries along and a product that took stock refuses the delete, then the
+  order's remaining entries, then the quote. Past that: a product is deleted only in setup on an open
   order; once an order is `FINISHED`/`BILLED` its billing-relevant columns
   (number, customer, dates, payment, delivery, deadline, priority), its
   files and its products' workflow columns are locked, `BILLED` is final,
