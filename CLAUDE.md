@@ -401,7 +401,8 @@ action id with the step that caused it.
 ### Full-page views
 
 `StampStockPage` ([src/pages/StampStockPage.tsx](src/pages/StampStockPage.tsx))
-— stamp models, ink colours, stock bookings and movements;
+— stamp models, ink colours, stock bookings and the movement list (the
+stock entries of `history`);
 `TextileStockPage` ([src/pages/TextileStockPage.tsx](src/pages/TextileStockPage.tsx))
 — textile master data (brand → model → variant) and variant stock;
 `SettingsPage` ([src/pages/SettingsPage.tsx](src/pages/SettingsPage.tsx)) —
@@ -541,7 +542,9 @@ open; the database, which finishes an order, never sees it either.
   entries written in one transaction share it, so an action that causes
   several entries is one action in the record. The release, force release,
   approval and mail functions write through it, as do `cancel_order`,
-  `save_product`, `duplicate_order` and one history trigger per table on
+  `save_product`, `duplicate_order`, the stock functions (`book_stock`,
+  `fn_book_production_deductions`; see *Stock* below) and one history
+  trigger per table on
   `orders`, `products`, `files`, `product_files`, `product_time_logs` and
   `customers`: a record created keeps its full content (`meta.after`), a
   value changed its field, previous and next value (`meta.field` /
@@ -552,21 +555,35 @@ open; the database, which finishes an order, never sees it either.
   lives exactly as long as its record: a deletion writes no entry, and what
   may still be deleted — a product in setup, a file, a file's link to a
   product, a time log — takes its entries along (`fn_forget_history`,
-  `BEFORE DELETE`); a customer, a stock item or a user named on an entry
-  cannot be deleted. Every employee reads the entries of an order; an entry
+  `BEFORE DELETE`), except a product whose release took stock, which is
+  refused; a customer, a stock item or a user named on an entry cannot be
+  deleted. Every employee reads the entries of an order; an entry
   with no order link is an admin's to read. Shown on the order's *History*
   tab (`OrderHistory`).
 - **Products** — see below (the typed per-type model).
 - **Textile master data** — `textile_brands` → `textile_models` →
-  `textile_variants` (`color`, `color_hex`, `size`, `stock`, `min_stock`),
-  `textile_stock_movements`. A *model* is the garment ("T-Shirt #E190"), a
+  `textile_variants` (`color`, `color_hex`, `size`, `stock`, `sample_stock`,
+  `min_stock`). A *model* is the garment ("T-Shirt #E190"), a
   *variant* one colour and size of it. Per-order textile data hangs off the
   product: a `TEXTILE_GARMENT` product is a **batch**, with one
   `textile_garments` line per model × colour × size (`origin` `SHOP_SUPPLIED`
   with a catalog `variant_id` or free-text brand/model/colour/size, or
   `CUSTOMER_SUPPLIED`) and one `textile_designs` row per design and placement.
-- **Stamp master data** — `stamp_models`, `stamp_ink_colors`,
-  `stamp_stock_movements`.
+- **Stamp master data** — `stamp_models` (with `stock`, `min_stock`),
+  `stamp_ink_colors`.
+- **Stock** — the `stock` of a stamp model or textile variant changes only
+  together with its history entry, and the history is its only record (no
+  movement tables): a manual booking from a stock page is `book_stock`
+  (admins; locks the item, refuses an outbound booking past the available
+  stock, writes `STOCK_BOOKED` with direction, quantity, stock before and
+  after, and note), a release's deduction is `STOCK_AUTO_DEDUCTED` (see
+  "Release to production"). What may be used is `fn_available_stock`: the
+  stock, less a variant's `sample_stock`. Nobody with an app login writes
+  `stock` directly, admins included (`fn_refuse_direct_stock_write`), so a
+  new item starts at zero and its first stock is a booking. The stock master
+  data is read by every employee and written by admins only (RLS). The stock
+  pages' movement lists read the stock entries of `history`
+  ([`stockService`](src/services/stockService.ts)).
 - **Users** — table `users` (`name`, `email`, `role`, `avatar_url`,
   `is_developer`), mirrored from Supabase Auth. `is_developer` marks a
   developer account (someone debugging against the shop's database): it is
@@ -766,15 +783,15 @@ The rules live in one place each:
   transaction that decides, books and moves; the only way into
   `AWAITING_APPROVAL` is `create_approval_request`. Behind them the
   `fn_refuse_direct_release` trigger refuses either status written by
-  `authenticated` directly, and `book_production_deductions`, which the client
-  no longer calls, refuses a booking past a shortage from anyone but an
-  admin. The app mirrors the gates so the buttons never
+  `authenticated` directly. The app mirrors the gates so the buttons never
   offer a release the database would refuse
   ([`productionReleaseService`](src/services/productionReleaseService.ts)).
-  The release books **automatic stock deductions** (only here, not on "mark
-  done") — `fn_production_deductions` lists them, `book_production_deductions`
-  books them with row-locked conditional decrements and `AUTO_DEDUCTION`
-  movement rows with a note incl. the order number:
+  The release books **automatic stock deductions** (only here and on an
+  approval, not on "mark done") — `fn_production_deductions` lists them,
+  `fn_book_production_deductions` (internal, no app role may call it) books
+  them with row-locked conditional decrements and one `STOCK_AUTO_DEDUCTED`
+  entry per item, linked to the item and the product, with a note incl. the
+  order number:
   - **STAMP:** stamp-model products decrement their model (plus the matching
     replacement pad for a catalog ink colour); `TRODAT_PAD` products decrement
     their pad variant.
@@ -785,8 +802,8 @@ The rules live in one place each:
     `release_to_production` rejects atomically if a concurrent release
     consumed the stock first. A textile shortage carries its garment line id, so the batch's size
     grid highlights the short size rather than the whole batch. The admin
-    **force release** bypasses the shortage: stock is floored at 0 and
-    movements record what was actually deducted.
+    **force release** bypasses the shortage: stock is floored at 0 and the
+    entries record what was actually deducted.
 - **Pre-press** is reached on its own, once the product is ready; a deadline
   that has passed does not hold it (the row shows the deadline-missed flag
   instead). While a product is held in setup, `ProductProductionBanner` names
