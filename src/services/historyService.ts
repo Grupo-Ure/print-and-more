@@ -11,8 +11,8 @@ export type HistoryRow = {
   created_at: string
   product_id: string | null
   user_id: string | null
-  /** The stamp model a stock entry concerns (STOCK_AUTO_DEDUCTED on the order's tab). */
-  stamp_models: { name: string } | null
+  /** The stamp model a stock entry concerns (STOCK_AUTO_DEDUCTED on the order's tab); pads of one name differ by colour. */
+  stamp_models: { name: string; color: string | null } | null
   /** The textile variant a stock entry concerns. */
   textile_variants: { color: string; size: string; textile_models: { name: string } | null } | null
 }
@@ -26,7 +26,7 @@ class HistoryService {
     const { data, error } = await supabase
       .from('history')
       .select(
-        'id, event_type, reason, meta, created_at, product_id, user_id, stamp_models(name), textile_variants(color, size, textile_models(name))',
+        'id, event_type, reason, meta, created_at, product_id, user_id, stamp_models(name, color), textile_variants(color, size, textile_models(name))',
       )
       .eq('order_id', orderId)
       .order('created_at', { ascending: false })

@@ -1,4 +1,5 @@
 import type { HistoryRow } from '../services/historyService'
+import { STAMP_COLOR_LABELS } from '../types/stamp'
 import { PRODUCT_STATUS_META, ORDER_STATUS_META, type StatusMeta } from './statusLabels'
 import { PRODUCT_TYPE_LABELS } from './productTypeLabels'
 import { emailTemplateLabel } from './emailTemplateLabels'
@@ -71,9 +72,15 @@ function fileRoleText(value: unknown): string {
   return typeof value === 'string' ? (FILE_ROLE_LABELS[value as keyof typeof FILE_ROLE_LABELS] ?? value) : 'none'
 }
 
-/** The stock item a stock entry concerns: the stamp model's name, or "Model · Colour · Size". */
+/** A stamp model's name with its ink colour: pads of one name differ only by colour. */
+export function stampModelLabel(model: { name: string; color: string | null }): string {
+  const color = model.color ? ((STAMP_COLOR_LABELS as Record<string, string>)[model.color] ?? model.color) : null
+  return [model.name, color].filter(Boolean).join(' · ')
+}
+
+/** The stock item a stock entry concerns: "Model · Ink colour" for a stamp model, "Model · Colour · Size" for a textile variant. */
 export function stockItemLabel(entry: HistoryRow): string {
-  if (entry.stamp_models) return entry.stamp_models.name
+  if (entry.stamp_models) return stampModelLabel(entry.stamp_models)
   const variant = entry.textile_variants
   if (variant) return [variant.textile_models?.name, variant.color, variant.size].filter(Boolean).join(' · ')
   return 'stock item'
