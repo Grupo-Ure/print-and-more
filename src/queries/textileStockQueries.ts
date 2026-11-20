@@ -6,6 +6,7 @@ import {
   type VariantRow,
   type VariantWithDetails,
 } from '../services/textileMasterDataService'
+import { stockService, type StockBookingType } from '../services/stockService'
 import { reorderQuantity } from '../components/stock/stockShared'
 import { availableStock } from '../components/textileStock/textileStockShared'
 import type { Database } from '../types/supabase'
@@ -62,10 +63,11 @@ export function useAllTextileVariants() {
   })
 }
 
+/** The stock entries of the textile variants — bookings and release deductions — newest first. */
 export function useTextileMovements() {
   return useQuery({
     queryKey: textileStockKeys.movements,
-    queryFn: () => textileMasterDataService.getStockMovements(),
+    queryFn: () => stockService.getTextileStockEntries(),
   })
 }
 
@@ -253,26 +255,18 @@ export function useUpdateTextileVariant() {
   })
 }
 
-export type BookTextileMovementPayload = {
+export type BookTextileStockPayload = {
   variantId: string
   quantity: number
-  nextStock: number
-  type: 'INBOUND' | 'OUTBOUND'
-  userId: string
+  type: StockBookingType
 }
 
-export function useBookTextileMovement() {
+/** Books goods in or out of a textile variant; the database computes the stock and writes the entry. */
+export function useBookTextileStock() {
   const invalidate = useInvalidateTextileStock()
-  return useMutation<void, Error, BookTextileMovementPayload>({
-    mutationFn: async ({ variantId, quantity, nextStock, type, userId }) => {
-      await textileMasterDataService.updateVariantStock(variantId, nextStock)
-      await textileMasterDataService.createTextileStockMovement({
-        variant_id: variantId,
-        quantity,
-        type,
-        user_id: userId,
-      })
-    },
+  return useMutation<number, Error, BookTextileStockPayload>({
+    mutationFn: ({ variantId, quantity, type }) =>
+      stockService.bookStock({ kind: 'TEXTILE', itemId: variantId, type, quantity }),
     onSettled: invalidate,
   })
 }
@@ -286,7 +280,7 @@ export function useSaveTextileMinimumStock() {
   })
 }
 
-/** Silent counter edit like min-stock — deliberately no movement row. */
+/** Silent counter edit like min-stock — deliberately no history entry. */
 export function useSaveTextileSampleStock() {
   const invalidate = useInvalidateTextileStock()
   return useMutation<VariantRow, Error, { variantId: string; sampleStock: number }>({

@@ -7,7 +7,6 @@ type ModelInsert = Database['public']['Tables']['textile_models']['Insert']
 type ModelUpdate = Database['public']['Tables']['textile_models']['Update']
 type VariantInsert = Database['public']['Tables']['textile_variants']['Insert']
 type VariantUpdate = Database['public']['Tables']['textile_variants']['Update']
-type StockMovementInsert = Database['public']['Tables']['textile_stock_movements']['Insert']
 
 export type BrandRow = Database['public']['Tables']['textile_brands']['Row']
 export type TextileModelRow = Database['public']['Tables']['textile_models']['Row']
@@ -22,17 +21,6 @@ export type VariantWithDetails = VariantRow & {
     name: string
     article_number: string | null
     textile_brands: { name: string } | null
-  } | null
-}
-
-export type TextileStockMovementRow = Database['public']['Tables']['textile_stock_movements']['Row'] & {
-  textile_variants: {
-    color: string
-    size: string
-    textile_models: {
-      name: string
-      textile_brands: { name: string } | null
-    } | null
   } | null
 }
 
@@ -183,14 +171,6 @@ class TextileMasterDataService {
     return (data ?? []) as VariantRow[]
   }
 
-  async updateVariantStock(id: string, stock: number): Promise<void> {
-    const { error } = await supabase
-      .from('textile_variants')
-      .update({ stock } as VariantUpdate)
-      .eq('id', id)
-    if (error) throw error
-  }
-
   async updateVariantMinimumStock(id: string, min_stock: number): Promise<void> {
     const { error } = await supabase
       .from('textile_variants')
@@ -218,21 +198,6 @@ class TextileMasterDataService {
       .single()
     if (error) throw error
     return data as { stock: number } | null
-  }
-
-  async getStockMovements(): Promise<TextileStockMovementRow[]> {
-    const { data, error } = await supabase
-      .from('textile_stock_movements')
-      .select('*, textile_variants(color, size, textile_models(name, textile_brands(name)))')
-      .order('created_at', { ascending: false })
-      .limit(200)
-    if (error) throw error
-    return (data ?? []) as unknown as TextileStockMovementRow[]
-  }
-
-  async createTextileStockMovement(payload: StockMovementInsert): Promise<void> {
-    const { error } = await supabase.from('textile_stock_movements').insert(payload)
-    if (error) throw error
   }
 
   async deleteVariant(id: string): Promise<void> {
