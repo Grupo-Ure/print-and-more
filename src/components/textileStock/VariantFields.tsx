@@ -9,8 +9,11 @@ import type { Database } from '../../types/supabase'
 
 type VariantInsert = Database['public']['Tables']['textile_variants']['Insert']
 
-/** A variant row without its parent — the model may not exist yet. */
-export type VariantRowInput = Omit<VariantInsert, 'model_id'>
+/**
+ * A variant row without its parent — the model may not exist yet — and
+ * without stock: a new variant starts at zero and its stock is booked.
+ */
+export type VariantRowInput = Omit<VariantInsert, 'model_id' | 'stock'>
 
 export type VariantFieldsHandle = {
   /** Rows for the current input, or null when invalid — a toast names the problem. */
@@ -78,7 +81,6 @@ export function VariantFields({ ref, disabled = false }: VariantFieldsProps) {
         color_hex: hex,
         size: sizeValue,
         min_stock: minimumValue,
-        stock: 0,
         sample_stock: 0,
         sort_order: 0,
         is_active: true,

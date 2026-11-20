@@ -182,8 +182,9 @@ function StampModelForm({
     if (isEdit) {
       updateModel.mutate({ modelId: model.id, patch: fields }, mutationHandlers)
     } else {
-      // New models start at stock 0 — inventory is booked in via the Overview tab.
-      createModel.mutate({ ...fields, type: form.type, stock: 0, is_active: true }, mutationHandlers)
+      // A new model starts at stock 0 (the database's default; nobody writes
+      // stock directly) — its first stock is booked in from the stock table.
+      createModel.mutate({ ...fields, type: form.type, is_active: true }, mutationHandlers)
     }
   }
 

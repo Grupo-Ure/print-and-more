@@ -43,7 +43,7 @@ export function TextileModelsPanel({ brandId, onOpenModel }: TextileModelsPanelP
     }
     deleteModel.mutate(model.id, {
       onError: () =>
-        showError('Model could not be deleted (variants may have stock movements) — deactivate it instead'),
+        showError('Model could not be deleted (variants may have stock history) — deactivate it instead'),
     })
   }
 
