@@ -28,10 +28,18 @@ const FILTER_IDS = IDS.filters
  * The sentence names the product by its number; this says what it is, which is
  * the only record left once the row itself is deleted.
  */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 function productKind(meta: Record<string, unknown> | null): string {
-  const type = typeof meta?.type === 'string' ? meta.type : null
+  // The database's entries keep the product's full content under `after`
+  // (created, updated) or `before` (cancelled); entries written before that
+  // keep type and quantity at the top.
+  const content = isRecord(meta?.after) ? meta.after : isRecord(meta?.before) ? meta.before : meta
+  const type = typeof content?.type === 'string' ? content.type : null
   const kind = (type && PRODUCT_TYPE_LABELS[type]) ?? 'product'
-  const quantity = typeof meta?.quantity === 'number' ? `${meta.quantity}× ` : ''
+  const quantity = typeof content?.quantity === 'number' ? `${content.quantity}× ` : ''
   return `${quantity}${kind}`
 }
 
