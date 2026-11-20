@@ -14,12 +14,7 @@ import {
   STAMP_PRODUCT_IN_PREPRESS_IN_STOCK,
   STAMP_PRODUCT_IN_PREPRESS_OUT_OF_STOCK,
 } from '../fixtures/products'
-import {
-  DEDUCTION_PAST_IN_STOCK_MODEL,
-  IN_STOCK_STAMP_MODEL,
-  MANUAL_DEDUCTION_NOTE,
-  OUT_OF_STOCK_STAMP_MODEL,
-} from '../fixtures/stamps'
+import { IN_STOCK_STAMP_MODEL, OUT_OF_STOCK_STAMP_MODEL, OUTBOUND_BOOKING_OF_IN_STOCK_MODEL } from '../fixtures/stamps'
 import { TEST_USERS } from '../fixtures/users'
 
 // Driven against the database, no screen involved, like APR-REQ: a signed-in
@@ -91,10 +86,10 @@ test.describe('in progress, stamp product in pre-press, model out of stock', () 
     // Act
     const { error } = await asEmployee.rpc('release_to_production', { product_id: product.id })
 
-    // Assert — refused, still in pre-press, and no movement against the model.
+    // Assert — refused, still in pre-press, and no deduction against the model.
     expect(error).not.toBeNull()
     expect((await database.productState(product.id)).status).toBe(PREPRESS_STATUS)
-    expect(await database.stampStockMovements(OUT_OF_STOCK_STAMP_MODEL.id)).toEqual([])
+    expect(await database.stampStockDeductions(OUT_OF_STOCK_STAMP_MODEL.id)).toEqual([])
   })
 })
 
@@ -129,7 +124,7 @@ test.describe('waiting stamp product, model in stock', () => {
     // Assert — refused, still waiting, and the model untouched.
     expect(error).not.toBeNull()
     expect((await database.productState(product.id)).status).toBe(AWAITING_APPROVAL_STATUS)
-    expect(await database.stampStockMovements(IN_STOCK_STAMP_MODEL.id)).toEqual([])
+    expect(await database.stampStockDeductions(IN_STOCK_STAMP_MODEL.id)).toEqual([])
   })
 })
 
@@ -149,7 +144,7 @@ test.describe('as admin, waiting stamp product, model in stock', () => {
     // Assert — not even an admin overrides an open round: still waiting, and the model untouched.
     expect(error).not.toBeNull()
     expect((await database.productState(product.id)).status).toBe(AWAITING_APPROVAL_STATUS)
-    expect(await database.stampStockMovements(IN_STOCK_STAMP_MODEL.id)).toEqual([])
+    expect(await database.stampStockDeductions(IN_STOCK_STAMP_MODEL.id)).toEqual([])
   })
 })
 
@@ -206,16 +201,12 @@ test.describe('as admin, in progress, stamp product in pre-press, model out of s
 // ── Booking on its own ────────────────────────────────────────────────────
 
 test.describe('as employee', () => {
-  test("APR-REL-011 booking deductions past the model's stock with the shortage allowed is refused", async ({ database }) => {
+  test("APR-REL-011 booking the model's stock out by hand, around any release, is refused", async ({ database }) => {
     // Setup
     const asEmployee = await database.asUser(TEST_USERS.employee)
 
-    // Act — book straight through the deduction function, around any release.
-    const { error } = await asEmployee.rpc('book_production_deductions', {
-      deductions: DEDUCTION_PAST_IN_STOCK_MODEL,
-      note: MANUAL_DEDUCTION_NOTE,
-      allow_shortage: true,
-    })
+    // Act — book straight through the one booking function, around any release.
+    const { error } = await asEmployee.rpc('book_stock', OUTBOUND_BOOKING_OF_IN_STOCK_MODEL)
 
     // Assert — refused, and the model at its seed stock.
     expect(error).not.toBeNull()

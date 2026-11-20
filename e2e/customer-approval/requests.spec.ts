@@ -296,11 +296,11 @@ test.describe('waiting stamp product, model in stock', () => {
     // Act
     await asEmployee.rpc('settle_approval_request', { request_id: approvalRequest.id, decision: APPROVED_REQUEST_STATUS })
 
-    // Assert — the product's quantity left the model, in one movement that names the order.
+    // Assert — the product's quantity left the model, in one deduction that names the order.
     expect(await database.stampModelStock(IN_STOCK_STAMP_MODEL.id)).toBe(
       IN_STOCK_STAMP_MODEL.stock - (STAMP_PRODUCT_IN_PREPRESS_IN_STOCK.quantity ?? 0),
     )
-    expect(await database.stampStockMovements(IN_STOCK_STAMP_MODEL.id)).toEqual([
+    expect(await database.stampStockDeductions(IN_STOCK_STAMP_MODEL.id)).toEqual([
       { quantity: STAMP_PRODUCT_IN_PREPRESS_IN_STOCK.quantity, note: releaseMovementNote(order.orderNumber) },
     ])
   })
