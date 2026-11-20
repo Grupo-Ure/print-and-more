@@ -462,7 +462,7 @@ exclusive with `activeProductId`. The draft shows as a dashed row in
 `ProductList` and as its type's form where `ProductDetail` would be. It has no
 workflow header and no tabs, since assignee, status, release, PDF, time logs,
 settings and files all act on a persisted row. Save validates the type's Zod
-schema, writes parent + child, and selects the new product; Cancel drops the
+schema, saves the product through `save_product`, and selects the new product; Cancel drops the
 draft and the previous product is reselected. **The draft is derived for the
 list and nothing else** — it never enters `useProductsByOrderId`, whose data
 also drives `areAllProductsDone`, so an unsaved product cannot hold an order
@@ -540,14 +540,14 @@ open; the database, which finishes an order, never sees it either.
   a product's or file's link with its order and stamps the `action_id`: the
   entries written in one transaction share it, so an action that causes
   several entries is one action in the record. The release, force release,
-  approval and mail functions write through it, as do `cancel_order` and
-  one history trigger per table on `orders`, `products`, `files`,
-  `product_files`, `product_time_logs` and `customers`: a record created
-  keeps its full content (`meta.after`), a value changed its field, previous
-  and next value (`meta.field` / `previous` / `next`), a cancellation the
-  content as it stood (`meta.before`). The client still inserts the product
-  save's entries (`PRODUCT_CREATED`, `PRODUCT_UPDATED`; `historyService`)
-  until that moves into the database (the stream is
+  approval and mail functions write through it, as do `cancel_order`,
+  `save_product`, `duplicate_order` and one history trigger per table on
+  `orders`, `products`, `files`, `product_files`, `product_time_logs` and
+  `customers`: a record created keeps its full content (`meta.after`), a
+  value changed its field, previous and next value (`meta.field` /
+  `previous` / `next`), a product's spec changed the full content before and
+  after (`meta.before` / `meta.after`), a cancellation the content as it
+  stood (`meta.before`). The client writes no entry (the stream is
   [.plans/TRANSACTION_RECORD.md](.plans/TRANSACTION_RECORD.md)). An entry
   lives exactly as long as its record: a deletion writes no entry, and what
   may still be deleted — a product in setup, a file, a file's link to a
@@ -639,9 +639,14 @@ and the `isSingleChildProductType` guard for callers that can see either
 shape. [`productService`](src/services/productService.ts) is the only product
 service and owns both halves: the workflow (`setStatus`, `cancel`,
 `listProductionProducts`) and the spec
-(`getLoadedByOrderId` / `getLoadedById`, `createProduct` / `updateProduct` —
-a TS two-step, insert/update parent then children, no RPC —, `deleteProduct`
-(cascade) and the `product_files` helpers). Validation is **one Zod schema per
+(`getLoadedByOrderId` / `getLoadedById`, `saveProduct`, `deleteProduct`
+(cascade) and the `product_files` helpers). A product is created and its
+spec changed through the `save_product` RPC only — parent, children and the
+history entry in one transaction, the children replaced by the rows handed
+in; the database refuses an app role's direct insert into `products`, a
+direct write to its spec columns (`department`, `type`, `quantity`, `notes`)
+and any direct write to a child table, and `save_product` itself refuses a
+product on a closed order or one awaiting approval, in production or done. Validation is **one Zod schema per
 product type** under [src/lib/products/schemas/](src/lib/products/schemas/),
 registered in [`registry.ts`](src/lib/products/registry.ts) (`SCHEMA_BY_TYPE`
 covers all 31 types; `validateProduct` is the single entry point). Each
@@ -807,7 +812,9 @@ The rules live in one place each:
   selected products incl. their typed child by `type`, their `product_files`,
   and a textile batch's garment lines and designs) in one transaction; called
   from [`DuplicateDialog`](src/components/DuplicateDialog.tsx). Workflow state
-  is not carried over — the copies start in setup.
+  is not carried over — the copies start in setup. The copy is recorded as a
+  new order: its `ORDER_CREATED` and a `PRODUCT_CREATED` per product, as one
+  action.
 - **Record protection** (GoBD) — a record once in processing is neither
   deleted nor silently altered, and the database is what holds that: one
   `fn_refuse_*_record_change` guard per table (`orders`, `products`,
