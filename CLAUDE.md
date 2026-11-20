@@ -550,7 +550,9 @@ open; the database, which finishes an order, never sees it either.
   value changed its field, previous and next value (`meta.field` /
   `previous` / `next`), a product's spec changed the full content before and
   after (`meta.before` / `meta.after`), a cancellation the content as it
-  stood (`meta.before`). The client writes no entry (the stream is
+  stood (`meta.before`). The client writes no entry and cannot: no app
+  role may insert into `history`, so a change whose entry cannot be written
+  does not happen (the stream is
   [.plans/TRANSACTION_RECORD.md](.plans/TRANSACTION_RECORD.md)). An entry
   lives exactly as long as its record: a deletion writes no entry, and what
   may still be deleted — a product in setup, a file, a file's link to a
