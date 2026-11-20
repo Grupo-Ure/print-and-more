@@ -3,8 +3,9 @@ import type { Database } from '../types/supabase'
 type HistoryEvent = Database['public']['Enums']['history_event']
 
 /**
- * A short name per history event, for picking one (the History tab's event
- * filter). The entries themselves read as sentences, built in `OrderHistory`.
+ * A short name per history event, for picking one (the event filter of the
+ * order's History tab and of the History page). The entries themselves read as
+ * sentences, built in `historySentences`.
  */
 export const HISTORY_EVENT_LABELS: Record<HistoryEvent, string> = {
   ORDER_CREATED: 'Order created',
