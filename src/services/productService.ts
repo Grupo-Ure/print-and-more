@@ -1,13 +1,7 @@
 import { supabase } from '../supabase'
 import type { RealtimeChannel } from '@supabase/supabase-js'
-import type { Database, TablesInsert, TablesUpdate } from '../types/supabase'
-import type {
-  ChildTable,
-  LoadedProduct,
-  ProductWriteInput,
-  TextileDesignInsert,
-  TextileGarmentLineInsert,
-} from '../types/product'
+import type { Database, Json, TablesInsert, TablesUpdate } from '../types/supabase'
+import type { ChildTable, LoadedProduct, ProductWriteInput } from '../types/product'
 import { childTableForType, isProductType, isSingleChildProductType, TEXTILE_PRODUCT_TYPE } from '../types/product'
 import type {
   DeliveryChoice,
@@ -118,8 +112,8 @@ export type StampModelUsage = { modelId: string; quantity: number }
 
 // --- generic child-table helpers --------------------------------------------
 // `.from()` needs a literal table to infer the row type; the table here is a
-// runtime union, so the builder is cast. Payloads are built type-safely upstream
-// (ProductChildInsert), so this is the only place dynamic dispatch loses typing.
+// runtime union, so the builder is cast. The child tables are only read here:
+// they are written by `save_product`, and the database refuses a direct write.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function childTable(table: ChildTable): any {
   return supabase.from(table as never)
@@ -132,21 +126,6 @@ async function fetchChildren(table: ChildTable, ids: string[]): Promise<Record<s
   return (data ?? []) as Record<string, unknown>[]
 }
 
-async function insertChild(table: ChildTable, payload: Record<string, unknown>): Promise<void> {
-  const { error } = await childTable(table).insert(payload)
-  if (error) throw error
-}
-
-async function updateChild(table: ChildTable, id: string, payload: Record<string, unknown>): Promise<void> {
-  const { error } = await childTable(table).update(payload).eq('product_id', id)
-  if (error) throw error
-}
-
-async function deleteChild(table: ChildTable, id: string): Promise<void> {
-  const { error } = await childTable(table).delete().eq('product_id', id)
-  if (error) throw error
-}
-
 /**
  * One usage entry per row that actually references a model. A null model
  * reference yields nothing; a missing quantity counts as 1 — the same default
@@ -156,31 +135,6 @@ function toStampModelUsage(modelId: string | null, quantity: number | null): Sta
   if (!modelId) return []
   const usableQuantity = quantity != null && Number.isFinite(quantity) && quantity >= 1 ? Math.floor(quantity) : 1
   return [{ modelId, quantity: usableQuantity }]
-}
-
-/** Write a textile batch's 1:n children. Replaces whatever was there. */
-async function writeTextileChildren(
-  productId: string,
-  garments: TextileGarmentLineInsert[],
-  designs: TextileDesignInsert[],
-): Promise<void> {
-  const { error: clearGarments } = await supabase.from('textile_garments').delete().eq('product_id', productId)
-  if (clearGarments) throw clearGarments
-  const { error: clearDesigns } = await supabase.from('textile_designs').delete().eq('product_id', productId)
-  if (clearDesigns) throw clearDesigns
-
-  if (garments.length > 0) {
-    const { error } = await supabase
-      .from('textile_garments')
-      .insert(garments.map(line => ({ ...line, product_id: productId })))
-    if (error) throw error
-  }
-  if (designs.length > 0) {
-    const { error } = await supabase
-      .from('textile_designs')
-      .insert(designs.map(design => ({ ...design, product_id: productId })))
-    if (error) throw error
-  }
 }
 
 class ProductService {
@@ -331,85 +285,34 @@ class ProductService {
     ) as LoadedProduct[]
   }
 
-  /** Insert parent then children (TS two-step). Returns the new product id. */
-  async createProduct(input: ProductWriteInput): Promise<string> {
-    const { data: parent, error } = await supabase
-      .from('products')
-      // Cast: `product_number` is NOT NULL with no default, so the generated
-      // Insert type demands it — but trg_product_number assigns it and the
-      // client must never set it.
-      .insert({
-        order_id: input.order_id,
-        department: input.department as Department,
-        type: input.type,
-        quantity: input.quantity,
-        notes: input.notes,
-        sort_order: input.sort_order,
-      } as TablesInsert<'products'>)
-      .select('id')
-      .single()
+  /**
+   * Create a product or change its specification through `save_product`: the
+   * parent row, its children and the history entry in one transaction. An
+   * `id` on the input means a change. The rows are the ones the type's schema
+   * mapped from the form; the database replaces the children with them and
+   * records the save (PRODUCT_CREATED / PRODUCT_UPDATED). Returns the
+   * product's id.
+   */
+  async saveProduct(input: ProductWriteInput): Promise<string> {
+    const product = {
+      ...(input.id ? { id: input.id } : {}),
+      order_id: input.order_id,
+      department: input.department,
+      type: input.type,
+      quantity: input.quantity,
+      notes: input.notes,
+      sort_order: input.sort_order,
+    }
+    // Cast: the rows are typed upstream (ProductChildInsert, the textile
+    // inserts); the function takes them as JSON.
+    const { data, error } = await supabase.rpc(
+      'save_product',
+      'child' in input
+        ? { p_product: product, p_child: input.child as Json }
+        : { p_product: product, p_garments: input.garments as Json, p_designs: input.designs as Json },
+    )
     if (error) throw error
-    const id = parent.id
-    try {
-      await this.writeChildren(id, input)
-    } catch (childError) {
-      await supabase.from('products').delete().eq('id', id)
-      throw childError
-    }
-    return id
-  }
-
-  /** Update parent + children. If `type` changed, the child moves to a new table. */
-  async updateProduct(id: string, input: ProductWriteInput): Promise<void> {
-    const { data: old, error: readError } = await supabase
-      .from('products')
-      .select('type')
-      .eq('id', id)
-      .single()
-    if (readError) throw readError
-
-    const { error: parentError } = await supabase
-      .from('products')
-      .update({
-        type: input.type,
-        quantity: input.quantity,
-        notes: input.notes,
-        sort_order: input.sort_order,
-      })
-      .eq('id', id)
-    if (parentError) throw parentError
-
-    if (old.type !== input.type) {
-      // The old child no longer belongs to this type: drop it, then write the new one.
-      if (isSingleChildProductType(old.type)) {
-        await deleteChild(childTableForType(old.type), id)
-      } else {
-        await writeTextileChildren(id, [], [])
-      }
-      await this.writeChildren(id, input)
-      return
-    }
-    await this.writeChildren(id, input, { replaceExisting: true })
-  }
-
-  /** Dispatch a write to the 1:1 child table or to textile's 1:n children. */
-  private async writeChildren(
-    id: string,
-    input: ProductWriteInput,
-    opts: { replaceExisting?: boolean } = {},
-  ): Promise<void> {
-    if ('child' in input) {
-      const table = childTableForType(input.type)
-      if (opts.replaceExisting) {
-        await updateChild(table, id, input.child as Record<string, unknown>)
-      } else {
-        await insertChild(table, { ...input.child, product_id: id })
-      }
-      return
-    }
-    // Textile lines and designs are always written wholesale — the grid edits
-    // them as one set, so reconciling row by row would buy nothing.
-    await writeTextileChildren(id, input.garments, input.designs)
+    return data
   }
 
   /** Delete the product; its children and file links cascade. */

@@ -1,7 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { productService, type ProductFileAssignment } from '../services/productService'
-import { historyService } from '../services/historyService'
 import { productionReleaseService } from '../services/productionReleaseService'
 import { resolveEffectiveProduct } from '../lib/productShared'
 import type { LoadedProduct, ProductWriteInput } from '../types/product'
@@ -148,11 +147,11 @@ export function useEffectiveProduct(
  * Create-or-update a product and reconcile its file links in one unit, then
  * reload the authoritative product + file lists and patch both caches.
  *
- * The file reconcile is an add/remove diff (not the legacy remove-all-then-
- * re-add). `createProduct` only returns the new id, so we can't reconstruct the
- * row from the mutation return — hence the reload before the cache patch. A
- * textile batch's garment lines and designs are part of the product write
- * itself; the service replaces them wholesale.
+ * The product write is one call (`save_product`): parent, children — a textile
+ * batch's garment lines and designs included — and the history entry, in one
+ * transaction. The file reconcile follows as an add/remove diff, each link
+ * recorded by the database. The save returns only the id, hence the reload
+ * before the cache patch.
  */
 export function useSaveProduct() {
   const queryClient = useQueryClient()
@@ -162,9 +161,8 @@ export function useSaveProduct() {
     { input: ProductWriteInput; fileIds: string[]; orderId: string }
   >({
     mutationFn: async ({ input, fileIds, orderId }) => {
-      // 1. Product write (create or update).
-      const productId = input.id ?? (await productService.createProduct(input))
-      if (input.id) await productService.updateProduct(input.id, input)
+      // 1. Product write (create or change), recorded by the database.
+      const productId = await productService.saveProduct(input)
 
       // 2. File-link diff against the product's current assignments.
       const existing = input.id ? await productService.getFilesByProductIds([input.id]) : []
@@ -184,26 +182,14 @@ export function useSaveProduct() {
       const files = await productService.getFilesByProductIds(products.map(product => product.id))
       return { productId, products, files }
     },
-    onSuccess: ({ productId, products, files }, { input, orderId }) => {
+    onSuccess: ({ productId, products, files }, { orderId }) => {
       // A released product's spec is locked by the database (MKS-88), so an
       // edit that reaches here was on an open product — nothing to bounce.
       queryClient.setQueryData(productKeys.byOrderId(orderId), products)
       queryClient.setQueryData(productKeys.filesByOrderId(orderId), files)
       invalidateOrderLists(queryClient)
       void queryClient.invalidateQueries({ queryKey: stockAvailabilityKeys.byProductId(productId) })
-
-      const saved = products.find(product => product.id === productId)
-      void historyService.tryWriteHistory({
-        order_id: orderId,
-        product_id: productId,
-        event_type: input.id ? 'PRODUCT_UPDATED' : 'PRODUCT_CREATED',
-        meta: {
-          product_number: saved?.product_number ?? null,
-          department: input.department,
-          type: input.type,
-          quantity: input.quantity,
-        },
-      })
+      void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
     },
   })
 }
