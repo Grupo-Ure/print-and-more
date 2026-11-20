@@ -3,6 +3,7 @@ import { OrderWorkspace } from './pages/OrderWorkspace'
 import { ProductionPage } from './pages/ProductionPage'
 import { StampStockPage } from './pages/StampStockPage'
 import { TextileStockPage } from './pages/TextileStockPage'
+import { HistoryPage } from './pages/HistoryPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { ReleaseNotesPage } from './pages/ReleaseNotesPage'
@@ -24,6 +25,8 @@ function ActiveView({ view }: { view: AppView }) {
       return <StampStockPage />
     case 'textileStock':
       return <TextileStockPage />
+    case 'history':
+      return <HistoryPage />
     case 'settings':
       return <SettingsPage />
     case 'profile':

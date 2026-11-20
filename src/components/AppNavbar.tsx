@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { LucideIcon } from 'lucide-react'
-import { ClipboardList, Factory, Settings, Shirt, Stamp } from 'lucide-react'
+import { ClipboardList, Factory, History, Settings, Shirt, Stamp } from 'lucide-react'
 import { authService } from '../services/authService'
 import { useIsAdmin } from '../queries/userQueries'
 import { NavbarUserMenu } from './NavbarUserMenu'
@@ -22,10 +22,11 @@ const EVERYONE_ITEMS: NavItem[] = [
   { view: 'production', label: 'Production', icon: Factory },
 ]
 
-/** Admins (super admins included): stock and the settings page. */
+/** Admins (super admins included): stock, the whole history and the settings page. */
 const ADMIN_ITEMS: NavItem[] = [
   { view: 'stampStock', label: 'Stamp stock', icon: Stamp },
   { view: 'textileStock', label: 'Textile stock', icon: Shirt },
+  { view: 'history', label: 'History', icon: History },
   { view: 'settings', label: 'Settings', icon: Settings },
 ]
 

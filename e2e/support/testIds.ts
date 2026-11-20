@@ -726,6 +726,44 @@ export const TEST_IDS = {
     },
   },
 
+  /** The admins' History page: every entry, whatever it concerns. */
+  historyPage: {
+    root: 'history-page',
+    list: 'history-page-list',
+    /** One per entry; `data-event-type` = history_event, `data-history-id` = history.id. */
+    item: 'history-page-item',
+    /** What the entry concerns, beside its sentence; `data-record-kind` = order | customer | stockItem | file. */
+    record: 'history-page-record',
+    empty: 'history-page-empty',
+    /** Shown instead of the list while the filters leave no entry. */
+    noMatch: 'history-page-no-match',
+    filters: {
+      /** The date range trigger; `data-from` / `data-to` = the range, `YYYY-MM-DD`. */
+      dateRange: 'history-page-filter-date-range',
+      /** The range calendar's popover. */
+      dateRangeCalendar: 'history-page-filter-date-range-calendar',
+      /** The person picker; `data-value` = the user id while one is picked. */
+      user: 'history-page-filter-user',
+      userAll: 'history-page-filter-user-all',
+      /** One per user; `data-user-id`. */
+      userOption: 'history-page-filter-user-option',
+      /** `data-value` = the history_event while one is picked. */
+      event: 'history-page-filter-event',
+      eventAll: 'history-page-filter-event-all',
+      /** One per event type; `data-event-type`. */
+      eventOption: 'history-page-filter-event-option',
+      /** The record picker; `data-value` = the record id, `data-record-kind` = its kind, while one is picked. */
+      record: 'history-page-filter-record',
+      /** The search field in the record picker's popover. */
+      recordSearch: 'history-page-filter-record-search',
+      recordAll: 'history-page-filter-record-all',
+      /** One per record found; `data-record-id`, `data-record-kind`. */
+      recordOption: 'history-page-filter-record-option',
+      /** Clears every filter; shown while one is set. */
+      clear: 'history-page-filter-clear',
+    },
+  },
+
   releaseNotesPage: {
     root: 'release-notes-page',
     /** One per feature line, in the sidebar; `data-line` = the line (e.g. "1.10"). */
