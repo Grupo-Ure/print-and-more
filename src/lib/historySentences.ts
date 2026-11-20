@@ -60,6 +60,18 @@ function settingValueText(field: string, value: unknown): string | null {
   return labels[raw] ?? raw
 }
 
+/** CUSTOMER_UPDATED meta.field → the word used in the sentence. */
+const CUSTOMER_FIELD_LABELS: Record<string, string> = {
+  name: 'name',
+  email: 'email',
+  phone: 'phone',
+  note: 'note',
+  street: 'street',
+  house_number: 'house number',
+  postal_code: 'postal code',
+  city: 'city',
+}
+
 /** A file's name from the entry: kept on the entry itself, or in the file row it was created with (meta.after). */
 export function historyFileName(meta: Record<string, unknown> | null): string {
   if (typeof meta?.display_name === 'string') return meta.display_name
@@ -180,6 +192,37 @@ export function historySegments(
       // one entry per stock item.
       const quantity = typeof meta?.quantity === 'number' ? `${meta.quantity} × ` : ''
       return [`${quantity}${stockItemLabel(entry)} taken from stock for `, product]
+    }
+    case 'STOCK_BOOKED': {
+      // A booking by hand on a stock page; the item is named beside the sentence.
+      const quantity = typeof meta?.quantity === 'number' ? meta.quantity : null
+      const booked = meta?.direction === 'INBOUND' ? ' booked in ' : ' booked out '
+      const counts =
+        typeof meta?.stock_before === 'number' && typeof meta?.stock_after === 'number'
+          ? ` (stock ${meta.stock_before} → ${meta.stock_after})`
+          : ''
+      const note: Segment[] = typeof meta?.note === 'string' && meta.note ? [': ', { kind: 'quote', text: meta.note }] : []
+      return [actor, booked, quantity !== null ? `${quantity}` : 'stock', counts, ...note]
+    }
+    case 'CUSTOMER_CREATED':
+      return [actor, ' created the customer']
+    case 'CUSTOMER_UPDATED': {
+      // One entry per changed field; the customer is named beside the sentence.
+      const field = typeof meta?.field === 'string' ? meta.field : null
+      if (field === 'is_archived') {
+        return [actor, meta?.next === true ? ' archived the customer' : ' restored the customer']
+      }
+      const fieldLabel = (field && CUSTOMER_FIELD_LABELS[field]) ?? field?.replace(/_/g, ' ') ?? 'data'
+      const previous = typeof meta?.previous === 'string' && meta.previous ? meta.previous : null
+      const next = typeof meta?.next === 'string' && meta.next ? meta.next : null
+      if (!next) return [actor, ` cleared the customer's ${fieldLabel}`, ...(previous ? [' (was ', { kind: 'quote', text: previous } as Segment, ')'] : [])]
+      return [
+        actor,
+        ` changed the customer's ${fieldLabel}`,
+        ...(previous ? [' from ', { kind: 'quote', text: previous } as Segment] : []),
+        ' to ',
+        { kind: 'quote', text: next },
+      ]
     }
     case 'CUSTOMER_APPROVAL_ACTIVATED':
       return [actor, ' requested customer approval for ', product]
