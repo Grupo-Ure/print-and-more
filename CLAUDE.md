@@ -230,9 +230,10 @@ process, so they are edited as that process changes.
 change), the top [`AppNavbar`](src/components/AppNavbar.tsx), and the active
 view. There is **no router**: the view and the active order/product selection
 live in [`navigation.context.tsx`](src/context/navigation.context.tsx)
-(`AppView`: `orders`, `production`, `stampStock`, `textileStock`, `settings`,
-`profile`, `releaseNotes`). Orders and production are for everyone; the stock
-views and settings are admin-only, and the user-management section inside
+(`AppView`: `orders`, `production`, `stampStock`, `textileStock`, `history`,
+`settings`, `profile`, `releaseNotes`). Orders and production are for everyone;
+the stock views, the history page and settings are admin-only, and the
+user-management section inside
 settings is super-admin only.
 
 ### The orders view
@@ -405,6 +406,14 @@ action id with the step that caused it.
 stock entries of `history`);
 `TextileStockPage` ([src/pages/TextileStockPage.tsx](src/pages/TextileStockPage.tsx))
 — textile master data (brand → model → variant) and variant stock;
+`HistoryPage` ([src/pages/HistoryPage.tsx](src/pages/HistoryPage.tsx)) —
+every `history` entry, the customer entries and stock bookings that have no
+order included, newest first and loaded a page at a time
+(`historyService.listEntries`, `useHistoryFeed`), narrowed in the database by
+date range, person, event and record (an order, a customer — its own entries
+and its orders' —, a stock item or a file, found through one search); each
+line names its record beside the sentence, and an order or product number
+opens it in the orders view;
 `SettingsPage` ([src/pages/SettingsPage.tsx](src/pages/SettingsPage.tsx)) —
 a fixed, always-visible section list on the left and the active section on
 the right: *User management* (super admins;
@@ -561,7 +570,10 @@ open; the database, which finishes an order, never sees it either.
   refused; a customer, a stock item or a user named on an entry cannot be
   deleted. Every employee reads the entries of an order; an entry
   with no order link is an admin's to read. Shown on the order's *History*
-  tab (`OrderHistory`).
+  tab (`OrderHistory`) and, all of it, on the admins' history page
+  (`HistoryPage`); both word an entry through
+  [`historySentences`](src/lib/historySentences.ts) and render it with
+  `HistoryEntryLine`.
 - **Products** — see below (the typed per-type model).
 - **Textile master data** — `textile_brands` → `textile_models` →
   `textile_variants` (`color`, `color_hex`, `size`, `stock`, `sample_stock`,
