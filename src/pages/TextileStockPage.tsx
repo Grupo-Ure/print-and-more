@@ -15,36 +15,29 @@ export function TextileStockPage() {
 
   return (
     <StockPageShell accessDeniedDescription="Stock management requires an admin account.">
-      {session => (
-        <TextileStockProvider>
-          {view === 'STOCK' && (
-            <TextileStockList
-              userId={session.user.id}
-              onOpenMasterData={() => setView('MASTER_DATA')}
-            />
-          )}
-          {view === 'MASTER_DATA' && (
-            // pt-3 stands in for the top padding the shell leaves to the
-            // sticky toolbar on the stock view.
-            <div className="pt-3">
-              <div className="mb-3 flex items-center gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  data-testid={TEST_IDS.textileStock.backToStock}
-                  onClick={() => setView('STOCK')}
-                >
-                  <ArrowLeft />
-                  Back to stock
-                </Button>
-                <h2 className="m-0 text-base">Manage brands and models</h2>
-              </div>
-              <TextileMasterData />
+      <TextileStockProvider>
+        {view === 'STOCK' && <TextileStockList onOpenMasterData={() => setView('MASTER_DATA')} />}
+        {view === 'MASTER_DATA' && (
+          // pt-3 stands in for the top padding the shell leaves to the
+          // sticky toolbar on the stock view.
+          <div className="pt-3">
+            <div className="mb-3 flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                data-testid={TEST_IDS.textileStock.backToStock}
+                onClick={() => setView('STOCK')}
+              >
+                <ArrowLeft />
+                Back to stock
+              </Button>
+              <h2 className="m-0 text-base">Manage brands and models</h2>
             </div>
-          )}
-        </TextileStockProvider>
-      )}
+            <TextileMasterData />
+          </div>
+        )}
+      </TextileStockProvider>
     </StockPageShell>
   )
 }

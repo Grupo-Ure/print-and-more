@@ -15,14 +15,15 @@ export type StockBooking = {
 
 /**
  * Per-row booking state (quantity input, validation, busy flag, error) shared
- * by the stamp and textile stock tables. `performBooking` does the actual
- * writes; on success the input is cleared.
+ * by the stamp and textile stock tables. `performBooking` sends the booking;
+ * the database computes the new stock and refuses one past what is available,
+ * which the check here only spares a round trip. On success the input is
+ * cleared.
  */
 export function useStockBooking(
   performBooking: (args: {
     itemId: string
     quantity: number
-    nextStock: number
     type: 'INBOUND' | 'OUTBOUND'
   }) => Promise<void>,
 ): StockBooking {
@@ -60,7 +61,7 @@ export function useStockBooking(
     }
     setBusyId(item.id)
     try {
-      await performBooking({ itemId: item.id, quantity, nextStock, type })
+      await performBooking({ itemId: item.id, quantity, type })
       setQuantities(previous => ({ ...previous, [item.id]: '' }))
     } catch (error) {
       setErrors(previous => ({
