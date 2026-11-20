@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { errorToString } from '../../lib/errorToString'
 import { useStampMovements } from '../../queries/stampStockQueries'
+import { stockMovementFields } from '../../services/stockService'
 import { MovementsView, type StockMovementEntry } from '../stock/MovementsView'
 import { useStampStockUi } from './useStampStockUi'
 
@@ -16,14 +17,12 @@ export function StampMovements() {
 
   const movements = useMemo<StockMovementEntry[]>(
     () =>
-      (movementsQuery.data ?? []).map(movement => ({
-        id: movement.id,
-        created_at: movement.created_at,
-        itemLabel: movement.stamp_models?.name ?? '',
-        type: movement.type,
-        quantity: movement.quantity,
-        note: movement.note,
-        user_id: movement.user_id,
+      (movementsQuery.data ?? []).map(entry => ({
+        id: entry.id,
+        created_at: entry.created_at,
+        itemLabel: entry.stamp_models?.name ?? '',
+        ...stockMovementFields(entry),
+        user_id: entry.user_id,
       })),
     [movementsQuery.data],
   )
