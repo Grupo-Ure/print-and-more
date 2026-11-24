@@ -6,7 +6,6 @@ import {
   POSTER_PRODUCT,
   PRODUCT_IN_PREPRESS,
   PRODUCT_DONE,
-  PRODUCT_DELETED_HISTORY_EVENT,
   PRODUCT_CANCELLED_HISTORY_EVENT,
   firstTestProductNumber,
 } from '../../fixtures/products'
@@ -93,19 +92,19 @@ test.describe('in progress, its only product done', () => {
   })
 })
 
-test('PRD-ADD-006 deleting a product in setup removes it from the order and writes no history entry', async ({ ordersPage, product }) => {
+test('PRD-ADD-006 deleting a product in setup removes it from the order entirely', async ({ ordersPage, product }) => {
   // Setup — the product open; the default quote seed holds it in setup.
   await ordersPage.openProduct(product)
 
-  // Act — delete it and confirm, then open the history.
+  // Act — delete it and confirm, then open the history's product filter.
   await ordersPage.details.productDetail.deleteButton.click()
   await ordersPage.confirmDialog.confirm.click()
   await ordersPage.details.historyTab.click()
+  await ordersPage.details.history.productFilter.click()
 
-  // Assert — the product is gone from the list, and a deletion is not an
-  // entry: the history records nothing of it.
-  await expect(ordersPage.details.productList.row(product.id)).toHaveCount(0)
-  await expect(ordersPage.details.history.ofType(PRODUCT_DELETED_HISTORY_EVENT)).toHaveCount(0)
+  // Assert — the filter offers every product the order still has, a cancelled
+  // one struck through; a deleted product is not among them.
+  await expect(ordersPage.details.history.productOption(product.id)).toHaveCount(0)
 })
 
 test.describe('in progress, product in pre-press', () => {
