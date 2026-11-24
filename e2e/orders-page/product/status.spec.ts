@@ -179,8 +179,11 @@ test.describe('in progress, product in production', () => {
 test.describe('in progress, OTHER product, pre-press default set', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: OTHER_PRODUCT, departmentDefaultSeed: ADMIN_AS_PREPRESS_DEFAULT })
 
-  test('PRD-STA-011 the product promoted to pre-press is assigned to the pre-press default', async ({ ordersPage, product, departmentDefault }) => {
-    // Setup — the product open; it is promoted on the way.
+  // `departmentDefault` is listed before `product` on purpose: Playwright sets
+  // fixtures up in parameter order, and the database promotes the product the
+  // moment it is inserted — the slot has to be filled by then.
+  test('PRD-STA-011 the product promoted to pre-press is assigned to the pre-press default', async ({ ordersPage, departmentDefault, product }) => {
+    // Setup — the product open; the database promoted it when it was seeded.
     await ordersPage.openProduct(product)
 
     // Assert — the pre-press default holds it.
