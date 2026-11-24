@@ -12,6 +12,7 @@
 import type { Page } from '@playwright/test'
 import { addDays, format } from 'date-fns'
 import type { DefaultAssigneeStatus, DeliveryChoice, Department, OrderStatus, PaymentMethod } from '../../src/types/database'
+import type { Database } from '../../src/types/supabase'
 import { test as base } from './auth'
 import { NEW_CUSTOMER, TEST_CUSTOMER, type TestCustomer } from './customers'
 import { OTHER_PRODUCT } from './products'
@@ -28,6 +29,8 @@ import type { ProductSeed, TestCustomerRow, TestFile, TestOrder, TestProduct } f
 import { NavbarPOM } from '../pom/NavbarPOM'
 import { OrdersPOM } from '../pom/OrdersPOM'
 
+type HistoryEvent = Database['public']['Enums']['history_event']
+
 /** The status every order starts in, however it was created. */
 export const NEW_ORDER_STATUS: OrderStatus = 'QUOTE'
 
@@ -39,6 +42,9 @@ export const FINISHED_STATUS: OrderStatus = 'FINISHED'
 
 /** The terminal status "Mark as invoiced" (invoice) or "Finish & close" (cash) moves an order to. */
 export const BILLED_STATUS: OrderStatus = 'BILLED'
+
+/** The history entry the database writes when an order is created. */
+export const ORDER_CREATED_HISTORY_EVENT: HistoryEvent = 'ORDER_CREATED'
 
 /**
  * The deadline a new order is created with — one week from today. Produced at
