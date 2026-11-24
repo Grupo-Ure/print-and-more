@@ -4,7 +4,7 @@ import {
   BILLED_WITHIN_RETENTION_ORDER,
   FINISHED_ORDER,
   FINISHED_STATUS,
-  IN_PROGRESS_ORDER,
+  IN_PROGRESS_ORDER_WITHOUT_DEADLINE,
   IN_PROGRESS_STATUS,
   expect,
   test,
@@ -201,8 +201,10 @@ test.describe('as admin, billed order', () => {
 
 // ── An order in progress: released work is the record, setup is not ───────
 
-test.describe('as admin, in progress order, one product in production and one in setup, a file linked to each', () => {
-  test.use({ orderSeed: IN_PROGRESS_ORDER, productSeeds: [[PRODUCT_IN_PRODUCTION, OTHER_PRODUCT], { scope: 'test' }] })
+// Without a deadline the database holds the second product in setup; with one
+// it would promote it to pre-press the moment it is inserted.
+test.describe('as admin, in progress order without a deadline, one product in production and one in setup, a file linked to each', () => {
+  test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, productSeeds: [[PRODUCT_IN_PRODUCTION, OTHER_PRODUCT], { scope: 'test' }] })
 
   test('CMP-LOCK-014 deleting the order is refused', async ({ database, order, products }) => {
     // Setup — the order holds released work; the admin's connection.
