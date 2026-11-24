@@ -39,6 +39,7 @@ e2e/
 ├─ auth/                          sign-in, navigation per role
 ├─ orders-page/
    ├─ sidebar.spec.ts             list → select → details
+   ├─ live-refresh.spec.ts        the view following the database: a change written outside the app shows in the header, the product list and the sidebar without a reload
    ├─ order/                      the order feature
    │   ├─ new-order.spec.ts
    │   ├─ header.spec.ts          what the header shows of the order and its customer, and the copy buttons

@@ -607,6 +607,18 @@ export class TestDatabase {
     return { id: data.id, orderNumber: data.order_number, customerId }
   }
 
+  /** Sets the order's deadline behind the app's back, as another user saving the settings row would. */
+  async updateOrderDeadline(orderId: string, deadline: string): Promise<void> {
+    const { error } = await this.client.from('orders').update({ deadline }).eq('id', orderId)
+    if (error) throw error
+  }
+
+  /** Moves the order to a status behind the app's back, as another user's lifecycle step would. */
+  async updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
+    const { error } = await this.client.from('orders').update({ status }).eq('id', orderId)
+    if (error) throw error
+  }
+
   /** Deletes the order with its history; products and files follow by cascade. The customer stays. */
   async removeOrder(orderId: string): Promise<void> {
     // The order's approval rounds go first. Deleting the order cascades to its
