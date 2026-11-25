@@ -173,7 +173,10 @@ export type OrderState = Pick<
 >
 
 /** A product's workflow columns, as much of them as a spec reads back after a refused or an allowed write. */
-export type ProductState = Pick<Database['public']['Tables']['products']['Row'], 'status' | 'quantity' | 'deadline' | 'assignee_id'>
+export type ProductState = Pick<
+  Database['public']['Tables']['products']['Row'],
+  'status' | 'quantity' | 'deadline' | 'assignee_id' | 'is_cancelled'
+>
 
 /** One history entry's product, reason and details, for what an event recorded. */
 export type HistoryEntryRow = Pick<Database['public']['Tables']['history']['Row'], 'product_id' | 'reason' | 'meta'>
@@ -285,6 +288,21 @@ export class TestDatabase {
     const { error } = await this.client.from('users').update({ is_developer: isDeveloper }).eq('id', userId)
     if (error) throw error
     return userId
+  }
+
+  /** Whether the login's row in `users` is still there. */
+  async userExists(user: TestUser): Promise<boolean> {
+    return (await this.findUserId(user.email)) !== null
+  }
+
+  /**
+   * Deletes the login's row in `users` alone, as the cascade from deleting the
+   * account would. The database's answer is returned, not thrown, since
+   * refusing is a case.
+   */
+  async deleteUserRow(user: TestUser): Promise<{ error: { code: string } | null }> {
+    const { error } = await this.client.from('users').delete().eq('email', user.email)
+    return { error }
   }
 
   // ── Customer approval settings ───────────────────────────────────────────
@@ -544,6 +562,15 @@ export class TestDatabase {
     if (error) throw error
   }
 
+  /** Stamps a bounce onto the customer's current address, as the email webhook does when a mail to it bounces. */
+  async stampCustomerEmailBounced(customerId: string): Promise<void> {
+    const { error } = await this.client
+      .from('customers')
+      .update({ email_bounced_at: new Date().toISOString() })
+      .eq('id', customerId)
+    if (error) throw error
+  }
+
   /** Deletes the customer with every order it has (see `removeCustomers`). */
   async removeCustomer(customerId: string): Promise<void> {
     await this.removeCustomers([customerId])
@@ -607,8 +634,8 @@ export class TestDatabase {
     return { id: data.id, orderNumber: data.order_number, customerId }
   }
 
-  /** Sets the order's deadline behind the app's back, as another user saving the settings row would. */
-  async updateOrderDeadline(orderId: string, deadline: string): Promise<void> {
+  /** Sets the order's deadline behind the app's back, as another user saving the settings row would; null clears it. */
+  async updateOrderDeadline(orderId: string, deadline: string | null): Promise<void> {
     const { error } = await this.client.from('orders').update({ deadline }).eq('id', orderId)
     if (error) throw error
   }
@@ -758,7 +785,7 @@ export class TestDatabase {
   async productState(productId: string): Promise<ProductState> {
     const { data, error } = await this.client
       .from('products')
-      .select('status, quantity, deadline, assignee_id')
+      .select('status, quantity, deadline, assignee_id, is_cancelled')
       .eq('id', productId)
       .single()
     if (error) throw error
@@ -1160,6 +1187,19 @@ export class TestDatabase {
     return count ?? 0
   }
 
+  /**
+   * How many history entries are left about an order's record: those linked
+   * to the order, to one of the products or to one of the files named.
+   */
+  async historyCountAbout(orderId: string, productIds: string[], fileIds: string[]): Promise<number> {
+    const { count, error } = await this.client
+      .from('history')
+      .select('id', { count: 'exact', head: true })
+      .or(`order_id.eq.${orderId},product_id.in.(${productIds.join(',')}),file_id.in.(${fileIds.join(',')})`)
+    if (error) throw error
+    return count ?? 0
+  }
+
   /** The access token of one of the suite's logins — a user's session, as the app would present it. */
   async accessTokenOf(user: TestUser): Promise<string> {
     const client = await this.asUser(user)
@@ -1197,6 +1237,16 @@ export class TestDatabase {
     const { count, error } = await this.client.from('products').select('id', { count: 'exact', head: true }).eq('id', productId)
     if (error) throw error
     return (count ?? 0) > 0
+  }
+
+  /** How many products the order has, cancelled ones included. */
+  async productCount(orderId: string): Promise<number> {
+    const { count, error } = await this.client
+      .from('products')
+      .select('id', { count: 'exact', head: true })
+      .eq('order_id', orderId)
+    if (error) throw error
+    return count ?? 0
   }
 
   /** Whether the file row is still there. */
@@ -1252,11 +1302,20 @@ export class TestDatabase {
     return data.id
   }
 
-  /** Writes one history entry of that event onto the order, with nothing else recorded. Returns the entry's id. Removed with the order. */
-  async createHistoryEntry(orderId: string, eventType: HistoryEvent): Promise<string> {
+  /**
+   * Writes one history entry of that event onto the order, with nothing else
+   * recorded — linked to one of the order's products or files as well when
+   * `record` names it, as the database links an entry about one. Returns the
+   * entry's id. Removed with the order.
+   */
+  async createHistoryEntry(
+    orderId: string,
+    eventType: HistoryEvent,
+    record: { productId?: string; fileId?: string } = {},
+  ): Promise<string> {
     const { data, error } = await this.client
       .from('history')
-      .insert({ order_id: orderId, event_type: eventType })
+      .insert({ order_id: orderId, event_type: eventType, product_id: record.productId ?? null, file_id: record.fileId ?? null })
       .select('id')
       .single()
     if (error) throw error

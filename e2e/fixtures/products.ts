@@ -100,6 +100,22 @@ export const OTHER_PRODUCT: ProductSeed = {
   child: { description: OTHER_PRODUCT_FORM.description },
 }
 
+/**
+ * The same OTHER product as `save_product` takes it for a create: the parent's
+ * columns and the typed child row, as the app maps them from the form.
+ */
+export function otherProductSave(orderId: string) {
+  return {
+    p_product: {
+      order_id: orderId,
+      department: TEST_PRODUCT_DEPARTMENT,
+      type: 'OTHER',
+      quantity: Number(OTHER_PRODUCT_FORM.quantity),
+    },
+    p_child: { description: OTHER_PRODUCT_FORM.description },
+  }
+}
+
 /** A CopyShop product. */
 export const POSTER_PRODUCT: ProductSeed = {
   ...OTHER_PRODUCT,
