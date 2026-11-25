@@ -1,4 +1,5 @@
 import { expect, test, NEW_ORDER_STATUS, ORDER_CREATED_HISTORY_EVENT } from '../../fixtures/orders'
+import { APPROVAL_FILE } from '../../fixtures/files'
 import { OTHER_PRODUCT_FORM, PRODUCT_CREATED_HISTORY_EVENT } from '../../fixtures/products'
 import { TEST_USERS } from '../../fixtures/users'
 
@@ -74,4 +75,33 @@ test('ORD-DUP-004 duplicating the order records the copy and its product as one 
       }),
     }),
   ])
+})
+
+test.describe('product with a file attached', () => {
+  test('ORD-DUP-005 duplicating an order whose product has a file gives the copy a file of its own, attached to its product', async ({
+    ordersPage,
+    database,
+    order,
+    product,
+    orderFile,
+  }) => {
+    // Setup — the order's file attached to its product, and the original's row.
+    await database.attachFileToProduct(product.id, orderFile.id)
+    const row = ordersPage.sidebar.row(order.id)
+
+    // Act — duplicate with every product selected, and wait for the copy to open.
+    await ordersPage.sidebar.rowMenuTrigger(row).click()
+    await ordersPage.sidebar.rowMenuDuplicate.click()
+    await ordersPage.duplicateDialog.submit.click()
+    await ordersPage.details.forOrderOtherThan(order.id).waitFor()
+
+    // Assert — the copy's product has one file attached: the copy's own row, naming the same file on the share.
+    const copyId = await ordersPage.details.shownOrderId()
+    const attachedFiles = await database.attachedFiles(copyId)
+    const [copiedFile] = attachedFiles
+    expect(attachedFiles).toHaveLength(1)
+    expect(copiedFile.orderId).toBe(copyId)
+    expect(copiedFile.displayName).toBe(APPROVAL_FILE.display_name)
+    expect(copiedFile.path).toBe(APPROVAL_FILE.path)
+  })
 })
