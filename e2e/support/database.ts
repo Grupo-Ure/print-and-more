@@ -184,6 +184,9 @@ export type HistoryEntryRow = Pick<Database['public']['Tables']['history']['Row'
 /** One history entry as an action recorded it: whose it is, the action it belongs to and what it recorded. */
 export type RecordedEntryRow = Pick<Database['public']['Tables']['history']['Row'], 'user_id' | 'action_id' | 'meta'>
 
+/** One recorded change of a product's specification: its type's own fields as they stood before and after the save. */
+export type SpecChange = { before: Record<string, unknown>; after: Record<string, unknown> }
+
 /** One automatic stock deduction (a STOCK_AUTO_DEDUCTED entry), as much of it as a spec looks at. */
 export type StockDeductionRow = { quantity: number | null; note: string | null }
 
@@ -843,6 +846,12 @@ export class TestDatabase {
     if (error) throw error
   }
 
+  /** Gives the product a deadline of its own behind the app's back, as another user saving its settings would. */
+  async updateProductDeadline(productId: string, deadline: string): Promise<void> {
+    const { error } = await this.client.from('products').update({ deadline }).eq('id', productId)
+    if (error) throw error
+  }
+
   /** Hands the product to the login, as picking them in the assignee picker would. Returns the user's id. */
   async assignProduct(productId: string, user: TestUser): Promise<string> {
     const userId = await this.userId(user)
@@ -1253,6 +1262,26 @@ export class TestDatabase {
       .eq('event_type', eventType)
     if (error) throw error
     return data
+  }
+
+  /**
+   * The spec changes recorded for the order's products: one per PRODUCT_UPDATED
+   * entry, each with the type's own fields before and after (the entry's
+   * `meta.before.spec` and `meta.after.spec`).
+   */
+  async productSpecChanges(orderId: string): Promise<SpecChange[]> {
+    const { data, error } = await this.client
+      .from('history')
+      .select('meta')
+      .eq('order_id', orderId)
+      .eq('event_type', 'PRODUCT_UPDATED')
+    if (error) throw error
+    const fields = (value: unknown): Record<string, unknown> =>
+      value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
+    return data.map(({ meta }) => ({
+      before: fields(fields(fields(meta).before).spec),
+      after: fields(fields(fields(meta).after).spec),
+    }))
   }
 
   /** The action each of the order's history entries of that event belongs to. */

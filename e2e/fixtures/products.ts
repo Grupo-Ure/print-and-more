@@ -6,6 +6,7 @@ import { IN_STOCK_STAMP_MODEL, OUT_OF_STOCK_STAMP_MODEL } from './stamps'
 import { IN_STOCK_TEXTILE_CHAIN } from './textiles'
 
 type HistoryEvent = Database['public']['Enums']['history_event']
+type ProductInsert = Database['public']['Tables']['products']['Insert']
 
 /**
  * The department the suite adds products to when the department itself is not
@@ -74,6 +75,9 @@ export const FORCE_RELEASE_HISTORY_EVENT: HistoryEvent = 'EMERGENCY_TRIGGERED'
 /** The history entry the database writes for a product created — saved through the app, or copied with its order. */
 export const PRODUCT_CREATED_HISTORY_EVENT: HistoryEvent = 'PRODUCT_CREATED'
 
+/** The history entry the database writes when a product's specification is saved changed. */
+export const PRODUCT_UPDATED_HISTORY_EVENT: HistoryEvent = 'PRODUCT_UPDATED'
+
 // ── Release ───────────────────────────────────────────────────────────────
 
 /** The history entry a plain release to production writes. */
@@ -140,6 +144,20 @@ export function otherProductEdit(productId: string) {
     },
     p_child: { description: EDITED_OTHER_DESCRIPTION },
   }
+}
+
+/**
+ * The same OTHER product as a bare `products` row — what a write around
+ * `save_product` would insert. `product_number` is the database's to assign,
+ * so it is left out, as the app never sends one.
+ */
+export function otherProductRow(orderId: string): ProductInsert {
+  return {
+    order_id: orderId,
+    department: TEST_PRODUCT_DEPARTMENT,
+    type: 'OTHER',
+    quantity: Number(OTHER_PRODUCT_FORM.quantity),
+  } as ProductInsert
 }
 
 /** A CopyShop product. */
