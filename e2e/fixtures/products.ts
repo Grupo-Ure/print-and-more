@@ -69,6 +69,11 @@ export const BLANK_FORCE_RELEASE_REASON = '   '
 /** The history entry a force release writes. */
 export const FORCE_RELEASE_HISTORY_EVENT: HistoryEvent = 'EMERGENCY_TRIGGERED'
 
+// ── Creation ──────────────────────────────────────────────────────────────
+
+/** The history entry the database writes for a product created — saved through the app, or copied with its order. */
+export const PRODUCT_CREATED_HISTORY_EVENT: HistoryEvent = 'PRODUCT_CREATED'
+
 // ── Release ───────────────────────────────────────────────────────────────
 
 /** The history entry a plain release to production writes. */

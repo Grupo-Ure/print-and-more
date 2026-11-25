@@ -181,6 +181,9 @@ export type ProductState = Pick<
 /** One history entry's product, reason and details, for what an event recorded. */
 export type HistoryEntryRow = Pick<Database['public']['Tables']['history']['Row'], 'product_id' | 'reason' | 'meta'>
 
+/** One history entry as an action recorded it: whose it is, the action it belongs to and what it recorded. */
+export type RecordedEntryRow = Pick<Database['public']['Tables']['history']['Row'], 'user_id' | 'action_id' | 'meta'>
+
 /** One automatic stock deduction (a STOCK_AUTO_DEDUCTED entry), as much of it as a spec looks at. */
 export type StockDeductionRow = { quantity: number | null; note: string | null }
 
@@ -1199,6 +1202,17 @@ export class TestDatabase {
     const { data, error } = await this.client
       .from('history')
       .select('product_id, reason, meta')
+      .eq('order_id', orderId)
+      .eq('event_type', eventType)
+    if (error) throw error
+    return data
+  }
+
+  /** The order's history entries of that event, each with its user, its action and what it recorded. */
+  async recordedEntries(orderId: string, eventType: HistoryEvent): Promise<RecordedEntryRow[]> {
+    const { data, error } = await this.client
+      .from('history')
+      .select('user_id, action_id, meta')
       .eq('order_id', orderId)
       .eq('event_type', eventType)
     if (error) throw error
