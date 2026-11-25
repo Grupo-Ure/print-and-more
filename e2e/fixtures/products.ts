@@ -121,6 +121,22 @@ export function otherProductSave(orderId: string) {
   }
 }
 
+/**
+ * The same OTHER product as `save_product` takes it for a change: the saved
+ * product by its id, with the edited quantity and description.
+ */
+export function otherProductEdit(productId: string) {
+  return {
+    p_product: {
+      id: productId,
+      department: TEST_PRODUCT_DEPARTMENT,
+      type: 'OTHER',
+      quantity: EDITED_OTHER_QUANTITY,
+    },
+    p_child: { description: EDITED_OTHER_DESCRIPTION },
+  }
+}
+
 /** A CopyShop product. */
 export const POSTER_PRODUCT: ProductSeed = {
   ...OTHER_PRODUCT,

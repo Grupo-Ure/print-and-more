@@ -22,6 +22,7 @@ import {
   AWAITING_APPROVAL_STATUS,
   IN_PRODUCTION_STATUS,
   OTHER_PRODUCT,
+  otherProductEdit,
   PREPRESS_STATUS,
   PRODUCT_IN_PREPRESS,
   STAMP_PRODUCT_IN_PREPRESS_IN_STOCK,
@@ -277,6 +278,22 @@ test.describe('waiting product', () => {
     // Assert — refused, and the product still inheriting the order's.
     expect(error).not.toBeNull()
     expect((await database.productState(product.id)).deadline).toBeNull()
+  })
+
+  test("APR-REQ-018 saving the waiting product's spec through save_product is refused", async ({
+    database,
+    product,
+    approvalRequest: _waiting,
+  }) => {
+    // Setup
+    const asEmployee = await database.asUser(TEST_USERS.employee)
+
+    // Act — an edit of the spec through the one function that saves a product.
+    const { error } = await asEmployee.rpc('save_product', otherProductEdit(product.id))
+
+    // Assert — refused, and the quantity as seeded.
+    expect(error).not.toBeNull()
+    expect((await database.productState(product.id)).quantity).toBe(OTHER_PRODUCT.quantity)
   })
 })
 
