@@ -284,7 +284,9 @@ The spec names no test ID, no visible text and no selector — only page
 object members and fixture values — and it constructs nothing: the page
 object and the data both come from the fixture arguments. Every locator
 interaction sits in the Act stage; Setup holds only data and page-object
-references, and Assert holds only `expect` calls.
+references, and Assert holds only `expect` calls and the reads that name what
+they compare — a result fetched through a page-object or database read helper
+and given a name, never an action.
 
 ---
 
