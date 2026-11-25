@@ -49,6 +49,18 @@ export const ORDER_CREATED_HISTORY_EVENT: HistoryEvent = 'ORDER_CREATED'
 /** The history entry the database writes for each changed term of an order (deadline, delivery, priority, payment). */
 export const SETTINGS_CHANGED_HISTORY_EVENT: HistoryEvent = 'SETTINGS_CHANGED'
 
+/** The history entry the database writes when a quote is taken into processing. */
+export const PROCESSING_STARTED_HISTORY_EVENT: HistoryEvent = 'PROCESSING_STARTED'
+
+/** The history entry the database writes when an order is finished — on its own with its last product, or by "Mark finished". */
+export const ORDER_FINISHED_HISTORY_EVENT: HistoryEvent = 'ORDER_FINISHED'
+
+/** The history entry the database writes when a finished order is marked as invoiced. */
+export const ORDER_BILLED_HISTORY_EVENT: HistoryEvent = 'ORDER_BILLED'
+
+/** The history entry the database writes when a cash order is closed straight from in progress. */
+export const ORDER_CLOSED_CASH_HISTORY_EVENT: HistoryEvent = 'ORDER_CLOSED_CASH'
+
 /** The history entry cancelling an order writes, before the entries of what the cancel does to it. */
 export const ORDER_CANCELLED_HISTORY_EVENT: HistoryEvent = 'CANCELLED'
 

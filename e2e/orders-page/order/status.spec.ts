@@ -8,6 +8,11 @@ import {
   IN_PROGRESS_STATUS,
   FINISHED_STATUS,
   BILLED_STATUS,
+  ORDER_ARCHIVED_HISTORY_EVENT,
+  ORDER_BILLED_HISTORY_EVENT,
+  ORDER_CLOSED_CASH_HISTORY_EVENT,
+  ORDER_FINISHED_HISTORY_EVENT,
+  PROCESSING_STARTED_HISTORY_EVENT,
 } from '../../fixtures/orders'
 import { PRODUCT_DONE, PRODUCT_IN_PRODUCTION, ONE_PRODUCT_PER_DEPARTMENT, DONE_STATUS, PREPRESS_STATUS } from '../../fixtures/products'
 import { TEST_USERS } from '../../fixtures/users'
@@ -22,6 +27,20 @@ test('ORD-STA-001 starting processing a quote moves the order to in progress', a
 
   // Assert — the order is shown in progress.
   await expect(ordersPage.details.forOrder(order.id)).toHaveAttribute('data-status', IN_PROGRESS_STATUS)
+})
+
+test('ORD-STA-012 starting processing records the start in the order history', async ({ ordersPage, order }) => {
+  // Setup — the order open.
+  await ordersPage.openOrder(order.id)
+
+  // Act — start processing and confirm, then open the order's history once it is in progress.
+  await ordersPage.details.lifecycle.click()
+  await ordersPage.confirmDialog.confirm.click()
+  await ordersPage.details.inStatus(IN_PROGRESS_STATUS).waitFor()
+  await ordersPage.details.historyTab.click()
+
+  // Assert — the history shows the start, once.
+  await expect(ordersPage.details.history.ofType(PROCESSING_STARTED_HISTORY_EVENT)).toHaveCount(1)
 })
 
 test.describe('quote with deadline and delivery, one product in every department', () => {
@@ -57,6 +76,20 @@ test.describe('in progress, the only product in production', () => {
     // Assert — the product is done and the order followed it to finished.
     await expect(ordersPage.details.productList.row(product.id)).toHaveAttribute('data-status', DONE_STATUS)
     await expect(ordersPage.details.forOrder(order.id)).toHaveAttribute('data-status', FINISHED_STATUS)
+  })
+
+  test("ORD-STA-013 marking the last product done records the order's finish once in the order history", async ({ ordersPage, product }) => {
+    // Setup — the product open.
+    await ordersPage.openProduct(product)
+
+    // Act — mark the product done and confirm, then open the order's history once it has finished.
+    await ordersPage.details.productDetail.releaseButton.click()
+    await ordersPage.confirmDialog.confirm.click()
+    await ordersPage.details.inStatus(FINISHED_STATUS).waitFor()
+    await ordersPage.details.historyTab.click()
+
+    // Assert — the finish nobody clicked is on record, neither missing nor doubled.
+    await expect(ordersPage.details.history.ofType(ORDER_FINISHED_HISTORY_EVENT)).toHaveCount(1)
   })
 })
 
@@ -141,6 +174,22 @@ test.describe('finished, every product done', () => {
     await expect(ordersPage.details.forOrder(order.id)).toHaveAttribute('data-status', BILLED_STATUS)
     await expect(ordersPage.sidebar.row(order.id)).toHaveAttribute('data-status', BILLED_STATUS)
   })
+
+  test('ORD-STA-014 marking the order as invoiced records the billing and the archiving in the order history', async ({ ordersPage, order, product }) => {
+    // Setup — the order open with its done product loaded.
+    await ordersPage.openOrder(order.id)
+    await ordersPage.details.productList.row(product.id).waitFor()
+
+    // Act — mark it invoiced and confirm, then open the order's history once it is billed.
+    await ordersPage.details.lifecycle.click()
+    await ordersPage.confirmDialog.confirm.click()
+    await ordersPage.details.inStatus(BILLED_STATUS).waitFor()
+    await ordersPage.details.historyTab.click()
+
+    // Assert — the one write left two entries: the billing, and the archiving that goes with it.
+    await expect(ordersPage.details.history.ofType(ORDER_BILLED_HISTORY_EVENT)).toHaveCount(1)
+    await expect(ordersPage.details.history.ofType(ORDER_ARCHIVED_HISTORY_EVENT)).toHaveCount(1)
+  })
 })
 
 test.describe('as admin, finished, every product done', () => {
@@ -190,5 +239,21 @@ test.describe('in progress cash order, every product done', () => {
     // Assert — the order stays open and listed, now billed.
     await expect(ordersPage.details.forOrder(order.id)).toHaveAttribute('data-status', BILLED_STATUS)
     await expect(ordersPage.sidebar.row(order.id)).toHaveAttribute('data-status', BILLED_STATUS)
+  })
+
+  test('ORD-STA-015 finishing the cash order records it as closed in cash in the order history', async ({ ordersPage, order, product }) => {
+    // Setup — the order open with its done product loaded.
+    await ordersPage.openOrder(order.id)
+    await ordersPage.details.productList.row(product.id).waitFor()
+
+    // Act — finish and close it and confirm, then open the order's history once it is billed.
+    await ordersPage.details.lifecycle.click()
+    await ordersPage.confirmDialog.confirm.click()
+    await ordersPage.details.inStatus(BILLED_STATUS).waitFor()
+    await ordersPage.details.historyTab.click()
+
+    // Assert — recorded as a cash close, not as an invoice.
+    await expect(ordersPage.details.history.ofType(ORDER_CLOSED_CASH_HISTORY_EVENT)).toHaveCount(1)
+    await expect(ordersPage.details.history.ofType(ORDER_BILLED_HISTORY_EVENT)).toHaveCount(0)
   })
 })
