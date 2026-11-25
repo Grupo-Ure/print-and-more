@@ -187,6 +187,9 @@ export type RecordedEntryRow = Pick<Database['public']['Tables']['history']['Row
 /** One recorded change of a product's specification: its type's own fields as they stood before and after the save. */
 export type SpecChange = { before: Record<string, unknown>; after: Record<string, unknown> }
 
+/** A file attached to a product, as much of it as a spec looks at: the file row and the order it belongs to. */
+export type AttachedFile = { id: string; orderId: string; displayName: string; path: string }
+
 /** One automatic stock deduction (a STOCK_AUTO_DEDUCTED entry), as much of it as a spec looks at. */
 export type StockDeductionRow = { quantity: number | null; note: string | null }
 
@@ -1405,6 +1408,21 @@ export class TestDatabase {
     const { count, error } = await this.client.from('history').select('id', { count: 'exact', head: true }).eq('id', historyId)
     if (error) throw error
     return (count ?? 0) > 0
+  }
+
+  /** The files attached to the order's products: one per `product_files` link, with the file row it points at. */
+  async attachedFiles(orderId: string): Promise<AttachedFile[]> {
+    const { data, error } = await this.client
+      .from('product_files')
+      .select('products!inner(order_id), files!inner(id, order_id, display_name, path)')
+      .eq('products.order_id', orderId)
+    if (error) throw error
+    return data.map(({ files }) => ({
+      id: files.id,
+      orderId: files.order_id,
+      displayName: files.display_name,
+      path: files.path,
+    }))
   }
 
   /** How many files the product links. */
