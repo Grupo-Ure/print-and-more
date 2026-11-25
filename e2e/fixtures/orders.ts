@@ -46,6 +46,9 @@ export const BILLED_STATUS: OrderStatus = 'BILLED'
 /** The history entry the database writes when an order is created. */
 export const ORDER_CREATED_HISTORY_EVENT: HistoryEvent = 'ORDER_CREATED'
 
+/** The history entry the database writes for each changed term of an order (deadline, delivery, priority, payment). */
+export const SETTINGS_CHANGED_HISTORY_EVENT: HistoryEvent = 'SETTINGS_CHANGED'
+
 /**
  * The deadline a new order is created with — one week from today. Produced at
  * call time, never stored, like the two below.
