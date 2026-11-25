@@ -7,6 +7,7 @@ import {
   PRODUCT_IN_PREPRESS,
   PRODUCT_DONE,
   PRODUCT_CANCELLED_HISTORY_EVENT,
+  PRODUCT_CREATED_HISTORY_EVENT,
   firstTestProductNumber,
 } from '../../fixtures/products'
 
@@ -31,6 +32,34 @@ test('PRD-ADD-001 adding a product through its department form selects it in the
   await expect(productDraft.root).toHaveCount(0)
   await expect(productList.selectedRow).toBeVisible()
   await expect(productDetail.title).toContainText(productNumber)
+})
+
+test('PRD-ADD-011 adding a product records its creation in the order history, with its full specification', async ({
+  ordersPage,
+  database,
+  order,
+}) => {
+  // Setup — the order open.
+  const { productList, productDraft } = ordersPage.details
+  await ordersPage.openOrder(order.id)
+
+  // Act — save a product through the department's form, then open the order's history once the draft is gone.
+  await productList.addProduct(TEST_PRODUCT_DEPARTMENT).click()
+  await productDraft.field('description').fill(OTHER_PRODUCT_FORM.description)
+  await productDraft.field('quantity').fill(OTHER_PRODUCT_FORM.quantity)
+  await productDraft.submit.click()
+  await productDraft.root.waitFor({ state: 'detached' })
+  await ordersPage.details.historyTab.click()
+
+  // Assert — the history shows the creation, and the one entry stored holds the spec as typed.
+  await expect(ordersPage.details.history.ofType(PRODUCT_CREATED_HISTORY_EVENT)).toHaveCount(1)
+  expect(await database.recordedEntries(order.id, PRODUCT_CREATED_HISTORY_EVENT)).toEqual([
+    expect.objectContaining({
+      meta: expect.objectContaining({
+        after: expect.objectContaining({ spec: expect.objectContaining({ description: OTHER_PRODUCT_FORM.description }) }),
+      }),
+    }),
+  ])
 })
 
 test('PRD-ADD-002 the draft product is listed while it is being filled in', async ({ ordersPage, order }) => {
