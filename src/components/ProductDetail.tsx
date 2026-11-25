@@ -118,6 +118,7 @@ export function ProductDetail({
               // does not play the settle meant for assigning this one.
               key={product.id}
               testId={IDS.assignee}
+              userOptionTestId={IDS.assigneeOption}
               value={product.assignee_id}
               onChange={handleAssigneeChange}
               disabled={isDone || setProductAssignee.isPending}

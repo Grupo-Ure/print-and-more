@@ -78,6 +78,17 @@ export const PRODUCT_CREATED_HISTORY_EVENT: HistoryEvent = 'PRODUCT_CREATED'
 /** The history entry the database writes when a product's specification is saved changed. */
 export const PRODUCT_UPDATED_HISTORY_EVENT: HistoryEvent = 'PRODUCT_UPDATED'
 
+// ── Workflow steps ────────────────────────────────────────────────────────
+
+/** The history entry the database writes when it promotes a ready product to pre-press. */
+export const PREPRESS_READY_HISTORY_EVENT: HistoryEvent = 'PREPRESS_READY'
+
+/** The history entry the database writes when a product is marked done. */
+export const MARKED_DONE_HISTORY_EVENT: HistoryEvent = 'MARKED_DONE'
+
+/** The history entry the database writes when a product is sent back from production to pre-press. */
+export const RETURNED_TO_PREPRESS_HISTORY_EVENT: HistoryEvent = 'RETURNED_TO_PREPRESS'
+
 // ── Release ───────────────────────────────────────────────────────────────
 
 /** The history entry a plain release to production writes. */

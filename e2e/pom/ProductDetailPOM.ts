@@ -98,6 +98,16 @@ export class ProductDetailPOM extends BasePOM {
   }
 
   /** The product detail only while it shows this product. */
+  /** The assignee picker only while it shows this user — to wait for an assignment to land. */
+  assignedTo(userId: string): Locator {
+    return this.withAttr(this.assignee, 'data-value', userId)
+  }
+
+  /** One user's option in the open assignee picker (a portal — not scoped to the detail). */
+  assigneeOption(userId: string): Locator {
+    return this.withAttr(this.page.getByTestId(IDS.assigneeOption), 'data-user-id', userId)
+  }
+
   forProduct(productId: string): Locator {
     return this.withAttr(this.root, 'data-product-id', productId)
   }

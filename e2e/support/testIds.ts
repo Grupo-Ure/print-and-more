@@ -297,6 +297,8 @@ export const TEST_IDS = {
       root: 'product-detail',
       title: 'product-detail-title',
       assignee: 'product-detail-assignee',
+      /** One per user in the assignee picker's open list; `data-user-id`. */
+      assigneeOption: 'product-detail-assignee-option',
       assigneeHint: 'product-detail-assignee-hint',
       /** `data-status` = ProductStatus. */
       status: 'product-detail-status',
