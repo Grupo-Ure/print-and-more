@@ -184,6 +184,12 @@ export type HistoryEntryRow = Pick<Database['public']['Tables']['history']['Row'
 /** One automatic stock deduction (a STOCK_AUTO_DEDUCTED entry), as much of it as a spec looks at. */
 export type StockDeductionRow = { quantity: number | null; note: string | null }
 
+/** One stock entry (STOCK_BOOKED or STOCK_AUTO_DEDUCTED): what it is linked to, whose it is, its action and what it recorded. */
+export type StockEntryRow = Pick<
+  Database['public']['Tables']['history']['Row'],
+  'order_id' | 'product_id' | 'user_id' | 'action_id' | 'meta'
+>
+
 /** The private bucket the customer's page is served proof copies from. */
 const APPROVAL_PROOFS_BUCKET = 'approval-proofs'
 
@@ -1006,6 +1012,23 @@ export class TestDatabase {
     })
   }
 
+  /** The stamp model's stock entries of that event, in full: links, user, action and what each recorded. */
+  async stampStockEntries(modelId: string, eventType: HistoryEvent): Promise<StockEntryRow[]> {
+    const { data, error } = await this.client
+      .from('history')
+      .select('order_id, product_id, user_id, action_id, meta')
+      .eq('stamp_model_id', modelId)
+      .eq('event_type', eventType)
+    if (error) throw error
+    return data
+  }
+
+  /** Deletes the textile brand, if it is there. */
+  async removeTextileBrand(id: string): Promise<void> {
+    const { error } = await this.client.from('textile_brands').delete().eq('id', id)
+    if (error) throw error
+  }
+
   // ── Emails ───────────────────────────────────────────────────────────────
 
   /**
@@ -1174,6 +1197,17 @@ export class TestDatabase {
       .eq('event_type', eventType)
     if (error) throw error
     return data
+  }
+
+  /** The action each of the order's history entries of that event belongs to. */
+  async historyActionIds(orderId: string, eventType: HistoryEvent): Promise<(string | null)[]> {
+    const { data, error } = await this.client
+      .from('history')
+      .select('action_id')
+      .eq('order_id', orderId)
+      .eq('event_type', eventType)
+    if (error) throw error
+    return data.map(entry => entry.action_id)
   }
 
   /** How many history entries of that event the order has. */

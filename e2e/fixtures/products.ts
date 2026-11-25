@@ -69,6 +69,11 @@ export const BLANK_FORCE_RELEASE_REASON = '   '
 /** The history entry a force release writes. */
 export const FORCE_RELEASE_HISTORY_EVENT: HistoryEvent = 'EMERGENCY_TRIGGERED'
 
+// ── Release ───────────────────────────────────────────────────────────────
+
+/** The history entry a plain release to production writes. */
+export const RELEASE_HISTORY_EVENT: HistoryEvent = 'PRODUCTION_READY_SET'
+
 // ── Removal ───────────────────────────────────────────────────────────────
 
 /** The history entry cancelling a product (past setup, kept for history) writes. */
@@ -228,3 +233,20 @@ export const PRODUCT_IN_PRODUCTION: ProductSeed = { ...OTHER_PRODUCT, status: IN
 
 /** A product already done — what an order needs before it can be finished. */
 export const PRODUCT_DONE: ProductSeed = { ...OTHER_PRODUCT, status: DONE_STATUS }
+
+/** What is left of the in-stock model once `STAMP_PRODUCT_IN_PREPRESS_IN_STOCK` is released. */
+export const IN_STOCK_MODEL_STOCK_AFTER_RELEASE = IN_STOCK_STAMP_MODEL.stock - Number(IN_STOCK_STAMP_PRODUCT.quantity)
+
+/**
+ * What the deduction entry of that release records against the model: the
+ * product's quantity out, the stock around it, and the note naming the order.
+ */
+export function releaseDeductionEntry(orderNumber: string) {
+  return {
+    direction: 'OUTBOUND',
+    quantity: Number(IN_STOCK_STAMP_PRODUCT.quantity),
+    stock_before: IN_STOCK_STAMP_MODEL.stock,
+    stock_after: IN_STOCK_MODEL_STOCK_AFTER_RELEASE,
+    note: `Automatic on production release ${orderNumber}`,
+  }
+}

@@ -66,7 +66,7 @@ e2e/
 └─ customer-approval/
    ├─ requests.spec.ts            what asking, settling and withdrawing an approval request do in the database: the round, the product's status, the stock, the history, the mails, and what a waiting product refuses
    ├─ function.spec.ts            what the customer's page can do through the customer-approval function with a link's token: read the request, download a proof, decide once; a closed request serves no file, an unknown token nothing
-   ├─ release.spec.ts             what the release functions and the status guard refuse and book in the database: a direct status write, an incomplete or short product, a blocked or waiting round, a force release without the role or a reason
+   ├─ release.spec.ts             what the release functions and the status guard refuse and book in the database: a direct status write, an incomplete or short product, a blocked or waiting round, a force release without the role or a reason; the stock entry a release writes, a booking by hand and what it refuses, and who may write stock and its master data
    ├─ expiry.spec.ts              what the daily expiry run does: an overdue pending round expires, its product returns to pre-press and the shop is mailed; a round not yet due or already closed is left alone; an expired link serves no file
    └─ cleanup.spec.ts             what the daily proof purge does: a closed round's copy on an order billed past the retention leaves the bucket and its file row is stamped, so the link serves it no more; within the retention or unbilled, nothing is purged
 ```

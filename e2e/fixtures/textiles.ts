@@ -18,3 +18,10 @@ export const IN_STOCK_TEXTILE_CHAIN: TextileChainSeed = {
     stock: 5,
   },
 }
+
+/**
+ * A brand the catalog does not hold — what an employee would try to add to
+ * the stock master data. Its id is fixed so the test can remove it should the
+ * insert ever go through.
+ */
+export const NEW_TEXTILE_BRAND = { id: '00000000-0000-4000-8000-0000000e2e21', name: 'E2E Brand, added by an employee' }
