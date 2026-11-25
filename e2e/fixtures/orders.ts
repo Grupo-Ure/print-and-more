@@ -49,6 +49,12 @@ export const ORDER_CREATED_HISTORY_EVENT: HistoryEvent = 'ORDER_CREATED'
 /** The history entry the database writes for each changed term of an order (deadline, delivery, priority, payment). */
 export const SETTINGS_CHANGED_HISTORY_EVENT: HistoryEvent = 'SETTINGS_CHANGED'
 
+/** The history entry cancelling an order writes, before the entries of what the cancel does to it. */
+export const ORDER_CANCELLED_HISTORY_EVENT: HistoryEvent = 'CANCELLED'
+
+/** The history entry the database writes when an order is archived — by hand, or by its cancel. */
+export const ORDER_ARCHIVED_HISTORY_EVENT: HistoryEvent = 'ORDER_ARCHIVED'
+
 /**
  * The deadline a new order is created with — one week from today. Produced at
  * call time, never stored, like the two below.

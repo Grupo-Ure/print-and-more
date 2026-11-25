@@ -231,6 +231,9 @@ export const ONE_PRODUCT_PER_DEPARTMENT: readonly ProductSeed[] = [
 /** A product already in pre-press. */
 export const PRODUCT_IN_PREPRESS: ProductSeed = { ...OTHER_PRODUCT, status: PREPRESS_STATUS }
 
+/** Two products in pre-press, for what an order does to all of its products at once. */
+export const TWO_PRODUCTS_IN_PREPRESS: readonly ProductSeed[] = [PRODUCT_IN_PREPRESS, PRODUCT_IN_PREPRESS]
+
 /** A stamp product in pre-press whose only stock target is empty. */
 export const STAMP_PRODUCT_IN_PREPRESS_OUT_OF_STOCK: ProductSeed = {
   ...OUT_OF_STOCK_STAMP_PRODUCT,
