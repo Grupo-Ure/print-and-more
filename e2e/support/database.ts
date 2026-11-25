@@ -796,6 +796,36 @@ export class TestDatabase {
     return { id: data.id, productNumber: data.product_number, orderId, department: seed.department }
   }
 
+  /**
+   * The product's typed child row as stored, from the table its type selects;
+   * null while it has none (or the id is not a product's).
+   */
+  async productChild(childTable: ChildTable, productId: string | null): Promise<Record<string, unknown> | null> {
+    if (!productId) return null
+    // Every child table is keyed by product_id; the cast only settles which one the client is typed for.
+    const { data, error } = await this.client
+      .from(childTable as 'other_products')
+      .select('*')
+      .eq('product_id', productId)
+      .maybeSingle()
+    if (error) throw error
+    return data
+  }
+
+  /** A textile batch's garment lines and designs as stored. */
+  async textileBatch(productId: string | null): Promise<{ garments: Record<string, unknown>[]; designs: Record<string, unknown>[] }> {
+    if (!productId) return { garments: [], designs: [] }
+    const { data: garments, error: garmentError } = await this.client
+      .from('textile_garments')
+      .select('*')
+      .eq('product_id', productId)
+      .order('sort_order')
+    if (garmentError) throw garmentError
+    const { data: designs, error: designError } = await this.client.from('textile_designs').select('*').eq('product_id', productId)
+    if (designError) throw designError
+    return { garments, designs }
+  }
+
   /** The product's workflow columns as stored. */
   async productState(productId: string): Promise<ProductState> {
     const { data, error } = await this.client
