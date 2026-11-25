@@ -18,6 +18,7 @@ import {
   PRODUCT_IN_PREPRESS,
   STAMP_PRODUCT_IN_PREPRESS_OUT_OF_STOCK,
 } from '../../fixtures/products'
+import { FILE_ADDED_HISTORY_EVENT } from '../../fixtures/recordProtection'
 import { OUT_OF_STOCK_STAMP_MODEL } from '../../fixtures/stamps'
 import { TEST_USERS } from '../../fixtures/users'
 
@@ -105,6 +106,33 @@ test.describe('in progress, product in pre-press with two files', () => {
 
     // Assert — the request mail is listed, waiting or sent.
     await expect(ordersPage.details.emails.ofTemplate(APPROVAL_REQUEST_TEMPLATE)).toHaveCount(1)
+  })
+})
+
+// ── Linking a file ────────────────────────────────────────────────────────
+
+test.describe('in progress, product in pre-press', () => {
+  test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: PRODUCT_IN_PREPRESS })
+
+  // The file picker needs the desktop bridge, so the link is written by the
+  // runner, as picking a file on the product's Files tab writes it: the file
+  // for the order, then its link to the product.
+  test("PRD-APR-017 linking a file on the product's Files tab records it for the order and for the product", async ({
+    ordersPage,
+    database,
+    order,
+    product,
+    orderFile,
+  }) => {
+    // Setup — the order's file linked to the product, and the order's history open.
+    await database.attachFileToProduct(product.id, orderFile.id)
+    await ordersPage.openOrder(order.id)
+    await ordersPage.details.historyTab.click()
+
+    // Assert — two entries: the file added to the order, and the same file added to the product.
+    await expect(ordersPage.details.history.ofType(FILE_ADDED_HISTORY_EVENT)).toHaveCount(2)
+    const entries = await database.historyEntries(order.id, FILE_ADDED_HISTORY_EVENT)
+    expect(entries.filter(entry => entry.product_id === product.id)).toHaveLength(1)
   })
 })
 

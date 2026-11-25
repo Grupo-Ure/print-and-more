@@ -190,7 +190,7 @@ export type StockDeductionRow = { quantity: number | null; note: string | null }
 /** One stock entry (STOCK_BOOKED or STOCK_AUTO_DEDUCTED): what it is linked to, whose it is, its action and what it recorded. */
 export type StockEntryRow = Pick<
   Database['public']['Tables']['history']['Row'],
-  'order_id' | 'product_id' | 'user_id' | 'action_id' | 'meta'
+  'id' | 'order_id' | 'product_id' | 'user_id' | 'action_id' | 'meta'
 >
 
 /** The private bucket the customer's page is served proof copies from. */
@@ -837,6 +837,12 @@ export class TestDatabase {
     return data
   }
 
+  /** Moves the product to a status behind the app's back, as another user's step or the database's own would. */
+  async updateProductStatus(productId: string, status: ProductStatus): Promise<void> {
+    const { error } = await this.client.from('products').update({ status }).eq('id', productId)
+    if (error) throw error
+  }
+
   /** Hands the product to the login, as picking them in the assignee picker would. Returns the user's id. */
   async assignProduct(productId: string, user: TestUser): Promise<string> {
     const userId = await this.userId(user)
@@ -1055,7 +1061,7 @@ export class TestDatabase {
   async stampStockEntries(modelId: string, eventType: HistoryEvent): Promise<StockEntryRow[]> {
     const { data, error } = await this.client
       .from('history')
-      .select('order_id, product_id, user_id, action_id, meta')
+      .select('id, order_id, product_id, user_id, action_id, meta')
       .eq('stamp_model_id', modelId)
       .eq('event_type', eventType)
     if (error) throw error

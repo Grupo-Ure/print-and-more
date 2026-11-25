@@ -59,6 +59,8 @@ e2e/
 │  └─ feed.spec.ts                which products the feed lists, the assignee filter (and who it leaves out), the product detail beside it
 ├─ history-page/
 │  └─ history-page.spec.ts        the admins' page of every entry: not offered to an employee, an entry without an order, narrowing to a customer or an event, an order number opening its order, the next page loading on scroll
+├─ stock/
+│  └─ booking.spec.ts             a booking by hand on a stock page: the row's stock and the line in the movement list
 ├─ settings-page/
 │  ├─ departments.spec.ts         the default assignee per department and stage
 │  └─ emails.spec.ts              a mail's delay and on/off switch, as the next queued mail sees them

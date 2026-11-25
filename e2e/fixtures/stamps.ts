@@ -72,3 +72,14 @@ export const OVERDRAWN_BOOKING_OF_IN_STOCK_MODEL = {
 
 /** A stock number other than the in-stock model's own, for a write that goes around the booking. */
 export const DIRECT_STOCK_OF_IN_STOCK_MODEL = IN_STOCK_STAMP_MODEL.stock + 1
+
+// ── Booking on the stock page ─────────────────────────────────────────────
+
+/** The pieces an admin books into the in-stock model on the stamp stock page. */
+export const STOCK_PAGE_INBOUND_QUANTITY = 2
+
+/** What the in-stock model's row shows once they are in. */
+export const IN_STOCK_MODEL_STOCK_AFTER_PAGE_BOOKING = IN_STOCK_STAMP_MODEL.stock + STOCK_PAGE_INBOUND_QUANTITY
+
+/** What the entry of that booking records of its direction and quantity. */
+export const STOCK_PAGE_INBOUND_ENTRY = { direction: 'INBOUND', quantity: STOCK_PAGE_INBOUND_QUANTITY }
