@@ -843,9 +843,12 @@ The rules live in one place each:
   selected products incl. their typed child by `type`, their `product_files`,
   and a textile batch's garment lines and designs) in one transaction; called
   from [`DuplicateDialog`](src/components/DuplicateDialog.tsx). Workflow state
-  is not carried over — the copies start in setup. The copy is recorded as a
-  new order: its `ORDER_CREATED` and a `PRODUCT_CREATED` per product, as one
-  action.
+  is not carried over — the copies start in setup. A file row belongs to one
+  order, so the copy gets a row of its own for every file the selected
+  products use (same name, path and role — both rows link the same file on
+  the share) and the copied products and textile designs link those. The copy
+  is recorded as a new order: its `ORDER_CREATED`, a `FILE_ADDED` per copied
+  file and per link, and a `PRODUCT_CREATED` per product, as one action.
 - **Record protection** (GoBD) — a record once in processing is neither
   deleted nor silently altered, and the database is what holds that: one
   `fn_refuse_*_record_change` guard per table (`orders`, `products`,
