@@ -19,6 +19,7 @@ playwright test
 │   ├─ fixtures/auth.ts            bring the app into the auth state the spec asked for
 │   ├─ fixtures/orders.ts          the orders view's page object + per-test rows + the catalog rows + a department default + a developer flag
 │   ├─ fixtures/stock.ts           the stock pages' page objects
+│   ├─ fixtures/history.ts         the History page's page object + a customer change, a second customer with an order, an order with more entries than one page of the feed
 │   ├─ fixtures/emails.ts          the sender's and the webhook's handles + a message queued and a sent record for the order seeded above
 │   ├─ fixtures/approvals.ts       a customer approval request for the product seeded above
 │   ├─ fixtures/production.ts      the production page's page object (lists the products seeded above)
@@ -56,6 +57,8 @@ e2e/
        └─ approval-requests.spec.ts asking the customer from the Files tab: the round, the stock warning, the next round's preselection; an answer recorded by hand, a withdrawal
 ├─ production-page/
 │  └─ feed.spec.ts                which products the feed lists, the assignee filter (and who it leaves out), the product detail beside it
+├─ history-page/
+│  └─ history-page.spec.ts        the admins' page of every entry: not offered to an employee, an entry without an order, narrowing to a customer or an event, an order number opening its order, the next page loading on scroll
 ├─ settings-page/
 │  ├─ departments.spec.ts         the default assignee per department and stage
 │  └─ emails.spec.ts              a mail's delay and on/off switch, as the next queued mail sees them
@@ -101,6 +104,7 @@ lines:
 ```
 @playwright/test → fixtures/database.ts → fixtures/electron.ts → fixtures/auth.ts → fixtures/orders.ts → fixtures/stock.ts
                                                                                                       ↘ fixtures/emails.ts → fixtures/approvals.ts → fixtures/production.ts
+                                                                                                      ↘ fixtures/history.ts
 ```
 
 A spec imports `test` from the link it needs — `./fixtures/auth` for a

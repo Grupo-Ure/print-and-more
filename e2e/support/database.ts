@@ -568,6 +568,12 @@ export class TestDatabase {
     if (error) throw error
   }
 
+  /** Changes the customer's phone number, as saving the customer dialog with another one would. */
+  async updateCustomerPhone(customerId: string, phone: string): Promise<void> {
+    const { error } = await this.client.from('customers').update({ phone }).eq('id', customerId)
+    if (error) throw error
+  }
+
   /** Stamps a bounce onto the customer's current address, as the email webhook does when a mail to it bounces. */
   async stampCustomerEmailBounced(customerId: string): Promise<void> {
     const { error } = await this.client
@@ -1210,6 +1216,24 @@ export class TestDatabase {
     return data.map(entry => entry.action_id)
   }
 
+  /** The ids of the order's history entries — of one event, or all of them. */
+  async orderHistoryIds(orderId: string, eventType?: HistoryEvent): Promise<string[]> {
+    let query = this.client.from('history').select('id').eq('order_id', orderId)
+    if (eventType) query = query.eq('event_type', eventType)
+    const { data, error } = await query
+    if (error) throw error
+    return data.map(entry => entry.id)
+  }
+
+  /** The ids of the entries about the customer itself (created, updated) — of one event, or all of them. Not its orders'. */
+  async customerHistoryIds(customerId: string, eventType?: HistoryEvent): Promise<string[]> {
+    let query = this.client.from('history').select('id').eq('customer_id', customerId)
+    if (eventType) query = query.eq('event_type', eventType)
+    const { data, error } = await query
+    if (error) throw error
+    return data.map(entry => entry.id)
+  }
+
   /** How many history entries of that event the order has. */
   async historyCount(orderId: string, eventType: HistoryEvent): Promise<number> {
     const { count, error } = await this.client
@@ -1354,5 +1378,16 @@ export class TestDatabase {
       .single()
     if (error) throw error
     return data.id
+  }
+
+  /**
+   * Writes that many history entries of one event onto the order in a single
+   * insert, so all of them share their `created_at` — as the entries of one
+   * transaction do. Removed with the order.
+   */
+  async createHistoryEntries(orderId: string, eventType: HistoryEvent, count: number): Promise<void> {
+    const rows = Array.from({ length: count }, () => ({ order_id: orderId, event_type: eventType }))
+    const { error } = await this.client.from('history').insert(rows)
+    if (error) throw error
   }
 }
