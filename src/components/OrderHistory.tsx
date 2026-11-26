@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { RotateCcw } from 'lucide-react'
-import type { HistoryEvent } from '../services/historyService'
-import { useHistoryForOrder } from '../queries/historyQueries'
+import { useOrderHistoryFeed, type OrderHistoryFilter } from '../queries/historyQueries'
 import { useProductsByOrderId } from '../queries/productQueries'
 import { useUsers } from '../queries/userQueries'
 import { shortProductNumber } from '../lib/productShared'
-import { isInDateRange } from '../lib/dateRange'
+import { HISTORY_EVENTS } from '../lib/historyEventLabels'
 import { FilterBar } from './LogText'
 import { HistoryEntryLine } from './HistoryEntryLine'
+import { NextPageSentinel } from './NextPageSentinel'
 import { DateRangeFilter } from './fields/DateRangeFilter'
 import { EmployeeCombobox } from './fields/EmployeeCombobox'
 import { HistoryEventCombobox } from './fields/HistoryEventCombobox'
@@ -18,21 +18,15 @@ import { TEST_IDS } from '@e2e/support/testIds'
 const IDS = TEST_IDS.orders.details.history
 const FILTER_IDS = IDS.filters
 
-type HistoryFilter = {
-  from: string
-  to: string
-  userId: string | null
-  productId: string | null
-  event: HistoryEvent | null
-}
-
-const NO_FILTER: HistoryFilter = { from: '', to: '', userId: null, productId: null, event: null }
+const NO_FILTER: OrderHistoryFilter = { from: '', to: '', userId: null, productId: null, event: null }
 
 /**
- * The order's history log, newest first, one sentence per event, under a row
- * of filters: a date range, who did it, which product, which event. Rendered
- * as the order's History tab — mounted only while that tab is active, so the
- * query runs on demand (and the filters start empty each time).
+ * The order's history log — all of it, newest first, a page at a time as the
+ * list is scrolled, one sentence per event — under a row of filters: a date
+ * range, who did it, which product, which event. The filters apply in the
+ * database, so they search every entry of the order. Rendered as the order's
+ * History tab — mounted only while that tab is active, so the query runs on
+ * demand (and the filters start empty each time).
  */
 export function OrderHistory({
   orderId,
@@ -42,25 +36,16 @@ export function OrderHistory({
   /** Shows the product on the order's Products tab; makes the product numbers links. */
   onOpenProduct?: (productId: string) => void
 }) {
-  const historyQuery = useHistoryForOrder(orderId)
+  const [filter, setFilter] = useState<OrderHistoryFilter>(NO_FILTER)
+  const feed = useOrderHistoryFeed(orderId, filter)
   const productsQuery = useProductsByOrderId(orderId)
   const { data: users } = useUsers()
-  const [filter, setFilter] = useState<HistoryFilter>(NO_FILTER)
 
   const staffById = new Map((users ?? []).map(user => [user.id, user.name ?? user.id]))
   const products = productsQuery.data ?? []
-  const entries = historyQuery.data ?? []
-  // Only the event types this order's history holds are worth offering.
-  const eventOptions = [...new Set(entries.map(entry => entry.event_type))]
+  const entries = feed.data?.pages.flat() ?? []
   const isFiltered =
     filter.from !== '' || filter.to !== '' || filter.userId !== null || filter.productId !== null || filter.event !== null
-  const shown = entries.filter(
-    entry =>
-      isInDateRange(entry.created_at, filter.from, filter.to) &&
-      (filter.userId === null || entry.user_id === filter.userId) &&
-      (filter.productId === null || entry.product_id === filter.productId) &&
-      (filter.event === null || entry.event_type === filter.event),
-  )
 
   // "LFP-01" — the product number without the redundant order-number prefix
   // (every entry in this log belongs to the same order).
@@ -75,7 +60,8 @@ export function OrderHistory({
 
   return (
     <section data-testid={IDS.root} aria-label="Order history" className="flex h-full flex-col gap-3">
-      {entries.length > 0 && (
+      {/* Shown while a filter is set too: one that matches nothing must stay clearable. */}
+      {(entries.length > 0 || isFiltered) && (
         <FilterBar label="Filter the history">
           <DateRangeFilter
             from={filter.from}
@@ -101,7 +87,7 @@ export function OrderHistory({
             optionTestId={FILTER_IDS.productOption}
           />
           <HistoryEventCombobox
-            options={eventOptions}
+            options={HISTORY_EVENTS}
             value={filter.event}
             onChange={event => setFilter(prev => ({ ...prev, event }))}
             testId={FILTER_IDS.event}
@@ -125,19 +111,17 @@ export function OrderHistory({
       )}
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {historyQuery.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
-        {historyQuery.isError && (
-          <p className="text-sm text-destructive">History could not be loaded</p>
-        )}
-        {historyQuery.isSuccess && entries.length === 0 && (
+        {feed.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+        {feed.isError && <p className="text-sm text-destructive">History could not be loaded</p>}
+        {feed.isSuccess && entries.length === 0 && !isFiltered && (
           <p data-testid={IDS.empty} className="text-sm text-muted-foreground">No history entries yet</p>
         )}
-        {entries.length > 0 && shown.length === 0 && (
+        {feed.isSuccess && entries.length === 0 && isFiltered && (
           <p data-testid={IDS.noMatch} className="text-sm text-muted-foreground">No entries match the filters</p>
         )}
-        {shown.length > 0 && (
+        {entries.length > 0 && (
           <ul data-testid={IDS.list} className="divide-y divide-border">
-            {shown.map(entry => (
+            {entries.map(entry => (
               <HistoryEntryLine
                 key={entry.id}
                 entry={entry}
@@ -150,6 +134,11 @@ export function OrderHistory({
             ))}
           </ul>
         )}
+        <NextPageSentinel
+          hasNextPage={feed.hasNextPage}
+          isFetchingNextPage={feed.isFetchingNextPage}
+          fetchNextPage={feed.fetchNextPage}
+        />
       </div>
     </section>
   )
