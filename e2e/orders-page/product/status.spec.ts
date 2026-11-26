@@ -1,9 +1,7 @@
 import {
   expect,
   test,
-  nextOrderDeadline,
   IN_PROGRESS_ORDER,
-  IN_PROGRESS_ORDER_WITHOUT_DEADLINE,
   IN_PROGRESS_ORDER_PAST_DEADLINE,
   FINISHED_STATUS,
 } from '../../fixtures/orders'
@@ -16,7 +14,6 @@ import {
   OTHER_PRODUCT,
   PRODUCT_IN_PREPRESS,
   PRODUCT_IN_PRODUCTION,
-  NEW_PRODUCT_STATUS,
   PREPRESS_STATUS,
   IN_PRODUCTION_STATUS,
   DONE_STATUS,
@@ -31,38 +28,21 @@ import {
 } from '../../fixtures/departments'
 import { TEST_USERS } from '../../fixtures/users'
 
-test.describe('in progress, product without a deadline', () => {
-  test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, productSeed: POSTER_PRODUCT })
+test.describe('quote, poster product', () => {
+  test.use({ productSeed: POSTER_PRODUCT })
 
-  test('PRD-STA-001 setting the order deadline completes the product and promotes it to pre-press', async ({ ordersPage, order, product }) => {
-    // Setup — a date the picker accepts, with the order open.
-    const deadline = nextOrderDeadline()
-    const picker = ordersPage.details.deadline
-    await ordersPage.openOrder(order.id)
-
-    // Act — pick the deadline, the product's last missing requirement.
-    await picker.trigger.click()
-    await picker.showMonthOf(deadline)
-    await picker.day(deadline).click()
-
-    // Assert — the product advanced on its own.
-    await expect(ordersPage.details.productList.row(product.id)).toHaveAttribute('data-status', PREPRESS_STATUS)
-  })
-
-  test("PRD-STA-015 setting the order deadline records the product's move to pre-press in the order history", async ({
+  test("PRD-STA-015 starting processing records the product's move to pre-press in the order history", async ({
     ordersPage,
     order,
     product,
   }) => {
-    // Setup — a date the picker accepts, with the order open.
-    const deadline = nextOrderDeadline()
-    const picker = ordersPage.details.deadline
+    // Setup — the order open, its product listed.
     await ordersPage.openOrder(order.id)
+    await ordersPage.details.productList.row(product.id).waitFor()
 
-    // Act — pick the deadline, then open the order's history once the product has moved.
-    await picker.trigger.click()
-    await picker.showMonthOf(deadline)
-    await picker.day(deadline).click()
+    // Act — start processing and confirm, then open the order's history once the product has moved.
+    await ordersPage.details.lifecycle.click()
+    await ordersPage.confirmDialog.confirm.click()
     await ordersPage.details.productList.rowInStatus(product.id, PREPRESS_STATUS).waitFor()
     await ordersPage.details.historyTab.click()
 
@@ -243,23 +223,6 @@ test.describe('in progress, product in production', () => {
 
     // Assert — the history holds the return, once.
     await expect(ordersPage.details.history.ofType(RETURNED_TO_PREPRESS_HISTORY_EVENT)).toHaveCount(1)
-  })
-})
-
-// A product can be in production without a deadline only through a force
-// release, which the fixture stands in for by seeding it there.
-test.describe('in progress without a deadline, product in production', () => {
-  test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, productSeed: PRODUCT_IN_PRODUCTION })
-
-  test('PRD-STA-018 sending a product without a deadline back to pre-press puts it back in setup', async ({ ordersPage, product }) => {
-    // Setup — the product open.
-    await ordersPage.openProduct(product)
-
-    // Act — go back to pre-press from the banner.
-    await ordersPage.details.productDetail.backToPrepress.click()
-
-    // Assert — not ready for pre-press, it landed in setup.
-    await expect(ordersPage.details.productList.row(product.id)).toHaveAttribute('data-status', NEW_PRODUCT_STATUS)
   })
 })
 
