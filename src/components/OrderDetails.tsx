@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useQueryClient } from '@tanstack/react-query'
 import { toDateOnly } from '../lib/formatDate'
 import { formatMinutes } from '../lib/formatMinutes'
-import { areAllProductsDone, isMissingDeadline } from '../lib/productShared'
+import { areAllProductsDone } from '../lib/productShared'
 import { formatCustomerAddress } from '../lib/customer'
 import {
   type DeliveryChoice,
@@ -99,11 +99,6 @@ export function OrderDetails() {
     () => visibleProducts.find(product => product.id === activeProductId) ?? null,
     [visibleProducts, activeProductId],
   )
-
-  // The selected product has no deadline, neither its own nor the order's —
-  // guide the user to the order's deadline field.
-  const deadlineRequired =
-    order != null && activeProduct != null && isMissingDeadline(activeProduct, order)
 
   // A finished or billed order takes no new products, and it can close under an
   // open draft (marking the last product done finishes an invoice order by
@@ -361,7 +356,7 @@ export function OrderDetails() {
         statusPending={setOrderStatus.isPending || markBilled.isPending}
       />
 
-      <OrderSettings order={order} onSave={saveOrderHeader} deadlineRequired={deadlineRequired} />
+      <OrderSettings order={order} onSave={saveOrderHeader} />
       {/* Groups the order header + settings visually apart from the product tabs below. */}
       <Separator />
 
@@ -717,11 +712,9 @@ function OrderLifecycleButton({ status, paymentMethod, allProductsDone, pending,
 type OrderSettingsProps = {
   order: OrderDetailRow
   onSave: (patch: OrderHeaderPatch) => void
-  /** A product is blocked for want of the order's deadline — highlight the field. */
-  deadlineRequired: boolean
 }
 
-function OrderSettings({ order, onSave, deadlineRequired }: OrderSettingsProps) {
+function OrderSettings({ order, onSave }: OrderSettingsProps) {
   const [headerDeadline, setHeaderDeadline] = useState('')
   const [headerDelivery, setHeaderDelivery] = useState<DeliveryChoice>('PICKUP')
   const [headerPriority, setHeaderPriority] = useState<Priority>('NORMAL')
@@ -756,30 +749,14 @@ function OrderSettings({ order, onSave, deadlineRequired }: OrderSettingsProps) 
       className="flex flex-wrap items-end gap-x-4 gap-y-2"
       aria-label="Order meta"
     >
-      <SettingField
-        label="Deadline"
-        hint={
-          deadlineRequired &&
-          headerDeadline === '' && (
-            <span
-              data-testid={SETTINGS_IDS.deadlineHint}
-              className="animate-in fade-in zoom-in-75 font-medium text-destructive"
-            >
-              Set a deadline
-            </span>
-          )
-        }
-      >
+      <SettingField label="Deadline">
         <DeadlinePicker
           testId={SETTINGS_IDS.deadline}
           calendarTestId={SETTINGS_IDS.deadlineCalendar}
           value={headerDeadline}
-          // Judged on the local value so the ring settles the moment a date is picked.
-          attention={deadlineRequired && headerDeadline === ''}
           onChange={value => {
-            setHeaderDeadline(value ?? '')
-            const snapshot = toDateOnly(headerSnapshot.current.deadline) ?? ''
-            if ((value || '') !== (snapshot || '')) {
+            setHeaderDeadline(value)
+            if (value !== toDateOnly(headerSnapshot.current.deadline)) {
               onSave({ deadline: value })
             }
           }}
@@ -825,14 +802,11 @@ function OrderSettings({ order, onSave, deadlineRequired }: OrderSettingsProps) 
   )
 }
 
-/** One field of the order settings row with its name above it, and room for a hint beside the name. */
-function SettingField({ label, hint, children }: { label: string; hint?: ReactNode; children: ReactNode }) {
+/** One field of the order settings row with its name above it. */
+function SettingField({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-        {label}
-        {hint}
-      </span>
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
       {children}
     </div>
   )
