@@ -1104,7 +1104,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           customer_id: string
-          deadline: string | null
+          deadline: string
           delivery: Database["public"]["Enums"]["delivery_type"] | null
           id: string
           is_archived: boolean
@@ -1119,7 +1119,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_id: string
-          deadline?: string | null
+          deadline: string
           delivery?: Database["public"]["Enums"]["delivery_type"] | null
           id?: string
           is_archived?: boolean
@@ -1134,7 +1134,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_id?: string
-          deadline?: string | null
+          deadline?: string
           delivery?: Database["public"]["Enums"]["delivery_type"] | null
           id?: string
           is_archived?: boolean
