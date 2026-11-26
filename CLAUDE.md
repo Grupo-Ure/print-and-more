@@ -570,8 +570,11 @@ open; the database, which finishes an order, never sees it either.
   refused; a customer, a stock item or a user named on an entry cannot be
   deleted. Every employee reads the entries of an order; an entry
   with no order link is an admin's to read. Shown on the order's *History*
-  tab (`OrderHistory`) and, all of it, on the admins' history page
-  (`HistoryPage`); both word an entry through
+  tab (`OrderHistory`: the order's whole record, newest first and loaded a
+  page at a time as the list is scrolled — `useOrderHistoryFeed` over the
+  same `historyService.listEntries` —, its filters by date range, person,
+  product and event applied in the database) and, all of it, on the admins'
+  history page (`HistoryPage`); both word an entry through
   [`historySentences`](src/lib/historySentences.ts) and render it with
   `HistoryEntryLine`.
 - **Products** — see below (the typed per-type model).
