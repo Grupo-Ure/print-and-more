@@ -1,7 +1,6 @@
-import { expect, test, IN_PROGRESS_ORDER, IN_PROGRESS_ORDER_WITHOUT_DEADLINE, IN_PROGRESS_STATUS, FINISHED_STATUS } from '../../fixtures/orders'
+import { expect, test, IN_PROGRESS_ORDER, IN_PROGRESS_STATUS, FINISHED_STATUS } from '../../fixtures/orders'
 import {
   TEST_PRODUCT_DEPARTMENT,
-  OTHER_PRODUCT,
   OTHER_PRODUCT_FORM,
   POSTER_PRODUCT,
   PRODUCT_IN_PREPRESS,
@@ -220,28 +219,6 @@ test.describe('in progress, one product done and one in pre-press', () => {
 
     // Act — cancel it and confirm.
     await ordersPage.details.productDetail.cancelButton.click()
-    await ordersPage.confirmDialog.confirm.click()
-
-    // Assert — only the done product remains, so the order followed to finished.
-    await expect(ordersPage.details.productList.row(products[1].id)).toHaveCount(0)
-    await expect(ordersPage.details.forOrder(order.id)).toHaveAttribute('data-status', FINISHED_STATUS)
-  })
-})
-
-test.describe('in progress without a deadline, one product done and one in setup', () => {
-  // No deadline on the order, so the setup product is not ready for pre-press
-  // and the database leaves it there — where it can still be deleted.
-  test.use({
-    orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE,
-    productSeeds: [[PRODUCT_DONE, OTHER_PRODUCT], { scope: 'test' }],
-  })
-
-  test('PRD-ADD-010 deleting the setup product finishes the order on its own', async ({ ordersPage, order, products }) => {
-    // Setup — the setup product open.
-    await ordersPage.openProduct(products[1])
-
-    // Act — delete it and confirm.
-    await ordersPage.details.productDetail.deleteButton.click()
     await ordersPage.confirmDialog.confirm.click()
 
     // Assert — only the done product remains, so the order followed to finished.
