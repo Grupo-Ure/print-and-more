@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { addDays, format } from 'date-fns'
 import { Pencil, Plus, Replace } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -17,6 +16,7 @@ import { useCreateOrder } from '../queries/orderQueries'
 import { useInfiniteCustomers } from '../queries/customerQueries'
 import { useOrderWorkspace } from '../context/order.context'
 import { useOrderSelection } from '../hooks/useOrderSelection'
+import { defaultOrderDeadline } from '../lib/formatDate'
 import type { Customer } from '../types/database'
 
 export function NewOrderDialog() {
@@ -51,17 +51,11 @@ export function NewOrderDialog() {
     if (!selectedCustomer) return
     try {
       // order_number and payment_method come from DB defaults; the client omits them.
-      // The deadline defaults to one week from today (7 calendar days). It used
-      // to default to today for the same-day cash pickups, but those are the
-      // orders that never need a deadline, so the default was left as it was
-      // and the deadline-missed flag fired on orders that were never late. A
-      // week is the realistic turnaround for the work that does need one; the
-      // field stays editable either way.
-      // Local date on purpose — a DB default would use the server's timezone.
+      // Every order has a deadline; a new one starts a week out (`defaultOrderDeadline`).
       const payload = {
         customer_id: selectedCustomer.id,
         status: 'QUOTE',
-        deadline: format(addDays(new Date(), 7), 'yyyy-MM-dd'),
+        deadline: defaultOrderDeadline(),
         delivery: 'PICKUP',
         priority: 'NORMAL',
       } as Parameters<typeof createOrder.mutateAsync>[0]

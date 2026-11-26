@@ -1,8 +1,18 @@
-import { differenceInCalendarDays, format, isSameYear, isValid, parse } from 'date-fns'
+import { addDays, differenceInCalendarDays, format, isSameYear, isValid, parse } from 'date-fns'
 
 /** Today's date as `YYYY-MM-DD`. */
 export function todayDateOnly(): string {
   return new Date().toISOString().slice(0, 10)
+}
+
+/**
+ * The deadline a new order starts with: one week from today (7 calendar
+ * days), as `YYYY-MM-DD`. A week is the realistic turnaround for the work
+ * that needs a deadline; the field stays editable. A local date on purpose —
+ * a database default would use the server's timezone.
+ */
+export function defaultOrderDeadline(now: Date = new Date()): string {
+  return format(addDays(now, 7), 'yyyy-MM-dd')
 }
 
 /** `YYYY-MM-DD` date-only portion of an ISO/date string; null for empty input. */

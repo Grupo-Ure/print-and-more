@@ -11,6 +11,7 @@ import {
 import { orderService } from '../services/orderService'
 import { type OrderDetailRow } from '../types/database'
 import type { LoadedProduct } from '../types/product'
+import { defaultOrderDeadline } from '../lib/formatDate'
 import { shortProductNumber } from '../lib/productShared'
 import { PRODUCT_TYPE_LABELS } from '../lib/productTypeLabels'
 import { DateInput } from './DateInput'
@@ -43,7 +44,8 @@ export function DuplicateDialog({ order, products, onSuccess, onCancel }: Props)
     for (const product of activeProducts) initial[product.id] = true
     return initial
   })
-  const [newDeadline, setNewDeadline] = useState<string>('')
+  // Every order has a deadline: the copy starts a week out, as a new order does.
+  const [newDeadline, setNewDeadline] = useState<string>(() => defaultOrderDeadline())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { showError, showSuccess } = useToast()
@@ -56,7 +58,7 @@ export function DuplicateDialog({ order, products, onSuccess, onCancel }: Props)
   const noneSelected = selectedProducts.length === 0
   const masterChecked: boolean | 'indeterminate' = allSelected ? true : noneSelected ? false : 'indeterminate'
 
-  const blocksDuplicate = activeProducts.length > 0 && noneSelected
+  const blocksDuplicate = (activeProducts.length > 0 && noneSelected) || newDeadline === ''
   const customerLabel = order.customers?.name?.trim() || order.id
 
   const toggle = (id: string) => {
@@ -79,7 +81,7 @@ export function DuplicateDialog({ order, products, onSuccess, onCancel }: Props)
         source_order_id: order.id,
         new_priority: order.priority ?? null,
         new_delivery: order.delivery ?? null,
-        new_deadline: newDeadline ? newDeadline : null,
+        new_deadline: newDeadline,
         selected_product_ids: selectedProducts.map(product => product.id),
       })
 
@@ -154,14 +156,14 @@ export function DuplicateDialog({ order, products, onSuccess, onCancel }: Props)
 
         <section className="flex flex-col gap-2">
           <h2 className="uppercase tracking-[0.06em] text-xs text-muted-foreground">
-            New deadline (optional)
+            New deadline
           </h2>
           <DateInput
             className="w-full h-12 min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50"
             data-testid={IDS.deadline}
             value={newDeadline}
             onChange={event => setNewDeadline(event.target.value)}
-            placeholder="No deadline — set later"
+            required
           />
         </section>
 
