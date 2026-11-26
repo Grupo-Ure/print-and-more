@@ -14,7 +14,7 @@ export class OrderHistoryPOM extends BasePOM {
   readonly empty: Locator
   /** Every entry; each carries `data-event-type`. */
   readonly items: Locator
-  /** The product filter's trigger; shown only while the order has entries. */
+  /** The product filter's trigger; shown while the order has entries or a filter is set. */
   readonly productFilter: Locator
   /** The product filter's options, one per product of the order, cancelled ones included. */
   private readonly productOptions: Locator
