@@ -37,7 +37,7 @@ export type OrderListEntry = {
   order_number: string
   status: OrderStatus
   created_at: string
-  deadline: string | null
+  deadline: string
   delivery: DeliveryEnum | null
   priority: 'NORMAL' | 'HIGH'
   customer_id: string
@@ -233,7 +233,7 @@ class OrderService {
     source_order_id: string
     new_priority: PriorityEnum | null
     new_delivery: DeliveryEnum | null
-    new_deadline: string | null
+    new_deadline: string
     selected_product_ids: string[]
   }): Promise<string> {
     const { data, error } = await supabase.rpc('duplicate_order', params as unknown as DuplicateOrderArgs)
