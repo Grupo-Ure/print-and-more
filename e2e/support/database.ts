@@ -66,7 +66,7 @@ export type TestSentEmail = {
 /** The columns a fixture chooses for an order it inserts; everything else takes the table's defaults. */
 export type OrderSeedRow = {
   status: OrderStatus
-  deadline: string | null
+  deadline: string
   delivery: DeliveryType | null
   payment_method: PaymentMethod
   /** When a `BILLED` order was billed; null for any other status. */
@@ -655,8 +655,8 @@ export class TestDatabase {
     return { id: data.id, orderNumber: data.order_number, customerId }
   }
 
-  /** Sets the order's deadline behind the app's back, as another user saving the settings row would; null clears it. */
-  async updateOrderDeadline(orderId: string, deadline: string | null): Promise<void> {
+  /** Sets the order's deadline behind the app's back, as another user saving the settings row would. */
+  async updateOrderDeadline(orderId: string, deadline: string): Promise<void> {
     const { error } = await this.client.from('orders').update({ deadline }).eq('id', orderId)
     if (error) throw error
   }

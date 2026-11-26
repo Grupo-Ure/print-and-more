@@ -92,6 +92,9 @@ export function missedOrderDeadline(): string {
  * What the `order` fixture inserts. The deadline is named relative to today
  * rather than as a date because a valid one has to be produced at call time.
  *
+ * Every order has a deadline: the database refuses one without. `default` is
+ * the one a new order is created with, a week out.
+ *
  * A seed must describe a state the app can reach, since nothing in the
  * database enforces the lifecycle:
  * - `QUOTE` and `IN_PROGRESS` have no requirements of their own.
@@ -106,16 +109,16 @@ export type OrderSeed = {
   status: OrderStatus
   delivery: DeliveryChoice | null
   paymentMethod: PaymentMethod
-  deadline: 'tomorrow' | 'yesterday' | null
+  deadline: 'default' | 'tomorrow' | 'yesterday'
   billedDaysAgo: number | null
 }
 
-/** A fresh quote with nothing set — the default. */
+/** A fresh quote as the app creates it, its deadline a week out and nothing else set — the default. */
 export const QUOTE_ORDER: OrderSeed = {
   status: NEW_ORDER_STATUS,
   delivery: null,
   paymentMethod: 'INVOICE',
-  deadline: null,
+  deadline: 'default',
   billedDaysAgo: null,
 }
 
@@ -125,13 +128,11 @@ export const COMPLETE_QUOTE_ORDER: OrderSeed = { ...QUOTE_ORDER, delivery: 'PICK
 /** An accepted order with deadline and delivery set: a product in it inherits the deadline and is complete at once. */
 export const IN_PROGRESS_ORDER: OrderSeed = { ...QUOTE_ORDER, status: IN_PROGRESS_STATUS, delivery: 'PICKUP', deadline: 'tomorrow' }
 
-/** An accepted order still missing its deadline: a product in it is held in setup until one is set. */
-export const IN_PROGRESS_ORDER_WITHOUT_DEADLINE: OrderSeed = { ...IN_PROGRESS_ORDER, deadline: null }
-
 /** An accepted order whose deadline has passed: a past deadline does not block a product in it from entering pre-press. */
 export const IN_PROGRESS_ORDER_PAST_DEADLINE: OrderSeed = { ...IN_PROGRESS_ORDER, deadline: 'yesterday' }
 
-const DEADLINE_BY_NAME: Record<NonNullable<OrderSeed['deadline']>, () => string> = {
+const DEADLINE_BY_NAME: Record<OrderSeed['deadline'], () => string> = {
+  default: defaultOrderDeadline,
   tomorrow: nextOrderDeadline,
   yesterday: missedOrderDeadline,
 }
@@ -334,7 +335,7 @@ export const test = base.extend<OrdersViewFixtures>({
       status: orderSeed.status,
       delivery: orderSeed.delivery,
       payment_method: orderSeed.paymentMethod,
-      deadline: orderSeed.deadline ? DEADLINE_BY_NAME[orderSeed.deadline]() : null,
+      deadline: DEADLINE_BY_NAME[orderSeed.deadline](),
       billed_at: orderSeed.billedDaysAgo === null ? null : addDays(new Date(), -orderSeed.billedDaysAgo).toISOString(),
     })
     await reloadApp(page, navbar)
