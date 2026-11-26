@@ -52,3 +52,6 @@ export const HISTORY_EVENT_LABELS: Record<HistoryEvent, string> = {
   EMAIL_FAILED: 'Email failed',
   EMAIL_BOUNCED: 'Email bounced',
 }
+
+/** Every event type, for an event filter over the whole record (the History page, an order's History tab). */
+export const HISTORY_EVENTS = Object.keys(HISTORY_EVENT_LABELS) as HistoryEvent[]

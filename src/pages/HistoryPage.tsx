@@ -1,17 +1,18 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { RotateCcw } from 'lucide-react'
-import type { HistoryEvent, HistoryFeedFilter, HistoryFeedRow } from '../services/historyService'
+import type { HistoryFeedFilter, HistoryFeedRow } from '../services/historyService'
 import { useHistoryFeed } from '../queries/historyQueries'
 import { useIsAdmin, useUsers } from '../queries/userQueries'
 import { useSupabaseSession } from '../hooks/useSupabaseSession'
 import { useNavigation } from '../context/navigation.context'
-import { HISTORY_EVENT_LABELS } from '../lib/historyEventLabels'
+import { HISTORY_EVENTS } from '../lib/historyEventLabels'
 import { historyFileName, historyMeta, stockItemLabel } from '../lib/historySentences'
 import { shortProductNumber } from '../lib/productShared'
 import { Login } from '../components/Login'
 import { AccessDenied } from '../components/AccessDenied'
 import { FilterBar } from '../components/LogText'
 import { HistoryEntryLine } from '../components/HistoryEntryLine'
+import { NextPageSentinel } from '../components/NextPageSentinel'
 import { DateRangeFilter } from '../components/fields/DateRangeFilter'
 import { EmployeeCombobox } from '../components/fields/EmployeeCombobox'
 import { HistoryEventCombobox } from '../components/fields/HistoryEventCombobox'
@@ -22,10 +23,7 @@ import { TEST_IDS } from '@e2e/support/testIds'
 const IDS = TEST_IDS.historyPage
 const FILTER_IDS = IDS.filters
 
-const NO_FILTER: HistoryFeedFilter = { from: '', to: '', userId: null, event: null, record: null }
-
-/** Every event type, for the event filter: the page reads the whole history, not one order's. */
-const ALL_EVENTS = Object.keys(HISTORY_EVENT_LABELS) as HistoryEvent[]
+const NO_FILTER: HistoryFeedFilter = { from: '', to: '', userId: null, event: null, record: null, productId: null }
 
 /**
  * The whole history, for admins: every entry, whatever it concerns — the
@@ -62,21 +60,6 @@ function HistoryFeed() {
     navigate('orders')
   }
 
-  // The next page loads once the end of the list scrolls into view (the list's own scroll area clips it).
-  const { hasNextPage, isFetchingNextPage, fetchNextPage } = feed
-  const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null)
-  useEffect(() => {
-    if (!sentinel) return
-    const observer = new IntersectionObserver(
-      observed => {
-        if (observed[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) void fetchNextPage()
-      },
-      { rootMargin: '200px' },
-    )
-    observer.observe(sentinel)
-    return () => observer.disconnect()
-  }, [sentinel, hasNextPage, isFetchingNextPage, fetchNextPage])
-
   return (
     <main data-testid={IDS.root} aria-label="History" className="flex h-full flex-col gap-3 p-3">
       <FilterBar label="Filter the history">
@@ -96,7 +79,7 @@ function HistoryFeed() {
           userOptionTestId={FILTER_IDS.userOption}
         />
         <HistoryEventCombobox
-          options={ALL_EVENTS}
+          options={HISTORY_EVENTS}
           value={filter.event}
           onChange={event => setFilter(prev => ({ ...prev, event }))}
           testId={FILTER_IDS.event}
@@ -151,8 +134,11 @@ function HistoryFeed() {
             ))}
           </ul>
         )}
-        {isFetchingNextPage && <p className="py-1.5 text-sm text-muted-foreground">Loading…</p>}
-        {hasNextPage && <div ref={setSentinel} aria-hidden className="h-px" />}
+        <NextPageSentinel
+          hasNextPage={feed.hasNextPage}
+          isFetchingNextPage={feed.isFetchingNextPage}
+          fetchNextPage={feed.fetchNextPage}
+        />
       </div>
     </main>
   )
