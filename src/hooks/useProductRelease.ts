@@ -72,7 +72,7 @@ export function useProductRelease(product: LoadedProduct): ProductRelease {
   // A product in setup is held there by the pre-press condition; once it holds,
   // the database promotes it. Nothing advances while the order is a quote.
   const heldInSetup =
-    product.status === 'IN_SETUP' && order != null && !orderIsQuote && !isReadyForPrepress(product, order, order.customers)
+    product.status === 'IN_SETUP' && order != null && !orderIsQuote && !isReadyForPrepress(order, order.customers)
 
   // The next status on the workflow track — none once the product is DONE, and
   // no label (so no advance) for setup. Nothing advances while the order is
