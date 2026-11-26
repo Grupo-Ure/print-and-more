@@ -80,30 +80,30 @@ class HistoryService {
    * customer narrows to its own entries and those of its orders.
    */
   async listEntries(filter: HistoryFeedFilter, cursor: HistoryCursor | null): Promise<HistoryFeedRow[]> {
-    let q = supabase
+    let query = supabase
       .from('history')
       .select(FEED_COLUMNS)
       .order('created_at', { ascending: false })
       .order('id', { ascending: false })
       .limit(HISTORY_PAGE_SIZE)
 
-    if (filter.from) q = q.gte('created_at', localDayStart(filter.from))
-    if (filter.to) q = q.lt('created_at', localDayStart(filter.to, 1))
-    if (filter.userId) q = q.eq('user_id', filter.userId)
-    if (filter.event) q = q.eq('event_type', filter.event)
-    if (filter.productId) q = q.eq('product_id', filter.productId)
+    if (filter.from) query = query.gte('created_at', localDayStart(filter.from))
+    if (filter.to) query = query.lt('created_at', localDayStart(filter.to, 1))
+    if (filter.userId) query = query.eq('user_id', filter.userId)
+    if (filter.event) query = query.eq('event_type', filter.event)
+    if (filter.productId) query = query.eq('product_id', filter.productId)
 
     // PostgREST takes one `or` per request, so the alternatives (the customer's
     // links, the cursor's tie-break) are combined into one logic tree.
     const alternatives: string[] = []
     const record = filter.record
-    if (record?.kind === 'order') q = q.eq('order_id', record.id)
-    if (record?.kind === 'stampModel') q = q.eq('stamp_model_id', record.id)
-    if (record?.kind === 'textileVariant') q = q.eq('textile_variant_id', record.id)
-    if (record?.kind === 'file') q = q.eq('file_id', record.id)
+    if (record?.kind === 'order') query = query.eq('order_id', record.id)
+    if (record?.kind === 'stampModel') query = query.eq('stamp_model_id', record.id)
+    if (record?.kind === 'textileVariant') query = query.eq('textile_variant_id', record.id)
+    if (record?.kind === 'file') query = query.eq('file_id', record.id)
     if (record?.kind === 'customer') {
       const orderIds = await this.customerOrderIds(record.id)
-      if (orderIds.length === 0) q = q.eq('customer_id', record.id)
+      if (orderIds.length === 0) query = query.eq('customer_id', record.id)
       else alternatives.push(`customer_id.eq.${record.id},order_id.in.(${orderIds.join(',')})`)
     }
     if (cursor) {
@@ -111,10 +111,10 @@ class HistoryService {
         `created_at.lt."${cursor.createdAt}",and(created_at.eq."${cursor.createdAt}",id.lt.${cursor.id})`,
       )
     }
-    if (alternatives.length === 1) q = q.or(alternatives[0])
-    if (alternatives.length > 1) q = q.or(`and(${alternatives.map(group => `or(${group})`).join(',')})`)
+    if (alternatives.length === 1) query = query.or(alternatives[0])
+    if (alternatives.length > 1) query = query.or(`and(${alternatives.map(group => `or(${group})`).join(',')})`)
 
-    const { data, error } = await q
+    const { data, error } = await query
     if (error) throw error
     return (data ?? []) as unknown as HistoryFeedRow[]
   }
