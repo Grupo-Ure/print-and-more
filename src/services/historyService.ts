@@ -19,7 +19,7 @@ export type HistoryRow = {
   textile_variants: { color: string; size: string; textile_models: { name: string } | null } | null
 }
 
-/** An entry of the History page: the order-tab row plus every record it links to, named. */
+/** An entry as the feeds read it: the row plus every record it links to, named. */
 export type HistoryFeedRow = HistoryRow & {
   order_id: string | null
   customer_id: string | null
@@ -47,6 +47,8 @@ export type HistoryFeedFilter = {
   userId: string | null
   event: HistoryEvent | null
   record: HistoryRecord | null
+  /** One product of the record's order (the order's History tab), or null. */
+  productId: string | null
 }
 
 /** Where the next page starts: the last entry shown, in the page's order. */
@@ -89,6 +91,7 @@ class HistoryService {
     if (filter.to) q = q.lt('created_at', localDayStart(filter.to, 1))
     if (filter.userId) q = q.eq('user_id', filter.userId)
     if (filter.event) q = q.eq('event_type', filter.event)
+    if (filter.productId) q = q.eq('product_id', filter.productId)
 
     // PostgREST takes one `or` per request, so the alternatives (the customer's
     // links, the cursor's tie-break) are combined into one logic tree.
@@ -185,19 +188,6 @@ class HistoryService {
         label: [file.display_name, file.orders ? `order ${file.orders.order_number}` : null].filter(Boolean).join(' · '),
       })),
     ]
-  }
-
-  async getHistoryForOrder(orderId: string): Promise<HistoryRow[]> {
-    const { data, error } = await supabase
-      .from('history')
-      .select(
-        'id, event_type, reason, meta, created_at, product_id, user_id, stamp_models(name, color), textile_variants(color, size, textile_models(name))',
-      )
-      .eq('order_id', orderId)
-      .order('created_at', { ascending: false })
-      .limit(50)
-    if (error) throw error
-    return (data ?? []) as unknown as HistoryRow[]
   }
 }
 
