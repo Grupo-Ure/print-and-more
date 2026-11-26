@@ -36,6 +36,8 @@ export class ProductDetailPOM extends BasePOM {
   /** The forward workflow action; carries `data-target` = target ProductStatus. */
   readonly releaseButton: Locator
   readonly releaseMenuTrigger: Locator
+  /** The force release of a product held in setup, a button of its own (admins). */
+  readonly forceReleaseButton: Locator
   readonly forceReleaseItem: Locator
   readonly forceReleaseDialog: ForceReleaseDialogPOM
 
@@ -74,6 +76,7 @@ export class ProductDetailPOM extends BasePOM {
 
     this.releaseButton = this.root.getByTestId(IDS.release.button)
     this.releaseMenuTrigger = this.root.getByTestId(IDS.release.menuTrigger)
+    this.forceReleaseButton = this.root.getByTestId(IDS.release.forceButton)
     // Dropdown content is portalled, so not scoped to the root.
     this.forceReleaseItem = page.getByTestId(IDS.release.forceItem)
     this.forceReleaseDialog = new ForceReleaseDialogPOM(page)
@@ -95,6 +98,16 @@ export class ProductDetailPOM extends BasePOM {
   }
 
   /** The product detail only while it shows this product. */
+  /** The assignee picker only while it shows this user — to wait for an assignment to land. */
+  assignedTo(userId: string): Locator {
+    return this.withAttr(this.assignee, 'data-value', userId)
+  }
+
+  /** One user's option in the open assignee picker (a portal — not scoped to the detail). */
+  assigneeOption(userId: string): Locator {
+    return this.withAttr(this.page.getByTestId(IDS.assigneeOption), 'data-user-id', userId)
+  }
+
   forProduct(productId: string): Locator {
     return this.withAttr(this.root, 'data-product-id', productId)
   }

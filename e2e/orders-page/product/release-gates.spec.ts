@@ -17,20 +17,20 @@ import {
 } from '../../fixtures/products'
 import { TEST_USERS } from '../../fixtures/users'
 
-// ── Completeness: what keeps a product in setup ───────────────────────────
-// A product cannot lack content of its own, so the one requirement that can
-// be unmet is the effective deadline.
+// ── What keeps a product in setup ─────────────────────────────────────────
+// A product enters pre-press on its own once it is ready; there is no release
+// to pre-press. Held here by the missing effective deadline.
 
 test.describe('in progress, product with no deadline', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, productSeed: POSTER_PRODUCT })
 
-  test('PRD-GAT-001 the product is held in setup with the release blocked', async ({ ordersPage, product }) => {
+  test('PRD-GAT-001 the product is held in setup with no release offered', async ({ ordersPage, product }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
-    // Assert — the banner names the block and the release cannot be pressed.
+    // Assert — the banner names the block and nothing offers to release the product.
     await expect(ordersPage.details.productDetail.banner).toHaveAttribute('data-kind', 'blocked')
-    await expect(ordersPage.details.productDetail.releaseButton).toBeDisabled()
+    await expect(ordersPage.details.productDetail.releaseButton).toHaveCount(0)
   })
 })
 
@@ -58,9 +58,8 @@ test.describe('as admin, in progress, product with no deadline', () => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
-    // Act — open the force release from the release menu.
-    await ordersPage.details.productDetail.releaseMenuTrigger.click()
-    await ordersPage.details.productDetail.forceReleaseItem.click()
+    // Act — open the force release; a product held in setup offers nothing else.
+    await ordersPage.details.productDetail.forceReleaseButton.click()
 
     // Assert — nothing can be submitted until a reason is given.
     await expect(ordersPage.details.productDetail.forceReleaseDialog.submit).toBeDisabled()
@@ -72,8 +71,7 @@ test.describe('as admin, in progress, product with no deadline', () => {
     await ordersPage.openProduct(product)
 
     // Act — force release it with a reason.
-    await ordersPage.details.productDetail.releaseMenuTrigger.click()
-    await ordersPage.details.productDetail.forceReleaseItem.click()
+    await ordersPage.details.productDetail.forceReleaseButton.click()
     await ordersPage.details.productDetail.forceReleaseDialog.reason.fill(FORCE_RELEASE_REASON)
     await ordersPage.details.productDetail.forceReleaseDialog.submit.click()
 
@@ -87,8 +85,7 @@ test.describe('as admin, in progress, product with no deadline', () => {
     await ordersPage.openProduct(product)
 
     // Act — force release it with a reason, then open the history.
-    await ordersPage.details.productDetail.releaseMenuTrigger.click()
-    await ordersPage.details.productDetail.forceReleaseItem.click()
+    await ordersPage.details.productDetail.forceReleaseButton.click()
     await ordersPage.details.productDetail.forceReleaseDialog.reason.fill(FORCE_RELEASE_REASON)
     await ordersPage.details.productDetail.forceReleaseDialog.submit.click()
     await ordersPage.details.historyTab.click()

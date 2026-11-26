@@ -1,7 +1,8 @@
+import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { customerService } from '../services/customerService'
-import { historyService, type HistoryEvent } from '../services/historyService'
 import { orderService, type OrderListEntry } from '../services/orderService'
+import { historyKeys } from './historyQueries'
 import { productKeys } from './productQueries'
 import type { Department, OrderDetailRow, OrderStatus } from '../types/database'
 import type { Database } from '../types/supabase'
@@ -137,17 +138,44 @@ export function invalidateOrderListsIfCustomerReferenced(
 }
 
 /**
- * Create a new order. Writes an ORDER_CREATED history entry as a best-effort
- * follow-up — a failure there does not invalidate the order itself.
+ * Keeps the orders view in step with the database — and the production
+ * view's product panel, which shows the same order. While mounted it holds
+ * a realtime subscription on `orders` and `products`. On every change,
+ * the viewer's own included, it invalidates the order lists, plus the
+ * changed order, its products and its history. The history entries are
+ * written with the change, so the *History* tab stays in step with the
+ * header. When the order is not known (a product deleted, a channel
+ * replaced), it invalidates every order, product list and history.
+ * Invalidation refetches only what is on screen; everything else is merely
+ * marked stale.
+ *
+ * A refetch does not wipe a product form being edited: TanStack Form takes
+ * new default values only while the form is untouched.
  */
+export function useOrdersViewLiveRefresh(): void {
+  const queryClient = useQueryClient()
+
+  useEffect(() => {
+    return orderService.subscribeToOrderChanges(orderId => {
+      if (orderId) {
+        void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
+        void queryClient.invalidateQueries({ queryKey: orderKeys.byId(orderId) })
+        void queryClient.invalidateQueries({ queryKey: productKeys.byOrderId(orderId) })
+        void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
+      } else {
+        void queryClient.invalidateQueries({ queryKey: orderKeys.all })
+        void queryClient.invalidateQueries({ queryKey: productKeys.byOrderIdRoot })
+        void queryClient.invalidateQueries({ queryKey: historyKeys.all })
+      }
+    })
+  }, [queryClient])
+}
+
+/** Create a new order. The database records it (ORDER_CREATED). */
 export function useCreateOrder() {
   const queryClient = useQueryClient()
   return useMutation<OrderDetailRow, Error, OrderInsert>({
-    mutationFn: async payload => {
-      const order = await orderService.createOrder(payload)
-      await historyService.tryWriteHistory({ order_id: order.id, event_type: 'ORDER_CREATED' })
-      return order
-    },
+    mutationFn: payload => orderService.createOrder(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
     },
@@ -162,14 +190,11 @@ export function useOrderById(orderId: string | null) {
   })
 }
 
+/** Save order header fields. The database records each changed field (SETTINGS_CHANGED). */
 export function useUpdateOrder() {
   const queryClient = useQueryClient()
-  return useMutation<OrderDetailRow, Error, { id: string; patch: OrderUpdate; history?: OrderHistoryParams }>({
-    mutationFn: async ({ id, patch, history }) => {
-      const updated = await orderService.updateOrder(id, patch)
-      if (history) await historyService.tryWriteHistory({ order_id: id, ...history })
-      return updated
-    },
+  return useMutation<OrderDetailRow, Error, { id: string; patch: OrderUpdate }>({
+    mutationFn: ({ id, patch }) => orderService.updateOrder(id, patch),
     onSuccess: updated => {
       queryClient.setQueryData(orderKeys.byId(updated.id), updated)
       void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
@@ -177,17 +202,15 @@ export function useUpdateOrder() {
   })
 }
 
-type OrderHistoryParams = { event_type: HistoryEvent; reason?: string; meta?: Record<string, unknown> }
-
-/** Direct order-status set (e.g. start-processing QUOTE → IN_PROGRESS). Optionally writes history. */
+/**
+ * Direct order-status set (start processing, mark finished, reopen). The
+ * database records the step (PROCESSING_STARTED, ORDER_FINISHED,
+ * ORDER_REOPENED).
+ */
 export function useSetOrderStatus() {
   const queryClient = useQueryClient()
-  return useMutation<OrderDetailRow, Error, { id: string; status: OrderStatus; history?: OrderHistoryParams }>({
-    mutationFn: async ({ id, status, history }) => {
-      const updated = await orderService.setOrderStatus(id, status)
-      if (history) await historyService.tryWriteHistory({ order_id: id, ...history })
-      return updated
-    },
+  return useMutation<OrderDetailRow, Error, { id: string; status: OrderStatus }>({
+    mutationFn: ({ id, status }) => orderService.setOrderStatus(id, status),
     onSuccess: updated => {
       queryClient.setQueryData(orderKeys.byId(updated.id), updated)
       patchOrderStatusInCache(queryClient, updated.id, updated.status)
@@ -196,14 +219,11 @@ export function useSetOrderStatus() {
   })
 }
 
-/** Soft-archive (hidden from list, status unchanged). Writes an ORDER_ARCHIVED history entry. */
+/** Soft-archive (hidden from list, status unchanged). The database records it (ORDER_ARCHIVED). */
 export function useArchiveOrder() {
   const queryClient = useQueryClient()
   return useMutation<void, Error, { id: string }>({
-    mutationFn: async ({ id }) => {
-      await orderService.archiveOrder(id)
-      await historyService.tryWriteHistory({ order_id: id, event_type: 'ORDER_ARCHIVED' })
-    },
+    mutationFn: ({ id }) => orderService.archiveOrder(id),
     onSuccess: (_void, { id }) => {
       void queryClient.invalidateQueries({ queryKey: orderKeys.byId(id) })
       void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
@@ -211,14 +231,15 @@ export function useArchiveOrder() {
   })
 }
 
-/** Cancel order: cancel every product + archive. Writes a CANCELLED history entry. */
-export function useArchiveOrderWithCancelledProducts() {
+/**
+ * Cancel an order: every product cancelled and the order archived, in one
+ * call to `cancel_order`, which records the cancel and what it caused under
+ * one action.
+ */
+export function useCancelOrder() {
   const queryClient = useQueryClient()
   return useMutation<void, Error, { id: string }>({
-    mutationFn: async ({ id }) => {
-      await orderService.archiveOrderWithCancelledProducts(id)
-      await historyService.tryWriteHistory({ order_id: id, event_type: 'CANCELLED' })
-    },
+    mutationFn: ({ id }) => orderService.cancelOrder(id),
     onSuccess: (_void, { id }) => {
       void queryClient.invalidateQueries({ queryKey: productKeys.byOrderId(id) })
       void queryClient.invalidateQueries({ queryKey: orderKeys.byId(id) })
@@ -229,19 +250,14 @@ export function useArchiveOrderWithCancelledProducts() {
 
 /**
  * Terminal close (BILLED + archived). Invoice orders reach this from FINISHED
- * ("Mark as invoiced", ORDER_BILLED); cash orders close directly from
- * IN_PROGRESS ("Finish & close", ORDER_CLOSED_CASH) and skip FINISHED entirely.
+ * ("Mark as invoiced"); cash orders close directly from IN_PROGRESS ("Finish &
+ * close") and skip FINISHED entirely. The database tells the two apart by the
+ * status left and records ORDER_BILLED or ORDER_CLOSED_CASH.
  */
 export function useMarkOrderBilled() {
   const queryClient = useQueryClient()
-  return useMutation<void, Error, { id: string; paidCash?: boolean }>({
-    mutationFn: async ({ id, paidCash }) => {
-      await orderService.markOrderBilled(id)
-      await historyService.tryWriteHistory({
-        order_id: id,
-        event_type: paidCash ? 'ORDER_CLOSED_CASH' : 'ORDER_BILLED',
-      })
-    },
+  return useMutation<void, Error, { id: string }>({
+    mutationFn: ({ id }) => orderService.markOrderBilled(id),
     onSuccess: (_void, { id }) => {
       patchOrderStatusInCache(queryClient, id, 'BILLED')
       void queryClient.invalidateQueries({ queryKey: orderKeys.byId(id) })

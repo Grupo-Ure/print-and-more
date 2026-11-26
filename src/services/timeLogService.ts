@@ -1,6 +1,5 @@
 import { supabase } from '../supabase'
 import { authService } from './authService'
-import { historyService } from './historyService'
 
 /**
  * Worked-time entries per product (`product_time_logs`). A product's total
@@ -53,57 +52,33 @@ class TimeLogService {
   }
 
   /**
-   * Insert a log attributed to `user` (the signed-in user unless an admin
-   * logged on someone's behalf) and record the full event in history:
-   * actor = history.user_id, attributed user + minutes in meta.
+   * Insert a log attributed to `userId` (the signed-in user unless an admin
+   * logged on someone's behalf); `created_by` is who wrote it. The database
+   * records it (TIME_LOGGED), with the minutes and the attributed user.
    */
-  async create(params: {
-    orderId: string
-    productId: string
-    minutes: number
-    user: { id: string; name: string }
-  }): Promise<TimeLogRow> {
+  async create(params: { productId: string; minutes: number; userId: string }): Promise<TimeLogRow> {
     const actor = await authService.getUser()
     const { data, error } = await supabase
       .from('product_time_logs')
       .insert({
         product_id: params.productId,
-        user_id: params.user.id,
+        user_id: params.userId,
         created_by: actor?.id ?? null,
         minutes: params.minutes,
       })
       .select(TIME_LOG_COLUMNS)
       .single()
     if (error) throw error
-    await historyService.tryWriteHistory({
-      order_id: params.orderId,
-      product_id: params.productId,
-      event_type: 'TIME_LOGGED',
-      meta: {
-        minutes: params.minutes,
-        user_id: params.user.id,
-        user_name: params.user.name,
-      },
-    })
     return data as unknown as TimeLogRow
   }
 
-  /** Admin-only (enforced by RLS). Records the removed log in history. */
-  async remove(params: { orderId: string; log: TimeLogRow }): Promise<void> {
-    const { log } = params
-    const { error } = await supabase.from('product_time_logs').delete().eq('id', log.id)
+  /**
+   * Admin-only (enforced by RLS). A deletion writes no history entry: the
+   * log's entry goes with it (fn_forget_history).
+   */
+  async remove(logId: string): Promise<void> {
+    const { error } = await supabase.from('product_time_logs').delete().eq('id', logId)
     if (error) throw error
-    await historyService.tryWriteHistory({
-      order_id: params.orderId,
-      product_id: log.product_id,
-      event_type: 'TIME_LOG_DELETED',
-      meta: {
-        minutes: log.minutes,
-        user_id: log.user?.id ?? null,
-        user_name: log.user?.name ?? null,
-        logged_at: log.created_at,
-      },
-    })
   }
 }
 

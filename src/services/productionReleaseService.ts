@@ -45,8 +45,9 @@ const floorQuantity = (raw: number | null | undefined): number =>
  * The release to production (the only point stock is consumed — not on "mark
  * done"). The release itself is the database's: `release_to_production` and
  * `force_release_to_production` check the gates, book the deductions
- * (`fn_production_deductions` + `book_production_deductions`, conditional
- * decrements and AUTO_DEDUCTION movements in one transaction) and move the
+ * (`fn_production_deductions` + `fn_book_production_deductions`, conditional
+ * decrements and a STOCK_AUTO_DEDUCTED history entry per item, in one
+ * transaction) and move the
  * product. The requirements and shortages are still computed here, as the
  * database computes them, for what the app shows before a release: the
  * banner, the size grid, the approval request's stock warning.

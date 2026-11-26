@@ -1,5 +1,5 @@
-import { CalendarX, CheckCircle2, Hourglass, Lock, MessageSquareWarning, TriangleAlert } from 'lucide-react'
-import { resolveEffectiveProduct } from '../lib/productShared'
+import { CalendarX, CheckCircle2, Hourglass, Lock, MessageSquareWarning, TriangleAlert, UserX } from 'lucide-react'
+import { prepressHold } from '../lib/productShared'
 import { useNewestApprovalRequest } from '../queries/approvalQueries'
 import { useSetProductStatus } from '../queries/productQueries'
 import { useOrderById } from '../queries/orderQueries'
@@ -20,12 +20,11 @@ type Props = {
  * customer, its newest approval round closed without an approval, short of
  * stock, held in setup, or locked in production.
  *
- * Held in setup is the same requirement the release button and the automatic advance enforce
- * (`isProductComplete`). Delivery and priority always resolve via the order,
- * and a product cannot lack content of its own (the job model's "no products
- * yet" blocker is gone with the job), so the one requirement that can be unmet
- * is the deadline. A *past* deadline does not block the release — only a
- * missing one does; the row shows the deadline-missed flag for that instead.
+ * Held in setup names what the database is waiting for before it moves the
+ * product into pre-press on its own (`prepressHold`, the client's mirror of
+ * `fn_product_ready_for_prepress`): a deadline — the product's own or the
+ * order's — or the customer's contact data. A *past* deadline does not hold
+ * it; the row shows the deadline-missed flag for that instead.
  */
 export function ProductProductionBanner({ product }: Props) {
   const setProductStatus = useSetProductStatus()
@@ -119,27 +118,28 @@ export function ProductProductionBanner({ product }: Props) {
     )
   }
 
-  // Setup without a deadline: red banner — the release to pre-press (manual
-  // and automatic) is refused until one is set, on the product or the order.
-  // Mirrors the stock shortage one step later in the workflow; admins can
-  // still force-release. Nothing is required while the order is a quote.
-  const missingDeadline =
-    product.status === 'IN_SETUP' &&
-    !product.is_cancelled &&
-    order != null &&
-    order.status !== 'QUOTE' &&
-    !resolveEffectiveProduct(product, order).deadline
+  // Held in setup: red banner naming what pre-press waits for — the product
+  // moves on its own once it is there. Mirrors the stock shortage one step
+  // later in the workflow; admins can still force-release. Nothing is
+  // required while the order is a quote.
+  const hold =
+    product.status === 'IN_SETUP' && !product.is_cancelled && order != null
+      ? prepressHold(product, order, order.customers)
+      : null
 
-  if (missingDeadline) {
+  if (hold === 'DEADLINE' || hold === 'CUSTOMER_CONTACT') {
     return (
       <div
         data-testid={IDS.root}
         data-kind="blocked"
+        data-hold={hold}
         className="flex items-center justify-center gap-4 border-t-6 border-red-500 px-4 py-2 text-red-500"
       >
-        <CalendarX />
+        {hold === 'DEADLINE' ? <CalendarX /> : <UserX />}
         <p className="text-sm font-medium">
-          Release to pre-press blocked: no deadline set.
+          {hold === 'DEADLINE'
+            ? 'Held in setup: no deadline set. The product moves to pre-press once it has one.'
+            : 'Held in setup: the customer needs a name and an email or phone. The product moves to pre-press once they have them.'}
         </p>
       </div>
     )
@@ -147,14 +147,11 @@ export function ProductProductionBanner({ product }: Props) {
 
   if (product.status !== 'IN_PRODUCTION') return null
 
+  // The database records the return (RETURNED_TO_PREPRESS); a product that is
+  // not ready for pre-press lands back in setup.
   const handleGoBackToPrePress = async () => {
     try {
-      await setProductStatus.mutateAsync({
-        id: product.id,
-        orderId: product.order_id,
-        status: 'PREPRESS',
-        history: { event_type: 'PREPRESS_READY_MANUAL' },
-      })
+      await setProductStatus.mutateAsync({ id: product.id, orderId: product.order_id, status: 'PREPRESS' })
     } catch {
       showError('Status could not be updated')
     }

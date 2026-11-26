@@ -173,13 +173,31 @@ export type OrderState = Pick<
 >
 
 /** A product's workflow columns, as much of them as a spec reads back after a refused or an allowed write. */
-export type ProductState = Pick<Database['public']['Tables']['products']['Row'], 'status' | 'quantity' | 'deadline' | 'assignee_id'>
+export type ProductState = Pick<
+  Database['public']['Tables']['products']['Row'],
+  'status' | 'quantity' | 'deadline' | 'assignee_id' | 'is_cancelled'
+>
 
 /** One history entry's product, reason and details, for what an event recorded. */
 export type HistoryEntryRow = Pick<Database['public']['Tables']['history']['Row'], 'product_id' | 'reason' | 'meta'>
 
-/** One automatic stock movement, as much of it as a spec looks at. */
-export type StockMovementRow = Pick<Database['public']['Tables']['stamp_stock_movements']['Row'], 'quantity' | 'note'>
+/** One history entry as an action recorded it: whose it is, the action it belongs to and what it recorded. */
+export type RecordedEntryRow = Pick<Database['public']['Tables']['history']['Row'], 'user_id' | 'action_id' | 'meta'>
+
+/** One recorded change of a product's specification: its type's own fields as they stood before and after the save. */
+export type SpecChange = { before: Record<string, unknown>; after: Record<string, unknown> }
+
+/** A file attached to a product, as much of it as a spec looks at: the file row and the order it belongs to. */
+export type AttachedFile = { id: string; orderId: string; displayName: string; path: string }
+
+/** One automatic stock deduction (a STOCK_AUTO_DEDUCTED entry), as much of it as a spec looks at. */
+export type StockDeductionRow = { quantity: number | null; note: string | null }
+
+/** One stock entry (STOCK_BOOKED or STOCK_AUTO_DEDUCTED): what it is linked to, whose it is, its action and what it recorded. */
+export type StockEntryRow = Pick<
+  Database['public']['Tables']['history']['Row'],
+  'id' | 'order_id' | 'product_id' | 'user_id' | 'action_id' | 'meta'
+>
 
 /** The private bucket the customer's page is served proof copies from. */
 const APPROVAL_PROOFS_BUCKET = 'approval-proofs'
@@ -285,6 +303,21 @@ export class TestDatabase {
     const { error } = await this.client.from('users').update({ is_developer: isDeveloper }).eq('id', userId)
     if (error) throw error
     return userId
+  }
+
+  /** Whether the login's row in `users` is still there. */
+  async userExists(user: TestUser): Promise<boolean> {
+    return (await this.findUserId(user.email)) !== null
+  }
+
+  /**
+   * Deletes the login's row in `users` alone, as the cascade from deleting the
+   * account would. The database's answer is returned, not thrown, since
+   * refusing is a case.
+   */
+  async deleteUserRow(user: TestUser): Promise<{ error: { code: string } | null }> {
+    const { error } = await this.client.from('users').delete().eq('email', user.email)
+    return { error }
   }
 
   // ── Customer approval settings ───────────────────────────────────────────
@@ -544,6 +577,21 @@ export class TestDatabase {
     if (error) throw error
   }
 
+  /** Changes the customer's phone number, as saving the customer dialog with another one would. */
+  async updateCustomerPhone(customerId: string, phone: string): Promise<void> {
+    const { error } = await this.client.from('customers').update({ phone }).eq('id', customerId)
+    if (error) throw error
+  }
+
+  /** Stamps a bounce onto the customer's current address, as the email webhook does when a mail to it bounces. */
+  async stampCustomerEmailBounced(customerId: string): Promise<void> {
+    const { error } = await this.client
+      .from('customers')
+      .update({ email_bounced_at: new Date().toISOString() })
+      .eq('id', customerId)
+    if (error) throw error
+  }
+
   /** Deletes the customer with every order it has (see `removeCustomers`). */
   async removeCustomer(customerId: string): Promise<void> {
     await this.removeCustomers([customerId])
@@ -562,7 +610,8 @@ export class TestDatabase {
   /**
    * Orders reference their customer without a cascade, so their orders go
    * first — each with its history, as `removeOrder` does; products and files
-   * follow by cascade — then the customers.
+   * follow by cascade — then the customers' own entries (created, updated;
+   * linked to the customer, which they restrict), then the customers.
    */
   private async removeCustomers(ids: string[]): Promise<void> {
     if (ids.length === 0) return
@@ -577,6 +626,8 @@ export class TestDatabase {
     }
     const { error: orderError } = await this.client.from('orders').delete().in('customer_id', ids)
     if (orderError) throw orderError
+    const { error: customerHistoryError } = await this.client.from('history').delete().in('customer_id', ids)
+    if (customerHistoryError) throw customerHistoryError
     const { error: customerError } = await this.client.from('customers').delete().in('id', ids)
     if (customerError) throw customerError
   }
@@ -602,6 +653,18 @@ export class TestDatabase {
       if (billedError) throw billedError
     }
     return { id: data.id, orderNumber: data.order_number, customerId }
+  }
+
+  /** Sets the order's deadline behind the app's back, as another user saving the settings row would; null clears it. */
+  async updateOrderDeadline(orderId: string, deadline: string | null): Promise<void> {
+    const { error } = await this.client.from('orders').update({ deadline }).eq('id', orderId)
+    if (error) throw error
+  }
+
+  /** Moves the order to a status behind the app's back, as another user's lifecycle step would. */
+  async updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
+    const { error } = await this.client.from('orders').update({ status }).eq('id', orderId)
+    if (error) throw error
   }
 
   /** Deletes the order with its history; products and files follow by cascade. The customer stays. */
@@ -658,13 +721,13 @@ export class TestDatabase {
   }
 
   /**
-   * Deletes the stamp model with the movements booked against it (a release
-   * writes those, and they block the delete); products that referenced it
-   * lose the reference (set null).
+   * Deletes the stamp model with the stock entries written about it (a
+   * release or a booking writes those, and they block the delete); products
+   * that referenced it lose the reference (set null).
    */
   async removeStampModel(id: string): Promise<void> {
-    const { error: movementError } = await this.client.from('stamp_stock_movements').delete().eq('model_id', id)
-    if (movementError) throw movementError
+    const { error: historyError } = await this.client.from('history').delete().eq('stamp_model_id', id)
+    if (historyError) throw historyError
     const { error } = await this.client.from('stamp_models').delete().eq('id', id)
     if (error) throw error
   }
@@ -679,10 +742,10 @@ export class TestDatabase {
     if (variantError) throw variantError
   }
 
-  /** Deletes the chain leaf first, with the movements booked against the variant; garment lines that referenced it lose the reference. */
+  /** Deletes the chain leaf first, with the stock entries written about the variant; garment lines that referenced it lose the reference. */
   async removeTextileChain(seed: TextileChainSeed): Promise<void> {
-    const { error: movementError } = await this.client.from('textile_stock_movements').delete().eq('variant_id', seed.variant.id)
-    if (movementError) throw movementError
+    const { error: historyError } = await this.client.from('history').delete().eq('textile_variant_id', seed.variant.id)
+    if (historyError) throw historyError
     const { error: variantError } = await this.client.from('textile_variants').delete().eq('id', seed.variant.id)
     if (variantError) throw variantError
     const { error: modelError } = await this.client.from('textile_models').delete().eq('id', seed.model.id)
@@ -739,15 +802,57 @@ export class TestDatabase {
     return { id: data.id, productNumber: data.product_number, orderId, department: seed.department }
   }
 
+  /**
+   * The product's typed child row as stored, from the table its type selects;
+   * null while it has none (or the id is not a product's).
+   */
+  async productChild(childTable: ChildTable, productId: string | null): Promise<Record<string, unknown> | null> {
+    if (!productId) return null
+    // Every child table is keyed by product_id; the cast only settles which one the client is typed for.
+    const { data, error } = await this.client
+      .from(childTable as 'other_products')
+      .select('*')
+      .eq('product_id', productId)
+      .maybeSingle()
+    if (error) throw error
+    return data
+  }
+
+  /** A textile batch's garment lines and designs as stored. */
+  async textileBatch(productId: string | null): Promise<{ garments: Record<string, unknown>[]; designs: Record<string, unknown>[] }> {
+    if (!productId) return { garments: [], designs: [] }
+    const { data: garments, error: garmentError } = await this.client
+      .from('textile_garments')
+      .select('*')
+      .eq('product_id', productId)
+      .order('sort_order')
+    if (garmentError) throw garmentError
+    const { data: designs, error: designError } = await this.client.from('textile_designs').select('*').eq('product_id', productId)
+    if (designError) throw designError
+    return { garments, designs }
+  }
+
   /** The product's workflow columns as stored. */
   async productState(productId: string): Promise<ProductState> {
     const { data, error } = await this.client
       .from('products')
-      .select('status, quantity, deadline, assignee_id')
+      .select('status, quantity, deadline, assignee_id, is_cancelled')
       .eq('id', productId)
       .single()
     if (error) throw error
     return data
+  }
+
+  /** Moves the product to a status behind the app's back, as another user's step or the database's own would. */
+  async updateProductStatus(productId: string, status: ProductStatus): Promise<void> {
+    const { error } = await this.client.from('products').update({ status }).eq('id', productId)
+    if (error) throw error
+  }
+
+  /** Gives the product a deadline of its own behind the app's back, as another user saving its settings would. */
+  async updateProductDeadline(productId: string, deadline: string): Promise<void> {
+    const { error } = await this.client.from('products').update({ deadline }).eq('id', productId)
+    if (error) throw error
   }
 
   /** Hands the product to the login, as picking them in the assignee picker would. Returns the user's id. */
@@ -947,15 +1052,38 @@ export class TestDatabase {
     return data.stock
   }
 
-  /** The automatic movements booked against the stamp model. */
-  async stampStockMovements(modelId: string): Promise<StockMovementRow[]> {
+  /** The automatic deductions recorded against the stamp model: its STOCK_AUTO_DEDUCTED entries. */
+  async stampStockDeductions(modelId: string): Promise<StockDeductionRow[]> {
     const { data, error } = await this.client
-      .from('stamp_stock_movements')
-      .select('quantity, note')
-      .eq('model_id', modelId)
-      .eq('type', 'AUTO_DEDUCTION')
+      .from('history')
+      .select('meta')
+      .eq('stamp_model_id', modelId)
+      .eq('event_type', 'STOCK_AUTO_DEDUCTED')
+    if (error) throw error
+    return data.map(({ meta }) => {
+      const fields = meta !== null && typeof meta === 'object' && !Array.isArray(meta) ? meta : {}
+      return {
+        quantity: typeof fields.quantity === 'number' ? fields.quantity : null,
+        note: typeof fields.note === 'string' ? fields.note : null,
+      }
+    })
+  }
+
+  /** The stamp model's stock entries of that event, in full: links, user, action and what each recorded. */
+  async stampStockEntries(modelId: string, eventType: HistoryEvent): Promise<StockEntryRow[]> {
+    const { data, error } = await this.client
+      .from('history')
+      .select('id, order_id, product_id, user_id, action_id, meta')
+      .eq('stamp_model_id', modelId)
+      .eq('event_type', eventType)
     if (error) throw error
     return data
+  }
+
+  /** Deletes the textile brand, if it is there. */
+  async removeTextileBrand(id: string): Promise<void> {
+    const { error } = await this.client.from('textile_brands').delete().eq('id', id)
+    if (error) throw error
   }
 
   // ── Emails ───────────────────────────────────────────────────────────────
@@ -1128,6 +1256,66 @@ export class TestDatabase {
     return data
   }
 
+  /** The order's history entries of that event, each with its user, its action and what it recorded. */
+  async recordedEntries(orderId: string, eventType: HistoryEvent): Promise<RecordedEntryRow[]> {
+    const { data, error } = await this.client
+      .from('history')
+      .select('user_id, action_id, meta')
+      .eq('order_id', orderId)
+      .eq('event_type', eventType)
+    if (error) throw error
+    return data
+  }
+
+  /**
+   * The spec changes recorded for the order's products: one per PRODUCT_UPDATED
+   * entry, each with the type's own fields before and after (the entry's
+   * `meta.before.spec` and `meta.after.spec`).
+   */
+  async productSpecChanges(orderId: string): Promise<SpecChange[]> {
+    const { data, error } = await this.client
+      .from('history')
+      .select('meta')
+      .eq('order_id', orderId)
+      .eq('event_type', 'PRODUCT_UPDATED')
+    if (error) throw error
+    const fields = (value: unknown): Record<string, unknown> =>
+      value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
+    return data.map(({ meta }) => ({
+      before: fields(fields(fields(meta).before).spec),
+      after: fields(fields(fields(meta).after).spec),
+    }))
+  }
+
+  /** The action each of the order's history entries of that event belongs to. */
+  async historyActionIds(orderId: string, eventType: HistoryEvent): Promise<(string | null)[]> {
+    const { data, error } = await this.client
+      .from('history')
+      .select('action_id')
+      .eq('order_id', orderId)
+      .eq('event_type', eventType)
+    if (error) throw error
+    return data.map(entry => entry.action_id)
+  }
+
+  /** The ids of the order's history entries — of one event, or all of them. */
+  async orderHistoryIds(orderId: string, eventType?: HistoryEvent): Promise<string[]> {
+    let query = this.client.from('history').select('id').eq('order_id', orderId)
+    if (eventType) query = query.eq('event_type', eventType)
+    const { data, error } = await query
+    if (error) throw error
+    return data.map(entry => entry.id)
+  }
+
+  /** The ids of the entries about the customer itself (created, updated) — of one event, or all of them. Not its orders'. */
+  async customerHistoryIds(customerId: string, eventType?: HistoryEvent): Promise<string[]> {
+    let query = this.client.from('history').select('id').eq('customer_id', customerId)
+    if (eventType) query = query.eq('event_type', eventType)
+    const { data, error } = await query
+    if (error) throw error
+    return data.map(entry => entry.id)
+  }
+
   /** How many history entries of that event the order has. */
   async historyCount(orderId: string, eventType: HistoryEvent): Promise<number> {
     const { count, error } = await this.client
@@ -1135,6 +1323,19 @@ export class TestDatabase {
       .select('id', { count: 'exact', head: true })
       .eq('order_id', orderId)
       .eq('event_type', eventType)
+    if (error) throw error
+    return count ?? 0
+  }
+
+  /**
+   * How many history entries are left about an order's record: those linked
+   * to the order, to one of the products or to one of the files named.
+   */
+  async historyCountAbout(orderId: string, productIds: string[], fileIds: string[]): Promise<number> {
+    const { count, error } = await this.client
+      .from('history')
+      .select('id', { count: 'exact', head: true })
+      .or(`order_id.eq.${orderId},product_id.in.(${productIds.join(',')}),file_id.in.(${fileIds.join(',')})`)
     if (error) throw error
     return count ?? 0
   }
@@ -1178,6 +1379,16 @@ export class TestDatabase {
     return (count ?? 0) > 0
   }
 
+  /** How many products the order has, cancelled ones included. */
+  async productCount(orderId: string): Promise<number> {
+    const { count, error } = await this.client
+      .from('products')
+      .select('id', { count: 'exact', head: true })
+      .eq('order_id', orderId)
+    if (error) throw error
+    return count ?? 0
+  }
+
   /** Whether the file row is still there. */
   async fileExists(fileId: string): Promise<boolean> {
     const { count, error } = await this.client.from('files').select('id', { count: 'exact', head: true }).eq('id', fileId)
@@ -1197,6 +1408,21 @@ export class TestDatabase {
     const { count, error } = await this.client.from('history').select('id', { count: 'exact', head: true }).eq('id', historyId)
     if (error) throw error
     return (count ?? 0) > 0
+  }
+
+  /** The files attached to the order's products: one per `product_files` link, with the file row it points at. */
+  async attachedFiles(orderId: string): Promise<AttachedFile[]> {
+    const { data, error } = await this.client
+      .from('product_files')
+      .select('products!inner(order_id), files!inner(id, order_id, display_name, path)')
+      .eq('products.order_id', orderId)
+    if (error) throw error
+    return data.map(({ files }) => ({
+      id: files.id,
+      orderId: files.order_id,
+      displayName: files.display_name,
+      path: files.path,
+    }))
   }
 
   /** How many files the product links. */
@@ -1231,14 +1457,34 @@ export class TestDatabase {
     return data.id
   }
 
-  /** Writes one history entry of that event onto the order, with nothing else recorded. Returns the entry's id. Removed with the order. */
-  async createHistoryEntry(orderId: string, eventType: HistoryEvent): Promise<string> {
+  /**
+   * Writes one history entry of that event onto the order, with nothing else
+   * recorded — linked to one of the order's products or files as well when
+   * `record` names it, as the database links an entry about one. Returns the
+   * entry's id. Removed with the order.
+   */
+  async createHistoryEntry(
+    orderId: string,
+    eventType: HistoryEvent,
+    record: { productId?: string; fileId?: string } = {},
+  ): Promise<string> {
     const { data, error } = await this.client
       .from('history')
-      .insert({ order_id: orderId, event_type: eventType })
+      .insert({ order_id: orderId, event_type: eventType, product_id: record.productId ?? null, file_id: record.fileId ?? null })
       .select('id')
       .single()
     if (error) throw error
     return data.id
+  }
+
+  /**
+   * Writes that many history entries of one event onto the order in a single
+   * insert, so all of them share their `created_at` — as the entries of one
+   * transaction do. Removed with the order.
+   */
+  async createHistoryEntries(orderId: string, eventType: HistoryEvent, count: number): Promise<void> {
+    const rows = Array.from({ length: count }, () => ({ order_id: orderId, event_type: eventType }))
+    const { error } = await this.client.from('history').insert(rows)
+    if (error) throw error
   }
 }

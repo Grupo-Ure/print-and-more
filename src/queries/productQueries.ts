@@ -1,13 +1,11 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { productService, type ProductFileAssignment } from '../services/productService'
-import { historyService, type HistoryEvent } from '../services/historyService'
 import { productionReleaseService } from '../services/productionReleaseService'
 import { resolveEffectiveProduct } from '../lib/productShared'
-import { deriveAutomaticOrderStatus } from '../lib/status/automaticStatus'
 import type { LoadedProduct, ProductWriteInput } from '../types/product'
-import type { OrderDetailRow, ProductRow, ProductStatus, ProductUpdate } from '../types/database'
-import { orderKeys, useOrderById, useSetOrderStatus } from './orderQueries'
+import type { ProductRow, ProductStatus, ProductUpdate } from '../types/database'
+import { orderKeys, useOrderById } from './orderQueries'
 import { historyKeys } from './historyQueries'
 import { stockAvailabilityKeys } from './stockQueries'
 
@@ -18,8 +16,6 @@ import { stockAvailabilityKeys } from './stockQueries'
  * file links). Both halves live on one row, so they share one cache — the
  * order's `LoadedProduct[]`, keyed by {@link productKeys.byOrderId}.
  */
-
-type HistoryParams = { event_type: HistoryEvent; reason?: string; meta?: Record<string, unknown> }
 
 export const productKeys = {
   all: ['products'] as const,
@@ -86,12 +82,10 @@ export function useProductFilesByOrderId(orderId: string | null) {
 }
 
 /**
- * Refresh the order lists after a product change. Order status is an
- * independent lifecycle (the one product-driven step, the automatic finish, is
- * a separate write — see {@link useFinishOrderWhenAllProductsDone}), but the
- * sidebar still shows product-derived data (e.g. the in-production-missing-info
- * warning), so the lists are invalidated whenever a product changes. The
- * production feed lists products across orders and follows the same events.
+ * Refresh the order lists after a product change. The sidebar shows
+ * product-derived data (e.g. the in-production-missing-info warning), so the
+ * lists are invalidated whenever a product changes. The production feed lists
+ * products across orders and follows the same events.
  */
 function invalidateOrderLists(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: orderKeys.lists })
@@ -112,35 +106,6 @@ function patchProductInCache(queryClient: QueryClient, orderId: string, row: Pro
   queryClient.setQueryData<LoadedProduct[]>(
     productKeys.byOrderId(orderId),
     old => old?.map(product => (product.id === row.id ? mergeParent(product, row) : product)) ?? old,
-  )
-}
-
-/**
- * The automatic order finish: once every non-cancelled product of an invoice
- * order is DONE, the order moves to FINISHED on its own (ORDER_FINISHED with
- * `meta.automatic`). The returned function is called right after a mutation
- * that can complete the order's work (mark done, cancel product, delete
- * product) — their `onSuccess` has patched the product cache by then, so the
- * cached rows are current. It reads the order and products from the cache
- * only; when either is missing it does nothing, which leaves the manual "Mark
- * finished" as the fallback. The rule itself is `deriveAutomaticOrderStatus`.
- */
-export function useFinishOrderWhenAllProductsDone(): (orderId: string) => Promise<void> {
-  const queryClient = useQueryClient()
-  const { mutateAsync: setOrderStatus } = useSetOrderStatus()
-  return useCallback(
-    async (orderId: string) => {
-      const order = queryClient.getQueryData<OrderDetailRow | null>(orderKeys.byId(orderId))
-      const products = queryClient.getQueryData<LoadedProduct[]>(productKeys.byOrderId(orderId))
-      if (!order || !products) return
-      if (deriveAutomaticOrderStatus(order, products) !== 'FINISHED') return
-      await setOrderStatus({
-        id: orderId,
-        status: 'FINISHED',
-        history: { event_type: 'ORDER_FINISHED', meta: { automatic: true } },
-      })
-    },
-    [queryClient, setOrderStatus],
   )
 }
 
@@ -171,7 +136,7 @@ export function useEffectiveProduct(
   const { data: order } = useOrderById(orderId)
   // Memoize so the resolved row keeps a stable reference between renders (it only
   // changes when the product or order data changes) — important for consumers that
-  // use it as an effect dependency (the status manager).
+  // use it as an effect dependency.
   return useMemo(
     () => (product && order ? resolveEffectiveProduct(product, order) : null),
     [product, order],
@@ -182,11 +147,11 @@ export function useEffectiveProduct(
  * Create-or-update a product and reconcile its file links in one unit, then
  * reload the authoritative product + file lists and patch both caches.
  *
- * The file reconcile is an add/remove diff (not the legacy remove-all-then-
- * re-add). `createProduct` only returns the new id, so we can't reconstruct the
- * row from the mutation return — hence the reload before the cache patch. A
- * textile batch's garment lines and designs are part of the product write
- * itself; the service replaces them wholesale.
+ * The product write is one call (`save_product`): parent, children — a textile
+ * batch's garment lines and designs included — and the history entry, in one
+ * transaction. The file reconcile follows as an add/remove diff, each link
+ * recorded by the database. The save returns only the id, hence the reload
+ * before the cache patch.
  */
 export function useSaveProduct() {
   const queryClient = useQueryClient()
@@ -196,9 +161,8 @@ export function useSaveProduct() {
     { input: ProductWriteInput; fileIds: string[]; orderId: string }
   >({
     mutationFn: async ({ input, fileIds, orderId }) => {
-      // 1. Product write (create or update).
-      const productId = input.id ?? (await productService.createProduct(input))
-      if (input.id) await productService.updateProduct(input.id, input)
+      // 1. Product write (create or change), recorded by the database.
+      const productId = await productService.saveProduct(input)
 
       // 2. File-link diff against the product's current assignments.
       const existing = input.id ? await productService.getFilesByProductIds([input.id]) : []
@@ -218,26 +182,14 @@ export function useSaveProduct() {
       const files = await productService.getFilesByProductIds(products.map(product => product.id))
       return { productId, products, files }
     },
-    onSuccess: ({ productId, products, files }, { input, orderId }) => {
+    onSuccess: ({ productId, products, files }, { orderId }) => {
       // A released product's spec is locked by the database (MKS-88), so an
       // edit that reaches here was on an open product — nothing to bounce.
       queryClient.setQueryData(productKeys.byOrderId(orderId), products)
       queryClient.setQueryData(productKeys.filesByOrderId(orderId), files)
       invalidateOrderLists(queryClient)
       void queryClient.invalidateQueries({ queryKey: stockAvailabilityKeys.byProductId(productId) })
-
-      const saved = products.find(product => product.id === productId)
-      void historyService.tryWriteHistory({
-        order_id: orderId,
-        product_id: productId,
-        event_type: input.id ? 'PRODUCT_UPDATED' : 'PRODUCT_CREATED',
-        meta: {
-          product_number: saved?.product_number ?? null,
-          department: input.department,
-          type: input.type,
-          quantity: input.quantity,
-        },
-      })
+      void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
     },
   })
 }
@@ -246,21 +198,17 @@ export function useSaveProduct() {
  * Persist a product's own settings fields (deadline / delivery / priority
  * overrides, notes). Optimistic: `onMutate` patches the cached row in place for
  * an instant UI and the snapshot is restored on error. It persists the given
- * fields only — the automatic status is the status manager's business.
+ * fields only; the database records each changed override (SETTINGS_CHANGED).
  */
 export function useUpdateProduct() {
   const queryClient = useQueryClient()
   return useMutation<
     ProductRow,
     Error,
-    { id: string; orderId: string; patch: ProductUpdate; history?: HistoryParams },
+    { id: string; orderId: string; patch: ProductUpdate },
     { previous?: LoadedProduct[] }
   >({
-    mutationFn: async ({ id, orderId, patch, history }) => {
-      const row = await productService.update(id, patch)
-      if (history) await historyService.tryWriteHistory({ order_id: orderId, product_id: id, ...history })
-      return row
-    },
+    mutationFn: ({ id, patch }) => productService.update(id, patch),
     onMutate: async ({ id, orderId, patch }) => {
       await queryClient.cancelQueries({ queryKey: productKeys.byOrderId(orderId) })
       const previous = queryClient.getQueryData<LoadedProduct[]>(productKeys.byOrderId(orderId))
@@ -285,23 +233,18 @@ export function useUpdateProduct() {
   })
 }
 
-/** Manual status transition (prepress / production / done). Optionally writes a history entry. */
+/**
+ * Manual status transition: back to pre-press from production, or done. The
+ * database records the step (RETURNED_TO_PREPRESS, MARKED_DONE).
+ */
 export function useSetProductStatus() {
   const queryClient = useQueryClient()
-  return useMutation<
-    ProductRow,
-    Error,
-    { id: string; orderId: string; status: ProductStatus; history?: HistoryParams }
-  >({
-    mutationFn: async ({ id, orderId, status, history }) => {
-      const row = await productService.setStatus(id, status)
-      if (history) await historyService.tryWriteHistory({ order_id: orderId, product_id: id, ...history })
-      return row
-    },
+  return useMutation<ProductRow, Error, { id: string; orderId: string; status: ProductStatus }>({
+    mutationFn: ({ id, status }) => productService.setStatus(id, status),
     onSuccess: (row, { orderId }) => {
       patchProductInCache(queryClient, orderId, row)
       invalidateOrderLists(queryClient)
-      // A stage default may have reassigned the product and logged it (DB trigger).
+      // The step's entry, and a stage default's reassignment, are written with it.
       void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
     },
   })
@@ -334,12 +277,12 @@ export function useReleaseToProduction() {
 
 /**
  * Emergency force release through `force_release_to_production` (admins
- * only): bypasses the completeness, stock and approval-round gates and puts the
- * product straight into IN_PRODUCTION, writing an EMERGENCY_TRIGGERED entry
- * with the reason — history is the sole record of the override. Short stock is
- * floored at 0 and the movements record what was actually taken. IN_PRODUCTION
- * is outside the automatic status band, so the status manager leaves the
- * product alone.
+ * only): bypasses the pre-press condition, stock and approval-round gates and
+ * puts the product straight into IN_PRODUCTION, writing an EMERGENCY_TRIGGERED
+ * entry with the reason — history is the sole record of the override. Short
+ * stock is floored at 0 and the movements record what was actually taken.
+ * IN_PRODUCTION is outside the setup/pre-press band, so the database's
+ * automatic move leaves the product alone.
  */
 export function useForceReleaseToProduction() {
   const queryClient = useQueryClient()
@@ -360,37 +303,13 @@ export function useForceReleaseToProduction() {
 }
 
 /**
- * Assign / unassign a product's responsible user — any role may do this. Always
- * writes an ASSIGNEE_CHANGED history entry; names are snapshotted into meta so
- * the entry stays readable if a user is later deleted.
+ * Assign / unassign a product's responsible user — any role may do this. The
+ * database records the change (ASSIGNEE_CHANGED), with both users' names.
  */
 export function useSetProductAssignee() {
   const queryClient = useQueryClient()
-  return useMutation<
-    ProductRow,
-    Error,
-    {
-      id: string
-      orderId: string
-      assignee: { id: string; name: string } | null
-      previousAssignee: { id: string; name: string } | null
-    }
-  >({
-    mutationFn: async ({ id, orderId, assignee, previousAssignee }) => {
-      const row = await productService.update(id, { assignee_id: assignee?.id ?? null })
-      await historyService.tryWriteHistory({
-        order_id: orderId,
-        product_id: id,
-        event_type: 'ASSIGNEE_CHANGED',
-        meta: {
-          previous_assignee_id: previousAssignee?.id ?? null,
-          previous_assignee_name: previousAssignee?.name ?? null,
-          new_assignee_id: assignee?.id ?? null,
-          new_assignee_name: assignee?.name ?? null,
-        },
-      })
-      return row
-    },
+  return useMutation<ProductRow, Error, { id: string; orderId: string; assigneeId: string | null }>({
+    mutationFn: ({ id, assigneeId }) => productService.update(id, { assignee_id: assigneeId }),
     onSuccess: (row, { orderId }) => {
       patchProductInCache(queryClient, orderId, row)
       void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
@@ -399,18 +318,14 @@ export function useSetProductAssignee() {
   })
 }
 
-/** Cancel a product (hidden from the workspace; keeps its data). */
+/**
+ * Cancel a product (hidden from the workspace; keeps its data). The database
+ * records it (PRODUCT_CANCELLED), with the product as it stood.
+ */
 export function useCancelProduct() {
   const queryClient = useQueryClient()
   return useMutation<void, Error, { id: string; orderId: string }>({
-    mutationFn: async ({ id, orderId }) => {
-      await productService.cancel(id)
-      await historyService.tryWriteHistory({
-        order_id: orderId,
-        product_id: id,
-        event_type: 'PRODUCT_CANCELLED',
-      })
-    },
+    mutationFn: ({ id }) => productService.cancel(id),
     onSuccess: (_void, { id, orderId }) => {
       queryClient.setQueryData<LoadedProduct[]>(
         productKeys.byOrderId(orderId),
@@ -423,26 +338,15 @@ export function useCancelProduct() {
   })
 }
 
-/** Permanently delete a product (only while IN_SETUP). */
+/**
+ * Permanently delete a product (only while IN_SETUP). A deletion writes no
+ * history entry: the product's entries go with it (fn_forget_history).
+ */
 export function useDeleteProduct() {
   const queryClient = useQueryClient()
   return useMutation<void, Error, { id: string; orderId: string }>({
-    mutationFn: async ({ id, orderId }) => {
-      // Snapshot before the delete: the history entry can't reference the dead
-      // row (product_id stays null), so the product is identified via meta.
-      const product = queryClient
-        .getQueryData<LoadedProduct[]>(productKeys.byOrderId(orderId))
-        ?.find(row => row.id === id)
+    mutationFn: async ({ id }) => {
       await productService.deleteProduct(id)
-      await historyService.tryWriteHistory({
-        order_id: orderId,
-        event_type: 'PRODUCT_DELETED',
-        meta: {
-          product_number: product?.product_number ?? null,
-          department: product?.department ?? null,
-          type: product?.type ?? null,
-        },
-      })
     },
     onSuccess: (_void, { id, orderId }) => {
       queryClient.setQueryData<LoadedProduct[]>(

@@ -5,7 +5,6 @@ import {
   type DeliveryChoice,
   type OrderDetailRow,
   type Priority,
-  type ProductRow,
   type ProductUpdate,
 } from '../../types/database'
 import type { LoadedProduct } from '../../types/product'
@@ -64,23 +63,14 @@ export function ProductSettingsSection({
   const isLocked = product.status === 'IN_PRODUCTION' || isReadOnly
 
   // Persist a field edit straight to the DB (optimistic via useUpdateProduct —
-  // instant UI, rollback on error). No status calculation here: status is driven
-  // by the status manager (decoupled — see STATUS_WORKFLOW_SPEC.md).
+  // instant UI, rollback on error). No status calculation here: a deadline
+  // change moves the product between setup and pre-press in the database, in
+  // the same write, and the orders view's live refresh brings the new status.
+  // Every patch here is a single override field; null = back to inheriting the
+  // order's value. The database records it (SETTINGS_CHANGED).
   const handleUpdateProduct = (patch: ProductUpdate) => {
-    // Every patch here is a single override field; null = back to inheriting the order's value.
-    const field = Object.keys(patch)[0] as keyof ProductUpdate | undefined
     updateProduct.mutate(
-      {
-        id: product.id,
-        orderId: product.order_id,
-        patch,
-        history: field
-          ? {
-              event_type: 'SETTINGS_CHANGED',
-              meta: { field, previous: product[field as keyof ProductRow] ?? null, next: patch[field] ?? null },
-            }
-          : undefined,
-      },
+      { id: product.id, orderId: product.order_id, patch },
       { onError: () => showError('Save failed') },
     )
   }

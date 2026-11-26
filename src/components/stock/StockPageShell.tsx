@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import type { Session } from '@supabase/supabase-js'
 import { Login } from '../Login'
 import { AccessDenied } from '../AccessDenied'
 import { useSupabaseSession } from '../../hooks/useSupabaseSession'
@@ -9,7 +8,7 @@ import { TEST_IDS } from '@e2e/support/testIds'
 type StockPageShellProps = {
   accessDeniedDescription: string
   /** Page content; only rendered once the admin gate has passed. */
-  children: (session: Session) => ReactNode
+  children: ReactNode
 }
 
 /**
@@ -32,7 +31,7 @@ export function StockPageShell({ accessDeniedDescription, children }: StockPageS
   // visible "travel" before the sticky settles when scrolling starts.
   return (
     <main data-testid={TEST_IDS.stock.root} className="w-full px-3 pb-3">
-      {children(session)}
+      {children}
     </main>
   )
 }

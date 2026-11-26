@@ -155,7 +155,7 @@ export function hashToken(token: string): string {
   return createHash('sha256').update(token, 'utf8').digest('hex')
 }
 
-/** The note a release's automatic stock movements carry, naming the order. */
+/** The note a release's automatic stock deductions carry, naming the order. */
 export function releaseMovementNote(orderNumber: string): string {
   return `Automatic on production release ${orderNumber}`
 }

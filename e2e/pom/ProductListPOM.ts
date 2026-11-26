@@ -65,6 +65,11 @@ export class ProductListPOM extends BasePOM {
     return row.getByTestId(IDS.rowMissingInfo)
   }
 
+  /** The row's flag for a deadline that has passed. */
+  rowDeadlineMissed(row: Locator): Locator {
+    return row.getByTestId(IDS.rowDeadlineMissed)
+  }
+
   /** The status every listed product is in, keyed by product id — a read for `expect.poll`. */
   async rowStatuses(): Promise<Record<string, ProductStatus | null>> {
     return this.rows.evaluateAll(elements =>

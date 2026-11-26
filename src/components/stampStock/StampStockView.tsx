@@ -8,7 +8,7 @@ import { useConfirm } from '../ConfirmDialog'
 import { errorToString } from '../../lib/errorToString'
 import { REFILL_INK_COLORS, STAMP_COLOR_LABELS } from '../../types/stamp'
 import {
-  useBookStampMovement,
+  useBookStampStock,
   useSaveStampMinimumStock,
   useStampMasterData,
   useStampReorderList,
@@ -61,17 +61,12 @@ const REORDER_COLUMNS: StockColumn<OrderListRow>[] = [
   },
 ]
 
-type StampStockViewProps = {
-  /** Booked movements are attributed to this user. */
-  userId: string
-}
-
 /**
  * The single stamp stock table: booking + status (former Overview), master
  * data (create/edit/deactivate models), with the reorder list and the
  * movement history in dialogs.
  */
-export function StampStockView({ userId }: StampStockViewProps) {
+export function StampStockView() {
   const { showError } = useToast()
   const confirm = useConfirm()
   const {
@@ -93,13 +88,13 @@ export function StampStockView({ userId }: StampStockViewProps) {
   const modelsQuery = useStampMasterData()
   // Only fetched while the reorder dialog is open.
   const reorderQuery = useStampReorderList(reorderOpen)
-  const bookMovement = useBookStampMovement()
+  const bookStock = useBookStampStock()
   const saveMinimumStock = useSaveStampMinimumStock()
   const updateModel = useUpdateStampModel()
 
-  const booking = useStockBooking(async ({ itemId, quantity, nextStock, type }) => {
+  const booking = useStockBooking(async ({ itemId, quantity, type }) => {
     try {
-      await bookMovement.mutateAsync({ modelId: itemId, quantity, nextStock, type, userId })
+      await bookStock.mutateAsync({ modelId: itemId, quantity, type })
     } catch (error) {
       showError('Booking failed')
       throw error

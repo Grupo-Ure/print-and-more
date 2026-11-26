@@ -1,6 +1,10 @@
 import { supabase } from '../supabase'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import type { Database } from '../types/supabase'
 import { type DuplicateOrderArgs, type OrderDetailRow, type OrderStatus, type OrderSummaryRow, type ProductStatus } from '../types/database'
+
+/** Pause before a lost realtime channel is replaced. */
+const RESUBSCRIBE_DELAY_MS = 2000
 
 /** SELECT for `orders` incl. customer join (list, detail, status sync). */
 const ORDER_COLUMNS =
@@ -92,8 +96,8 @@ const ORDER_LIST_COLUMNS = 'id, order_number, status, created_at, customers(name
  * Note on status: order status is its own lifecycle (QUOTE → IN_PROGRESS →
  * FINISHED → BILLED), written via {@link setOrderStatus} / {@link markOrderBilled}.
  * Every transition is an explicit user action except IN_PROGRESS → FINISHED,
- * which the client also performs on its own once every product of an invoice
- * order is done (`useFinishOrderWhenAllProductsDone`).
+ * which the database also makes on its own once every product of an invoice
+ * order is done (`fn_finish_order_if_done`, run by a trigger on products).
  */
 class OrderService {
   /** Filtered order list for the sidebar (archived toggle, customer, status, deadline/intake ranges). Newest first. */
@@ -187,18 +191,14 @@ class OrderService {
     if (error) throw error
   }
 
-  /** Cancel all not-yet-cancelled products, then archive the order. Two writes, not transactional. */
-  async archiveOrderWithCancelledProducts(orderId: string): Promise<void> {
-    const { error: subError } = await supabase
-      .from('products')
-      .update({ is_cancelled: true })
-      .eq('order_id', orderId)
-      .neq('is_cancelled', true)
-    if (subError) throw subError
-    const { error } = await supabase
-      .from('orders')
-      .update({ is_archived: true })
-      .eq('id', orderId)
+  /**
+   * Cancel an order through the `cancel_order` function: every product not
+   * yet cancelled is cancelled and the order archived, in one transaction.
+   * The database refuses a billed order, and a finished one that still has a
+   * product to cancel.
+   */
+  async cancelOrder(orderId: string): Promise<void> {
+    const { error } = await supabase.rpc('cancel_order', { p_order_id: orderId })
     if (error) throw error
   }
 
@@ -226,9 +226,8 @@ class OrderService {
   /**
    * Deep-copy an order via the `duplicate_order` Postgres RPC — products
    * (incl. typed child by `type`), `product_files`, and textile rows — in one
-   * transaction. This stays server-side *because* it must be atomic; it's the one
-   * status/data RPC deliberately kept (unlike the retired `fn_calculate_order_status`).
-   * Returns the new order id.
+   * transaction. The database records the copy as a new order, under the
+   * signed-in user. Returns the new order id.
    */
   async duplicateOrder(params: {
     source_order_id: string
@@ -236,7 +235,6 @@ class OrderService {
     new_delivery: DeliveryEnum | null
     new_deadline: string | null
     selected_product_ids: string[]
-    created_by_user_id: string | null
   }): Promise<string> {
     const { data, error } = await supabase.rpc('duplicate_order', params as unknown as DuplicateOrderArgs)
     if (error) throw new Error(error.message)
@@ -265,6 +263,64 @@ class OrderService {
       })
       .subscribe()
     return () => { void supabase.removeChannel(channel) }
+  }
+
+  /**
+   * Realtime subscription for the orders view: fires `onChanged(orderId)` on
+   * any INSERT/UPDATE/DELETE of `orders` or `products`, whoever made it, so
+   * the open order, its products and the order lists can refetch.
+   *
+   * `orderId` is the order the change concerns, or `null` when it is not
+   * known: a product's DELETE carries only its primary key (the table keeps
+   * the default replica identity), and a replaced channel cannot say what it
+   * missed. `null` means "any order may have changed".
+   *
+   * Self-healing as `productService.subscribeToProductChanges` is: a channel
+   * that errors, times out or closes unasked is replaced after a short pause,
+   * and `onChanged(null)` fires once the replacement is subscribed.
+   * Returns an unsubscribe function.
+   */
+  subscribeToOrderChanges(onChanged: (orderId: string | null) => void): () => void {
+    let channel: RealtimeChannel | null = null
+    let stopped = false
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
+    let reconnecting = false
+
+    const open = () => {
+      // A unique topic per channel, so a remount never reuses one still being removed.
+      const current: RealtimeChannel = supabase
+        .channel(`orders-view-refresh:${crypto.randomUUID()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
+          const row = (payload.eventType === 'DELETE' ? payload.old : payload.new) as { id?: string }
+          onChanged(row.id ?? null)
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, payload => {
+          const row = (payload.eventType === 'DELETE' ? payload.old : payload.new) as { order_id?: string }
+          onChanged(row.order_id ?? null)
+        })
+        .subscribe(status => {
+          // Ignore channels already replaced or unsubscribed on purpose.
+          if (stopped || current !== channel) return
+          if (status === 'SUBSCRIBED') {
+            if (reconnecting) onChanged(null)
+            reconnecting = false
+            return
+          }
+          // CHANNEL_ERROR, TIMED_OUT, or CLOSED that we did not ask for.
+          channel = null
+          reconnecting = true
+          void supabase.removeChannel(current)
+          retryTimer = setTimeout(open, RESUBSCRIBE_DELAY_MS)
+        })
+      channel = current
+    }
+
+    open()
+    return () => {
+      stopped = true
+      clearTimeout(retryTimer)
+      if (channel) void supabase.removeChannel(channel)
+    }
   }
 }
 

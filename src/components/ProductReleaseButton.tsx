@@ -31,25 +31,51 @@ type Props = {
 /**
  * The product header's forward action: advances the product one workflow step,
  * in the colour of the target status. Admins additionally get a dropdown with
- * the force release while a completeness, stock or approval-round gate is
- * failing. A product awaiting approval has no advance, so neither is offered. Every rule
- * lives in useProductRelease; this component is the presentation.
+ * the force release while a stock or approval-round gate is failing. A product
+ * in setup has no advance — it enters pre-press on its own once it is ready —
+ * so while one is held there an admin gets the force release as a button of its
+ * own. A product awaiting approval has no advance, so neither is offered. Every
+ * rule lives in useProductRelease; this component is the presentation.
  */
 export function ProductReleaseButton({ product }: Props) {
   const release = useProductRelease(product)
   const [forceDialogOpen, setForceDialogOpen] = useState(false)
-  const [forceReason, setForceReason] = useState('')
 
-  // No next status (DONE) or the order is still a quote → nothing to advance.
+  const forceDialog = (
+    <ForceReleaseDialog
+      open={forceDialogOpen}
+      onOpenChange={setForceDialogOpen}
+      pending={release.pending}
+      onSubmit={release.forceRelease}
+    />
+  )
+
+  // Held in setup: no advance, only the admin's override.
+  if (release.target == null && release.canForceRelease) {
+    return (
+      <div className="ml-auto flex items-center">
+        <Button
+          type="button"
+          variant="default"
+          data-testid={IDS.forceButton}
+          className={cn(
+            'h-10 rounded-full px-6 text-lg',
+            PRODUCT_STATUS_META.IN_PRODUCTION.color,
+            PRODUCT_STATUS_META.IN_PRODUCTION.hoverColor,
+          )}
+          disabled={release.pending}
+          onClick={() => setForceDialogOpen(true)}
+        >
+          Force release to Production…
+        </Button>
+        {forceDialog}
+      </div>
+    )
+  }
+
+  // No next status (setup, DONE) or the order is still a quote → nothing to advance.
   if (release.target == null || release.label == null) return null
   const target = release.target
-
-  const handleForceRelease = async () => {
-    const released = await release.forceRelease(forceReason.trim())
-    if (!released) return
-    setForceDialogOpen(false)
-    setForceReason('')
-  }
 
   const mainClassName = cn(
     'h-10 px-6 text-lg',
@@ -105,57 +131,77 @@ export function ProductReleaseButton({ product }: Props) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-
-      <Dialog
-        open={forceDialogOpen}
-        onOpenChange={open => {
-          setForceDialogOpen(open)
-          if (!open) setForceReason('')
-        }}
-      >
-        <DialogContent className="sm:max-w-md" data-testid={IDS.dialog.root}>
-          <DialogHeader>
-            <DialogTitle>Force release to production?</DialogTitle>
-            <DialogDescription>
-              The product moves to production even though its requirements are
-              not fulfilled. The override is recorded in the order history with
-              your name and reason.
-            </DialogDescription>
-          </DialogHeader>
-          <Textarea
-            data-testid={IDS.dialog.reason}
-            value={forceReason}
-            onChange={e => setForceReason(e.target.value)}
-            placeholder="Reason for the emergency release"
-            autoFocus
-          />
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              data-testid={IDS.dialog.cancel}
-              onClick={() => setForceDialogOpen(false)}
-              disabled={release.pending}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="default"
-              data-testid={IDS.dialog.submit}
-              className={cn(
-                'text-primary-foreground',
-                PRODUCT_STATUS_META.IN_PRODUCTION.color,
-                PRODUCT_STATUS_META.IN_PRODUCTION.hoverColor,
-              )}
-              onClick={() => void handleForceRelease()}
-              disabled={release.pending || forceReason.trim() === ''}
-            >
-              {release.pending ? '…' : 'Force Release to Production'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {forceDialog}
     </div>
+  )
+}
+
+type ForceReleaseDialogProps = {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  pending: boolean
+  /** Resolves true once the product is released. */
+  onSubmit: (reason: string) => Promise<boolean>
+}
+
+/** The force release's prompt: a reason is required, and recorded with the release. */
+function ForceReleaseDialog({ open, onOpenChange, pending, onSubmit }: ForceReleaseDialogProps) {
+  const [reason, setReason] = useState('')
+
+  const close = (next: boolean) => {
+    onOpenChange(next)
+    if (!next) setReason('')
+  }
+
+  const handleSubmit = async () => {
+    const released = await onSubmit(reason.trim())
+    if (released) close(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={close}>
+      <DialogContent className="sm:max-w-md" data-testid={IDS.dialog.root}>
+        <DialogHeader>
+          <DialogTitle>Force release to production?</DialogTitle>
+          <DialogDescription>
+            The product moves to production even though its requirements are
+            not fulfilled. The override is recorded in the order history with
+            your name and reason.
+          </DialogDescription>
+        </DialogHeader>
+        <Textarea
+          data-testid={IDS.dialog.reason}
+          value={reason}
+          onChange={e => setReason(e.target.value)}
+          placeholder="Reason for the emergency release"
+          autoFocus
+        />
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            data-testid={IDS.dialog.cancel}
+            onClick={() => close(false)}
+            disabled={pending}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="default"
+            data-testid={IDS.dialog.submit}
+            className={cn(
+              'text-primary-foreground',
+              PRODUCT_STATUS_META.IN_PRODUCTION.color,
+              PRODUCT_STATUS_META.IN_PRODUCTION.hoverColor,
+            )}
+            onClick={() => void handleSubmit()}
+            disabled={pending || reason.trim() === ''}
+          >
+            {pending ? '…' : 'Force Release to Production'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

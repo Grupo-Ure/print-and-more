@@ -16,15 +16,20 @@ import {
   OTHER_PRODUCT,
   PRODUCT_IN_PREPRESS,
   PRODUCT_IN_PRODUCTION,
+  NEW_PRODUCT_STATUS,
   PREPRESS_STATUS,
   IN_PRODUCTION_STATUS,
   DONE_STATUS,
+  MARKED_DONE_HISTORY_EVENT,
+  PREPRESS_READY_HISTORY_EVENT,
+  RETURNED_TO_PREPRESS_HISTORY_EVENT,
 } from '../../fixtures/products'
 import {
   ADMIN_AS_PREPRESS_DEFAULT,
   ADMIN_AS_PRODUCTION_DEFAULT,
   ASSIGNEE_CHANGED_HISTORY_EVENT,
 } from '../../fixtures/departments'
+import { TEST_USERS } from '../../fixtures/users'
 
 test.describe('in progress, product without a deadline', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, productSeed: POSTER_PRODUCT })
@@ -42,6 +47,27 @@ test.describe('in progress, product without a deadline', () => {
 
     // Assert — the product advanced on its own.
     await expect(ordersPage.details.productList.row(product.id)).toHaveAttribute('data-status', PREPRESS_STATUS)
+  })
+
+  test("PRD-STA-015 setting the order deadline records the product's move to pre-press in the order history", async ({
+    ordersPage,
+    order,
+    product,
+  }) => {
+    // Setup — a date the picker accepts, with the order open.
+    const deadline = nextOrderDeadline()
+    const picker = ordersPage.details.deadline
+    await ordersPage.openOrder(order.id)
+
+    // Act — pick the deadline, then open the order's history once the product has moved.
+    await picker.trigger.click()
+    await picker.showMonthOf(deadline)
+    await picker.day(deadline).click()
+    await ordersPage.details.productList.rowInStatus(product.id, PREPRESS_STATUS).waitFor()
+    await ordersPage.details.historyTab.click()
+
+    // Assert — the move nobody clicked is on record, once.
+    await expect(ordersPage.details.history.ofType(PREPRESS_READY_HISTORY_EVENT)).toHaveCount(1)
   })
 })
 
@@ -150,6 +176,28 @@ test.describe('in progress, product in pre-press', () => {
     // Assert — the product is in production.
     await expect(ordersPage.details.productList.row(product.id)).toHaveAttribute('data-status', IN_PRODUCTION_STATUS)
   })
+
+  test('PRD-STA-019 reassigning the product by hand records the previous and the new assignee in the order history', async ({
+    ordersPage,
+    database,
+    product,
+  }) => {
+    // Setup — the admin to hand the product to, with the product open; seeded, it is nobody's.
+    const adminId = await database.userId(TEST_USERS.admin)
+    const { productDetail } = ordersPage.details
+    await ordersPage.openProduct(product)
+
+    // Act — pick the admin in the assignee picker, then open the order's history once the picker shows them.
+    await productDetail.assignee.click()
+    await productDetail.assigneeOption(adminId).click()
+    await productDetail.assignedTo(adminId).waitFor()
+    await ordersPage.details.historyTab.click()
+
+    // Assert — one assignee change on record, and its sentence names who the product went to.
+    const assigneeChanges = ordersPage.details.history.ofType(ASSIGNEE_CHANGED_HISTORY_EVENT)
+    await expect(assigneeChanges).toHaveCount(1)
+    await expect(assigneeChanges).toContainText(TEST_USERS.admin.name)
+  })
 })
 
 test.describe('in progress, product in production', () => {
@@ -169,6 +217,50 @@ test.describe('in progress, product in production', () => {
     // Assert — the product is done.
     await expect(ordersPage.details.productList.row(product.id)).toHaveAttribute('data-status', DONE_STATUS)
   })
+
+  test('PRD-STA-016 marking the product as done records it in the order history', async ({ ordersPage, product }) => {
+    // Setup — the product open.
+    await ordersPage.openProduct(product)
+
+    // Act — mark it done and confirm, then open the order's history once the order has finished with it.
+    await ordersPage.details.productDetail.releaseButton.click()
+    await ordersPage.confirmDialog.confirm.click()
+    await ordersPage.details.inStatus(FINISHED_STATUS).waitFor()
+    await ordersPage.details.historyTab.click()
+
+    // Assert — the history holds the step, once.
+    await expect(ordersPage.details.history.ofType(MARKED_DONE_HISTORY_EVENT)).toHaveCount(1)
+  })
+
+  test('PRD-STA-017 sending the product back to pre-press records the return in the order history', async ({ ordersPage, product }) => {
+    // Setup — the product open.
+    await ordersPage.openProduct(product)
+
+    // Act — go back to pre-press from the banner, then open the order's history once the product is there.
+    await ordersPage.details.productDetail.backToPrepress.click()
+    await ordersPage.details.productList.rowInStatus(product.id, PREPRESS_STATUS).waitFor()
+    await ordersPage.details.historyTab.click()
+
+    // Assert — the history holds the return, once.
+    await expect(ordersPage.details.history.ofType(RETURNED_TO_PREPRESS_HISTORY_EVENT)).toHaveCount(1)
+  })
+})
+
+// A product can be in production without a deadline only through a force
+// release, which the fixture stands in for by seeding it there.
+test.describe('in progress without a deadline, product in production', () => {
+  test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, productSeed: PRODUCT_IN_PRODUCTION })
+
+  test('PRD-STA-018 sending a product without a deadline back to pre-press puts it back in setup', async ({ ordersPage, product }) => {
+    // Setup — the product open.
+    await ordersPage.openProduct(product)
+
+    // Act — go back to pre-press from the banner.
+    await ordersPage.details.productDetail.backToPrepress.click()
+
+    // Assert — not ready for pre-press, it landed in setup.
+    await expect(ordersPage.details.productList.row(product.id)).toHaveAttribute('data-status', NEW_PRODUCT_STATUS)
+  })
 })
 
 // ── Stage defaults ────────────────────────────────────────────────────────
@@ -179,8 +271,11 @@ test.describe('in progress, product in production', () => {
 test.describe('in progress, OTHER product, pre-press default set', () => {
   test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: OTHER_PRODUCT, departmentDefaultSeed: ADMIN_AS_PREPRESS_DEFAULT })
 
-  test('PRD-STA-011 the product promoted to pre-press is assigned to the pre-press default', async ({ ordersPage, product, departmentDefault }) => {
-    // Setup — the product open; it is promoted on the way.
+  // `departmentDefault` is listed before `product` on purpose: Playwright sets
+  // fixtures up in parameter order, and the database promotes the product the
+  // moment it is inserted — the slot has to be filled by then.
+  test('PRD-STA-011 the product promoted to pre-press is assigned to the pre-press default', async ({ ordersPage, departmentDefault, product }) => {
+    // Setup — the product open; the database promoted it when it was seeded.
     await ordersPage.openProduct(product)
 
     // Assert — the pre-press default holds it.

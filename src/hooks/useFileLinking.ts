@@ -1,7 +1,6 @@
 import type { DragEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { fileService } from '../services/fileService'
-import { historyService } from '../services/historyService'
 import { productService } from '../services/productService'
 import type { FileRow, FileRole } from '../services/fileService'
 import { useToast } from '../components/Toast'
@@ -13,8 +12,8 @@ const DEFAULT_ROLE: FileRole = 'PRODUCTION_FILE'
 /**
  * Links files to an order by their real disk path (via the Electron bridge):
  * shared by OrderFiles and the textile batch editor's artwork picker. Every
- * link writes a FILE_ADDED history event and refreshes the order's file list
- * wherever it is shown; failures surface as error toasts.
+ * link refreshes the order's file list wherever it is shown (the database
+ * records it, FILE_ADDED); failures surface as error toasts.
  *
  * With a `productId` (the product's Files tab) each file is attached to that
  * product as well, so it shows among the product's own files at once.
@@ -34,11 +33,6 @@ export function useFileLinking(orderId: string, productId: string | null = null)
           role: DEFAULT_ROLE,
         })
         if (productId) await productService.assignFileToProduct(productId, data.id)
-        void historyService.tryWriteHistory({
-          order_id: orderId,
-          event_type: 'FILE_ADDED',
-          meta: { display_name: data.display_name, role: data.role },
-        })
         added.push(data)
       } catch (err) {
         showError(err instanceof Error ? err.message : 'Error saving')

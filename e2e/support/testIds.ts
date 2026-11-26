@@ -299,6 +299,8 @@ export const TEST_IDS = {
       root: 'product-detail',
       title: 'product-detail-title',
       assignee: 'product-detail-assignee',
+      /** One per user in the assignee picker's open list; `data-user-id`. */
+      assigneeOption: 'product-detail-assignee-option',
       assigneeHint: 'product-detail-assignee-hint',
       /** `data-status` = ProductStatus. */
       status: 'product-detail-status',
@@ -310,6 +312,8 @@ export const TEST_IDS = {
         button: 'product-release-button',
         menuTrigger: 'product-release-menu-trigger',
         forceItem: 'product-release-force-item',
+        /** The force release as a button of its own, for a product held in setup (admins). */
+        forceButton: 'product-release-force-button',
         dialog: {
           root: 'product-force-release-dialog',
           reason: 'product-force-release-dialog-reason',
@@ -317,7 +321,10 @@ export const TEST_IDS = {
           submit: 'product-force-release-dialog-submit',
         },
       },
-      /** `data-kind` = done | shortage | blocked | production. */
+      /**
+       * `data-kind` = done | awaiting-approval | approval-blocked | shortage | blocked | production;
+       * a `blocked` banner carries `data-hold` = DEADLINE | CUSTOMER_CONTACT.
+       */
       banner: {
         root: 'product-banner',
         backToPrepress: 'product-banner-back-to-prepress',
@@ -720,6 +727,44 @@ export const TEST_IDS = {
         status: 'backup-machine-status',
         path: 'backup-machine-path',
       },
+    },
+  },
+
+  /** The admins' History page: every entry, whatever it concerns. */
+  historyPage: {
+    root: 'history-page',
+    list: 'history-page-list',
+    /** One per entry; `data-event-type` = history_event, `data-history-id` = history.id. */
+    item: 'history-page-item',
+    /** What the entry concerns, beside its sentence; `data-record-kind` = order | customer | stockItem | file. */
+    record: 'history-page-record',
+    empty: 'history-page-empty',
+    /** Shown instead of the list while the filters leave no entry. */
+    noMatch: 'history-page-no-match',
+    filters: {
+      /** The date range trigger; `data-from` / `data-to` = the range, `YYYY-MM-DD`. */
+      dateRange: 'history-page-filter-date-range',
+      /** The range calendar's popover. */
+      dateRangeCalendar: 'history-page-filter-date-range-calendar',
+      /** The person picker; `data-value` = the user id while one is picked. */
+      user: 'history-page-filter-user',
+      userAll: 'history-page-filter-user-all',
+      /** One per user; `data-user-id`. */
+      userOption: 'history-page-filter-user-option',
+      /** `data-value` = the history_event while one is picked. */
+      event: 'history-page-filter-event',
+      eventAll: 'history-page-filter-event-all',
+      /** One per event type; `data-event-type`. */
+      eventOption: 'history-page-filter-event-option',
+      /** The record picker; `data-value` = the record id, `data-record-kind` = its kind, while one is picked. */
+      record: 'history-page-filter-record',
+      /** The search field in the record picker's popover. */
+      recordSearch: 'history-page-filter-record-search',
+      recordAll: 'history-page-filter-record-all',
+      /** One per record found; `data-record-id`, `data-record-kind`. */
+      recordOption: 'history-page-filter-record-option',
+      /** Clears every filter; shown while one is set. */
+      clear: 'history-page-filter-clear',
     },
   },
 

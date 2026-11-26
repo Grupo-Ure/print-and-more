@@ -6,6 +6,7 @@ import {
   PRODUCT_IN_PRODUCTION,
   OTHER_PRODUCT,
   IN_PRODUCTION_STATUS,
+  PREPRESS_STATUS,
 } from '../fixtures/products'
 import { TEST_USERS } from '../fixtures/users'
 
@@ -80,6 +81,17 @@ test.describe('as admin', () => {
       // Assert — the feed has a row for that product.
       await expect(productionPage.sidebar.row(product.id)).toBeVisible()
     })
+
+    test('PRN-FEED-011 the selected product shows a status changed outside the app, without a reload', async ({ productionPage, database, product }) => {
+      // Setup — the product is selected on the production page.
+      await productionPage.openProduct(product.id)
+
+      // Act — send the product back to pre-press in the database; nothing is clicked or reloaded.
+      await database.updateProductStatus(product.id, PREPRESS_STATUS)
+
+      // Assert — the detail beside the feed followed.
+      await expect(productionPage.productDetail.forProduct(product.id)).toHaveAttribute('data-status', PREPRESS_STATUS)
+    })
   })
 
   test.describe('with a product awaiting approval', () => {
@@ -97,8 +109,8 @@ test.describe('as admin', () => {
 })
 
 test.describe('as admin, order without a deadline', () => {
-  // No deadline, so the product is incomplete and the status manager leaves
-  // it in setup — before the two stages the feed covers.
+  // No deadline, so the product is not ready for pre-press and the database
+  // leaves it in setup — before the two stages the feed covers.
   test.use({ user: TEST_USERS.admin, orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, productSeed: OTHER_PRODUCT })
 
   test('PRN-FEED-007 opening the production page leaves a product still in setup out', async ({ productionPage, product }) => {

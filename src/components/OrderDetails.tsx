@@ -20,11 +20,10 @@ import { ProductList } from './ProductList'
 import { useOrderWorkspace } from '../context/order.context'
 import { useNavigation } from '../context/navigation.context'
 import { useOrderSelection } from '../hooks/useOrderSelection'
-import { useStatusManager } from '../queries/useStatusManager'
 import { ReleaseHighlights } from './ReleaseHighlights'
 import { useReleaseNotes } from '../queries/releaseNotesQueries'
 import { groupReleasesByLine, highlightsMarkdown } from '../lib/releaseNotes'
-import { orderKeys, useArchiveOrder, useArchiveOrderWithCancelledProducts, useMarkOrderBilled, useOrderById, useSetOrderStatus, useUpdateOrder } from '../queries/orderQueries'
+import { orderKeys, useArchiveOrder, useCancelOrder, useMarkOrderBilled, useOrderById, useSetOrderStatus, useUpdateOrder } from '../queries/orderQueries'
 import { useProductsByOrderId } from '../queries/productQueries'
 import { useTimeLogMinutesByOrderId } from '../queries/timeLogQueries'
 import { useIsAdmin } from '../queries/userQueries'
@@ -83,12 +82,6 @@ export function OrderDetails() {
   const productsQuery = useProductsByOrderId(activeOrderId)
   const updateOrder = useUpdateOrder()
 
-  // The single writer of the automatic IN_SETUP ↔ PREPRESS status, for every
-  // auto-band product of the open order — not just the selected one. It lives
-  // here rather than in the product detail so a product that quietly becomes
-  // complete is promoted when its data changes, not when someone clicks it.
-  useStatusManager(activeOrderId)
-
   const order = orderQuery.data ?? null
   const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data])
   const loading = orderQuery.isLoading || productsQuery.isLoading
@@ -142,7 +135,7 @@ export function OrderDetails() {
   }
 
   const archiveOrder = useArchiveOrder()
-  const cancelOrder = useArchiveOrderWithCancelledProducts()
+  const cancelOrder = useCancelOrder()
   const setOrderStatus = useSetOrderStatus()
   const markBilled = useMarkOrderBilled()
 
@@ -155,11 +148,7 @@ export function OrderDetails() {
     })
     if (!confirmed) return
     try {
-      await setOrderStatus.mutateAsync({
-        id: order.id,
-        status: 'IN_PROGRESS',
-        history: { event_type: 'PROCESSING_STARTED' },
-      })
+      await setOrderStatus.mutateAsync({ id: order.id, status: 'IN_PROGRESS' })
     } catch {
       showError('Status could not be changed')
     }
@@ -177,7 +166,7 @@ export function OrderDetails() {
       })
       if (!confirmed) return
       try {
-        await markBilled.mutateAsync({ id: order.id, paidCash: true })
+        await markBilled.mutateAsync({ id: order.id })
       } catch {
         showError('Order could not be closed')
       }
@@ -189,11 +178,7 @@ export function OrderDetails() {
     })
     if (!confirmed) return
     try {
-      await setOrderStatus.mutateAsync({
-        id: order.id,
-        status: 'FINISHED',
-        history: { event_type: 'ORDER_FINISHED' },
-      })
+      await setOrderStatus.mutateAsync({ id: order.id, status: 'FINISHED' })
     } catch {
       showError('Status could not be changed')
     }
@@ -208,11 +193,7 @@ export function OrderDetails() {
     })
     if (!confirmed) return
     try {
-      await setOrderStatus.mutateAsync({
-        id: order.id,
-        status: 'IN_PROGRESS',
-        history: { event_type: 'ORDER_REOPENED' },
-      })
+      await setOrderStatus.mutateAsync({ id: order.id, status: 'IN_PROGRESS' })
     } catch {
       showError('Status could not be changed')
     }
@@ -267,25 +248,14 @@ export function OrderDetails() {
   const saveOrderHeader = useCallback(
     async (patch: OrderHeaderPatch) => {
       if (!activeOrderId) return
-      // One field per save (the header saves on change); previous value from the loaded order.
-      const field = Object.keys(patch)[0] as keyof OrderHeaderPatch | undefined
+      // The database records each changed field (SETTINGS_CHANGED).
       try {
-        await updateOrder.mutateAsync({
-          id: activeOrderId,
-          patch,
-          history:
-            order && field
-              ? {
-                  event_type: 'SETTINGS_CHANGED',
-                  meta: { field, previous: order[field] ?? null, next: patch[field] ?? null },
-                }
-              : undefined,
-        })
+        await updateOrder.mutateAsync({ id: activeOrderId, patch })
       } catch {
         showError('Order could not be saved')
       }
     },
-    [activeOrderId, order, updateOrder, showError]
+    [activeOrderId, updateOrder, showError]
   )
 
   if (!activeOrderId) {
@@ -687,8 +657,8 @@ type OrderLifecycleButtonProps = {
  * IN_PROGRESS → "Mark finished", FINISHED → "Mark as invoiced". The latter two
  * require every non-cancelled product to be DONE; otherwise no button renders.
  * An invoice order normally finishes on its own the moment its last product is
- * done (`useFinishOrderWhenAllProductsDone`), so "Mark finished" is the manual
- * fallback — after an admin reopened the order, say.
+ * done (the database's `fn_finish_order_if_done`), so "Mark finished" is the
+ * manual fallback — after an admin reopened the order, say.
  * Cash orders skip FINISHED: their IN_PROGRESS action is "Finish & close",
  * which goes straight to BILLED (handled inside onMarkFinished).
  */

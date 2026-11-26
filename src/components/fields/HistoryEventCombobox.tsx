@@ -8,7 +8,7 @@ import { Input } from '../ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 
 type HistoryEventComboboxProps = {
-  /** The event types on offer — e.g. only those the order's history holds. */
+  /** The event types on offer. */
   options: HistoryEvent[]
   value: HistoryEvent | null
   onChange: (event: HistoryEvent | null) => void

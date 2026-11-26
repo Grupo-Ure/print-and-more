@@ -1,5 +1,7 @@
-import { expect, test, NEW_ORDER_STATUS } from '../../fixtures/orders'
-import { OTHER_PRODUCT_FORM } from '../../fixtures/products'
+import { expect, test, NEW_ORDER_STATUS, ORDER_CREATED_HISTORY_EVENT } from '../../fixtures/orders'
+import { APPROVAL_FILE } from '../../fixtures/files'
+import { OTHER_PRODUCT_FORM, PRODUCT_CREATED_HISTORY_EVENT } from '../../fixtures/products'
+import { TEST_USERS } from '../../fixtures/users'
 
 // The copy is a second order for the same customer; the `customer` fixture
 // removes it with the original, so no test here needs a cleanup stage.
@@ -46,4 +48,60 @@ test('ORD-DUP-003 deselecting every product leaves the duplicate unsubmittable',
 
   // Assert — a copy of an order that has products but none picked is refused.
   await expect(ordersPage.duplicateDialog.submit).toBeDisabled()
+})
+
+test('ORD-DUP-004 duplicating the order records the copy and its product as one action', async ({ ordersPage, database, order, product }) => {
+  // Setup — the original's row, and the employee the suite is signed in as.
+  const row = ordersPage.sidebar.row(product.orderId)
+  const employeeId = await database.userId(TEST_USERS.employee)
+
+  // Act — duplicate with every product selected, and wait for the copy to open.
+  await ordersPage.sidebar.rowMenuTrigger(row).click()
+  await ordersPage.sidebar.rowMenuDuplicate.click()
+  await ordersPage.duplicateDialog.submit.click()
+  await ordersPage.details.forOrderOtherThan(order.id).waitFor()
+
+  // Assert — the copy has one creation entry and one for its product: the employee's, one action, the product's with the copied spec.
+  const copyId = await ordersPage.details.shownOrderId()
+  const orderEntries = await database.recordedEntries(copyId, ORDER_CREATED_HISTORY_EVENT)
+  const productEntries = await database.recordedEntries(copyId, PRODUCT_CREATED_HISTORY_EVENT)
+  expect(orderEntries).toEqual([expect.objectContaining({ user_id: employeeId, action_id: expect.any(String) })])
+  expect(productEntries).toEqual([
+    expect.objectContaining({
+      user_id: employeeId,
+      action_id: orderEntries[0].action_id,
+      meta: expect.objectContaining({
+        after: expect.objectContaining({ spec: expect.objectContaining({ description: OTHER_PRODUCT_FORM.description }) }),
+      }),
+    }),
+  ])
+})
+
+test.describe('product with a file attached', () => {
+  test('ORD-DUP-005 duplicating an order whose product has a file gives the copy a file of its own, attached to its product', async ({
+    ordersPage,
+    database,
+    order,
+    product,
+    orderFile,
+  }) => {
+    // Setup — the order's file attached to its product, and the original's row.
+    await database.attachFileToProduct(product.id, orderFile.id)
+    const row = ordersPage.sidebar.row(order.id)
+
+    // Act — duplicate with every product selected, and wait for the copy to open.
+    await ordersPage.sidebar.rowMenuTrigger(row).click()
+    await ordersPage.sidebar.rowMenuDuplicate.click()
+    await ordersPage.duplicateDialog.submit.click()
+    await ordersPage.details.forOrderOtherThan(order.id).waitFor()
+
+    // Assert — the copy's product has one file attached: the copy's own row, naming the same file on the share.
+    const copyId = await ordersPage.details.shownOrderId()
+    const attachedFiles = await database.attachedFiles(copyId)
+    const [copiedFile] = attachedFiles
+    expect(attachedFiles).toHaveLength(1)
+    expect(copiedFile.orderId).toBe(copyId)
+    expect(copiedFile.displayName).toBe(APPROVAL_FILE.display_name)
+    expect(copiedFile.path).toBe(APPROVAL_FILE.path)
+  })
 })

@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { errorToString } from '../../lib/errorToString'
 import { useTextileMovements } from '../../queries/textileStockQueries'
+import { stockMovementFields } from '../../services/stockService'
 import { MovementsView, type StockMovementEntry } from '../stock/MovementsView'
 import { useTextileStockUi } from './useTextileStockUi'
 
@@ -16,8 +17,8 @@ export function TextileMovements() {
 
   const movements = useMemo<StockMovementEntry[]>(
     () =>
-      (movementsQuery.data ?? []).map(movement => {
-        const variant = movement.textile_variants
+      (movementsQuery.data ?? []).map(entry => {
+        const variant = entry.textile_variants
         const model = variant?.textile_models
         const labelParts = [
           [model?.textile_brands?.name, model?.name].filter(Boolean).join(' '),
@@ -25,13 +26,11 @@ export function TextileMovements() {
           variant?.size,
         ].filter(Boolean)
         return {
-          id: movement.id,
-          created_at: movement.created_at,
+          id: entry.id,
+          created_at: entry.created_at,
           itemLabel: labelParts.join(' · '),
-          type: movement.type,
-          quantity: movement.quantity,
-          note: movement.note,
-          user_id: movement.user_id,
+          ...stockMovementFields(entry),
+          user_id: entry.user_id,
         }
       }),
     [movementsQuery.data],

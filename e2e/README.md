@@ -19,6 +19,7 @@ playwright test
 │   ├─ fixtures/auth.ts            bring the app into the auth state the spec asked for
 │   ├─ fixtures/orders.ts          the orders view's page object + per-test rows + the catalog rows + a department default + a developer flag
 │   ├─ fixtures/stock.ts           the stock pages' page objects
+│   ├─ fixtures/history.ts         the History page's page object + a customer change, a second customer with an order, an order with more entries than one page of the feed
 │   ├─ fixtures/emails.ts          the sender's and the webhook's handles + a message queued and a sent record for the order seeded above
 │   ├─ fixtures/approvals.ts       a customer approval request for the product seeded above
 │   ├─ fixtures/production.ts      the production page's page object (lists the products seeded above)
@@ -39,6 +40,7 @@ e2e/
 ├─ auth/                          sign-in, navigation per role
 ├─ orders-page/
    ├─ sidebar.spec.ts             list → select → details
+   ├─ live-refresh.spec.ts        the view following the database: a change written outside the app shows in the header, the product list and the sidebar without a reload
    ├─ order/                      the order feature
    │   ├─ new-order.spec.ts
    │   ├─ header.spec.ts          what the header shows of the order and its customer, and the copy buttons
@@ -47,7 +49,7 @@ e2e/
    │   ├─ remove.spec.ts          archive, cancel, delete a quote
    │   └─ duplicate.spec.ts       the copy: a new quote, selected, with the products picked
    └─ product/                    the product feature — the unit of work
-       ├─ add-remove.spec.ts      add through the department's form, delete in setup, cancel past setup
+       ├─ add-remove.spec.ts      add through the department's form, delete in setup, cancel past setup; one product of every type saved through save_product and read back
        ├─ basic-info.spec.ts      the spec read-only, edited in place, locked once released
        ├─ status.spec.ts          the workflow: pre-press, production, done
        ├─ release-gates.spec.ts   what refuses a release, and the admin override
@@ -55,6 +57,10 @@ e2e/
        └─ approval-requests.spec.ts asking the customer from the Files tab: the round, the stock warning, the next round's preselection; an answer recorded by hand, a withdrawal
 ├─ production-page/
 │  └─ feed.spec.ts                which products the feed lists, the assignee filter (and who it leaves out), the product detail beside it
+├─ history-page/
+│  └─ history-page.spec.ts        the admins' page of every entry: not offered to an employee, an entry without an order, narrowing to a customer or an event, an order number opening its order, the next page loading on scroll
+├─ stock/
+│  └─ booking.spec.ts             a booking by hand on a stock page: the row's stock and the line in the movement list
 ├─ settings-page/
 │  ├─ departments.spec.ts         the default assignee per department and stage
 │  └─ emails.spec.ts              a mail's delay and on/off switch, as the next queued mail sees them
@@ -65,7 +71,7 @@ e2e/
 └─ customer-approval/
    ├─ requests.spec.ts            what asking, settling and withdrawing an approval request do in the database: the round, the product's status, the stock, the history, the mails, and what a waiting product refuses
    ├─ function.spec.ts            what the customer's page can do through the customer-approval function with a link's token: read the request, download a proof, decide once; a closed request serves no file, an unknown token nothing
-   ├─ release.spec.ts             what the release functions and the status guard refuse and book in the database: a direct status write, an incomplete or short product, a blocked or waiting round, a force release without the role or a reason
+   ├─ release.spec.ts             what the release functions and the status guard refuse and book in the database: a direct status write, an incomplete or short product, a blocked or waiting round, a force release without the role or a reason; the stock entry a release writes, a booking by hand and what it refuses, and who may write stock and its master data
    ├─ expiry.spec.ts              what the daily expiry run does: an overdue pending round expires, its product returns to pre-press and the shop is mailed; a round not yet due or already closed is left alone; an expired link serves no file
    └─ cleanup.spec.ts             what the daily proof purge does: a closed round's copy on an order billed past the retention leaves the bucket and its file row is stamped, so the link serves it no more; within the retention or unbilled, nothing is purged
 ```
@@ -100,6 +106,7 @@ lines:
 ```
 @playwright/test → fixtures/database.ts → fixtures/electron.ts → fixtures/auth.ts → fixtures/orders.ts → fixtures/stock.ts
                                                                                                       ↘ fixtures/emails.ts → fixtures/approvals.ts → fixtures/production.ts
+                                                                                                      ↘ fixtures/history.ts
 ```
 
 A spec imports `test` from the link it needs — `./fixtures/auth` for a
@@ -174,11 +181,10 @@ Nothing here is imported by hand; the runner drives it from the config:
 | `pom/*POM.ts` | Page objects — every locator a spec uses, one class per view/dialog, composed parent → child |
 | `pom/BasePOM.ts` | Ancestor of every page object: holds the page and the shared helpers (`withAttr()` picks one instance of a repeated element by data attribute) |
 | `support/testIds.ts` | The `TEST_IDS` registry, imported by components (`data-testid`) and page objects alike |
-| `support/database.ts` | `TestDatabase`: the runner's service-role connection (bypasses RLS, exposes `auth.admin`) with the methods that seed and remove users, customers, orders and products, attach a file to a product, insert an approval round and read the rounds, run the expiry and the proof purge and read whether a copy is stored and when its file was purged, remove the proof copies stored for an order, a product's workflow columns, the stock and movements of a stamp model and the order's history entries back, and that queue, reschedule, archive and read back emails, insert a sent record and read what the provider reported of it, and write a template's email settings, and that write the backup settings, seed, read and remove backup jobs, run the two scheduled backup functions, and read and remove the overdue-backup mails the upkeep queued — raw rows only, no app business logic. `asUser(login)` hands out a second connection signed in as one of the suite's logins, for the rules the database enforces on the app but not on the runner |
+| `support/database.ts` | `TestDatabase`: the runner's service-role connection (bypasses RLS, exposes `auth.admin`) with the methods that seed and remove users, customers, orders and products, attach a file to a product, insert an approval round and read the rounds, run the expiry and the proof purge and read whether a copy is stored and when its file was purged, remove the proof copies stored for an order, a product's workflow columns, the stock and automatic deductions of a stamp model and the order's history entries back, and that queue, reschedule, archive and read back emails, insert a sent record and read what the provider reported of it, and write a template's email settings, and that write the backup settings, seed, read and remove backup jobs, run the two scheduled backup functions, and read and remove the overdue-backup mails the upkeep queued — raw rows only, no app business logic. `asUser(login)` hands out a second connection signed in as one of the suite's logins, for the rules the database enforces on the app but not on the runner |
 | `support/sendEmail.ts` | `SendEmailFunction`: one drain of the email queue per call, the way the cron makes it (`drain()` with the service-role key, `drainAs(token)` with any other bearer token for the caller check) |
 | `support/emailWebhook.ts` | `EmailWebhookFunction`: one delivery report per call, posted the way the email provider posts it — written and signed by the provider's own `encodeReport`, with the function's secret (`report()`), or with another one for the signature check (`reportSignedWith(secret, report)`) |
 | `support/customerApproval.ts` | `CustomerApprovalFunction`: the `customer-approval` function called the way the customer's page calls it — no session, the token only: `read(token)`, `download(token, fileId)`, `decide(token, decision, note)` |
-| `TEST_PLAN.md` | The hand-written plan: which tests exist, by pack, precondition and ID. The source of truth the specs are held to by `scripts/test-plan.mjs` |
 | `global-setup.ts`, `global-teardown.ts` | Run-wide data, wired via `playwright.config.ts` |
 
 ## Environment
@@ -201,8 +207,6 @@ do not boot without that file (copy `supabase/functions/.env.example`;
 the URL and key in the local Vault; `supabase/.env` fills them when the stack
 starts (copy `supabase/.env.example`), and the CI job fills them after its
 start. Without them the purge does nothing and its pack fails.
-
-[`TEST_PLAN.md`](TEST_PLAN.md) comes first: a test is planned there, numbered with `npm run test:plan:assign`, and then written with that ID in its title. `npm run test:plan:status` lists what is still to write; `npm run test:plan:check` (run in CI) fails on a spec test the plan does not name or that differs from it. The rules are in the testing standards under "The plan comes first".
 
 Test conventions (fixtures files, minimal assertions, setup/act/assert/cleanup
 stages) are in [`docs/testing/testing-standards.md`](../docs/testing/testing-standards.md);

@@ -21,7 +21,6 @@ import 'node:fs'
 // trigger on each table writes it for a mail about an order. Every path ends
 // by archiving the message, except the one that leaves it to come back.
 
-import { timingSafeEqual } from 'node:crypto'
 import { Buffer } from 'node:buffer'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { renderEmail, type RenderedEmail, type Wording } from './render.ts'
@@ -88,17 +87,24 @@ function errorText(error: unknown): string {
 // ── Caller check ──────────────────────────────────────────────────────────────
 
 /**
- * Only the service-role key may drain. The gateway has already checked that
- * the bearer token is a valid JWT; this checks that it is *that* one, so a
- * signed-in user's session is refused.
+ * Only a service-role key may drain. The gateway has already verified the
+ * bearer token's signature (`verify_jwt` is on for this function); this reads
+ * the role it was issued for, so a signed-in user's session is refused. The
+ * token's text is not compared with SUPABASE_SERVICE_ROLE_KEY: the platform
+ * may hand the function another valid service-role token than the one the
+ * caller holds.
  */
 function isServiceRoleCall(req: Request): boolean {
   const header = req.headers.get('Authorization') ?? ''
   if (!header.startsWith('Bearer ')) return false
-  const presented = Buffer.from(header.slice('Bearer '.length))
-  const expected = Buffer.from(Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
-  if (expected.length === 0 || presented.length !== expected.length) return false
-  return timingSafeEqual(presented, expected)
+  const payload = header.slice('Bearer '.length).split('.')[1]
+  if (!payload) return false
+  try {
+    const claims: unknown = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
+    return typeof claims === 'object' && claims !== null && (claims as { role?: unknown }).role === 'service_role'
+  } catch {
+    return false
+  }
 }
 
 async function readAction(req: Request): Promise<string | null> {

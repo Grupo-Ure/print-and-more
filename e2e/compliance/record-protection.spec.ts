@@ -5,18 +5,38 @@ import {
   FINISHED_ORDER,
   FINISHED_STATUS,
   IN_PROGRESS_ORDER,
+  IN_PROGRESS_ORDER_WITHOUT_DEADLINE,
   IN_PROGRESS_STATUS,
+  NEW_ORDER_STATUS,
   expect,
   test,
 } from '../fixtures/orders'
-import { DONE_STATUS, OTHER_PRODUCT, PREPRESS_STATUS, PRODUCT_DONE, PRODUCT_IN_PRODUCTION } from '../fixtures/products'
+import {
+  DONE_STATUS,
+  OTHER_PRODUCT,
+  PREPRESS_STATUS,
+  PRODUCT_DONE,
+  NEW_PRODUCT_STATUS,
+  PRODUCT_IN_PRODUCTION,
+  STAMP_PRODUCT_IN_PREPRESS_IN_STOCK,
+  otherProductSave,
+} from '../fixtures/products'
 import {
   CLOSED_ORDER_BILLING_NOTE,
+  CUSTOMER_CHANGE,
+  CUSTOMER_CHANGE_ENTRIES,
+  CUSTOMER_UPDATED_HISTORY_EVENT,
+  DIRECT_HISTORY_EVENT,
+  FILE_ADDED_HISTORY_EVENT,
+  FOREIGN_KEY_VIOLATION,
   LOCKED_TIME_LOG_MINUTES,
+  OPEN_TIME_LOG_MINUTES,
   OTHER_PAYMENT_METHOD,
   QUOTE_HISTORY_EVENT,
   RELEASED_PRODUCT_FILE,
   SETUP_PRODUCT_FILE,
+  STOCK_DEDUCTED_HISTORY_EVENT,
+  TIME_LOGGED_HISTORY_EVENT,
 } from '../fixtures/recordProtection'
 import { TEST_USERS } from '../fixtures/users'
 
@@ -168,6 +188,20 @@ test.describe('as admin, finished order, done product with a file link and a tim
     expect(error).toBeNull()
     expect((await database.orderState(order.id)).status).toBe(IN_PROGRESS_STATUS)
   })
+
+  test('CMP-LOCK-023 cancelling the order is refused', async ({ database, order, product }) => {
+    // Setup
+    const asAdmin = await database.asUser(TEST_USERS.admin)
+
+    // Act — what the header's cancel calls.
+    const { error } = await asAdmin.rpc('cancel_order', { p_order_id: order.id })
+
+    // Assert — a finished order's products are the record and stay as they are, so the cancel
+    // is refused as a whole: the product not cancelled, the order not archived.
+    expect(error).not.toBeNull()
+    expect((await database.productState(product.id)).is_cancelled).toBe(false)
+    expect((await database.orderState(order.id)).is_archived).toBe(false)
+  })
 })
 
 test.describe('as admin, billed order', () => {
@@ -197,12 +231,77 @@ test.describe('as admin, billed order', () => {
     expect(await database.customerExists(customer.id)).toBe(true)
     expect(await database.orderExists(order.id)).toBe(true)
   })
+
+  test('CMP-LOCK-024 changing a customer records each changed field, readable by admins only', async ({ database, customer }) => {
+    // Setup — the admin's connection, and an employee's to read with.
+    const asAdmin = await database.asUser(TEST_USERS.admin)
+    const asEmployee = await database.asUser(TEST_USERS.employee)
+
+    // Act — two fields in one write as the admin, then a bounce stamped as the mail provider's report is.
+    await asAdmin.from('customers').update(CUSTOMER_CHANGE).eq('id', customer.id)
+    await database.stampCustomerEmailBounced(customer.id)
+    const { data: seenByAdmin } = await asAdmin
+      .from('history')
+      .select('action_id, meta')
+      .eq('customer_id', customer.id)
+      .eq('event_type', CUSTOMER_UPDATED_HISTORY_EVENT)
+      .order('meta->>field')
+    const { data: seenByEmployee } = await asEmployee
+      .from('history')
+      .select('id')
+      .eq('customer_id', customer.id)
+      .eq('event_type', CUSTOMER_UPDATED_HISTORY_EVENT)
+
+    // Assert — one entry per changed field and none for the bounce, all one action; the employee is shown none of them.
+    expect(seenByAdmin?.map(entry => entry.meta)).toEqual(CUSTOMER_CHANGE_ENTRIES.map(entry => expect.objectContaining(entry)))
+    const [nameEntry, phoneEntry] = seenByAdmin ?? []
+    expect(nameEntry.action_id).toEqual(expect.any(String))
+    expect(phoneEntry.action_id).toBe(nameEntry.action_id)
+    expect(seenByEmployee).toEqual([])
+  })
+
+  test('CMP-LOCK-025 adding a product to the billed order through save_product is refused', async ({ database, order }) => {
+    // Setup
+    const asAdmin = await database.asUser(TEST_USERS.admin)
+
+    // Act — what saving a new product's form calls.
+    const { error } = await asAdmin.rpc('save_product', otherProductSave(order.id))
+
+    // Assert — refused, the order still without a product.
+    expect(error).not.toBeNull()
+    expect(await database.productCount(order.id)).toBe(0)
+  })
+})
+
+// ── Stock a release took is the record, wherever the product goes after ───
+
+test.describe('as employee, in progress, stamp product released then back in setup', () => {
+  test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: STAMP_PRODUCT_IN_PREPRESS_IN_STOCK })
+
+  test('CMP-LOCK-026 deleting the product that took stock, back in setup, is refused', async ({ database, order, product }) => {
+    // Setup — the employee releases the product, which books its stock; with the order's deadline
+    // cleared, sending it back to pre-press lands it in setup, where a product may otherwise be deleted.
+    const asEmployee = await database.asUser(TEST_USERS.employee)
+    await asEmployee.rpc('release_to_production', { product_id: product.id })
+    await database.updateOrderDeadline(order.id, null)
+    await asEmployee.from('products').update({ status: PREPRESS_STATUS }).eq('id', product.id)
+
+    // Act
+    const { error } = await asEmployee.from('products').delete().eq('id', product.id)
+
+    // Assert — refused, the product and the entry of its deduction still there.
+    expect(error).not.toBeNull()
+    expect((await database.productState(product.id)).status).toBe(NEW_PRODUCT_STATUS)
+    expect(await database.historyCount(order.id, STOCK_DEDUCTED_HISTORY_EVENT)).toBe(1)
+  })
 })
 
 // ── An order in progress: released work is the record, setup is not ───────
 
-test.describe('as admin, in progress order, one product in production and one in setup, a file linked to each', () => {
-  test.use({ orderSeed: IN_PROGRESS_ORDER, productSeeds: [[PRODUCT_IN_PRODUCTION, OTHER_PRODUCT], { scope: 'test' }] })
+// Without a deadline the database holds the second product in setup; with one
+// it would promote it to pre-press the moment it is inserted.
+test.describe('as admin, in progress order without a deadline, one product in production and one in setup, a file linked to each', () => {
+  test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, productSeeds: [[PRODUCT_IN_PRODUCTION, OTHER_PRODUCT], { scope: 'test' }] })
 
   test('CMP-LOCK-014 deleting the order is refused', async ({ database, order, products }) => {
     // Setup — the order holds released work; the admin's connection.
@@ -287,6 +386,40 @@ test.describe('as admin, in progress order, one product in production and one in
     expect(error).not.toBeNull()
     expect(await database.fileExists(file.id)).toBe(true)
   })
+
+  test('CMP-LOCK-027 deleting a setup product with a linked file and a time log removes their entries with it', async ({ database, order, products }) => {
+    // Setup — a file linked to the order and attached to the setup product, and time logged on it:
+    // the database recorded the file, its link to the product and the log.
+    const [, inSetup] = products
+    const file = await database.createFile(order.id, SETUP_PRODUCT_FILE)
+    await database.attachFileToProduct(inSetup.id, file.id)
+    await database.createTimeLog(inSetup.id, TEST_USERS.admin, OPEN_TIME_LOG_MINUTES)
+    const asAdmin = await database.asUser(TEST_USERS.admin)
+
+    // Act
+    const { error } = await asAdmin.from('products').delete().eq('id', inSetup.id)
+
+    // Assert — the link's entry and the log's went with the product; the file's own stays.
+    expect(error).toBeNull()
+    expect(await database.historyCount(order.id, FILE_ADDED_HISTORY_EVENT)).toBe(1)
+    expect(await database.historyCount(order.id, TIME_LOGGED_HISTORY_EVENT)).toBe(0)
+  })
+})
+
+// ── History is the database's to write ────────────────────────────────────
+
+test.describe('as employee, quote', () => {
+  test('CMP-LOCK-028 writing a history entry directly is refused', async ({ database, order }) => {
+    // Setup — a connection that writes as the employee.
+    const asEmployee = await database.asUser(TEST_USERS.employee)
+
+    // Act
+    const { error } = await asEmployee.from('history').insert({ order_id: order.id, event_type: DIRECT_HISTORY_EVENT })
+
+    // Assert — refused, and the quote without an entry of that event.
+    expect(error).not.toBeNull()
+    expect(await database.historyCount(order.id, DIRECT_HISTORY_EVENT)).toBe(0)
+  })
 })
 
 // ── A quote is deleted through one function, history in the open ──────────
@@ -330,5 +463,94 @@ test.describe('as admin, quote with a history entry', () => {
     expect(error).toBeNull()
     expect(await database.orderExists(order.id)).toBe(false)
     expect(await database.historyCount(order.id, QUOTE_HISTORY_EVENT)).toBe(0)
+  })
+})
+
+// ── What may still be deleted takes its history along ─────────────────────
+
+test.describe('as admin, quote with a product in setup that has a history entry', () => {
+  test('CMP-LOCK-029 deleting the product removes it with its history entries', async ({ database, order, product }) => {
+    // Setup — one entry about the product, and the admin's connection.
+    const entryId = await database.createHistoryEntry(order.id, QUOTE_HISTORY_EVENT, { productId: product.id })
+    const asAdmin = await database.asUser(TEST_USERS.admin)
+
+    // Act
+    const { error } = await asAdmin.from('products').delete().eq('id', product.id)
+
+    // Assert — the product is gone, and its entry with it.
+    expect(error).toBeNull()
+    expect(await database.productExists(product.id)).toBe(false)
+    expect(await database.historyEntryExists(entryId)).toBe(false)
+  })
+})
+
+test.describe('as admin, quote with a file that has a history entry', () => {
+  test('CMP-LOCK-030 deleting the file removes it with its history entries', async ({ database, order, orderFile }) => {
+    // Setup — one entry about the file, and the admin's connection.
+    const entryId = await database.createHistoryEntry(order.id, QUOTE_HISTORY_EVENT, { fileId: orderFile.id })
+    const asAdmin = await database.asUser(TEST_USERS.admin)
+
+    // Act
+    const { error } = await asAdmin.from('files').delete().eq('id', orderFile.id)
+
+    // Assert — the file is gone, and its entry with it.
+    expect(error).toBeNull()
+    expect(await database.fileExists(orderFile.id)).toBe(false)
+    expect(await database.historyEntryExists(entryId)).toBe(false)
+  })
+})
+
+test.describe('as admin, account named on a history entry', () => {
+  test("CMP-LOCK-031 deleting the account's user row is refused", async ({ database, order }) => {
+    // Setup — the admin changes the quote's billing note, which the database records under their name.
+    const asAdmin = await database.asUser(TEST_USERS.admin)
+    await asAdmin.from('orders').update({ billing_note: CLOSED_ORDER_BILLING_NOTE }).eq('id', order.id)
+
+    // Act — the row alone, through the runner's connection: no app login may delete a user at all.
+    const { error } = await database.deleteUserRow(TEST_USERS.admin)
+
+    // Assert — the entry's link onto the user restricts, and the account is still there.
+    expect(error?.code).toBe(FOREIGN_KEY_VIOLATION)
+    expect(await database.userExists(TEST_USERS.admin)).toBe(true)
+  })
+})
+
+test.describe('as employee, quote with a product in setup, a file linked to it and a logged time', () => {
+  test('CMP-LOCK-032 deleting the quote through the function removes every entry of its products and files', async ({ database, order, product, orderFile }) => {
+    // Setup — the file attached to the product and time logged on it; the database recorded each.
+    await database.attachFileToProduct(product.id, orderFile.id)
+    await database.createTimeLog(product.id, TEST_USERS.employee, OPEN_TIME_LOG_MINUTES)
+    const asEmployee = await database.asUser(TEST_USERS.employee)
+
+    // Act — what the sidebar's row menu calls.
+    const { error } = await asEmployee.rpc('delete_quote', { p_order_id: order.id })
+
+    // Assert — the quote, its product and its file are gone, and no entry about any of them is left.
+    expect(error).toBeNull()
+    expect(await database.orderExists(order.id)).toBe(false)
+    expect(await database.productExists(product.id)).toBe(false)
+    expect(await database.fileExists(orderFile.id)).toBe(false)
+    expect(await database.historyCountAbout(order.id, [product.id], [orderFile.id])).toBe(0)
+  })
+})
+
+// No guard limits an order's status transitions, so a direct write is how an
+// order whose product was released gets back to quote.
+test.describe('as employee, order put back to quote by a direct write after its product took stock', () => {
+  test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: STAMP_PRODUCT_IN_PREPRESS_IN_STOCK })
+
+  test('CMP-LOCK-033 deleting a quote whose product took stock is refused', async ({ database, order, product }) => {
+    // Setup — the employee releases the product, which books its stock; the order then goes back to quote.
+    const asEmployee = await database.asUser(TEST_USERS.employee)
+    await asEmployee.rpc('release_to_production', { product_id: product.id })
+    await database.updateOrderStatus(order.id, NEW_ORDER_STATUS)
+
+    // Act
+    const { error } = await asEmployee.rpc('delete_quote', { p_order_id: order.id })
+
+    // Assert — refused as a whole: the quote and the entry of the deduction still there.
+    expect(error).not.toBeNull()
+    expect(await database.orderExists(order.id)).toBe(true)
+    expect(await database.historyCount(order.id, STOCK_DEDUCTED_HISTORY_EVENT)).toBe(1)
   })
 })

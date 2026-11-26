@@ -106,6 +106,11 @@ export class OrderDetailsPOM extends BasePOM {
     return this.withAttr(this.root, 'data-order-id', orderId)
   }
 
+  /** The id of the order the details column shows — a read, for an order the app created and the spec cannot know. */
+  async shownOrderId(): Promise<string> {
+    return (await this.root.getAttribute('data-order-id')) ?? ''
+  }
+
   /** The details column only while the order it shows is in this status. */
   inStatus(status: string): Locator {
     return this.withAttr(this.root, 'data-status', status)

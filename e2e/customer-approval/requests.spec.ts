@@ -22,6 +22,7 @@ import {
   AWAITING_APPROVAL_STATUS,
   IN_PRODUCTION_STATUS,
   OTHER_PRODUCT,
+  otherProductEdit,
   PREPRESS_STATUS,
   PRODUCT_IN_PREPRESS,
   STAMP_PRODUCT_IN_PREPRESS_IN_STOCK,
@@ -278,6 +279,22 @@ test.describe('waiting product', () => {
     expect(error).not.toBeNull()
     expect((await database.productState(product.id)).deadline).toBeNull()
   })
+
+  test("APR-REQ-018 saving the waiting product's spec through save_product is refused", async ({
+    database,
+    product,
+    approvalRequest: _waiting,
+  }) => {
+    // Setup
+    const asEmployee = await database.asUser(TEST_USERS.employee)
+
+    // Act — an edit of the spec through the one function that saves a product.
+    const { error } = await asEmployee.rpc('save_product', otherProductEdit(product.id))
+
+    // Assert — refused, and the quantity as seeded.
+    expect(error).not.toBeNull()
+    expect((await database.productState(product.id)).quantity).toBe(OTHER_PRODUCT.quantity)
+  })
 })
 
 // ── Stock on approval ─────────────────────────────────────────────────────
@@ -296,11 +313,11 @@ test.describe('waiting stamp product, model in stock', () => {
     // Act
     await asEmployee.rpc('settle_approval_request', { request_id: approvalRequest.id, decision: APPROVED_REQUEST_STATUS })
 
-    // Assert — the product's quantity left the model, in one movement that names the order.
+    // Assert — the product's quantity left the model, in one deduction that names the order.
     expect(await database.stampModelStock(IN_STOCK_STAMP_MODEL.id)).toBe(
       IN_STOCK_STAMP_MODEL.stock - (STAMP_PRODUCT_IN_PREPRESS_IN_STOCK.quantity ?? 0),
     )
-    expect(await database.stampStockMovements(IN_STOCK_STAMP_MODEL.id)).toEqual([
+    expect(await database.stampStockDeductions(IN_STOCK_STAMP_MODEL.id)).toEqual([
       { quantity: STAMP_PRODUCT_IN_PREPRESS_IN_STOCK.quantity, note: releaseMovementNote(order.orderNumber) },
     ])
   })

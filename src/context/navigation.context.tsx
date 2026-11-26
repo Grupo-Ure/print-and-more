@@ -15,6 +15,7 @@ export type AppView =
   | 'production'
   | 'stampStock'
   | 'textileStock'
+  | 'history'
   | 'settings'
   | 'profile'
   | 'releaseNotes'

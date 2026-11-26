@@ -8,12 +8,10 @@ import {
 } from '../queries/productQueries'
 import { useProductRemoval } from '../hooks/useProductRemoval'
 import { useStockAvailability } from '../queries/stockQueries'
-import { useUsers } from '../queries/userQueries'
 import { generateAndDownloadProductionSheet } from '../lib/pdf/productionSheet'
 import { useOrderById } from '../queries/orderQueries'
 import { useOrderSelection } from '../hooks/useOrderSelection'
 import { departmentLabel } from '../lib/departmentLabels'
-import { customerMeetsPrepressContact } from '../lib/customer'
 import { isMissingAssignee } from '../lib/productShared'
 import { EmployeeCombobox } from './fields/EmployeeCombobox'
 import { ProductSettingsSection } from './productDetail/ProductSettingsSection'
@@ -56,7 +54,6 @@ export function ProductDetail({
   const effectiveProduct = useEffectiveProduct(activeOrderId, activeProductId) // inherited fields resolved
   const setProductAssignee = useSetProductAssignee()
   const removal = useProductRemoval(product)
-  const { data: users = [] } = useUsers()
   const { data: fileAssignments = [] } = useProductFilesByOrderId(activeOrderId)
   // Only fetched for a STAMP/TEXTILE product in pre-press; empty otherwise.
   const { data: shortages = [] } = useStockAvailability(product)
@@ -72,25 +69,15 @@ export function ProductDetail({
     if (!ok) showError('PDF could not be generated')
   }
 
-  // Any role may reassign a product. Writes the ASSIGNEE_CHANGED history entry
-  // alongside the product update.
+  // Any role may reassign a product; the database records the change (ASSIGNEE_CHANGED).
   const handleAssigneeChange = (assignee: { id: string; name: string } | null) => {
     if ((assignee?.id ?? null) === (product.assignee_id ?? null)) return
-    const previousUser = product.assignee_id ? users.find(u => u.id === product.assignee_id) : null
     setProductAssignee.mutate(
-      {
-        id: product.id,
-        orderId: product.order_id,
-        assignee,
-        previousAssignee: previousUser ? { id: previousUser.id, name: previousUser.name } : null,
-      },
+      { id: product.id, orderId: product.order_id, assigneeId: assignee?.id ?? null },
       { onError: () => showError('Assignee could not be changed') },
     )
   }
 
-  const customerMeetsPrepressRequirements = customerMeetsPrepressContact(order.customers)
-  // Nothing is required while the parent order is still a quote (order-level rule).
-  const shouldValidate = order.status !== 'QUOTE'
 
   // Once DONE the product is read-only.
   const isDone = product.status === 'DONE'
@@ -131,6 +118,7 @@ export function ProductDetail({
               // does not play the settle meant for assigning this one.
               key={product.id}
               testId={IDS.assignee}
+              userOptionTestId={IDS.assigneeOption}
               value={product.assignee_id}
               onChange={handleAssigneeChange}
               disabled={isDone || setProductAssignee.isPending}
@@ -199,9 +187,6 @@ export function ProductDetail({
       
       <Separator />
 
-      {shouldValidate && !customerMeetsPrepressRequirements && (
-        <p className="text-xs italic text-muted-foreground">For auto-PREPRESS: Customer needs name and email or phone.</p>
-      )}
       <Tabs value={tab} onValueChange={value => setTab(value as ProductTab)} className="flex-1 gap-3">
         <TabsList aria-label="Product sections">
           <TabsTrigger value="basicInfo" data-testid={IDS.tabs.basicInfo} className="px-3 text-sm">

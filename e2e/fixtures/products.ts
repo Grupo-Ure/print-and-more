@@ -6,6 +6,7 @@ import { IN_STOCK_STAMP_MODEL, OUT_OF_STOCK_STAMP_MODEL } from './stamps'
 import { IN_STOCK_TEXTILE_CHAIN } from './textiles'
 
 type HistoryEvent = Database['public']['Enums']['history_event']
+type ProductInsert = Database['public']['Tables']['products']['Insert']
 
 /**
  * The department the suite adds products to when the department itself is not
@@ -69,10 +70,31 @@ export const BLANK_FORCE_RELEASE_REASON = '   '
 /** The history entry a force release writes. */
 export const FORCE_RELEASE_HISTORY_EVENT: HistoryEvent = 'EMERGENCY_TRIGGERED'
 
-// ── Removal ───────────────────────────────────────────────────────────────
+// ── Creation ──────────────────────────────────────────────────────────────
 
-/** The history entry deleting a product (only possible in setup) writes. */
-export const PRODUCT_DELETED_HISTORY_EVENT: HistoryEvent = 'PRODUCT_DELETED'
+/** The history entry the database writes for a product created — saved through the app, or copied with its order. */
+export const PRODUCT_CREATED_HISTORY_EVENT: HistoryEvent = 'PRODUCT_CREATED'
+
+/** The history entry the database writes when a product's specification is saved changed. */
+export const PRODUCT_UPDATED_HISTORY_EVENT: HistoryEvent = 'PRODUCT_UPDATED'
+
+// ── Workflow steps ────────────────────────────────────────────────────────
+
+/** The history entry the database writes when it promotes a ready product to pre-press. */
+export const PREPRESS_READY_HISTORY_EVENT: HistoryEvent = 'PREPRESS_READY'
+
+/** The history entry the database writes when a product is marked done. */
+export const MARKED_DONE_HISTORY_EVENT: HistoryEvent = 'MARKED_DONE'
+
+/** The history entry the database writes when a product is sent back from production to pre-press. */
+export const RETURNED_TO_PREPRESS_HISTORY_EVENT: HistoryEvent = 'RETURNED_TO_PREPRESS'
+
+// ── Release ───────────────────────────────────────────────────────────────
+
+/** The history entry a plain release to production writes. */
+export const RELEASE_HISTORY_EVENT: HistoryEvent = 'PRODUCTION_READY_SET'
+
+// ── Removal ───────────────────────────────────────────────────────────────
 
 /** The history entry cancelling a product (past setup, kept for history) writes. */
 export const PRODUCT_CANCELLED_HISTORY_EVENT: HistoryEvent = 'PRODUCT_CANCELLED'
@@ -101,6 +123,52 @@ export const OTHER_PRODUCT: ProductSeed = {
   quantity: Number(OTHER_PRODUCT_FORM.quantity),
   childTable: TEST_PRODUCT_CHILD_TABLE,
   child: { description: OTHER_PRODUCT_FORM.description },
+}
+
+/**
+ * The same OTHER product as `save_product` takes it for a create: the parent's
+ * columns and the typed child row, as the app maps them from the form.
+ */
+export function otherProductSave(orderId: string) {
+  return {
+    p_product: {
+      order_id: orderId,
+      department: TEST_PRODUCT_DEPARTMENT,
+      type: 'OTHER',
+      quantity: Number(OTHER_PRODUCT_FORM.quantity),
+    },
+    p_child: { description: OTHER_PRODUCT_FORM.description },
+  }
+}
+
+/**
+ * The same OTHER product as `save_product` takes it for a change: the saved
+ * product by its id, with the edited quantity and description.
+ */
+export function otherProductEdit(productId: string) {
+  return {
+    p_product: {
+      id: productId,
+      department: TEST_PRODUCT_DEPARTMENT,
+      type: 'OTHER',
+      quantity: EDITED_OTHER_QUANTITY,
+    },
+    p_child: { description: EDITED_OTHER_DESCRIPTION },
+  }
+}
+
+/**
+ * The same OTHER product as a bare `products` row — what a write around
+ * `save_product` would insert. `product_number` is the database's to assign,
+ * so it is left out, as the app never sends one.
+ */
+export function otherProductRow(orderId: string): ProductInsert {
+  return {
+    order_id: orderId,
+    department: TEST_PRODUCT_DEPARTMENT,
+    type: 'OTHER',
+    quantity: Number(OTHER_PRODUCT_FORM.quantity),
+  } as ProductInsert
 }
 
 /** A CopyShop product. */
@@ -192,6 +260,9 @@ export const ONE_PRODUCT_PER_DEPARTMENT: readonly ProductSeed[] = [
 /** A product already in pre-press. */
 export const PRODUCT_IN_PREPRESS: ProductSeed = { ...OTHER_PRODUCT, status: PREPRESS_STATUS }
 
+/** Two products in pre-press, for what an order does to all of its products at once. */
+export const TWO_PRODUCTS_IN_PREPRESS: readonly ProductSeed[] = [PRODUCT_IN_PREPRESS, PRODUCT_IN_PREPRESS]
+
 /** A stamp product in pre-press whose only stock target is empty. */
 export const STAMP_PRODUCT_IN_PREPRESS_OUT_OF_STOCK: ProductSeed = {
   ...OUT_OF_STOCK_STAMP_PRODUCT,
@@ -215,3 +286,20 @@ export const PRODUCT_IN_PRODUCTION: ProductSeed = { ...OTHER_PRODUCT, status: IN
 
 /** A product already done — what an order needs before it can be finished. */
 export const PRODUCT_DONE: ProductSeed = { ...OTHER_PRODUCT, status: DONE_STATUS }
+
+/** What is left of the in-stock model once `STAMP_PRODUCT_IN_PREPRESS_IN_STOCK` is released. */
+export const IN_STOCK_MODEL_STOCK_AFTER_RELEASE = IN_STOCK_STAMP_MODEL.stock - Number(IN_STOCK_STAMP_PRODUCT.quantity)
+
+/**
+ * What the deduction entry of that release records against the model: the
+ * product's quantity out, the stock around it, and the note naming the order.
+ */
+export function releaseDeductionEntry(orderNumber: string) {
+  return {
+    direction: 'OUTBOUND',
+    quantity: Number(IN_STOCK_STAMP_PRODUCT.quantity),
+    stock_before: IN_STOCK_STAMP_MODEL.stock,
+    stock_after: IN_STOCK_MODEL_STOCK_AFTER_RELEASE,
+    note: `Automatic on production release ${orderNumber}`,
+  }
+}

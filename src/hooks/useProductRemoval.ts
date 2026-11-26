@@ -2,11 +2,7 @@ import { useConfirm } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
 import { shortProductNumber } from '../lib/productShared'
 import { useNewestApprovalRequest, useWithdrawApprovalRequest } from '../queries/approvalQueries'
-import {
-  useCancelProduct,
-  useDeleteProduct,
-  useFinishOrderWhenAllProductsDone,
-} from '../queries/productQueries'
+import { useCancelProduct, useDeleteProduct } from '../queries/productQueries'
 import type { LoadedProduct } from '../types/product'
 
 export type ProductRemoval = {
@@ -27,8 +23,9 @@ export type ProductRemoval = {
  * context menu so both apply the same rules. `product` may be null while the
  * detail view has nothing loaded; the actions are then no-ops.
  *
- * Either removal can leave the order with only done products, in which case the
- * order finishes on its own (see `useFinishOrderWhenAllProductsDone`).
+ * Either removal can leave an invoice order with only done products, in which
+ * case the database finishes the order in the same write
+ * (`fn_finish_order_if_done`).
  *
  * A product awaiting the customer's approval is cancelled like any other past
  * setup, but its open request is withdrawn first — the customer is told the
@@ -39,17 +36,8 @@ export function useProductRemoval(product: LoadedProduct | null): ProductRemoval
   const deleteProduct = useDeleteProduct()
   const withdrawRequest = useWithdrawApprovalRequest()
   const newestRequest = useNewestApprovalRequest(product?.id ?? null)
-  const finishOrderWhenAllProductsDone = useFinishOrderWhenAllProductsDone()
   const confirm = useConfirm()
   const { showError } = useToast()
-
-  const finishOrderIfComplete = async (orderId: string): Promise<void> => {
-    try {
-      await finishOrderWhenAllProductsDone(orderId)
-    } catch {
-      showError('Order could not be marked as finished')
-    }
-  }
 
   const canDelete = product?.status === 'IN_SETUP'
   const canCancel =
@@ -88,9 +76,7 @@ export function useProductRemoval(product: LoadedProduct | null): ProductRemoval
       await cancelProduct.mutateAsync({ id: product.id, orderId: product.order_id })
     } catch {
       showError('Product could not be cancelled')
-      return
     }
-    await finishOrderIfComplete(product.order_id)
   }
 
   const requestDelete = async (): Promise<void> => {
@@ -106,9 +92,7 @@ export function useProductRemoval(product: LoadedProduct | null): ProductRemoval
       await deleteProduct.mutateAsync({ id: product.id, orderId: product.order_id })
     } catch {
       showError('Product could not be deleted')
-      return
     }
-    await finishOrderIfComplete(product.order_id)
   }
 
   return {

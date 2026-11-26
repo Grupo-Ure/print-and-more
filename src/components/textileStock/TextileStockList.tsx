@@ -7,7 +7,7 @@ import { useToast } from '../Toast'
 import { errorToString } from '../../lib/errorToString'
 import {
   useAllTextileVariants,
-  useBookTextileMovement,
+  useBookTextileStock,
   useSaveTextileMinimumStock,
   useSaveTextileSampleStock,
   useTextileReorderList,
@@ -54,8 +54,6 @@ const REORDER_COLUMNS: StockColumn<TextileReorderRow>[] = [
 ]
 
 type TextileStockListProps = {
-  /** Booked movements are attributed to this user. */
-  userId: string
   /** Opens the master-data subpage ("Manage brands and models"). */
   onOpenMasterData: () => void
 }
@@ -65,7 +63,7 @@ type TextileStockListProps = {
  * sorting and booking; the reorder list and the movement history open as
  * dialogs. Master data lives on its own subpage behind the cog button.
  */
-export function TextileStockList({ userId, onOpenMasterData }: TextileStockListProps) {
+export function TextileStockList({ onOpenMasterData }: TextileStockListProps) {
   const { showError } = useToast()
   const {
     stockSearch,
@@ -83,13 +81,13 @@ export function TextileStockList({ userId, onOpenMasterData }: TextileStockListP
   const variantsQuery = useAllTextileVariants()
   // Only fetched while the reorder dialog is open.
   const reorderQuery = useTextileReorderList(reorderOpen)
-  const bookMovement = useBookTextileMovement()
+  const bookStock = useBookTextileStock()
   const saveMinimumStock = useSaveTextileMinimumStock()
   const saveSampleStock = useSaveTextileSampleStock()
 
-  const booking = useStockBooking(async ({ itemId, quantity, nextStock, type }) => {
+  const booking = useStockBooking(async ({ itemId, quantity, type }) => {
     try {
-      await bookMovement.mutateAsync({ variantId: itemId, quantity, nextStock, type, userId })
+      await bookStock.mutateAsync({ variantId: itemId, quantity, type })
     } catch (error) {
       showError('Booking failed')
       throw error

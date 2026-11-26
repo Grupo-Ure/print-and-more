@@ -245,7 +245,7 @@ export function UserManagementSettings() {
   const handleDelete = async (user: UserRow) => {
     const confirmed = await confirm({
       title: 'Delete account',
-      description: `Delete the account of ${user.name} (${user.email})? Their entries in history and stock movements are kept without a user reference.`,
+      description: `Delete the account of ${user.name} (${user.email})? An account that is named on history entries cannot be deleted; the entries are a record that is kept.`,
       confirmLabel: 'Delete',
       destructive: true,
     })

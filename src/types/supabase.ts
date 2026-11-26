@@ -912,36 +912,65 @@ export type Database = {
       }
       history: {
         Row: {
+          action_id: string | null
           created_at: string
+          customer_id: string | null
           event_type: Database["public"]["Enums"]["history_event"]
+          file_id: string | null
           id: string
           meta: Json | null
-          order_id: string
+          order_id: string | null
           product_id: string | null
           reason: string | null
+          stamp_model_id: string | null
+          textile_variant_id: string | null
           user_id: string | null
         }
         Insert: {
+          action_id?: string | null
           created_at?: string
+          customer_id?: string | null
           event_type: Database["public"]["Enums"]["history_event"]
+          file_id?: string | null
           id?: string
           meta?: Json | null
-          order_id: string
+          order_id?: string | null
           product_id?: string | null
           reason?: string | null
+          stamp_model_id?: string | null
+          textile_variant_id?: string | null
           user_id?: string | null
         }
         Update: {
+          action_id?: string | null
           created_at?: string
+          customer_id?: string | null
           event_type?: Database["public"]["Enums"]["history_event"]
+          file_id?: string | null
           id?: string
           meta?: Json | null
-          order_id?: string
+          order_id?: string | null
           product_id?: string | null
           reason?: string | null
+          stamp_model_id?: string | null
+          textile_variant_id?: string | null
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "history_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "history_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "history_order_id_fkey"
             columns: ["order_id"]
@@ -961,6 +990,20 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "history_stamp_model_id_fkey"
+            columns: ["stamp_model_id"]
+            isOneToOne: false
+            referencedRelation: "stamp_models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "history_textile_variant_id_fkey"
+            columns: ["textile_variant_id"]
+            isOneToOne: false
+            referencedRelation: "textile_variants"
             referencedColumns: ["id"]
           },
         ]
@@ -2002,51 +2045,6 @@ export type Database = {
           },
         ]
       }
-      stamp_stock_movements: {
-        Row: {
-          created_at: string
-          id: string
-          model_id: string
-          note: string | null
-          quantity: number
-          type: string
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          model_id: string
-          note?: string | null
-          quantity: number
-          type: string
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          model_id?: string
-          note?: string | null
-          quantity?: number
-          type?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "stamp_stock_movements_model_id_fkey"
-            columns: ["model_id"]
-            isOneToOne: false
-            referencedRelation: "stamp_models"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "stamp_stock_movements_person_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       stand_stamp_products: {
         Row: {
           color: string | null
@@ -2305,51 +2303,6 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "textile_brands"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      textile_stock_movements: {
-        Row: {
-          created_at: string
-          id: string
-          note: string | null
-          quantity: number
-          type: string
-          user_id: string | null
-          variant_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          note?: string | null
-          quantity: number
-          type: string
-          user_id?: string | null
-          variant_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          note?: string | null
-          quantity?: number
-          type?: string
-          user_id?: string | null
-          variant_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "textile_stock_movements_person_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "textile_stock_movements_variant_id_fkey"
-            columns: ["variant_id"]
-            isOneToOne: false
-            referencedRelation: "textile_variants"
             referencedColumns: ["id"]
           },
         ]
@@ -2663,10 +2616,17 @@ export type Database = {
     }
     Functions: {
       archive_email: { Args: { msg_id: number }; Returns: boolean }
-      book_production_deductions: {
-        Args: { allow_shortage?: boolean; deductions: Json; note: string }
-        Returns: Json
+      book_stock: {
+        Args: {
+          p_item_id: string
+          p_kind: string
+          p_note?: string
+          p_quantity: number
+          p_type: string
+        }
+        Returns: number
       }
+      cancel_order: { Args: { p_order_id: string }; Returns: undefined }
       claim_backup_job: {
         Args: { job_id: string; machine: string; session_id: string }
         Returns: {
@@ -2728,7 +2688,6 @@ export type Database = {
       drain_emails: { Args: never; Returns: undefined }
       duplicate_order: {
         Args: {
-          created_by_user_id: string
           new_deadline: string
           new_delivery: Database["public"]["Enums"]["delivery_type"]
           new_priority: Database["public"]["Enums"]["priority_type"]
@@ -2737,16 +2696,57 @@ export type Database = {
         }
         Returns: string
       }
+      fn_apply_automatic_status: {
+        Args: { p_product_ids: string[] }
+        Returns: undefined
+      }
+      fn_available_stock: {
+        Args: { p_item_id: string; p_kind: string }
+        Returns: number
+      }
       fn_backup_upkeep: { Args: never; Returns: undefined }
+      fn_book_production_deductions: {
+        Args: { p_allow_shortage: boolean; p_deductions: Json; p_note: string }
+        Returns: Json
+      }
+      fn_child_table_for_type: { Args: { p_type: string }; Returns: string }
       fn_department_abbreviation: {
         Args: { dept: Database["public"]["Enums"]["department"] }
         Returns: string
       }
       fn_expire_approval_requests: { Args: never; Returns: number }
+      fn_finish_order_if_done: {
+        Args: { p_order_id: string }
+        Returns: undefined
+      }
+      fn_insert_product_rows: {
+        Args: { p_product_id: string; p_rows: Json; p_table: string }
+        Returns: undefined
+      }
       fn_order_is_closed: { Args: { p_order_id: string }; Returns: boolean }
+      fn_order_snapshot: { Args: { p_order_id: string }; Returns: Json }
+      fn_product_ready_for_prepress: {
+        Args: { p_product_id: string }
+        Returns: boolean
+      }
+      fn_product_snapshot: { Args: { p_product_id: string }; Returns: Json }
+      fn_product_snapshot_comparable: { Args: { p_snapshot: Json }; Returns: Json }
       fn_production_deductions: { Args: { product_id: string }; Returns: Json }
       fn_purge_approval_files: { Args: never; Returns: number }
+      fn_record_product_created: {
+        Args: { p_product_id: string }
+        Returns: undefined
+      }
       fn_start_due_backup: { Args: never; Returns: string }
+      fn_write_history: {
+        Args: {
+          p_event: Database["public"]["Enums"]["history_event"]
+          p_links: Json
+          p_meta?: Json
+          p_reason?: string
+        }
+        Returns: string
+      }
       force_release_to_production: {
         Args: { product_id: string; reason: string }
         Returns: undefined
@@ -2959,6 +2959,15 @@ export type Database = {
         Args: { delay_seconds: number; msg_id: number }
         Returns: boolean
       }
+      save_product: {
+        Args: {
+          p_child?: Json
+          p_designs?: Json
+          p_garments?: Json
+          p_product: Json
+        }
+        Returns: string
+      }
       settle_approval_request: {
         Args: {
           decision: Database["public"]["Enums"]["approval_request_status"]
@@ -2989,8 +2998,7 @@ export type Database = {
       history_event:
         | "ORDER_CREATED"
         | "PROCESSING_STARTED"
-        | "PREPRESS_READY_AUTO"
-        | "PREPRESS_READY_MANUAL"
+        | "PREPRESS_READY"
         | "PRODUCTION_READY_SET"
         | "MARKED_DONE"
         | "EMERGENCY_TRIGGERED"
@@ -3023,6 +3031,14 @@ export type Database = {
         | "CUSTOMER_APPROVAL_REQUESTED"
         | "CUSTOMER_APPROVAL_CHANGES_REQUESTED"
         | "CUSTOMER_APPROVAL_WITHDRAWN"
+        | "CUSTOMER_CREATED"
+        | "CUSTOMER_UPDATED"
+        | "FILE_RENAMED"
+        | "FILE_ROLE_CHANGED"
+        | "ORDER_BILLING_NOTE_CHANGED"
+        | "STOCK_BOOKED"
+        | "STOCK_AUTO_DEDUCTED"
+        | "RETURNED_TO_PREPRESS"
       order_status: "QUOTE" | "IN_PROGRESS" | "FINISHED" | "BILLED"
       payment_method: "INVOICE" | "CASH"
       priority_type: "NORMAL" | "HIGH"
@@ -3164,8 +3180,7 @@ export const Constants = {
       history_event: [
         "ORDER_CREATED",
         "PROCESSING_STARTED",
-        "PREPRESS_READY_AUTO",
-        "PREPRESS_READY_MANUAL",
+        "PREPRESS_READY",
         "PRODUCTION_READY_SET",
         "MARKED_DONE",
         "EMERGENCY_TRIGGERED",
@@ -3198,6 +3213,14 @@ export const Constants = {
         "CUSTOMER_APPROVAL_REQUESTED",
         "CUSTOMER_APPROVAL_CHANGES_REQUESTED",
         "CUSTOMER_APPROVAL_WITHDRAWN",
+        "CUSTOMER_CREATED",
+        "CUSTOMER_UPDATED",
+        "FILE_RENAMED",
+        "FILE_ROLE_CHANGED",
+        "ORDER_BILLING_NOTE_CHANGED",
+        "STOCK_BOOKED",
+        "STOCK_AUTO_DEDUCTED",
+        "RETURNED_TO_PREPRESS",
       ],
       order_status: ["QUOTE", "IN_PROGRESS", "FINISHED", "BILLED"],
       payment_method: ["INVOICE", "CASH"],

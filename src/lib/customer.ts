@@ -1,6 +1,6 @@
 import type { Customer } from '../types/database'
 
-/** Name + (email or phone) required for the auto-prepress rule. */
+/** Name + (email or phone): the customer half of the pre-press condition (`prepressHold`). */
 export function customerMeetsPrepressContact(customer: Customer | null | undefined): boolean {
   if (customer == null) return false
   if (!customer.name?.trim()) return false

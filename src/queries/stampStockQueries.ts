@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { stampService } from '../services/stampService'
 import { productService } from '../services/productService'
+import { stockService, type StockBookingType } from '../services/stockService'
 import { reorderQuantity } from '../components/stock/stockShared'
 import type { OrderListRow } from '../components/stampStock/stampStockShared'
 
@@ -58,10 +59,11 @@ export function useUpdateStampModel() {
   })
 }
 
+/** The stock entries of the stamp models — bookings and release deductions — newest first. */
 export function useStampMovements() {
   return useQuery({
     queryKey: stampStockKeys.movements,
-    queryFn: () => stampService.getStockMovements(),
+    queryFn: () => stockService.getStampStockEntries(),
   })
 }
 
@@ -96,26 +98,18 @@ export function useStampReorderList(enabled = true) {
   })
 }
 
-export type BookStampMovementPayload = {
+export type BookStampStockPayload = {
   modelId: string
   quantity: number
-  nextStock: number
-  type: 'INBOUND' | 'OUTBOUND'
-  userId: string
+  type: StockBookingType
 }
 
-export function useBookStampMovement() {
+/** Books goods in or out of a stamp model; the database computes the stock and writes the entry. */
+export function useBookStampStock() {
   const queryClient = useQueryClient()
-  return useMutation<void, Error, BookStampMovementPayload>({
-    mutationFn: async ({ modelId, quantity, nextStock, type, userId }) => {
-      await stampService.updateStampModelStock(modelId, nextStock)
-      await stampService.createStockMovement({
-        model_id: modelId,
-        quantity,
-        type,
-        user_id: userId,
-      })
-    },
+  return useMutation<number, Error, BookStampStockPayload>({
+    mutationFn: ({ modelId, quantity, type }) =>
+      stockService.bookStock({ kind: 'STAMP', itemId: modelId, type, quantity }),
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: stampStockKeys.all })
     },

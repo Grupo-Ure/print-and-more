@@ -2,10 +2,10 @@ import { useState, type DragEvent, type KeyboardEvent } from 'react'
 import { FileText, Pencil, Plus, Send, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { fileService } from '../services/fileService'
-import { historyService } from '../services/historyService'
 import type { FileRow, FileRole } from '../services/fileService'
 import type { StockShortage } from '../services/productionReleaseService'
 import type { LoadedProduct } from '../types/product'
+import { FILE_ROLE_LABELS } from '../lib/fileRoleLabels'
 import { useApprovalRequests } from '../queries/approvalQueries'
 import { useFileLinking } from '../hooks/useFileLinking'
 import { useRevealFile } from '../hooks/useRevealFile'
@@ -36,12 +36,7 @@ function isForeignKeyViolation(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === FOREIGN_KEY_VIOLATION
 }
 
-const ROLES: { value: FileRole; label: string }[] = [
-  { value: 'PRODUCTION_FILE', label: 'Production file' },
-  { value: 'PREVIEW', label: 'Preview / Mockup' },
-  { value: 'CUSTOMER_APPROVAL', label: 'Customer approval' },
-  { value: 'REFERENCE', label: 'Reference / Archive' },
-]
+const ROLES = (Object.entries(FILE_ROLE_LABELS) as [FileRole, string][]).map(([value, label]) => ({ value, label }))
 
 // The blue edit accent the product's other tabs use, so the Files tab reads
 // the same as the rest of the detail view.
@@ -161,12 +156,7 @@ export function OrderFiles({ orderId, product, files, productFileIds, shortages,
       setError(err instanceof Error ? err.message : 'Error deleting')
       return
     }
-    const removed = files.find(file => file.id === id)
-    void historyService.tryWriteHistory({
-      order_id: orderId,
-      event_type: 'FILE_REMOVED',
-      meta: { display_name: removed?.display_name ?? null, role: removed?.role ?? null },
-    })
+    // A deletion writes no history entry: the file's entries go with it.
     setRemovingId(null)
     void onFileChanged()
   }

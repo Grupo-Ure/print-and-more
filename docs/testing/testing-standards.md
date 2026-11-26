@@ -26,6 +26,12 @@ and we learn what needs to be stricter or looser.
 5. **Short and elegant over exhaustive.** A test suite should be quick to
    read and understand. Testing the minimum that proves correctness beats
    testing everything that's possible to test.
+6. **Readability comes first.** A test is read far more often than it is
+   written, and often by someone deciding whether to trust it. Its lines
+   should read almost like English sentences: what was done, and what is
+   expected of what. A reader never has to work a value out in their head to
+   follow an assertion. Where readability and brevity pull apart,
+   readability wins.
 
 ---
 
@@ -126,6 +132,55 @@ the direct result of the action being tested — assert that value exactly.
 The rule is to be deliberate: assert precisely what's semantically
 meaningful to the case, and nothing that's incidental to it.
 
+### An assertion reads as a sentence
+
+An assertion names **what is expected** and **of what**, and a reader can
+tell where both sides come from without leaving the line: a named value on
+the left, a fixture value on the right.
+
+```
+// Bad — the reader has to unpack three levels to learn that this is about
+// a description before and after
+expect(await database.recordedEntries(orderId, PRODUCT_UPDATED)).toEqual([
+  expect.objectContaining({
+    meta: expect.objectContaining({
+      before: expect.objectContaining({ spec: expect.objectContaining({ description: fixtures.savedDescription }) }),
+      after: expect.objectContaining({ spec: expect.objectContaining({ description: fixtures.editedDescription }) }),
+    }),
+  }),
+])
+
+// Good — the digging is done before the assertion; each line is one claim
+const changes = await database.productSpecChanges(orderId)
+const [change] = changes
+expect(changes).toHaveLength(1)
+expect(change.before.description).toBe(fixtures.savedDescription)
+expect(change.after.description).toBe(fixtures.editedDescription)
+```
+
+- **Do the digging before the assertion.** Pulling a value out of a stored
+  record, a response or a list is not part of the claim. It belongs in a
+  read helper in the suite's support code, which returns the shape the test
+  talks about (`{ before, after }`, not the raw row). The Assert stage then
+  gives the result a name and compares it.
+- **Name what the value represents.** `change`, `deductions`,
+  `releaseActionId` — a name that says what the thing is in the scenario,
+  following the [naming conventions](../coding-standards.md#naming-conventions):
+  no abbreviations, no one-letter names, the words the scope needs and no
+  more. A value used in an assertion is never an anonymous expression the
+  reader has to evaluate.
+- **No matcher inside a matcher.** One partial matcher (an "object
+  containing", an "any string") is the limit. A second level means the
+  value should have been extracted first.
+- **Several plain assertions beat one structural one.** Three one-line
+  claims about named values are easier to read, and fail more precisely,
+  than one matcher over a whole record. This does not loosen "assert the
+  minimum": it is the same claims, written apart.
+- **Say where an input comes from.** The expected value is a fixture,
+  imported by a name that says what it stands for; a value the test worked
+  out itself is given a name in Setup, with a comment if the name alone
+  does not explain it.
+
 ### Never assert inside a loop
 
 An assertion never lives in a loop body — not in a `for`, a `forEach`, a
@@ -133,6 +188,11 @@ An assertion never lives in a loop body — not in a `for`, a `forEach`, a
 stops at the first failing iteration and hides whether the others would have
 failed too, and a loop that happens to iterate zero times asserts nothing
 while the test still passes.
+
+This rule is about **repeated elements** — the rows of a list, the items of
+a collection. It is not a reason to fold the separate fields of one record
+into a single matcher; those are written as separate assertions (see "An
+assertion reads as a sentence").
 
 Instead, gather what the loop would have checked into one value and make one
 assertion against one fixture value. Use the framework's collection matchers
@@ -204,9 +264,11 @@ this order:
    see exactly what was done. In a unit test it is the call to the function
    under test. No assertions here.
 3. **Assert** — check the outcome. Keep this to the minimal set of
-   assertions that proves the behavior (see above). No further actions here
-   — if an assertion needs another action first, that action belongs in
-   the Act stage.
+   assertions that proves the behavior (see above). Reading a result and
+   giving it a name is part of this stage (`const [change] = changes`), so
+   the assertions that follow read plainly. No further actions here — if an
+   assertion needs another action first, that action belongs in the Act
+   stage.
 4. **Cleanup** — undo anything the test created or changed that would
    otherwise leak into other tests (e.g. a record written to a shared
    store). Most test cases don't need this stage — recognize when a test
@@ -265,33 +327,17 @@ Rules of thumb:
 - When a precondition matters to the scenario, it goes in the `describe`
   block name ("signed out", "as ADMIN"), not in the test name.
 
-### The plan comes first, and every test has an ID
+### Every test has an ID
 
-`e2e/TEST_PLAN.md` is the source of truth for what the suite tests. A test is
-planned there — as a bullet under its pack (spec file) and under the italic
-`describe` bullets that state its precondition — before it is written, and a
-spec test that the plan does not name fails `npm run test:plan:check` (run in
-CI). Working on a feature means adding its tests to the plan first, then
-writing specs that match it; a test is never added to a spec on the author's
-own judgement.
-
-Every test case carries the plan's ID as the first word of its title:
+Every test case carries an ID as the first word of its title:
 `<AREA>-<FEATURE>-<NNN>`, e.g. `ORD-STA-012 starting processing a quote moves
-the order to in progress`. The ID is for tracking — in the plan, in Jira, in a
-report, in `--grep` — and is not part of the sentence the naming rules above
-describe.
+the order to in progress`. The ID is for tracking — in a report, in Jira, in
+`--grep` — and is not part of the sentence the naming rules above describe.
 
-- The prefix (`<AREA>-<FEATURE>`) belongs to the pack; the plan names it on
-  the pack's bullet. A new spec file is a new pack bullet in the plan first.
-- The number counts up per prefix and is **never reused**: a deleted test
-  leaves its number retired, and a test whose title is reworded keeps its ID.
-- Don't number by hand. Add the bullet without an ID and run
-  `npm run test:plan:assign`; the spec then uses that ID, the title word for
-  word, and the same describe chain.
-- `npm run test:plan:status` lists what is planned and not yet written;
-  `npm run test:plan:check` fails on a spec test without an ID, one the plan
-  does not list, one in another file or under other describes than planned,
-  or a title that differs from the plan.
+- The prefix (`<AREA>-<FEATURE>`) belongs to the spec file. A new spec file
+  takes a new prefix.
+- The number counts up per prefix and is **never reused**, even when the test
+  it named is gone. A test whose title is reworded keeps its ID.
 
 **Fixtures prepare data, not state in the interface.** A fixture inserts,
 generates or removes data; it never drives the UI to a place. A fixture that
@@ -337,6 +383,7 @@ maximizes assertion count or case count.
 | Asserting an exact error message | Brittle — breaks on copy changes unrelated to behavior | Assert a status/code/category |
 | An assertion inside a loop body | Stops at the first failing iteration and hides the rest; zero iterations pass silently | Collect the values and make one assertion against the whole collection |
 | A `test` / `describe` registered inside a loop | Hides which cases exist behind a table; a case cannot be found or run on its own | Write each case out in full |
+| A matcher nested inside a matcher, or an assertion on an expression the reader has to evaluate | The claim is buried; nobody can tell at a glance what is expected of what | Extract with a read helper, name the value, compare it in a plain one-line assertion |
 | Asserting every field of a result with exact values | Over-specified, couples the test to incidental detail | Assert only the fields that are semantically meaningful to the case |
 | Testing internal implementation details | Breaks on refactors that don't change behavior | Test the public input/output contract |
 | One test case asserting many unrelated behaviors | Failure doesn't say what broke; hard to read | Split into focused cases, one reason to fail each |

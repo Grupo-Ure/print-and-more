@@ -7,6 +7,7 @@ import { OrderDetails } from '../components/OrderDetails'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { OrderWorkspaceProvider } from '../context/order.context'
+import { useOrdersViewLiveRefresh } from '../queries/orderQueries'
 
 export function OrderWorkspace() {
   const [session, setSession] = useState<Session | null>(null)
@@ -44,6 +45,8 @@ function WorkspaceShell() {
   // Fixed sidebar width per breakpoint — never content-driven, just narrower
   // on small laptops. Same breakpoint as the `desktop:` Tailwind variant.
   const isCompact = useIsMobile()
+  // Other users' changes, and the database's own, reach the open order live.
+  useOrdersViewLiveRefresh()
 
   return (
     <SidebarProvider

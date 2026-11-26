@@ -32,7 +32,7 @@ export function useCreateTimeLog() {
     Error,
     { orderId: string; productId: string; minutes: number; user: { id: string; name: string } }
   >({
-    mutationFn: params => timeLogService.create(params),
+    mutationFn: ({ productId, minutes, user }) => timeLogService.create({ productId, minutes, userId: user.id }),
     onSuccess: (_row, { orderId, productId }) => {
       void queryClient.invalidateQueries({ queryKey: timeLogKeys.byProductId(productId) })
       void queryClient.invalidateQueries({ queryKey: timeLogKeys.minutesByOrderId(orderId) })
@@ -45,13 +45,10 @@ export function useCreateTimeLog() {
 export function useDeleteTimeLog() {
   const queryClient = useQueryClient()
   return useMutation<void, Error, { orderId: string; log: TimeLogRow }>({
-    mutationFn: params => timeLogService.remove(params),
+    mutationFn: ({ log }) => timeLogService.remove(log.id),
     onSuccess: (_void, { orderId, log }) => {
       void queryClient.invalidateQueries({ queryKey: timeLogKeys.byProductId(log.product_id) })
       void queryClient.invalidateQueries({ queryKey: timeLogKeys.minutesByOrderId(orderId) })
-    },
-    onSettled: (_void, _err, { orderId }) => {
-      void queryClient.invalidateQueries({ queryKey: historyKeys.byOrderId(orderId) })
     },
   })
 }

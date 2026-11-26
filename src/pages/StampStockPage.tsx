@@ -5,11 +5,9 @@ import { StampStockView } from '../components/stampStock/StampStockView'
 export function StampStockPage() {
   return (
     <StockPageShell accessDeniedDescription="Stamp stock management requires an admin account.">
-      {session => (
-        <StampStockProvider>
-          <StampStockView userId={session.user.id} />
-        </StampStockProvider>
-      )}
+      <StampStockProvider>
+        <StampStockView />
+      </StampStockProvider>
     </StockPageShell>
   )
 }

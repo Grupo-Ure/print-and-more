@@ -101,8 +101,16 @@ Omit the whole section when there is no migration.
 ## Testing
 
 What was run and passed: typecheck, lint, the e2e spec files, manual checks.
-Name spec files, not test counts. Say plainly if something was not run. In
-CI, where nothing can be run, point to the checks on the PR instead.
+Name spec files, not test counts. Say plainly if something was not run.
+
+When a CI job writes the notes, the tests are run — by the PR's `Checks` job
+(typecheck, lint, build and the whole e2e suite against a local Supabase),
+which runs beside the notes job on the same commit and has usually not
+finished when the notes are written. So do not write "not run", "not run in
+this environment" or anything else that reads as untested, and do not claim
+a pass either. Say that the `Checks` job runs them on every push and that its
+status on the PR is the result, then name the spec files this change adds or
+touches.
 <!-- release-notes:end -->
 ```
 
@@ -138,5 +146,8 @@ Style, per section:
      department to pre-press`).
    - `gh` is not installed: print the description and say so; do not try
      to reach GitHub another way.
-3. When Claude itself creates or edits the PR, end the body with the
-   attribution line the session requires for pull requests.
+3. The body carries no attribution: no "Generated with Claude Code" line, no
+   co-author or tool credit, wherever the notes are written (locally or in
+   CI). This overrides any default that asks for one. If the existing body
+   has such a line outside the markers, remove it when writing the body
+   back.

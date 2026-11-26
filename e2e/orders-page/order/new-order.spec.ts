@@ -1,4 +1,4 @@
-import { expect, test, NEW_ORDER_STATUS, defaultOrderDeadline } from '../../fixtures/orders'
+import { expect, test, NEW_ORDER_STATUS, ORDER_CREATED_HISTORY_EVENT, defaultOrderDeadline } from '../../fixtures/orders'
 
 // Every test leaves an order behind; the `customer` / `newCustomer` fixtures
 // remove it with its customer, so none of them needs a cleanup stage.
@@ -45,4 +45,24 @@ test('ORD-NEW-003 creating an order pre-fills its deadline one week out', async 
 
   // Assert — the settings row of the created order shows the deadline a week from today.
   await expect(ordersPage.details.deadline.trigger).toHaveAttribute('data-value', deadline)
+})
+
+test('ORD-NEW-004 creating an order records its creation in the order history, with what it was created with', async ({ ordersPage, database, customer }) => {
+  // Setup — the `customer` fixture inserted the customer row; the deadline a new order is created with.
+  const dialog = ordersPage.newOrderDialog
+  const deadline = defaultOrderDeadline()
+
+  // Act — create an order for that customer, then open its history.
+  await ordersPage.sidebar.newOrderButton.click()
+  await dialog.customerSearch.fill(customer.name)
+  await dialog.customerOption(customer.id).click()
+  await dialog.submit.click()
+  await ordersPage.details.historyTab.click()
+
+  // Assert — the history shows the creation, and the one entry stored holds the order as created, its deadline included.
+  await expect(ordersPage.details.history.ofType(ORDER_CREATED_HISTORY_EVENT)).toHaveCount(1)
+  const orderId = await ordersPage.details.shownOrderId()
+  expect(await database.historyEntries(orderId, ORDER_CREATED_HISTORY_EVENT)).toEqual([
+    expect.objectContaining({ meta: expect.objectContaining({ after: expect.objectContaining({ deadline }) }) }),
+  ])
 })

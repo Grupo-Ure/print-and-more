@@ -4,16 +4,11 @@ import type { Database } from '../types/supabase'
 type StampModelRow = Database['public']['Tables']['stamp_models']['Row']
 type StampModelInsert = Database['public']['Tables']['stamp_models']['Insert']
 type StampModelUpdate = Database['public']['Tables']['stamp_models']['Update']
-type StockMovementInsert = Database['public']['Tables']['stamp_stock_movements']['Insert']
 
 export type StampModelSuggestion = Pick<
   StampModelRow,
   'id' | 'name' | 'stock' | 'max_width_mm' | 'max_height_mm' | 'print_area'
 >
-
-export type StockMovementRow = Database['public']['Tables']['stamp_stock_movements']['Row'] & {
-  stamp_models: { name: string } | null
-}
 
 export type ReorderItem = Pick<
   StampModelRow,
@@ -187,31 +182,10 @@ class StampService {
     return Array.from(new Set(numbers)).sort()
   }
 
-  async updateStampModelStock(id: string, stock: number): Promise<void> {
-    const patch: StampModelUpdate = { stock }
-    const { error } = await supabase.from('stamp_models').update(patch).eq('id', id)
-    if (error) throw error
-  }
-
   async updateStampModelMinimumStock(id: string, min_stock: number): Promise<void> {
     const patch: StampModelUpdate = { min_stock }
     const { error } = await supabase.from('stamp_models').update(patch).eq('id', id)
     if (error) throw error
-  }
-
-  async createStockMovement(payload: StockMovementInsert): Promise<void> {
-    const { error } = await supabase.from('stamp_stock_movements').insert(payload)
-    if (error) throw error
-  }
-
-  async getStockMovements(): Promise<StockMovementRow[]> {
-    const { data, error } = await supabase
-      .from('stamp_stock_movements')
-      .select('*, stamp_models(name)')
-      .order('created_at', { ascending: false })
-      .limit(200)
-    if (error) throw error
-    return (data ?? []) as unknown as StockMovementRow[]
   }
 }
 

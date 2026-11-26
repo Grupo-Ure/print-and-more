@@ -52,7 +52,9 @@ jobs:
             of this repository. The PR targets `${{ github.event.pull_request.base.ref }}`;
             the checkout is its head commit. Write the result into the PR body
             with `gh pr edit` as the skill describes. Do not push commits and do
-            not comment on the PR.
+            not comment on the PR. Do not add an attribution line ("Generated
+            with Claude Code" or similar) to the body, and remove one if the
+            body already ends with it.
           claude_args: >-
             --model claude-sonnet-5
             --max-turns 40

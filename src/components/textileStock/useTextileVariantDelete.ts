@@ -6,7 +6,8 @@ import { useDeleteTextileVariant } from '../../queries/textileStockQueries'
 /**
  * Confirmed variant deletion, shared by the variant table and the detail view.
  * Refuses to delete the last variant (every model keeps ≥ 1) and variants
- * referenced by products; stock movements block deletion at the FK level.
+ * referenced by products; a variant with stock history (a booking or a
+ * deduction) is refused by the database, since its entries are a record.
  * Resolves true when the variant is gone.
  */
 export function useTextileVariantDelete() {
@@ -21,7 +22,7 @@ export function useTextileVariantDelete() {
     }
     const confirmed = await confirm({
       title: `Delete variant ${variant.color} / ${variant.size}?`,
-      description: 'The variant is removed permanently. Stock history is kept only for other variants.',
+      description: 'The variant is removed permanently. A variant that has stock history cannot be deleted.',
       confirmLabel: 'Delete',
       destructive: true,
     })
@@ -35,7 +36,7 @@ export function useTextileVariantDelete() {
       await deleteVariant.mutateAsync(variant.id)
       return true
     } catch {
-      showError('Variant could not be deleted (it may have stock movements) — deactivate it instead')
+      showError('Variant could not be deleted (it may have stock history) — deactivate it instead')
       return false
     }
   }

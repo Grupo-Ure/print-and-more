@@ -14,6 +14,10 @@ export class OrderHistoryPOM extends BasePOM {
   readonly empty: Locator
   /** Every entry; each carries `data-event-type`. */
   readonly items: Locator
+  /** The product filter's trigger; shown while the order has entries or a filter is set. */
+  readonly productFilter: Locator
+  /** The product filter's options, one per product of the order, cancelled ones included. */
+  private readonly productOptions: Locator
 
   constructor(page: Page) {
     super(page)
@@ -21,9 +25,17 @@ export class OrderHistoryPOM extends BasePOM {
     this.list = this.root.getByTestId(IDS.list)
     this.empty = this.root.getByTestId(IDS.empty)
     this.items = this.list.getByTestId(IDS.item)
+    this.productFilter = this.root.getByTestId(IDS.filters.product)
+    // The options render in a popover outside the section, so they are found on the page.
+    this.productOptions = page.getByTestId(IDS.filters.productOption)
   }
 
   ofType(eventType: HistoryEvent): Locator {
     return this.withAttr(this.items, 'data-event-type', eventType)
+  }
+
+  /** The product filter's option for one product, picked by its `data-product-id`. */
+  productOption(productId: string): Locator {
+    return this.withAttr(this.productOptions, 'data-product-id', productId)
   }
 }
