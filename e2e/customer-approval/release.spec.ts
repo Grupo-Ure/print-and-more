@@ -1,6 +1,6 @@
 import { expect, test } from '../fixtures/approvals'
 import { CHANGES_REQUESTED_REQUEST } from '../fixtures/approvalRequests'
-import { IN_PROGRESS_ORDER, IN_PROGRESS_ORDER_WITHOUT_DEADLINE } from '../fixtures/orders'
+import { IN_PROGRESS_ORDER } from '../fixtures/orders'
 import {
   AWAITING_APPROVAL_STATUS,
   BLANK_FORCE_RELEASE_REASON,
@@ -72,8 +72,9 @@ test.describe('in progress, product in pre-press', () => {
   })
 })
 
-test.describe('in progress without a deadline, product in setup', () => {
-  test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, productSeed: OTHER_PRODUCT })
+// The default quote seed holds the product in setup.
+test.describe('quote, product in setup', () => {
+  test.use({ productSeed: OTHER_PRODUCT })
 
   test('APR-REL-012 moving the product from setup to pre-press directly is refused', async ({ database, product }) => {
     // Setup
@@ -90,10 +91,9 @@ test.describe('in progress without a deadline, product in setup', () => {
 
 // ── The plain release's gates ─────────────────────────────────────────────
 
-// Without a deadline a product cannot be in pre-press — the database holds it
-// in setup — so the incomplete product the release must refuse is one in setup.
-test.describe('in progress without a deadline, product in setup', () => {
-  test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, productSeed: OTHER_PRODUCT })
+// Only a product in pre-press is released; the default quote seed holds this one in setup.
+test.describe('quote, product in setup', () => {
+  test.use({ productSeed: OTHER_PRODUCT })
 
   test('APR-REL-003 releasing the product is refused', async ({ database, product }) => {
     // Setup
@@ -102,7 +102,7 @@ test.describe('in progress without a deadline, product in setup', () => {
     // Act
     const { error } = await asEmployee.rpc('release_to_production', { product_id: product.id })
 
-    // Assert — an incomplete product does not reach production.
+    // Assert — a product in setup does not reach production.
     expect(error).not.toBeNull()
     expect((await database.productState(product.id)).status).toBe(NEW_PRODUCT_STATUS)
   })
