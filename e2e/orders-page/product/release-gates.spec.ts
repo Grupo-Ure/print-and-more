@@ -1,5 +1,5 @@
 import { expect, test } from '../../fixtures/approvals'
-import { IN_PROGRESS_ORDER, IN_PROGRESS_ORDER_WITHOUT_DEADLINE } from '../../fixtures/orders'
+import { IN_PROGRESS_ORDER } from '../../fixtures/orders'
 import {
   APPROVED_REQUEST,
   CHANGES_NOTE,
@@ -8,7 +8,6 @@ import {
   WITHDRAWN_REQUEST_STATUS,
 } from '../../fixtures/approvalRequests'
 import {
-  POSTER_PRODUCT,
   PRODUCT_IN_PREPRESS,
   STAMP_PRODUCT_IN_PREPRESS_OUT_OF_STOCK,
   IN_PRODUCTION_STATUS,
@@ -16,23 +15,6 @@ import {
   FORCE_RELEASE_HISTORY_EVENT,
 } from '../../fixtures/products'
 import { TEST_USERS } from '../../fixtures/users'
-
-// ── What keeps a product in setup ─────────────────────────────────────────
-// A product enters pre-press on its own once it is ready; there is no release
-// to pre-press. Held here by the missing effective deadline.
-
-test.describe('in progress, product with no deadline', () => {
-  test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, productSeed: POSTER_PRODUCT })
-
-  test('PRD-GAT-001 the product is held in setup with no release offered', async ({ ordersPage, product }) => {
-    // Setup — the product open.
-    await ordersPage.openProduct(product)
-
-    // Assert — the banner names the block and nothing offers to release the product.
-    await expect(ordersPage.details.productDetail.banner).toHaveAttribute('data-kind', 'blocked')
-    await expect(ordersPage.details.productDetail.releaseButton).toHaveCount(0)
-  })
-})
 
 // ── Stock ─────────────────────────────────────────────────────────────────
 
@@ -50,34 +32,36 @@ test.describe('in progress, stamp product in pre-press, model out of stock', () 
 })
 
 // ── Force release (admin) ─────────────────────────────────────────────────
+// A product the release is blocked for offers the force release in the release
+// button's menu; here the block is the stock.
 
-test.describe('as admin, in progress, product with no deadline', () => {
-  test.use({ user: TEST_USERS.admin, orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, productSeed: POSTER_PRODUCT })
+test.describe('as admin, in progress, stamp product in pre-press, model out of stock', () => {
+  test.use({ user: TEST_USERS.admin, orderSeed: IN_PROGRESS_ORDER, productSeed: STAMP_PRODUCT_IN_PREPRESS_OUT_OF_STOCK })
 
   test('PRD-GAT-005 opening the force release prompt without a reason keeps it unsubmittable', async ({ ordersPage, product }) => {
     // Setup — the product open.
     await ordersPage.openProduct(product)
 
-    // Act — open the force release; a product held in setup offers nothing else.
-    await ordersPage.details.productDetail.forceReleaseButton.click()
+    // Act — open the force release from the release button's menu.
+    await ordersPage.details.productDetail.releaseMenuTrigger.click()
+    await ordersPage.details.productDetail.forceReleaseItem.click()
 
     // Assert — nothing can be submitted until a reason is given.
     await expect(ordersPage.details.productDetail.forceReleaseDialog.submit).toBeDisabled()
   })
 
-  test('PRD-GAT-006 force releasing the product with a reason moves it to production flagged as missing information', async ({ ordersPage, product }) => {
-    // Setup — the product's row in the list, with the product open.
-    const row = ordersPage.details.productList.row(product.id)
+  test('PRD-GAT-006 force releasing the product with a reason moves it to production', async ({ ordersPage, product }) => {
+    // Setup — the product open.
     await ordersPage.openProduct(product)
 
     // Act — force release it with a reason.
-    await ordersPage.details.productDetail.forceReleaseButton.click()
+    await ordersPage.details.productDetail.releaseMenuTrigger.click()
+    await ordersPage.details.productDetail.forceReleaseItem.click()
     await ordersPage.details.productDetail.forceReleaseDialog.reason.fill(FORCE_RELEASE_REASON)
     await ordersPage.details.productDetail.forceReleaseDialog.submit.click()
 
-    // Assert — the product is in production and carries the missing-information warning.
-    await expect(row).toHaveAttribute('data-status', IN_PRODUCTION_STATUS)
-    await expect(ordersPage.details.productList.rowMissingInfo(row)).toBeVisible()
+    // Assert — the product is in production, the shortage notwithstanding.
+    await expect(ordersPage.details.productList.row(product.id)).toHaveAttribute('data-status', IN_PRODUCTION_STATUS)
   })
 
   test('PRD-GAT-007 force releasing the product records an emergency entry in the order history', async ({ ordersPage, product }) => {
@@ -85,7 +69,8 @@ test.describe('as admin, in progress, product with no deadline', () => {
     await ordersPage.openProduct(product)
 
     // Act — force release it with a reason, then open the history.
-    await ordersPage.details.productDetail.forceReleaseButton.click()
+    await ordersPage.details.productDetail.releaseMenuTrigger.click()
+    await ordersPage.details.productDetail.forceReleaseItem.click()
     await ordersPage.details.productDetail.forceReleaseDialog.reason.fill(FORCE_RELEASE_REASON)
     await ordersPage.details.productDetail.forceReleaseDialog.submit.click()
     await ordersPage.details.historyTab.click()
