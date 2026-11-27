@@ -4,6 +4,8 @@ import type { FileSeedRow } from '../support/database'
 import { FULL_CUSTOMER } from './customers'
 
 type HistoryEvent = Database['public']['Enums']['history_event']
+type OrderInsert = Database['public']['Tables']['orders']['Insert']
+type OrderUpdate = Database['public']['Tables']['orders']['Update']
 
 // What the record-protection pack writes against the guards: values that
 // differ from what the seeds hold, so a refused write is told from a
@@ -47,6 +49,26 @@ export const CUSTOMER_CHANGE_ENTRIES = [
 
 /** Postgres' error code for a delete a foreign key restricts. */
 export const FOREIGN_KEY_VIOLATION = '23503'
+
+/** Postgres' error code for a row that leaves a NOT NULL column empty — an order without a deadline. */
+export const NOT_NULL_VIOLATION = '23502'
+
+/** Postgres' error code for a row that fails a check constraint — a customer without a name or a contact. */
+export const CHECK_VIOLATION = '23514'
+
+/** A customer name of spaces only: there, but blank. */
+export const BLANK_CUSTOMER_NAME = '   '
+
+// The two writes below are ones the generated types no longer allow, since
+// the deadline is NOT NULL; they are cast so the database is what refuses them.
+
+/** The patch a direct write sends to clear an order's deadline. */
+export const CLEARED_ORDER_DEADLINE = { deadline: null } as unknown as OrderUpdate
+
+/** The order a direct write inserts for a customer with its deadline left out, as a quote. */
+export function orderWithoutDeadline(customerId: string): OrderInsert {
+  return { customer_id: customerId, status: 'QUOTE' } as OrderInsert
+}
 
 /** The payment method a closed order would be switched to — the seeds are all INVOICE. */
 export const OTHER_PAYMENT_METHOD: PaymentMethod = 'CASH'

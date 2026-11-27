@@ -172,6 +172,9 @@ export type OrderState = Pick<
   'status' | 'customer_id' | 'payment_method' | 'billing_note' | 'is_archived'
 >
 
+/** A customer's name and contact as stored, for what a refused write left standing. */
+export type CustomerContact = Pick<Database['public']['Tables']['customers']['Row'], 'name' | 'email' | 'phone'>
+
 /** A product's workflow columns, as much of them as a spec reads back after a refused or an allowed write. */
 export type ProductState = Pick<
   Database['public']['Tables']['products']['Row'],
@@ -1361,6 +1364,30 @@ export class TestDatabase {
       .select('status, customer_id, payment_method, billing_note, is_archived')
       .eq('id', orderId)
       .single()
+    if (error) throw error
+    return data
+  }
+
+  /** The order's deadline as stored. */
+  async orderDeadline(orderId: string): Promise<string | null> {
+    const { data, error } = await this.client.from('orders').select('deadline').eq('id', orderId).single()
+    if (error) throw error
+    return data.deadline
+  }
+
+  /** How many orders the customer has. */
+  async customerOrderCount(customerId: string): Promise<number> {
+    const { count, error } = await this.client
+      .from('orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('customer_id', customerId)
+    if (error) throw error
+    return count ?? 0
+  }
+
+  /** The customer's name, email and phone as stored. */
+  async customerContact(customerId: string): Promise<CustomerContact> {
+    const { data, error } = await this.client.from('customers').select('name, email, phone').eq('id', customerId).single()
     if (error) throw error
     return data
   }
