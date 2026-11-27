@@ -48,6 +48,13 @@ export class OrdersPOM extends BasePOM {
     await this.details.forOrder(orderId).waitFor()
   }
 
+  /** Opens the order on its History tab and waits for the first page of entries. */
+  async openOrderHistory(orderId: string): Promise<void> {
+    await this.openOrder(orderId)
+    await this.details.historyTab.click()
+    await this.details.history.list.waitFor()
+  }
+
   /** Opens the product's order, selects the product and waits for its detail. */
   async openProduct(product: ProductRef): Promise<void> {
     await this.openOrder(product.orderId)
