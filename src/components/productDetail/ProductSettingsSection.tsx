@@ -63,9 +63,8 @@ export function ProductSettingsSection({
   const isLocked = product.status === 'IN_PRODUCTION' || isReadOnly
 
   // Persist a field edit straight to the DB (optimistic via useUpdateProduct —
-  // instant UI, rollback on error). No status calculation here: a deadline
-  // change moves the product between setup and pre-press in the database, in
-  // the same write, and the orders view's live refresh brings the new status.
+  // instant UI, rollback on error). No status calculation here: the status is
+  // the database's, and the orders view's live refresh brings it.
   // Every patch here is a single override field; null = back to inheriting the
   // order's value. The database records it (SETTINGS_CHANGED).
   const handleUpdateProduct = (patch: ProductUpdate) => {
@@ -103,15 +102,13 @@ export function ProductSettingsSection({
           disabled={!hasSeparateDeadline || isLocked}
           value={toDateOnly(product.deadline) ?? deadlineIso}
           onChange={value => {
-            if (toDateOnly(value) === toDateOnly(order.deadline)) {
+            if (value === toDateOnly(order.deadline)) {
               handleUpdateProduct({ deadline: null })
-            } else if ((value ?? '') !== (toDateOnly(product.deadline) ?? '')) {
+            } else if (value !== toDateOnly(product.deadline)) {
               handleUpdateProduct({ deadline: value })
             }
           }}
         />
-        {/* Shown while inheriting too: an order without a deadline leaves the product without one. */}
-        {validationErrors.deadline && <p className="text-destructive text-xs mt-1">{validationErrors.deadline}</p>}
       </div>
 
       <label htmlFor={IDS.separateDelivery} className="text-sm select-none">

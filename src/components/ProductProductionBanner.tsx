@@ -1,8 +1,6 @@
-import { CalendarX, CheckCircle2, Hourglass, Lock, MessageSquareWarning, TriangleAlert, UserX } from 'lucide-react'
-import { prepressHold } from '../lib/productShared'
+import { CheckCircle2, Hourglass, Lock, MessageSquareWarning, TriangleAlert } from 'lucide-react'
 import { useNewestApprovalRequest } from '../queries/approvalQueries'
 import { useSetProductStatus } from '../queries/productQueries'
-import { useOrderById } from '../queries/orderQueries'
 import { useStockAvailability } from '../queries/stockQueries'
 import type { LoadedProduct } from '../types/product'
 import { useToast } from './Toast'
@@ -18,21 +16,14 @@ type Props = {
 /**
  * Why the product cannot move on, phrased for the user: done, waiting for the
  * customer, its newest approval round closed without an approval, short of
- * stock, held in setup, or locked in production.
- *
- * Held in setup names what the database is waiting for before it moves the
- * product into pre-press on its own (`prepressHold`, the client's mirror of
- * `fn_product_ready_for_prepress`): a deadline — the product's own or the
- * order's — or the customer's contact data. A *past* deadline does not hold
- * it; the row shows the deadline-missed flag for that instead.
+ * stock, or locked in production. A product in setup has no banner: it waits
+ * only for its order to be started.
  */
 export function ProductProductionBanner({ product }: Props) {
   const setProductStatus = useSetProductStatus()
   const { showError } = useToast()
   // Only fetches for STAMP/TEXTILE products in pre-press; empty otherwise.
   const { data: shortages = [] } = useStockAvailability(product)
-  // Already cached by the detail view; needed to explain a blocked release.
-  const { data: order } = useOrderById(product.order_id)
   // Already loaded by the release button; the newest round gates the release.
   const newestRequest = useNewestApprovalRequest(product.id)
 
@@ -118,37 +109,10 @@ export function ProductProductionBanner({ product }: Props) {
     )
   }
 
-  // Held in setup: red banner naming what pre-press waits for — the product
-  // moves on its own once it is there. Mirrors the stock shortage one step
-  // later in the workflow; admins can still force-release. Nothing is
-  // required while the order is a quote.
-  const hold =
-    product.status === 'IN_SETUP' && !product.is_cancelled && order != null
-      ? prepressHold(product, order, order.customers)
-      : null
-
-  if (hold === 'DEADLINE' || hold === 'CUSTOMER_CONTACT') {
-    return (
-      <div
-        data-testid={IDS.root}
-        data-kind="blocked"
-        data-hold={hold}
-        className="flex items-center justify-center gap-4 border-t-6 border-red-500 px-4 py-2 text-red-500"
-      >
-        {hold === 'DEADLINE' ? <CalendarX /> : <UserX />}
-        <p className="text-sm font-medium">
-          {hold === 'DEADLINE'
-            ? 'Held in setup: no deadline set. The product moves to pre-press once it has one.'
-            : 'Held in setup: the customer needs a name and an email or phone. The product moves to pre-press once they have them.'}
-        </p>
-      </div>
-    )
-  }
-
   if (product.status !== 'IN_PRODUCTION') return null
 
-  // The database records the return (RETURNED_TO_PREPRESS); a product that is
-  // not ready for pre-press lands back in setup.
+  // The database records the return (RETURNED_TO_PREPRESS). The product stays
+  // in pre-press whatever it lacks: nothing sends a product back to setup.
   const handleGoBackToPrePress = async () => {
     try {
       await setProductStatus.mutateAsync({ id: product.id, orderId: product.order_id, status: 'PREPRESS' })

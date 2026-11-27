@@ -186,7 +186,6 @@ export const TEST_IDS = {
         deadline: 'order-settings-deadline',
         /** The deadline's calendar popover; day cells inside carry `data-day` = ISO date (react-day-picker). */
         deadlineCalendar: 'order-settings-deadline-calendar',
-        deadlineHint: 'order-settings-deadline-hint',
         delivery: 'order-settings-delivery',
         priority: 'order-settings-priority',
         payment: 'order-settings-payment',
@@ -312,8 +311,6 @@ export const TEST_IDS = {
         button: 'product-release-button',
         menuTrigger: 'product-release-menu-trigger',
         forceItem: 'product-release-force-item',
-        /** The force release as a button of its own, for a product held in setup (admins). */
-        forceButton: 'product-release-force-button',
         dialog: {
           root: 'product-force-release-dialog',
           reason: 'product-force-release-dialog-reason',
@@ -322,8 +319,7 @@ export const TEST_IDS = {
         },
       },
       /**
-       * `data-kind` = done | awaiting-approval | approval-blocked | shortage | blocked | production;
-       * a `blocked` banner carries `data-hold` = DEADLINE | CUSTOMER_CONTACT.
+       * `data-kind` = done | awaiting-approval | approval-blocked | shortage | production.
        */
       banner: {
         root: 'product-banner',

@@ -17,7 +17,7 @@ import {
   WITHDRAWN_REQUEST,
 } from '../fixtures/approvalRequests'
 import { APPROVAL_REQUEST_TEMPLATE, APPROVAL_WITHDRAWN_TEMPLATE } from '../fixtures/emailMessages'
-import { IN_PROGRESS_ORDER, IN_PROGRESS_ORDER_WITHOUT_DEADLINE, missedOrderDeadline } from '../fixtures/orders'
+import { IN_PROGRESS_ORDER, missedOrderDeadline } from '../fixtures/orders'
 import {
   AWAITING_APPROVAL_STATUS,
   IN_PRODUCTION_STATUS,
@@ -142,8 +142,9 @@ test.describe('in progress, product in pre-press with a file', () => {
   })
 })
 
-test.describe('in progress, product in setup with a file', () => {
-  test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, productSeed: OTHER_PRODUCT })
+// The default quote seed holds the product in setup.
+test.describe('quote, product in setup with a file', () => {
+  test.use({ productSeed: OTHER_PRODUCT })
 
   test('APR-REQ-006 creating a request is refused', async ({ database, order, product, orderFile }) => {
     // Setup

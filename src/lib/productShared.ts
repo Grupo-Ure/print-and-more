@@ -8,16 +8,13 @@
  * Key exports:
  * - {@link resolveEffectiveProduct}: resolve inherited fields against the order.
  * - {@link validateProductCommonFields}: per-field error map for the settings tab.
- * - {@link prepressHold} / {@link isReadyForPrepress}: what keeps a product in
- *   setup — the client's mirror of the database's pre-press condition.
  * - {@link isProductComplete}: are the effective settings valid?
  *
  * Stored enum values (`'STAMP'`, statuses, …) mirror the Postgres enums.
  */
 
 import { format } from 'date-fns'
-import { type Customer, type DeliveryChoice, type Priority, type ProductRow, type OrderStatus } from '../types/database'
-import { customerMeetsPrepressContact } from './customer'
+import { type DeliveryChoice, type Priority, type ProductRow } from '../types/database'
 import { toDateOnly } from './formatDate'
 
 /**
@@ -32,7 +29,7 @@ export function resolveEffectiveProduct<
   T extends Pick<ProductRow, 'delivery' | 'priority' | 'deadline'>,
 >(
   product: T,
-  order: { delivery: DeliveryChoice | null; priority: Priority; deadline: string | null },
+  order: { delivery: DeliveryChoice | null; priority: Priority; deadline: string },
 ): T {
   return {
     ...product,
@@ -75,48 +72,15 @@ export type ProductCompletenessFields = Pick<
 
 /**
  * Whether the product's effective settings are valid. While the parent order
- * is a QUOTE, always true (nothing required yet). In practice this means the
- * deadline, since `resolveEffectiveProduct` always yields a delivery and a
- * priority. It is what a product in production is checked against
- * (`isMissingInfo`); whether a product may be in pre-press is
- * {@link isReadyForPrepress}.
+ * is a QUOTE, always true (nothing required yet). `resolveEffectiveProduct`
+ * always yields a deadline, a delivery and a priority — every order has all
+ * three — so a resolved product passes. It is what a product in production is
+ * checked against (`isMissingInfo`). Whether a product may be in pre-press is
+ * the database's (`fn_product_ready_for_prepress`).
  */
 export function isProductComplete(product: ProductCompletenessFields, orderIsQuote: boolean): boolean {
   if (orderIsQuote) return true
   return Object.keys(validateProductCommonFields(product, orderIsQuote)).length === 0
-}
-
-/** What holds a product in setup: the order is a quote, no effective deadline, or the customer has no contact. */
-export type PrepressHold = 'QUOTE' | 'DEADLINE' | 'CUSTOMER_CONTACT'
-
-/**
- * What keeps the product out of pre-press, or null when nothing does. The
- * database moves a product between setup and pre-press by the same condition
- * (`fn_product_ready_for_prepress`, run by triggers whenever the order, the
- * product's deadline or the customer changes), so the app never moves it
- * itself; this mirror only explains the wait. The holds are checked in the
- * order the shop clears them: the order leaves quote, a deadline is set (the
- * product's own or the order's), the customer has a name and an email or
- * phone.
- */
-export function prepressHold(
-  product: Pick<ProductRow, 'deadline'>,
-  order: { status: OrderStatus; deadline: string | null },
-  customer: Customer | null | undefined,
-): PrepressHold | null {
-  if (order.status === 'QUOTE') return 'QUOTE'
-  if (!(product.deadline ?? order.deadline)) return 'DEADLINE'
-  if (!customerMeetsPrepressContact(customer)) return 'CUSTOMER_CONTACT'
-  return null
-}
-
-/** Whether the product may be in pre-press — the condition of {@link prepressHold}. */
-export function isReadyForPrepress(
-  product: Pick<ProductRow, 'deadline'>,
-  order: { status: OrderStatus; deadline: string | null },
-  customer: Customer | null | undefined,
-): boolean {
-  return prepressHold(product, order, customer) === null
 }
 
 /**
@@ -137,7 +101,7 @@ export function isMissingAssignee(
  */
 export function isDeadlineMissed(
   product: Pick<ProductRow, 'status' | 'is_cancelled' | 'deadline'>,
-  order: { deadline: string | null },
+  order: { deadline: string },
   now: Date = new Date(),
 ): boolean {
   if (product.is_cancelled || product.status === 'DONE') return false
@@ -146,32 +110,17 @@ export function isDeadlineMissed(
 }
 
 /**
- * Whether the open product has no effective deadline (neither its own nor the
- * order's) once the order is past quote. A warning only — the release gates
- * enforce the deadline through `isProductComplete`, not through this.
- */
-export function isMissingDeadline(
-  product: Pick<ProductRow, 'status' | 'is_cancelled' | 'deadline'>,
-  order: { status: OrderStatus; deadline: string | null },
-): boolean {
-  if (product.is_cancelled || product.status === 'DONE' || order.status === 'QUOTE') return false
-  return !(product.deadline ?? order.deadline)
-}
-
-/**
- * Derived alert: the product has no deadline, is past setup with nobody
- * assigned, or sits in production but fails the completeness check — the trace
- * a force release leaves behind (or a required field cleared after a regular
- * release). Purely derived, no stored flag: it appears while the info is
- * missing and disappears once someone back-fills it. Shown as a warning icon
- * on the order (sidebar) and the product (product list); it never blocks
- * anything.
+ * Derived alert: the product is past setup with nobody assigned, or sits in
+ * production but fails the completeness check. Purely derived, no stored
+ * flag: it appears while the info is missing and disappears once someone
+ * back-fills it. Shown as a warning icon on the order (sidebar) and the
+ * product (product list); it never blocks anything.
  */
 export function isMissingInfo(
   product: ProductCompletenessFields,
-  order: { status: OrderStatus; delivery: DeliveryChoice | null; priority: Priority; deadline: string | null },
+  order: { delivery: DeliveryChoice | null; priority: Priority; deadline: string },
 ): boolean {
-  if (isMissingAssignee(product) || isMissingDeadline(product, order)) return true
+  if (isMissingAssignee(product)) return true
   if (product.status !== 'IN_PRODUCTION' || product.is_cancelled) return false
   // A product in production implies the order is past QUOTE — validate strictly.
   return !isProductComplete(resolveEffectiveProduct(product, order), false)

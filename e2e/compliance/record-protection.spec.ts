@@ -1,13 +1,13 @@
-import { NEW_CUSTOMER } from '../fixtures/customers'
+import { NEW_CUSTOMER, TEST_CUSTOMER } from '../fixtures/customers'
 import {
   BILLED_STATUS,
   BILLED_WITHIN_RETENTION_ORDER,
   FINISHED_ORDER,
   FINISHED_STATUS,
   IN_PROGRESS_ORDER,
-  IN_PROGRESS_ORDER_WITHOUT_DEADLINE,
   IN_PROGRESS_STATUS,
   NEW_ORDER_STATUS,
+  defaultOrderDeadline,
   expect,
   test,
 } from '../fixtures/orders'
@@ -16,12 +16,14 @@ import {
   OTHER_PRODUCT,
   PREPRESS_STATUS,
   PRODUCT_DONE,
-  NEW_PRODUCT_STATUS,
   PRODUCT_IN_PRODUCTION,
   STAMP_PRODUCT_IN_PREPRESS_IN_STOCK,
   otherProductSave,
 } from '../fixtures/products'
 import {
+  BLANK_CUSTOMER_NAME,
+  CHECK_VIOLATION,
+  CLEARED_ORDER_DEADLINE,
   CLOSED_ORDER_BILLING_NOTE,
   CUSTOMER_CHANGE,
   CUSTOMER_CHANGE_ENTRIES,
@@ -30,6 +32,7 @@ import {
   FILE_ADDED_HISTORY_EVENT,
   FOREIGN_KEY_VIOLATION,
   LOCKED_TIME_LOG_MINUTES,
+  NOT_NULL_VIOLATION,
   OPEN_TIME_LOG_MINUTES,
   OTHER_PAYMENT_METHOD,
   QUOTE_HISTORY_EVENT,
@@ -37,6 +40,7 @@ import {
   SETUP_PRODUCT_FILE,
   STOCK_DEDUCTED_HISTORY_EVENT,
   TIME_LOGGED_HISTORY_EVENT,
+  orderWithoutDeadline,
 } from '../fixtures/recordProtection'
 import { TEST_USERS } from '../fixtures/users'
 
@@ -273,39 +277,13 @@ test.describe('as admin, billed order', () => {
   })
 })
 
-// ── Stock a release took is the record, wherever the product goes after ───
+// ── An order in progress: released work is the record ─────────────────────
 
-test.describe('as employee, in progress, stamp product released then back in setup', () => {
-  test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: STAMP_PRODUCT_IN_PREPRESS_IN_STOCK })
+test.describe('as admin, in progress, product in production', () => {
+  test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: PRODUCT_IN_PRODUCTION })
 
-  test('CMP-LOCK-026 deleting the product that took stock, back in setup, is refused', async ({ database, order, product }) => {
-    // Setup — the employee releases the product, which books its stock; with the order's deadline
-    // cleared, sending it back to pre-press lands it in setup, where a product may otherwise be deleted.
-    const asEmployee = await database.asUser(TEST_USERS.employee)
-    await asEmployee.rpc('release_to_production', { product_id: product.id })
-    await database.updateOrderDeadline(order.id, null)
-    await asEmployee.from('products').update({ status: PREPRESS_STATUS }).eq('id', product.id)
-
-    // Act
-    const { error } = await asEmployee.from('products').delete().eq('id', product.id)
-
-    // Assert — refused, the product and the entry of its deduction still there.
-    expect(error).not.toBeNull()
-    expect((await database.productState(product.id)).status).toBe(NEW_PRODUCT_STATUS)
-    expect(await database.historyCount(order.id, STOCK_DEDUCTED_HISTORY_EVENT)).toBe(1)
-  })
-})
-
-// ── An order in progress: released work is the record, setup is not ───────
-
-// Without a deadline the database holds the second product in setup; with one
-// it would promote it to pre-press the moment it is inserted.
-test.describe('as admin, in progress order without a deadline, one product in production and one in setup, a file linked to each', () => {
-  test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, productSeeds: [[PRODUCT_IN_PRODUCTION, OTHER_PRODUCT], { scope: 'test' }] })
-
-  test('CMP-LOCK-014 deleting the order is refused', async ({ database, order, products }) => {
+  test('CMP-LOCK-014 deleting the order is refused', async ({ database, order, product: _released }) => {
     // Setup — the order holds released work; the admin's connection.
-    expect(products).toHaveLength(2)
     const asAdmin = await database.asUser(TEST_USERS.admin)
 
     // Act
@@ -316,9 +294,8 @@ test.describe('as admin, in progress order without a deadline, one product in pr
     expect(await database.orderExists(order.id)).toBe(true)
   })
 
-  test('CMP-LOCK-015 deleting the released product is refused', async ({ database, products }) => {
+  test('CMP-LOCK-015 deleting the released product is refused', async ({ database, product: released }) => {
     // Setup
-    const [released] = products
     const asAdmin = await database.asUser(TEST_USERS.admin)
 
     // Act
@@ -329,9 +306,8 @@ test.describe('as admin, in progress order without a deadline, one product in pr
     expect(await database.productExists(released.id)).toBe(true)
   })
 
-  test("CMP-LOCK-016 removing the released product's file link is refused", async ({ database, order, products }) => {
+  test("CMP-LOCK-016 removing the released product's file link is refused", async ({ database, order, product: released }) => {
     // Setup — the file linked to the order and attached to the released product.
-    const [released] = products
     const file = await database.createFile(order.id, RELEASED_PRODUCT_FILE)
     await database.attachFileToProduct(released.id, file.id)
     const asAdmin = await database.asUser(TEST_USERS.admin)
@@ -344,9 +320,29 @@ test.describe('as admin, in progress order without a deadline, one product in pr
     expect(await database.productFileCount(released.id)).toBe(1)
   })
 
-  test('CMP-LOCK-017 deleting the setup product removes it', async ({ database, products }) => {
+  test("CMP-LOCK-019 deleting the released product's file is refused", async ({ database, order, product: released }) => {
+    // Setup — the file linked to the order and attached to the released product.
+    const file = await database.createFile(order.id, RELEASED_PRODUCT_FILE)
+    await database.attachFileToProduct(released.id, file.id)
+    const asAdmin = await database.asUser(TEST_USERS.admin)
+
+    // Act — the file row itself, whose delete would take the link with it.
+    const { error } = await asAdmin.from('files').delete().eq('id', file.id)
+
+    // Assert
+    expect(error).not.toBeNull()
+    expect(await database.fileExists(file.id)).toBe(true)
+  })
+})
+
+// ── A product in setup is no record yet ───────────────────────────────────
+// The default quote seed holds the product in setup.
+
+test.describe('as admin, quote, product in setup', () => {
+  test.use({ productSeed: OTHER_PRODUCT })
+
+  test('CMP-LOCK-017 deleting the setup product removes it', async ({ database, product: inSetup }) => {
     // Setup
-    const [, inSetup] = products
     const asAdmin = await database.asUser(TEST_USERS.admin)
 
     // Act
@@ -357,9 +353,8 @@ test.describe('as admin, in progress order without a deadline, one product in pr
     expect(await database.productExists(inSetup.id)).toBe(false)
   })
 
-  test("CMP-LOCK-018 deleting the setup product's file removes it", async ({ database, order, products }) => {
+  test("CMP-LOCK-018 deleting the setup product's file removes it", async ({ database, order, product: inSetup }) => {
     // Setup — the file linked to the order and attached to the setup product only.
-    const [, inSetup] = products
     const file = await database.createFile(order.id, SETUP_PRODUCT_FILE)
     await database.attachFileToProduct(inSetup.id, file.id)
     const asAdmin = await database.asUser(TEST_USERS.admin)
@@ -372,25 +367,9 @@ test.describe('as admin, in progress order without a deadline, one product in pr
     expect(await database.fileExists(file.id)).toBe(false)
   })
 
-  test("CMP-LOCK-019 deleting the released product's file is refused", async ({ database, order, products }) => {
-    // Setup — the file linked to the order and attached to the released product.
-    const [released] = products
-    const file = await database.createFile(order.id, RELEASED_PRODUCT_FILE)
-    await database.attachFileToProduct(released.id, file.id)
-    const asAdmin = await database.asUser(TEST_USERS.admin)
-
-    // Act — the file row itself, whose delete would take the link with it.
-    const { error } = await asAdmin.from('files').delete().eq('id', file.id)
-
-    // Assert
-    expect(error).not.toBeNull()
-    expect(await database.fileExists(file.id)).toBe(true)
-  })
-
-  test('CMP-LOCK-027 deleting a setup product with a linked file and a time log removes their entries with it', async ({ database, order, products }) => {
+  test('CMP-LOCK-027 deleting a setup product with a linked file and a time log removes their entries with it', async ({ database, order, product: inSetup }) => {
     // Setup — a file linked to the order and attached to the setup product, and time logged on it:
     // the database recorded the file, its link to the product and the log.
-    const [, inSetup] = products
     const file = await database.createFile(order.id, SETUP_PRODUCT_FILE)
     await database.attachFileToProduct(inSetup.id, file.id)
     await database.createTimeLog(inSetup.id, TEST_USERS.admin, OPEN_TIME_LOG_MINUTES)
@@ -552,5 +531,63 @@ test.describe('as employee, order put back to quote by a direct write after its 
     expect(error).not.toBeNull()
     expect(await database.orderExists(order.id)).toBe(true)
     expect(await database.historyCount(order.id, STOCK_DEDUCTED_HISTORY_EVENT)).toBe(1)
+  })
+})
+
+// ── What made a product ready is never emptied ────────────────────────────
+// Every order has a deadline and every customer a name and an email or phone;
+// they can be changed but not removed, by anyone.
+
+test.describe('as employee, quote', () => {
+  test("CMP-LOCK-034 clearing the order's deadline is refused", async ({ database, order }) => {
+    // Setup — a connection that writes as the employee; the quote carries the one-week default.
+    const asEmployee = await database.asUser(TEST_USERS.employee)
+
+    // Act
+    const { error } = await asEmployee.from('orders').update(CLEARED_ORDER_DEADLINE).eq('id', order.id)
+
+    // Assert — refused by the column itself, and the deadline still there.
+    expect(error?.code).toBe(NOT_NULL_VIOLATION)
+    expect(await database.orderDeadline(order.id)).toBe(defaultOrderDeadline())
+  })
+
+  test("CMP-LOCK-036 blanking the customer's name is refused", async ({ database, customer }) => {
+    // Setup
+    const asEmployee = await database.asUser(TEST_USERS.employee)
+
+    // Act
+    const { error } = await asEmployee.from('customers').update({ name: BLANK_CUSTOMER_NAME }).eq('id', customer.id)
+
+    // Assert — refused by the name check, and the name as seeded.
+    const contact = await database.customerContact(customer.id)
+    expect(error?.code).toBe(CHECK_VIOLATION)
+    expect(contact.name).toBe(TEST_CUSTOMER.name)
+  })
+
+  test("CMP-LOCK-037 removing the customer's email and phone is refused", async ({ database, customer }) => {
+    // Setup
+    const asEmployee = await database.asUser(TEST_USERS.employee)
+
+    // Act
+    const { error } = await asEmployee.from('customers').update({ email: null, phone: null }).eq('id', customer.id)
+
+    // Assert — refused by the contact check, and the email as seeded.
+    const contact = await database.customerContact(customer.id)
+    expect(error?.code).toBe(CHECK_VIOLATION)
+    expect(contact.email).toBe(TEST_CUSTOMER.email)
+  })
+})
+
+test.describe('as employee', () => {
+  test('CMP-LOCK-035 creating an order without a deadline is refused', async ({ database, customer }) => {
+    // Setup
+    const asEmployee = await database.asUser(TEST_USERS.employee)
+
+    // Act — the insert the new-order dialog makes, its deadline left out.
+    const { error } = await asEmployee.from('orders').insert(orderWithoutDeadline(customer.id))
+
+    // Assert — refused by the column itself, and the customer still without an order.
+    expect(error?.code).toBe(NOT_NULL_VIOLATION)
+    expect(await database.customerOrderCount(customer.id)).toBe(0)
   })
 })

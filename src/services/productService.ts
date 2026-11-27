@@ -60,7 +60,7 @@ export type ProductionProduct = Pick<
   orders: {
     order_number: string
     status: OrderStatus
-    deadline: string | null
+    deadline: string
     delivery: DeliveryChoice | null
     priority: Priority
     customers: { name: string } | null

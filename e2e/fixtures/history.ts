@@ -9,7 +9,7 @@
  * through the runner's connection writes the same entry the app's write does.
  */
 import type { Database } from '../../src/types/supabase'
-import { test as base, QUOTE_ORDER, reloadApp } from './orders'
+import { test as base, QUOTE_ORDER, defaultOrderDeadline, reloadApp } from './orders'
 import { FULL_CUSTOMER, type TestCustomer } from './customers'
 import { HistoryPOM } from '../pom/HistoryPOM'
 import type { TestOrder } from '../support/database'
@@ -80,7 +80,7 @@ export const test = base.extend<HistoryViewFixtures>({
       status: QUOTE_ORDER.status,
       delivery: QUOTE_ORDER.delivery,
       payment_method: QUOTE_ORDER.paymentMethod,
-      deadline: null,
+      deadline: defaultOrderDeadline(),
       billed_at: null,
     })
     await reloadApp(page, navbar)

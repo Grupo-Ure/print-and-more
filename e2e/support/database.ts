@@ -66,7 +66,7 @@ export type TestSentEmail = {
 /** The columns a fixture chooses for an order it inserts; everything else takes the table's defaults. */
 export type OrderSeedRow = {
   status: OrderStatus
-  deadline: string | null
+  deadline: string
   delivery: DeliveryType | null
   payment_method: PaymentMethod
   /** When a `BILLED` order was billed; null for any other status. */
@@ -171,6 +171,9 @@ export type OrderState = Pick<
   Database['public']['Tables']['orders']['Row'],
   'status' | 'customer_id' | 'payment_method' | 'billing_note' | 'is_archived'
 >
+
+/** A customer's name and contact as stored, for what a refused write left standing. */
+export type CustomerContact = Pick<Database['public']['Tables']['customers']['Row'], 'name' | 'email' | 'phone'>
 
 /** A product's workflow columns, as much of them as a spec reads back after a refused or an allowed write. */
 export type ProductState = Pick<
@@ -655,8 +658,8 @@ export class TestDatabase {
     return { id: data.id, orderNumber: data.order_number, customerId }
   }
 
-  /** Sets the order's deadline behind the app's back, as another user saving the settings row would; null clears it. */
-  async updateOrderDeadline(orderId: string, deadline: string | null): Promise<void> {
+  /** Sets the order's deadline behind the app's back, as another user saving the settings row would. */
+  async updateOrderDeadline(orderId: string, deadline: string): Promise<void> {
     const { error } = await this.client.from('orders').update({ deadline }).eq('id', orderId)
     if (error) throw error
   }
@@ -1361,6 +1364,30 @@ export class TestDatabase {
       .select('status, customer_id, payment_method, billing_note, is_archived')
       .eq('id', orderId)
       .single()
+    if (error) throw error
+    return data
+  }
+
+  /** The order's deadline as stored. */
+  async orderDeadline(orderId: string): Promise<string | null> {
+    const { data, error } = await this.client.from('orders').select('deadline').eq('id', orderId).single()
+    if (error) throw error
+    return data.deadline
+  }
+
+  /** How many orders the customer has. */
+  async customerOrderCount(customerId: string): Promise<number> {
+    const { count, error } = await this.client
+      .from('orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('customer_id', customerId)
+    if (error) throw error
+    return count ?? 0
+  }
+
+  /** The customer's name, email and phone as stored. */
+  async customerContact(customerId: string): Promise<CustomerContact> {
+    const { data, error } = await this.client.from('customers').select('name, email, phone').eq('id', customerId).single()
     if (error) throw error
     return data
   }

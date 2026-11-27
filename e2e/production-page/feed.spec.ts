@@ -1,5 +1,5 @@
 import { expect, test } from '../fixtures/production'
-import { IN_PROGRESS_ORDER, IN_PROGRESS_ORDER_WITHOUT_DEADLINE } from '../fixtures/orders'
+import { IN_PROGRESS_ORDER } from '../fixtures/orders'
 import {
   AWAITING_APPROVAL_STATUS,
   PRODUCT_IN_PREPRESS,
@@ -108,10 +108,10 @@ test.describe('as admin', () => {
   })
 })
 
-test.describe('as admin, order without a deadline', () => {
-  // No deadline, so the product is not ready for pre-press and the database
-  // leaves it in setup — before the two stages the feed covers.
-  test.use({ user: TEST_USERS.admin, orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, productSeed: OTHER_PRODUCT })
+test.describe('as admin, quote', () => {
+  // The default quote seed holds the product in setup — before the stages the
+  // feed covers.
+  test.use({ user: TEST_USERS.admin, productSeed: OTHER_PRODUCT })
 
   test('PRN-FEED-007 opening the production page leaves a product still in setup out', async ({ productionPage, product }) => {
     // Act — switch to the production page, widened to everyone's products.

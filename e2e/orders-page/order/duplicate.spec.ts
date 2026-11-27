@@ -1,4 +1,4 @@
-import { expect, test, NEW_ORDER_STATUS, ORDER_CREATED_HISTORY_EVENT } from '../../fixtures/orders'
+import { expect, test, NEW_ORDER_STATUS, ORDER_CREATED_HISTORY_EVENT, defaultOrderDeadline } from '../../fixtures/orders'
 import { APPROVAL_FILE } from '../../fixtures/files'
 import { OTHER_PRODUCT_FORM, PRODUCT_CREATED_HISTORY_EVENT } from '../../fixtures/products'
 import { TEST_USERS } from '../../fixtures/users'
@@ -47,6 +47,32 @@ test('ORD-DUP-003 deselecting every product leaves the duplicate unsubmittable',
   await ordersPage.duplicateDialog.product(product.id).click()
 
   // Assert — a copy of an order that has products but none picked is refused.
+  await expect(ordersPage.duplicateDialog.submit).toBeDisabled()
+})
+
+test("ORD-DUP-006 opening the duplicate dialog pre-fills the copy's deadline one week out", async ({ ordersPage, product }) => {
+  // Setup — the original's row, and the deadline a new order is expected to carry.
+  const row = ordersPage.sidebar.row(product.orderId)
+  const deadline = defaultOrderDeadline()
+
+  // Act — open the duplicate dialog from the row's menu.
+  await ordersPage.sidebar.rowMenuTrigger(row).click()
+  await ordersPage.sidebar.rowMenuDuplicate.click()
+
+  // Assert — the copy starts with the one-week default, as a new order does.
+  await expect(ordersPage.duplicateDialog.deadline).toHaveValue(deadline)
+})
+
+test("ORD-DUP-007 clearing the copy's deadline leaves the duplicate unsubmittable", async ({ ordersPage, product }) => {
+  // Setup — the original's row.
+  const row = ordersPage.sidebar.row(product.orderId)
+
+  // Act — open the duplicate dialog and empty its deadline.
+  await ordersPage.sidebar.rowMenuTrigger(row).click()
+  await ordersPage.sidebar.rowMenuDuplicate.click()
+  await ordersPage.duplicateDialog.deadline.clear()
+
+  // Assert — a copy without a deadline is refused.
   await expect(ordersPage.duplicateDialog.submit).toBeDisabled()
 })
 

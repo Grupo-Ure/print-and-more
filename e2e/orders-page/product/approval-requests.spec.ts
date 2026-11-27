@@ -1,5 +1,5 @@
 import { expect, test } from '../../fixtures/approvals'
-import { IN_PROGRESS_ORDER, IN_PROGRESS_ORDER_WITHOUT_DEADLINE } from '../../fixtures/orders'
+import { IN_PROGRESS_ORDER } from '../../fixtures/orders'
 import {
   APPROVAL_REQUESTED_HISTORY_EVENT,
   APPROVED_REQUEST_STATUS,
@@ -282,8 +282,9 @@ test.describe('in progress, product in pre-press with two files, previous round 
 
 // ── Before pre-press ──────────────────────────────────────────────────────
 
-test.describe('in progress without a deadline, product in setup with two files', () => {
-  test.use({ orderSeed: IN_PROGRESS_ORDER_WITHOUT_DEADLINE, productSeed: OTHER_PRODUCT })
+// The default quote seed holds the product in setup.
+test.describe('quote, product in setup with two files', () => {
+  test.use({ productSeed: OTHER_PRODUCT })
 
   test('PRD-APR-015 the approval request is disabled', async ({ ordersPage, product, proofFiles: _proofFiles }) => {
     // Setup — the product's Files tab open on its own files.
