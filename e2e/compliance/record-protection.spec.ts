@@ -31,6 +31,7 @@ import {
   DIRECT_HISTORY_EVENT,
   FILE_ADDED_HISTORY_EVENT,
   FOREIGN_KEY_VIOLATION,
+  GUARD_REFUSAL,
   LOCKED_TIME_LOG_MINUTES,
   NOT_NULL_VIOLATION,
   OPEN_TIME_LOG_MINUTES,
@@ -382,6 +383,25 @@ test.describe('as admin, quote, product in setup', () => {
     expect(error).toBeNull()
     expect(await database.historyCount(order.id, FILE_ADDED_HISTORY_EVENT)).toBe(1)
     expect(await database.historyCount(order.id, TIME_LOGGED_HISTORY_EVENT)).toBe(0)
+  })
+})
+
+// Work starts in pre-press, so a product that can still be deleted carries no
+// logged time: the guard of 20261127123947_time_logs_from_prepress.
+test.describe('as employee, quote, product in setup', () => {
+  test('CMP-LOCK-038 logging time on the setup product is refused', async ({ database, product: inSetup }) => {
+    // Setup — the employee's connection; the log is their own time, written by them, as the time log form writes it.
+    const asEmployee = await database.asUser(TEST_USERS.employee)
+    const employeeId = await database.userId(TEST_USERS.employee)
+
+    // Act
+    const { error } = await asEmployee
+      .from('product_time_logs')
+      .insert({ product_id: inSetup.id, user_id: employeeId, created_by: employeeId, minutes: OPEN_TIME_LOG_MINUTES })
+
+    // Assert — refused by the guard, not by row-level security, and the product without a log.
+    expect(error?.code).toBe(GUARD_REFUSAL)
+    expect(await database.timeLogCount(inSetup.id)).toBe(0)
   })
 })
 
