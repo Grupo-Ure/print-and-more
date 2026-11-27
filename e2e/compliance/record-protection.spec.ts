@@ -1,4 +1,4 @@
-import { NEW_CUSTOMER } from '../fixtures/customers'
+import { NEW_CUSTOMER, TEST_CUSTOMER } from '../fixtures/customers'
 import {
   BILLED_STATUS,
   BILLED_WITHIN_RETENTION_ORDER,
@@ -7,6 +7,7 @@ import {
   IN_PROGRESS_ORDER,
   IN_PROGRESS_STATUS,
   NEW_ORDER_STATUS,
+  defaultOrderDeadline,
   expect,
   test,
 } from '../fixtures/orders'
@@ -20,6 +21,9 @@ import {
   otherProductSave,
 } from '../fixtures/products'
 import {
+  BLANK_CUSTOMER_NAME,
+  CHECK_VIOLATION,
+  CLEARED_ORDER_DEADLINE,
   CLOSED_ORDER_BILLING_NOTE,
   CUSTOMER_CHANGE,
   CUSTOMER_CHANGE_ENTRIES,
@@ -28,6 +32,7 @@ import {
   FILE_ADDED_HISTORY_EVENT,
   FOREIGN_KEY_VIOLATION,
   LOCKED_TIME_LOG_MINUTES,
+  NOT_NULL_VIOLATION,
   OPEN_TIME_LOG_MINUTES,
   OTHER_PAYMENT_METHOD,
   QUOTE_HISTORY_EVENT,
@@ -35,6 +40,7 @@ import {
   SETUP_PRODUCT_FILE,
   STOCK_DEDUCTED_HISTORY_EVENT,
   TIME_LOGGED_HISTORY_EVENT,
+  orderWithoutDeadline,
 } from '../fixtures/recordProtection'
 import { TEST_USERS } from '../fixtures/users'
 
@@ -525,5 +531,63 @@ test.describe('as employee, order put back to quote by a direct write after its 
     expect(error).not.toBeNull()
     expect(await database.orderExists(order.id)).toBe(true)
     expect(await database.historyCount(order.id, STOCK_DEDUCTED_HISTORY_EVENT)).toBe(1)
+  })
+})
+
+// ── What made a product ready is never emptied ────────────────────────────
+// Every order has a deadline and every customer a name and an email or phone;
+// they can be changed but not removed, by anyone.
+
+test.describe('as employee, quote', () => {
+  test("CMP-LOCK-034 clearing the order's deadline is refused", async ({ database, order }) => {
+    // Setup — a connection that writes as the employee; the quote carries the one-week default.
+    const asEmployee = await database.asUser(TEST_USERS.employee)
+
+    // Act
+    const { error } = await asEmployee.from('orders').update(CLEARED_ORDER_DEADLINE).eq('id', order.id)
+
+    // Assert — refused by the column itself, and the deadline still there.
+    expect(error?.code).toBe(NOT_NULL_VIOLATION)
+    expect(await database.orderDeadline(order.id)).toBe(defaultOrderDeadline())
+  })
+
+  test("CMP-LOCK-036 blanking the customer's name is refused", async ({ database, customer }) => {
+    // Setup
+    const asEmployee = await database.asUser(TEST_USERS.employee)
+
+    // Act
+    const { error } = await asEmployee.from('customers').update({ name: BLANK_CUSTOMER_NAME }).eq('id', customer.id)
+
+    // Assert — refused by the name check, and the name as seeded.
+    const contact = await database.customerContact(customer.id)
+    expect(error?.code).toBe(CHECK_VIOLATION)
+    expect(contact.name).toBe(TEST_CUSTOMER.name)
+  })
+
+  test("CMP-LOCK-037 removing the customer's email and phone is refused", async ({ database, customer }) => {
+    // Setup
+    const asEmployee = await database.asUser(TEST_USERS.employee)
+
+    // Act
+    const { error } = await asEmployee.from('customers').update({ email: null, phone: null }).eq('id', customer.id)
+
+    // Assert — refused by the contact check, and the email as seeded.
+    const contact = await database.customerContact(customer.id)
+    expect(error?.code).toBe(CHECK_VIOLATION)
+    expect(contact.email).toBe(TEST_CUSTOMER.email)
+  })
+})
+
+test.describe('as employee', () => {
+  test('CMP-LOCK-035 creating an order without a deadline is refused', async ({ database, customer }) => {
+    // Setup
+    const asEmployee = await database.asUser(TEST_USERS.employee)
+
+    // Act — the insert the new-order dialog makes, its deadline left out.
+    const { error } = await asEmployee.from('orders').insert(orderWithoutDeadline(customer.id))
+
+    // Assert — refused by the column itself, and the customer still without an order.
+    expect(error?.code).toBe(NOT_NULL_VIOLATION)
+    expect(await database.customerOrderCount(customer.id)).toBe(0)
   })
 })
