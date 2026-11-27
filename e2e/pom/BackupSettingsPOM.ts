@@ -33,6 +33,7 @@ export class BackupSettingsPOM extends BasePOM {
   readonly jobs: Locator
   private readonly jobRows: Locator
   private readonly jobsTab: Locator
+  private readonly settingsTab: Locator
 
   constructor(page: Page) {
     super(page)
@@ -53,6 +54,13 @@ export class BackupSettingsPOM extends BasePOM {
     this.jobs = page.getByTestId(JOB_IDS.root)
     this.jobRows = this.jobs.getByTestId(JOB_IDS.row)
     this.jobsTab = page.getByTestId(IDS.tabs.jobs)
+    this.settingsTab = page.getByTestId(IDS.tabs.settings)
+  }
+
+  /** Switches to the Settings tab and waits for its fields. */
+  async openSettings(): Promise<void> {
+    await this.settingsTab.click()
+    await this.root.waitFor()
   }
 
   /** Switches to the All backups tab and waits for the list. */
