@@ -518,7 +518,11 @@ open; the database, which finishes an order, never sees it either.
   (ordering the products within their order).
 - **Time logs** — table `product_time_logs`: worked-time entries per product
   (`minutes` > 0, `created_at`). `user_id` = the employee the time is
-  attributed to; `created_by` = who wrote the row. Employees log as
+  attributed to; `created_by` = who wrote the row. Time is logged only while
+  the product is worked on, from pre-press until done: a product in setup can
+  still be deleted, and a done product or any product on a finished or billed
+  order is part of the record, so the database refuses a log on either
+  (`fn_refuse_time_log_outside_work`) and the app offers none. Employees log as
   themselves; only admins may log on someone else's behalf or delete a log
   (RLS-enforced). The product's total time is `SUM(minutes)` over its logs —
   there is no aggregate column. The database records every log

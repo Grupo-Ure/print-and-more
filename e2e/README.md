@@ -51,6 +51,7 @@ e2e/
    └─ product/                    the product feature — the unit of work
        ├─ add-remove.spec.ts      add through the department's form, delete in setup, cancel past setup; one product of every type saved through save_product and read back
        ├─ basic-info.spec.ts      the spec read-only, edited in place, locked once released
+       ├─ time-logs.spec.ts       no time logged on a product still in setup
        ├─ status.spec.ts          the workflow: pre-press, production, done
        ├─ release-gates.spec.ts   what refuses a release, and the admin override
        ├─ stock-deduction.spec.ts what a release books against the stock pages
