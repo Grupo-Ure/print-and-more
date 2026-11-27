@@ -25,8 +25,8 @@
 #
 # Production database:
 #   The "deploy" job is the only path by which migrations and edge functions
-#   reach the hosted project: `supabase db push`, then `supabase functions
-#   deploy`, on a version tag only, after the checks pass and before the
+#   reach the hosted project: `supabase db push --remote`, then `supabase
+#   functions deploy`, on a version tag only, after the checks pass and before the
 #   installer is built — so the schema a release expects is live before the
 #   release exists. Nobody pushes migrations by hand.
 #
@@ -79,10 +79,10 @@ jobs:
         run: npm run lint
         continue-on-error: true
 
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v3
         with:
           # Keep in step with the CLI version developers run locally.
-          version: 2.84.2
+          version: 3.2.0
       - name: Write the edge function variables
         # supabase/functions/.env is git-ignored, and the edge runtime reads it
         # when it starts. Dry run and placeholder addresses: no secret is
@@ -194,22 +194,26 @@ jobs:
       SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
     steps:
       - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v3
         with:
           # Same version as the checks job.
-          version: 2.84.2
+          version: 3.2.0
       - name: Link the hosted project
         run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
       - name: Apply migrations
         # Applies the repo's migrations the hosted history lacks; seed.sql is
         # never pushed. Refuses if the hosted history has a migration the repo
-        # does not.
-        run: supabase db push --yes
+        # does not. --remote names the linked project (the CLI's own default
+        # is the local database), --yes answers its question before a hosted
+        # change, and --skip-vault leaves the hosted Vault alone: config.toml's
+        # [db.vault] is for the local stack.
+        run: supabase db push --remote --yes --skip-vault
       - name: Deploy edge functions
         # Every function under supabase/functions/, with its config.toml
         # settings (verify_jwt, static_files). Function secrets are set on the
-        # hosted project by hand and are not touched here.
-        run: supabase functions deploy
+        # hosted project by hand and are not touched here. --yes answers the
+        # CLI's question before a hosted change.
+        run: supabase functions deploy --yes
 
   release:
     name: Build & publish Windows installer
