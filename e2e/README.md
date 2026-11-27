@@ -47,6 +47,7 @@ e2e/
    │   ├─ settings.spec.ts
    │   ├─ status.spec.ts          the whole lifecycle: start, finish, invoice, cash close, reopen
    │   ├─ remove.spec.ts          archive, cancel, delete a quote
+   │   ├─ history.spec.ts         the History tab: older pages as it scrolls, filters searching the whole record
    │   └─ duplicate.spec.ts       the copy: a new quote, selected, with the products picked
    └─ product/                    the product feature — the unit of work
        ├─ add-remove.spec.ts      add through the department's form, delete in setup, cancel past setup; one product of every type saved through save_product and read back

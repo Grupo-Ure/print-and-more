@@ -1,9 +1,12 @@
 /**
  * Fixture chain: `@playwright/test` → database → electron → auth → orders → **history**.
- * Adds the History page's page object (`historyPage`) and the rows only that
- * page needs: a change to the test's customer (`customerChange`), a second
- * customer with an order of its own (`otherCustomerOrder`) and more entries
- * on the test's order than one page of the feed holds (`manyOrderEntries`).
+ * Adds the History page's page object (`historyPage`) and the rows the
+ * history views need: a change to the test's customer (`customerChange`), a
+ * second customer with an order of its own (`otherCustomerOrder`), more
+ * entries on the test's order than one page of the feed holds
+ * (`manyOrderEntries`), and a product's entry pushed past that page
+ * (`olderProductEntry`). The History page and an order's History tab both
+ * read a page at a time.
  *
  * The entries themselves are the database's: creating a customer or an order
  * through the runner's connection writes the same entry the app's write does.
@@ -44,6 +47,12 @@ export const BULK_HISTORY_EVENT: HistoryEvent = 'ORDER_ARCHIVED'
  */
 export const BULK_HISTORY_ENTRY_COUNT = 55
 
+/** The event of the one entry `olderProductEntry` writes about the product; which one is not the point. */
+export const PRODUCT_HISTORY_EVENT: HistoryEvent = 'MARKED_DONE'
+
+/** An event a fresh quote holds no entry of — a filter on it matches nothing. */
+export const UNMATCHED_HISTORY_EVENT: HistoryEvent = 'ORDER_FINISHED'
+
 type HistoryViewFixtures = {
   /** The History page (admins): every entry, with its filters. */
   historyPage: HistoryPOM
@@ -59,6 +68,13 @@ type HistoryViewFixtures = {
   otherCustomerOrder: TestOrder
   /** `BULK_HISTORY_ENTRY_COUNT` entries written onto `order` in one insert, so they share their time. Removed with the order. */
   manyOrderEntries: void
+  /**
+   * One `PRODUCT_HISTORY_EVENT` entry about `product`, then
+   * `BULK_HISTORY_ENTRY_COUNT` entries about the order alone written after it,
+   * so the product's entry lies past the first page. Holds the product
+   * entry's id. Removed with the order.
+   */
+  olderProductEntry: { entryId: string }
 }
 
 export const test = base.extend<HistoryViewFixtures>({
@@ -94,6 +110,14 @@ export const test = base.extend<HistoryViewFixtures>({
     await reloadApp(page, navbar)
 
     await use()
+  },
+
+  olderProductEntry: async ({ page, navbar, database, order, product }, use) => {
+    const entryId = await database.createHistoryEntry(order.id, PRODUCT_HISTORY_EVENT, { productId: product.id })
+    await database.createHistoryEntries(order.id, BULK_HISTORY_EVENT, BULK_HISTORY_ENTRY_COUNT)
+    await reloadApp(page, navbar)
+
+    await use({ entryId })
   },
 })
 
