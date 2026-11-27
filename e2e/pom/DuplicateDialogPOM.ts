@@ -4,7 +4,7 @@ import { BasePOM } from './BasePOM'
 
 const IDS = TEST_IDS.orders.duplicateDialog
 
-/** Duplicate an order: choose the products to copy and an optional new deadline. */
+/** Duplicate an order: choose the products to copy and the copy's deadline. */
 export class DuplicateDialogPOM extends BasePOM {
   readonly root: Locator
   readonly selectAll: Locator
