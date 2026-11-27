@@ -31,8 +31,9 @@ that choice decides where a change's notes appear.
    you're not on `main`, `main` isn't in sync with `origin/main`, or the tag
    already exists.
 6. Wait for CI: the `checks` job runs; then `deploy` applies the new
-   migrations to the hosted Supabase project (`supabase db push`) and
-   deploys every edge function (`supabase functions deploy`); then `release`
+   migrations to the hosted Supabase project (`supabase db push --remote`)
+   and deploys every edge function (`supabase functions deploy`), with the
+   Supabase CLI v3 release pinned in `ci.yml`; then `release`
    creates one **draft** GitHub release for the tag, uploads the Windows
    installer set into it, and fills its body from the user-facing sections
    of the PRs merged since the last release of the previous feature line.
@@ -53,10 +54,10 @@ delete or move it. Fix the problem via a normal PR, bump the patch version,
 and tag again with the new version. Delete the dead draft release the failed
 run may have created.
 
-**The deploy job failed.** No release is drafted. `supabase db push` applies
-the tag's migrations one after another, so a failure can leave the hosted
-project holding some of them and not the rest; `supabase migration list`
-(linked) shows which. Fix the migration via a normal PR, bump the patch
+**The deploy job failed.** No release is drafted. `supabase db push --remote`
+applies the tag's migrations one after another, so a failure can leave the
+hosted project holding some of them and not the rest; `supabase migration
+list --remote` shows which. Fix the migration via a normal PR, bump the patch
 version and tag again — the next run pushes only what is missing. Never edit
 a migration the hosted project already holds, and never push by hand to
 finish the run.

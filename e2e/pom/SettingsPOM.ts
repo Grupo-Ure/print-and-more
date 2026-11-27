@@ -66,6 +66,9 @@ export class SettingsPOM extends BasePOM {
   async openSection(section: SettingsSection): Promise<void> {
     await this.open()
     await this.sectionLink(section).click()
+    // The app keeps the tab the previous test left selected; the backups root
+    // is on the Settings tab only.
+    if (section === 'backups') await this.backups.openSettings()
     await this.sectionRoot(section).waitFor()
   }
 

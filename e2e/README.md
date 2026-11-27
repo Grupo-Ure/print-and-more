@@ -12,7 +12,7 @@ is ever involved.
 npm run build                      renderer bundle, VITE_SUPABASE_URL baked in (from .env)
 playwright test
 ├─ playwright.config.ts            loads .env into process.env (existing vars win)
-├─ e2e/global-setup.ts             default() → create the test logins via the Auth admin API
+├─ e2e/global-setup.ts             default() → raise the local realtime limit, create the test logins via the Auth admin API
 ├─ worker
 │   ├─ fixtures/database.ts        one database connection for seeding (per worker)
 │   ├─ fixtures/electron.ts        launch one app with a throwaway profile (per worker)
@@ -185,6 +185,7 @@ Nothing here is imported by hand; the runner drives it from the config:
 | `support/testIds.ts` | The `TEST_IDS` registry, imported by components (`data-testid`) and page objects alike |
 | `support/database.ts` | `TestDatabase`: the runner's service-role connection (bypasses RLS, exposes `auth.admin`) with the methods that seed and remove users, customers, orders and products, attach a file to a product, insert an approval round and read the rounds, run the expiry and the proof purge and read whether a copy is stored and when its file was purged, remove the proof copies stored for an order, a product's workflow columns, the stock and automatic deductions of a stamp model and the order's history entries back, and that queue, reschedule, archive and read back emails, insert a sent record and read what the provider reported of it, and write a template's email settings, and that write the backup settings, seed, read and remove backup jobs, run the two scheduled backup functions, and read and remove the overdue-backup mails the upkeep queued — raw rows only, no app business logic. `asUser(login)` hands out a second connection signed in as one of the suite's logins, for the rules the database enforces on the app but not on the runner |
 | `support/sendEmail.ts` | `SendEmailFunction`: one drain of the email queue per call, the way the cron makes it (`drain()` with the service-role key, `drainAs(token)` with any other bearer token for the caller check) |
+| `support/realtime.ts` | `RealtimeService`: the local realtime service's management API. `raiseChangeEventLimit()` lifts the limit on change events per second, which the suite's reloads pass and past which the service discards the changes the live-refresh specs wait for; global setup calls it at the start of every run |
 | `support/emailWebhook.ts` | `EmailWebhookFunction`: one delivery report per call, posted the way the email provider posts it — written and signed by the provider's own `encodeReport`, with the function's secret (`report()`), or with another one for the signature check (`reportSignedWith(secret, report)`) |
 | `support/customerApproval.ts` | `CustomerApprovalFunction`: the `customer-approval` function called the way the customer's page calls it — no session, the token only: `read(token)`, `download(token, fileId)`, `decide(token, decision, note)` |
 | `global-setup.ts`, `global-teardown.ts` | Run-wide data, wired via `playwright.config.ts` |

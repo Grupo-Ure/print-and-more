@@ -689,11 +689,19 @@ export class TestDatabase {
     // History no longer goes with its order (the FK restricts), so the
     // order's entries go before it — the runner's connection is exempt from
     // the guard that keeps them for the app.
-    const { error: historyError } = await this.client.from('history').delete().eq('order_id', orderId)
-    if (historyError) throw historyError
+    // A save the app still had in flight when the test ended can write its
+    // entry between the two deletes; the order's delete is then refused
+    // (23503), and the pair is run again.
+    const FOREIGN_KEY_VIOLATION = '23503'
+    const attempts = 3
+    for (let attempt = 1; ; attempt++) {
+      const { error: historyError } = await this.client.from('history').delete().eq('order_id', orderId)
+      if (historyError) throw historyError
 
-    const { error } = await this.client.from('orders').delete().eq('id', orderId)
-    if (error) throw error
+      const { error } = await this.client.from('orders').delete().eq('id', orderId)
+      if (!error) return
+      if (error.code !== FOREIGN_KEY_VIOLATION || attempt === attempts) throw error
+    }
   }
 
   // ── Files ────────────────────────────────────────────────────────────────
