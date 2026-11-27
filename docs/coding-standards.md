@@ -434,10 +434,15 @@ Bulletproof React adapted for Next.js App Router + Supabase.
 ### Migrations
 - Managed via **Supabase CLI** (`supabase migration new`; verified locally
   with `supabase db reset`)
+- **One CLI version, v3, locally and in CI**: the two `supabase/setup-cli`
+  steps in `ci.yml` pin the release developers run (3.2.0); upgrade both
+  together. In v3 a database command works on the local stack unless it is
+  given `--remote`, and `src/types/supabase.ts` is regenerated with
+  `supabase gen types` against the local database.
 - **Production receives them from CI**: the `deploy` job in `ci.yml` runs
-  `supabase db push` and `supabase functions deploy` on a release tag (see
-  [releasing.md](releasing.md)). Never `supabase db push` or
-  `supabase functions deploy` against the hosted project by hand.
+  `supabase db push --remote` and `supabase functions deploy` on a release
+  tag (see [releasing.md](releasing.md)). Never `supabase db push --remote`
+  or `supabase functions deploy` against the hosted project by hand.
 - **Commit migrations to source control** — always
 - **Never edit applied migrations** — create a new one instead
 
