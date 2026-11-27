@@ -82,6 +82,10 @@ export function ProductDetail({
   // Once DONE the product is read-only.
   const isDone = product.status === 'DONE'
 
+  // Work starts in pre-press: a product in setup can still be deleted, and its
+  // time logs would go with it, so the database refuses a log before then.
+  const canLogTime = product.status !== 'IN_SETUP' && !isDone
+
   // Past setup somebody has to own the product; flag the picker while nobody does.
   const needsAssignee = isMissingAssignee(product)
 
@@ -221,7 +225,7 @@ export function ProductDetail({
 
           {/* Quick time entry without leaving the spec; the full log is one
               click away. Pinned to the bottom of the column (mt-auto). */}
-          {!isDone && (
+          {canLogTime && (
             <QuickTimeLog
               orderId={order.id}
               productId={product.id}
@@ -233,7 +237,7 @@ export function ProductDetail({
 
         {/* Inactive tabs unmount, so the per-product log query runs only while this tab is open. */}
         <TabsContent value="timeLogs">
-          <ProductTimeLogs orderId={order.id} productId={product.id} disabled={isDone} />
+          <ProductTimeLogs orderId={order.id} productId={product.id} disabled={!canLogTime} />
         </TabsContent>
 
         <TabsContent value="settings" className="flex flex-col gap-3">
