@@ -56,6 +56,9 @@ export const NOT_NULL_VIOLATION = '23502'
 /** Postgres' error code for a row that fails a check constraint — a customer without a name or a contact. */
 export const CHECK_VIOLATION = '23514'
 
+/** Postgres' error code for an exception a guard raises — told apart from a row-level security refusal (42501). */
+export const GUARD_REFUSAL = 'P0001'
+
 /** A customer name of spaces only: there, but blank. */
 export const BLANK_CUSTOMER_NAME = '   '
 

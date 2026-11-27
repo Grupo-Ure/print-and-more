@@ -40,7 +40,7 @@ export class TimeLogsPOM extends BasePOM {
   }
 }
 
-/** The quick-log widget at the bottom of the product's Basic info tab (absent once the product is DONE). */
+/** The quick-log widget at the bottom of the product's Basic info tab (absent while the product is in setup and once it is DONE). */
 export class QuickTimeLogPOM extends BasePOM {
   readonly root: Locator
   /** Carries `data-minutes` = the product's total. */

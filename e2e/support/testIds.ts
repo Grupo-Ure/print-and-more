@@ -403,7 +403,7 @@ export const TEST_IDS = {
         onBehalfOf: 'time-logs-on-behalf-of',
         submit: 'time-logs-submit',
       },
-      /** The quick-log widget at the bottom of the Basic info tab (not shown once the product is DONE). */
+      /** The quick-log widget at the bottom of the Basic info tab (not shown while the product is in setup, nor once it is DONE). */
       quickTimeLog: {
         root: 'quick-time-log',
         /** Carries `data-minutes` = the product's total. */
