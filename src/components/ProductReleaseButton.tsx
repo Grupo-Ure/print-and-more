@@ -32,10 +32,10 @@ type Props = {
  * The product header's forward action: advances the product one workflow step,
  * in the colour of the target status. Admins additionally get a dropdown with
  * the force release while a stock or approval-round gate is failing. A product
- * in setup has no advance — it enters pre-press on its own once it is ready —
- * so while one is held there an admin gets the force release as a button of its
- * own. A product awaiting approval has no advance, so neither is offered. Every
- * rule lives in useProductRelease; this component is the presentation.
+ * in setup has no advance — it enters pre-press on its own once its order is
+ * started — and neither has a product awaiting approval, so neither is offered
+ * anything. Every rule lives in useProductRelease; this component is the
+ * presentation.
  */
 export function ProductReleaseButton({ product }: Props) {
   const release = useProductRelease(product)
@@ -49,29 +49,6 @@ export function ProductReleaseButton({ product }: Props) {
       onSubmit={release.forceRelease}
     />
   )
-
-  // Held in setup: no advance, only the admin's override.
-  if (release.target == null && release.canForceRelease) {
-    return (
-      <div className="ml-auto flex items-center">
-        <Button
-          type="button"
-          variant="default"
-          data-testid={IDS.forceButton}
-          className={cn(
-            'h-10 rounded-full px-6 text-lg',
-            PRODUCT_STATUS_META.IN_PRODUCTION.color,
-            PRODUCT_STATUS_META.IN_PRODUCTION.hoverColor,
-          )}
-          disabled={release.pending}
-          onClick={() => setForceDialogOpen(true)}
-        >
-          Force release to Production…
-        </Button>
-        {forceDialog}
-      </div>
-    )
-  }
 
   // No next status (setup, DONE) or the order is still a quote → nothing to advance.
   if (release.target == null || release.label == null) return null

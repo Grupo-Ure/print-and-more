@@ -8,17 +8,13 @@
  * Key exports:
  * - {@link resolveEffectiveProduct}: resolve inherited fields against the order.
  * - {@link validateProductCommonFields}: per-field error map for the settings tab.
- * - {@link prepressHold} / {@link isReadyForPrepress}: what keeps a product in
- *   setup — the client's mirror of the database's pre-press condition. Setup
- *   is one-way: a product that has left it never returns.
  * - {@link isProductComplete}: are the effective settings valid?
  *
  * Stored enum values (`'STAMP'`, statuses, …) mirror the Postgres enums.
  */
 
 import { format } from 'date-fns'
-import { type Customer, type DeliveryChoice, type Priority, type ProductRow, type OrderStatus } from '../types/database'
-import { customerMeetsPrepressContact } from './customer'
+import { type DeliveryChoice, type Priority, type ProductRow } from '../types/database'
 import { toDateOnly } from './formatDate'
 
 /**
@@ -79,42 +75,12 @@ export type ProductCompletenessFields = Pick<
  * is a QUOTE, always true (nothing required yet). `resolveEffectiveProduct`
  * always yields a deadline, a delivery and a priority — every order has all
  * three — so a resolved product passes. It is what a product in production is
- * checked against (`isMissingInfo`); whether a product may be in pre-press is
- * {@link isReadyForPrepress}.
+ * checked against (`isMissingInfo`). Whether a product may be in pre-press is
+ * the database's (`fn_product_ready_for_prepress`).
  */
 export function isProductComplete(product: ProductCompletenessFields, orderIsQuote: boolean): boolean {
   if (orderIsQuote) return true
   return Object.keys(validateProductCommonFields(product, orderIsQuote)).length === 0
-}
-
-/** What holds a product in setup: the order is a quote, or the customer has no contact. */
-export type PrepressHold = 'QUOTE' | 'CUSTOMER_CONTACT'
-
-/**
- * What keeps the product out of pre-press, or null when nothing does. The
- * database promotes a product from setup to pre-press by the same condition
- * (`fn_product_ready_for_prepress`, run by triggers whenever the order or the
- * customer changes), so the app never moves it itself; this mirror only
- * explains the wait. The deadline is no hold: every order has one, and a
- * product without its own inherits it. The holds are checked in the order the
- * shop clears them: the order leaves quote, the customer has a name and an
- * email or phone.
- */
-export function prepressHold(
-  order: { status: OrderStatus },
-  customer: Customer | null | undefined,
-): PrepressHold | null {
-  if (order.status === 'QUOTE') return 'QUOTE'
-  if (!customerMeetsPrepressContact(customer)) return 'CUSTOMER_CONTACT'
-  return null
-}
-
-/** Whether the product may be in pre-press — the condition of {@link prepressHold}. */
-export function isReadyForPrepress(
-  order: { status: OrderStatus },
-  customer: Customer | null | undefined,
-): boolean {
-  return prepressHold(order, customer) === null
 }
 
 /**

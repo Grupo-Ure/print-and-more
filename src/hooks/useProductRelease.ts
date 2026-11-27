@@ -1,7 +1,7 @@
 import { useConfirm } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
 import { WORKFLOW_STATUSES } from '../lib/statusLabels'
-import { areAllProductsDone, isReadyForPrepress } from '../lib/productShared'
+import { areAllProductsDone } from '../lib/productShared'
 import {
   useForceReleaseToProduction,
   useProductsByOrderId,
@@ -46,8 +46,8 @@ export type ProductRelease = {
  * The single forward action of a product's workflow — PREPRESS →
  * IN_PRODUCTION → DONE — with its gates (the newest customer approval round,
  * stock) and confirmations. Setup → pre-press is not an action: the database
- * makes it when the product is ready, and a product held in setup offers
- * admins the force release only. Shared by the release button in
+ * makes it when the product is ready, and a product in setup offers nothing.
+ * Shared by the release button in
  * the product header and the product list's context menu so both enforce the
  * same rules. The release to production's gates are the database's
  * (`release_to_production`); they are mirrored here so the buttons never
@@ -69,11 +69,6 @@ export function useProductRelease(product: LoadedProduct): ProductRelease {
   const order = orderQuery.data
   const orderIsQuote = order?.status === 'QUOTE'
   const stockBlocked = shortages.length > 0
-  // A product in setup is held there by the pre-press condition; once it holds,
-  // the database promotes it. Nothing advances while the order is a quote.
-  const heldInSetup =
-    product.status === 'IN_SETUP' && order != null && !orderIsQuote && !isReadyForPrepress(order, order.customers)
-
   // The next status on the workflow track — none once the product is DONE, and
   // no label (so no advance) for setup. Nothing advances while the order is
   // still a quote.
@@ -100,9 +95,7 @@ export function useProductRelease(product: LoadedProduct): ProductRelease {
   // The override is offered only while a gate it can bypass is actually
   // failing; once the product validates the normal release covers it.
   const canForceRelease =
-    isAdmin &&
-    (heldInSetup ||
-      (product.status === 'PREPRESS' && (stockBlocked || (approvalBlocked && !approvalRequests.isPending))))
+    isAdmin && product.status === 'PREPRESS' && (stockBlocked || (approvalBlocked && !approvalRequests.isPending))
 
   const releaseProductToProduction = async (): Promise<void> => {
     const confirmed = await confirm({
