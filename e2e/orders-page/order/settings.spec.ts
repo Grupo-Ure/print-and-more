@@ -44,4 +44,19 @@ test.describe('quote with deadline and delivery', () => {
       expect.objectContaining({ meta: expect.objectContaining({ previous, next }) }),
     ])
   })
+
+  test('ORD-SET-003 picking the selected day again keeps the order deadline', async ({ ordersPage, order }) => {
+    // Setup — the deadline the order was seeded with, with the order open.
+    const deadline = nextOrderDeadline()
+    const picker = ordersPage.details.deadline
+    await ordersPage.openOrder(order.id)
+
+    // Act — open the calendar and click the day that is already selected.
+    await picker.trigger.click()
+    await picker.showMonthOf(deadline)
+    await picker.day(deadline).click()
+
+    // Assert — the deadline is still set: a deadline can be changed, not removed.
+    await expect(picker.trigger).toHaveAttribute('data-value', deadline)
+  })
 })
