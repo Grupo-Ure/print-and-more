@@ -405,6 +405,27 @@ test.describe('as employee, quote, product in setup', () => {
   })
 })
 
+// At the other end, a done product is finished work: its logs are part of the
+// record, and none is added to it. Seeded done, so the order stays in progress.
+test.describe('as employee, in progress, done product', () => {
+  test.use({ orderSeed: IN_PROGRESS_ORDER, productSeed: PRODUCT_DONE })
+
+  test('CMP-LOCK-039 logging time on the done product is refused', async ({ database, product: done }) => {
+    // Setup — the employee's connection; the log is their own time, written by them, as the time log form writes it.
+    const asEmployee = await database.asUser(TEST_USERS.employee)
+    const employeeId = await database.userId(TEST_USERS.employee)
+
+    // Act
+    const { error } = await asEmployee
+      .from('product_time_logs')
+      .insert({ product_id: done.id, user_id: employeeId, created_by: employeeId, minutes: OPEN_TIME_LOG_MINUTES })
+
+    // Assert — refused by the guard, not by row-level security, and the product without a log.
+    expect(error?.code).toBe(GUARD_REFUSAL)
+    expect(await database.timeLogCount(done.id)).toBe(0)
+  })
+})
+
 // ── History is the database's to write ────────────────────────────────────
 
 test.describe('as employee, quote', () => {
